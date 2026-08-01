@@ -54,8 +54,8 @@ const NOT_COMPUTED_FACT: &str = "not-computed:denotation-multiplicity";
 /// object kinds carry it via `SemanticObjectCommon`; the rest are value structs).
 /// Derived from the model type graph and pinned by the `provenance_is_type_based`
 /// test, which fails if the set drifts from the `SemanticSource`-typed fields.
-/// `Connector.source` is deliberately absent — its type is `String` (a lexical
-/// word), so it renders.
+/// `Connector.source` is deliberately absent — its type is `ConnectorSource`
+/// (a lexical word or an implicit-juxtaposition marker), so it renders.
 const SOURCE_LINK_SURFACES: &[&str] = &[
     // object kinds (source via SemanticObjectCommon)
     "Utterance",

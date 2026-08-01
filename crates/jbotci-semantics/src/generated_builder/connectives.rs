@@ -1755,7 +1755,7 @@ pub(super) fn generated_statement_connective_core_has_logical_component(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|connection| !connection.operator.is_empty() && !connection.connector.source.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|connection| !connection.operator.is_empty() && connection.connector.source.as_surface_word().is_some()) || ret.is_err())]
 pub(super) fn generated_i_statement_nonlogical_connection(
     connective: &IStatementConnectiveSyntax,
 ) -> Result<NonlogicalConnection, SemanticsError> {
@@ -1770,8 +1770,8 @@ pub(super) fn generated_i_statement_nonlogical_connection(
     Ok(NonlogicalConnection::new(
         operator,
         new!(Connector {
-            source,
-            locus: "statement".to_owned(),
+            source: ConnectorSource::surface_word(source),
+            locus: ConnectorLocus::Statement,
             truth_table,
             parameter: None,
         }),
@@ -1779,7 +1779,7 @@ pub(super) fn generated_i_statement_nonlogical_connection(
 }
 
 #[requires(!generated_statement_connective_is_logical(connective))]
-#[ensures(ret.as_ref().is_ok_and(|connection| !connection.operator.is_empty() && !connection.connector.source.is_empty()) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|connection| !connection.operator.is_empty() && connection.connector.source.as_surface_word().is_some()) || ret.is_err())]
 pub(super) fn generated_statement_core_nonlogical_connection(
     connective: &StatementConnectiveSyntax,
 ) -> Result<NonlogicalConnection, SemanticsError> {
@@ -1790,8 +1790,8 @@ pub(super) fn generated_statement_core_nonlogical_connection(
     Ok(NonlogicalConnection::new(
         operator,
         new!(Connector {
-            source,
-            locus: "statement".to_owned(),
+            source: ConnectorSource::surface_word(source),
+            locus: ConnectorLocus::Statement,
             truth_table: None,
             parameter: None,
         }),

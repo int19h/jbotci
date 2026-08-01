@@ -751,7 +751,8 @@ mod tests {
         })
         .expect("direct XML");
         assert_eq!(xml_output, expected_xml);
-        assert!(xml_output.stdout.starts_with(b"<SFN "));
+        // jbotci#719: the document opens with the KEY teaching comment.
+        assert!(xml_output.stdout.starts_with(b"<!--\n"));
         assert_eq!(
             xml_output.content_type.as_deref(),
             Some("application/xml; charset=utf-8")

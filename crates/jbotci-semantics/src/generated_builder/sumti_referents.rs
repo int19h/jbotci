@@ -584,7 +584,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             selbri,
             visible_arguments,
             source.clone(),
-            "modal-argument",
+            ConnectorLocus::Tag,
             None,
         )?;
         self.set_formula_predication_mode(lowered.formula, PredicationMode::Incidental);
@@ -2572,8 +2572,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![atom_formula, involvement],
                 Some(new!(Connector {
-                    source: "jai".to_owned(),
-                    locus: "bare-jai-raised-participant".to_owned(),
+                    source: ConnectorSource::surface_word("jai".to_owned()),
+                    locus: ConnectorLocus::BareRaisedParticipant,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -3394,6 +3394,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let relation = match node.relation.as_data() {
             data!(PredicationRelation::Named { relation }) => relation.clone(),
             data!(PredicationRelation::Parameter { .. }) => return Ok(None),
+            data!(PredicationRelation::Composition) => return Ok(None),
         };
         let source_eventuality = node.eventuality;
         let mut arguments = node.arguments.clone();
@@ -6119,7 +6120,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let quantity_connection = self
             .connected_quantifier_quantity_scope_for_generated_quantifier(
                 quantifier,
-                "mekso-operand",
+                ConnectorLocus::Operand,
             )?;
         let quantity = if let Some(connection) = quantity_connection {
             new!(GeneratedPreparedArgumentQuantity::Connected(connection))
@@ -8486,8 +8487,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 },
                 children,
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: "abstraction".to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: ConnectorLocus::Abstraction,
                     truth_table: Some(truth_table),
                     parameter: connector_parameter,
                 })),
@@ -8843,7 +8844,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 selbri,
                 visible_arguments,
                 self.source_for_node(selbri, "restrictive-selbri-formula"),
-                "description",
+                ConnectorLocus::Description,
                 None,
             )?;
             self.set_formula_predication_mode(result.formula, PredicationMode::Restrictive);
@@ -9142,12 +9143,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
     }
 
-    #[requires(!locus.is_empty())]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|connection| connection.as_ref().is_none_or(|connection| connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)) || ret.is_err())]
     pub(super) fn connected_quantifier_quantity_scope_for_generated_quantifier(
         &mut self,
         quantifier: &'tree QuantifierSyntax,
-        locus: &str,
+        locus: ConnectorLocus,
     ) -> Result<Option<GeneratedConnectedQuantifierQuantityScope>, SemanticsError> {
         let QuantifierSyntax::MeksoQuantifier(quantifier) = quantifier else {
             return Ok(None);
@@ -9155,12 +9156,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.connected_quantifier_quantity_scope_for_generated_mekso(&quantifier.mekso, locus)
     }
 
-    #[requires(!locus.is_empty())]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|connection| connection.as_ref().is_none_or(|connection| connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)) || ret.is_err())]
     pub(super) fn connected_quantifier_quantity_scope_for_generated_mekso(
         &mut self,
         expression: &'tree MeksoSyntax,
-        locus: &str,
+        locus: ConnectorLocus,
     ) -> Result<Option<GeneratedConnectedQuantifierQuantityScope>, SemanticsError> {
         if let Some(parenthesized) = generated_parenthesized_mekso_operand_from_mekso(expression) {
             return self.connected_quantifier_quantity_scope_for_generated_mekso(
@@ -9206,12 +9207,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(generated_modal_forethought_connective_is_logical(&operand.gek))]
     #[requires(!generated_modal_forethought_connective_is_interval(&operand.gek))]
-    #[requires(!locus.is_empty())]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|connection| connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity) || ret.is_err())]
     pub(super) fn build_generated_forethought_connected_quantifier_quantity_scope(
         &mut self,
         operand: &'tree ForethoughtMeksoOperandSyntax,
-        locus: &str,
+        locus: ConnectorLocus,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedConnectedQuantifierQuantityScope, SemanticsError> {
         let left_quantity = self.build_quantity_for_generated_mekso_operand(
@@ -9229,8 +9230,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             right_negated: generated_gik_connective_negates_right(&operand.gik),
             operator: generated_modal_forethought_connective_formula_operator(&operand.gek),
             connector: new!(Connector {
-                source: generated_modal_forethought_connective_source(&operand.gek),
-                locus: locus.to_owned(),
+                source: ConnectorSource::surface_word(
+                    generated_modal_forethought_connective_source(&operand.gek),
+                ),
+                locus: locus,
                 truth_table: generated_modal_forethought_gik_connective_truth_table(
                     &operand.gek,
                     &operand.gik,
@@ -9243,14 +9246,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(generated_operand_connective_is_logical(connective))]
     #[requires(!generated_operand_connective_is_interval(connective))]
-    #[requires(!locus.is_empty())]
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|connection| connection.left_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity && connection.right_quantity.object_kind() == crate::model::SemanticObjectKind::Quantity) || ret.is_err())]
     pub(super) fn build_generated_afterthought_connected_quantifier_quantity_scope(
         &mut self,
         left_operand: &'tree BoundOrSimpleMeksoOperandSyntax,
         connective: &jbotci_syntax::generated_model::OperandConnectiveSyntax,
         right_operand: &'tree BoundOrSimpleMeksoOperandSyntax,
-        locus: &str,
+        locus: ConnectorLocus,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<GeneratedConnectedQuantifierQuantityScope, SemanticsError> {
         let left_quantity = self.build_quantity_for_generated_bound_or_simple_mekso_operand(
@@ -9268,8 +9271,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             right_negated: generated_operand_connective_negates_right(connective),
             operator: generated_operand_connective_formula_operator(connective),
             connector: new!(Connector {
-                source: generated_operand_connective_source(connective),
-                locus: locus.to_owned(),
+                source: ConnectorSource::surface_word(generated_operand_connective_source(
+                    connective,
+                )),
+                locus: locus,
                 truth_table: generated_operand_connective_truth_table(connective),
                 parameter: None,
             }),

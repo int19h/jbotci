@@ -605,7 +605,7 @@ mod tests {
     #[ensures(ret.starts_with("<WORDS>\n"))]
     #[ensures(ret.ends_with("</WORDS>\n"))]
     fn words_xml_for(text: &str) -> String {
-        serialize(&words_section(&cards_for(text)))
+        serialize(&words_section(&cards_for(text)), None)
     }
 
     #[test]

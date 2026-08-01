@@ -1,25 +1,27 @@
-//! Byte-parity of this build's `smusni` notation renderer against the frozen
-//! Python oracle (Phase-B step 4; research repo `FREEZE-PHASE-B.md`).
+//! Byte-stability of this build's `smusni` notation renderer against the
+//! frozen fixture set.
 //!
-//! For each of the 48 frozen corpus documents, the vendored `<doc>.smusni.txt`
-//! is the exact output of `python3 render_v5.py <doc>.frozen.json --profile
-//! lean3` using the renderer from oracle commit
-//! `c6004a1bc4dda0c9d27cef188e21402d64f36d30` (jbotci#652), including the
-//! jbotci#682 re-freeze of the simple `fi'o se pilno` witness. The corpus
-//! comprises the original 37 documents, the two
-//! jbotci#620 witnesses, and five new
-//! discriminant-verified question witnesses, plus four tagged-argument
-//! witnesses. `lean3` is the research
-//! repo's historical profile name for the product's `smusni` notation. This test
-//! re-derives each graph
-//! from `<doc>.lojban` with *this* build (the same pipeline the completeness
-//! tests use — never reading `<doc>.frozen.json`), renders it with the `smusni`
-//! profile, and asserts a byte-for-byte match.
+//! HISTORY: the fixtures began as exact bytes of the independent Python oracle
+//! (`render_v5.py`, Phase-B; `lean3` is the research repo's historical profile
+//! name for the product's `smusni` notation). jbotci#719 (owner ruling
+//! 2026-08-01) deliberately departed from the oracle: connector surface words
+//! and loci became provenance-class (CONNECTIVE SOURCE/LOCUS leave the default
+//! output; LOCUS now renders in English under the provenance opt-in), truth
+//! tables render only when the operator does not already determine them, the
+//! fake `RELATION: tanru` name was dropped, the `WAIVED { }` block left
+//! model-facing output, and TARGET FOCUS values were renamed to English.
+//! The fixtures were regenerated from the product pipeline
+//! (`examples/regen_goldens.rs smusni`) — byte-parity with the research oracle
+//! is SUSPENDED at this point (see `phaseb_corpus/PROVENANCE.md`).
 //!
-//! Because every corpus graph this build produces is byte-identical (in meaning)
-//! to the frozen graph the oracle consumed (verified separately, and pinned by
-//! the completeness `frozen_divergence_report`), a divergence here is a renderer
-//! port defect, not semantic drift — see the PR body's divergence analysis.
+//! What this test still proves: this build's `render_smusni` output for each
+//! re-derived corpus graph is byte-identical to the regenerated fixture. The
+//! migration's correctness is NOT pinned by this test; it is pinned by
+//! `scripts/verify_issue_719_output_migration.py`, which proves the delta from
+//! the oracle-era fixtures at the PR base is exactly the mechanical #719
+//! transformation, and by the re-derived graphs being byte-identical to the
+//! frozen graphs (the completeness `frozen_divergence_report`). A divergence
+//! HERE is a renderer regression against the post-#719 baseline.
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
@@ -96,8 +98,8 @@ fn first_diff(expected: &str, actual: &str) -> Option<(usize, String, String)> {
     None
 }
 
-/// Assert byte parity between this build's `render_smusni` and the vendored
-/// oracle fixtures with `suffix`, under the given `config`.
+/// Assert byte equality between this build's `render_smusni` and the vendored
+/// post-#719 fixtures with `suffix`, under the given `config`.
 #[requires(!suffix.is_empty())]
 #[ensures(true)]
 fn assert_parity(suffix: &str, config: SmusniConfig) {
@@ -118,15 +120,15 @@ fn assert_parity(suffix: &str, config: SmusniConfig) {
     }
     assert!(
         mismatches.is_empty(),
-        "{}/{} corpus documents diverge from the frozen smusni oracle ({suffix}):\n{}",
+        "{}/{} corpus documents diverge from the post-#719 smusni fixtures ({suffix}):\n{}",
         mismatches.len(),
         CORPUS_DOCS.len(),
         mismatches.join("\n")
     );
 }
 
-/// The default `smusni` profile (provenance off) byte-matches the oracle on all
-/// 48 frozen corpus documents.
+/// The default `smusni` profile (provenance off) byte-matches the post-#719
+/// fixtures on all 48 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -134,8 +136,8 @@ fn smusni_byte_parity_over_frozen_corpus() {
     assert_parity("smusni.txt", SmusniConfig { provenance: false });
 }
 
-/// The provenance opt-in (`--provenance`) byte-matches the oracle's
-/// `--profile lean3 --provenance` output on all 48 frozen corpus documents.
+/// The provenance opt-in (`--provenance`) byte-matches the post-#719
+/// fixtures on all 48 frozen corpus documents.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -184,40 +186,39 @@ fn preexisting_fixture_bytes_are_unchanged() {
         .filter(|doc| !doc.starts_with("modal-"));
     assert_eq!(
         aggregate_fixture_hash_for(preexisting.clone(), "smusni.txt"),
-        "ba79402c74d7160e761c034759979215582bd86fc31dac00160d9a734673f254"
+        "ebd0f375a8d8c40401804a5346c00a1167ccc6d736c823950a20aa68058e75dc"
     );
     assert_eq!(
         aggregate_fixture_hash_for(preexisting, "smusni-prov.txt"),
-        "e3d1933cefd5915bcea4ed1ba996704b47badb7210de5f535d2b19ae3df54b88"
+        "fd133472ba71fbbe6c6dd92009286232d6adbbd7824ff7a691b47a32968ca9e0"
     );
 }
 
-/// Should-fix 7 (round-1 review, Codex 4): pin the aggregate hash of BOTH
-/// vendored fixture sets so the renderer-expected and provenance fixtures cannot
-/// silently drift together (e.g. a regeneration that changes both while a stale
-/// oracle is in use). If a deliberate oracle change lands, this pin and the
-/// `FREEZE-PHASE-B.md` amendment are updated in lockstep.
+/// Pin the aggregate hash of BOTH vendored fixture sets so the
+/// renderer-expected and provenance fixtures cannot silently drift together.
+/// Updated at the jbotci#719 regeneration (see `phaseb_corpus/PROVENANCE.md`);
+/// the post-#719 hashes are no longer oracle-derived.
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn frozen_fixture_aggregate_hashes_are_pinned() {
     assert_eq!(
         aggregate_fixture_hash("smusni.txt"),
-        "2fe83e771edd04c23f51f5c5d41e7aafff551670e624364517cf58acb49ddce8",
-        "smusni.txt fixture set drifted from the pinned oracle output"
+        "f0a99c7a603f3730f31277cee8db1100a897089cb87c39b521e9ef2d6b2494ea",
+        "smusni.txt fixture set drifted from the post-#719 pinned output"
     );
     assert_eq!(
         aggregate_fixture_hash("smusni-prov.txt"),
-        "897cc4ee3a06011d4d5f665dbe8411389ada9f005f577abf68afc0012af3e9e7",
-        "smusni-prov.txt fixture set drifted from the pinned oracle output"
+        "b356fd871b45285763a874dc9f0c07d655501bdc390459f05890e28a965924d3",
+        "smusni-prov.txt fixture set drifted from the post-#719 pinned output"
     );
 }
 
 /// Blocker-3 regression (round-1 review, kimi 5): a `zoi` quotation whose text
 /// carries notation metacharacters (`{ ( ; } )`) renders them safely inside a
-/// quoted value and stays byte-identical to the oracle. This is a dedicated
-/// hostile-witness fixture, deliberately *outside* [`CORPUS_DOCS`] so it does
-/// not perturb the frozen corpus hash. (The dense-flatten path that
+/// quoted value and stays byte-identical to the post-#719 fixture. This is a
+/// dedicated hostile-witness fixture, deliberately *outside* [`CORPUS_DOCS`] so
+/// it does not perturb the frozen corpus hash. (The dense-flatten path that
 /// the hardening protects is exercised directly in `writer.rs`'s unit tests.)
 #[test]
 #[requires(true)]
@@ -234,7 +235,7 @@ fn smusni_hostile_witness_regression() {
         assert_eq!(
             expected,
             actual,
-            "{doc} ({suffix}) diverges from the oracle at {:?}",
+            "{doc} ({suffix}) diverges from the post-#719 fixtures at {:?}",
             first_diff(&expected, &actual)
         );
         // The metacharacters survive inside a quoted value, un-split.
@@ -266,7 +267,7 @@ fn smusni_relation_question_indirect_regression() {
         assert_eq!(
             expected,
             actual,
-            "{doc} ({suffix}) diverges from the oracle at {:?}",
+            "{doc} ({suffix}) diverges from the post-#719 fixtures at {:?}",
             first_diff(&expected, &actual)
         );
         // Both relation shapes render: the bound relation-question parameter as
@@ -281,8 +282,9 @@ fn smusni_relation_question_indirect_regression() {
 
 /// jbotci#622 regression: the corpus witnesses collectively exercise every
 /// currently builder-reachable question kind, both modes, homogeneous and typed
-/// slots, and the optional focus/presupposed-answer fields. Byte parity above is
-/// the oracle proof; these assertions make the intended discriminants explicit.
+/// slots, and the optional focus/presupposed-answer fields. Byte equality above
+/// is the post-#719 fixture proof; these assertions make the intended
+/// discriminants explicit.
 #[test]
 #[requires(true)]
 #[ensures(true)]

@@ -466,27 +466,9 @@ pub fn render_smusni(graph: &SemanticGraph, config: SmusniConfig) -> String {
         w.collection("NOT COMPUTED", |w| {
             w.entry("denotation-multiplicity");
         });
-        // #709: relationMetadata objects carry no declaration; the document
-        // header waives them explicitly, with the reason naming where the
-        // decomposition lives. The block exists exactly when the graph has
-        // relationMetadata objects, so graphs without any stay byte-identical.
-        let relation_metadata: Vec<&str> = order
-            .iter()
-            .map(String::as_str)
-            .filter(|key| {
-                objects[*key].get("type").and_then(Value::as_str) == Some("relationMetadata")
-            })
-            .collect();
-        if !relation_metadata.is_empty() {
-            w.collection("WAIVED", |w| {
-                for key in &relation_metadata {
-                    w.entry(&format!(
-                        "relationMetadata {}: decomposition rendered in the definitions-preamble word cards",
-                        ctx.id(key)
-                    ));
-                }
-            });
-        }
+        // #709 + #719: relationMetadata objects carry no declaration (their
+        // decomposition renders in the definitions-preamble word cards); the
+        // former WAIVED bookkeeping block is out of model-facing output.
         w.collection("DECLARATIONS", |w| {
             for key in &order {
                 render_one(w, &ctx, key, &objects[key]);
@@ -1173,20 +1155,25 @@ fn render_utterance(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
 fn render_predication(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
     let vid = ctx.id(key).to_string();
     w.declaration("PREDICATION", &vid, None, true, |w| {
-        // A predication's relation (`PredicationRelation`) is either a lexical
-        // relation word (`relation`) or — for a relation-question or
-        // relation-variable predication (`mo`, `bu'a`) — a bound relation
-        // parameter (`relationParameter`, a pointer to a `parameter` object
-        // whose own PARAMETER declaration carries ROLE: relation question /
-        // relation variable). Exactly one field is present. A relation
+        // A predication's relation (`PredicationRelation`) is a lexical
+        // relation word (`relation`), a bound relation parameter
+        // (`relationParameter` — for a relation-question or relation-variable
+        // predication (`mo`, `bu'a`), a pointer to a `parameter` object whose
+        // own PARAMETER declaration carries ROLE: relation question / relation
+        // variable), or — for a tanru composition — absent entirely. A relation
         // parameter is referenced by the same `VALUE <id>` marker every other
         // parameter reference uses (§6.3 operand fillers, argument questions),
         // so the relation slot reads as a bound value and the question/variable
         // semantics live on its PARAMETER declaration — mirroring how a `ma`
-        // argument-question already surfaces as `VALUE <id>` in ARGS. Neither
-        // field present is a genuine `lojban-semantics-json-1` contract
-        // violation and still fails loudly via `req_val`.
-        if let Some(relation) = field_str(obj, "relation") {
+        // argument-question already surfaces as `VALUE <id>` in ARGS.
+        // A tanru-composition predication (`PredicationRelation::Composition`)
+        // carries neither `relation` nor `relationParameter`; its structural
+        // link renders under TANRU LINK below. No relation and no tanru link is
+        // a genuine `lojban-semantics-json-1` contract violation and still
+        // fails loudly via `req_val`.
+        if obj.get("tanruLink").is_some_and(|link| !link.is_null()) {
+            // RELATION line intentionally omitted for composition predications.
+        } else if let Some(relation) = field_str(obj, "relation") {
             w.field("RELATION", &lexical(relation));
         } else {
             let parameter = ctx.id_of(req_val(obj, "relationParameter"));
@@ -1294,28 +1281,56 @@ fn render_place_questions(w: &mut Writer, ctx: &Ctx, questions: &[Value]) {
     });
 }
 
-/// A formula's own `connector` (`full = false`): CONNECTIVE SOURCE plus, when
-/// present, TRUTH TABLE. `connector.parameter`, never observed non-null, is
+/// A formula's own `connector` (jbotci#719): the surface word and the
+/// grammatical locus are provenance-class and render only under the provenance
+/// opt-in. Truth-conditional content stays in default output: TRUTH TABLE
+/// renders exactly when the graph records one the parent operator does not
+/// already determine. `connector.parameter`, never observed non-null, is
 /// flagged rather than dropped.
 #[requires(true)]
 #[ensures(true)]
-fn render_connector(w: &mut Writer, connector: Option<&Value>, full: bool) {
+fn render_connector(w: &mut Writer, ctx: &Ctx, connector: Option<&Value>, operator: &str) {
     let Some(connector) = connector.filter(|c| !c.is_null()) else {
         return;
     };
-    w.field("CONNECTIVE SOURCE", &lexical(req_str(connector, "source")));
-    if full {
-        let locus = match req_str(connector, "locus") {
-            "modal" => "tag",
-            locus => locus,
-        };
-        w.field("LOCUS", &enum_render(locus));
+    if ctx.provenance {
+        // `source` is a tagged `ConnectorSource` object: a surface word renders
+        // as itself; an implicit (tanru juxtaposition) connective names its kind.
+        let source = req_val(connector, "source");
+        match source.get("kind").and_then(Value::as_str) {
+            Some("surfaceWord") => {
+                w.field("CONNECTIVE SOURCE", &lexical(req_str(source, "word")))
+            }
+            Some("implicitJuxtaposition") => {
+                w.field("CONNECTIVE SOURCE", &enum_render("implicitJuxtaposition"))
+            }
+            other => panic!("unknown connector source kind: {other:?}"),
+        }
+        w.field("LOCUS", &enum_render(req_str(connector, "locus")));
     }
-    if let Some(truth_table) = field_str(connector, "truthTable") {
+    if let Some(truth_table) = field_str(connector, "truthTable")
+        && canonical_truth_table(operator) != Some(truth_table)
+    {
         w.field("TRUTH TABLE", &enum_render(truth_table));
     }
     if connector.get("parameter").is_some_and(|p| !p.is_null()) {
         w.field("NOT COMPUTED", "connector-parameter");
+    }
+}
+
+/// The truth table a binary logical operator already determines (row order TT,
+/// TF, FT, FF), mirroring the XML renderer's `canonical_truth_table`; `None`
+/// for operators with no truth-functional reading, whose recorded tables
+/// always render.
+#[requires(true)]
+#[ensures(ret.is_none_or(|table| table.len() == 4))]
+fn canonical_truth_table(operator: &str) -> Option<&'static str> {
+    match operator {
+        "and" => Some("TFFF"),
+        "or" => Some("TTTF"),
+        "iff" => Some("TFFT"),
+        "whetherOrNot" => Some("TTFF"),
+        _ => None,
     }
 }
 
@@ -1341,7 +1356,7 @@ fn render_formula(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
                     w.entry(&ctx.id_of(c));
                 }
             });
-            render_connector(w, obj.get("connector"), false);
+            render_connector(w, ctx, obj.get("connector"), &op);
             rendered_body = true;
         }
         if let Some(variable) = obj.get("variable") {
@@ -1634,9 +1649,12 @@ fn render_sequence(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
                 } else {
                     w.field("OPERATOR", &enum_render(operator));
                 }
-                w.heading("CONNECTOR", |w| {
-                    render_connector(w, nc.get("connector"), true);
-                });
+                // #719: no CONNECTOR heading — connector content renders
+                // inline: TRUTH TABLE exactly when the operator does not
+                // already determine it (always, for a nonlogical operator),
+                // the parameter marker when present, and the surface word and
+                // locus only under the provenance opt-in.
+                render_connector(w, ctx, nc.get("connector"), operator);
             });
         }
         render_source(w, ctx, obj);
@@ -1934,25 +1952,41 @@ mod tests {
         }
 
         let connector = json!({
-            "source": "ki'u",
-            "locus": "modal"
+            "source": { "kind": "surfaceWord", "word": "ki'u" },
+            "locus": "tag"
         });
+        let objects = BTreeMap::new();
+        let id_map = BTreeMap::new();
+        // #719: source and locus render only under the provenance opt-in.
+        let ordinary_ctx = Ctx {
+            objects: &objects,
+            id_map: &id_map,
+            provenance: false,
+        };
         let mut writer = Writer::new(false, false);
-        render_connector(&mut writer, Some(&connector), true);
+        render_connector(&mut writer, &ordinary_ctx, Some(&connector), "and");
+        assert_eq!(writer.finish(), "\n");
+        let provenance_ctx = Ctx {
+            objects: &objects,
+            id_map: &id_map,
+            provenance: true,
+        };
+        let mut writer = Writer::new(false, false);
+        render_connector(&mut writer, &provenance_ctx, Some(&connector), "and");
         let rendered = writer.finish();
+        assert!(rendered.contains("CONNECTIVE SOURCE: ki'u;"));
         assert!(rendered.contains("LOCUS: TAG;"));
         assert_no_standalone_modal_word(&rendered);
     }
 
-    /// #709: a graph with relationMetadata objects renders no UNKNOWN
-    /// declaration for them; the document header carries an explicit WAIVED
-    /// block whose reason names where the decomposition lives. A graph
-    /// without relationMetadata renders no WAIVED block at all (the frozen
-    /// corpus parity tests pin byte-identity for that shape).
+    /// #709 + #719: a graph with relationMetadata objects renders no UNKNOWN
+    /// declaration for them (their decomposition lives in the
+    /// definitions-preamble word cards); the former WAIVED bookkeeping block is
+    /// gone from model-facing output.
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn relation_metadata_is_waived_with_reason_not_unknown() {
+    fn relation_metadata_renders_no_declaration_and_no_waived_block() {
         use jbotci_morphology::segment_words_with_modifiers;
         use jbotci_syntax::{
             ParseOptions, parse_syntax_tree_generated_model_with_source_and_options,
@@ -1991,23 +2025,12 @@ mod tests {
             "the generic UNKNOWN fallback must never fire for relationMetadata:\n{nonce}"
         );
         assert!(
-            nonce.contains("WAIVED {"),
-            "missing the header WAIVED block:\n{nonce}"
+            !nonce.contains("WAIVED"),
+            "the WAIVED bookkeeping block is out of model-facing output:\n{nonce}"
         );
         assert!(
-            nonce.contains(
-                "relationMetadata relationMetadata_8: decomposition rendered in the definitions-preamble word cards;"
-            ),
-            "missing the waive-with-reason entry:\n{nonce}"
-        );
-
-        let plain = render_smusni(
-            &graph_for_text("lo mlatu cu barda"),
-            SmusniConfig { provenance: false },
-        );
-        assert!(
-            !plain.contains("WAIVED"),
-            "a graph without relationMetadata must not render a WAIVED block:\n{plain}"
+            !nonce.contains("relationMetadata relationMetadata_"),
+            "relationMetadata objects carry no declaration:\n{nonce}"
         );
     }
 }

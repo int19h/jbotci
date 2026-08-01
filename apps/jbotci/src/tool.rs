@@ -1980,24 +1980,28 @@ mod tests {
         assert_eq!(grounded.status, ToolStatus::Success);
         let grounded = grounded.stdout_text().expect("UTF-8 grounded XML");
         let ungrounded = ungrounded.stdout_text().expect("UTF-8 ungrounded XML");
-        // One well-formed document: no prepended text cards.
-        assert!(grounded.starts_with("<SFN "), "{grounded}");
+        // One well-formed document: no prepended text cards; the KEY teaching
+        // text is a single comment before the root element (jbotci#719).
+        assert!(grounded.starts_with("<!--\n"), "{grounded}");
         assert!(!grounded.contains("1. klama | by: officialdata"));
         assert!(grounded.ends_with("</SFN>\n"));
         roxmltree::Document::parse(grounded).expect("grounded output is one XML document");
-        // The WORDS section follows the KEY and carries the klama card with
-        // place markup inside DEF.
+        // The WORDS section is the first child of the root and carries the
+        // klama card with place markup inside DEF.
         assert!(
-            grounded.contains("</KEY>\n  <WORDS>\n"),
-            "WORDS must immediately follow KEY: {grounded}"
+            grounded.contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">\n  <WORDS>\n"),
+            "WORDS must be the first child of the root: {grounded}"
         );
         assert!(grounded.contains("<WORD ID=\"klama\">"), "{grounded}");
         assert!(grounded.contains("<GLOSS>"), "{grounded}");
         assert!(grounded.contains("<ARG INDEX=\"1\"/>"), "{grounded}");
         // The body after the section is byte-identical to the ungrounded body.
         let grounded_body = grounded.split_once("</WORDS>").expect("WORDS section").1;
-        let ungrounded_body = ungrounded.split_once("</KEY>").expect("KEY").1;
-        assert_eq!(grounded_body, ungrounded_body);
+        let ungrounded_body = ungrounded
+            .split_once("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">\n")
+            .expect("ungrounded root after comment")
+            .1;
+        assert_eq!(grounded_body, format!("\n{ungrounded_body}"));
     }
 
     #[test]

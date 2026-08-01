@@ -2846,21 +2846,21 @@ mod tests {
             .expect("tersmu XML text");
         // With definitions on (the default), tersmu returns one well-formed
         // XML document: structured WORD cards live in the WORDS section
-        // following KEY, not in a prepended text block.
+        // (the root's first child, after the KEY comment; jbotci#719), not in
+        // a prepended text block.
         assert!(
-            tersmu_text.starts_with("<SFN "),
-            "the default MCP tersmu document is a single XML document"
+            tersmu_text.starts_with("<!--\n"),
+            "the default MCP tersmu document opens with the KEY comment"
         );
         roxmltree::Document::parse(tersmu_text).expect("default MCP XML parses");
-        assert!(tersmu_text.contains("<KEY>"));
-        let after_key = tersmu_text
-            .split_once("</KEY>")
-            .expect("KEY closes before WORDS")
+        let after_root = tersmu_text
+            .split_once("\n<SFN ")
+            .expect("root follows the KEY comment")
             .1;
-        assert!(after_key.starts_with("\n  <WORDS>"));
-        let words_section = after_key
+        assert!(after_root.contains(">\n  <WORDS>\n"));
+        let words_section = after_root
             .split_once("</WORDS>")
-            .expect("WORDS closes before WAIVERS")
+            .expect("WORDS section closes")
             .0;
         assert!(words_section.contains("<WORD ID=\"klama\">"));
         assert!(words_section.contains("<GLOSS>"));
@@ -2922,7 +2922,10 @@ mod tests {
         let tersmu_xml_text = tersmu_xml["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu XML text");
-        assert!(tersmu_xml_text.starts_with("<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">"));
+        assert!(tersmu_xml_text.starts_with("<!--\n"));
+        assert!(
+            tersmu_xml_text.contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">")
+        );
         assert!(tersmu_xml_text.contains("<UTTERANCE FORCE=\"ASSERT\" GROUND=\"g1\">"));
 
         let tersmu_json = post_json(

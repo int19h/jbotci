@@ -72,8 +72,12 @@ fn reviewer_regressions() -> Vec<ReviewerRegression> {
             None,
         ),
         (
+            // jbotci#719: with the tanru projected as a KIND-COMPOSITION
+            // relation expression, the generated event content IS derivable
+            // (the rewritten atom points at the head predication), so this
+            // renders compact now.
             "le glico bangu cu cfika bangu .iki'ubo ra se pilno le lisri ciska",
-            Some("NON-DERIVABLE-GENERATED-CONTENT"),
+            None,
         ),
         (
             "sa pu tcidu da poi srana le terfrica be zo y'ybu bei zo xy",
@@ -237,11 +241,9 @@ fn reviewer_failures_select_the_expected_form_and_f2_is_structured() {
         })
         .count();
     assert_eq!(descriptor_omissions, 1);
-    assert!(
-        rendered
-            .output
-            .contains("descriptor *.word provenance (1 field)")
-    );
+    // #719: the WAIVERS block is out of model-facing output; the omission is
+    // carried by the API alone (asserted above).
+    assert!(!rendered.output.contains("<WAIVERS>"));
 }
 
 #[test]
@@ -252,7 +254,7 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         (
             "b59",
             "mi djuno lo ka ce'u klama makau",
-            "333d657bb822e83c89b28d4e358a3d2fe2e629f1238cbc5e101c330dec9ea9c6",
+            "0744182866d877a78d5b8a90d8c0e8ac52303842695d40465e6dcbb3beb934dc",
             "content-first-question-scope/b59.frozen.json",
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b59.frozen.json"
@@ -265,7 +267,7 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         (
             "b60",
             "mi djica lo nu makau klama",
-            "8291b682a0673c28111138daaf85878b9c3ec5487a767b219bdf1fe75386227e",
+            "464eb2fdc5a80ae7805cb263b532dab4e6fc679b166322405363c7befbd6664e",
             "content-first-question-scope/b60.frozen.json",
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/content-first-question-scope/b60.frozen.json"
@@ -278,7 +280,7 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         (
             "b61",
             "mi facki lo ni ma kau clani",
-            "23f61eacc63c40d895c9246b1097d8c21794b1f3a607c7c1e36558077fb18c58",
+            "de16253f24fa90bc6332c2d66012185444ae65a73507715fdd6b9bc09a7c1079",
             "referent-sort-abstraction/b61.frozen.json",
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/referent-sort-abstraction/b61.frozen.json"
@@ -291,7 +293,7 @@ fn content_first_question_scope_outputs_are_byte_pinned() {
         (
             "b62",
             "mi cusku lu ro da klama li'u",
-            "ff1eec3b104dcd978d3da8b24fbea591166dc699fe0baa23f9c308c4be30ef5a",
+            "bf390380ee4e6e053c7aea0358cd7147e0c37ef3d47e0d82b2bd3710727c5d38",
             "sign-quotation/b62.frozen.json",
             include_str!(
                 "../crates/jbotci-semantics/tests/xml_focused_regressions/sign-quotation/b62.frozen.json"

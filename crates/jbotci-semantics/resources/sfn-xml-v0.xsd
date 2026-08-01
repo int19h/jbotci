@@ -8,8 +8,9 @@
   TYPED-GRAPH fallback form.  It is both a validation schema and the reference
   documentation of the notation: every element and attribute carries an
   xs:annotation explaining its semantics.  The notation's own teaching text
-  travels inside each document as KEY/RULE prose; this schema is the
-  machine-readable counterpart.
+  travels inside each document as a single XML comment before the root
+  element (invisible to this schema); this schema is the machine-readable
+  counterpart.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified" attributeFormDefault="unqualified">
 
@@ -20,24 +21,27 @@
       A document is a single SFN root element in one of two forms:
 
       * COMPACT form (no FORM attribute): the canonical rendering.  Top-level
-        child order is KEY, optional WORDS, WAIVERS, optional DEFS, exactly
-        one rendered graph-root element (normally UTTERANCE), optional
-        UNREACHABLE.
+        child order is optional WORDS, optional DEFS, exactly one rendered
+        graph-root element (normally UTTERANCE), optional UNREACHABLE.
       * TYPED-GRAPH form (FORM="TYPED-GRAPH"): the lossless fallback used when
         the graph contains a construct the compact notation cannot represent.
-        Top-level child order is KEY (whose last child is
-        COMPACT-INCOMPATIBILITIES listing why), WAIVERS, TYPED-GRAPH.
+        Top-level child order is COMPACT-INCOMPATIBILITIES (listing why),
+        TYPED-GRAPH.
+
+      The notation's teaching text is a single XML comment before the root
+      element (jbotci#719); as a comment it is invisible to this schema.
+      There are no KEY/RULE, WAIVERS, or CONNECTOR elements.
 
       XSD 1.0 cannot condition a content model on an attribute value, so the
       SFN type below admits both shapes in one sequence; the exact per-form
       shapes above are normative prose here and are renderer-enforced.
 
-      Lexical categories (mirrors the KEY rule "lexical-categories"): UPPERCASE
+      Lexical categories (mirrors the KEY comment's lexical-categories rule): UPPERCASE
       names are structural keywords (element and attribute names); PascalCase
       values are sorts; lowercase values are content words as data only;
       quoted attribute strings are names.
 
-      ID/IDREF discipline (mirrors the KEY rules "ids", "ground", "some",
+      ID/IDREF discipline (mirrors the KEY comment's ids, ground, some rules,
       "defs"): graph-node ids are opaque, JSON-aligned tokens matching
       [reupfqvsdmxo][0-9]+ (prefix by object kind: r/e referent, u utterance,
       p predication, f formula, q quantity, v variable/parameter, s sequence,
@@ -333,7 +337,7 @@
       <xs:documentation>
         The eight facet attribute/element names.  As attributes they appear
         on referents and binders; absence of a facet attribute means
-        UNSPECIFIED (no commitment) — see the KEY rule "facet-silence".
+        UNSPECIFIED (no commitment) — see the KEY comment's facet-silence rule.
         A facet too structured for a single token is instead rendered as a
         FACET child element carrying this name in its NAME attribute.
       </xs:documentation>
@@ -384,12 +388,25 @@
     <xs:annotation>
       <xs:documentation>
         A non-empty space-separated list of 1-based argument-place indices
-        (the "atomic-lists" KEY rule: simple id or number lists are
+        (the KEY comment's atomic-lists rule: simple id or number lists are
         NMTOKENS attributes, never child elements).
       </xs:documentation>
     </xs:annotation>
     <xs:restriction base="xs:NMTOKENS">
       <xs:pattern value="[0-9]+( [0-9]+)*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="truthTableType">
+    <xs:annotation>
+      <xs:documentation>
+        A four-row binary truth table in the builder's row order (TT, TF,
+        FT, FF), one T or F per row.  Rendered only when the parent
+        operator does not already determine the table (jbotci#719).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[TF]{4}"/>
     </xs:restriction>
   </xs:simpleType>
 
@@ -400,7 +417,7 @@
         EXPLICIT = the word itself encodes the boundary;
         ASSUMED-LEFT = the CLL default left-grouping assumption.
         These describe the basis of the displayed tree, not the coiner's
-        guaranteed intent (KEY rule "compound-assumptions").
+        guaranteed intent (the KEY comment's compound-assumptions rule).
       </xs:documentation>
     </xs:annotation>
     <xs:restriction base="xs:string">
@@ -456,7 +473,7 @@
         The definition-site id attribute.  Present exactly when this
         occurrence defines the shared graph node (all non-binder definitions
         sit in a DEFS in the smallest graph scope strictly containing all
-        uses — the "defs" KEY rule); absent at inline single-use sites.
+        uses — the KEY comment's defs rule); absent at inline single-use sites.
         Always serialized as the first attribute.
       </xs:documentation>
     </xs:annotation>
@@ -489,7 +506,7 @@
   <xs:attributeGroup name="scopeDependenceAttrs">
     <xs:annotation>
       <xs:documentation>
-        Scope-dependence markers (KEY rules "scope-dependence" and
+        Scope-dependence markers (the KEY comment's scope-dependence rules and
         "scope-dependence-subsets").  SAME-FOR-ALL="true" means the referent
         is fixed despite a nonempty first-visit binder universe;
         POSSIBLY-DIFFERENT-PER is a space-separated strict nonempty subset
@@ -651,7 +668,7 @@
     <xs:annotation>
       <xs:documentation>
         One semantic diagnostic of severity warning; the character content is
-        the diagnostic message (KEY rule "warnings").  Repeatable; appended
+        the diagnostic message (the KEY comment's warnings rule).  Repeatable; appended
         after all other children of the element whose object carried the
         diagnostic, and also used inside WORD cards.
       </xs:documentation>
@@ -695,7 +712,7 @@
         REF= instead of children.  FORALL and CARDINALITY always write
         RESTRICTION and BODY explicitly (empty as RESTRICTION/ or BODY/ when
         the graph supplies nothing); EXISTS writes RESTRICTION exactly when
-        the graph supplies one (KEY rule "quantifiers").
+        the graph supplies one (the KEY comment's quantifiers rule).
       </xs:documentation>
     </xs:annotation>
     <xs:sequence>
@@ -738,7 +755,7 @@
     <xs:annotation>
       <xs:documentation>
         Typed QUESTION metadata attached to the abstraction formula named by
-        the enclosing BODY (KEY rule "embedded-questions"): one rendered
+        the enclosing BODY (the KEY comment's embedded-questions rule): one rendered
         question pointer per embedded question, in order.
       </xs:documentation>
     </xs:annotation>
@@ -751,7 +768,7 @@
 
   <!-- globally shared pointer-wrapper elements (REF= use site xor one inline child) -->
   <xs:element name="EVENT" type="pointerWrapperType">
-    <xs:annotation><xs:documentation>The reserved first child of a PREDICATION: its Eventuality referent, never a numbered ARG (KEY rule "event-field").</xs:documentation></xs:annotation>
+    <xs:annotation><xs:documentation>The reserved first child of a PREDICATION: its Eventuality referent, never a numbered ARG (the KEY comment's event-field rule).</xs:documentation></xs:annotation>
   </xs:element>
   <xs:element name="ANCHOR" type="pointerWrapperType">
     <xs:annotation><xs:documentation>An anchor referent of a facet, displayed content, or aspect: the eventuality or time the facet is anchored to.</xs:documentation></xs:annotation>
@@ -778,7 +795,7 @@
     <xs:annotation><xs:documentation>The presupposed answer recorded on a QUESTION, when the graph carries one.</xs:documentation></xs:annotation>
   </xs:element>
   <xs:element name="APPLIES-TO" type="pointerWrapperType">
-    <xs:annotation><xs:documentation>Links an ADJUNCT's metadata to the host component it applies to (KEY rule "adjuncts").</xs:documentation></xs:annotation>
+    <xs:annotation><xs:documentation>Links an ADJUNCT's metadata to the host component it applies to (the KEY comment's adjuncts rule).</xs:documentation></xs:annotation>
   </xs:element>
   <xs:element name="CARD" type="pointerWrapperType">
     <xs:annotation><xs:documentation>The cardinality quantity of a CARDINALITY binder.</xs:documentation></xs:annotation>
@@ -919,16 +936,17 @@
         The document root.  See the schema-level annotation for the two
         document forms.  The type below admits both shapes because XSD 1.0
         cannot condition the content model on the FORM attribute:
-        compact form = KEY, WORDS?, WAIVERS, DEFS?, one graph-root element,
-        UNREACHABLE?; TYPED-GRAPH form = KEY (with COMPACT-INCOMPATIBILITIES),
-        WAIVERS, TYPED-GRAPH.
+        compact form = WORDS?, DEFS?, one graph-root element,
+        UNREACHABLE?; TYPED-GRAPH form = COMPACT-INCOMPATIBILITIES,
+        TYPED-GRAPH.  The teaching KEY is a single XML comment before the
+        root element (jbotci#719); as a comment it is invisible to this
+        schema, and the former KEY/RULE and WAIVERS elements are gone.
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element ref="KEY"/>
         <xs:element ref="WORDS" minOccurs="0"/>
-        <xs:element ref="WAIVERS"/>
+        <xs:element ref="COMPACT-INCOMPATIBILITIES" minOccurs="0"/>
         <xs:element ref="DEFS" minOccurs="0"/>
         <xs:group ref="graphNodeGroup" minOccurs="0"/>
         <xs:element ref="UNREACHABLE" minOccurs="0"/>
@@ -976,51 +994,6 @@
       <xs:selector xpath=".//COMPONENT"/>
       <xs:field xpath="@WORD"/>
     </xs:keyref>
-  </xs:element>
-
-  <xs:element name="KEY">
-    <xs:annotation>
-      <xs:documentation>
-        The notation key: an ordered list of RULE teaching texts, always the
-        first child of SFN.  In the TYPED-GRAPH form it is followed inside
-        KEY by COMPACT-INCOMPATIBILITIES.
-      </xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element ref="RULE" maxOccurs="unbounded"/>
-        <xs:element ref="COMPACT-INCOMPATIBILITIES" minOccurs="0"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-
-  <xs:element name="RULE">
-    <xs:annotation>
-      <xs:documentation>
-        One teaching rule of the notation; character content is the rule
-        prose.  TOPIC names the rule.  The topic set grows with the notation
-        itself (the renderer adds topics when new sections — e.g. word
-        cards — appear), so TOPIC is deliberately typed as an open string,
-        documented rather than enumerated: the schema must not become a
-        second source of truth that silently drifts from the renderer's KEY
-        tables.  Current compact topics, in emission order: ids,
-        lexical-categories, sorts, embedded-questions, kind-composition,
-        warnings, some, ground, quantifiers, scope-dependence,
-        scope-dependence-subsets, number-neutrality, personal-reference,
-        speaker-anchor, facet-silence, event-field, adjuncts, pro-sumti,
-        mode, defs, atomic-lists, order; plus, when a WORDS section is
-        present: word-cards, compound-approximation, compound-places,
-        compound-assumptions, context-placeholders, word-card-ids.
-        TYPED-GRAPH topics: form, objects, fields, elided-zohe.
-      </xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
-      <xs:simpleContent>
-        <xs:extension base="xs:string">
-          <xs:attribute name="TOPIC" type="xs:string" use="required"/>
-        </xs:extension>
-      </xs:simpleContent>
-    </xs:complexType>
   </xs:element>
 
   <xs:element name="COMPACT-INCOMPATIBILITIES">
@@ -1072,38 +1045,10 @@
     </xs:complexType>
   </xs:element>
 
-  <xs:element name="WAIVERS">
-    <xs:annotation>
-      <xs:documentation>
-        The provenance waivers: one WAIVER per omission family the
-        owner-approved design permits (source records, assigned names,
-        descriptor words, introducedBy markers, quantity value text,
-        bound-variable words, composition relation labels).  Always present,
-        possibly empty.
-      </xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element ref="WAIVER" minOccurs="0" maxOccurs="unbounded"/>
-      </xs:sequence>
-    </xs:complexType>
-  </xs:element>
-
-  <xs:element name="WAIVER">
-    <xs:annotation>
-      <xs:documentation>One waiver; character content is the waiver message with interpolated counts.</xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
-      <xs:simpleContent>
-        <xs:extension base="xs:string"/>
-      </xs:simpleContent>
-    </xs:complexType>
-  </xs:element>
-
   <xs:element name="DEFS">
     <xs:annotation>
       <xs:documentation>
-        A declaration scope (KEY rule "defs"): DEICTIC-GROUND declarations
+        A declaration scope (the KEY comment's defs rule): DEICTIC-GROUND declarations
         first, then graph-node definitions, each carrying ID=.  Sits in the
         smallest graph scope strictly containing all uses of its
         definitions; always the first child of its parent.  Emitted only
@@ -1122,8 +1067,8 @@
   <xs:element name="DEICTIC-GROUND">
     <xs:annotation>
       <xs:documentation>
-        Declaration of one shared speech-situation unit (KEY rule
-        "ground").  ID is a notation-level g-prefixed rendering id (the JSON
+        Declaration of one shared speech-situation unit (the KEY
+        comment ground rule).  ID is a notation-level g-prefixed rendering id (the JSON
         has no ground object id).  The four role attributes are the sole
         definition sites for the speaker/audience/time/place referent ids;
         ground units share one definition iff those referents are pairwise
@@ -1241,7 +1186,7 @@
         reference structures, the descriptor, scoped BODY/CONTENT,
         EMBEDDED-QUESTIONS, QUOTATION, ADJUNCTs, and finally the generic
         EXTRA tail.  All sections are optional; childless referents
-        self-close (KEY rule "order").
+        self-close (the KEY comment's order rule).
       </xs:documentation>
     </xs:annotation>
     <xs:sequence>
@@ -1269,7 +1214,7 @@
         uppercased (ENTITY, EVENTUALITY, PROPOSITION, LOCUTION, ...), or
         UNSPECIFIED-REFERENT for an elided zo'e referent, or UNKNOWN when
         the graph carries no usable sort.  References are number-neutral
-        (KEY rule "number-neutrality"): a reference may denote one or
+        (the KEY comment's number-neutrality rule): a reference may denote one or
         several individuals; only explicit quantities, cardinality binders,
         or mass restrictions commit to number.
 
@@ -1290,7 +1235,7 @@
     <xs:attribute name="REF" type="refOrSomeType"/>
     <xs:attribute name="KIND" type="enumTokenType"/>
     <xs:attribute name="PARAMETERS" type="xs:IDREFS">
-      <xs:annotation><xs:documentation>Space-separated ids of the abstraction/question parameters this referent binds; a strict-id list per the "atomic-lists" KEY rule.</xs:documentation></xs:annotation>
+      <xs:annotation><xs:documentation>Space-separated ids of the abstraction/question parameters this referent binds; a strict-id list per the KEY comment's atomic-lists rule.</xs:documentation></xs:annotation>
     </xs:attribute>
     <xs:attribute name="ARITY" type="xs:nonNegativeInteger">
       <xs:annotation><xs:documentation>The parameter arity of an abstraction referent, when the graph derives it.</xs:documentation></xs:annotation>
@@ -1422,8 +1367,8 @@
         describing predication scope; a proposition referent's BODY is
         pushed here rather than on the referent element), RELATIVE-CLAUSES,
         EXTRA.  SPEAKER-REF appears only when the description's speaker
-        anchor differs from the enclosing utterance's speaker (KEY rule
-        "speaker-anchor"); it references the speaker referent id defined by
+        anchor differs from the enclosing utterance's speaker (the
+        KEY comment speaker-anchor rule); it references the speaker referent id defined by
         DEICTIC-GROUND, which XSD 1.0 cannot type as an ID here, so the
         reference is pattern-typed and renderer-checked.
       </xs:documentation>
@@ -1557,7 +1502,7 @@
           <xs:documentation>
             A name descriptor: TEXT is the name itself.  BY points to the
             naming speaker and appears only when the namer differs from the
-            enclosing utterance's speaker (KEY rule "speaker-anchor").
+            enclosing utterance's speaker (the KEY comment's speaker-anchor rule).
             (The word-card NAMED inside COMPOSITE-APPROX is a different,
             locally declared element.)
           </xs:documentation>
@@ -1580,7 +1525,7 @@
         <xs:annotation>
           <xs:documentation>
             A word-only stopgap for a referent that remains unresolved after
-            the KOhA audit (KEY rule "pro-sumti"); the quoted WORD value is
+            the KOhA audit (the KEY comment's pro-sumti rule); the quoted WORD value is
             the stopgap's whole content.  Bound-variable surface words are
             provenance-only and do not appear here.
           </xs:documentation>
@@ -1619,8 +1564,8 @@
   <xs:element name="VARIABLE">
     <xs:annotation>
       <xs:documentation>
-        A quantifier variable defined at its binder site (KEY rule
-        "quantifiers"): ID defines the variable, SORT is its flat sort;
+        A quantifier variable defined at its binder site (the KEY
+        comment quantifiers rule): ID defines the variable, SORT is its flat sort;
         use sites carry REF=.  DENOTATION appears only when the denotation
         is not the default generated-bound; CATEGORY only when the category
         is not the default variable.  A bound variable may carry a
@@ -1806,8 +1751,8 @@
   <xs:element name="PERSONAL-MASS-MEMBERSHIP">
     <xs:annotation>
       <xs:documentation>
-        The membership structure of a personal mass (mi'o family; KEY rule
-        "personal-reference"): whether SPEAKER and AUDIENCE are INCLUDED or
+        The membership structure of a personal mass (mi'o family; the
+        KEY comment personal-reference rule): whether SPEAKER and AUDIENCE are INCLUDED or
         EXCLUDED, plus any additional included OTHERS.  These structures
         carry the semantics; no pro-sumti label is implied.  (The word-card
         PERSONAL-MASS-MEMBERSHIP inside COMPOSITE-APPROX is an
@@ -1837,7 +1782,7 @@
         A deictic reference (ti/ta/tu family): PROXIMITY to a discourse
         referent, with GROUND-REF pointing at the discourse referent it is
         resolved against (an r/e-prefixed referent id, NOT a deictic-ground
-        unit id; KEY rule "personal-reference").  Always empty apart from
+        unit id; the KEY comment's personal-reference rule).  Always empty apart from
         the EXTRA tail.
       </xs:documentation>
     </xs:annotation>
@@ -1972,9 +1917,10 @@
         UNSPECIFIED_RELATION, PLACE_QUESTION, CONNECTIVE_QUESTION,
         TENSE_QUESTION, MATH_OPERATOR_QUESTION, QUANTITY_QUESTION,
         ATTITUDE_QUESTION, RESPECTIVE_SLOT).  SLOT parameters bind only the
-        question BODY (KEY rule "embedded-questions").  The optional REF=
+        question BODY (the KEY comment's embedded-questions rule).  The optional REF=
         admits the wrapper-collapse use where an element named PARAMETER is
-        a pure use site (e.g. inside CONNECTOR, SLOT, PLACE-QUESTION).
+        a pure use site (e.g. on a connective formula, inside SLOT,
+        PLACE-QUESTION).
         (The word-card PARAMETER inside COMPOSITE-APPROX is a different,
         locally declared element.)
       </xs:documentation>
@@ -2048,14 +1994,15 @@
           </xs:complexType>
         </xs:element>
         <xs:element name="NONLOGICAL-CONNECTION" minOccurs="0">
-          <xs:annotation><xs:documentation>A non-logical connection between sequence items; OPERATOR is the operator surface text verbatim, CONNECTOR its connector record.</xs:documentation></xs:annotation>
+          <xs:annotation><xs:documentation>A non-logical connection between sequence items; OPERATOR is the operator surface text verbatim; the connector's surface word and locus are provenance (jbotci#719), so only an optional connective-question PARAMETER remains.</xs:documentation></xs:annotation>
           <xs:complexType>
             <xs:sequence>
-              <xs:element ref="CONNECTOR"/>
-              <xs:element ref="EXTRA" minOccurs="0"/>
+                    <xs:element ref="EXTRA" minOccurs="0"/>
               <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
             </xs:sequence>
             <xs:attribute name="OPERATOR" type="xs:string" use="required"/>
+            <xs:attribute name="TRUTH-TABLE" type="truthTableType"/>
+            <xs:attribute name="PARAMETER" type="xs:string"/>
           </xs:complexType>
         </xs:element>
         <xs:element name="ELIDED-CONNECTION-OPERAND" type="scalarValueType" minOccurs="0">
@@ -2082,7 +2029,7 @@
         NEUTRAL, NEGATIVE), ASSERTION-EFFECT its effect on the host claim
         (NONE, HOST_ASSERTED, HOST_SUBORDINATED,
         METALINGUISTICALLY_VOIDED, PERFORMATIVE), TARGET-FOCUS what it
-        targets (BRIDI or SELBRI).  EXPERIENCER, TARGET, and ANCHOR are
+        targets (CLAUSE or PREDICATE).  EXPERIENCER, TARGET, and ANCHOR are
         its participant pointers.
       </xs:documentation>
     </xs:annotation>
@@ -2298,7 +2245,7 @@
   <xs:element name="QUESTION">
     <xs:annotation>
       <xs:documentation>
-        A typed question object (KEY rule "embedded-questions").  KIND
+        A typed question object (the KEY comment's embedded-questions rule).  KIND
         classifies the question (TRUTH, ARGUMENT, RELATION, PLACE,
         CONNECTIVE, TENSE, MATH_OPERATOR, ATTITUDE, QUANTITY, MULTIPLE),
         MODE its mode (DIRECT or INDIRECT), DOMAIN its domain sort.
@@ -2404,7 +2351,7 @@
         One numbered argument place of a PREDICATION or a predicate-keyed
         ADJUNCT.  INDEX is the 1-based place number (absent only on the
         PLACE-QUESTION argument form).  FILL="true" marks the unique
-        explicit non-host filled place of an adjunct (KEY rule "adjuncts").
+        explicit non-host filled place of an adjunct (the KEY comment's adjuncts rule).
         STATUS records an elided (ELIDED) or filled (FILLED) place when the
         graph marks the place's introduction.  The value is a REF= use site
         or one inline child: DELETED for a deleted place, MISSING-VALUE for
@@ -2463,13 +2410,14 @@
       <xs:documentation>
         A predication object.  PREDICATE is the predicate symbol when the
         relation is a single lexical predicate; MODE (required) is the
-        claim mode (see modeType).  Children in order: RELATION (when the
-        relation is a bound parameter) or MISSING-RELATION (when the graph
-        supplies neither) — neither appears when PREDICATE is used; EVENT
-        (the reserved Eventuality child, never a numbered ARG); the
-        numbered ARG places in place order; ADJUNCTs; PLACE-QUESTIONS;
-        KIND-COMPOSITION; META (relation metadata, scalar negation); then
-        any WARNING diagnostics.
+        claim mode (see modeType).  Children in order: the relation slot —
+        RELATION (when the relation is a bound parameter), KIND-COMPOSITION
+        (when the predicate is composite, jbotci#719), or MISSING-RELATION
+        (when the graph supplies neither) — omitted only when PREDICATE is
+        used; EVENT (the reserved Eventuality child, never a numbered ARG);
+        the numbered ARG places in place order; ADJUNCTs; PLACE-QUESTIONS;
+        META (relation metadata, scalar negation); then any WARNING
+        diagnostics.
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
@@ -2479,6 +2427,7 @@
             <xs:annotation><xs:documentation>The relation parameter of the predication (when the relation is a bound parameter rather than a lexical predicate).</xs:documentation></xs:annotation>
           </xs:element>
           <xs:element ref="MISSING-RELATION"/>
+          <xs:element ref="KIND-COMPOSITION"/>
         </xs:choice>
         <xs:element ref="EVENT" minOccurs="0"/>
         <xs:element ref="ARG" minOccurs="0" maxOccurs="unbounded"/>
@@ -2502,7 +2451,6 @@
             </xs:sequence>
           </xs:complexType>
         </xs:element>
-        <xs:element ref="KIND-COMPOSITION" minOccurs="0"/>
         <xs:element name="META" minOccurs="0">
           <xs:annotation><xs:documentation>Predication metadata: relation metadata, scalar negation, and extras.  Emitted only when non-empty.</xs:documentation></xs:annotation>
           <xs:complexType>
@@ -2522,28 +2470,84 @@
     </xs:complexType>
   </xs:element>
 
+  <!-- One operand of a relation composition (KIND, MODIFIER, or a
+       RELATION leaf inside a relation-level CONNECTIVE).  Three forms:
+       compact lexical (PREDICATE=, optional PARTICIPANT-PLACE= and fixed
+       ARGs); composite (BODY wrapping one relation-expression subtree);
+       or a bare REF= use site of an already-defined composite relation.
+       The attribute/content co-occurrence (PREDICATE= forbids BODY, REF=
+       forbids children) is renderer-enforced: XSD 1.0 cannot condition
+       attributes on content. -->
+  <xs:complexType name="relationOperandType">
+    <xs:choice>
+      <xs:sequence>
+        <xs:element ref="ARG" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:element name="BODY">
+        <xs:annotation><xs:documentation>The composite relation-expression subtree: a nested KIND-COMPOSITION, a CONNECTIVE conjoining co-modifier RELATION leaves, or the existing RELATION-lambda / abstraction rendering of a referenced composite relation.</xs:documentation></xs:annotation>
+        <xs:complexType>
+          <xs:choice>
+            <xs:element ref="KIND-COMPOSITION"/>
+            <xs:element name="CONNECTIVE">
+              <xs:annotation><xs:documentation>A relation-level connective (in a relation-expression BODY): its RELATION leaves have no MODE; operand order is semantically significant.</xs:documentation></xs:annotation>
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="RELATION" type="relationOperandType" maxOccurs="unbounded"/>
+                </xs:sequence>
+                <xs:attribute name="OPERATOR" use="required">
+                  <xs:simpleType>
+                    <xs:restriction base="xs:string">
+                      <xs:enumeration value="AND"/>
+                      <xs:enumeration value="OR"/>
+                    </xs:restriction>
+                  </xs:simpleType>
+                </xs:attribute>
+                <xs:attribute name="TRUTH-TABLE" type="truthTableType"/>
+              </xs:complexType>
+            </xs:element>
+            <xs:element ref="RELATION"/>
+            <xs:element ref="ENTITY"/>
+          </xs:choice>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+    <xs:attribute name="PREDICATE" type="predicateSymbolType"/>
+    <xs:attribute name="PARTICIPANT-PLACE" type="xs:positiveInteger"/>
+    <xs:attribute name="REF" type="xs:string"/>
+  </xs:complexType>
+
   <xs:element name="KIND-COMPOSITION">
     <xs:annotation>
       <xs:documentation>
-        First-class kind predication content (KEY rule "kind-composition"):
-        MODIFIER A of KIND B denotes an A-modified kind of B while
-        retaining B's place structure.  The exact modifier-to-kind relation
-        remains unspecified; nesting preserves the semantic graph's
-        grouping.  (The word-card KIND-COMPOSITION inside COMPOSITE-APPROX
-        uses the same idiom but is locally declared there.)
+        A kind-composition relation expression (the KEY comment's
+        kind-composition rule): MODIFIER A of KIND B denotes an A-modified
+        kind of B while retaining B's place structure.  The exact
+        modifier-to-kind relation remains unspecified; nesting preserves
+        the semantic graph's grouping.  GROUPING states the basis of a
+        grouping edge; silence means ASSUMED-LEFT (the deterministic
+        grammar default), EXPLICIT marks an edge the text itself
+        determines, at tree level for a uniformly explicit tree and per
+        node on a mixed tree (jbotci#719).  In the PREDICATION relation
+        slot it is the composite predicate itself — or, in the loud
+        fallback form of an unprojected tanru link, a sidecar of pointer
+        wrappers to the head predication and the modifier relation.  (The
+        word-card KIND-COMPOSITION inside
+        COMPOSITE-APPROX uses the same idiom but is locally declared
+        there.)
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element name="KIND" type="pointerWrapperType">
+        <xs:element name="KIND" type="relationOperandType">
           <xs:annotation><xs:documentation>The kind being modified.</xs:documentation></xs:annotation>
         </xs:element>
-        <xs:element name="MODIFIER" type="pointerWrapperType">
+        <xs:element name="MODIFIER" type="relationOperandType">
           <xs:annotation><xs:documentation>The modifier applied to the kind.</xs:documentation></xs:annotation>
         </xs:element>
         <xs:element ref="EXTRA" minOccurs="0"/>
         <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
+      <xs:attribute name="GROUPING" type="groupingBasisType"/>
     </xs:complexType>
   </xs:element>
 
@@ -2559,8 +2563,10 @@
         WHETHER_OR_NOT, CONNECTIVE_QUESTION, PLURAL_EXISTS, PLURAL_FORALL,
         QUANTIFIER_BUNDLE, RESPECTIVELY_DISTRIBUTION; AND, OR, NOT, ATOM,
         and the quantifier operators have their own elements).  Children:
-        optional DEFS, then the operands in order, then CONNECTOR,
-        DOMAIN-IMPORT, and any extra fields inlined directly.
+        optional DEFS, then the operands in order, then DOMAIN-IMPORT,
+        an optional connective-question PARAMETER, and any extra fields
+        inlined directly.  TRUTH-TABLE= appears only when the graph
+        records a table OPERATOR= does not already determine (jbotci#719).
 
         Known XSD-1.0 weakness: for some compound operators the renderer
         emits field-named pointer wrappers (PREDICATION, VARIABLE,
@@ -2575,7 +2581,6 @@
       <xs:sequence>
         <xs:element ref="DEFS" minOccurs="0"/>
         <xs:group ref="graphNodeGroup" minOccurs="0" maxOccurs="unbounded"/>
-        <xs:element ref="CONNECTOR" minOccurs="0"/>
         <xs:element ref="DOMAIN-IMPORT" minOccurs="0"/>
         <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
         <xs:element ref="EXTRA" minOccurs="0"/>
@@ -2583,6 +2588,8 @@
       </xs:sequence>
       <xs:attributeGroup ref="idAttr"/>
       <xs:attribute name="OPERATOR" type="enumTokenType"/>
+      <xs:attribute name="TRUTH-TABLE" type="truthTableType"/>
+      <xs:attribute name="PARAMETER" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -2591,15 +2598,18 @@
       <xs:documentation>
         A logical connective formula: OPERATOR is AND or OR.  Children:
         optional DEFS, then the operands in order — operand order is
-        semantically significant (KEY rule "order") — then CONNECTOR and
-        any extra fields inlined directly.
+        semantically significant (the KEY comment's order rule) — then an
+        optional connective-question PARAMETER and any extra fields
+        inlined directly.  TRUTH-TABLE= appears only when the graph
+        records a table OPERATOR= does not already determine; the surface
+        connective word and its locus are provenance and never appear
+        (jbotci#719).
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
         <xs:element ref="DEFS" minOccurs="0"/>
         <xs:group ref="graphNodeGroup" maxOccurs="unbounded"/>
-        <xs:element ref="CONNECTOR" minOccurs="0"/>
         <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
         <xs:element ref="EXTRA" minOccurs="0"/>
         <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
@@ -2613,6 +2623,8 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
+      <xs:attribute name="TRUTH-TABLE" type="truthTableType"/>
+      <xs:attribute name="PARAMETER" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -2620,31 +2632,33 @@
     <xs:annotation>
       <xs:documentation>
         A negation formula (operator "not"): optional DEFS, the negated
-        operand, then CONNECTOR and extras.  (The NEGATION elements inside
-        OCCURRENCE and the word-card PREDICATION-NEGATION are different,
-        locally declared elements.)
+        operand, then an optional connective-question PARAMETER and
+        extras.  (The NEGATION elements inside OCCURRENCE and the
+        word-card PREDICATION-NEGATION are different, locally declared
+        elements.)
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
         <xs:element ref="DEFS" minOccurs="0"/>
         <xs:group ref="graphNodeGroup" minOccurs="0"/>
-        <xs:element ref="CONNECTOR" minOccurs="0"/>
         <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
         <xs:element ref="EXTRA" minOccurs="0"/>
         <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="TRUTH-TABLE" type="truthTableType"/>
+      <xs:attribute name="PARAMETER" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
   <xs:element name="EXISTS">
     <xs:annotation>
       <xs:documentation>
-        An existential binder (KEY rule "quantifiers"): VARIABLE defines
-        the bound variable; optional DEFS; RESTRICTION appears exactly when
-        the graph supplies one; BODY always; then the optional
-        QUANTITY-VALUE, DOMAIN-IMPORT, and CONNECTOR.
+        An existential binder (the KEY comment's quantifiers rule):
+        VARIABLE defines the bound variable; optional DEFS; RESTRICTION
+        appears exactly when the graph supplies one; BODY always; then the
+        optional QUANTITY-VALUE, DOMAIN-IMPORT, and PARAMETER.
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
@@ -2658,11 +2672,12 @@
           <xs:element ref="QUANTITY"/>
         </xs:choice>
         <xs:element ref="DOMAIN-IMPORT" minOccurs="0"/>
-        <xs:element ref="CONNECTOR" minOccurs="0"/>
         <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
         <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="TRUTH-TABLE" type="truthTableType"/>
+      <xs:attribute name="PARAMETER" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -2684,11 +2699,12 @@
           <xs:element ref="QUANTITY"/>
         </xs:choice>
         <xs:element ref="DOMAIN-IMPORT" minOccurs="0"/>
-        <xs:element ref="CONNECTOR" minOccurs="0"/>
         <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
         <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="TRUTH-TABLE" type="truthTableType"/>
+      <xs:attribute name="PARAMETER" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -2697,7 +2713,7 @@
       <xs:documentation>
         A cardinality binder: VARIABLE, optional DEFS, the CARD quantity,
         then RESTRICTION and BODY (both always written explicitly), then
-        DOMAIN-IMPORT and CONNECTOR.
+        DOMAIN-IMPORT and an optional PARAMETER.
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
@@ -2708,36 +2724,12 @@
         <xs:element ref="RESTRICTION"/>
         <xs:element ref="BODY"/>
         <xs:element ref="DOMAIN-IMPORT" minOccurs="0"/>
-        <xs:element ref="CONNECTOR" minOccurs="0"/>
         <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
         <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attributeGroup ref="idAttr"/>
-    </xs:complexType>
-  </xs:element>
-
-  <xs:element name="CONNECTOR">
-    <xs:annotation>
-      <xs:documentation>
-        A connector record on a formula, sequence connection, or binder:
-        SOURCE-WORD is the surface word when known; LOCUS and TRUTH-TABLE
-        are scalar connector properties; PARAMETER is the bound connective
-        parameter for a connective question.
-      </xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
-      <xs:sequence>
-        <xs:element name="LOCUS" type="scalarValueType" minOccurs="0">
-          <xs:annotation><xs:documentation>The connector locus.</xs:documentation></xs:annotation>
-        </xs:element>
-        <xs:element name="TRUTH-TABLE" type="scalarValueType" minOccurs="0">
-          <xs:annotation><xs:documentation>The connector truth table (e.g. TTTF for A).</xs:documentation></xs:annotation>
-        </xs:element>
-        <xs:element name="PARAMETER" type="pointerWrapperType" minOccurs="0"/>
-        <xs:element ref="EXTRA" minOccurs="0"/>
-        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
-      </xs:sequence>
-      <xs:attribute name="SOURCE-WORD" type="xs:string"/>
+      <xs:attribute name="TRUTH-TABLE" type="truthTableType"/>
+      <xs:attribute name="PARAMETER" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 
@@ -2790,7 +2782,7 @@
     <xs:annotation>
       <xs:documentation>
         A predicate-keyed optional participant of the host predication
-        (KEY rule "adjuncts").  Three shapes: the compact form carries
+        (the KEY comment's adjuncts rule).  Three shapes: the compact form carries
         PREDICATE= with flat ARG children (the single-lexical-predicate
         place map); without PREDICATE=, BODY carries the composite
         predicate subtree; a record-shaped adjunct falls back to a generic
@@ -2896,7 +2888,7 @@
   <xs:element name="WORDS">
     <xs:annotation>
       <xs:documentation>
-        The word-card section (KEY rule "word-cards"): one WORD card per
+        The word-card section (the KEY comment's word-cards rule): one WORD card per
         content word of the text, in card order.  Present only when the
         document was rendered with word cards (tertmu --show-defs); never
         present in the TYPED-GRAPH form.  Card ids are unique within the
@@ -2942,12 +2934,12 @@
         <xs:annotation>
           <xs:documentation>
             The mechanical composition of a dictionary-absent compound
-            (KEY rule "compound-approximation"): suggestive, not
+            (the KEY comment's compound-approximation rule): suggestive, not
             definitional.  PLACES="UNKNOWN" means the composition tree
             determines no place structure — the actual meaning and places
-            were chosen by the coiner (KEY rule "compound-places").
+            were chosen by the coiner (the KEY comment's compound-places rule).
             GROUPING and SCOPE describe the basis of the displayed tree
-            edges (KEY rule "compound-assumptions").  The attributes are
+            edges (the KEY comment's compound-assumptions rule).  The attributes are
             tree-level by default: a tree whose kind-composition edges all
             share one basis carries GROUPING at this level, and a tree
             whose operator applications all share one scope basis carries
@@ -3349,8 +3341,8 @@
         <xs:annotation>
           <xs:documentation>
             The abstract role an utterance context would supply for a
-            context-dependent word used inside a definition (KEY rule
-            "context-placeholders"): ROLE is the placeholder role
+            context-dependent word used inside a definition (the KEY
+            comment context-placeholders rule): ROLE is the placeholder role
             (SPEAKER, AUDIENCE, DEMONSTRATED, ASSIGNED, or
             ELLIPTICAL-PREDICATE); PROXIMITY refines a demonstrated role;
             SLOT numbers an argument slot.  These are roles, not

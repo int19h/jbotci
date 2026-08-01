@@ -145,6 +145,24 @@ Regenerate both fixture sets by re-running the oracle over the
 --provenance`); then update the two aggregate hashes pinned in
 `tests/smusni_parity.rs` and the `FREEZE-PHASE-B.md` amendment in lockstep.
 
+**jbotci#719 departure (owner ruling 2026-08-01):** the fixtures are no
+longer oracle-produced bytes. The owner ruled that connector surface words
+and loci are provenance-class (CONNECTIVE SOURCE/LOCUS leave the default
+output and render only under the provenance opt-in, where LOCUS now uses
+English names), truth tables render only when the operator does not already
+determine them, the fake `RELATION: tanru` name is gone (composition
+predications carry no RELATION line; the TANRU LINK record stays), and the
+`WAIVED { }` bookkeeping block left model-facing output. The frozen JSON
+graphs were migrated mechanically by `scripts/migrate_issue_719_json.py`
+(typed connector source, English locus, fake relation dropped — every
+document rebuilds byte-exactly from its `.lojban` through the product
+pipeline), and both fixture sets were regenerated from the product pipeline
+by `examples/regen_goldens.rs smusni` under the mechanical-diff proof of
+`scripts/verify_issue_719_output_migration.py`; the aggregate hash pins in
+`tests/smusni_parity.rs` were updated to the new sets. Byte-parity with the
+research oracle is deliberately suspended at this point until the oracle
+catches up or a new amendment re-baselines it.
+
 `hostile-quote.*` is a **separate** regression fixture (not in `CORPUS_DOCS`, and
 excluded from the corpus/aggregate hashes): a `zoi` quotation whose text carries
 notation metacharacters (`{ ( ; } )`), guarding the dense-flatten hardening

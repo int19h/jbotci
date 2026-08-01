@@ -922,7 +922,7 @@ pub(super) fn generated_number_descriptor_mekso_operand_surface_text(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator(
     expression: &MeksoSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -937,7 +937,7 @@ pub(super) fn first_generated_connected_mekso_operator(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_zantufa_infix(
     infix: &ZantufaInfixMeksoSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -965,7 +965,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_zantufa_infix(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_infix(
     infix: &InfixMeksoSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -990,7 +990,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_infix(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_precedence(
     expression: &MeksoPrecedenceSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1009,7 +1009,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_precedence(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_base(
     expression: &MeksoBaseSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1058,7 +1058,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_base(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_operand(
     operand: &MeksoOperandSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1091,7 +1091,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_operand(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_bound_or_simple_operand(
     operand: &BoundOrSimpleMeksoOperandSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1106,7 +1106,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_bound_or_simple_operan
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_bound_operand(
     operand: &BoundMeksoOperandSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1118,7 +1118,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_bound_operand(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
     operand: &SimpleMeksoOperandSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1160,7 +1160,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn connected_generated_mekso_operator(
     operator: &MeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1178,7 +1178,7 @@ pub(super) fn connected_generated_mekso_operator(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn connected_generated_afterthought_mekso_operator(
     operator: &AfterthoughtMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1194,7 +1194,7 @@ pub(super) fn connected_generated_afterthought_mekso_operator(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn connected_generated_bound_or_atom_mekso_operator(
     operator: &BoundOrAtomMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1209,7 +1209,7 @@ pub(super) fn connected_generated_bound_or_atom_mekso_operator(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn connected_generated_bound_mekso_operator(
     operator: &BoundMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1225,7 +1225,7 @@ pub(super) fn connected_generated_bound_mekso_operator(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn connected_generated_simple_mekso_operator(
     operator: &SimpleMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1252,7 +1252,7 @@ pub(super) fn connected_generated_simple_mekso_operator(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn connected_generated_standard_mekso_operator(
     connective: &StandardStatementConnectiveSyntax,
     left_operator: MeksoOperatorSyntax,
@@ -1270,8 +1270,8 @@ pub(super) fn connected_generated_standard_mekso_operator(
         right_operator,
         operator: generated_statement_connective_formula_operator_for_core(&connective),
         connector: new!(Connector {
-            source,
-            locus: "mekso-operator".to_owned(),
+            source: ConnectorSource::surface_word(source),
+            locus: ConnectorLocus::MathOperator,
             truth_table: generated_statement_connective_core_truth_table(&connective),
             parameter: None,
         }),
@@ -1279,7 +1279,7 @@ pub(super) fn connected_generated_standard_mekso_operator(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == "mekso-operator")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn connected_generated_forethought_mekso_operator(
     operator: &ForethoughtMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1288,8 +1288,11 @@ pub(super) fn connected_generated_forethought_mekso_operator(
         right_operator: operator.right_operator.as_ref().clone(),
         operator: generated_guhek_connective_formula_operator(&operator.guhek),
         connector: new!(Connector {
-            source: generated_guhek_gik_connective_source(&operator.guhek, &operator.gik),
-            locus: "mekso-operator".to_owned(),
+            source: ConnectorSource::surface_word(generated_guhek_gik_connective_source(
+                &operator.guhek,
+                &operator.gik,
+            )),
+            locus: ConnectorLocus::MathOperator,
             truth_table: generated_guhek_gik_connective_truth_table(&operator.guhek, &operator.gik),
             parameter: None,
         }),

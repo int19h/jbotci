@@ -46,7 +46,19 @@ SEMANTIC DOCUMENT document_1 {
     }
     FORMULA f10 IS ATOM { PREDICATION: p9; BOUND EVENTUALITIES { r7; } PROVENANCE { BYTE SPAN: 0..18; TEXT: "pu ko'a ji ba ko'e"; CONSTRUCT: "term-connection-formula"; } }
     FORMULA f15 IS ATOM { PREDICATION: p14; BOUND EVENTUALITIES { r12; } PROVENANCE { BYTE SPAN: 0..18; TEXT: "pu ko'a ji ba ko'e"; CONSTRUCT: "term-connection-formula"; } }
-    FORMULA f17 IS CONNECTIVE QUESTION { OPERANDS IN ORDER ( f10; f15; ) CONNECTIVE SOURCE: ji; NOT COMPUTED: connector-parameter; PROVENANCE { BYTE SPAN: 0..18; TEXT: "pu ko'a ji ba ko'e"; CONSTRUCT: "term-connection-formula"; } }
+    FORMULA f17 IS CONNECTIVE QUESTION {
+      OPERANDS IN ORDER (
+        f10;
+        f15;
+      )
+      CONNECTIVE SOURCE: ji;
+      LOCUS: TERM;
+      NOT COMPUTED: connector-parameter;
+      PROVENANCE
+        BYTE SPAN: 0..18;
+        TEXT: "pu ko'a ji ba ko'e";
+        CONSTRUCT: "term-connection-formula";
+    }
     QUESTION qu18 {
       BODY: f17;
       KIND: CONNECTIVE;
