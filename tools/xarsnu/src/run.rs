@@ -12,8 +12,8 @@ use bityzba::{ensures, invariant, new, requires};
 
 use crate::protocol::ProtocolRunOutcomeData;
 use crate::{
-    EmbeddingSearchPreflightError, MeaningReviewer, OpenRouterClient, OpenRouterError,
-    OpenRouterParticipant, OpenRouterReviewer, ProtocolModel, ProtocolRunError,
+    CompletionTokenLimit, EmbeddingSearchPreflightError, MeaningReviewer, OpenRouterClient,
+    OpenRouterError, OpenRouterParticipant, OpenRouterReviewer, ProtocolModel, ProtocolRunError,
     ProtocolRunOutcome, ProtocolRunner, ReferenceToolDispatcher, RunConfig, RunHeader,
     ScenarioInstance, TaskOutcome, TaskStatus, ToolDispatcher, preflight_embedding_search,
 };
@@ -335,7 +335,8 @@ where
         config,
         scenario,
     }) = loaded.into_data();
-    let default_max_completion_tokens = config.client.max_completion_tokens;
+    let default_max_completion_tokens =
+        CompletionTokenLimit::new(config.client.max_completion_tokens);
     let participants = config
         .participants
         .iter()

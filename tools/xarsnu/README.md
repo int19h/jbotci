@@ -87,10 +87,12 @@ reasoning tokens against it, so long-thinking models can exhaust the budget
 mid-response (issue #726). A per-participant `max-completion-tokens` overrides
 the run-wide default for that participant, and adversarial reviewer sessions
 inherit their participant's effective limit. When a provider stops a response
-at the limit it reports `finish_reason: "length"`; xarsnu records that as a
-`truncated` marker on the call's `usage-recorded` event and on any
-`tool-call-malformed` event whose captured arguments were clipped, so token
-exhaustion is diagnosable without inspecting payloads.
+at the limit it reports `finish_reason: "length"`; xarsnu records that
+choice-level condition as a `truncated` marker on the call's `usage-recorded`
+event and on any `tool-call-malformed` event from the same response, whose
+captured arguments may then be a truncation artifact rather than a model
+formatting error — so token exhaustion is diagnosable without inspecting
+payloads.
 
 `tersmu-format` selects how the gate renders candidate semantics: `smusni`
 (the default, model-facing declaration notation), `json` (the canonical

@@ -11,13 +11,14 @@ use bityzba::{contract_trait, ensures, invariant, new, requires};
 use serde_json::{Value, json};
 use xarsnu::protocol::{ProtocolEventData, ProtocolRunOutcomeData, ReviewOutcomeData};
 use xarsnu::{
-    AbortKind, CapsConfig, ListenerMode, MeaningReview, MeaningReviewConfig, MeaningReviewer,
-    OpenRouterClient, OpenRouterClientConfig, OpenRouterError, OpenRouterParticipant,
-    OpenRouterReviewSession, OpenRouterReviewer, ParticipantConfig, ParticipantConversation,
-    PromptCaching, ProtocolEvent, ProtocolRunner, ProviderToolChoice,
+    AbortKind, CapsConfig, CompletionTokenLimit, ListenerMode, MeaningReview, MeaningReviewConfig,
+    MeaningReviewer, OpenRouterClient, OpenRouterClientConfig, OpenRouterError,
+    OpenRouterParticipant, OpenRouterReviewSession, OpenRouterReviewer, ParticipantConfig,
+    ParticipantConversation, PromptCaching, ProtocolEvent, ProtocolRunner, ProviderToolChoice,
     ProviderUsageValidationError, ReasoningConfig, ReferenceToolDispatcher, RetryPolicy,
-    ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, TersmuFormat, ToolCall, ToolChoice,
-    ToolDefinition, ToolDispatchError, ToolDispatcher, Usage, VisibleMessage,
+    ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, RunHeader, ScenarioInstance, TersmuFormat,
+    ToolCall, ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage, VisibleMessage,
+    read_transcript,
 };
 
 static NEXT_DUMP_DIRECTORY: AtomicU64 = AtomicU64::new(1);
@@ -415,7 +416,7 @@ fn conversation_for_model_with_reasoning(
         prompt_caching,
         reasoning,
         0.3,
-        16_384,
+        CompletionTokenLimit::new(16_384),
         "Use tools.".to_owned(),
         "Private task.".to_owned(),
     )
@@ -836,7 +837,7 @@ system-prompt = "Observe."
     .expect("provider routing config parses");
     let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
-    let mut conversation = ParticipantConversation::new(&config.participants[0], 16_384);
+    let mut conversation = ParticipantConversation::new(&config.participants[0], CompletionTokenLimit::new(16_384));
     conversation.push_user("Private task.".to_owned());
     let mut accounting = RunAccounting::new(1.0).expect("valid budget");
 
@@ -2378,7 +2379,12 @@ fn reviewer_session_persists_across_candidates_and_counts_usage() {
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
     let participant = review_participant("alice", "mock/model");
     let mut session =
-        OpenRouterReviewSession::new(&participant, &enabled_review_config(), &client, 16_384);
+        OpenRouterReviewSession::new(
+        &participant,
+        &enabled_review_config(),
+        &client,
+        CompletionTokenLimit::new(16_384),
+    );
     let mut accounting = RunAccounting::new(10.0).expect("valid budget");
 
     let first = session
@@ -2451,7 +2457,12 @@ fn reviewer_usage_counts_into_the_run_cost_budget() {
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
     let participant = review_participant("alice", "mock/model");
     let mut session =
-        OpenRouterReviewSession::new(&participant, &enabled_review_config(), &client, 16_384);
+        OpenRouterReviewSession::new(
+        &participant,
+        &enabled_review_config(),
+        &client,
+        CompletionTokenLimit::new(16_384),
+    );
     let mut accounting = RunAccounting::new(0.005).expect("valid budget");
     let outcome = session
         .review(&review_brief(), &mut accounting)
@@ -2499,9 +2510,14 @@ fn adversarial_review_reject_feedback_revise_approve_flow_posts() {
     ];
     let participants = configs
         .iter()
-        .map(|config| OpenRouterParticipant::new(config, &client, 16_384))
+        .map(|config| OpenRouterParticipant::new(config, &client, CompletionTokenLimit::new(16_384)))
         .collect::<Vec<_>>();
-    let reviewer = OpenRouterReviewer::new(&configs, enabled_review_config(), &client, 16_384);
+    let reviewer = OpenRouterReviewer::new(
+        &configs,
+        enabled_review_config(),
+        &client,
+        CompletionTokenLimit::new(16_384),
+    );
     let mut runner = ProtocolRunner::new_with_review(
         participants,
         new!(CapsConfig {
@@ -2633,9 +2649,14 @@ fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
     ];
     let participants = configs
         .iter()
-        .map(|config| OpenRouterParticipant::new(config, &client, 16_384))
+        .map(|config| OpenRouterParticipant::new(config, &client, CompletionTokenLimit::new(16_384)))
         .collect::<Vec<_>>();
-    let reviewer = OpenRouterReviewer::new(&configs, enabled_review_config(), &client, 16_384);
+    let reviewer = OpenRouterReviewer::new(
+        &configs,
+        enabled_review_config(),
+        &client,
+        CompletionTokenLimit::new(16_384),
+    );
     let mut runner = ProtocolRunner::new_with_review(
         participants,
         new!(CapsConfig {
@@ -2734,8 +2755,8 @@ system-prompt = "Observe."
         verdict_response(true, "All checks pass.", 0.01),
     ]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
-    let default_limit = config.client.max_completion_tokens;
-    assert_eq!(default_limit, 4096);
+    assert_eq!(config.client.max_completion_tokens, 4096);
+    let default_limit = CompletionTokenLimit::new(config.client.max_completion_tokens);
 
     for participant in &config.participants {
         let mut conversation = ParticipantConversation::new(participant, default_limit);
@@ -2753,12 +2774,11 @@ system-prompt = "Observe."
 
     // The reviewer session shares no conversation with the participant, but
     // its completion request must carry the participant's effective limit.
-    let mut session = OpenRouterReviewSession::new(
-        &config.participants[0],
-        &enabled_review_config(),
-        &client,
-        default_limit,
-    );
+    // Route through the factory so the stored default is exercised the same
+    // way the live conductor exercises it.
+    let mut reviewer =
+        OpenRouterReviewer::new(&config.participants, enabled_review_config(), &client, default_limit);
+    let mut session = reviewer.begin_session("alice");
     let mut accounting = RunAccounting::new(1.0).expect("valid budget");
     let outcome = session
         .review(&review_brief(), &mut accounting)
@@ -2830,4 +2850,159 @@ fn finish_reason_length_marks_malformed_call_and_observation_truncated() {
         "ordinary completions are not marked truncated"
     );
     assert_eq!(server.finish().len(), 2);
+}
+
+#[requires(!name.trim().is_empty())]
+#[ensures(!ret.as_os_str().is_empty())]
+fn transcript_temp_path(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!(
+        "xarsnu-openrouter-{name}-{}-{}.jsonl",
+        std::process::id(),
+        NEXT_DUMP_DIRECTORY.fetch_add(1, Ordering::Relaxed),
+    ))
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn finish_reason_length_reaches_serialized_transcript_events() {
+    // Issue #726, observation-to-transcript hop: a real mock
+    // `finish_reason: "length"` response must surface as `truncated: true` on
+    // the SERIALIZED usage-recorded and tool-call-malformed transcript events,
+    // not only on the drained in-memory records.
+    let mut truncated = malformed_call_response("submit_lojban", "{\"text\":", 0.0001);
+    truncated.body["choices"][0]["finish_reason"] = json!("length");
+    let server = MockServer::start(vec![
+        protocol_tool_response(
+            "register_intent",
+            json!({ "meaning_en": "I go to the market." }),
+            0.0001,
+        ),
+        truncated,
+        protocol_tool_response("submit_lojban", json!({ "text": "mi klama" }), 0.0001),
+        protocol_tool_response(
+            "confirm_meaning",
+            json!({ "matches": true, "paraphrase_en": "I go to the market." }),
+            0.0001,
+        ),
+        protocol_tool_response(
+            "acknowledge",
+            json!({ "final_understanding_en": "You go to the market." }),
+            0.0001,
+        ),
+        protocol_tool_response(
+            "acknowledge",
+            json!({ "final_understanding_en": "You go to the market." }),
+            0.0001,
+        ),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let default_limit = CompletionTokenLimit::new(16_384);
+    let configs = vec![
+        review_participant("alice", "mock/model"),
+        review_participant("bob", "mock/model"),
+        review_participant("carol", "mock/model"),
+    ];
+    let participants = configs
+        .iter()
+        .map(|config| OpenRouterParticipant::new(config, &client, default_limit))
+        .collect::<Vec<_>>();
+    let caps = new!(CapsConfig {
+        max_parse_attempts_per_turn: 3,
+        max_intent_revisions_per_turn: 2,
+        max_turns: 1,
+        max_cost_usd: 10.0,
+        max_reference_calls_per_phase: 16,
+        reference_dedupe: true,
+        reference_nudge_after: 6,
+    });
+    let scenario =
+        ScenarioInstance::from_toml(include_str!("../scenarios/debate-consciousness-1.toml"))
+            .expect("debate scenario");
+    let run_config = new!(RunConfig {
+        participants: configs,
+        scenario: "debate-consciousness-1.toml".to_owned(),
+        caps: caps.clone(),
+        client: xarsnu::ClientConfig::default(),
+        tersmu_format: TersmuFormat::Smusni,
+        listener_mode: ListenerMode::Informed,
+        allow_degraded_search: false,
+        meaning_review: MeaningReviewConfig::default(),
+    });
+    let header = RunHeader::new(run_config, &scenario).expect("transcript header");
+    let mut runner = ProtocolRunner::new_with_scenario(
+        participants,
+        caps,
+        ListenerMode::Informed,
+        TersmuFormat::Smusni,
+        ReferenceToolDispatcher,
+        scenario,
+    )
+    .expect("runner builds");
+    let transcript_path = transcript_temp_path("truncated-usage");
+    runner
+        .attach_transcript(&transcript_path, header)
+        .expect("attach transcript");
+
+    let outcome = runner.run().expect("run completes");
+    assert!(matches!(
+        outcome.as_data(),
+        bityzba::data!(ProtocolRunOutcome::Completed { turns: 1 })
+    ));
+    assert_eq!(server.finish().len(), 6);
+
+    let malformed_events = runner
+        .events()
+        .iter()
+        .filter(|event| matches!(
+            event.as_data(),
+            bityzba::data!(ProtocolEvent::ToolCallMalformed { .. })
+        ))
+        .collect::<Vec<_>>();
+    assert_eq!(malformed_events.len(), 1);
+    assert!(matches!(
+        malformed_events[0].as_data(),
+        bityzba::data!(ProtocolEvent::ToolCallMalformed { truncated: true, .. })
+    ));
+
+    let records = read_transcript(&transcript_path).expect("transcript validates");
+    assert_eq!(records.len(), runner.events().len());
+    let truncated_usage = records
+        .iter()
+        .filter(|record| matches!(
+            record.event.as_data(),
+            bityzba::data!(ProtocolEvent::UsageRecorded { truncated: true, .. })
+        ))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        truncated_usage.len(),
+        1,
+        "exactly the truncated provider call carries the marker"
+    );
+    // The flag must be present in the serialized JSONL, not only in the
+    // deserialized event: serialize the record back and inspect the payload.
+    let serialized = serde_json::to_value(truncated_usage[0]).expect("record serializes");
+    assert_eq!(
+        serialized["event"]["kind"],
+        json!("usage-recorded"),
+        "serialized event kind"
+    );
+    assert_eq!(
+        serialized["event"]["truncated"],
+        json!(true),
+        "the serialized usage-recorded event carries truncated: true"
+    );
+    assert!(
+        records.iter().any(|record| matches!(
+            record.event.as_data(),
+            bityzba::data!(ProtocolEvent::UsageRecorded { truncated: false, .. })
+        )),
+        "ordinary completions remain unmarked"
+    );
+    assert!(records.iter().any(|record| {
+        let value = serde_json::to_value(record).expect("record serializes");
+        value["event"]["kind"] == json!("tool-call-malformed")
+            && value["event"]["truncated"] == json!(true)
+    }));
+    fs::remove_file(transcript_path).expect("remove transcript");
 }

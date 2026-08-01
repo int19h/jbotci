@@ -641,7 +641,7 @@ fn render_participant_loop(
                         .as_ref()
                         .map_or_else(String::new, |provider| format!(" via {provider}")),
                     if *truncated {
-                        "; TRUNCATED at the completion token limit"
+                        "; hit the completion token limit (output may be truncated)"
                     } else {
                         ""
                     },
@@ -1202,7 +1202,7 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 .expect("writing to String cannot fail");
                 if *truncated {
                     report.push_str(
-                        "The provider stopped this response at the completion token limit (`finish_reason: \"length\"`), so the arguments are truncated rather than model-formatted.\n\n",
+                        "The provider stopped this response at the completion token limit (`finish_reason: \"length\"`), a choice-level condition: the captured arguments may be a truncation artifact rather than a model formatting error.\n\n",
                     );
                 }
                 report.push_str("Raw arguments:\n\n");

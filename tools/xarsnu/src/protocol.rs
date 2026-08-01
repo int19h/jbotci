@@ -15,11 +15,11 @@ use crate::model_capabilities::ParticipantModelPolicy;
 use crate::openrouter::{MalformedToolCallData, ModelTurnData, REQUIRED_TOOL_CORRECTION};
 use crate::transcript::TranscriptWriter;
 use crate::{
-    AbortRecord, CapsConfig, DiagnosticCategory, ListenerMode, MalformedToolCall, MeaningReviewConfig,
-    OpenRouterClient, ParticipantConfig, ParticipantConversation, ProviderCallObservation,
-    ProviderToolChoice, ReferenceTools, RunAccounting, RunHeader, TersmuFormat, ThinkingTrace,
-    ToolCall, ToolDefinition, ToolDefinitionError, ToolDispatchError, ToolDispatcher,
-    TranscriptError, Usage,
+    AbortRecord, CapsConfig, CompletionTokenLimit, DiagnosticCategory, ListenerMode,
+    MalformedToolCall, MeaningReviewConfig, OpenRouterClient, ParticipantConfig,
+    ParticipantConversation, ProviderCallObservation, ProviderToolChoice, ReferenceTools,
+    RunAccounting, RunHeader, TersmuFormat, ThinkingTrace, ToolCall, ToolDefinition,
+    ToolDefinitionError, ToolDispatchError, ToolDispatcher, TranscriptError, Usage,
 };
 use crate::{ScenarioAnswer, ScenarioInstance, TaskOutcome};
 
@@ -598,13 +598,13 @@ impl<'client> OpenRouterReviewSession<'client> {
     /// that reject `tool_choice: required` get the automatic corrective loop
     /// instead. The session deliberately inherits none of the participant's
     /// message history, persona, or standing protocol rules.
-    #[requires(default_max_completion_tokens > 0)]
+    #[requires(true)]
     #[ensures(ret.reviews_completed == 0)]
     pub fn new(
         participant: &ParticipantConfig,
         review: &MeaningReviewConfig,
         client: &'client OpenRouterClient,
-        default_max_completion_tokens: u32,
+        default_max_completion_tokens: CompletionTokenLimit,
     ) -> Self {
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
@@ -619,7 +619,10 @@ impl<'client> OpenRouterReviewSession<'client> {
                 participant.prompt_caching,
                 policy.reasoning,
                 review.temperature.unwrap_or(participant.temperature),
-                participant.effective_max_completion_tokens(default_max_completion_tokens),
+                CompletionTokenLimit::new(
+                    participant
+                        .effective_max_completion_tokens(default_max_completion_tokens.tokens()),
+                ),
                 MEANING_REVIEW_SYSTEM_PROMPT.to_owned(),
             ),
             tool_choice: policy.tool_choice,
@@ -734,20 +737,19 @@ pub struct OpenRouterReviewer<'client> {
     participants: BTreeMap<String, ParticipantConfig>,
     config: MeaningReviewConfig,
     client: &'client OpenRouterClient,
-    default_max_completion_tokens: u32,
+    default_max_completion_tokens: CompletionTokenLimit,
 }
 
 impl<'client> OpenRouterReviewer<'client> {
     /// Prepare fresh-session construction for every run participant.
     #[requires(config.enabled)]
     #[requires(!participants.is_empty())]
-    #[requires(default_max_completion_tokens > 0)]
     #[ensures(ret.participants.len() == participants.len())]
     pub fn new(
         participants: &[ParticipantConfig],
         config: MeaningReviewConfig,
         client: &'client OpenRouterClient,
-        default_max_completion_tokens: u32,
+        default_max_completion_tokens: CompletionTokenLimit,
     ) -> Self {
         new!(OpenRouterReviewer {
             participants: participants
@@ -1222,10 +1224,11 @@ pub enum ProtocolEvent {
         arguments: String,
         message: String,
         /// True when the provider stopped this response at the completion
-        /// token limit (`finish_reason: "length"`): the malformed payload is
-        /// then a truncation artifact rather than a model formatting error
-        /// (issue #726). Additive schema-v1 field; absent means false in
-        /// transcripts written before it existed.
+        /// token limit (`finish_reason: "length"`). The condition is
+        /// choice-level: the captured payload may be a truncation artifact
+        /// rather than a model formatting error (issue #726). Additive
+        /// schema-v1 field; absent means false in transcripts written before
+        /// it existed.
         #[serde(default)]
         truncated: bool,
     },
@@ -1707,12 +1710,12 @@ impl<'client> OpenRouterParticipant<'client> {
     ///
     /// [`ProtocolRunner::new_with_scenario`] supplies the sole scenario brief
     /// before the first request.
-    #[requires(default_max_completion_tokens > 0)]
+    #[requires(true)]
     #[ensures(ret.conversation.participant_name() == participant.name)]
     pub fn new(
         participant: &ParticipantConfig,
         client: &'client OpenRouterClient,
-        default_max_completion_tokens: u32,
+        default_max_completion_tokens: CompletionTokenLimit,
     ) -> Self {
         let system_prompt = format!("{}\n\n{STANDING_PROTOCOL_RULES}", participant.system_prompt);
         let policy = ParticipantModelPolicy::resolve(
@@ -1728,7 +1731,10 @@ impl<'client> OpenRouterParticipant<'client> {
                 participant.prompt_caching,
                 policy.reasoning,
                 participant.temperature,
-                participant.effective_max_completion_tokens(default_max_completion_tokens),
+                CompletionTokenLimit::new(
+                    participant
+                        .effective_max_completion_tokens(default_max_completion_tokens.tokens()),
+                ),
                 system_prompt,
             ),
             tool_choice: policy.tool_choice,

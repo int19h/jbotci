@@ -374,9 +374,10 @@ pub struct MalformedToolCall {
     pub tool_name: String,
     pub arguments: String,
     pub message: String,
-    /// True when the provider stopped the response at the completion token
-    /// limit (`finish_reason: "length"`): the malformed payload is then a
-    /// truncation artifact, not a model formatting error (issue #726).
+    /// True when the provider stopped this call's response at the completion
+    /// token limit (`finish_reason: "length"`). The condition is choice-level:
+    /// this payload may be a truncation artifact rather than a model
+    /// formatting error (issue #726).
     pub truncated: bool,
 }
 
@@ -1153,8 +1154,9 @@ impl OpenRouterClient {
                         message: "OpenRouter returned no completion choices".to_owned(),
                     })?;
             // OpenRouter's chat-completions contract reports `finish_reason:
-            // "length"` when the response stopped at `max_tokens`; content and
-            // tool-call argument payloads are then truncated (issue #726).
+            // "length"` when the response stopped at `max_tokens`. The signal
+            // belongs to the whole completion choice: content and tool-call
+            // argument payloads in it may be truncated (issue #726).
             let truncated = choice.finish_reason.as_deref() == Some("length");
             let CompletionMessage {
                 content,
@@ -1250,6 +1252,39 @@ impl ModelTurn {
     }
 }
 
+/// A positive completion token limit applied to one conversation's requests
+/// (issue #726).
+///
+/// Limits owned by runtime types are positive by construction: the validated
+/// bityzba constructor is the only way to build this type, so storing it
+/// captures the positivity as a lasting type property rather than a
+/// constructor precondition.
+#[invariant(*tokens > 0, "completion token limit must be positive")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompletionTokenLimit {
+    tokens: u32,
+}
+
+impl CompletionTokenLimit {
+    /// Lift an already configuration-validated limit into the runtime type.
+    ///
+    /// Both configuration knobs are invariant-validated positive, so the
+    /// contract cannot fire at any legitimate call site; it keeps the
+    /// assumption explicit at the boundary.
+    #[requires(tokens > 0)]
+    #[ensures(ret.tokens() == tokens)]
+    pub fn new(tokens: u32) -> Self {
+        new!(CompletionTokenLimit { tokens })
+    }
+
+    /// The limit as the completion request's `max_tokens` wire value.
+    #[requires(true)]
+    #[ensures(ret > 0)]
+    pub fn tokens(&self) -> u32 {
+        self.tokens
+    }
+}
+
 /// Private message history and usage for one participant.
 #[invariant(
     true,
@@ -1263,7 +1298,7 @@ pub struct ParticipantConversation {
     prompt_caching: PromptCaching,
     reasoning: ReasoningConfig,
     temperature: f64,
-    max_completion_tokens: u32,
+    max_completion_tokens: CompletionTokenLimit,
     messages: Vec<ChatMessage>,
     usage: UsageTotals,
     pending_observations: Vec<ProviderCallObservation>,
@@ -1276,9 +1311,12 @@ impl ParticipantConversation {
     ///
     /// The scenario runner appends the public setup and participant-scoped
     /// scenario brief before the first model call.
-    #[requires(default_max_completion_tokens > 0)]
+    #[requires(true)]
     #[ensures(ret.messages.len() == 1)]
-    pub fn new(participant: &crate::ParticipantConfig, default_max_completion_tokens: u32) -> Self {
+    pub fn new(
+        participant: &crate::ParticipantConfig,
+        default_max_completion_tokens: CompletionTokenLimit,
+    ) -> Self {
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
             participant.tool_choice,
@@ -1291,7 +1329,9 @@ impl ParticipantConversation {
             participant.prompt_caching,
             policy.reasoning,
             participant.temperature,
-            participant.effective_max_completion_tokens(default_max_completion_tokens),
+            CompletionTokenLimit::new(
+                participant.effective_max_completion_tokens(default_max_completion_tokens.tokens()),
+            ),
             participant.system_prompt.clone(),
         )
     }
@@ -1300,7 +1340,6 @@ impl ParticipantConversation {
     #[requires(!participant_name.trim().is_empty())]
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
-    #[requires(max_completion_tokens > 0)]
     #[requires(!system_prompt.trim().is_empty())]
     #[ensures(ret.messages.len() == 1)]
     pub fn from_system_prompt(
@@ -1310,7 +1349,7 @@ impl ParticipantConversation {
         prompt_caching: PromptCaching,
         reasoning: ReasoningConfig,
         temperature: f64,
-        max_completion_tokens: u32,
+        max_completion_tokens: CompletionTokenLimit,
         system_prompt: String,
     ) -> Self {
         Self {
@@ -1333,7 +1372,6 @@ impl ParticipantConversation {
     #[requires(!participant_name.trim().is_empty())]
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
-    #[requires(max_completion_tokens > 0)]
     #[requires(!system_prompt.trim().is_empty())]
     #[requires(!initial_user_prompt.trim().is_empty())]
     #[ensures(ret.messages.len() == 2)]
@@ -1344,7 +1382,7 @@ impl ParticipantConversation {
         prompt_caching: PromptCaching,
         reasoning: ReasoningConfig,
         temperature: f64,
-        max_completion_tokens: u32,
+        max_completion_tokens: CompletionTokenLimit,
         system_prompt: String,
         initial_user_prompt: String,
     ) -> Self {
@@ -1465,7 +1503,7 @@ impl ParticipantConversation {
                 self.provider.as_ref(),
                 self.prompt_caching,
                 self.temperature,
-                self.max_completion_tokens,
+                self.max_completion_tokens.tokens(),
                 &self.messages,
                 tools,
                 tool_choice,
@@ -1539,9 +1577,10 @@ impl ParticipantConversation {
                         let message = error.to_string();
                         // Keep the raw payload verbatim so the transcript layer
                         // can record what the model actually sent (issue #720).
-                        // `truncated` marks payloads clipped by the completion
-                        // token limit, distinguishing token exhaustion from a
-                        // model formatting error (issue #726).
+                        // `truncated` marks that this response stopped at the
+                        // completion token limit, so the payload may be a
+                        // truncation artifact rather than a model formatting
+                        // error (issue #726).
                         self.pending_malformed_tool_calls
                             .push(new!(MalformedToolCall {
                                 tool_name: call.function.name.clone(),
