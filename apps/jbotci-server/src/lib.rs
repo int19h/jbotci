@@ -3114,6 +3114,62 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
+    async fn mcp_exposes_sfn_xml_schema_resource() {
+        let app = router(test_config(test_static_dir()));
+
+        let list = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({ "jsonrpc": "2.0", "id": 1, "method": "resources/list" }),
+        )
+        .await;
+        assert_eq!(list.status(), StatusCode::OK);
+        let list_json = response_json(list).await;
+        let resources = list_json["result"]["resources"]
+            .as_array()
+            .expect("resources array");
+        let schema = resources
+            .iter()
+            .find(|resource| resource["name"] == "sfn-xml-schema")
+            .expect("sfn-xml schema resource listed");
+        assert_eq!(
+            schema["uri"].as_str(),
+            Some("jbotci:///tersmu/sfn-xml-v0.xsd")
+        );
+        assert_eq!(schema["mimeType"].as_str(), Some("application/xml"));
+        assert!(
+            schema["description"]
+                .as_str()
+                .is_some_and(|d| !d.is_empty())
+        );
+
+        let read = post_json(
+            app,
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "resources/read",
+                "params": { "uri": "jbotci:///tersmu/sfn-xml-v0.xsd" }
+            }),
+        )
+        .await;
+        assert_eq!(read.status(), StatusCode::OK);
+        let read_json = response_json(read).await;
+        let contents = &read_json["result"]["contents"][0];
+        assert_eq!(contents["uri"], "jbotci:///tersmu/sfn-xml-v0.xsd");
+        assert_eq!(contents["mimeType"], "application/xml");
+        let text = contents["text"].as_str().expect("schema text");
+        // Spot-check that the real XSD made it through verbatim: the XML
+        // declaration, the schema root, and a WORD element definition.
+        assert!(text.starts_with("<?xml"), "{}", &text[..text.len().min(200)]);
+        assert!(text.contains("xs:schema"));
+        assert!(text.contains("name=\"WORD\""));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
     async fn mcp_tools_call_tolerates_reserved_meta_field() {
         // The MCP spec reserves a sibling `_meta` object in `tools/call` params
         // (e.g. `progressToken`), which the Claude Agent SDK and other clients

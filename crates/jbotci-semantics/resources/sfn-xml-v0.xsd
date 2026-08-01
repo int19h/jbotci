@@ -1,0 +1,3455 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SFN-XML v0 — document schema for the jbotci tersmu notation.
+
+  This schema describes every document the compact SFN-XML renderer
+  (crates/jbotci-semantics/src/notation/xml.rs) and its word-card companion
+  (crates/jbotci-semantics/src/notation/xml_words.rs) can emit, including the
+  TYPED-GRAPH fallback form.  It is both a validation schema and the reference
+  documentation of the notation: every element and attribute carries an
+  xs:annotation explaining its semantics.  The notation's own teaching text
+  travels inside each document as KEY/RULE prose; this schema is the
+  machine-readable counterpart.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified" attributeFormDefault="unqualified">
+
+  <xs:annotation>
+    <xs:documentation>
+      SFN-XML (Semantic Flat Notation, XML surface) version 0.
+
+      A document is a single SFN root element in one of two forms:
+
+      * COMPACT form (no FORM attribute): the canonical rendering.  Top-level
+        child order is KEY, optional WORDS, WAIVERS, optional DEFS, exactly
+        one rendered graph-root element (normally UTTERANCE), optional
+        UNREACHABLE.
+      * TYPED-GRAPH form (FORM="TYPED-GRAPH"): the lossless fallback used when
+        the graph contains a construct the compact notation cannot represent.
+        Top-level child order is KEY (whose last child is
+        COMPACT-INCOMPATIBILITIES listing why), WAIVERS, TYPED-GRAPH.
+
+      XSD 1.0 cannot condition a content model on an attribute value, so the
+      SFN type below admits both shapes in one sequence; the exact per-form
+      shapes above are normative prose here and are renderer-enforced.
+
+      Lexical categories (mirrors the KEY rule "lexical-categories"): UPPERCASE
+      names are structural keywords (element and attribute names); PascalCase
+      values are sorts; lowercase values are content words as data only;
+      quoted attribute strings are names.
+
+      ID/IDREF discipline (mirrors the KEY rules "ids", "ground", "some",
+      "defs"): graph-node ids are opaque, JSON-aligned tokens matching
+      [reupfqvsdmxo][0-9]+ (prefix by object kind: r/e referent, u utterance,
+      p predication, f formula, q quantity, v variable/parameter, s sequence,
+      d displayedContent, m mathExpression, x question, o other) plus g[0-9]+
+      for notation-level deictic-ground units.  ID= marks the definition of a
+      shared graph node and is typed xs:ID.  The four role attributes of
+      DEICTIC-GROUND (SPEAKER-REF/AUDIENCE-REF/TIME-REF/PLACE-REF) are the sole
+      definition sites for the speech-situation referent ids; XSD 1.0 permits
+      only one xs:ID attribute per element, so those four are pattern-typed
+      strings whose definition-site status is documented, not schema-enforced.
+      REF= and the named *-REF= attributes are use sites.  REF= additionally
+      accepts the reserved keyword SOME (a distinct elided node per
+      occurrence), so REF= is typed as a union of the id grammar and the SOME
+      literal rather than xs:IDREF; referential integrity of REF= is
+      renderer-guaranteed.  Attributes that can only carry graph ids
+      (GROUND=, GROUND-REF=, the id-list attributes PARAMETERS=,
+      QUESTION-PARAMETERS=, POSSIBLY-DIFFERENT-PER=, and ROOT-REF=) are typed
+      xs:IDREF/xs:IDREFS and are schema-checked.
+
+      Documents carry no XML namespace and no XML declaration; the renderer
+      emits a bare, two-space-indented SFN element.
+    </xs:documentation>
+  </xs:annotation>
+
+  <!-- ======================= simple types ======================= -->
+
+  <xs:simpleType name="graphIdType">
+    <xs:annotation>
+      <xs:documentation>
+        The graph-node id grammar: one kind prefix letter
+        (r/e referent, u utterance, p predication, f formula, q quantity,
+        v variable or parameter, s sequence, d displayed content,
+        m math expression, x question, o anything else, g deictic ground)
+        followed by the decimal suffix of the underlying JSON graph key.
+        Ids are opaque and JSON-aligned; distinct ids assert neither identity
+        nor non-identity of their referents.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:NCName">
+      <xs:pattern value="[reupfqvsdmxog][0-9]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="idDefType">
+    <xs:annotation>
+      <xs:documentation>
+        An ID= definition-site attribute.  Typed xs:ID so the document-wide
+        uniqueness of node definitions is schema-enforced; the pattern
+        restricts values to the graph-id grammar (including g-prefixed
+        deictic-ground ids).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:ID">
+      <xs:pattern value="[reupfqvsdmxog][0-9]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="groundRoleIdType">
+    <xs:annotation>
+      <xs:documentation>
+        A speech-situation referent id defined by a DEICTIC-GROUND role
+        attribute (SPEAKER-REF/AUDIENCE-REF/TIME-REF/PLACE-REF).  These are
+        definition sites for the r/e-prefixed referent ids they carry, but
+        XSD 1.0 allows only one xs:ID attribute per element, so they are
+        pattern-typed strings: their id-defining role is normative prose,
+        not schema-enforced.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[re][0-9]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="groundIdRefType">
+    <xs:annotation>
+      <xs:documentation>
+        A reference to a deictic-ground unit id (g[0-9]+) defined by
+        DEICTIC-GROUND ID=.  Typed xs:IDREF; schema-checked.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:IDREF">
+      <xs:pattern value="g[0-9]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="refOrSomeType">
+    <xs:annotation>
+      <xs:documentation>
+        The REF= attribute grammar: either a graph-node id (an exact-node
+        reuse of a node defined elsewhere) or the reserved keyword SOME,
+        which denotes a distinct elided node per occurrence that never has a
+        definition site.  Because SOME is not an id, REF= cannot be typed
+        xs:IDREF; referential integrity of id-valued REF= uses is
+        renderer-guaranteed rather than schema-enforced.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:union memberTypes="graphIdType">
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="SOME"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:union>
+  </xs:simpleType>
+
+  <xs:simpleType name="enumTokenType">
+    <xs:annotation>
+      <xs:documentation>
+        An open enumeration token in the notation's SCREAMING_SNAKE_CASE:
+        the renderer derives these from camelCase JSON values by inserting
+        '_' before interior capitals, uppercasing alphanumerics, and
+        collapsing other characters to '_'.  Used for attribute values whose
+        vocabulary is data-driven or intentionally open (facet relations and
+        contours, quotation modes, formula and math operators, expansion
+        kinds, generic scalar values).  Where the vocabulary is closed the
+        schema uses a dedicated enumeration type instead.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:token">
+      <xs:pattern value="[A-Z0-9]+(_[A-Z0-9]+)*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="predicateSymbolType">
+    <xs:annotation>
+      <xs:documentation>
+        A predicate/relation symbol: the lowercase counterpart of an enum
+        token, derived from the relation name with apostrophes, underscores,
+        and hyphens preserved (e.g. a lujvo or gismu spelling such as
+        "skamymlatu" or "braselju'o"; the empty fallback is
+        "unnamed_relation").  Open by design: any Lojban predicate spelling
+        may appear.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[a-z0-9'_-]+"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="sortType">
+    <xs:annotation>
+      <xs:documentation>
+        A flat PascalCase sort name: the last segment of the semantic
+        model's sort path (e.g. "eventuality/locution" gives Locution).
+        The vocabulary is the closed sort taxonomy of the semantic model
+        (SemanticSort plus the EventualitySort sub-sorts); "Unknown" is the
+        renderer's fallback for a sort string with no alphanumeric content.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Entity"/>
+      <xs:enumeration value="Mass"/>
+      <xs:enumeration value="Set"/>
+      <xs:enumeration value="Sequence"/>
+      <xs:enumeration value="Time"/>
+      <xs:enumeration value="Eventuality"/>
+      <xs:enumeration value="State"/>
+      <xs:enumeration value="Process"/>
+      <xs:enumeration value="Activity"/>
+      <xs:enumeration value="Achievement"/>
+      <xs:enumeration value="Experience"/>
+      <xs:enumeration value="Locution"/>
+      <xs:enumeration value="Predication"/>
+      <xs:enumeration value="TruthValue"/>
+      <xs:enumeration value="Proposition"/>
+      <xs:enumeration value="Concept"/>
+      <xs:enumeration value="Amount"/>
+      <xs:enumeration value="Quantity"/>
+      <xs:enumeration value="Number"/>
+      <xs:enumeration value="Scale"/>
+      <xs:enumeration value="Text"/>
+      <xs:enumeration value="Sign"/>
+      <xs:enumeration value="Relation"/>
+      <xs:enumeration value="Place"/>
+      <xs:enumeration value="Connective"/>
+      <xs:enumeration value="TenseModal"/>
+      <xs:enumeration value="MathOperator"/>
+      <xs:enumeration value="ArgumentBundle"/>
+      <xs:enumeration value="AbstractNature"/>
+      <xs:enumeration value="Unknown"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="modeType">
+    <xs:annotation>
+      <xs:documentation>
+        PREDICATION MODE vocabulary (required on PREDICATION):
+        ASSERTED = main claim; RESTRICTIVE = restriction;
+        INCIDENTAL = side claim; INERT = embedded nonclaim;
+        DEFINITIONAL = identity definition; PERFORMATIVE = speech act;
+        DISPLAYED = displayed (attitudinal/UI) content.
+        UNKNOWN is the renderer's fallback when the graph carries no mode.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ASSERTED"/>
+      <xs:enumeration value="RESTRICTIVE"/>
+      <xs:enumeration value="INCIDENTAL"/>
+      <xs:enumeration value="INERT"/>
+      <xs:enumeration value="DEFINITIONAL"/>
+      <xs:enumeration value="PERFORMATIVE"/>
+      <xs:enumeration value="DISPLAYED"/>
+      <xs:enumeration value="UNKNOWN"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="forceType">
+    <xs:annotation>
+      <xs:documentation>
+        UTTERANCE FORCE vocabulary: the illocutionary force of the
+        utterance — ASSERT, ASK, COMMAND, MENTION, QUOTE, PARENTHETICAL,
+        SUBORDINATED, or VOCATIVE.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ASSERT"/>
+      <xs:enumeration value="ASK"/>
+      <xs:enumeration value="COMMAND"/>
+      <xs:enumeration value="MENTION"/>
+      <xs:enumeration value="QUOTE"/>
+      <xs:enumeration value="PARENTHETICAL"/>
+      <xs:enumeration value="SUBORDINATED"/>
+      <xs:enumeration value="VOCATIVE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="proximityType">
+    <xs:annotation>
+      <xs:documentation>
+        Deictic proximity: PROXIMAL (ti/this), MEDIAL (tu/that), DISTAL
+        (ta/that yonder).  UNKNOWN is the fallback when the graph carries
+        no proximity.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="PROXIMAL"/>
+      <xs:enumeration value="MEDIAL"/>
+      <xs:enumeration value="DISTAL"/>
+      <xs:enumeration value="UNKNOWN"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="inclusionType">
+    <xs:annotation>
+      <xs:documentation>
+        Interval endpoint inclusion: INCLUSIVE or EXCLUSIVE.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="INCLUSIVE"/>
+      <xs:enumeration value="EXCLUSIVE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="membershipType">
+    <xs:annotation>
+      <xs:documentation>
+        Personal-mass membership of a speech participant: INCLUDED or
+        EXCLUDED.  UNKNOWN is the fallback when the graph carries no
+        membership marker.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="INCLUDED"/>
+      <xs:enumeration value="EXCLUDED"/>
+      <xs:enumeration value="UNKNOWN"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="actualityType">
+    <xs:annotation>
+      <xs:documentation>
+        Actuality facet values: ACTUAL, CAPABLE, POTENTIAL, DEMONSTRATED
+        (the model's ActualityKind, rendered as enum tokens).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ACTUAL"/>
+      <xs:enumeration value="CAPABLE"/>
+      <xs:enumeration value="POTENTIAL"/>
+      <xs:enumeration value="DEMONSTRATED"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="facetNameType">
+    <xs:annotation>
+      <xs:documentation>
+        The eight facet attribute/element names.  As attributes they appear
+        on referents and binders; absence of a facet attribute means
+        UNSPECIFIED (no commitment) — see the KEY rule "facet-silence".
+        A facet too structured for a single token is instead rendered as a
+        FACET child element carrying this name in its NAME attribute.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="TIME"/>
+      <xs:enumeration value="ACTUALITY"/>
+      <xs:enumeration value="ASPECT"/>
+      <xs:enumeration value="RECURRENCE"/>
+      <xs:enumeration value="SPACE"/>
+      <xs:enumeration value="SPATIAL-ASPECT"/>
+      <xs:enumeration value="SPATIAL-RECURRENCE"/>
+      <xs:enumeration value="DETAILS"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="trueOnlyType">
+    <xs:annotation>
+      <xs:documentation>
+        A presence-only boolean marker: the attribute is either absent or
+        carries exactly the value "true".
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="true"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="genericBooleanType">
+    <xs:annotation>
+      <xs:documentation>
+        BOOLEAN VALUE in generic JSON rendering.  The compact form's
+        generic-value emitter writes TRUE/FALSE (enum-token casing); the
+        TYPED-GRAPH form writes true/false (JSON casing).  Both are accepted
+        here; the per-form casing divergence is a known surface quirk of the
+        renderer, kept for byte-compatibility with frozen expectations.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="TRUE"/>
+      <xs:enumeration value="FALSE"/>
+      <xs:enumeration value="true"/>
+      <xs:enumeration value="false"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="placeIndexListType">
+    <xs:annotation>
+      <xs:documentation>
+        A non-empty space-separated list of 1-based argument-place indices
+        (the "atomic-lists" KEY rule: simple id or number lists are
+        NMTOKENS attributes, never child elements).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:NMTOKENS">
+      <xs:pattern value="[0-9]+( [0-9]+)*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="groupingBasisType">
+    <xs:annotation>
+      <xs:documentation>
+        Basis of a displayed compound-composition grouping edge:
+        EXPLICIT = the word itself encodes the boundary;
+        ASSUMED-LEFT = the CLL default left-grouping assumption.
+        These describe the basis of the displayed tree, not the coiner's
+        guaranteed intent (KEY rule "compound-assumptions").
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="EXPLICIT"/>
+      <xs:enumeration value="ASSUMED-LEFT"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="scopeBasisType">
+    <xs:annotation>
+      <xs:documentation>
+        Basis of a displayed operator-scope edge: EXPLICIT = the word
+        itself encodes the boundary; ASSUMED-SHORT = the CLL-12.12 narrow
+        operator-scope assumption.  See groupingBasisType.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="EXPLICIT"/>
+      <xs:enumeration value="ASSUMED-SHORT"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="incompatibilityKindType">
+    <xs:annotation>
+      <xs:documentation>
+        The closed set of compact-representation incompatibilities reported
+        by INCOMPATIBILITY in a TYPED-GRAPH document.  Each names one
+        planner or shape condition that forced the fallback.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="NON-CANONICAL-GROUND"/>
+      <xs:enumeration value="MULTIPLE-BINDER-OWNERS"/>
+      <xs:enumeration value="BINDER-DOES-NOT-ENCLOSE-USE"/>
+      <xs:enumeration value="SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER"/>
+      <xs:enumeration value="NON-COMPACT-REFERENT"/>
+      <xs:enumeration value="NON-COMPACT-FIELD-SHAPE"/>
+      <xs:enumeration value="NON-COMPACT-NAME-DESCRIPTOR"/>
+      <xs:enumeration value="NON-DERIVABLE-GENERATED-CONTENT"/>
+      <xs:enumeration value="UNREPRESENTABLE-CYCLE"/>
+      <xs:enumeration value="REPEATED-SINGLE-USE-EMISSION"/>
+      <xs:enumeration value="PROTOTYPE-ID-WITHOUT-COMPACT-USE"/>
+      <xs:enumeration value="DEFINITION-SITE-DOES-NOT-DOMINATE-USE"/>
+      <xs:enumeration value="DECLARATION-PLANNING-DID-NOT-CONVERGE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- ==================== reusable attribute groups ==================== -->
+
+  <xs:attributeGroup name="idAttr">
+    <xs:annotation>
+      <xs:documentation>
+        The definition-site id attribute.  Present exactly when this
+        occurrence defines the shared graph node (all non-binder definitions
+        sit in a DEFS in the smallest graph scope strictly containing all
+        uses — the "defs" KEY rule); absent at inline single-use sites.
+        Always serialized as the first attribute.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="ID" type="idDefType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="facetAttrs">
+    <xs:annotation>
+      <xs:documentation>
+        The eight optional facet attributes.  Each appears only when the
+        corresponding facet is a single scalar/primary-field value;
+        structured facets render as FACET child elements instead.  Absence
+        means UNSPECIFIED (no commitment).  ACTUALITY has a closed
+        vocabulary; the remaining facet token vocabularies (time/space
+        relations, aspect contours, recurrence tokens, details) are
+        data-driven model strings rendered as enum tokens and are therefore
+        typed as open enum tokens.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="TIME" type="enumTokenType"/>
+    <xs:attribute name="ACTUALITY" type="actualityType"/>
+    <xs:attribute name="ASPECT" type="enumTokenType"/>
+    <xs:attribute name="RECURRENCE" type="enumTokenType"/>
+    <xs:attribute name="SPACE" type="enumTokenType"/>
+    <xs:attribute name="SPATIAL-ASPECT" type="enumTokenType"/>
+    <xs:attribute name="SPATIAL-RECURRENCE" type="enumTokenType"/>
+    <xs:attribute name="DETAILS" type="enumTokenType"/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name="scopeDependenceAttrs">
+    <xs:annotation>
+      <xs:documentation>
+        Scope-dependence markers (KEY rules "scope-dependence" and
+        "scope-dependence-subsets").  SAME-FOR-ALL="true" means the referent
+        is fixed despite a nonempty first-visit binder universe;
+        POSSIBLY-DIFFERENT-PER is a space-separated strict nonempty subset
+        of the first-visit quantifier-variable or abstraction/question
+        parameter ids on which the referent may depend.  Silence means the
+        referent may depend on the full first-visit universe.  The two
+        attributes never co-occur; that mutual exclusion is
+        renderer-enforced (XSD 1.0 cannot express it).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="SAME-FOR-ALL" type="trueOnlyType"/>
+    <xs:attribute name="POSSIBLY-DIFFERENT-PER" type="xs:IDREFS"/>
+  </xs:attributeGroup>
+
+  <!-- ==================== generic JSON value vocabulary ==================== -->
+
+  <xs:group name="genericValueGroup">
+    <xs:annotation>
+      <xs:documentation>
+        The generic JSON-value fallback vocabulary, used inside FIELD, ITEM,
+        recurrence VALUE, and FACET scalars wherever a raw JSON value is
+        rendered without a dedicated notation form.  A string that names a
+        graph key renders as a REFERENCE or as the referenced object element
+        instead of a STRING.  NUMBER is reachable through the graph-node
+        branch (it is also the sort-derived referent element for sort
+        Number), so it is not repeated as a direct branch here.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice>
+      <xs:element ref="STRING"/>
+      <xs:element ref="BOOLEAN"/>
+      <xs:element ref="NULL"/>
+      <xs:element ref="LIST"/>
+      <xs:element ref="RECORD"/>
+      <xs:group ref="graphNodeGroup"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:element name="STRING">
+    <xs:annotation>
+      <xs:documentation>A JSON string value; VALUE carries the text verbatim (apostrophes and other Lojban characters are ordinary data).</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="VALUE" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="NUMBER">
+    <xs:annotation>
+      <xs:documentation>
+        Two element roles share this name.  (a) A generic JSON number value:
+        empty, with VALUE carrying the JSON lexical form of the number
+        (typed as a string because JSON number lexicals are not guaranteed
+        to fit xs:double edge cases).  (b) A referent of sort Number, named
+        by the sort-derived element vocabulary, with the full referent
+        content model.  XSD 1.0 cannot distinguish the two by context, so
+        this type admits both: all attributes and children are optional,
+        and the generic form is exactly the empty-content case with VALUE.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="referentChildGroup"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="VALUE" type="xs:string"/>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="REF" type="refOrSomeType"/>
+      <xs:attribute name="KIND" type="enumTokenType"/>
+      <xs:attribute name="PARAMETERS" type="xs:IDREFS"/>
+      <xs:attribute name="ARITY" type="xs:nonNegativeInteger"/>
+      <xs:attributeGroup ref="facetAttrs"/>
+      <xs:attributeGroup ref="scopeDependenceAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="BOOLEAN">
+    <xs:annotation>
+      <xs:documentation>A JSON boolean value.  See genericBooleanType for the per-form casing divergence (TRUE/FALSE in compact extras, true/false in the TYPED-GRAPH form).</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="VALUE" type="genericBooleanType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="NULL">
+    <xs:annotation>
+      <xs:documentation>A JSON null value; always empty.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType/>
+  </xs:element>
+
+  <xs:element name="LIST">
+    <xs:annotation>
+      <xs:documentation>A JSON array value; one ITEM child per array element, in order.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="ITEM" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="ITEM">
+    <xs:annotation>
+      <xs:documentation>One array element of a LIST; wraps exactly one generic value.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="genericValueGroup"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="RECORD">
+    <xs:annotation>
+      <xs:documentation>A JSON object rendered generically: one FIELD child per property, in canonical JSON order.  Also the fallback body of a record-shaped ADJUNCT.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="FIELD">
+    <xs:annotation>
+      <xs:documentation>
+        One property of a generically rendered JSON object.  NAME is the raw
+        JSON key (camelCase; an open, data-driven vocabulary typed as a plain
+        string).  Exactly one value child follows.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="genericValueGroup"/>
+      </xs:sequence>
+      <xs:attribute name="NAME" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="EXTRA">
+    <xs:annotation>
+      <xs:documentation>
+        Provenance/forward-compatibility container appended (at most once)
+        after the typed children of nearly every object element: one FIELD
+        per JSON property the notation does not (yet) map to a dedicated
+        form.  Its presence on a given element is data-dependent.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="WARNING">
+    <xs:annotation>
+      <xs:documentation>
+        One semantic diagnostic of severity warning; the character content is
+        the diagnostic message (KEY rule "warnings").  Repeatable; appended
+        after all other children of the element whose object carried the
+        diagnostic, and also used inside WORD cards.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:string"/>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== pointer wrappers ==================== -->
+
+  <xs:complexType name="pointerWrapperType">
+    <xs:annotation>
+      <xs:documentation>
+        The shared shape of every "pointer wrapper" element (e.g. EVENT,
+        KIND, MODIFIER, ASKER, ANCHOR, SCALE, TARGET, ...): either a pure
+        use site carrying REF= and no children, or an inline occurrence
+        whose single child is the rendered target, optionally preceded by a
+        DEFS holding the declarations the target's scope requires.  The
+        REF-xor-child discipline is renderer-enforced; XSD 1.0 cannot
+        express the attribute/child mutual exclusion in one type, so both
+        halves are optional here.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element ref="DEFS" minOccurs="0"/>
+      <xs:group ref="graphNodeGroup" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="REF" type="refOrSomeType"/>
+  </xs:complexType>
+
+  <xs:complexType name="scopeBodyType">
+    <xs:annotation>
+      <xs:documentation>
+        BODY / CONTENT: the loud sibling that carries a scoped subtree.
+        Children are an optional DEFS (declarations needed inside this
+        scope), then the rendered scope content, then — for referent bodies —
+        an optional EMBEDDED-QUESTIONS section.  A pure use site carries
+        REF= instead of children.  FORALL and CARDINALITY always write
+        RESTRICTION and BODY explicitly (empty as RESTRICTION/ or BODY/ when
+        the graph supplies nothing); EXISTS writes RESTRICTION exactly when
+        the graph supplies one (KEY rule "quantifiers").
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element ref="DEFS" minOccurs="0"/>
+      <xs:group ref="graphNodeGroup" minOccurs="0"/>
+      <xs:element ref="EMBEDDED-QUESTIONS" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="REF" type="refOrSomeType"/>
+  </xs:complexType>
+
+  <xs:element name="BODY" type="scopeBodyType">
+    <xs:annotation>
+      <xs:documentation>
+        The scoped body of a binder, descriptor, referent, question, or
+        body-form ADJUNCT.  See scopeBodyType.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:element name="CONTENT" type="scopeBodyType">
+    <xs:annotation>
+      <xs:documentation>
+        The scoped content of a referent or utterance: same shape as BODY.
+        On UTTERANCE it carries the utterance's main formula.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:element name="RESTRICTION" type="pointerWrapperType">
+    <xs:annotation>
+      <xs:documentation>
+        The restriction of a quantifier binder; a loud sibling of BODY.
+        Always present (possibly empty) on FORALL and CARDINALITY; present
+        on EXISTS exactly when the graph supplies one.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:element name="EMBEDDED-QUESTIONS">
+    <xs:annotation>
+      <xs:documentation>
+        Typed QUESTION metadata attached to the abstraction formula named by
+        the enclosing BODY (KEY rule "embedded-questions"): one rendered
+        question pointer per embedded question, in order.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="graphNodeGroup" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- globally shared pointer-wrapper elements (REF= use site xor one inline child) -->
+  <xs:element name="EVENT" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The reserved first child of a PREDICATION: its Eventuality referent, never a numbered ARG (KEY rule "event-field").</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="ANCHOR" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>An anchor referent of a facet, displayed content, or aspect: the eventuality or time the facet is anchored to.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="SCALE" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The scale referent of a scalar negation (the scale along which the negated item is displaced).</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="TARGET" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The target referent of displayed content or of an ordinal label.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="EXPERIENCER" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The experiencer referent of displayed (attitudinal) content.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="ASKER" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The asker participant of a QUESTION.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="RESPONDENT" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The respondent participant of a QUESTION.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="FOCUS" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The focus of a QUESTION: the part of the body the question asks about.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="PRESUPPOSED-ANSWER" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The presupposed answer recorded on a QUESTION, when the graph carries one.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="APPLIES-TO" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>Links an ADJUNCT's metadata to the host component it applies to (KEY rule "adjuncts").</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="CARD" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The cardinality quantity of a CARDINALITY binder.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="QUANTITY-VALUE" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The quantity value attached to a FORALL/EXISTS binder.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="ASIDE" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>One aside (parenthetical) utterance inside ASIDES.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="CONNECTION-CLAIM" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>One connection claim of a SEQUENCE: a claimed relation between sequence items.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="REFERENT" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The referent bound by a RAFSI-BINDING.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="INTERVAL" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The interval referent of a recurrence OCCURRENCE.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="OPERAND" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The operand of a descriptor that quantifies or operates over another referent.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="DENOTES" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The denotation target of a descriptor or math expression: what the expression denotes.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="OPERATOR-DENOTES" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The denotation target of a math expression's operator.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="OPERATOR-PARAMETER" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The operator parameter of a MATH expression whose operator is a bound parameter rather than a fixed token.  Mutually exclusive with the OPERATOR attribute (renderer-enforced).</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="SUBSCRIPT" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>The subscript of a math expression.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="MATH-EXPRESSION" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>A math-expression pointer where the notation names the role explicitly (e.g. inside a recurrence VALUE).</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="TENSE-MODAL" type="pointerWrapperType">
+    <xs:annotation><xs:documentation>A tense/modal tag attached to a referent or binder.  (The word-card TENSE-MODAL inside COMPOSITE-APPROX is a different, locally declared element.)</xs:documentation></xs:annotation>
+  </xs:element>
+
+  <!-- ==================== graph-node choice ==================== -->
+
+  <xs:group name="graphNodeGroup">
+    <xs:annotation>
+      <xs:documentation>
+        Any rendered graph object: the child vocabulary of pointer wrappers,
+        DEFS, UNREACHABLE, and the document root.
+
+        Referent elements are named after the referent's flat sort,
+        uppercased (ENTITY, EVENTUALITY, PROPOSITION, ...).  The sort
+        taxonomy is closed (see sortType), but several sort-derived names
+        collide with structural element names: PREDICATION, SEQUENCE,
+        QUANTITY, NUMBER, SCALE, RELATION, PLACE, CONNECTIVE, and TEXT as
+        referent element names are indistinguishable from the structural
+        elements of the same name.  XSD 1.0 (unique particle attribution)
+        cannot give both readings, so this schema types those names by their
+        structural role; a referent whose flat sort is one of those nine
+        names (none occurs in the frozen corpus or is produced by the
+        current semantic model for referents) would fail validation and is
+        reported here as a genuine XSD-1.0 resistance rather than silently
+        weakening the structural types.
+
+        A use site of a shared node appears as REFERENCE instead of the
+        defining element.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice>
+      <xs:element ref="UTTERANCE"/>
+      <xs:element ref="PREDICATION"/>
+      <xs:element ref="FORMULA"/>
+      <xs:element ref="CONNECTIVE"/>
+      <xs:element ref="NEGATION"/>
+      <xs:element ref="EXISTS"/>
+      <xs:element ref="FORALL"/>
+      <xs:element ref="CARDINALITY"/>
+      <xs:element ref="QUESTION"/>
+      <xs:element ref="QUANTITY"/>
+      <xs:element ref="PARAMETER"/>
+      <xs:element ref="SEQUENCE"/>
+      <xs:element ref="DISPLAYED-CONTENT"/>
+      <xs:element ref="MATH"/>
+      <xs:element ref="MIXED-RADIX"/>
+      <xs:element ref="MATH-LITERAL"/>
+      <xs:element ref="INTEGER"/>
+      <xs:element ref="NUMBER"/>
+      <xs:element ref="RELATION-METADATA"/>
+      <xs:element ref="MISSING-PREDICATION"/>
+      <xs:element ref="RELATION"/>
+      <xs:element ref="UNSPECIFIED-REFERENT"/>
+      <xs:element ref="ENTITY"/>
+      <xs:element ref="MASS"/>
+      <xs:element ref="SET"/>
+      <xs:element ref="TIME"/>
+      <xs:element ref="EVENTUALITY"/>
+      <xs:element ref="STATE"/>
+      <xs:element ref="PROCESS"/>
+      <xs:element ref="ACTIVITY"/>
+      <xs:element ref="ACHIEVEMENT"/>
+      <xs:element ref="EXPERIENCE"/>
+      <xs:element ref="LOCUTION"/>
+      <xs:element ref="TRUTH_VALUE"/>
+      <xs:element ref="PROPOSITION"/>
+      <xs:element ref="CONCEPT"/>
+      <xs:element ref="AMOUNT"/>
+      <xs:element ref="SIGN"/>
+      <xs:element ref="TENSE_MODAL"/>
+      <xs:element ref="MATH_OPERATOR"/>
+      <xs:element ref="ARGUMENT_BUNDLE"/>
+      <xs:element ref="ABSTRACT_NATURE"/>
+      <xs:element ref="UNKNOWN"/>
+      <xs:element ref="REFERENCE"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:element name="REFERENCE">
+    <xs:annotation>
+      <xs:documentation>
+        A pure use site of a shared graph node: empty, with REF= naming the
+        node defined elsewhere (or the SOME keyword; see refOrSomeType).
+        In the TYPED-GRAPH form REFERENCE additionally carries KEY=, the raw
+        JSON graph key of the referenced object.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="REF" type="refOrSomeType" use="required"/>
+      <xs:attribute name="KEY" type="xs:string">
+        <xs:annotation><xs:documentation>The raw JSON graph key (e.g. "referent:7"); present only in the TYPED-GRAPH form.  Contains a colon, so it is a plain string, not an NCName.</xs:documentation></xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== document-level structure ==================== -->
+
+  <xs:element name="SFN">
+    <xs:annotation>
+      <xs:documentation>
+        The document root.  See the schema-level annotation for the two
+        document forms.  The type below admits both shapes because XSD 1.0
+        cannot condition the content model on the FORM attribute:
+        compact form = KEY, WORDS?, WAIVERS, DEFS?, one graph-root element,
+        UNREACHABLE?; TYPED-GRAPH form = KEY (with COMPACT-INCOMPATIBILITIES),
+        WAIVERS, TYPED-GRAPH.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="KEY"/>
+        <xs:element ref="WORDS" minOccurs="0"/>
+        <xs:element ref="WAIVERS"/>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:group ref="graphNodeGroup" minOccurs="0"/>
+        <xs:element ref="UNREACHABLE" minOccurs="0"/>
+        <xs:element ref="TYPED-GRAPH" minOccurs="0"/>
+      </xs:sequence>
+      <xs:attribute name="VERSION" use="required" type="xs:string" >
+        <xs:annotation><xs:documentation>The notation version; fixed "0" for this schema.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="DOC" type="xs:string" use="required">
+        <xs:annotation><xs:documentation>The document name (input label or fixture name); free text.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="FORM" type="xs:string">
+        <xs:annotation><xs:documentation>Absent in the canonical compact form; exactly "TYPED-GRAPH" in the fallback form.  The presence-iff correspondence with the TYPED-GRAPH child is renderer-enforced (XSD 1.0 cannot express it).</xs:documentation></xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="KEY">
+    <xs:annotation>
+      <xs:documentation>
+        The notation key: an ordered list of RULE teaching texts, always the
+        first child of SFN.  In the TYPED-GRAPH form it is followed inside
+        KEY by COMPACT-INCOMPATIBILITIES.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="RULE" maxOccurs="unbounded"/>
+        <xs:element ref="COMPACT-INCOMPATIBILITIES" minOccurs="0"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="RULE">
+    <xs:annotation>
+      <xs:documentation>
+        One teaching rule of the notation; character content is the rule
+        prose.  TOPIC names the rule.  The topic set grows with the notation
+        itself (the renderer adds topics when new sections — e.g. word
+        cards — appear), so TOPIC is deliberately typed as an open string,
+        documented rather than enumerated: the schema must not become a
+        second source of truth that silently drifts from the renderer's KEY
+        tables.  Current compact topics, in emission order: ids,
+        lexical-categories, sorts, embedded-questions, kind-composition,
+        warnings, some, ground, quantifiers, scope-dependence,
+        scope-dependence-subsets, number-neutrality, personal-reference,
+        speaker-anchor, facet-silence, event-field, adjuncts, pro-sumti,
+        mode, defs, atomic-lists, order; plus, when a WORDS section is
+        present: word-cards, compound-approximation, compound-places,
+        compound-assumptions, context-placeholders, word-card-ids.
+        TYPED-GRAPH topics: form, objects, fields, elided-zohe.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:string">
+          <xs:attribute name="TOPIC" type="xs:string" use="required"/>
+        </xs:extension>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="COMPACT-INCOMPATIBILITIES">
+    <xs:annotation>
+      <xs:documentation>
+        TYPED-GRAPH form only: the list of reasons the compact notation
+        could not represent the graph.  One INCOMPATIBILITY per reason.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="INCOMPATIBILITY" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="INCOMPATIBILITY">
+    <xs:annotation>
+      <xs:documentation>
+        One compact-representation incompatibility.  KIND is required and
+        closed; the remaining attributes are raw JSON graph keys (or a
+        decimal count for ITERATIONS) whose presence depends on KIND
+        (NON-CANONICAL-GROUND: OBJECT, ROLE; MULTIPLE-BINDER-OWNERS:
+        REFERENT; BINDER-DOES-NOT-ENCLOSE-USE: REFERENT, OWNER, USE-SITE;
+        SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER: REFERENT, DEPENDENCY;
+        NON-COMPACT-REFERENT: REFERENT, FIELD; NON-COMPACT-FIELD-SHAPE:
+        OBJECT, FIELD; NON-COMPACT-NAME-DESCRIPTOR: REFERENT;
+        NON-DERIVABLE-GENERATED-CONTENT: REFERENT, CONTENT;
+        UNREPRESENTABLE-CYCLE: ENTRY;
+        DEFINITION-SITE-DOES-NOT-DOMINATE-USE / REPEATED-SINGLE-USE-EMISSION
+        / PROTOTYPE-ID-WITHOUT-COMPACT-USE: OBJECT;
+        DECLARATION-PLANNING-DID-NOT-CONVERGE: ITERATIONS).
+        This KIND-to-attribute co-occurrence is documented prose: XSD 1.0
+        cannot condition attributes on another attribute's value.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="KIND" type="incompatibilityKindType" use="required"/>
+      <xs:attribute name="OBJECT" type="xs:string"/>
+      <xs:attribute name="ROLE" type="xs:string"/>
+      <xs:attribute name="REFERENT" type="xs:string"/>
+      <xs:attribute name="OWNER" type="xs:string"/>
+      <xs:attribute name="USE-SITE" type="xs:string"/>
+      <xs:attribute name="DEPENDENCY" type="xs:string"/>
+      <xs:attribute name="FIELD" type="xs:string"/>
+      <xs:attribute name="CONTENT" type="xs:string"/>
+      <xs:attribute name="ENTRY" type="xs:string"/>
+      <xs:attribute name="ITERATIONS" type="xs:nonNegativeInteger"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="WAIVERS">
+    <xs:annotation>
+      <xs:documentation>
+        The provenance waivers: one WAIVER per omission family the
+        owner-approved design permits (source records, assigned names,
+        descriptor words, introducedBy markers, quantity value text,
+        bound-variable words, composition relation labels).  Always present,
+        possibly empty.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="WAIVER" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="WAIVER">
+    <xs:annotation>
+      <xs:documentation>One waiver; character content is the waiver message with interpolated counts.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:simpleContent>
+        <xs:extension base="xs:string"/>
+      </xs:simpleContent>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="DEFS">
+    <xs:annotation>
+      <xs:documentation>
+        A declaration scope (KEY rule "defs"): DEICTIC-GROUND declarations
+        first, then graph-node definitions, each carrying ID=.  Sits in the
+        smallest graph scope strictly containing all uses of its
+        definitions; always the first child of its parent.  Emitted only
+        when non-empty.  The requirement that every child after the ground
+        declarations carries ID= is renderer-enforced.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="DEICTIC-GROUND" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:group ref="graphNodeGroup" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="DEICTIC-GROUND">
+    <xs:annotation>
+      <xs:documentation>
+        Declaration of one shared speech-situation unit (KEY rule
+        "ground").  ID is a notation-level g-prefixed rendering id (the JSON
+        has no ground object id).  The four role attributes are the sole
+        definition sites for the speaker/audience/time/place referent ids;
+        ground units share one definition iff those referents are pairwise
+        identical.  Always empty.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="ID" type="idDefType" use="required"/>
+      <xs:attribute name="SPEAKER-REF" type="groundRoleIdType" use="required">
+        <xs:annotation><xs:documentation>Definition site of the speaker referent id (an xs:ID by role; typed as a pattern string because XSD 1.0 allows only one xs:ID attribute per element).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="AUDIENCE-REF" type="groundRoleIdType" use="required">
+        <xs:annotation><xs:documentation>Definition site of the audience referent id (see SPEAKER-REF).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="TIME-REF" type="groundRoleIdType" use="required">
+        <xs:annotation><xs:documentation>Definition site of the speech-time referent id (see SPEAKER-REF).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="PLACE-REF" type="groundRoleIdType" use="required">
+        <xs:annotation><xs:documentation>Definition site of the speech-place referent id (see SPEAKER-REF).</xs:documentation></xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="UNREACHABLE">
+    <xs:annotation>
+      <xs:documentation>
+        Optional last child of a compact SFN: every graph object not reached
+        from the root walk, emitted as a definition (with ID=) or reference,
+        so no graph node is silently dropped.  Children are arbitrary graph
+        objects.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:group ref="graphNodeGroup" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="TYPED-GRAPH">
+    <xs:annotation>
+      <xs:documentation>
+        The TYPED-GRAPH fallback body: a lossless OBJECT-per-graph-object
+        rendering.  ROOT-REF/ROOT-KEY name the root object; children are
+        OBJECT elements in canonical graph order.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="OBJECT" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="ROOT-REF" type="xs:IDREF" use="required">
+        <xs:annotation><xs:documentation>Id of the root OBJECT; schema-checked reference.</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="ROOT-KEY" type="xs:string" use="required">
+        <xs:annotation><xs:documentation>Raw JSON graph key of the root object (contains a colon; plain string).</xs:documentation></xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="OBJECT">
+    <xs:annotation>
+      <xs:documentation>
+        TYPED-GRAPH form only: one semantic-graph object.  ID is the
+        rendering id (definition site), KEY the raw JSON graph key, TYPE the
+        object's JSON type verbatim; children are FIELD elements in
+        canonical JSON order.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="ID" type="idDefType" use="required"/>
+      <xs:attribute name="KEY" type="xs:string" use="required"/>
+      <xs:attribute name="TYPE" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: shared scalar/wrapper types ==================== -->
+
+  <xs:complexType name="scalarValueType">
+    <xs:annotation>
+      <xs:documentation>
+        A named scalar: an empty element whose VALUE attribute carries an
+        enum token (e.g. DENOTATION, CATEGORY, LOCUS, TRUTH-TABLE,
+        VOCATIVE-KIND, ELIDED-CONNECTION-OPERAND).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:attribute name="VALUE" type="enumTokenType" use="required"/>
+  </xs:complexType>
+
+  <xs:complexType name="memberPointerType">
+    <xs:annotation>
+      <xs:documentation>
+        A pointer wrapper that additionally states personal-mass MEMBERSHIP
+        of its referent (SPEAKER/AUDIENCE inside PERSONAL-MASS-MEMBERSHIP).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="pointerWrapperType">
+        <xs:attribute name="MEMBERSHIP" type="membershipType" use="required"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <!-- ==================== body: referents ==================== -->
+
+  <xs:group name="referentChildGroup">
+    <xs:annotation>
+      <xs:documentation>
+        The fixed child order of a referent element: structured FACET
+        elements first (facets too complex for a single attribute token),
+        then the tense/modal tag, interval modifiers, personal/deictic
+        reference structures, the descriptor, scoped BODY/CONTENT,
+        EMBEDDED-QUESTIONS, QUOTATION, ADJUNCTs, and finally the generic
+        EXTRA tail.  All sections are optional; childless referents
+        self-close (KEY rule "order").
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element ref="FACET" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element ref="TENSE-MODAL" minOccurs="0"/>
+      <xs:element ref="INTERVAL-MODIFIERS" minOccurs="0"/>
+      <xs:element ref="SPATIAL-INTERVAL-MODIFIERS" minOccurs="0"/>
+      <xs:element ref="PERSONAL-MASS-MEMBERSHIP" minOccurs="0"/>
+      <xs:element ref="DEICTIC-REFERENCE" minOccurs="0"/>
+      <xs:element ref="GENERATED-REFERENT" minOccurs="0"/>
+      <xs:group ref="descriptorGroup" minOccurs="0"/>
+      <xs:element ref="BODY" minOccurs="0"/>
+      <xs:element ref="CONTENT" minOccurs="0"/>
+      <xs:element ref="EMBEDDED-QUESTIONS" minOccurs="0"/>
+      <xs:element ref="QUOTATION" minOccurs="0"/>
+      <xs:element ref="ADJUNCT" minOccurs="0" maxOccurs="unbounded"/>
+      <xs:element ref="EXTRA" minOccurs="0"/>
+    </xs:sequence>
+  </xs:group>
+
+  <xs:complexType name="referentType">
+    <xs:annotation>
+      <xs:documentation>
+        A discourse referent.  The element name is the referent's flat sort
+        uppercased (ENTITY, EVENTUALITY, PROPOSITION, LOCUTION, ...), or
+        UNSPECIFIED-REFERENT for an elided zo'e referent, or UNKNOWN when
+        the graph carries no usable sort.  References are number-neutral
+        (KEY rule "number-neutrality"): a reference may denote one or
+        several individuals; only explicit quantities, cardinality binders,
+        or mass restrictions commit to number.
+
+        KIND is an optional enum-token classification (suppressed for
+        quotations).  PARAMETERS lists bound parameter ids;
+        ARITY the parameter count when derivable.  Facet and
+        scope-dependence attributes are documented in their attribute
+        groups.  REF= appears only in the wrapper-collapse idiom (a renamed
+        use site such as LOCUTION REF= on UTTERANCE) and is otherwise
+        absent; definitions carry ID= instead.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:group ref="referentChildGroup"/>
+      <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attributeGroup ref="idAttr"/>
+    <xs:attribute name="REF" type="refOrSomeType"/>
+    <xs:attribute name="KIND" type="enumTokenType"/>
+    <xs:attribute name="PARAMETERS" type="xs:IDREFS">
+      <xs:annotation><xs:documentation>Space-separated ids of the abstraction/question parameters this referent binds; a strict-id list per the "atomic-lists" KEY rule.</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="ARITY" type="xs:nonNegativeInteger">
+      <xs:annotation><xs:documentation>The parameter arity of an abstraction referent, when the graph derives it.</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attributeGroup ref="facetAttrs"/>
+    <xs:attributeGroup ref="scopeDependenceAttrs"/>
+  </xs:complexType>
+
+  <!-- Referent elements: one per non-colliding flat sort name (see
+       graphNodeGroup for the nine colliding names). -->
+  <xs:element name="ENTITY" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Entity (or an unclassified entity).</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="MASS" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Mass.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="SET" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Set.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="TIME" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Time.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="EVENTUALITY" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Eventuality (general).</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="STATE" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Eventuality/State.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="PROCESS" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Eventuality/Process.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="ACTIVITY" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Eventuality/Activity.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="ACHIEVEMENT" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Eventuality/Achievement.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="EXPERIENCE" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Eventuality/Experience.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="LOCUTION" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Eventuality/Locution.  Also the (possibly renamed) locution child of UTTERANCE, where it may appear in the wrapper-collapse form LOCUTION REF=.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="TRUTH_VALUE" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort TruthValue.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="PROPOSITION" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Proposition.  When a proposition referent also has a descriptor, its BODY is pushed inside the descriptor element instead of the referent element.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="CONCEPT" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Concept.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="AMOUNT" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Amount.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="SIGN" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort Sign.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="TENSE_MODAL" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort TenseModal (the sort-derived name keeps its underscore; it is distinct from the TENSE-MODAL pointer wrapper).</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="MATH_OPERATOR" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort MathOperator.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="ARGUMENT_BUNDLE" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort ArgumentBundle.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="ABSTRACT_NATURE" type="referentType">
+    <xs:annotation><xs:documentation>A referent of sort AbstractNature.</xs:documentation></xs:annotation>
+  </xs:element>
+  <xs:element name="UNSPECIFIED-REFERENT" type="referentType">
+    <xs:annotation><xs:documentation>An elided (zo'e) referent: the sort-named element is replaced by UNSPECIFIED-REFERENT when the descriptor is the bare elided marker.  (The word-card UNSPECIFIED-REFERENT inside COMPOSITE-APPROX is a different, locally declared empty element.)</xs:documentation></xs:annotation>
+  </xs:element>
+
+  <xs:element name="RELATION" type="referentType">
+    <xs:annotation>
+      <xs:documentation>
+        A referent of sort Relation (e.g. the referent of an abstraction
+        over a predicate).  The sort-derived element name collides with the
+        RELATION pointer wrapper used inside PREDICATION; the wrapper is a
+        local declaration there, so the two never share a content model.
+      </xs:documentation>
+    </xs:annotation>
+  </xs:element>
+
+  <xs:element name="UNKNOWN">
+    <xs:annotation>
+      <xs:documentation>
+        Two renderer fallbacks share this name.  (a) A referent whose sort
+        yields no usable name renders with the referent content model.
+        (b) A graph object whose JSON type the notation does not know
+        renders with a required TYPE attribute (the raw type string, or the
+        literal "missing") and generic FIELD children.  XSD 1.0 cannot
+        distinguish the two by context, so this type admits both shapes.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice minOccurs="0">
+          <xs:element ref="FIELD" maxOccurs="unbounded"/>
+          <xs:group ref="referentChildGroup"/>
+        </xs:choice>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="REF" type="refOrSomeType"/>
+      <xs:attribute name="TYPE" type="xs:string">
+        <xs:annotation><xs:documentation>The unknown object's raw JSON type, or "missing" when the object has no type field.  Only for fallback (b).</xs:documentation></xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="KIND" type="enumTokenType"/>
+      <xs:attribute name="PARAMETERS" type="xs:IDREFS"/>
+      <xs:attribute name="ARITY" type="xs:nonNegativeInteger"/>
+      <xs:attributeGroup ref="facetAttrs"/>
+      <xs:attributeGroup ref="scopeDependenceAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: descriptors ==================== -->
+
+  <xs:complexType name="descriptorType">
+    <xs:annotation>
+      <xs:documentation>
+        A descriptor: how a referent is identified (description, name, mass
+        or set formation, typicality, membership, qualification, ...).
+        The element name is the descriptor kind in hyphenated enum form;
+        kinds outside the closed list render as DESCRIPTOR with a KIND
+        attribute.  Children in order: NAME-VALUE (the assigned name when
+        semantically load-bearing), QUANTITY, OPERAND, DENOTES, BODY (the
+        describing predication scope; a proposition referent's BODY is
+        pushed here rather than on the referent element), RELATIVE-CLAUSES,
+        EXTRA.  SPEAKER-REF appears only when the description's speaker
+        anchor differs from the enclosing utterance's speaker (KEY rule
+        "speaker-anchor"); it references the speaker referent id defined by
+        DEICTIC-GROUND, which XSD 1.0 cannot type as an ID here, so the
+        reference is pattern-typed and renderer-checked.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="NAME-VALUE" minOccurs="0">
+        <xs:annotation><xs:documentation>The semantically load-bearing name value of the descriptor.</xs:documentation></xs:annotation>
+        <xs:complexType>
+          <xs:attribute name="VALUE" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="QUANTITY" type="pointerWrapperType" minOccurs="0">
+        <xs:annotation><xs:documentation>The explicit quantity on the description (the only number commitment a description carries).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element ref="OPERAND" minOccurs="0"/>
+      <xs:element ref="DENOTES" minOccurs="0"/>
+      <xs:element ref="BODY" minOccurs="0"/>
+      <xs:element ref="RELATIVE-CLAUSES" minOccurs="0"/>
+      <xs:element ref="EXTRA" minOccurs="0"/>
+      <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="SPEAKER-REF" type="graphIdType"/>
+  </xs:complexType>
+
+  <xs:group name="descriptorGroup">
+    <xs:annotation>
+      <xs:documentation>
+        The descriptor of a referent or bound variable.  The named elements
+        are the closed DescriptorKind vocabulary of the semantic model in
+        hyphenated form; "name" renders as NAMED and "proSumti" as
+        UNRESOLVED-REFERENT (special shapes); any other kind renders as
+        DESCRIPTOR with KIND=.  A referent has at most one descriptor.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice>
+      <xs:element name="NUMBER" type="descriptorType">
+        <xs:annotation><xs:documentation>A number descriptor (a numeric referent).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="MASS-NAME" type="descriptorType">
+        <xs:annotation><xs:documentation>A name applied to a mass.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SET-NAME" type="descriptorType">
+        <xs:annotation><xs:documentation>A name applied to a set.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SPEAKER-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A description anchored to the speaker (the "le/-mi" family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SCALE" type="descriptorType">
+        <xs:annotation><xs:documentation>A scale descriptor.  (Distinct from the SCALE scalar-negation pointer wrapper; the two never share a content model.)</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="UNLOWERED-SUMTI" type="descriptorType">
+        <xs:annotation><xs:documentation>An unlowered sumti: a sumti whose referent was not lowered into the current scope.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A plain description (lo/le family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="VERIDICAL-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A veridical description (lo): the referent really does satisfy the describing predication.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="VERIDICAL-MASS-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A veridical description of a mass.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="VERIDICAL-SET-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A veridical description of a set.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SPEAKER-MASS-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A speaker-anchored description of a mass.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SPEAKER-SET-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A speaker-anchored description of a set.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SPEAKER-STEREOTYPE-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A speaker-anchored stereotype description.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="MASS-NAME-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A name-description of a mass.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SET-NAME-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A name-description of a set.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="TYPICAL-DESCRIPTION" type="descriptorType">
+        <xs:annotation><xs:documentation>A typicality description (the typical such-and-such).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="TYPICAL-PLACE-VALUE" type="descriptorType">
+        <xs:annotation><xs:documentation>The typical value of a predicate place.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="UTTERANCE-REFERENCE" type="descriptorType">
+        <xs:annotation><xs:documentation>A reference to an utterance (di'u family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="ELIDED" type="descriptorType">
+        <xs:annotation><xs:documentation>An elided descriptor whose content was left implicit.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="ABSTRACTION-ABOUT" type="descriptorType">
+        <xs:annotation><xs:documentation>An abstraction whose subject is this referent.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="REFERENT-OF-SYMBOL" type="descriptorType">
+        <xs:annotation><xs:documentation>The referent denoted by a symbol (la'e family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SYMBOL-FOR-REFERENT" type="descriptorType">
+        <xs:annotation><xs:documentation>The symbol standing for this referent (lu'a family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="MEMBER-OF" type="descriptorType">
+        <xs:annotation><xs:documentation>A member of the operand set/mass.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SET-FROM" type="descriptorType">
+        <xs:annotation><xs:documentation>The set formed from the operand (lu'i family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="MASS-FROM" type="descriptorType">
+        <xs:annotation><xs:documentation>The mass formed from the operand (lu'o family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="SEQUENCE-FROM" type="descriptorType">
+        <xs:annotation><xs:documentation>The sequence formed from the operand (vu'i family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="QUALIFIED-SUMTI" type="descriptorType">
+        <xs:annotation><xs:documentation>A qualified sumti (LAhE/NAhE-application with restrictions).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="OPPOSITE-OF" type="descriptorType">
+        <xs:annotation><xs:documentation>The opposite of the operand (na'ebo to'e family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="NEUTRAL-OF" type="descriptorType">
+        <xs:annotation><xs:documentation>The neutral point of the operand's scale.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="AFFIRMED-AS" type="descriptorType">
+        <xs:annotation><xs:documentation>The referent affirmed as the operand (je'a family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="OTHER-THAN" type="descriptorType">
+        <xs:annotation><xs:documentation>Something other than the operand (no'e/to'e scalar family).</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="NAMED">
+        <xs:annotation>
+          <xs:documentation>
+            A name descriptor: TEXT is the name itself.  BY points to the
+            naming speaker and appears only when the namer differs from the
+            enclosing utterance's speaker (KEY rule "speaker-anchor").
+            (The word-card NAMED inside COMPOSITE-APPROX is a different,
+            locally declared element.)
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="BY" type="pointerWrapperType" minOccurs="0">
+              <xs:annotation><xs:documentation>The speaker who conferred the name.</xs:documentation></xs:annotation>
+            </xs:element>
+            <xs:element ref="BODY" minOccurs="0"/>
+            <xs:element ref="EXTRA" minOccurs="0"/>
+            <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+          <xs:attribute name="TEXT" type="xs:string" use="required">
+            <xs:annotation><xs:documentation>The name text, verbatim.</xs:documentation></xs:annotation>
+          </xs:attribute>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="UNRESOLVED-REFERENT">
+        <xs:annotation>
+          <xs:documentation>
+            A word-only stopgap for a referent that remains unresolved after
+            the KOhA audit (KEY rule "pro-sumti"); the quoted WORD value is
+            the stopgap's whole content.  Bound-variable surface words are
+            provenance-only and do not appear here.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element ref="EXTRA" minOccurs="0"/>
+            <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+          <xs:attribute name="WORD" type="xs:string" use="required">
+            <xs:annotation><xs:documentation>The unresolved surface word, verbatim.</xs:documentation></xs:annotation>
+          </xs:attribute>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="DESCRIPTOR">
+        <xs:annotation>
+          <xs:documentation>
+            Fallback for descriptor kinds outside the closed list; KIND
+            carries the kind as an enum token.  Same content as the named
+            descriptor elements.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="descriptorType">
+              <xs:attribute name="KIND" type="enumTokenType" use="required"/>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+  </xs:group>
+
+  <!-- ==================== body: binders and facets ==================== -->
+
+  <xs:element name="VARIABLE">
+    <xs:annotation>
+      <xs:documentation>
+        A quantifier variable defined at its binder site (KEY rule
+        "quantifiers"): ID defines the variable, SORT is its flat sort;
+        use sites carry REF=.  DENOTATION appears only when the denotation
+        is not the default generated-bound; CATEGORY only when the category
+        is not the default variable.  A bound variable may carry a
+        descriptor, facets, scope-dependence markers, interval modifiers,
+        and a tense/modal tag like any referent.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="DENOTATION" type="scalarValueType" minOccurs="0">
+          <xs:annotation><xs:documentation>The variable's denotation kind (e.g. REFERENTIAL), omitted for the default generated-bound.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element name="CATEGORY" type="scalarValueType" minOccurs="0">
+          <xs:annotation><xs:documentation>The referent category (e.g. CONSTANT, INDEXICAL, COMPOSITE), omitted for the default variable.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:group ref="descriptorGroup" minOccurs="0"/>
+        <xs:element ref="FACET" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="INTERVAL-MODIFIERS" minOccurs="0"/>
+        <xs:element ref="SPATIAL-INTERVAL-MODIFIERS" minOccurs="0"/>
+        <xs:element ref="TENSE-MODAL" minOccurs="0"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="ID" type="idDefType" use="required"/>
+      <xs:attribute name="SORT" type="sortType" use="required"/>
+      <xs:attributeGroup ref="facetAttrs"/>
+      <xs:attributeGroup ref="scopeDependenceAttrs"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="FACET">
+    <xs:annotation>
+      <xs:documentation>
+        A structured facet (one too complex for a single attribute token).
+        NAME is the facet name; the facet's primary field appears as the
+        matching one of RELATION (time/space), KIND (actuality), or CONTOUR
+        (aspect/spatial aspect) — at most one, renderer-enforced.  A
+        recurrence facet lists OCCURRENCE children; a record facet may
+        carry an ANCHOR; a scalar facet carries one generic value.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="OCCURRENCE" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="ANCHOR" minOccurs="0"/>
+        <xs:group ref="genericValueGroup" minOccurs="0"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="NAME" type="facetNameType" use="required"/>
+      <xs:attribute name="RELATION" type="enumTokenType"/>
+      <xs:attribute name="KIND" type="enumTokenType"/>
+      <xs:attribute name="CONTOUR" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="OCCURRENCE">
+    <xs:annotation>
+      <xs:documentation>
+        One recurrence occurrence: KIND classifies it (OCCURRENCE_COUNT,
+        ORDINAL_OCCURRENCE, REGULAR, TYPICALLY, CONTINUOUSLY, HABITUALLY);
+        QUANTITY, VALUE (an integer or math expression, possibly
+        parameter-dependent), and INTERVAL refine it; CONNECTION and
+        NEGATION are tagged modifiers.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="QUANTITY" type="pointerWrapperType" minOccurs="0">
+          <xs:annotation><xs:documentation>The occurrence count/quantity.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element name="CONNECTION" minOccurs="0">
+          <xs:annotation><xs:documentation>A recurrence connection (e.g. KIND="PRODUCT").</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="EXTRA" minOccurs="0"/>
+              <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="KIND" type="enumTokenType" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="VALUE" minOccurs="0">
+          <xs:annotation>
+            <xs:documentation>
+              The occurrence value: an INTEGER literal or a math expression.
+              QUESTION-PARAMETERS lists the question-parameter ids the value
+              depends on.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence minOccurs="0">
+              <xs:choice>
+                <xs:element ref="MATH-EXPRESSION"/>
+                <xs:group ref="genericValueGroup"/>
+              </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="QUESTION-PARAMETERS" type="xs:IDREFS"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="INTERVAL" minOccurs="0"/>
+        <xs:element name="NEGATION" minOccurs="0">
+          <xs:annotation><xs:documentation>A tagged negation of the occurrence (KIND = CONTRADICTORY or OTHER_THAN).</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="EXTRA" minOccurs="0"/>
+              <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="KIND" type="enumTokenType" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="KIND" type="enumTokenType">
+        <xs:annotation><xs:documentation>The recurrence kind as an enum token (OCCURRENCE_COUNT, ORDINAL_OCCURRENCE, REGULAR, TYPICALLY, CONTINUOUSLY, HABITUALLY).</xs:documentation></xs:annotation>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="INTERVAL-MODIFIERS">
+    <xs:annotation>
+      <xs:documentation>Temporal interval modifiers on a referent or binder: one INTERVAL-MODIFIER per modifier, in order.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="INTERVAL-MODIFIER" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="SPATIAL-INTERVAL-MODIFIERS">
+    <xs:annotation>
+      <xs:documentation>Spatial interval modifiers on a referent or binder: one INTERVAL-MODIFIER per modifier, in order.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="INTERVAL-MODIFIER" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="INTERVAL-MODIFIER">
+    <xs:annotation>
+      <xs:documentation>
+        One interval modifier: KIND="ASPECT" carries an ASPECT child (a
+        contour with optional anchor and scalar negation), KIND="RECURRENCE"
+        carries an OCCURRENCE child.  KIND="INTERVAL" is the renderer's
+        default label for an untagged modifier.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice>
+          <xs:element name="ASPECT">
+            <xs:annotation><xs:documentation>An aspect contour with optional anchor and scalar negation.</xs:documentation></xs:annotation>
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element ref="ANCHOR" minOccurs="0"/>
+                <xs:element ref="SCALAR-NEGATION" minOccurs="0"/>
+                <xs:element ref="EXTRA" minOccurs="0"/>
+                <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+              </xs:sequence>
+              <xs:attribute name="CONTOUR" type="enumTokenType" use="required"/>
+            </xs:complexType>
+          </xs:element>
+          <xs:element ref="OCCURRENCE"/>
+        </xs:choice>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="KIND" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="INTERVAL"/>
+            <xs:enumeration value="ASPECT"/>
+            <xs:enumeration value="RECURRENCE"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="PERSONAL-MASS-MEMBERSHIP">
+    <xs:annotation>
+      <xs:documentation>
+        The membership structure of a personal mass (mi'o family; KEY rule
+        "personal-reference"): whether SPEAKER and AUDIENCE are INCLUDED or
+        EXCLUDED, plus any additional included OTHERS.  These structures
+        carry the semantics; no pro-sumti label is implied.  (The word-card
+        PERSONAL-MASS-MEMBERSHIP inside COMPOSITE-APPROX is an
+        attribute-only variant declared locally there.)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="SPEAKER" type="memberPointerType">
+          <xs:annotation><xs:documentation>The speaker participant with its membership marker.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element name="AUDIENCE" type="memberPointerType">
+          <xs:annotation><xs:documentation>The audience participant with its membership marker.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element name="OTHERS" type="pointerWrapperType" minOccurs="0">
+          <xs:annotation><xs:documentation>Additional included others.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="DEICTIC-REFERENCE">
+    <xs:annotation>
+      <xs:documentation>
+        A deictic reference (ti/ta/tu family): PROXIMITY to a discourse
+        referent, GROUND-REF naming the deictic-ground unit it is resolved
+        against (KEY rule "personal-reference").  Always empty apart from
+        the EXTRA tail.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="PROXIMITY" type="proximityType" use="required"/>
+      <xs:attribute name="GROUND-REF" type="groundIdRefType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="GENERATED-REFERENT">
+    <xs:annotation>
+      <xs:documentation>
+        Marks a referent generated by the derivation rather than uttered:
+        REALIZATION records how it surfaces (currently only ELIDED),
+        SPECIFICITY its specificity commitment (currently only
+        UNSPECIFIED).  Both attributes are optional; the vocabularies are
+        closed at one value each in the current model.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="REALIZATION" type="enumTokenType"/>
+      <xs:attribute name="SPECIFICITY" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="QUOTATION">
+    <xs:annotation>
+      <xs:documentation>
+        A quotation referent's quotation record: MODE is the quotation mode
+        as an open enum token (e.g. OPAQUE, PARSED — the model stores the
+        mode as a free string, so it is not enumerated); TEXT is the quoted
+        text, DELIMITER the quotation delimiter, UTTERANCE the quoted
+        utterance pointer.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="TEXT" minOccurs="0">
+          <xs:annotation><xs:documentation>The quoted text.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="VALUE" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="DELIMITER" minOccurs="0">
+          <xs:annotation><xs:documentation>The quotation delimiter (e.g. a ZOI delimiter word).</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="VALUE" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="UTTERANCE" type="pointerWrapperType" minOccurs="0">
+          <xs:annotation><xs:documentation>The quoted utterance.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="MODE" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: quantities and parameters ==================== -->
+
+  <xs:element name="QUANTITY">
+    <xs:annotation>
+      <xs:documentation>
+        A quantity object.  FORM classifies the quantity (EXACT, ALL,
+        AT_LEAST, AT_MOST, MORE_THAN, LESS_THAN, APPROXIMATE, INDEFINITE,
+        ENOUGH, TOO_MANY, TOO_FEW), SCALE its scale (COUNT, FRACTION,
+        ORDINAL, AMOUNT, EXTENT, FREQUENCY); both are optional enum tokens.
+        VALUE carries the quantity value; it is omitted entirely when the
+        graph's only representation is waived provenance text.  (The
+        word-card QUANTITY inside COMPOSITE-APPROX is a different, locally
+        declared element, as are the QUANTITY pointer wrappers inside
+        descriptors and OCCURRENCE.)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="VALUE" minOccurs="0">
+          <xs:annotation>
+            <xs:documentation>
+              The quantity value: an INTEGER literal, a math expression, or
+              a generic JSON value.  QUESTION-PARAMETERS lists the
+              question-parameter ids the value depends on.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence minOccurs="0">
+              <xs:choice>
+                <xs:element ref="MATH-EXPRESSION"/>
+                <xs:group ref="genericValueGroup"/>
+              </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="QUESTION-PARAMETERS" type="xs:IDREFS"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="FORM" type="enumTokenType"/>
+      <xs:attribute name="SCALE" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="INTEGER">
+    <xs:annotation>
+      <xs:documentation>
+        An integer literal: a math literal of kind integer, or the integer
+        form of a quantity/occurrence value.  VALUE is the integer text.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="VALUE" type="xs:long" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="PARAMETER">
+    <xs:annotation>
+      <xs:documentation>
+        An abstraction/question parameter object: SORT is its flat sort,
+        ROLE its role (PROPERTY_SLOT, RELATIVE_CLAUSE_HEAD,
+        ARGUMENT_QUESTION, RELATION_QUESTION, RELATION_VARIABLE,
+        UNSPECIFIED_RELATION, PLACE_QUESTION, CONNECTIVE_QUESTION,
+        TENSE_QUESTION, MATH_OPERATOR_QUESTION, QUANTITY_QUESTION,
+        ATTITUDE_QUESTION, RESPECTIVE_SLOT).  SLOT parameters bind only the
+        question BODY (KEY rule "embedded-questions").  The optional REF=
+        admits the wrapper-collapse use where an element named PARAMETER is
+        a pure use site (e.g. inside CONNECTOR, SLOT, PLACE-QUESTION).
+        (The word-card PARAMETER inside COMPOSITE-APPROX is a different,
+        locally declared element.)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="REF" type="refOrSomeType"/>
+      <xs:attribute name="SORT" type="sortType"/>
+      <xs:attribute name="ROLE" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: sequences ==================== -->
+
+  <xs:element name="SEQUENCE">
+    <xs:annotation>
+      <xs:documentation>
+        A sequence object: an ordered list of items plus optional semantic
+        entries.  RELATION names the sequence relation as an enum token
+        (default literal SEQUENCE; e.g. SAME_TOPIC_CONTINUATION); FORCE is
+        an optional enum token.  Children in order: DEFS, the item
+        pointers, CONTENT, CONNECTION-CLAIMS, ORDINAL-LABELS,
+        NONLOGICAL-CONNECTION, ELIDED-CONNECTION-OPERAND, EXTRA.
+        Bound eventualities of a bound sequence are rendered as nested
+        EXISTS binders wrapping the SEQUENCE.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:group ref="graphNodeGroup" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="CONTENT" minOccurs="0"/>
+        <xs:element name="CONNECTION-CLAIMS" minOccurs="0">
+          <xs:annotation><xs:documentation>The claimed relations between sequence items.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="CONNECTION-CLAIM" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="ORDINAL-LABELS" minOccurs="0">
+          <xs:annotation><xs:documentation>Ordinal labels attached to sequence items (e.g. section numbers).</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="ORDINAL-LABEL" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation><xs:documentation>One ordinal label: LEVEL classifies it (ITEM or DIVISION); TARGET is the labelled item, VALUE the label.</xs:documentation></xs:annotation>
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element ref="TARGET" minOccurs="0"/>
+                    <xs:element name="VALUE" type="pointerWrapperType">
+                      <xs:annotation><xs:documentation>The ordinal label value.</xs:documentation></xs:annotation>
+                    </xs:element>
+                    <xs:element ref="EXTRA" minOccurs="0"/>
+                    <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+                  </xs:sequence>
+                  <xs:attribute name="LEVEL" use="required">
+                    <xs:simpleType>
+                      <xs:restriction base="xs:string">
+                        <xs:enumeration value="ITEM"/>
+                        <xs:enumeration value="DIVISION"/>
+                      </xs:restriction>
+                    </xs:simpleType>
+                  </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="NONLOGICAL-CONNECTION" minOccurs="0">
+          <xs:annotation><xs:documentation>A non-logical connection between sequence items; OPERATOR is the operator surface text verbatim, CONNECTOR its connector record.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="CONNECTOR"/>
+              <xs:element ref="EXTRA" minOccurs="0"/>
+              <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="OPERATOR" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="ELIDED-CONNECTION-OPERAND" type="scalarValueType" minOccurs="0">
+          <xs:annotation><xs:documentation>Marks an elided operand of a sequence connection.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="RELATION" type="enumTokenType"/>
+      <xs:attribute name="FORCE" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: displayed content ==================== -->
+
+  <xs:element name="DISPLAYED-CONTENT">
+    <xs:annotation>
+      <xs:documentation>
+        Displayed (attitudinal/UI) content: RELATION is its predicate
+        symbol, FAMILY its closed family (EMOTION, ATTITUDE_MODIFIER,
+        PROPOSITIONAL_ATTITUDE, EVIDENTIAL, DISCURSIVE, METALINGUISTIC,
+        EMPHASIS, QUESTION_PROMPT), POLARITY its polarity (POSITIVE,
+        NEUTRAL, NEGATIVE), ASSERTION-EFFECT its effect on the host claim
+        (NONE, HOST_ASSERTED, HOST_SUBORDINATED,
+        METALINGUISTICALLY_VOIDED, PERFORMATIVE), TARGET-FOCUS what it
+        targets (BRIDI or SELBRI).  EXPERIENCER, TARGET, and ANCHOR are
+        its participant pointers.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="EXPERIENCER" minOccurs="0"/>
+        <xs:element ref="TARGET" minOccurs="0"/>
+        <xs:element ref="ANCHOR" minOccurs="0"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="RELATION" type="predicateSymbolType"/>
+      <xs:attribute name="FAMILY" type="enumTokenType"/>
+      <xs:attribute name="POLARITY" type="enumTokenType"/>
+      <xs:attribute name="ASSERTION-EFFECT" type="enumTokenType"/>
+      <xs:attribute name="TARGET-FOCUS" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: math expressions ==================== -->
+
+  <xs:element name="MATH">
+    <xs:annotation>
+      <xs:documentation>
+        A composite math expression.  The operator is either the OPERATOR
+        attribute (an enum token; the closed MathOperator vocabulary
+        rendered as tokens, e.g. ADD) or an OPERATOR-PARAMETER child — never
+        both (renderer-enforced).  The operands follow as pointer children
+        in order, then DENOTES, OPERATOR-DENOTES, ENDPOINT-INCLUSION,
+        SCALAR-NEGATION, and SUBSCRIPT.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="OPERATOR-PARAMETER" minOccurs="0"/>
+        <xs:group ref="graphNodeGroup" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="DENOTES" minOccurs="0"/>
+        <xs:element ref="OPERATOR-DENOTES" minOccurs="0"/>
+        <xs:element name="ENDPOINT-INCLUSION" minOccurs="0">
+          <xs:annotation><xs:documentation>Endpoint inclusion of an interval expression (INCLUSIVE or EXCLUSIVE).</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="VALUE" type="inclusionType" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="SCALAR-NEGATION" minOccurs="0"/>
+        <xs:element name="SUBSCRIPT" minOccurs="0">
+          <xs:annotation><xs:documentation>The subscript of the expression.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:complexContent>
+              <xs:extension base="pointerWrapperType">
+                <xs:sequence>
+                  <xs:element ref="EXTRA" minOccurs="0"/>
+                </xs:sequence>
+              </xs:extension>
+            </xs:complexContent>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="OPERATOR" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="MIXED-RADIX">
+    <xs:annotation>
+      <xs:documentation>
+        A mixed-radix number literal: one COMPONENT per radix component in
+        order; TEXT is the component's surface text and INTEGER its numeric
+        value when known.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="COMPONENT" minOccurs="0" maxOccurs="unbounded">
+          <xs:annotation><xs:documentation>One radix component.  (Distinct from the word-card COMPONENT, which carries a WORD reference.)</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="TEXT" type="xs:string" use="required"/>
+            <xs:attribute name="INTEGER" type="xs:string">
+              <xs:annotation><xs:documentation>The component's numeric value as JSON number text.</xs:documentation></xs:annotation>
+            </xs:attribute>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="MATH-LITERAL">
+    <xs:annotation>
+      <xs:documentation>
+        A non-integer math literal: KIND is the literal kind as an enum
+        token (the MathLiteralKind vocabulary — INTEGER and MIXED-RADIX get
+        their own elements — e.g. DECIMAL, NUMBER, SUMTI_OPERAND,
+        SELBRI_OPERAND, EXPRESSION, VARIABLE), VALUE the literal text.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="KIND" type="enumTokenType" use="required"/>
+      <xs:attribute name="VALUE" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: relation metadata (interim form) ==================== -->
+
+  <xs:element name="RELATION-METADATA">
+    <xs:annotation>
+      <xs:documentation>
+        Provenance metadata about a predicate's derivation, still emitted in
+        this interim element form when the word cards in WORDS do not cover
+        the relation.  RELATION is the relation spelling verbatim (not an
+        enum token).  Children in order: SOURCE-WORDS (the source words of a
+        compound), PLACE-STRUCTURE (the recorded places), EXPANSION (the
+        compound expansion), EXTRA.  It can appear inline in a predication's
+        META, in DEFS, or in UNREACHABLE — anywhere a graph pointer can
+        land on a relation-metadata object.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="SOURCE-WORDS" type="sourceWordsType" minOccurs="0"/>
+        <xs:element name="PLACE-STRUCTURE" minOccurs="0">
+          <xs:annotation><xs:documentation>The recorded place structure: one PLACE per known place, in place order.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="PLACE" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation><xs:documentation>One recorded place: INDEX is the 1-based place number, DESCRIPTION the place description text.</xs:documentation></xs:annotation>
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element ref="EXTRA" minOccurs="0"/>
+                    <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+                  </xs:sequence>
+                  <xs:attribute name="INDEX" type="xs:positiveInteger" use="required"/>
+                  <xs:attribute name="DESCRIPTION" type="xs:string" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="EXPANSION" minOccurs="0">
+          <xs:annotation>
+            <xs:documentation>
+              The compound expansion: KIND is the expansion kind as an enum
+              token (e.g. LUJVO), SOURCE-WORDS the component (rafsi) words,
+              RAFSI-BINDINGS the rafsi-to-referent bindings.
+            </xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="SOURCE-WORDS" type="sourceWordsType" minOccurs="0"/>
+              <xs:element name="RAFSI-BINDINGS" minOccurs="0">
+                <xs:annotation><xs:documentation>The rafsi bindings of the expansion, in order.</xs:documentation></xs:annotation>
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="RAFSI-BINDING" minOccurs="0" maxOccurs="unbounded">
+                      <xs:annotation><xs:documentation>One rafsi binding: RAFSI is the rafsi text, SOURCE-WORD the source word it comes from, REFERENT the bound referent.</xs:documentation></xs:annotation>
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element ref="REFERENT" minOccurs="0"/>
+                          <xs:element ref="EXTRA" minOccurs="0"/>
+                          <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                        <xs:attribute name="RAFSI" type="xs:string" use="required"/>
+                        <xs:attribute name="SOURCE-WORD" type="xs:string"/>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element ref="EXTRA" minOccurs="0"/>
+              <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="KIND" type="enumTokenType" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="RELATION" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="sourceWordsType">
+    <xs:annotation>
+      <xs:documentation>
+        A list of source words: one WORD per word, in order; VALUE is the
+        word spelling verbatim.  (Distinct from the WORD card in WORDS and
+        from the WORD= attributes of UNRESOLVED-REFERENT and word-card
+        COMPONENT.)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="WORD" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="VALUE" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- ==================== body: questions ==================== -->
+
+  <xs:element name="QUESTION">
+    <xs:annotation>
+      <xs:documentation>
+        A typed question object (KEY rule "embedded-questions").  KIND
+        classifies the question (TRUTH, ARGUMENT, RELATION, PLACE,
+        CONNECTIVE, TENSE, MATH_OPERATOR, ATTITUDE, QUANTITY, MULTIPLE),
+        MODE its mode (DIRECT or INDIRECT), DOMAIN its domain sort.
+        ASKER and RESPONDENT are the participants; SLOTS declares the
+        question's parameter slots; FOCUS and PRESUPPOSED-ANSWER preserve
+        question pragmatics; BODY (required) is the questioned scope.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="ASKER"/>
+        <xs:element ref="RESPONDENT"/>
+        <xs:element name="SLOTS" minOccurs="0">
+          <xs:annotation><xs:documentation>The question's parameter slots.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="SLOT" maxOccurs="unbounded">
+                <xs:annotation><xs:documentation>One slot: ROLE is ANSWER or RESPECTIVE_SLOT; KIND and DOMAIN further classify it; PARAMETER is the bound parameter.</xs:documentation></xs:annotation>
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="PARAMETER" type="pointerWrapperType" minOccurs="0"/>
+                    <xs:element ref="EXTRA" minOccurs="0"/>
+                    <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+                  </xs:sequence>
+                  <xs:attribute name="ROLE" use="required">
+                    <xs:simpleType>
+                      <xs:restriction base="xs:string">
+                        <xs:enumeration value="ANSWER"/>
+                        <xs:enumeration value="RESPECTIVE_SLOT"/>
+                      </xs:restriction>
+                    </xs:simpleType>
+                  </xs:attribute>
+                  <xs:attribute name="KIND" type="enumTokenType"/>
+                  <xs:attribute name="DOMAIN" type="sortType"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="FOCUS" minOccurs="0"/>
+        <xs:element ref="PRESUPPOSED-ANSWER" minOccurs="0"/>
+        <xs:element ref="BODY"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="KIND" type="enumTokenType" use="required"/>
+      <xs:attribute name="MODE" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="DIRECT"/>
+            <xs:enumeration value="INDIRECT"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="DOMAIN" type="sortType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: utterance ==================== -->
+
+  <xs:element name="UTTERANCE">
+    <xs:annotation>
+      <xs:documentation>
+        An utterance object — normally the compact document's graph root.
+        FORCE (required) is the illocutionary force; GROUND (required)
+        selects the shared deictic-ground unit.  Children in order: DEFS
+        (ground and scope declarations), LOCUTION (the locution referent,
+        possibly as LOCUTION REF=), CONTENT (the main formula),
+        VOCATIVE-KIND, ASIDES, EXTRA.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:element ref="LOCUTION" minOccurs="0"/>
+        <xs:element ref="CONTENT" minOccurs="0"/>
+        <xs:element name="VOCATIVE-KIND" type="scalarValueType" minOccurs="0">
+          <xs:annotation><xs:documentation>The vocative kind of a vocative utterance.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element name="ASIDES" minOccurs="0">
+          <xs:annotation><xs:documentation>Parenthetical asides of the utterance.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="ASIDE" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="FORCE" type="forceType" use="required"/>
+      <xs:attribute name="GROUND" type="groundIdRefType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: predication ==================== -->
+
+  <xs:element name="ARG">
+    <xs:annotation>
+      <xs:documentation>
+        One numbered argument place of a PREDICATION or a predicate-keyed
+        ADJUNCT.  INDEX is the 1-based place number (absent only on the
+        PLACE-QUESTION argument form).  FILL="true" marks the unique
+        explicit non-host filled place of an adjunct (KEY rule "adjuncts").
+        STATUS records an elided (ELIDED) or filled (FILLED) place when the
+        graph marks the place's introduction.  The value is a REF= use site
+        or one inline child: DELETED for a deleted place, MISSING-VALUE for
+        a place the graph cannot supply, or the rendered argument referent.
+        (The ARG inside word-card DEF/NOTES prose is a different, locally
+        declared element.)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice minOccurs="0">
+          <xs:element ref="DELETED"/>
+          <xs:element ref="MISSING-VALUE"/>
+          <xs:group ref="graphNodeGroup"/>
+        </xs:choice>
+        <xs:element ref="RELATIVE-CLAUSES" minOccurs="0"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="INDEX" type="xs:positiveInteger"/>
+      <xs:attribute name="FILL" type="trueOnlyType"/>
+      <xs:attribute name="STATUS">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="ELIDED"/>
+            <xs:enumeration value="FILLED"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="REF" type="refOrSomeType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="DELETED">
+    <xs:annotation><xs:documentation>Marks a deleted (ZIhE-cancelled) argument place; always empty.</xs:documentation></xs:annotation>
+    <xs:complexType/>
+  </xs:element>
+
+  <xs:element name="MISSING-VALUE">
+    <xs:annotation><xs:documentation>Marks an argument place whose value the graph cannot supply; always empty.</xs:documentation></xs:annotation>
+    <xs:complexType/>
+  </xs:element>
+
+  <xs:element name="MISSING-RELATION">
+    <xs:annotation><xs:documentation>Marks a predication whose relation the graph cannot supply; always empty.</xs:documentation></xs:annotation>
+    <xs:complexType/>
+  </xs:element>
+
+  <xs:element name="MISSING-PREDICATION">
+    <xs:annotation><xs:documentation>Marks a formula atom whose predication the graph cannot supply; always empty.</xs:documentation></xs:annotation>
+    <xs:complexType/>
+  </xs:element>
+
+  <xs:element name="PREDICATION">
+    <xs:annotation>
+      <xs:documentation>
+        A predication object.  PREDICATE is the predicate symbol when the
+        relation is a single lexical predicate; MODE (required) is the
+        claim mode (see modeType).  Children in order: RELATION (when the
+        relation is a bound parameter) or MISSING-RELATION (when the graph
+        supplies neither) — neither appears when PREDICATE is used; EVENT
+        (the reserved Eventuality child, never a numbered ARG); the
+        numbered ARG places in place order; ADJUNCTs; PLACE-QUESTIONS;
+        KIND-COMPOSITION; META (relation metadata, scalar negation); then
+        any WARNING diagnostics.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice minOccurs="0">
+          <xs:element name="RELATION" type="pointerWrapperType">
+            <xs:annotation><xs:documentation>The relation parameter of the predication (when the relation is a bound parameter rather than a lexical predicate).</xs:documentation></xs:annotation>
+          </xs:element>
+          <xs:element ref="MISSING-RELATION"/>
+        </xs:choice>
+        <xs:element ref="EVENT" minOccurs="0"/>
+        <xs:element ref="ARG" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="ADJUNCT" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="PLACE-QUESTIONS" minOccurs="0">
+          <xs:annotation><xs:documentation>Place questions attached to the predication (ma asking about a place).</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="PLACE-QUESTION" maxOccurs="unbounded">
+                <xs:annotation><xs:documentation>One place question: CANDIDATE-PLACES lists the candidate place indices; PARAMETER is the question parameter; ARG is the questioned place.</xs:documentation></xs:annotation>
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="PARAMETER" type="pointerWrapperType"/>
+                    <xs:element ref="ARG"/>
+                    <xs:element ref="EXTRA" minOccurs="0"/>
+                    <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+                  </xs:sequence>
+                  <xs:attribute name="CANDIDATE-PLACES" type="placeIndexListType" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="KIND-COMPOSITION" minOccurs="0"/>
+        <xs:element name="META" minOccurs="0">
+          <xs:annotation><xs:documentation>Predication metadata: relation metadata, scalar negation, and extras.  Emitted only when non-empty.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:group ref="graphNodeGroup" minOccurs="0"/>
+              <xs:element ref="SCALAR-NEGATION" minOccurs="0"/>
+              <xs:element ref="EXTRA" minOccurs="0"/>
+              <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="PREDICATE" type="predicateSymbolType"/>
+      <xs:attribute name="MODE" type="modeType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="KIND-COMPOSITION">
+    <xs:annotation>
+      <xs:documentation>
+        First-class kind predication content (KEY rule "kind-composition"):
+        MODIFIER A of KIND B denotes an A-modified kind of B while
+        retaining B's place structure.  The exact modifier-to-kind relation
+        remains unspecified; nesting preserves the semantic graph's
+        grouping.  (The word-card KIND-COMPOSITION inside COMPOSITE-APPROX
+        uses the same idiom but is locally declared there.)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="KIND" type="pointerWrapperType">
+          <xs:annotation><xs:documentation>The kind being modified.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element name="MODIFIER" type="pointerWrapperType">
+          <xs:annotation><xs:documentation>The modifier applied to the kind.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: formulas and binders ==================== -->
+
+  <xs:element name="FORMULA">
+    <xs:annotation>
+      <xs:documentation>
+        A formula object: either a wrapper around an atom/connective that
+        needs declarations or a connector, or a compound operator formula.
+        OPERATOR names the compound operator as an enum token (the
+        FormulaOperator vocabulary: e.g. IMPLIES, IFF, EXCLUSIVE_OR,
+        WHETHER_OR_NOT, CONNECTIVE_QUESTION, PLURAL_EXISTS, PLURAL_FORALL,
+        QUANTIFIER_BUNDLE, RESPECTIVELY_DISTRIBUTION; AND, OR, NOT, ATOM,
+        and the quantifier operators have their own elements).  Children:
+        optional DEFS, then the operands in order, then CONNECTOR,
+        DOMAIN-IMPORT, and any extra fields inlined directly.
+
+        Known XSD-1.0 weakness: for some compound operators the renderer
+        emits field-named pointer wrappers (PREDICATION, VARIABLE,
+        SOURCE-VARIABLE, RESTRICTION, BODY, QUANTITY, EVENTUALITY) around
+        the operands.  Names that collide with typed object elements
+        (PREDICATION, QUANTITY, EVENTUALITY, VARIABLE) validate only in
+        their object form; the wrapper reading of those four names is not
+        schema-expressible without UPA conflicts and is documented here.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:group ref="graphNodeGroup" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="CONNECTOR" minOccurs="0"/>
+        <xs:element ref="DOMAIN-IMPORT" minOccurs="0"/>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="OPERATOR" type="enumTokenType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="CONNECTIVE">
+    <xs:annotation>
+      <xs:documentation>
+        A logical connective formula: OPERATOR is AND or OR.  Children:
+        optional DEFS, then the operands in order — operand order is
+        semantically significant (KEY rule "order") — then CONNECTOR and
+        any extra fields inlined directly.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:group ref="graphNodeGroup" maxOccurs="unbounded"/>
+        <xs:element ref="CONNECTOR" minOccurs="0"/>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+      <xs:attribute name="OPERATOR" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="AND"/>
+            <xs:enumeration value="OR"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="NEGATION">
+    <xs:annotation>
+      <xs:documentation>
+        A negation formula (operator "not"): optional DEFS, the negated
+        operand, then CONNECTOR and extras.  (The NEGATION elements inside
+        OCCURRENCE and the word-card PREDICATION-NEGATION are different,
+        locally declared elements.)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:group ref="graphNodeGroup" minOccurs="0"/>
+        <xs:element ref="CONNECTOR" minOccurs="0"/>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="EXISTS">
+    <xs:annotation>
+      <xs:documentation>
+        An existential binder (KEY rule "quantifiers"): VARIABLE defines
+        the bound variable; optional DEFS; RESTRICTION appears exactly when
+        the graph supplies one; BODY always; then the optional
+        QUANTITY-VALUE, DOMAIN-IMPORT, and CONNECTOR.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="VARIABLE"/>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:element ref="RESTRICTION" minOccurs="0"/>
+        <xs:element ref="BODY"/>
+        <xs:choice minOccurs="0">
+          <xs:element ref="QUANTITY-VALUE"/>
+          <xs:element ref="QUANTITY"/>
+        </xs:choice>
+        <xs:element ref="DOMAIN-IMPORT" minOccurs="0"/>
+        <xs:element ref="CONNECTOR" minOccurs="0"/>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="FORALL">
+    <xs:annotation>
+      <xs:documentation>
+        A universal binder: like EXISTS, but RESTRICTION is always written
+        explicitly, empty as RESTRICTION/ when the graph supplies none.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="VARIABLE"/>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:element ref="RESTRICTION"/>
+        <xs:element ref="BODY"/>
+        <xs:choice minOccurs="0">
+          <xs:element ref="QUANTITY-VALUE"/>
+          <xs:element ref="QUANTITY"/>
+        </xs:choice>
+        <xs:element ref="DOMAIN-IMPORT" minOccurs="0"/>
+        <xs:element ref="CONNECTOR" minOccurs="0"/>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="CARDINALITY">
+    <xs:annotation>
+      <xs:documentation>
+        A cardinality binder: VARIABLE, optional DEFS, the CARD quantity,
+        then RESTRICTION and BODY (both always written explicitly), then
+        DOMAIN-IMPORT and CONNECTOR.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="VARIABLE"/>
+        <xs:element ref="DEFS" minOccurs="0"/>
+        <xs:element ref="CARD" minOccurs="0"/>
+        <xs:element ref="RESTRICTION"/>
+        <xs:element ref="BODY"/>
+        <xs:element ref="DOMAIN-IMPORT" minOccurs="0"/>
+        <xs:element ref="CONNECTOR" minOccurs="0"/>
+        <xs:element ref="FIELD" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attributeGroup ref="idAttr"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="CONNECTOR">
+    <xs:annotation>
+      <xs:documentation>
+        A connector record on a formula, sequence connection, or binder:
+        SOURCE-WORD is the surface word when known; LOCUS and TRUTH-TABLE
+        are scalar connector properties; PARAMETER is the bound connective
+        parameter for a connective question.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="LOCUS" type="scalarValueType" minOccurs="0">
+          <xs:annotation><xs:documentation>The connector locus.</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element name="TRUTH-TABLE" type="scalarValueType" minOccurs="0">
+          <xs:annotation><xs:documentation>The connector truth table (e.g. TTTF for A).</xs:documentation></xs:annotation>
+        </xs:element>
+        <xs:element name="PARAMETER" type="pointerWrapperType" minOccurs="0"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="SOURCE-WORD" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="DOMAIN-IMPORT">
+    <xs:annotation>
+      <xs:documentation>
+        A domain-import marker on a binder or compound formula; VALUE is
+        the import kind (currently only PROJECTIVE).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:attribute name="VALUE" type="enumTokenType" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="SCALAR-NEGATION">
+    <xs:annotation>
+      <xs:documentation>
+        A scalar negation (na'e family) on a predication, aspect, adjunct,
+        or math expression: KIND is OTHER_THAN, OPPOSITE, NEUTRAL, or
+        AFFIRMED; ARGUMENT-SCOPE lists the argument-place indices the
+        negation ranges over; SCALE points to the scale referent.
+        (The word-card SCALAR-NEGATION inside COMPOSITE-APPROX is a
+        different, locally declared element.)
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="SCALE" minOccurs="0"/>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="KIND">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="OTHER_THAN"/>
+            <xs:enumeration value="OPPOSITE"/>
+            <xs:enumeration value="NEUTRAL"/>
+            <xs:enumeration value="AFFIRMED"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="ARGUMENT-SCOPE" type="placeIndexListType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== body: adjuncts and relative clauses ==================== -->
+
+  <xs:element name="ADJUNCT">
+    <xs:annotation>
+      <xs:documentation>
+        A predicate-keyed optional participant of the host predication
+        (KEY rule "adjuncts").  Three shapes: the compact form carries
+        PREDICATE= with flat ARG children (the single-lexical-predicate
+        place map); without PREDICATE=, BODY carries the composite
+        predicate subtree; a record-shaped adjunct falls back to a generic
+        RECORD.  FILL-STATUS appears when the graph has no unique explicit
+        fill place; the metadata tail is APPLIES-TO, NEGATION-METADATA,
+        SCALAR-NEGATION, MODIFIERS, EXTRA.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:choice minOccurs="0">
+          <xs:element ref="ARG" maxOccurs="unbounded"/>
+          <xs:element ref="RECORD"/>
+          <xs:element ref="BODY"/>
+        </xs:choice>
+        <xs:element name="FILL-STATUS" minOccurs="0">
+          <xs:annotation><xs:documentation>Present when the graph has no unique explicit fill place; VALUE is always AMBIGUOUS-IN-GRAPH (the graph stays complete).</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:attribute name="VALUE" use="required">
+              <xs:simpleType>
+                <xs:restriction base="xs:string">
+                  <xs:enumeration value="AMBIGUOUS-IN-GRAPH"/>
+                </xs:restriction>
+              </xs:simpleType>
+            </xs:attribute>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="APPLIES-TO" minOccurs="0"/>
+        <xs:element name="NEGATION-METADATA" minOccurs="0">
+          <xs:annotation><xs:documentation>Negation metadata attached to the adjunct; KIND is an enum token (UNKNOWN when unclassified).</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="EXTRA" minOccurs="0"/>
+              <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="KIND" type="enumTokenType" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="SCALAR-NEGATION" minOccurs="0"/>
+        <xs:element name="MODIFIERS" minOccurs="0">
+          <xs:annotation><xs:documentation>Display modifiers attached to the adjunct.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="DISPLAY-MODIFIER" maxOccurs="unbounded">
+                <xs:annotation><xs:documentation>One display modifier: RELATION is its predicate symbol; FAMILY, POLARITY, and ASSERTION-EFFECT classify it; INTENSITY-WORD is its surface intensity word.</xs:documentation></xs:annotation>
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element ref="EXTRA" minOccurs="0"/>
+                    <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+                  </xs:sequence>
+                  <xs:attribute name="RELATION" type="predicateSymbolType"/>
+                  <xs:attribute name="FAMILY" type="enumTokenType"/>
+                  <xs:attribute name="POLARITY" type="enumTokenType"/>
+                  <xs:attribute name="ASSERTION-EFFECT" type="enumTokenType"/>
+                  <xs:attribute name="INTENSITY-WORD" type="xs:string"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element ref="EXTRA" minOccurs="0"/>
+        <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="PREDICATE" type="predicateSymbolType"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="RELATIVE-CLAUSES">
+    <xs:annotation>
+      <xs:documentation>
+        Relative clauses attached to a description or argument: one
+        RELATIVE-CLAUSE per clause, in order (ZIhE-separated clauses are
+        siblings).
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="RELATIVE-CLAUSE" maxOccurs="unbounded">
+          <xs:annotation><xs:documentation>One relative clause: KIND is RESTRICTIVE or INCIDENTAL (UNKNOWN when unclassified); BODY is the clause content.</xs:documentation></xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="BODY" minOccurs="0"/>
+              <xs:element ref="EXTRA" minOccurs="0"/>
+              <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+            </xs:sequence>
+            <xs:attribute name="KIND" use="required">
+              <xs:simpleType>
+                <xs:restriction base="xs:string">
+                  <xs:enumeration value="RESTRICTIVE"/>
+                  <xs:enumeration value="INCIDENTAL"/>
+                  <xs:enumeration value="UNKNOWN"/>
+                </xs:restriction>
+              </xs:simpleType>
+            </xs:attribute>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ==================== WORDS: word cards ==================== -->
+
+  <xs:element name="WORDS">
+    <xs:annotation>
+      <xs:documentation>
+        The word-card section (KEY rule "word-cards"): one WORD card per
+        content word of the text, in card order.  Present only when the
+        document was rendered with word cards (tertmu --show-defs); never
+        present in the TYPED-GRAPH form.  Card ids are unique within the
+        section (enforced by the xs:unique constraint below), but they are
+        surface-spelling keys, not graph ids.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="WORD" type="wordCardType" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+    <xs:unique name="wordCardIdUnique">
+      <xs:annotation>
+        <xs:documentation>
+          WORD ID values are unique card keys.  They are surface spellings
+          (the canonical spelling for one-token words; hyphen-joined parts
+          for zei compounds such as mi-zei-do — hyphens never occur inside
+          a single Lojban word, so the two namespaces cannot collide) and
+          can contain apostrophes (e.g. braselju'o), so they are NOT
+          NCNames: uniqueness is enforced here with xs:unique, and the
+          referential integrity of COMPONENT WORD= references to these keys
+          is renderer-guaranteed, not schema-enforced.
+        </xs:documentation>
+      </xs:annotation>
+      <xs:selector xpath="WORD"/>
+      <xs:field xpath="@ID"/>
+    </xs:unique>
+  </xs:element>
+
+  <xs:complexType name="wordCardType">
+    <xs:annotation>
+      <xs:documentation>
+        One word card.  ID is the card key (a surface spelling; see the
+        WORDS xs:unique note).  KNOWN="false" marks a word with no
+        dictionary definition; the default true is omitted, so KNOWN is
+        either absent or exactly "false".  Children in order: GLOSS
+        entries, DEF, NOTES (present only when DEF is), COMPOSITE-APPROX,
+        then WARNINGs.  A dictionary-absent word with no composition is a
+        bare WORD element.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:element name="GLOSS" minOccurs="0" maxOccurs="unbounded">
+        <xs:annotation><xs:documentation>One dictionary gloss; character content is the gloss text.</xs:documentation></xs:annotation>
+        <xs:complexType>
+          <xs:simpleContent>
+            <xs:extension base="xs:string"/>
+          </xs:simpleContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="DEF" type="wordProseType" minOccurs="0">
+        <xs:annotation><xs:documentation>The dictionary definition prose with inline ARG place markers.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="NOTES" type="wordProseType" minOccurs="0">
+        <xs:annotation><xs:documentation>The dictionary notes prose with inline ARG place markers.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="COMPOSITE-APPROX" minOccurs="0">
+        <xs:annotation>
+          <xs:documentation>
+            The mechanical composition of a dictionary-absent compound
+            (KEY rule "compound-approximation"): suggestive, not
+            definitional.  PLACES="UNKNOWN" means the composition tree
+            determines no place structure — the actual meaning and places
+            were chosen by the coiner (KEY rule "compound-places").
+            GROUPING and SCOPE describe the basis of the displayed tree
+            edges (KEY rule "compound-assumptions"); they appear at tree
+            level only when one tree mixes explicit and assumed edges, and
+            a two-component tree carries neither — that conditional
+            presence (basis attributes appear iff the tree has three or
+            more components) is renderer-enforced prose: XSD 1.0 cannot
+            express it.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:group ref="wcExprGroup"/>
+          </xs:sequence>
+          <xs:attribute name="PLACES" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="UNKNOWN"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+          <xs:attribute name="GROUPING" type="groupingBasisType"/>
+          <xs:attribute name="SCOPE" type="scopeBasisType"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+    <xs:attribute name="ID" type="xs:string" use="required">
+      <xs:annotation><xs:documentation>The card key: a surface spelling (possibly containing apostrophes), unique within WORDS.  Not a graph id and not an NCName; see the WORDS xs:unique note.</xs:documentation></xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="KNOWN">
+      <xs:annotation><xs:documentation>Present with exactly the value "false" when the word has no dictionary definition; absent otherwise.</xs:documentation></xs:annotation>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="false"/>
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:attribute>
+  </xs:complexType>
+
+  <xs:complexType name="wordProseType" mixed="true">
+    <xs:annotation>
+      <xs:documentation>
+        Dictionary prose (DEF or NOTES): mixed content — text runs
+        interleaved with empty ARG INDEX="n" markers naming the word's nth
+        place (the same argument vocabulary as predications, so a place in
+        a definition matches ARG INDEX on the word's predications).
+        Unmapped dictionary variables render verbatim as text.  XSD 1.0
+        mixed content cannot constrain the text/element interleaving; the
+        ARG children may appear in any position and count.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="ARG">
+        <xs:annotation><xs:documentation>An inline place marker: the word's nth argument place (1-based).</xs:documentation></xs:annotation>
+        <xs:complexType>
+          <xs:attribute name="INDEX" type="xs:positiveInteger" use="required"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- word-card composition expressions (COMPOSITE-APPROX) -->
+
+  <xs:group name="wcExprGroup">
+    <xs:annotation>
+      <xs:documentation>
+        One node of a compound-composition tree.  Operator nodes wrap one
+        or two sub-expressions; COMPONENT is a leaf referencing a component
+        word card.  The referent forms (wcReferentGroup) can appear
+        directly as expression nodes.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice>
+      <xs:element name="COMPONENT">
+        <xs:annotation>
+          <xs:documentation>
+            A component leaf: WORD names the component's own WORD card by
+            its surface-spelling key.  The reference is renderer-guaranteed
+            (the spelling key grammar is not NCName-safe, so no
+            schema-level keyref is possible); always empty.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:attribute name="WORD" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="KIND-COMPOSITION">
+        <xs:annotation>
+          <xs:documentation>
+            The same kind-composition idiom as the body: KIND is the base
+            kind, MODIFIER the modifier applied to it, in fixed order.
+            GROUPING appears on the node only when one tree mixes explicit
+            and assumed grouping edges.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="KIND" type="wcExprWrapperType">
+              <xs:annotation><xs:documentation>The base kind expression.</xs:documentation></xs:annotation>
+            </xs:element>
+            <xs:element name="MODIFIER" type="wcExprWrapperType">
+              <xs:annotation><xs:documentation>The modifier expression.</xs:documentation></xs:annotation>
+            </xs:element>
+          </xs:sequence>
+          <xs:attribute name="GROUPING" type="groupingBasisType"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="SWAPPED-PLACES">
+        <xs:annotation>
+          <xs:documentation>
+            A place conversion (SE): PLACES names the two swapped
+            1-based place indices as a space-separated pair; SCOPE is the
+            scope basis of the edge when mixed.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="wcExprWrapperType">
+              <xs:attribute name="PLACES" use="required">
+                <xs:simpleType>
+                  <xs:restriction base="xs:NMTOKENS">
+                    <xs:pattern value="[0-9]+ [0-9]+"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:attribute>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="SCALAR-NEGATION">
+        <xs:annotation>
+          <xs:documentation>
+            A scalar negation inside a composition: POLARITY is OTHER,
+            NEUTRAL, or OPPOSITE; SCOPE is the scope basis of the edge
+            when mixed.  (Different attribute grammar from the body
+            SCALAR-NEGATION.)
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="wcExprWrapperType">
+              <xs:attribute name="POLARITY" use="required">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="OTHER"/>
+                    <xs:enumeration value="NEUTRAL"/>
+                    <xs:enumeration value="OPPOSITE"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:attribute>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="PREDICATION-NEGATION" type="wcExprWrapperType">
+        <xs:annotation><xs:documentation>A contradictory (bridi) negation inside a composition.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="ABSTRACTION">
+        <xs:annotation>
+          <xs:documentation>
+            An abstraction (NU) inside a composition: KIND is the
+            abstraction sort in PascalCase; SCOPE is the scope basis of
+            the edge when mixed.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="wcExprWrapperType">
+              <xs:attribute name="KIND" use="required">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="Event"/>
+                    <xs:enumeration value="Achievement"/>
+                    <xs:enumeration value="Process"/>
+                    <xs:enumeration value="State"/>
+                    <xs:enumeration value="Activity"/>
+                    <xs:enumeration value="Property"/>
+                    <xs:enumeration value="Amount"/>
+                    <xs:enumeration value="TruthValue"/>
+                    <xs:enumeration value="Concept"/>
+                    <xs:enumeration value="Proposition"/>
+                    <xs:enumeration value="Experience"/>
+                    <xs:enumeration value="Unspecified"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:attribute>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="CONNECTIVE">
+        <xs:annotation>
+          <xs:documentation>
+            A connective inside a composition: OPERATOR is the closed
+            composition-connective vocabulary; the two operands follow in
+            order.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:group ref="wcExprGroup"/>
+            <xs:group ref="wcExprGroup"/>
+          </xs:sequence>
+          <xs:attribute name="OPERATOR" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="OR"/>
+                <xs:enumeration value="AND"/>
+                <xs:enumeration value="IFF"/>
+                <xs:enumeration value="WHETHER_OR"/>
+                <xs:enumeration value="MASS"/>
+                <xs:enumeration value="SET"/>
+                <xs:enumeration value="SEQUENCE"/>
+                <xs:enumeration value="UNION"/>
+                <xs:enumeration value="JOINT"/>
+                <xs:enumeration value="INTERSECTION"/>
+                <xs:enumeration value="CARTESIAN_PRODUCT"/>
+                <xs:enumeration value="INTERVAL"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="TAGGED-PLACE" type="wcExprWrapperType">
+        <xs:annotation><xs:documentation>A modal-tagged place (BAI/FIhO) inside a composition.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="PLACE-DELETION">
+        <xs:annotation><xs:documentation>A place deletion (ZIhE-free drop) inside a composition: INDEX is the 1-based deleted place.</xs:documentation></xs:annotation>
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="wcExprWrapperType">
+              <xs:attribute name="INDEX" type="xs:positiveInteger" use="required"/>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="FIGURATIVE" type="wcExprWrapperType">
+        <xs:annotation><xs:documentation>A figurative (pe'a-marked) use inside a composition.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="IDENTITY">
+        <xs:annotation><xs:documentation>The identity composition leaf (no transformation); always empty.</xs:documentation></xs:annotation>
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="QUANTITY">
+        <xs:annotation>
+          <xs:documentation>
+            A quantity inside a composition: FORM is the closed composition
+            quantity vocabulary; SCALE is always COUNT.  VALUE carries an
+            INTEGER literal or a TEXT surface form.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="VALUE" minOccurs="0">
+              <xs:complexType>
+                <xs:choice>
+                  <xs:element name="INTEGER">
+                    <xs:annotation><xs:documentation>An integer quantity value.</xs:documentation></xs:annotation>
+                    <xs:complexType>
+                      <xs:attribute name="VALUE" type="xs:long" use="required"/>
+                    </xs:complexType>
+                  </xs:element>
+                  <xs:element name="TEXT">
+                    <xs:annotation><xs:documentation>A quantity value kept as surface text.</xs:documentation></xs:annotation>
+                    <xs:complexType>
+                      <xs:attribute name="VALUE" type="xs:string" use="required"/>
+                    </xs:complexType>
+                  </xs:element>
+                </xs:choice>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+          <xs:attribute name="FORM" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="EXACT"/>
+                <xs:enumeration value="ALL"/>
+                <xs:enumeration value="ALL_BUT"/>
+                <xs:enumeration value="AT_LEAST"/>
+                <xs:enumeration value="AT_MOST"/>
+                <xs:enumeration value="TOO_FEW"/>
+                <xs:enumeration value="ALMOST_ALL"/>
+                <xs:enumeration value="MOST"/>
+                <xs:enumeration value="MANY"/>
+                <xs:enumeration value="FEW"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+          <xs:attribute name="SCALE" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="COUNT"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ORDINAL" type="wcExprWrapperType">
+        <xs:annotation><xs:documentation>An ordinal (MOI) inside a composition.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="CARDINAL" type="wcExprWrapperType">
+        <xs:annotation><xs:documentation>A cardinal inside a composition.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="RECURRENCE" type="wcExprWrapperType">
+        <xs:annotation><xs:documentation>A recurrence (ROI) inside a composition.</xs:documentation></xs:annotation>
+      </xs:element>
+      <xs:element name="LETTER">
+        <xs:annotation>
+          <xs:documentation>
+            A letteral inside a composition: either a leaf carrying TEXT
+            (the letteral's display text) or a wrapper around one
+            sub-expression.  The text-leaf versus wrapper choice is
+            data-dependent; XSD 1.0 admits both in one type.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="wcExprWrapperType">
+              <xs:attribute name="TEXT" type="xs:string"/>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="TENSE-MODAL">
+        <xs:annotation>
+          <xs:documentation>
+            A tense/modal inside a composition: ACTUALITY is the closed
+            actuality vocabulary; ASPECT is a contour token; SPACE and
+            TIME are presence markers that carry the fixed value WHOLE
+            when present.  (Different shape from the body TENSE-MODAL
+            pointer wrapper.)
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="wcExprWrapperType">
+              <xs:attribute name="ACTUALITY" type="actualityType"/>
+              <xs:attribute name="ASPECT" type="enumTokenType"/>
+              <xs:attribute name="SPACE">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="WHOLE"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:attribute>
+              <xs:attribute name="TIME">
+                <xs:simpleType>
+                  <xs:restriction base="xs:string">
+                    <xs:enumeration value="WHOLE"/>
+                  </xs:restriction>
+                </xs:simpleType>
+              </xs:attribute>
+            </xs:extension>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="REFERENT-OF">
+        <xs:annotation><xs:documentation>A referential (la'e-family) node: wraps one composition referent.</xs:documentation></xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:group ref="wcReferentGroup"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:group ref="wcReferentGroup"/>
+    </xs:choice>
+  </xs:group>
+
+  <xs:complexType name="wcExprWrapperType">
+    <xs:annotation>
+      <xs:documentation>
+        A composition operator node wrapping exactly one sub-expression;
+        SCOPE records the scope basis of the edge when one tree mixes
+        explicit and assumed operator scopes.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:sequence>
+      <xs:group ref="wcExprGroup"/>
+    </xs:sequence>
+    <xs:attribute name="SCOPE" type="scopeBasisType"/>
+  </xs:complexType>
+
+  <xs:group name="wcReferentGroup">
+    <xs:annotation>
+      <xs:documentation>
+        A referent form inside a composition tree: context placeholders,
+        names, elided referents, personal masses, logical variables, and
+        parameters.
+      </xs:documentation>
+    </xs:annotation>
+    <xs:choice>
+      <xs:element name="VARIABLE-CONTEXT">
+        <xs:annotation>
+          <xs:documentation>
+            The abstract role an utterance context would supply for a
+            context-dependent word used inside a definition (KEY rule
+            "context-placeholders"): ROLE is the placeholder role
+            (SPEAKER, AUDIENCE, DEMONSTRATED, ASSIGNED, or
+            ELLIPTICAL-PREDICATE); PROXIMITY refines a demonstrated role;
+            SLOT numbers an argument slot.  These are roles, not
+            referents; they define no ids.  Always empty.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:attribute name="ROLE" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="SPEAKER"/>
+                <xs:enumeration value="AUDIENCE"/>
+                <xs:enumeration value="DEMONSTRATED"/>
+                <xs:enumeration value="ASSIGNED"/>
+                <xs:enumeration value="ELLIPTICAL-PREDICATE"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+          <xs:attribute name="PROXIMITY">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="PROXIMAL"/>
+                <xs:enumeration value="MEDIAL"/>
+                <xs:enumeration value="DISTAL"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+          <xs:attribute name="SLOT" type="xs:positiveInteger"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="NAMED">
+        <xs:annotation>
+          <xs:documentation>
+            A name inside a composition: TEXT is the name; BY wraps the
+            naming referent (structurally, never by reference here).
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="BY" minOccurs="0">
+              <xs:annotation><xs:documentation>The naming referent.</xs:documentation></xs:annotation>
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:group ref="wcReferentGroup"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+          <xs:attribute name="TEXT" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="UNSPECIFIED-REFERENT">
+        <xs:annotation><xs:documentation>An elided referent inside a composition; always empty.  (Different shape from the body UNSPECIFIED-REFERENT.)</xs:documentation></xs:annotation>
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="PERSONAL-MASS-MEMBERSHIP">
+        <xs:annotation>
+          <xs:documentation>
+            A personal mass inside a composition, attribute-only form:
+            SPEAKER and AUDIENCE are INCLUDED or EXCLUDED; OTHERS="true"
+            marks additional included others.  (Different shape from the
+            body PERSONAL-MASS-MEMBERSHIP.)
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:attribute name="SPEAKER" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="INCLUDED"/>
+                <xs:enumeration value="EXCLUDED"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+          <xs:attribute name="AUDIENCE" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="INCLUDED"/>
+                <xs:enumeration value="EXCLUDED"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+          <xs:attribute name="OTHERS" type="trueOnlyType"/>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="LOGICAL-VARIABLE">
+        <xs:annotation>
+          <xs:documentation>
+            A logical variable inside a composition: SORT is Entity or
+            Predicate, SERIES numbers the variable series, BINDING is
+            always IMPLICIT-EXISTENTIAL.  Always empty.
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:attribute name="SORT" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="Entity"/>
+                <xs:enumeration value="Predicate"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+          <xs:attribute name="SERIES" type="xs:positiveInteger" use="required"/>
+          <xs:attribute name="BINDING" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="IMPLICIT-EXISTENTIAL"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="PARAMETER">
+        <xs:annotation>
+          <xs:documentation>
+            A parameter placeholder inside a composition: ROLE is
+            PROPERTY_SLOT or ARGUMENT.  Always empty.  (Different shape
+            from the body PARAMETER object.)
+          </xs:documentation>
+        </xs:annotation>
+        <xs:complexType>
+          <xs:attribute name="ROLE" use="required">
+            <xs:simpleType>
+              <xs:restriction base="xs:string">
+                <xs:enumeration value="PROPERTY_SLOT"/>
+                <xs:enumeration value="ARGUMENT"/>
+              </xs:restriction>
+            </xs:simpleType>
+          </xs:attribute>
+        </xs:complexType>
+      </xs:element>
+    </xs:choice>
+  </xs:group>
+</xs:schema>
