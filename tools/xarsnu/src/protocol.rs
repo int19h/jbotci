@@ -592,17 +592,19 @@ impl<'client> OpenRouterReviewSession<'client> {
     /// The session shares the participant's model, provider routing, and
     /// prompt-caching policy; temperature and reasoning come from the
     /// meaning-review config when it overrides them and otherwise from the
-    /// participant. Tool choice resolves through the same model-capability
-    /// metadata as participants, so thinking-mode providers that reject
-    /// `tool_choice: required` get the automatic corrective loop instead. The
-    /// session deliberately inherits none of the participant's message
-    /// history, persona, or standing protocol rules.
-    #[requires(true)]
+    /// participant. The completion token limit is the participant's effective
+    /// limit (issue #726). Tool choice resolves through the same
+    /// model-capability metadata as participants, so thinking-mode providers
+    /// that reject `tool_choice: required` get the automatic corrective loop
+    /// instead. The session deliberately inherits none of the participant's
+    /// message history, persona, or standing protocol rules.
+    #[requires(default_max_completion_tokens > 0)]
     #[ensures(ret.reviews_completed == 0)]
     pub fn new(
         participant: &ParticipantConfig,
         review: &MeaningReviewConfig,
         client: &'client OpenRouterClient,
+        default_max_completion_tokens: u32,
     ) -> Self {
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
@@ -617,6 +619,7 @@ impl<'client> OpenRouterReviewSession<'client> {
                 participant.prompt_caching,
                 policy.reasoning,
                 review.temperature.unwrap_or(participant.temperature),
+                participant.effective_max_completion_tokens(default_max_completion_tokens),
                 MEANING_REVIEW_SYSTEM_PROMPT.to_owned(),
             ),
             tool_choice: policy.tool_choice,
@@ -731,17 +734,20 @@ pub struct OpenRouterReviewer<'client> {
     participants: BTreeMap<String, ParticipantConfig>,
     config: MeaningReviewConfig,
     client: &'client OpenRouterClient,
+    default_max_completion_tokens: u32,
 }
 
 impl<'client> OpenRouterReviewer<'client> {
     /// Prepare fresh-session construction for every run participant.
     #[requires(config.enabled)]
     #[requires(!participants.is_empty())]
+    #[requires(default_max_completion_tokens > 0)]
     #[ensures(ret.participants.len() == participants.len())]
     pub fn new(
         participants: &[ParticipantConfig],
         config: MeaningReviewConfig,
         client: &'client OpenRouterClient,
+        default_max_completion_tokens: u32,
     ) -> Self {
         new!(OpenRouterReviewer {
             participants: participants
@@ -750,6 +756,7 @@ impl<'client> OpenRouterReviewer<'client> {
                 .collect(),
             config,
             client,
+            default_max_completion_tokens,
         })
     }
 }
@@ -763,7 +770,12 @@ impl<'client> MeaningReviewer for OpenRouterReviewer<'client> {
             .participants
             .get(speaker)
             .expect("reviewer sessions are started only for run participants");
-        OpenRouterReviewSession::new(participant, &self.config, self.client)
+        OpenRouterReviewSession::new(
+            participant,
+            &self.config,
+            self.client,
+            self.default_max_completion_tokens,
+        )
     }
 }
 
@@ -1209,6 +1221,13 @@ pub enum ProtocolEvent {
         tool_name: String,
         arguments: String,
         message: String,
+        /// True when the provider stopped this response at the completion
+        /// token limit (`finish_reason: "length"`): the malformed payload is
+        /// then a truncation artifact rather than a model formatting error
+        /// (issue #726). Additive schema-v1 field; absent means false in
+        /// transcripts written before it existed.
+        #[serde(default)]
+        truncated: bool,
     },
     ListenerFlowAbandoned {
         turn_number: usize,
@@ -1244,6 +1263,12 @@ pub enum ProtocolEvent {
         turn_number: usize,
         participant: String,
         usage: Usage,
+        /// True when the provider stopped this call's response at the
+        /// completion token limit (`finish_reason: "length"`), so its content
+        /// or tool-call payloads may be truncated (issue #726). Additive
+        /// schema-v1 field; absent means false in older transcripts.
+        #[serde(default)]
+        truncated: bool,
     },
     ThinkingRecorded {
         turn_number: usize,
@@ -1682,9 +1707,13 @@ impl<'client> OpenRouterParticipant<'client> {
     ///
     /// [`ProtocolRunner::new_with_scenario`] supplies the sole scenario brief
     /// before the first request.
-    #[requires(true)]
+    #[requires(default_max_completion_tokens > 0)]
     #[ensures(ret.conversation.participant_name() == participant.name)]
-    pub fn new(participant: &ParticipantConfig, client: &'client OpenRouterClient) -> Self {
+    pub fn new(
+        participant: &ParticipantConfig,
+        client: &'client OpenRouterClient,
+        default_max_completion_tokens: u32,
+    ) -> Self {
         let system_prompt = format!("{}\n\n{STANDING_PROTOCOL_RULES}", participant.system_prompt);
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
@@ -1699,6 +1728,7 @@ impl<'client> OpenRouterParticipant<'client> {
                 participant.prompt_caching,
                 policy.reasoning,
                 participant.temperature,
+                participant.effective_max_completion_tokens(default_max_completion_tokens),
                 system_prompt,
             ),
             tool_choice: policy.tool_choice,
@@ -4189,6 +4219,7 @@ fn record_drained_observations(
             turn_number,
             participant: participant.to_owned(),
             usage: observation.usage,
+            truncated: observation.truncated,
         }));
     }
     for malformed in malformed_tool_calls {
@@ -4196,6 +4227,7 @@ fn record_drained_observations(
             tool_name,
             arguments,
             message,
+            truncated,
         }) = malformed.into_data();
         events.push(new!(ProtocolEvent::ToolCallMalformed {
             turn_number,
@@ -4203,6 +4235,7 @@ fn record_drained_observations(
             tool_name,
             arguments,
             message,
+            truncated,
         }));
     }
 }

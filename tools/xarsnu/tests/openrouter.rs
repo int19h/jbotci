@@ -415,6 +415,7 @@ fn conversation_for_model_with_reasoning(
         prompt_caching,
         reasoning,
         0.3,
+        16_384,
         "Use tools.".to_owned(),
         "Private task.".to_owned(),
     )
@@ -835,7 +836,7 @@ system-prompt = "Observe."
     .expect("provider routing config parses");
     let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
-    let mut conversation = ParticipantConversation::new(&config.participants[0]);
+    let mut conversation = ParticipantConversation::new(&config.participants[0], 16_384);
     conversation.push_user("Private task.".to_owned());
     let mut accounting = RunAccounting::new(1.0).expect("valid budget");
 
@@ -2337,6 +2338,7 @@ fn review_participant(name: &str, model: &str) -> ParticipantConfig {
         reasoning: None,
         temperature: 0.5,
         system_prompt: "Speak only Lojban.".to_owned(),
+        max_completion_tokens: None,
     })
 }
 
@@ -2375,7 +2377,8 @@ fn reviewer_session_persists_across_candidates_and_counts_usage() {
     ]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
     let participant = review_participant("alice", "mock/model");
-    let mut session = OpenRouterReviewSession::new(&participant, &enabled_review_config(), &client);
+    let mut session =
+        OpenRouterReviewSession::new(&participant, &enabled_review_config(), &client, 16_384);
     let mut accounting = RunAccounting::new(10.0).expect("valid budget");
 
     let first = session
@@ -2447,7 +2450,8 @@ fn reviewer_usage_counts_into_the_run_cost_budget() {
     let server = MockServer::start(vec![verdict_response(true, "All checks pass.", 0.01)]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
     let participant = review_participant("alice", "mock/model");
-    let mut session = OpenRouterReviewSession::new(&participant, &enabled_review_config(), &client);
+    let mut session =
+        OpenRouterReviewSession::new(&participant, &enabled_review_config(), &client, 16_384);
     let mut accounting = RunAccounting::new(0.005).expect("valid budget");
     let outcome = session
         .review(&review_brief(), &mut accounting)
@@ -2495,9 +2499,9 @@ fn adversarial_review_reject_feedback_revise_approve_flow_posts() {
     ];
     let participants = configs
         .iter()
-        .map(|config| OpenRouterParticipant::new(config, &client))
+        .map(|config| OpenRouterParticipant::new(config, &client, 16_384))
         .collect::<Vec<_>>();
-    let reviewer = OpenRouterReviewer::new(&configs, enabled_review_config(), &client);
+    let reviewer = OpenRouterReviewer::new(&configs, enabled_review_config(), &client, 16_384);
     let mut runner = ProtocolRunner::new_with_review(
         participants,
         new!(CapsConfig {
@@ -2629,9 +2633,9 @@ fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
     ];
     let participants = configs
         .iter()
-        .map(|config| OpenRouterParticipant::new(config, &client))
+        .map(|config| OpenRouterParticipant::new(config, &client, 16_384))
         .collect::<Vec<_>>();
-    let reviewer = OpenRouterReviewer::new(&configs, enabled_review_config(), &client);
+    let reviewer = OpenRouterReviewer::new(&configs, enabled_review_config(), &client, 16_384);
     let mut runner = ProtocolRunner::new_with_review(
         participants,
         new!(CapsConfig {
@@ -2685,4 +2689,145 @@ fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
             "reviewer brief must quote {record}"
         );
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn completion_token_limits_reach_participant_and_reviewer_requests() {
+    // Issue #726: the `[client]` default applies run-wide, a per-participant
+    // override wins for that participant's completions, and adversarial
+    // reviewer sessions inherit their participant's effective limit.
+    let config = RunConfig::from_toml(
+        r#"
+scenario = "schedule-negotiation"
+
+[caps]
+max-parse-attempts-per-turn = 3
+max-intent-revisions-per-turn = 2
+max-turns = 8
+max-cost-usd = 1.25
+
+[client]
+max-completion-tokens = 4096
+
+[[participants]]
+name = "alice"
+model = "mock/alice"
+max-completion-tokens = 8192
+tool-choice = "required"
+temperature = 0.3
+system-prompt = "Use tools."
+
+[[participants]]
+name = "bob"
+model = "mock/bob"
+tool-choice = "required"
+temperature = 0.4
+system-prompt = "Observe."
+"#,
+    )
+    .expect("token-limit config parses");
+    let server = MockServer::start(vec![
+        tool_call_response("alpha", 0.01),
+        tool_call_response("alpha", 0.01),
+        verdict_response(true, "All checks pass.", 0.01),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let default_limit = config.client.max_completion_tokens;
+    assert_eq!(default_limit, 4096);
+
+    for participant in &config.participants {
+        let mut conversation = ParticipantConversation::new(participant, default_limit);
+        conversation.push_user("Private task.".to_owned());
+        let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+        conversation
+            .request(
+                &client,
+                &[tool("alpha").expect("valid tool")],
+                ProviderToolChoice::Required,
+                &mut accounting,
+            )
+            .expect("mock completion succeeds");
+    }
+
+    // The reviewer session shares no conversation with the participant, but
+    // its completion request must carry the participant's effective limit.
+    let mut session = OpenRouterReviewSession::new(
+        &config.participants[0],
+        &enabled_review_config(),
+        &client,
+        default_limit,
+    );
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let outcome = session
+        .review(&review_brief(), &mut accounting)
+        .expect("review completes");
+    assert!(matches!(
+        outcome.as_data(),
+        bityzba::data!(ReviewOutcome::Decided { approved: true, .. })
+    ));
+
+    let captured = server.finish();
+    assert_eq!(captured.len(), 3);
+    assert_eq!(
+        captured[0].body["max_tokens"],
+        json!(8192),
+        "the per-participant override reaches the completion request"
+    );
+    assert_eq!(
+        captured[1].body["max_tokens"],
+        json!(4096),
+        "participants without an override use the client default"
+    );
+    assert_eq!(
+        captured[2].body["max_tokens"],
+        json!(8192),
+        "the reviewer session inherits its participant's effective limit"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn finish_reason_length_marks_malformed_call_and_observation_truncated() {
+    // Issue #726: a response stopped at the completion token limit reports
+    // `finish_reason: "length"`; the malformed-args capture and the per-call
+    // observation must both carry the truncation marker so token exhaustion is
+    // diagnosable without payload inspection.
+    let mut truncated = malformed_call_response("alpha", "{\"value\":", 0.01);
+    truncated.body["choices"][0]["finish_reason"] = json!("length");
+    let server = MockServer::start(vec![truncated, tool_call_response("alpha", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let mut conversation = conversation();
+    let mut accounting = RunAccounting::new(1.0).expect("valid budget");
+    let turn = conversation
+        .request(
+            &client,
+            &[tool("alpha").expect("valid tool")],
+            ProviderToolChoice::Required,
+            &mut accounting,
+        )
+        .expect("the reprompt recovers with a valid call");
+    assert!(turn.tool_calls().is_some());
+
+    let malformed = conversation.take_pending_malformed_tool_calls();
+    assert_eq!(malformed.len(), 1);
+    assert_eq!(malformed[0].arguments, "{\"value\":");
+    assert!(
+        malformed[0].truncated,
+        "finish_reason=length marks the malformed capture as truncated"
+    );
+
+    let observations = conversation.take_pending_observations();
+    assert_eq!(observations.len(), 2);
+    assert!(
+        observations[0].truncated,
+        "the truncated provider call is marked on its observation"
+    );
+    assert!(
+        !observations[1].truncated,
+        "ordinary completions are not marked truncated"
+    );
+    assert_eq!(server.finish().len(), 2);
 }

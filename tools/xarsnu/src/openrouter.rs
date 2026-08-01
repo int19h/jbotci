@@ -21,7 +21,6 @@ use crate::model_capabilities::ParticipantModelPolicy;
 use crate::{PromptCaching, ProviderToolChoice, ReasoningConfig};
 
 const DEFAULT_OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
-const COMPLETION_MAX_TOKENS: u32 = 16_384;
 pub(crate) const REQUIRED_TOOL_CORRECTION: &str =
     "You must respond by calling one of the provided tools. Do not answer with prose.";
 const EMPTY_RESPONSE_CORRECTION: &str = "Your previous response supplied no visible content or tool call. Private reasoning, if any, is not received as a reply. Respond with visible content or call one of the provided tools.";
@@ -356,6 +355,10 @@ impl ThinkingTrace {
 pub struct ProviderCallObservation {
     pub usage: Usage,
     pub thinking: Option<ThinkingTrace>,
+    /// True when the provider stopped the response at the completion token
+    /// limit (`finish_reason: "length"`), so content and tool-call payloads
+    /// from this call may be truncated (issue #726).
+    pub truncated: bool,
 }
 
 /// Lossless record of one tool call whose arguments were not a valid JSON object.
@@ -371,6 +374,10 @@ pub struct MalformedToolCall {
     pub tool_name: String,
     pub arguments: String,
     pub message: String,
+    /// True when the provider stopped the response at the completion token
+    /// limit (`finish_reason: "length"`): the malformed payload is then a
+    /// truncation artifact, not a model formatting error (issue #726).
+    pub truncated: bool,
 }
 
 /// Request-scoped reasoning details attached to their originating assistant message.
@@ -940,6 +947,7 @@ impl OpenRouterClient {
     /// Issue one completion with the caller's exact tool list.
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
+    #[requires(max_tokens > 0)]
     #[requires(!messages.is_empty())]
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     fn complete(
@@ -948,6 +956,7 @@ impl OpenRouterClient {
         provider: Option<&toml::Table>,
         prompt_caching: PromptCaching,
         temperature: f64,
+        max_tokens: u32,
         messages: &[ChatMessage],
         tools: &[ToolDefinition],
         tool_choice: ProviderToolChoice,
@@ -966,7 +975,7 @@ impl OpenRouterClient {
             model,
             provider,
             temperature,
-            max_tokens: COMPLETION_MAX_TOKENS,
+            max_tokens,
             messages: new!(CompletionMessages {
                 messages,
                 explicit_prompt_caching,
@@ -1143,6 +1152,10 @@ impl OpenRouterClient {
                     .ok_or_else(|| OpenRouterError::InvalidResponse {
                         message: "OpenRouter returned no completion choices".to_owned(),
                     })?;
+            // OpenRouter's chat-completions contract reports `finish_reason:
+            // "length"` when the response stopped at `max_tokens`; content and
+            // tool-call argument payloads are then truncated (issue #726).
+            let truncated = choice.finish_reason.as_deref() == Some("length");
             let CompletionMessage {
                 content,
                 reasoning,
@@ -1160,6 +1173,7 @@ impl OpenRouterClient {
                 tool_calls,
                 thinking,
                 usage,
+                truncated,
             });
         }
     }
@@ -1249,6 +1263,7 @@ pub struct ParticipantConversation {
     prompt_caching: PromptCaching,
     reasoning: ReasoningConfig,
     temperature: f64,
+    max_completion_tokens: u32,
     messages: Vec<ChatMessage>,
     usage: UsageTotals,
     pending_observations: Vec<ProviderCallObservation>,
@@ -1261,9 +1276,9 @@ impl ParticipantConversation {
     ///
     /// The scenario runner appends the public setup and participant-scoped
     /// scenario brief before the first model call.
-    #[requires(true)]
+    #[requires(default_max_completion_tokens > 0)]
     #[ensures(ret.messages.len() == 1)]
-    pub fn new(participant: &crate::ParticipantConfig) -> Self {
+    pub fn new(participant: &crate::ParticipantConfig, default_max_completion_tokens: u32) -> Self {
         let policy = ParticipantModelPolicy::resolve(
             &participant.model,
             participant.tool_choice,
@@ -1276,6 +1291,7 @@ impl ParticipantConversation {
             participant.prompt_caching,
             policy.reasoning,
             participant.temperature,
+            participant.effective_max_completion_tokens(default_max_completion_tokens),
             participant.system_prompt.clone(),
         )
     }
@@ -1284,6 +1300,7 @@ impl ParticipantConversation {
     #[requires(!participant_name.trim().is_empty())]
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
+    #[requires(max_completion_tokens > 0)]
     #[requires(!system_prompt.trim().is_empty())]
     #[ensures(ret.messages.len() == 1)]
     pub fn from_system_prompt(
@@ -1293,6 +1310,7 @@ impl ParticipantConversation {
         prompt_caching: PromptCaching,
         reasoning: ReasoningConfig,
         temperature: f64,
+        max_completion_tokens: u32,
         system_prompt: String,
     ) -> Self {
         Self {
@@ -1302,6 +1320,7 @@ impl ParticipantConversation {
             prompt_caching,
             reasoning,
             temperature,
+            max_completion_tokens,
             messages: vec![ChatMessage::system(system_prompt)],
             usage: UsageTotals::default(),
             pending_observations: Vec::new(),
@@ -1314,6 +1333,7 @@ impl ParticipantConversation {
     #[requires(!participant_name.trim().is_empty())]
     #[requires(!model.trim().is_empty())]
     #[requires(temperature.is_finite() && (0.0..=2.0).contains(&temperature))]
+    #[requires(max_completion_tokens > 0)]
     #[requires(!system_prompt.trim().is_empty())]
     #[requires(!initial_user_prompt.trim().is_empty())]
     #[ensures(ret.messages.len() == 2)]
@@ -1324,6 +1344,7 @@ impl ParticipantConversation {
         prompt_caching: PromptCaching,
         reasoning: ReasoningConfig,
         temperature: f64,
+        max_completion_tokens: u32,
         system_prompt: String,
         initial_user_prompt: String,
     ) -> Self {
@@ -1334,6 +1355,7 @@ impl ParticipantConversation {
             prompt_caching,
             reasoning,
             temperature,
+            max_completion_tokens,
             messages: vec![
                 ChatMessage::system(system_prompt),
                 ChatMessage::user(initial_user_prompt),
@@ -1443,6 +1465,7 @@ impl ParticipantConversation {
                 self.provider.as_ref(),
                 self.prompt_caching,
                 self.temperature,
+                self.max_completion_tokens,
                 &self.messages,
                 tools,
                 tool_choice,
@@ -1454,12 +1477,16 @@ impl ParticipantConversation {
                 tool_calls,
                 thinking,
                 usage,
+                truncated,
             } = completion;
             self.usage.record(&usage);
             let abort = accounting.record(&usage);
             if content.is_none() && tool_calls.is_empty() {
-                self.pending_observations
-                    .push(ProviderCallObservation { usage, thinking });
+                self.pending_observations.push(ProviderCallObservation {
+                    usage,
+                    thinking,
+                    truncated,
+                });
                 if let Some(record) = abort {
                     return Ok(new!(ModelTurn::Aborted { record }));
                 }
@@ -1494,8 +1521,11 @@ impl ParticipantConversation {
                         }));
                 }
             }
-            self.pending_observations
-                .push(ProviderCallObservation { usage, thinking });
+            self.pending_observations.push(ProviderCallObservation {
+                usage,
+                thinking,
+                truncated,
+            });
             if let Some(record) = abort {
                 return Ok(new!(ModelTurn::Aborted { record }));
             }
@@ -1509,11 +1539,15 @@ impl ParticipantConversation {
                         let message = error.to_string();
                         // Keep the raw payload verbatim so the transcript layer
                         // can record what the model actually sent (issue #720).
+                        // `truncated` marks payloads clipped by the completion
+                        // token limit, distinguishing token exhaustion from a
+                        // model formatting error (issue #726).
                         self.pending_malformed_tool_calls
                             .push(new!(MalformedToolCall {
                                 tool_name: call.function.name.clone(),
                                 arguments: call.function.arguments.clone(),
                                 message: message.clone(),
+                                truncated,
                             }));
                         self.messages.push(ChatMessage::tool(
                             call.id.clone(),
@@ -2050,6 +2084,8 @@ struct CompletionTokensDetails {
 #[derive(Debug, Deserialize)]
 struct CompletionChoice {
     message: CompletionMessage,
+    #[serde(default)]
+    finish_reason: Option<String>,
 }
 
 #[invariant(true)]
@@ -2071,4 +2107,5 @@ struct Completion {
     tool_calls: Vec<ToolCall>,
     thinking: Option<ThinkingTrace>,
     usage: Usage,
+    truncated: bool,
 }
