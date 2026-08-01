@@ -921,7 +921,7 @@ fn tersmu_xml_cli_output_is_one_canonical_document() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_show_defs_prepends_definitions_before_the_xml_document() {
+fn tersmu_show_defs_embeds_a_words_section_in_the_xml_document() {
     let output = run_success_stdout(&[
         "jbotci",
         "tersmu",

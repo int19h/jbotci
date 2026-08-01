@@ -1539,13 +1539,13 @@ impl ToolTersmuFormat {
     #[requires(true)]
     #[ensures(self == Self::Json -> ret == APPLICATION_JSON_CONTENT_TYPE)]
     #[ensures(self == Self::Smusni -> ret == TEXT_PLAIN_CONTENT_TYPE)]
-    #[ensures(self == Self::Xml && show_defs -> ret == TEXT_PLAIN_CONTENT_TYPE)]
-    #[ensures(self == Self::Xml && !show_defs -> ret == APPLICATION_XML_CONTENT_TYPE)]
-    fn content_type(self, show_defs: bool) -> &'static str {
+    #[ensures(self == Self::Xml -> ret == APPLICATION_XML_CONTENT_TYPE)]
+    fn content_type(self, _show_defs: bool) -> &'static str {
         match self {
             Self::Json => APPLICATION_JSON_CONTENT_TYPE,
             Self::Smusni => TEXT_PLAIN_CONTENT_TYPE,
-            Self::Xml if show_defs => TEXT_PLAIN_CONTENT_TYPE,
+            // XML with definitions is again one well-formed document: the
+            // structured WORDS section lives inside the SFN root (#709).
             Self::Xml => APPLICATION_XML_CONTENT_TYPE,
         }
     }
@@ -1572,12 +1572,15 @@ pub struct ToolTersmuRequest {
     /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
     #[serde(default)]
     pub dialect: Option<String>,
-    /// Prepend dictionary definitions for content words (gismu, lujvo, fu'ivla,
-    /// and dictionary-backed cmevla) to the `xml` or `smusni` document. Cmavo
-    /// definitions are never included: cmavo semantics are exactly what the
-    /// semantic graph expresses. Definitions ground the interpretation and are
-    /// on by default; set this to `false` to save tokens. The flag is suppressed
-    /// for `json` so it remains one pure document.
+    /// Show dictionary definitions for content words (gismu, lujvo, fu'ivla,
+    /// and dictionary-backed cmevla). Cmavo definitions are never included:
+    /// cmavo semantics are exactly what the semantic graph expresses.
+    /// Definitions ground the interpretation and are on by default; set this
+    /// to `false` to save tokens. The shape is per-format: `xml` embeds a
+    /// structured `WORDS` section inside the single SFN document (one `WORD`
+    /// card per content word, with `ARG INDEX="n"` place markup inside `DEF`
+    /// and `NOTES`); `smusni` prepends readable text cards. The flag is
+    /// suppressed for `json` so it remains one pure document.
     #[serde(default = "tool_show_defs_default")]
     pub show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative "story
@@ -1948,32 +1951,27 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn tersmu_human_formats_prepend_definitions() {
-        for format in [ToolTersmuFormat::Smusni, ToolTersmuFormat::Xml] {
-            let grounded = run_tool_tersmu(tersmu_request(format, true))
-                .expect("grounded human tersmu output");
-            let ungrounded = run_tool_tersmu(tersmu_request(format, false))
-                .expect("ungrounded human tersmu output");
-            let grounded = grounded.stdout_text().expect("UTF-8 tersmu output");
-            let ungrounded = ungrounded.stdout_text().expect("UTF-8 tersmu output");
-            let definitions = grounded
-                .strip_suffix(ungrounded)
-                .expect("show-defs only prepends definitions");
+    fn tersmu_smusni_prepends_definitions() {
+        let grounded = run_tool_tersmu(tersmu_request(ToolTersmuFormat::Smusni, true))
+            .expect("grounded smusni tersmu output");
+        let ungrounded = run_tool_tersmu(tersmu_request(ToolTersmuFormat::Smusni, false))
+            .expect("ungrounded smusni tersmu output");
+        let grounded = grounded.stdout_text().expect("UTF-8 tersmu output");
+        let ungrounded = ungrounded.stdout_text().expect("UTF-8 tersmu output");
+        let definitions = grounded
+            .strip_suffix(ungrounded)
+            .expect("show-defs only prepends definitions");
 
-            assert!(
-                definitions.starts_with("1. klama | by: officialdata | gismu"),
-                "{format:?}"
-            );
-            assert!(!definitions.contains("banan"), "{format:?}");
-            assert!(!definitions.contains("cmavo:"), "{format:?}");
-            assert!(definitions.ends_with('\n'), "{format:?}");
-        }
+        assert!(definitions.starts_with("1. klama | by: officialdata | gismu"));
+        assert!(!definitions.contains("banan"));
+        assert!(!definitions.contains("cmavo:"));
+        assert!(definitions.ends_with('\n'));
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn tersmu_xml_definitions_precede_the_unchanged_xml_document() {
+    fn tersmu_xml_definitions_form_a_structured_words_section() {
         let grounded =
             run_tool_tersmu(tersmu_request(ToolTersmuFormat::Xml, true)).expect("grounded XML");
         let ungrounded =
@@ -1982,13 +1980,24 @@ mod tests {
         assert_eq!(grounded.status, ToolStatus::Success);
         let grounded = grounded.stdout_text().expect("UTF-8 grounded XML");
         let ungrounded = ungrounded.stdout_text().expect("UTF-8 ungrounded XML");
-        let definitions = grounded
-            .strip_suffix(ungrounded)
-            .expect("show-defs only prepends definitions before XML");
-        assert!(definitions.starts_with("1. klama | by: officialdata | gismu"));
-        assert!(ungrounded.starts_with("<SFN "));
-        assert!(ungrounded.ends_with("</SFN>\n"));
-        roxmltree::Document::parse(ungrounded).expect("unchanged XML document suffix parses");
+        // One well-formed document: no prepended text cards.
+        assert!(grounded.starts_with("<SFN "), "{grounded}");
+        assert!(!grounded.contains("1. klama | by: officialdata"));
+        assert!(grounded.ends_with("</SFN>\n"));
+        roxmltree::Document::parse(grounded).expect("grounded output is one XML document");
+        // The WORDS section follows the KEY and carries the klama card with
+        // place markup inside DEF.
+        assert!(
+            grounded.contains("</KEY>\n  <WORDS>\n"),
+            "WORDS must immediately follow KEY: {grounded}"
+        );
+        assert!(grounded.contains("<WORD ID=\"klama\">"), "{grounded}");
+        assert!(grounded.contains("<GLOSS>"), "{grounded}");
+        assert!(grounded.contains("<ARG INDEX=\"1\"/>"), "{grounded}");
+        // The body after the section is byte-identical to the ungrounded body.
+        let grounded_body = grounded.split_once("</WORDS>").expect("WORDS section").1;
+        let ungrounded_body = ungrounded.split_once("</KEY>").expect("KEY").1;
+        assert_eq!(grounded_body, ungrounded_body);
     }
 
     #[test]
@@ -2001,7 +2010,7 @@ mod tests {
             (ToolTersmuFormat::Smusni, false, TEXT_PLAIN_CONTENT_TYPE),
             (ToolTersmuFormat::Smusni, true, TEXT_PLAIN_CONTENT_TYPE),
             (ToolTersmuFormat::Xml, false, APPLICATION_XML_CONTENT_TYPE),
-            (ToolTersmuFormat::Xml, true, TEXT_PLAIN_CONTENT_TYPE),
+            (ToolTersmuFormat::Xml, true, APPLICATION_XML_CONTENT_TYPE),
         ] {
             let output = run_tool_tersmu(tersmu_request(format, show_defs)).expect("tersmu output");
             assert_eq!(

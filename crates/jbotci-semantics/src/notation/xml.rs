@@ -17,6 +17,8 @@ use serde_json::{Map, Value};
 use crate::model::{
     SEMANTIC_JSON_VERSION, SemanticGraph, semantic_scope_dependence_binder_universes,
 };
+use crate::notation::word_cards::WordCard;
+use crate::notation::xml_words::words_section;
 
 const SCOPE_DEPENDENCE_TEACHING: &str = "Scope-dependence markers compare a referent's scopeDependence with the semantic graph derivation's authoritative first-visit binder universe, which is not a lexical-enclosure set. Silence means that the referent may depend on the full first-visit universe. SAME-FOR-ALL means that it is fixed despite a nonempty first-visit universe.";
 
@@ -104,6 +106,35 @@ const KEY_RULES_AFTER_SORTS: &[(&str, &str)] = &[
     (
         "order",
         "Child order is fixed per element; CONNECTIVE child order is semantically significant; childless elements self-close.",
+    ),
+];
+
+/// KEY rules appended exactly when the document carries a WORDS word-card
+/// section (#709): documents without cards stay byte-identical.
+const KEY_RULES_WORD_CARDS: &[(&str, &str)] = &[
+    (
+        "word-cards",
+        "WORDS lists one WORD card per content word of the text; ID= is the card key. GLOSS, DEF, and NOTES are dictionary prose; inside DEF and NOTES, ARG INDEX=\"n\" marks the word's nth place — the same argument vocabulary as predications, so a place in a definition matches ARG INDEX on the word's predications. KNOWN=\"false\" marks a word with no dictionary definition; the default true is omitted.",
+    ),
+    (
+        "compound-approximation",
+        "COMPOSITE-APPROX shows the mechanical composition of a dictionary-absent compound through the same KIND-COMPOSITION idiom as the body; it is suggestive, not definitional. COMPONENT WORD= references the component's own WORD card.",
+    ),
+    (
+        "compound-places",
+        "PLACES=\"UNKNOWN\" means the composition tree determines no place structure. The actual meaning and places were chosen by the coiner. Places of COMPONENT cards are not inherited by the compound, and operators or grouping the coiner omitted leave no recoverable trace.",
+    ),
+    (
+        "compound-assumptions",
+        "GROUPING= and SCOPE= describe the basis of the displayed tree, not the coiner's guaranteed intent: ASSUMED-LEFT = CLL default left grouping, ASSUMED-SHORT = CLL-12.12 narrow operator scope, EXPLICIT = the word itself encodes the boundary. The attributes are tree-level; they appear per-node only when one tree mixes explicit and assumed edges.",
+    ),
+    (
+        "context-placeholders",
+        "VARIABLE-CONTEXT denotes the abstract role an utterance context would supply for a context-dependent word used inside a definition. These are roles, not referents; they define no ids.",
+    ),
+    (
+        "word-card-ids",
+        "WORD ID values are surface-spelling card keys: the canonical spelling for one-token words; multiword (zei) compounds join their parts with hyphens (mi-zei-do). Hyphens never occur inside a single Lojban word, so the two namespaces cannot collide.",
     ),
 ];
 
@@ -291,22 +322,39 @@ fn remove_surface_subtree(surfaces: &mut BTreeSet<XmlSurface>, surface: &XmlSurf
     removed
 }
 
+/// One item of an element's mixed content: interleaved text runs and child
+/// elements on a single line (`<DEF>` place markup, #709).
+// Per-variant `=> true` markers are audited no-ops: like `XmlElement` itself,
+// this is mutable serializer construction state whose validity is established
+// by the emission code and the canonical serializer, not by a wrapper.
+#[invariant(::Text(_) => true)]
+#[invariant(::Element(_) => true)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum MixedContent {
+    Text(String),
+    Element(XmlElement),
+}
+
 // Mutable XML construction state. Validity is established by the private
 // constructors and canonical serializer rather than by a wrapper that would
-// prohibit in-place tree assembly.
+// prohibit in-place tree assembly. `mixed` is the single-line mixed-content
+// representation used by the WORDS section (#709): when it is non-empty,
+// `text` and `children` must be empty (the serializer debug-asserts this) and
+// the items are emitted inline between the open and close tags.
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct XmlElement {
-    name: String,
-    attributes: Vec<(String, String)>,
-    children: Vec<Self>,
-    text: Option<String>,
+pub(crate) struct XmlElement {
+    pub(crate) name: String,
+    pub(crate) attributes: Vec<(String, String)>,
+    pub(crate) children: Vec<Self>,
+    pub(crate) text: Option<String>,
+    pub(crate) mixed: Vec<MixedContent>,
 }
 
 impl XmlElement {
     #[requires(true)]
     #[ensures(!ret.name.is_empty())]
-    fn new(name: impl Into<String>) -> Self {
+    pub(crate) fn new(name: impl Into<String>) -> Self {
         let name = name.into();
         assert!(!name.is_empty(), "XML element names cannot be empty");
         Self {
@@ -314,12 +362,13 @@ impl XmlElement {
             attributes: Vec::new(),
             children: Vec::new(),
             text: None,
+            mixed: Vec::new(),
         }
     }
 
     #[requires(true)]
     #[ensures(!ret.name.is_empty())]
-    fn with_attributes(
+    pub(crate) fn with_attributes(
         name: impl Into<String>,
         attributes: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
     ) -> Self {
@@ -332,7 +381,7 @@ impl XmlElement {
 
     #[requires(true)]
     #[ensures(self.attributes.iter().all(|(name, _)| !name.is_empty()))]
-    fn set(&mut self, name: impl Into<String>, value: impl Into<String>) {
+    pub(crate) fn set(&mut self, name: impl Into<String>, value: impl Into<String>) {
         let name = name.into();
         assert!(!name.is_empty(), "XML attribute names cannot be empty");
         let value = value.into();
@@ -360,7 +409,7 @@ impl XmlElement {
 
     #[requires(true)]
     #[ensures(self.children.len() == old(self.children.len()) + 1)]
-    fn push(&mut self, child: Self) {
+    pub(crate) fn push(&mut self, child: Self) {
         self.children.push(child);
     }
 
@@ -368,6 +417,15 @@ impl XmlElement {
     #[ensures(true)]
     fn extend(&mut self, children: Vec<Self>) {
         self.children.extend(children);
+    }
+
+    /// Append one mixed-content item (a text run or an inline child element).
+    /// Mixed content is mutually exclusive with `text`/`children` by
+    /// construction discipline; the serializer debug-asserts it.
+    #[requires(true)]
+    #[ensures(self.mixed.len() == old(self.mixed.len()) + 1)]
+    pub(crate) fn push_mixed(&mut self, item: MixedContent) {
+        self.mixed.push(item);
     }
 }
 
@@ -403,6 +461,24 @@ fn serialize_element(node: &XmlElement, depth: usize, output: &mut String) {
         output.push_str(&escape_attribute(value));
         output.push('"');
     }
+    if !node.mixed.is_empty() {
+        debug_assert!(
+            node.children.is_empty() && node.text.is_none(),
+            "mixed content cannot combine with text or children: {}",
+            node.name
+        );
+        output.push('>');
+        for item in &node.mixed {
+            match item {
+                MixedContent::Text(text) => output.push_str(&escape_text(text)),
+                MixedContent::Element(child) => serialize_element_inline(child, output),
+            }
+        }
+        output.push_str("</");
+        output.push_str(&node.name);
+        output.push('>');
+        return;
+    }
     if node.children.is_empty() && node.text.is_none() {
         output.push_str("/>");
         return;
@@ -424,9 +500,45 @@ fn serialize_element(node: &XmlElement, depth: usize, output: &mut String) {
     output.push('>');
 }
 
+/// Serialize one element without any indentation or newlines: the inline form
+/// used inside mixed content (`<ARG INDEX="n"/>` inside `<DEF>`, #709).
+#[requires(true)]
+#[ensures(output.len() >= old(output.len()))]
+fn serialize_element_inline(node: &XmlElement, output: &mut String) {
+    output.push('<');
+    output.push_str(&node.name);
+    for (name, value) in &node.attributes {
+        output.push(' ');
+        output.push_str(name);
+        output.push_str("=\"");
+        output.push_str(&escape_attribute(value));
+        output.push('"');
+    }
+    if node.children.is_empty() && node.text.is_none() && node.mixed.is_empty() {
+        output.push_str("/>");
+        return;
+    }
+    output.push('>');
+    if let Some(text) = &node.text {
+        output.push_str(&escape_text(text));
+    }
+    for child in &node.children {
+        serialize_element_inline(child, output);
+    }
+    for item in &node.mixed {
+        match item {
+            MixedContent::Text(text) => output.push_str(&escape_text(text)),
+            MixedContent::Element(child) => serialize_element_inline(child, output),
+        }
+    }
+    output.push_str("</");
+    output.push_str(&node.name);
+    output.push('>');
+}
+
 #[requires(true)]
 #[ensures(ret.ends_with('\n'))]
-fn serialize(root: &XmlElement) -> String {
+pub(crate) fn serialize(root: &XmlElement) -> String {
     let mut output = String::new();
     serialize_element(root, 0, &mut output);
     output.push('\n');
@@ -3969,6 +4081,11 @@ impl RenderState {
         result
     }
 
+    /// Render the TYPED-GRAPH fallback document. This is a raw typed
+    /// projection of the semantic graph for graphs the compact vocabulary
+    /// cannot represent truthfully; it deliberately never carries a WORDS
+    /// word-card section (#709), which is defined over the compact document
+    /// shape (KEY → WORDS → WAIVERS → DEFS → body).
     #[requires(!incompatibilities.is_empty())]
     #[ensures(ret.ends_with('\n'))]
     fn render_typed_graph_document(
@@ -4039,7 +4156,16 @@ impl RenderState {
 
     #[requires(true)]
     #[ensures(ret.ends_with('\n'))]
-    fn render_document(&mut self, graph: &GraphData, document_name: &str) -> String {
+    fn render_document(
+        &mut self,
+        graph: &GraphData,
+        document_name: &str,
+        word_cards: Option<&[WordCard]>,
+    ) -> String {
+        // A WORDS section exists exactly for a present, non-empty card list;
+        // the word-card KEY rules travel with it so documents without cards
+        // stay byte-identical.
+        let word_cards = word_cards.filter(|cards| !cards.is_empty());
         let document_scope = vec!["document".to_owned()];
         let (document_declarations, components) =
             self.scoped_parts(graph, document_scope, |state, graph| {
@@ -4080,7 +4206,17 @@ impl RenderState {
             rule.text = Some((*prose).to_owned());
             key.push(rule);
         }
+        if word_cards.is_some() {
+            for (topic, prose) in KEY_RULES_WORD_CARDS {
+                let mut rule = XmlElement::with_attributes("RULE", [("TOPIC", *topic)]);
+                rule.text = Some((*prose).to_owned());
+                key.push(rule);
+            }
+        }
         root.push(key);
+        if let Some(cards) = word_cards {
+            root.push(words_section(cards));
+        }
         root.push(self.waivers_element());
         Self::append_defs(&mut root, document_declarations);
         root.push(graph_root);
@@ -4093,9 +4229,14 @@ impl RenderState {
 
 #[requires(!document_name.is_empty())]
 #[ensures(ret.output.ends_with('\n'))]
-fn render_xml_value_with_state(graph: Value, document_name: &str, state: RenderState) -> XmlRender {
+fn render_xml_value_with_state(
+    graph: Value,
+    document_name: &str,
+    state: RenderState,
+    word_cards: Option<&[WordCard]>,
+) -> XmlRender {
     let graph = GraphData::from_value(graph);
-    render_indexed_graph_with_state(graph, document_name, state)
+    render_indexed_graph_with_state(graph, document_name, state, word_cards)
 }
 
 #[requires(!document_name.is_empty())]
@@ -4104,6 +4245,7 @@ fn render_indexed_graph_with_state(
     graph: GraphData,
     document_name: &str,
     mut state: RenderState,
+    word_cards: Option<&[WordCard]>,
 ) -> XmlRender {
     let preliminary_incompatibilities = match graph.representation.as_data() {
         data!(XmlRepresentationPlan::Compact) => BTreeSet::new(),
@@ -4111,6 +4253,8 @@ fn render_indexed_graph_with_state(
     };
     let output = if !preliminary_incompatibilities.is_empty() {
         state.start_omission_accounting(&graph);
+        // The TYPED-GRAPH fallback is a raw-graph surface without a WORDS
+        // section; word cards are silently inapplicable there.
         state.render_typed_graph_document(&graph, document_name, &preliminary_incompatibilities)
     } else {
         let mut planning_incompatibilities = state.plan_declaration_scopes(&graph);
@@ -4121,7 +4265,7 @@ fn render_indexed_graph_with_state(
         state.reset_traversal_state();
         state.start_omission_accounting(&graph);
         if planning_incompatibilities.is_empty() {
-            state.render_document(&graph, document_name)
+            state.render_document(&graph, document_name, word_cards)
         } else {
             state.render_typed_graph_document(&graph, document_name, &planning_incompatibilities)
         }
@@ -4136,6 +4280,7 @@ fn render_xml_graph_with_state(
     graph: &SemanticGraph,
     document_name: &str,
     state: RenderState,
+    word_cards: Option<&[WordCard]>,
 ) -> XmlRender {
     let binder_universes: HashMap<String, BTreeSet<String>> =
         semantic_scope_dependence_binder_universes(graph.root, &graph.objects)
@@ -4155,13 +4300,13 @@ fn render_xml_graph_with_state(
     value["scopeDependenceBinderUniverses"] =
         serde_json::to_value(binder_universes).expect("binder universes serialize as an object");
     let indexed = GraphData::from_value(value);
-    render_indexed_graph_with_state(indexed, document_name, state)
+    render_indexed_graph_with_state(indexed, document_name, state, word_cards)
 }
 
 #[requires(!document_name.is_empty())]
 #[ensures(ret.output.ends_with('\n'))]
 fn render_xml_value(graph: Value, document_name: &str) -> XmlRender {
-    render_xml_value_with_state(graph, document_name, RenderState::new())
+    render_xml_value_with_state(graph, document_name, RenderState::new(), None)
 }
 
 #[cfg(test)]
@@ -4198,7 +4343,7 @@ fn render_xml_value_with_test_suppression(
 ) -> XmlRender {
     let mut state = RenderState::new();
     state.test_suppression = Some(suppression);
-    render_xml_value_with_state(graph, document_name, state)
+    render_xml_value_with_state(graph, document_name, state, None)
 }
 
 /// Render a semantic graph as canonical SFN-XML.
@@ -4211,7 +4356,22 @@ fn render_xml_value_with_test_suppression(
 #[requires(!document_name.is_empty())]
 #[ensures(ret.output.ends_with('\n'))]
 pub fn render_xml(graph: &SemanticGraph, document_name: &str) -> XmlRender {
-    render_xml_graph_with_state(graph, document_name, RenderState::new())
+    render_xml_graph_with_state(graph, document_name, RenderState::new(), None)
+}
+
+/// Render a semantic graph as canonical SFN-XML with a structured `<WORDS>`
+/// word-card section (#709): the KEY gains the word-card rules and the WORDS
+/// section follows it (before WAIVERS), ahead of the unchanged body. An empty
+/// card list renders exactly like [`render_xml`].
+#[requires(graph.objects.contains_key(&graph.root))]
+#[requires(!document_name.is_empty())]
+#[ensures(ret.output.ends_with('\n'))]
+pub fn render_xml_with_word_cards(
+    graph: &SemanticGraph,
+    document_name: &str,
+    word_cards: &[WordCard],
+) -> XmlRender {
+    render_xml_graph_with_state(graph, document_name, RenderState::new(), Some(word_cards))
 }
 
 #[cfg(test)]
@@ -5043,6 +5203,60 @@ mod tests {
         let mut occurrences = BTreeSet::new();
         collect_declared_waiver_occurrences(graph, "", None, false, &mut occurrences);
         occurrences
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn words_section_follows_key_and_carries_its_rules() {
+        use jbotci_morphology::segment_words_with_modifiers;
+
+        use crate::notation::word_cards::build_xml_word_cards;
+
+        let words = segment_words_with_modifiers("barda").expect("barda segments");
+        let cards = build_xml_word_cards(jbotci_dictionary_data::english(), &words);
+        let with_cards =
+            render_xml_value_with_state(graph("b13"), "b13", RenderState::new(), Some(&cards));
+        let without_cards = render_xml_value(graph("b13"), "b13");
+        let with_cards = with_cards.output.as_str();
+        let without_cards = without_cards.output.as_str();
+
+        // Placement: WORDS sits between KEY and WAIVERS.
+        assert!(
+            with_cards.contains("</KEY>\n  <WORDS>\n"),
+            "WORDS must immediately follow KEY: {}",
+            &with_cards[..with_cards.find("<WAIVERS").expect("WAIVERS")]
+        );
+        assert!(
+            with_cards.contains("</WORDS>\n  <WAIVERS"),
+            "WAIVERS must immediately follow WORDS"
+        );
+        // The word-card KEY rules exist exactly when the section does.
+        for topic in [
+            "word-cards",
+            "compound-approximation",
+            "compound-places",
+            "compound-assumptions",
+            "context-placeholders",
+            "word-card-ids",
+        ] {
+            assert!(
+                with_cards.contains(&format!("<RULE TOPIC=\"{topic}\">")),
+                "missing KEY rule {topic}"
+            );
+            assert!(
+                !without_cards.contains(&format!("<RULE TOPIC=\"{topic}\">")),
+                "card-less document must not carry KEY rule {topic}"
+            );
+        }
+        assert!(!without_cards.contains("<WORDS>"));
+        // The body after the section is byte-identical to the card-less body.
+        let with_body = with_cards
+            .split_once("</WORDS>")
+            .expect("WORDS section")
+            .1;
+        let without_body = without_cards.split_once("</KEY>").expect("KEY").1;
+        assert_eq!(with_body, without_body);
     }
 
     #[test]

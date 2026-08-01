@@ -22,5 +22,5 @@ pub use model::{
 };
 pub use notation::{
     NotationProfile, SmusniConfig, XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface,
-    XmlWaiverFamily, render_notation, render_smusni, render_xml,
+    XmlWaiverFamily, render_notation, render_smusni, render_xml, render_xml_with_word_cards,
 };

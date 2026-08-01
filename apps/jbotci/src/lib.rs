@@ -196,7 +196,7 @@ use jbotci_search::vlacku::{
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
-    render_smusni, render_xml,
+    render_smusni, render_xml, render_xml_with_word_cards,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -763,7 +763,7 @@ pub struct TersmuInput {
     pub dialect: Option<String>,
     #[arg(
         long = "show-defs",
-        help = "Prepend dictionary definitions for content words (gismu, lujvo, fu'ivla, dictionary-backed cmevla); cmavo definitions are never included"
+        help = "Show dictionary definitions for content words (gismu, lujvo, fu'ivla, dictionary-backed cmevla); cmavo definitions are never included. `smusni` prepends readable text cards; `xml` embeds a structured WORDS section inside the document; not supported with `json`"
     )]
     pub show_defs: bool,
     #[arg(long = "story-time")]

@@ -2049,7 +2049,7 @@ mod tests {
                 jbotci_cli::ToolTersmuFormat::Xml,
                 true,
                 serde_json::json!({ "text": "mi nitcu lo tanxe" }),
-                "text/plain; charset=utf-8",
+                "application/xml; charset=utf-8",
             ),
             (
                 jbotci_cli::ToolTersmuFormat::Smusni,
@@ -2081,7 +2081,7 @@ mod tests {
                     "format": "xml",
                     "show-defs": true
                 }),
-                "text/plain; charset=utf-8",
+                "application/xml; charset=utf-8",
             ),
         ] {
             let request = ToolTersmuRequest {
@@ -2525,6 +2525,8 @@ mod tests {
             "`POSSIBLY-DIFFERENT-PER=`",
             "absent facet attribute means `UNSPECIFIED`",
             "distinct from an absent XML structure",
+            "`WORDS` section follows the `KEY`",
+            "`COMPOSITE-APPROX`",
             "`SFN FORM=\"TYPED-GRAPH\"` fallback uses its own embedded `KEY`",
             "`OBJECT`/`FIELD`/`RECORD`/`LIST`/`ITEM`/`REFERENCE` typed vocabulary",
             "Request `smusni`",
@@ -2842,15 +2844,31 @@ mod tests {
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu XML text");
-        let (definitions, xml_document) = tersmu_text
-            .split_once("<SFN ")
-            .expect("definitions precede the default XML document");
-        assert!(definitions.starts_with("1. klama | by: officialdata | gismu"));
-        assert!(!definitions.contains("banan"));
-        assert!(!definitions.contains("cmavo:"));
-        let xml_document = format!("<SFN {xml_document}");
-        assert!(xml_document.contains("<KEY>"));
-        roxmltree::Document::parse(&xml_document).expect("default MCP XML suffix parses");
+        // With definitions on (the default), tersmu returns one well-formed
+        // XML document: structured WORD cards live in the WORDS section
+        // following KEY, not in a prepended text block.
+        assert!(
+            tersmu_text.starts_with("<SFN "),
+            "the default MCP tersmu document is a single XML document"
+        );
+        roxmltree::Document::parse(tersmu_text).expect("default MCP XML parses");
+        assert!(tersmu_text.contains("<KEY>"));
+        let after_key = tersmu_text
+            .split_once("</KEY>")
+            .expect("KEY closes before WORDS")
+            .1;
+        assert!(after_key.starts_with("\n  <WORDS>"));
+        let words_section = after_key
+            .split_once("</WORDS>")
+            .expect("WORDS closes before WAIVERS")
+            .0;
+        assert!(words_section.contains("<WORD ID=\"klama\">"));
+        assert!(words_section.contains("<GLOSS>"));
+        assert!(words_section.contains("<ARG INDEX=\"1\"/>"));
+        // Definitions cover content words only: the cmevla and cmavo of
+        // `.banan. cu klama` produce no cards.
+        assert!(!words_section.contains("banan"));
+        assert!(!words_section.contains("cmavo:"));
 
         // An explicit `smusni` request with definitions off returns the pure
         // notation document with no prepended dictionary block.

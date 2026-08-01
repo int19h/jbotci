@@ -290,7 +290,13 @@ fn mcp_tools() -> Vec<Value> {
              `POSSIBLY-DIFFERENT-PER=` names a strict subset of enclosing binders on which it may \
              depend; and an absent facet attribute means `UNSPECIFIED` (no commitment). That facet default is \
              distinct from an absent XML structure: do not invent an `UNSPECIFIED` value or a \
-             negative claim for arbitrary absent elements or attributes. The `SFN FORM=\"TYPED-GRAPH\"` \
+             negative claim for arbitrary absent elements or attributes. With definitions on (the \
+             default), a `WORDS` section follows the `KEY`: one structured `WORD` card per content \
+             word, whose `DEF` and `NOTES` dictionary prose uses `ARG INDEX=\"n\"` place markup in \
+             the same argument vocabulary as predications; `KNOWN=\"false\"` marks a \
+             dictionary-absent word, and `COMPOSITE-APPROX` shows the mechanical, suggestive-only \
+             composition of a dictionary-absent compound through the same `KIND-COMPOSITION` idiom \
+             as the body. The `SFN FORM=\"TYPED-GRAPH\"` \
              fallback uses its own embedded `KEY` and `OBJECT`/`FIELD`/`RECORD`/`LIST`/`ITEM`/`REFERENCE` \
              typed vocabulary; follow that key instead of the ordinary scoped vocabulary. Request \
              `smusni` for the alternative flat declaration listing or `json` for the canonical interchange graph. \
