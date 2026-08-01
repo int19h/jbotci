@@ -242,7 +242,10 @@ The bound `v` is still a global `REF kind=var`; the quantifier node binds it ove
 
 **Tanru** desugar in the `FRM` under a **single uniform schema**. The tertau `T` carries the primary meaning, dictates the place structure, and supplies the **one** eventuality of the bridi; the seltau is a **modifier**, not a free-standing predication:
 
-> `T(eT; x, …) ∧ R[tanru](x, ⟨ka ce'u S⟩)`
+> `T(eT; x, …) ∧ C(x, ⟨ka ce'u S⟩)`
+
+where `C` is the typed composition link (see the JSON note below), not a named
+relation.
 
 The seltau is reified as the kind/property `⟨ka ce'u S⟩`, a direct
 `sort=relation` referent whose non-`ce'u` places are existentially closed
@@ -253,19 +256,21 @@ rather than fabricated. Only the tertau event is the tanru head event; events
 inside the modifier relation remain scoped in its body. Connected tanru units,
 `be`/`bei`, `co`, and `SE` retain their structural place and event behavior.
 
-In JSON, the vague link predication uses the stable relation label `tanru` and
-a typed `tanruLink` sidecar (`head`, `modifier`, `relationLabel`) rather than
-encoding the constituent structure in the relation string.
+In JSON, the link predication's relation is the typed
+`PredicationRelation::Composition` variant — it carries **no relation name**
+(the former fake label `tanru` is gone); the content lives in the typed
+`tanruLink` sidecar (`head`, `modifier`, `relationLabel`) rather than in a
+relation string. The `relationLabel` itself is derivational provenance only.
 For `barda nanla`, the asserted `nanla` predication is the head and the direct
-relation-sort `barda` property is the modifier; the `tanru` predication and its
-`tanruLink` preserve that asymmetry. `sutra bajra` has the same shape with
-`bajra` as head and the `sutra` property as modifier. Even a conventionally
-intersective example such as `remna nakni` retains this uniform shape; the
-model does not guess a special tanru reading from lexical familiarity. The
-same representation handles asymmetrical `cinfo kerfa` without asserting that
-the mane is a lion, and likewise leaves the contextual link in `rokci cinfo`
-or `junla dadysli` explicit rather than inventing a concrete modifier
-referent.
+relation-sort `barda` property is the modifier; the composition predication
+and its `tanruLink` preserve that asymmetry. `sutra bajra` has the same shape
+with `bajra` as head and the `sutra` property as modifier. Even a
+conventionally intersective example such as `remna nakni` retains this uniform
+shape; the model does not guess a special tanru reading from lexical
+familiarity. The same representation handles asymmetrical `cinfo kerfa`
+without asserting that the mane is a lion, and likewise leaves the contextual
+link in `rokci cinfo` or `junla dadysli` explicit rather than inventing a
+concrete modifier referent.
 
 **Lujvo** do **not** desugar in the `FRM`. A lujvo's `rel` is an atomic relation
 symbol. For a dictionary lujvo, the hand-authored definition is authoritative

@@ -151,18 +151,28 @@ def canonical_table(operator: str | None) -> str | None:
 
 def account_connector(connector: ET.Element, new: ET.Element, path: str) -> None:
     """A removed CONNECTOR keeps only what the parent operator does not
-    already determine: TRUTH-TABLE= when non-derivable, PARAMETER= always."""
+    already determine, and exactly that: TRUTH-TABLE= appears iff this base
+    connector carried a non-derivable table, PARAMETER= iff it carried a
+    parameter — anything else added to the parent is rejected."""
     table = connector.find("TRUTH-TABLE")
     table_value = table.get("VALUE") if table is not None else None
     parameter = connector.find("PARAMETER")
     parameter_ref = parameter.get("REF") if parameter is not None else None
-    if table_value is not None and canonical_table(new.get("OPERATOR")) != table_value:
-        if new.get("TRUTH-TABLE") != table_value:
-            raise Flag(f"{path}: TRUTH-TABLE={table_value} lost with CONNECTOR")
-    elif table_value is not None and new.get("TRUTH-TABLE") is not None:
-        raise Flag(f"{path}: derivable TRUTH-TABLE={table_value} must not render")
-    if parameter_ref is not None and new.get("PARAMETER") != parameter_ref:
-        raise Flag(f"{path}: PARAMETER={parameter_ref} lost with CONNECTOR")
+    expected_table = (
+        table_value
+        if table_value is not None and canonical_table(new.get("OPERATOR")) != table_value
+        else None
+    )
+    if new.get("TRUTH-TABLE") != expected_table:
+        raise Flag(
+            f"{path}: TRUTH-TABLE mismatch on {new.tag}: expected "
+            f"{expected_table!r} from the base CONNECTOR, found {new.get('TRUTH-TABLE')!r}"
+        )
+    if new.get("PARAMETER") != parameter_ref:
+        raise Flag(
+            f"{path}: PARAMETER mismatch on {new.tag}: expected "
+            f"{parameter_ref!r} from the base CONNECTOR, found {new.get('PARAMETER')!r}"
+        )
 
 
 def is_tanru_region(element: ET.Element) -> bool:
@@ -547,7 +557,74 @@ def collect_loci(items: list, into: set[str]) -> None:
             collect_loci(item.items, into)
 
 
+JSON_LOCUS_TO_RENDER = {
+    "statement": "STATEMENT",
+    "sumti": "ARGUMENT",
+    "term": "TERM",
+    "termset": "TERM SET",
+    "tense": "TENSE",
+    "modal": "TAG",
+    "modal-argument": "TAG",
+    "operand": "OPERAND",
+    "mekso-operand": "OPERAND",
+    "bridi": "CLAUSE",
+    "bridiTail": "PREDICATE PHRASE",
+    "selbri": "PREDICATE",
+    "selbri-inversion": "PREDICATE INVERSION",
+    "tanru-unit": "PREDICATE UNIT",
+    "property-abstraction": "PROPERTY ABSTRACTION",
+    "property-inversion": "PROPERTY INVERSION",
+    "abstraction": "ABSTRACTION",
+    "description": "DESCRIPTION",
+    "mekso-operator": "MATH OPERATOR",
+    "bare-jai-raised-participant": "BARE RAISED PARTICIPANT",
+}
+
+
+def expected_locus_multiset(path: Path) -> "collections.Counter":
+    """The LOCUS values the document's own connectors must produce, derived
+    from the BASE frozen graph's connector loci (never from the new output —
+    a self-authorizing set proves nothing)."""
+    import collections
+    import json
+
+    frozen_name = path.name.replace(".smusni-prov.txt", ".frozen.json").replace(
+        ".smusni.txt", ".frozen.json"
+    )
+    frozen = json.loads(git_base(path.with_name(frozen_name)))
+    expected = collections.Counter()
+
+    def walk(value):
+        if isinstance(value, dict):
+            connector = value.get("connector")
+            if isinstance(connector, dict) and isinstance(connector.get("locus"), str):
+                locus = connector["locus"]
+                if locus not in JSON_LOCUS_TO_RENDER:
+                    raise Flag(f"{path}: unmapped base connector.locus {locus!r}")
+                expected[JSON_LOCUS_TO_RENDER[locus]] += 1
+            for item in value.values():
+                walk(item)
+        elif isinstance(value, list):
+            for item in value:
+                walk(item)
+
+    walk(frozen)
+    return expected
+
+
+def actual_locus_multiset(items: list, into: "collections.Counter") -> None:
+    import collections
+
+    for item in items:
+        if isinstance(item, SField) and item.name == "LOCUS":
+            into[item.value] += 1
+        elif isinstance(item, SGroup):
+            actual_locus_multiset(item.items, into)
+
+
 def verify_smusni() -> int:
+    import collections
+
     paths = sorted(Path("crates/jbotci-semantics/tests/phaseb_corpus").glob("*.smusni*.txt"))
     assert len(paths) == 100, f"expected 100 smusni goldens, found {len(paths)}"
     for path in paths:
@@ -559,9 +636,19 @@ def verify_smusni() -> int:
             continue
         if not provenance:
             raise Flag(f"{path}: default-profile delta is not the mechanical transformation")
-        valid_loci: set[str] = set()
-        collect_loci(new, valid_loci)
-        compare_smusni_trees(transformed, new, path, valid_loci)
+        # Base-derived expected values: every added LOCUS must come from the
+        # base graph's own connector loci, and the multiset of rendered LOCUS
+        # fields must equal the base connector multiset exactly (value AND
+        # connector association, not a self-authorizing set).
+        expected = expected_locus_multiset(path)
+        actual: "collections.Counter" = collections.Counter()
+        actual_locus_multiset(new, actual)
+        if actual != expected:
+            raise Flag(
+                f"{path}: rendered LOCUS multiset differs from the base "
+                f"connector loci: expected {dict(expected)}, found {dict(actual)}"
+            )
+        compare_smusni_trees(transformed, new, path, set(expected))
     return len(paths)
 
 

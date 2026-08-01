@@ -1696,6 +1696,7 @@ pub(crate) mod reexpansion {
         id_to_key: &HashMap<String, String>,
         dictionary: &Dictionary<'_>,
         objects: &Map<String, Value>,
+        host_relation: &str,
     ) -> RelationOperand {
         if let Some(reference) = element.attribute("REF") {
             return new!(RelationOperand::Reference {
@@ -1711,6 +1712,13 @@ pub(crate) mod reexpansion {
                 .map(|place| place.parse::<usize>().expect("PARTICIPANT-PLACE is numeric"))
                 .unwrap_or(1);
             if host_slot {
+                // The host leaf names the surviving head predication's own
+                // relation: validate the rendered value instead of discarding
+                // it, so a swapped host predicate fails the acceptance check.
+                assert_eq!(
+                    predicate, host_relation,
+                    "rendered host predicate does not match the surviving head predication"
+                );
                 return new!(RelationOperand::Host { participant_place });
             }
             let mut fixed_arguments = BTreeMap::new();
@@ -1750,7 +1758,7 @@ pub(crate) mod reexpansion {
             .expect("BODY wraps one relation-expression subtree");
         match content.tag_name().name() {
             "KIND-COMPOSITION" => {
-                composition_from_xml(content, host_slot, id_to_key, dictionary, objects)
+                composition_from_xml(content, host_slot, id_to_key, dictionary, objects, host_relation)
             }
             "CONNECTIVE" => {
                 let operator = match content.attribute("OPERATOR").expect("CONNECTIVE OPERATOR") {
@@ -1761,7 +1769,7 @@ pub(crate) mod reexpansion {
                 let operands: Vec<RelationOperand> = content
                     .children()
                     .filter(|child| child.is_element() && child.tag_name().name() == "RELATION")
-                    .map(|leaf| operand_from_xml(leaf, false, id_to_key, dictionary, objects))
+                    .map(|leaf| operand_from_xml(leaf, false, id_to_key, dictionary, objects, host_relation))
                     .collect();
                 new!(RelationOperand::Connective {
                     operator: operator.to_owned(),
@@ -1835,6 +1843,7 @@ pub(crate) mod reexpansion {
         id_to_key: &HashMap<String, String>,
         dictionary: &Dictionary<'_>,
         objects: &Map<String, Value>,
+        host_relation: &str,
     ) -> RelationOperand {
         let grouping = match element.attribute("GROUPING") {
             None => None,
@@ -1851,8 +1860,8 @@ pub(crate) mod reexpansion {
             .expect("KIND-COMPOSITION has a MODIFIER child");
         new!(RelationOperand::Composition {
             grouping,
-            kind: Box::new(operand_from_xml(kind, host_slot, id_to_key, dictionary, objects)),
-            modifier: Box::new(operand_from_xml(modifier, false, id_to_key, dictionary, objects)),
+            kind: Box::new(operand_from_xml(kind, host_slot, id_to_key, dictionary, objects, host_relation)),
+            modifier: Box::new(operand_from_xml(modifier, false, id_to_key, dictionary, objects, host_relation)),
         })
     }
 
@@ -2113,6 +2122,10 @@ pub(crate) mod reexpansion {
         for instance in &projection.instances {
             let predication_element =
                 find_projected_predication(&document, instance, objects, &id_to_key);
+            let host_relation = objects[&instance.head_predication]
+                .get("relation")
+                .and_then(Value::as_str)
+                .expect("surviving head predication has its lexical relation");
             let view = composition_from_xml(
                 predication_element
                     .children()
@@ -2122,6 +2135,7 @@ pub(crate) mod reexpansion {
                 &id_to_key,
                 dictionary,
                 objects,
+                host_relation,
             );
             expanded = reexpand_instance(&expanded, instance, &view, &mut next);
         }
@@ -2332,6 +2346,42 @@ mod tests {
         assert_eq!(transformed.len(), objects.len(), "nothing was consumed");
         // Sanity: the original graph itself re-expands trivially (no instances).
         assert_eq!(normalize_objects(&objects, "utterance:5"), normalize_objects(&reexpand_instances(&transformed, &projection.instances), "utterance:5"));
+    }
+
+    /// Negative fixture: a corrupted rendered host predicate (a swap of the
+    /// surviving head's own PREDICATE= in the emitted XML) must FAIL the
+    /// rendered-surface acceptance check — the host leaf's rendered value is
+    /// validated against the surviving head predication, not discarded.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn corrupted_rendered_host_predicate_fails() {
+        let graph = graph_for_text("lo blanu zdani cu barda");
+        let root = graph.root.to_string();
+        let value = serde_json::to_value(&graph).expect("graph serializes");
+        let objects = objects_of(&value);
+        let xml = crate::render_xml(&graph, "<acceptance>").into_data().output;
+        assert!(
+            xml.contains("<KIND PREDICATE=\"zdani\"/>"),
+            "witness must render the host predicate"
+        );
+        let corrupted = xml.replacen(
+            "<KIND PREDICATE=\"zdani\"/>",
+            "<KIND PREDICATE=\"mlatu\"/>",
+            1,
+        );
+        let result = std::panic::catch_unwind(|| {
+            assert_rendered_reexpansion_equivalent(
+                &objects,
+                &root,
+                &corrupted,
+                jbotci_dictionary_data::english(),
+            );
+        });
+        assert!(
+            result.is_err(),
+            "a swapped host predicate in the rendered XML must fail the acceptance check"
+        );
     }
 
     /// Negative fixture: a modifier eventuality shared with an outside
