@@ -2185,6 +2185,12 @@ struct RenderState {
     planning_object_stack: Vec<String>,
     planning_compact_adjacency: HashMap<String, BTreeSet<String>>,
     planning_repeated_single_use: BTreeSet<String>,
+    /// Whether this render carries a WORDS word-card section (#709). When it
+    /// does, predication `relationMetadata` subtrees dedupe into the nonce
+    /// word's WORD card instead of a body `RELATION-METADATA` element. Set
+    /// once by `render_indexed_graph_with_state` before planning so every
+    /// pass (planning and final) makes the same emission decision.
+    word_cards_present: bool,
     #[cfg(test)]
     test_suppression: Option<TestRenderSuppression>,
 }
@@ -2229,6 +2235,7 @@ impl RenderState {
             planning_object_stack: Vec::new(),
             planning_compact_adjacency: HashMap::new(),
             planning_repeated_single_use: BTreeSet::new(),
+            word_cards_present: false,
             #[cfg(test)]
             test_suppression: None,
         }
@@ -2383,6 +2390,42 @@ impl RenderState {
     fn account_field_tree(&mut self, graph: &GraphData, object: &Map<String, Value>, field: &str) {
         self.account_field(graph, object, field);
         self.account_value_fields(graph, &object[field]);
+    }
+
+    /// #709 single-document dedup: with a WORDS word-card section present, a
+    /// predication's `relationMetadata` subtree is rendered by the nonce
+    /// word's WORD card, not by a body `RELATION-METADATA` element. Account
+    /// the predication field, the referenced object, and every nested field
+    /// as rendered — rendered-via-card is deliberately NOT a waiver, so no
+    /// omission entries exist for any part of the subtree — and mark the
+    /// object defined/emitted so the `emitted == object_keys` assertion holds
+    /// and the `render_graph_components` unreachable-object sweep does not
+    /// re-emit it.
+    ///
+    /// The object also never enters scoped DEFS declarations: declaration
+    /// scopes are planned from pointer uses observed by the planning passes,
+    /// and this path records none (a relationMetadata object is referenced
+    /// only from its owning predication's `relationMetadata` field). A
+    /// hypothetical multiply referenced relationMetadata would surface as
+    /// `PrototypeIdWithoutCompactUse` during planning and select the
+    /// TYPED-GRAPH form rather than silently dropping content.
+    #[requires(optional_string(object, "relationMetadata") == Some(metadata_key))]
+    #[requires(graph.objects.contains_key(metadata_key))]
+    #[ensures(self.defined.contains(metadata_key) && self.emitted.contains(metadata_key))]
+    fn account_relation_metadata_via_card(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+        metadata_key: &str,
+    ) {
+        self.account_field(graph, object, "relationMetadata");
+        let metadata = graph.object(metadata_key);
+        self.account_object(graph, metadata);
+        for field in metadata.keys() {
+            self.account_field_tree(graph, metadata, field);
+        }
+        self.defined.insert(metadata_key.to_owned());
+        self.emitted.insert(metadata_key.to_owned());
     }
 
     #[requires(true)]
@@ -4247,6 +4290,10 @@ fn render_indexed_graph_with_state(
     mut state: RenderState,
     word_cards: Option<&[WordCard]>,
 ) -> XmlRender {
+    // A WORDS section exists exactly for a present, non-empty card list (the
+    // same filter `render_document` applies); every planning and render pass
+    // must see the same card-presence decision (#709 relationMetadata dedup).
+    state.word_cards_present = word_cards.is_some_and(|cards| !cards.is_empty());
     let preliminary_incompatibilities = match graph.representation.as_data() {
         data!(XmlRepresentationPlan::Compact) => BTreeSet::new(),
         data!(XmlRepresentationPlan::TypedGraph { incompatibilities }) => incompatibilities.clone(),
@@ -4361,8 +4408,11 @@ pub fn render_xml(graph: &SemanticGraph, document_name: &str) -> XmlRender {
 
 /// Render a semantic graph as canonical SFN-XML with a structured `<WORDS>`
 /// word-card section (#709): the KEY gains the word-card rules and the WORDS
-/// section follows it (before WAIVERS), ahead of the unchanged body. An empty
-/// card list renders exactly like [`render_xml`].
+/// section follows it (before WAIVERS), ahead of the body. With cards present,
+/// predication `relationMetadata` subtrees dedupe into the nonce word's WORD
+/// card — body predications render no `RELATION-METADATA` and the subtree is
+/// accounted rendered-via-card (no omission entries). An empty card list
+/// renders exactly like [`render_xml`].
 #[requires(graph.objects.contains_key(&graph.root))]
 #[requires(!document_name.is_empty())]
 #[ensures(ret.output.ends_with('\n'))]
@@ -5100,6 +5150,97 @@ mod tests {
                 .contains("<VALUE QUESTION-PARAMETERS=\"v15\">")
         );
         assert_no_compact_generic_fallback(&rendered.output, "<known-exceptional-fields>");
+    }
+
+    /// #709 dedup: with a WORDS word-card section present, a nonce-lujvo
+    /// predication's `relationMetadata` subtree renders via the lujvo's WORD
+    /// card — no `RELATION-METADATA` element anywhere, no body mention, and no
+    /// omission entries for any part of the subtree. Without cards the
+    /// interim body form is preserved (pinned by
+    /// `known_exceptional_quantity_and_relation_metadata_are_typed` and the
+    /// frozen corpus). The generic `<UNKNOWN>` fallback never fires either way.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn relation_metadata_dedupes_into_word_cards_when_present() {
+        use jbotci_morphology::segment_words_with_modifiers;
+
+        use crate::notation::word_cards::build_xml_word_cards;
+
+        let mut graph = graph("b13");
+        graph["objects"]["predication:18"]["relationMetadata"] =
+            Value::String("relationMetadata:99".to_owned());
+        graph["objects"]["relationMetadata:99"] = serde_json::json!({
+            "type": "relationMetadata",
+            "relation": "skamymlatu",
+            "sourceWords": ["skami", "mlatu"],
+            "placeStructure": [{"place": "x1", "description": "the computer-feline participant"}],
+            "expansion": {
+                "kind": "lujvo",
+                "sourceWords": ["skam", "mlatu"],
+                "rafsiBindings": [{
+                    "rafsi": "skam",
+                    "sourceWord": "skami",
+                    "referent": "entity:17"
+                }]
+            }
+        });
+
+        let words = segment_words_with_modifiers("skamymlatu").expect("skamymlatu segments");
+        let cards = build_xml_word_cards(jbotci_dictionary_data::english(), &words);
+        let with_cards = render_xml_value_with_state(
+            graph.clone(),
+            "b13",
+            RenderState::new(),
+            Some(&cards),
+        );
+        let without_cards = render_xml_value(graph, "b13");
+
+        // Cards present: RELATION-METADATA never fires, not even in DEFS.
+        assert!(
+            !with_cards.output.contains("RELATION-METADATA"),
+            "cards-present document must not emit RELATION-METADATA"
+        );
+        let with_body = with_cards
+            .output
+            .split_once("</WORDS>")
+            .expect("WORDS section")
+            .1;
+        assert!(
+            !with_body.contains("relationMetadata"),
+            "cards-present body must not mention relationMetadata:\n{with_body}"
+        );
+        assert!(
+            with_cards
+                .omissions
+                .iter()
+                .all(|omission| !omission.surface.path().contains("relationMetadata")),
+            "rendered-via-card accounting leaves no relationMetadata omissions: {:?}",
+            with_cards.omissions
+        );
+        // The lujvo's WORD card carries the composition instead.
+        assert!(
+            with_cards.output.contains("<WORD ID=\"skamymlatu\""),
+            "missing skamymlatu WORD card"
+        );
+        assert!(
+            with_cards.output.contains("<COMPOSITE-APPROX"),
+            "skamymlatu WORD card must carry the composition"
+        );
+        assert_no_compact_generic_fallback(&with_cards.output, "<relation-metadata-via-card>");
+
+        // Cards absent: the interim body form and the accounting are unchanged.
+        assert!(without_cards.output.contains("<RELATION-METADATA "));
+        assert!(without_cards.output.contains("RELATION=\"skamymlatu\""));
+        assert!(
+            without_cards
+                .omissions
+                .iter()
+                .all(|omission| !omission.surface.path().contains("relationMetadata")),
+            "the typed interim renderer accounts every relationMetadata surface: {:?}",
+            without_cards.omissions
+        );
+        assert_no_compact_generic_fallback(&without_cards.output, "<relation-metadata-interim>");
     }
 
     #[requires(true)]
@@ -8331,8 +8472,20 @@ impl RenderState {
 
         let mut metadata = XmlElement::new("META");
         if let Some(relation_metadata) = optional_string(object, "relationMetadata") {
-            self.account_field(graph, object, "relationMetadata");
-            metadata.push(self.render_pointer(graph, relation_metadata));
+            if self.word_cards_present {
+                // #709 dedup: with a WORDS section, the nonce word's WORD card
+                // carries the decomposition; the body predication renders no
+                // RELATION-METADATA (the subtree is accounted rendered-via-card).
+                self.account_relation_metadata_via_card(graph, object, relation_metadata);
+            } else {
+                // Without a WORDS section no card exists to carry the
+                // decomposition, and the omissions/waiver discipline does not
+                // allow silently dropping it, so the interim body
+                // RELATION-METADATA preservation form stays (this also keeps
+                // the frozen 48-document corpus byte pins green).
+                self.account_field(graph, object, "relationMetadata");
+                metadata.push(self.render_pointer(graph, relation_metadata));
+            }
             handled.push("relationMetadata");
         }
         if let Some(negation) = object.get("scalarNegation").and_then(Value::as_object) {

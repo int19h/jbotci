@@ -424,7 +424,10 @@ fn number_str(value: &Value) -> String {
 /// loudly if they are ever violated rather than degrading to blank notation);
 /// it never fabricates or guesses missing structure. A genuinely unknown object
 /// `type` is the one open case and is handled explicitly by the `UNKNOWN … NOT
-/// COMPUTED` path, never a panic.
+/// COMPUTED` path, never a panic. `relationMetadata` objects are a known
+/// non-declaration case (#709): they render no declaration, and the document
+/// header waives them explicitly with the reason naming where the
+/// decomposition lives (the definitions-preamble word cards).
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.ends_with('\n'))]
 pub fn render_smusni(graph: &SemanticGraph, config: SmusniConfig) -> String {
@@ -463,6 +466,27 @@ pub fn render_smusni(graph: &SemanticGraph, config: SmusniConfig) -> String {
         w.collection("NOT COMPUTED", |w| {
             w.entry("denotation-multiplicity");
         });
+        // #709: relationMetadata objects carry no declaration; the document
+        // header waives them explicitly, with the reason naming where the
+        // decomposition lives. The block exists exactly when the graph has
+        // relationMetadata objects, so graphs without any stay byte-identical.
+        let relation_metadata: Vec<&str> = order
+            .iter()
+            .map(String::as_str)
+            .filter(|key| {
+                objects[*key].get("type").and_then(Value::as_str) == Some("relationMetadata")
+            })
+            .collect();
+        if !relation_metadata.is_empty() {
+            w.collection("WAIVED", |w| {
+                for key in &relation_metadata {
+                    w.entry(&format!(
+                        "relationMetadata {}: decomposition rendered in the definitions-preamble word cards",
+                        ctx.id(key)
+                    ));
+                }
+            });
+        }
         w.collection("DECLARATIONS", |w| {
             for key in &order {
                 render_one(w, &ctx, key, &objects[key]);
@@ -493,6 +517,12 @@ fn render_one(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
         "displayedContent" => render_displayed_content(w, ctx, key, obj),
         "mathExpression" => render_math_expression(w, ctx, key, obj),
         "question" => render_question(w, ctx, key, obj),
+        // #709: a relationMetadata object gets NO declaration — its
+        // decomposition is rendered in the definitions-preamble word cards
+        // (the XML single-document form renders it on the nonce word's WORD
+        // card), and the document header carries the explicit WAIVED note
+        // with that reason. The generic UNKNOWN fallback never fires here.
+        "relationMetadata" => {}
         other => {
             let vid = ctx.id(key).to_string();
             // The raw `type` is quoted (round-1 review, kimi 10): an unknown or
@@ -1912,5 +1942,72 @@ mod tests {
         let rendered = writer.finish();
         assert!(rendered.contains("LOCUS: TAG;"));
         assert_no_standalone_modal_word(&rendered);
+    }
+
+    /// #709: a graph with relationMetadata objects renders no UNKNOWN
+    /// declaration for them; the document header carries an explicit WAIVED
+    /// block whose reason names where the decomposition lives. A graph
+    /// without relationMetadata renders no WAIVED block at all (the frozen
+    /// corpus parity tests pin byte-identity for that shape).
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn relation_metadata_is_waived_with_reason_not_unknown() {
+        use jbotci_morphology::segment_words_with_modifiers;
+        use jbotci_syntax::{
+            ParseOptions, parse_syntax_tree_generated_model_with_source_and_options,
+        };
+
+        use crate::SemanticBuildOptions;
+        use crate::generated_builder::build_generated_semantic_graph_with_dictionary_and_options;
+
+        #[requires(!text.is_empty())]
+        #[ensures(true)]
+        fn graph_for_text(text: &str) -> SemanticGraph {
+            let words = segment_words_with_modifiers(text).expect("morphology succeeds");
+            let parsed = parse_syntax_tree_generated_model_with_source_and_options(
+                &words,
+                text,
+                &ParseOptions::default(),
+            )
+            .expect("syntax succeeds");
+            build_generated_semantic_graph_with_dictionary_and_options(
+                &parsed,
+                SemanticBuildOptions {
+                    source_text: Some(text),
+                    story_time: false,
+                },
+                jbotci_dictionary_data::english(),
+            )
+            .expect("semantics succeeds")
+        }
+
+        let nonce = render_smusni(
+            &graph_for_text("lo skamymlatu cu barda"),
+            SmusniConfig { provenance: false },
+        );
+        assert!(
+            !nonce.contains("UNKNOWN relationMetadata"),
+            "the generic UNKNOWN fallback must never fire for relationMetadata:\n{nonce}"
+        );
+        assert!(
+            nonce.contains("WAIVED {"),
+            "missing the header WAIVED block:\n{nonce}"
+        );
+        assert!(
+            nonce.contains(
+                "relationMetadata relationMetadata_8: decomposition rendered in the definitions-preamble word cards;"
+            ),
+            "missing the waive-with-reason entry:\n{nonce}"
+        );
+
+        let plain = render_smusni(
+            &graph_for_text("lo mlatu cu barda"),
+            SmusniConfig { provenance: false },
+        );
+        assert!(
+            !plain.contains("WAIVED"),
+            "a graph without relationMetadata must not render a WAIVED block:\n{plain}"
+        );
     }
 }
