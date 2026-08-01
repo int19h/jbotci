@@ -673,7 +673,7 @@ FRM f1 : not(p1)
 to the predication: it is a positive claim at another point on a scale, not
 contradictory negation. `be ci'u ...` supplies the scale definition. **`na'i`
 (metalinguistic)** → `DSP d : family=metalinguistic, relation=na'i,
-target=⟨the bridi/term⟩, targetFocus=bridi|selbri,
+target=⟨the bridi/term⟩, targetFocus=clause|predicate,
 assertionEffect=metalinguisticallyVoided` (flags a false presupposition; no
 truth value, not a `not`).
 

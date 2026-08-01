@@ -38,16 +38,23 @@ pub(crate) enum CompositionGrouping {
 
 /// One operand of a relation composition: the typed view attached to a
 /// projected predication as its `relationExpression` field.
-// Per-variant `=> true` markers are audited no-ops: like `XmlElement`, this is
-/// serializer construction state whose validity (nonempty predicates, positive
-/// participant places, arity ≥ 2 connectives) is established by the
-/// recognizer's strict guards, not by a wrapper that would complicate
-/// tree assembly.
-#[invariant(::Host { .. } => true)]
-#[invariant(::Lexical { .. } => true)]
-#[invariant(::Composition(_) => true)]
-#[invariant(::Connective { .. } => true)]
-#[invariant(::Reference { .. } => true)]
+#[invariant(::Host { participant_place } => *participant_place > 0)]
+#[invariant(::Lexical { predicate, participant_place, fixed_arguments, unfilled_places, .. } =>
+    !predicate.is_empty()
+        && *participant_place > 0
+        && !fixed_arguments.contains_key(participant_place)
+        && !unfilled_places.contains(participant_place)
+        && fixed_arguments.keys().all(|place| *place > 0)
+        && unfilled_places.iter().all(|place| *place > 0))]
+#[invariant(::Composition { kind, .. } =>
+    !matches!(kind.as_data(), data!(RelationOperand::Connective { .. }) | data!(RelationOperand::Reference { .. })),
+    "the kind side of a composition is a head, leaf, or nested composition, never a connective or reference")]
+#[invariant(::Connective { operator, operands } =>
+    !operator.is_empty()
+        && operands.len() >= 2
+        && operands.iter().all(|operand| matches!(operand.as_data(), data!(RelationOperand::Lexical { .. }))),
+    "a relation connective conjoins at least two compact lexical leaves")]
+#[invariant(::Reference { relation } => !relation.is_empty())]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub(crate) enum RelationOperand {
@@ -65,9 +72,15 @@ pub(crate) enum RelationOperand {
         unfilled_places: Vec<usize>,
         has_event: bool,
     },
-    /// A nested composition (a tanru inside a tanru).
+    /// A nested composition (a tanru inside a tanru): the KIND-COMPOSITION
+    /// node of the typed relation-expression view.
     #[serde(rename = "kindComposition")]
-    Composition(Box<RelationComposition>),
+    Composition {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        grouping: Option<CompositionGrouping>,
+        kind: Box<RelationOperand>,
+        modifier: Box<RelationOperand>,
+    },
     /// A logical connective over co-modifiers of the same head participant
     /// (a je-connected seltau lowered inside the property body).
     Connective {
@@ -81,22 +94,11 @@ pub(crate) enum RelationOperand {
     Reference { relation: String },
 }
 
-/// A KIND-COMPOSITION node of the typed relation-expression view.
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct RelationComposition {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    grouping: Option<CompositionGrouping>,
-    kind: RelationOperand,
-    modifier: RelationOperand,
-}
-
 /// One recognized and projected tanru instance. Its fields are the elaboration
 /// contract of the acceptance test (re-expansion), which is `cfg(test)` — in
 /// production builds they are unread, hence the targeted allow.
-// Audited no-op invariant: the ids are graph keys, non-empty by construction.
-#[invariant(true)]
+#[invariant(!anchor.is_empty() && !head_predication.is_empty())]
+#[invariant(!consumed.contains(anchor) && !consumed.contains(head_predication), "the anchor and head predication survive projection")]
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub(crate) struct ProjectedInstance {
@@ -108,11 +110,11 @@ pub(crate) struct ProjectedInstance {
     /// excluding the anchor itself.
     pub(crate) consumed: BTreeSet<String>,
     /// The typed relation-expression view attached to the head predication.
-    pub(crate) composition: RelationComposition,
+    pub(crate) composition: RelationOperand,
 }
 
 /// The result of projecting every proven tanru pattern in a graph.
-#[invariant(true)]
+#[invariant(consumed_objects.keys().all(|key| !rewritten_anchors.contains_key(key)), "consumed objects and rewritten anchors are disjoint")]
 #[derive(Debug, Clone)]
 pub(crate) struct TanruProjection {
     /// Per-instance projection data (the acceptance test re-expands these).
@@ -270,8 +272,9 @@ fn tanru_region_walk(objects: &Map<String, Value>, anchor: &str) -> BTreeSet<Str
 }
 
 /// One recognized tanru AND formula before the edits are applied.
-// Audited no-op invariant: assembler state; validity comes from the recognizer.
-#[invariant(true)]
+#[invariant(!anchor.is_empty() && !head_predication.is_empty() && !participant.is_empty())]
+#[invariant(!consumed.contains(anchor), "the anchor formula is rewritten, not consumed")]
+#[invariant(consumed.contains(head_predication) == matches!(composition.as_data(), data!(RelationOperand::Composition { kind, .. }) if matches!(kind.as_data(), data!(RelationOperand::Lexical { .. }))), "the head predication is consumed exactly when it projects as a lexical leaf (nested in a property body); host and nested-composition heads survive")]
 #[derive(Debug)]
 struct TanruMatch {
     anchor: String,
@@ -281,9 +284,25 @@ struct TanruMatch {
     /// Bound eventualities the rewritten anchor formula must carry (the AND's
     /// own bindings plus, for a plain head, the head atom's).
     rewritten_bound: Vec<String>,
-    composition: RelationComposition,
+    composition: RelationOperand,
     /// Consumed object ids, excluding the anchor.
     consumed: BTreeSet<String>,
+}
+
+/// Whether a relation is a lexical Lojban predicate: morphologically a single
+/// brivla (gismu, lujvo, or fu'ivla, zei compounds included) per the
+/// morphology parser — the typed provenance for the compact lexical form, as
+/// opposed to synthesized structural relation names.
+#[requires(!relation.is_empty())]
+#[ensures(true)]
+fn relation_is_lexical_brivla(relation: &str) -> bool {
+    let Ok(words) = jbotci_morphology::segment_words_with_modifiers(relation) else {
+        return false;
+    };
+    let [word] = words.as_slice() else {
+        return false;
+    };
+    word.is_brivla()
 }
 
 /// Fields a predication inside a projected modifier/head must not carry: any of
@@ -324,11 +343,14 @@ fn recognize_lexical_leaf(
     if string_field_of(predication, "mode") != Some("restrictive") {
         return None;
     }
-    // A lexical predicate is a Lojban content word (lowercase); camelCase
-    // marks a synthesized structural relation (eventOf, memberOf, ...), which
-    // belongs to the composite abstraction idioms, not the compact form.
+    // A lexical predicate is morphologically a brivla (gismu, lujvo, or
+    // fu'ivla — including zei compounds); anything else (synthesized
+    // structural relations such as eventOf/memberOf, abstraction links, tense
+    // relations) belongs to the composite abstraction idioms, not the compact
+    // form. Classification goes through the morphology parser, never string
+    // shape (AGENTS.md).
     let predicate = string_field_of(predication, "relation")?;
-    if predicate.chars().any(|character| character.is_ascii_uppercase()) {
+    if !relation_is_lexical_brivla(predicate) {
         return None;
     }
     let arguments = field(predication, "arguments")?.as_object()?;
@@ -413,13 +435,13 @@ fn recognize_lexical_leaf(
         consumed.insert(event.to_owned());
     }
     Some((
-        RelationOperand::Lexical {
+        new!(RelationOperand::Lexical {
             predicate: string_field_of(predication, "relation")?.to_owned(),
             participant_place,
             fixed_arguments,
             unfilled_places,
             has_event: event.is_some(),
-        },
+        }),
         event.into_iter().map(str::to_owned).collect(),
         consumed,
     ))
@@ -460,12 +482,10 @@ fn project_modifier_body(
         // A nested tanru inside the property body: default left grouping, so
         // the nested composition carries no grouping mark.
         let nested = recognize_tanru_and(objects, body_id, Some(parameter))?;
-        consumed.extend(nested.consumed);
-        consumed.insert(nested.anchor.clone());
-        return Some((
-            RelationOperand::Composition(Box::new(nested.composition)),
-            consumed,
-        ));
+        let nested_data = nested.into_data();
+        consumed.extend(nested_data.consumed);
+        consumed.insert(nested_data.anchor.clone());
+        return Some((nested_data.composition, consumed));
     }
     // A je-style connected modifier: a formula connective over co-modifier
     // leaves sharing the same property parameter.
@@ -515,10 +535,10 @@ fn project_modifier_body(
         operands.push(operand);
     }
     Some((
-        RelationOperand::Connective {
+        new!(RelationOperand::Connective {
             operator: operator.to_owned(),
             operands,
-        },
+        }),
         consumed,
     ))
 }
@@ -596,17 +616,17 @@ fn project_modifier(
                 (operand, consumed)
             } else {
                 (
-                    RelationOperand::Reference {
+                    new!(RelationOperand::Reference {
                         relation: modifier.to_owned(),
-                    },
+                    }),
                     BTreeSet::new(),
                 )
             }
         }
         None => (
-            RelationOperand::Reference {
+            new!(RelationOperand::Reference {
                 relation: modifier.to_owned(),
-            },
+            }),
             BTreeSet::new(),
         ),
     }
@@ -679,6 +699,11 @@ fn recognize_tanru_and(
         return None;
     }
     let participant = string_field_of(x1, "value")?;
+    // The link predication's mode must equal the head predication's mode: the
+    // compact form states one mode on the composed predication, so unequal
+    // modes cannot compact (re-expansion synthesizes the link mode from the
+    // head).
+    let link_mode = string_field_of(link, "mode")?;
 
     let mut consumed: BTreeSet<String> = [link_id.to_owned(), link_predication_id.to_owned()]
         .into_iter()
@@ -699,7 +724,10 @@ fn recognize_tanru_and(
             return None;
         }
         let head_predication = object_of(objects.get(head_predication_id)?)?;
-        if !is_object_type(head_predication, "predication") {
+        if !is_object_type(head_predication, "predication")
+            || string_field_of(head_predication, "mode") != Some("restrictive")
+            || link_mode != "restrictive"
+        {
             return None;
         }
         // The nested AND's own bindings must be exactly the head leaf's event.
@@ -734,6 +762,7 @@ fn recognize_tanru_and(
                 || string_field_of(head_predication, "relation").is_none()
                 || head_predication.contains_key("tanruLink")
                 || head_predication.contains_key("relationExpression")
+                || string_field_of(head_predication, "mode") != Some(link_mode)
             {
                 return None;
             }
@@ -759,7 +788,7 @@ fn recognize_tanru_and(
                 .map(str::to_owned)
                 .collect();
             (
-                RelationOperand::Host { participant_place },
+                new!(RelationOperand::Host { participant_place }),
                 head_predication_id.to_owned(),
                 head_bound,
             )
@@ -770,8 +799,14 @@ fn recognize_tanru_and(
             // bo/ke right-grouping: the nested composition sits on the head
             // side and shares this tanru's head predication; its edge is the
             // explicit one.
-            let mut nested = recognize_tanru_and(objects, head_id, None)?;
+        let nested = recognize_tanru_and(objects, head_id, None)?;
             if nested.head_predication != link_head || nested.participant != participant {
+                return None;
+            }
+            // The outer link's mode must equal the shared head predication's
+            // mode, just like a plain head's link.
+            let shared_head = object_of(objects.get(link_head)?)?;
+            if string_field_of(shared_head, "mode") != Some(link_mode) {
                 return None;
             }
             // The nested AND's bindings must not escape: they may reference
@@ -781,12 +816,21 @@ fn recognize_tanru_and(
                     return None;
                 }
             }
-            nested.composition.grouping = Some(CompositionGrouping::Explicit);
-            let head_predication = nested.head_predication.clone();
-            consumed.extend(nested.consumed);
+            let nested_data = nested.into_data();
+            let head_predication = nested_data.head_predication.clone();
+            consumed.extend(nested_data.consumed);
             consumed.insert(head_id.to_owned());
+            let data!(RelationOperand::Composition { kind, modifier, .. }) =
+                nested_data.composition.into_data()
+            else {
+                unreachable!("a recognized tanru always produces a composition");
+            };
             (
-                RelationOperand::Composition(Box::new(nested.composition)),
+                new!(RelationOperand::Composition {
+                    grouping: Some(CompositionGrouping::Explicit),
+                    kind,
+                    modifier,
+                }),
                 head_predication,
                 Vec::new(),
             )
@@ -818,12 +862,11 @@ fn recognize_tanru_and(
     }
     consumed.extend(modifier_consumed);
 
-    let mut composition = RelationComposition {
+    let composition = normalize_grouping(new!(RelationOperand::Composition {
         grouping: None,
-        kind,
-        modifier: modifier_operand,
-    };
-    normalize_grouping(&mut composition);
+        kind: Box::new(kind),
+        modifier: Box::new(modifier_operand),
+    }));
 
     // The rewritten anchor carries the AND's own bindings plus the plain head
     // atom's (nested matches already consumed theirs).
@@ -833,14 +876,14 @@ fn recognize_tanru_and(
         .collect();
     rewritten_bound.extend(head_bound);
 
-    Some(TanruMatch {
+    Some(new!(TanruMatch {
         anchor: anchor.to_owned(),
         head_predication,
         participant: participant.to_owned(),
         rewritten_bound,
         composition,
         consumed,
-    })
+    }))
 }
 
 /// Tree-level grouping rollup: a uniformly explicit tree states EXPLICIT at the
@@ -848,39 +891,51 @@ fn recognize_tanru_and(
 /// ASSUMED-LEFT everywhere else).
 #[requires(true)]
 #[ensures(true)]
-fn normalize_grouping(composition: &mut RelationComposition) {
+fn normalize_grouping(composition: RelationOperand) -> RelationOperand {
     #[requires(true)]
     #[ensures(true)]
-    fn all_explicit(composition: &RelationComposition) -> bool {
-        composition.grouping == Some(CompositionGrouping::Explicit)
-            && [&composition.kind, &composition.modifier]
-                .into_iter()
-                .all(|operand| match operand {
-                    RelationOperand::Composition(nested) => all_explicit(nested),
-                    RelationOperand::Connective { operands, .. } => {
-                        operands.iter().all(|operand| match operand {
-                            RelationOperand::Composition(nested) => all_explicit(nested),
-                            _ => true,
-                        })
-                    }
-                    _ => true,
-                })
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn clear_grouping(composition: &mut RelationComposition) {
-        composition.grouping = None;
-        for operand in [&mut composition.kind, &mut composition.modifier] {
-            if let RelationOperand::Composition(nested) = operand {
-                clear_grouping(nested);
+    fn all_explicit(operand: &RelationOperand) -> bool {
+        match operand.as_data() {
+            data!(RelationOperand::Composition { grouping, kind, modifier }) => {
+                *grouping == Some(CompositionGrouping::Explicit)
+                    && all_explicit(kind)
+                    && all_explicit(modifier)
             }
+            data!(RelationOperand::Connective { operands, .. }) => {
+                operands.iter().all(all_explicit)
+            }
+            _ => true,
         }
     }
 
-    if all_explicit(composition) {
-        clear_grouping(composition);
-        composition.grouping = Some(CompositionGrouping::Explicit);
+    #[requires(true)]
+    #[ensures(true)]
+    fn clear_grouping(operand: RelationOperand) -> RelationOperand {
+        match operand.into_data() {
+            data!(RelationOperand::Composition { kind, modifier, .. }) => {
+                new!(RelationOperand::Composition {
+                    grouping: None,
+                    kind: Box::new(clear_grouping(*kind)),
+                    modifier: Box::new(clear_grouping(*modifier)),
+                })
+            }
+            data => RelationOperand::from_data(data),
+        }
+    }
+
+    if all_explicit(&composition) {
+        let cleared = clear_grouping(composition);
+        let data!(RelationOperand::Composition { kind, modifier, .. }) = cleared.into_data()
+        else {
+            unreachable!("the root of a projected view is always a composition");
+        };
+        new!(RelationOperand::Composition {
+            grouping: Some(CompositionGrouping::Explicit),
+            kind,
+            modifier,
+        })
+    } else {
+        composition
     }
 }
 
@@ -990,31 +1045,35 @@ pub(crate) fn project_tanru_compositions(
         let view = serde_json::to_value(&result.composition)
             .expect("relation-expression view serialization cannot fail");
         head_object.insert("relationExpression".to_owned(), view);
-        instances.push(ProjectedInstance {
+        let result = result.into_data();
+        instances.push(new!(ProjectedInstance {
             anchor: result.anchor,
             head_predication: result.head_predication,
             consumed: result.consumed,
             composition: result.composition,
-        });
+        }));
     }
 
     (
         transformed,
-        TanruProjection {
+        new!(TanruProjection {
             instances,
             consumed_objects,
             rewritten_anchors,
-        },
+        }),
     )
 }
 
-
 /// The re-expansion elaboration contract and its acceptance test (jbotci#719,
-/// mandated by the round-14 decision): re-expanding a rendered relation
-/// expression must reproduce the recognized subgraph modulo opaque ids and
-/// waived provenance. The re-expander is a second, independent implementation
-/// of the tanru graph shape; the comparer pairs object ids by BFS encounter
-/// order so only structure, field values, and reference topology are compared.
+/// mandated by the round-14 decision): re-expanding the *rendered* relation
+/// expression — the KIND-COMPOSITION/BODY/RELATION/PARTICIPANT-PLACE surface
+/// of the emitted SFN-XML — must reproduce the recognized subgraph modulo
+/// opaque ids and waived provenance. The re-expander is a second, independent
+/// implementation of the tanru graph shape; the comparer pairs object ids by
+/// BFS encounter order so only structure, field values, and reference topology
+/// are compared. Negative fixtures prove the loud/composite fallbacks fire
+/// for unequal link/head modes, shared or decorated modifier eventualities,
+/// and non-flat place maps.
 #[cfg(test)]
 pub(crate) mod reexpansion {
     use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
@@ -1023,26 +1082,19 @@ pub(crate) mod reexpansion {
 
     #[allow(unused_imports)]
     use bityzba::{data, ensures, invariant, new, requires};
+    use jbotci_dictionary::Dictionary;
 
     use super::{
-        ProjectedInstance, RelationComposition, RelationOperand, canonical_truth_table,
+        ProjectedInstance, RelationOperand, RelationOperandData, canonical_truth_table,
         project_tanru_compositions,
     };
 
     /// Deterministic fresh id source for regenerated scaffolding objects.
-    #[invariant(true)]
-    #[derive(Debug, Default)]
-    struct FreshIds {
-        next: usize,
-    }
-
-    impl FreshIds {
-        #[requires(true)]
-        #[ensures(ret.starts_with(prefix))]
-        fn fresh(&mut self, prefix: &str) -> String {
-            self.next += 1;
-            format!("{prefix}:{}", 900_000 + self.next)
-        }
+    #[requires(true)]
+    #[ensures(ret.starts_with(prefix))]
+    fn fresh_id(next: &mut usize, prefix: &str) -> String {
+        *next += 1;
+        format!("{prefix}:{}", 900_000 + *next)
     }
 
     #[requires(true)]
@@ -1081,27 +1133,21 @@ pub(crate) mod reexpansion {
     /// Regenerate one lexical leaf predication and its atom formula: the
     /// participant fills `parameter`, fixed places keep their targets, every
     /// unfilled place elaborates to a distinct ordinary elided (zo'e) node,
-    /// and the leaf eventuality is fresh and locally bound by its own atom.
-    #[requires(!parameter.is_empty())]
+    /// and the leaf eventuality is fresh and locally bound.
+    #[requires(!parameter.is_empty() && !predicate.is_empty() && participant_place > 0)]
     #[ensures(true)]
     fn expand_lexical_leaf(
-        fresh: &mut FreshIds,
-        leaf: &RelationOperand,
+        next: &mut usize,
+        predicate: &str,
+        participant_place: usize,
+        fixed_arguments: &BTreeMap<usize, String>,
+        unfilled_places: &[usize],
+        has_event: bool,
         parameter: &str,
         enclosing_parameters: &[String],
         bind_event_at_atom: bool,
         out: &mut Map<String, Value>,
     ) -> String {
-        let RelationOperand::Lexical {
-            predicate,
-            participant_place,
-            fixed_arguments,
-            unfilled_places,
-            has_event,
-        } = leaf
-        else {
-            panic!("expand_lexical_leaf requires a lexical operand");
-        };
         let mut arguments = Map::new();
         arguments.insert(
             format!("x{participant_place}"),
@@ -1120,7 +1166,7 @@ pub(crate) mod reexpansion {
             );
         }
         for place in unfilled_places {
-            let referent = fresh.fresh("entity");
+            let referent = fresh_id(next, "entity");
             out.insert(
                 referent.clone(),
                 object(&[
@@ -1146,7 +1192,7 @@ pub(crate) mod reexpansion {
                 ]),
             );
         }
-        let eventuality = has_event.then(|| fresh.fresh("eventuality"));
+        let eventuality = has_event.then(|| fresh_id(next, "eventuality"));
         if let Some(eventuality) = &eventuality {
             out.insert(
                 eventuality.clone(),
@@ -1157,10 +1203,10 @@ pub(crate) mod reexpansion {
                 ]),
             );
         }
-        let predication = fresh.fresh("predication");
+        let predication = fresh_id(next, "predication");
         let mut fields = Vec::from([
             ("type", Value::from("predication")),
-            ("relation", Value::from(predicate.as_str())),
+            ("relation", Value::from(predicate)),
             ("arguments", Value::Object(arguments)),
             ("mode", Value::from("restrictive")),
         ]);
@@ -1168,7 +1214,7 @@ pub(crate) mod reexpansion {
             fields.insert(1, ("eventuality", Value::from(eventuality.as_str())));
         }
         out.insert(predication.clone(), object(&fields));
-        let atom = fresh.fresh("formula");
+        let atom = fresh_id(next, "formula");
         let mut atom_fields = Vec::from([
             ("type", Value::from("formula")),
             ("operator", Value::from("atom")),
@@ -1183,21 +1229,57 @@ pub(crate) mod reexpansion {
         atom
     }
 
+    /// Decompose one operand into the flat pieces the leaf expander needs,
+    /// panicking on non-lexical operands.
+    #[requires(true)]
+    #[ensures(true)]
+    fn expand_lexical_operand(
+        next: &mut usize,
+        operand: &RelationOperand,
+        parameter: &str,
+        enclosing_parameters: &[String],
+        bind_event_at_atom: bool,
+        out: &mut Map<String, Value>,
+    ) -> String {
+        let data!(RelationOperand::Lexical {
+            predicate,
+            participant_place,
+            fixed_arguments,
+            unfilled_places,
+            has_event,
+        }) = operand.as_data()
+        else {
+            panic!("expand_lexical_operand requires a lexical operand");
+        };
+        expand_lexical_leaf(
+            next,
+            predicate,
+            *participant_place,
+            fixed_arguments,
+            unfilled_places,
+            *has_event,
+            parameter,
+            enclosing_parameters,
+            bind_event_at_atom,
+            out,
+        )
+    }
+
     /// Regenerate the modifier property abstraction for one operand, returning
     /// the relation referent id. A `Reference` operand survives in the graph,
     /// so its id is returned unchanged with no new objects.
     #[requires(true)]
     #[ensures(true)]
     fn expand_modifier(
-        fresh: &mut FreshIds,
+        next: &mut usize,
         operand: &RelationOperand,
         enclosing_parameters: &[String],
         out: &mut Map<String, Value>,
     ) -> String {
-        if let RelationOperand::Reference { relation } = operand {
+        if let data!(RelationOperand::Reference { relation }) = operand.as_data() {
             return relation.clone();
         }
-        let parameter = fresh.fresh("parameter");
+        let parameter = fresh_id(next, "parameter");
         out.insert(
             parameter.clone(),
             object(&[
@@ -1209,27 +1291,27 @@ pub(crate) mod reexpansion {
         );
         let mut nested_parameters = enclosing_parameters.to_vec();
         nested_parameters.push(parameter.clone());
-        let body = match operand {
-            RelationOperand::Lexical { .. } => {
-                expand_lexical_leaf(fresh, operand, &parameter, &nested_parameters, true, out)
+        let body = match operand.as_data() {
+            data!(RelationOperand::Lexical { .. }) => {
+                expand_lexical_operand(next, operand, &parameter, &nested_parameters, true, out)
             }
-            RelationOperand::Composition(composition) => expand_composition(
-                fresh,
-                composition,
+            data!(RelationOperand::Composition { .. }) => expand_composition(
+                next,
+                operand,
                 None,
                 &parameter,
                 "restrictive",
                 &nested_parameters,
                 out,
             ),
-            RelationOperand::Connective { operator, operands } => {
+            data!(RelationOperand::Connective { operator, operands }) => {
                 let children: Vec<String> = operands
                     .iter()
                     .map(|operand| {
-                        expand_lexical_leaf(fresh, operand, &parameter, &nested_parameters, true, out)
+                        expand_lexical_operand(next, operand, &parameter, &nested_parameters, true, out)
                     })
                     .collect();
-                let formula = fresh.fresh("formula");
+                let formula = fresh_id(next, "formula");
                 let mut connector = Map::new();
                 if let Some(table) = canonical_truth_table(operator) {
                     connector.insert("truthTable".to_owned(), Value::from(table));
@@ -1245,12 +1327,12 @@ pub(crate) mod reexpansion {
                 );
                 formula
             }
-            RelationOperand::Host { .. } => {
+            data!(RelationOperand::Host { .. }) => {
                 panic!("a host operand cannot head a modifier property")
             }
-            RelationOperand::Reference { .. } => unreachable!("handled above"),
+            data!(RelationOperand::Reference { .. }) => unreachable!("handled above"),
         };
-        let relation = fresh.fresh("relation");
+        let relation = fresh_id(next, "relation");
         out.insert(
             relation.clone(),
             object(&[
@@ -1272,19 +1354,24 @@ pub(crate) mod reexpansion {
     #[requires(!participant.is_empty())]
     #[ensures(true)]
     fn expand_composition(
-        fresh: &mut FreshIds,
-        composition: &RelationComposition,
+        next: &mut usize,
+        composition: &RelationOperand,
         surviving_head: Option<&str>,
         participant: &str,
         mode: &str,
         enclosing_parameters: &[String],
         out: &mut Map<String, Value>,
     ) -> String {
-        let (head_child, head_predication, head_event) = match &composition.kind {
-            RelationOperand::Host { .. } => {
-                let head_predication = surviving_head
-                    .expect("a host operand requires the surviving head predication");
-                let atom = fresh.fresh("formula");
+        let data!(RelationOperand::Composition { kind, modifier, .. }) =
+            composition.as_data()
+        else {
+            panic!("expand_composition requires a composition operand");
+        };
+        let (head_child, head_predication, head_event) = match kind.as_data() {
+            data!(RelationOperand::Host { .. }) => {
+                let head_predication =
+                    surviving_head.expect("a host operand requires the surviving head predication");
+                let atom = fresh_id(next, "formula");
                 out.insert(
                     atom.clone(),
                     object(&[
@@ -1295,19 +1382,15 @@ pub(crate) mod reexpansion {
                 );
                 (atom, head_predication.to_owned(), None)
             }
-            RelationOperand::Lexical { has_event, .. } => {
+            data!(RelationOperand::Lexical { has_event, .. }) => {
                 // A composition head's eventuality is bound by its tanru AND,
                 // not by its own atom (unlike a modifier leaf's).
-                let atom = expand_lexical_leaf(
-                    fresh,
-                    &composition.kind,
-                    participant,
-                    enclosing_parameters,
-                    false,
-                    out,
-                );
-                // The leaf predication id is the atom's `predication` field.
-                let predication = out[&atom]["predication"].as_str().expect("atom predication").to_owned();
+                let atom =
+                    expand_lexical_operand(next, kind, participant, enclosing_parameters, false, out);
+                let predication = out[&atom]["predication"]
+                    .as_str()
+                    .expect("atom predication")
+                    .to_owned();
                 let event = has_event.then(|| {
                     out[&predication]["eventuality"]
                         .as_str()
@@ -1316,24 +1399,30 @@ pub(crate) mod reexpansion {
                 });
                 (atom, predication, event)
             }
-            RelationOperand::Composition(nested) => {
+            data!(RelationOperand::Composition { .. }) => {
                 let and = expand_composition(
-                    fresh,
-                    nested,
+                    next,
+                    kind,
                     surviving_head,
                     participant,
                     mode,
                     enclosing_parameters,
                     out,
                 );
-                (and, surviving_head.expect("bo nesting shares the head predication").to_owned(), None)
+                (
+                    and,
+                    surviving_head
+                        .expect("bo nesting shares the head predication")
+                        .to_owned(),
+                    None,
+                )
             }
-            RelationOperand::Connective { .. } | RelationOperand::Reference { .. } => {
+            data!(RelationOperand::Connective { .. }) | data!(RelationOperand::Reference { .. }) => {
                 panic!("the kind side of a composition is never a connective or reference")
             }
         };
-        let modifier = expand_modifier(fresh, &composition.modifier, enclosing_parameters, out);
-        let link_predication = fresh.fresh("predication");
+        let modifier_relation = expand_modifier(next, modifier, enclosing_parameters, out);
+        let link_predication = fresh_id(next, "predication");
         out.insert(
             link_predication.clone(),
             object(&[
@@ -1342,7 +1431,7 @@ pub(crate) mod reexpansion {
                     "tanruLink",
                     object(&[
                         ("head", Value::from(head_predication.as_str())),
-                        ("modifier", Value::from(modifier.as_str())),
+                        ("modifier", Value::from(modifier_relation.as_str())),
                     ]),
                 ),
                 (
@@ -1359,7 +1448,7 @@ pub(crate) mod reexpansion {
                             "x2",
                             object(&[
                                 ("kind", Value::from("filled")),
-                                ("value", Value::from(modifier.as_str())),
+                                ("value", Value::from(modifier_relation.as_str())),
                             ]),
                         ),
                     ]),
@@ -1367,7 +1456,7 @@ pub(crate) mod reexpansion {
                 ("mode", Value::from(mode)),
             ]),
         );
-        let link_atom = fresh.fresh("formula");
+        let link_atom = fresh_id(next, "formula");
         out.insert(
             link_atom.clone(),
             object(&[
@@ -1376,7 +1465,7 @@ pub(crate) mod reexpansion {
                 ("predication", Value::from(link_predication.as_str())),
             ]),
         );
-        let and = fresh.fresh("formula");
+        let and = fresh_id(next, "formula");
         let mut and_fields = Vec::from([
             ("type", Value::from("formula")),
             ("operator", Value::from("and")),
@@ -1431,9 +1520,84 @@ pub(crate) mod reexpansion {
         stack
     }
 
-    /// Re-expand every projected instance in `objects` back to the loud
-    /// head-and-link subgraph: the inverse elaboration of the compact relation
-    /// expression, regenerating scaffolding with fresh (opaque) ids.
+    /// The host participant place of a projected view (the kind side's
+    /// innermost Host operand).
+    #[requires(true)]
+    #[ensures(true)]
+    fn host_participant_place(composition: &RelationOperand) -> usize {
+        let mut kind = composition;
+        loop {
+            match kind.as_data() {
+                data!(RelationOperand::Composition { kind: nested, .. }) => kind = nested,
+                data!(RelationOperand::Host { participant_place }) => return *participant_place,
+                _ => panic!("a projected instance always bottoms out at a host operand"),
+            }
+        }
+    }
+
+    /// Re-expand one projected instance with the given relation-expression
+    /// view: the inverse elaboration of the compact relation expression,
+    /// regenerating scaffolding with fresh (opaque) ids.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn reexpand_instance(
+        objects: &Map<String, Value>,
+        instance: &ProjectedInstance,
+        view: &RelationOperand,
+        next: &mut usize,
+    ) -> Map<String, Value> {
+        let mut expanded = objects.clone();
+        let bound = expanded[&instance.anchor]
+            .get("boundEventualities")
+            .and_then(Value::as_array)
+            .cloned();
+        let head_object = expanded
+            .get_mut(&instance.head_predication)
+            .and_then(Value::as_object_mut)
+            .expect("head predication survives");
+        head_object.remove("relationExpression");
+        let mode = head_object
+            .get("mode")
+            .and_then(Value::as_str)
+            .expect("head predication mode")
+            .to_owned();
+        let participant_place = host_participant_place(view);
+        let participant = head_object["arguments"]
+            .get(format!("x{participant_place}"))
+            .and_then(|argument| argument.get("value"))
+            .and_then(Value::as_str)
+            .expect("participant argument")
+            .to_owned();
+        let enclosing = surviving_enclosing_parameters(&expanded, &instance.anchor);
+        let mut regenerated = Map::new();
+        let and = expand_composition(
+            next,
+            view,
+            Some(&instance.head_predication),
+            &participant,
+            &mode,
+            &enclosing,
+            &mut regenerated,
+        );
+        // The regenerated AND takes the anchor's id (the anchor survives);
+        // its bindings move back from the rewritten atom verbatim.
+        let mut and_object = match regenerated.remove(&and) {
+            Some(Value::Object(and_object)) => and_object,
+            _ => panic!("regenerated AND must be an object"),
+        };
+        if let Some(bound) = bound {
+            and_object.insert("boundEventualities".to_owned(), Value::Array(bound));
+        }
+        expanded.insert(instance.anchor.clone(), Value::Object(and_object));
+        for (key, value) in regenerated {
+            expanded.insert(key, value);
+        }
+        expanded
+    }
+
+    /// Re-expand every projected instance with its recognizer-produced view
+    /// (used by the negative/guard fixtures; the acceptance driver re-expands
+    /// the *rendered* view instead).
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn reexpand_instances(
@@ -1441,64 +1605,353 @@ pub(crate) mod reexpansion {
         instances: &[ProjectedInstance],
     ) -> Map<String, Value> {
         let mut expanded = objects.clone();
-        let mut fresh = FreshIds::default();
+        let mut next = 0usize;
         for instance in instances {
-            let bound = expanded[&instance.anchor]
-                .get("boundEventualities")
-                .and_then(Value::as_array)
-                .cloned();
-            let head_object = expanded
-                .get_mut(&instance.head_predication)
-                .and_then(Value::as_object_mut)
-                .expect("head predication survives");
-            head_object.remove("relationExpression");
-            let mode = head_object
-                .get("mode")
-                .and_then(Value::as_str)
-                .expect("head predication mode")
-                .to_owned();
-            // The participant is the head argument at the host leaf's
-            // participant place (the host leaf is the kind side's innermost
-            // Host operand).
-            let mut host = &instance.composition.kind;
-            while let RelationOperand::Composition(nested) = host {
-                host = &nested.kind;
-            }
-            let RelationOperand::Host { participant_place } = host else {
-                panic!("a projected instance always bottoms out at a host operand");
-            };
-            let participant = head_object["arguments"]
-                .get(format!("x{participant_place}"))
-                .and_then(|argument| argument.get("value"))
-                .and_then(Value::as_str)
-                .expect("participant argument")
-                .to_owned();
-            let enclosing = surviving_enclosing_parameters(&expanded, &instance.anchor);
-            let mut regenerated = Map::new();
-            let and = expand_composition(
-                &mut fresh,
-                &instance.composition,
-                Some(&instance.head_predication),
-                &participant,
-                &mode,
-                &enclosing,
-                &mut regenerated,
-            );
-            // The regenerated AND takes the anchor's id (the anchor survives);
-            // its bindings move back from the rewritten atom verbatim.
-            let mut and_object = match regenerated.remove(&and) {
-                Some(Value::Object(and_object)) => and_object,
-                _ => panic!("regenerated AND must be an object"),
-            };
-            if let Some(bound) = bound {
-                and_object.insert("boundEventualities".to_owned(), Value::Array(bound));
-            }
-            expanded.insert(instance.anchor.clone(), Value::Object(and_object));
-            for (key, value) in regenerated {
-                expanded.insert(key, value);
-            }
+            let view = instance.composition.clone();
+            expanded = reexpand_instance(&expanded, instance, &view, &mut next);
         }
         expanded
+    }
+
+    /// Replicate the renderer's id assignment (`make_id` in notation::xml):
+    /// a type/sort prefix plus the graph key's numeric suffix.
+    #[requires(!key.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn make_id(key: &str, object: &Map<String, Value>) -> String {
+        let prefix = if object.get("type").and_then(Value::as_str) == Some("referent") {
+            if object
+                .get("sort")
+                .and_then(Value::as_str)
+                .is_some_and(|sort| sort.starts_with("eventuality"))
+            {
+                "e"
+            } else {
+                "r"
+            }
+        } else {
+            match object.get("type").and_then(Value::as_str) {
+                Some("utterance") => "u",
+                Some("predication") => "p",
+                Some("formula") => "f",
+                Some("quantity") => "q",
+                Some("parameter") => "v",
+                Some("sequence") => "s",
+                Some("displayedContent") => "d",
+                Some("mathExpression") => "m",
+                Some("question") => "x",
+                _ => "o",
+            }
+        };
+        let suffix = key
+            .rsplit_once(':')
+            .map(|(_, suffix)| suffix)
+            .filter(|suffix| suffix.chars().all(|character| character.is_ascii_digit()))
+            .unwrap_or_else(|| panic!("graph key lacks JSON-aligned suffix: {key:?}"));
+        format!("{prefix}{suffix}")
+    }
+
+    /// Rendered id (r7, e12, p9) → graph key (entity:7, eventuality:12,
+    /// predication:9), for every object in the graph.
+    #[requires(true)]
+    #[ensures(true)]
+    fn rendered_id_to_key_map(objects: &Map<String, Value>) -> HashMap<String, String> {
+        objects
+            .iter()
+            .map(|(key, value)| {
+                let object = value.as_object().expect("graph object");
+                (make_id(key, object), key.clone())
+            })
+            .collect()
+    }
+
+    /// The elided-place list of a compact lexical leaf per the KEY's
+    /// elaboration contract: every lexical place of the predicate (per the
+    /// dictionary place structure) that is neither the participant nor a fixed
+    /// argument elaborates to a distinct ordinary elided-place node.
+    #[requires(!predicate.is_empty() && participant_place > 0)]
+    #[ensures(true)]
+    fn lexical_unfilled_places(
+        dictionary: &Dictionary<'_>,
+        predicate: &str,
+        participant_place: usize,
+        fixed_arguments: &BTreeMap<usize, String>,
+    ) -> Vec<usize> {
+        let arity = crate::dictionary_relation_place_count(dictionary, predicate)
+            .unwrap_or_else(|| panic!("dictionary must know the place count of {predicate}"));
+        (1..=arity)
+            .filter(|place| *place != participant_place && !fixed_arguments.contains_key(place))
+            .collect()
+    }
+
+    /// Parse one operand element (KIND, MODIFIER, or RELATION) of a rendered
+    /// KIND-COMPOSITION back into the typed view. `host_slot` is true exactly
+    /// on the root composition's kind chain (the bo/ke head side); only there
+    /// does a bare PREDICATE= leaf mean the enclosing predication's own
+    /// predicate.
+    #[requires(true)]
+    #[ensures(true)]
+    fn operand_from_xml(
+        element: roxmltree::Node<'_, '_>,
+        host_slot: bool,
+        id_to_key: &HashMap<String, String>,
+        dictionary: &Dictionary<'_>,
+        objects: &Map<String, Value>,
+    ) -> RelationOperand {
+        if let Some(reference) = element.attribute("REF") {
+            return new!(RelationOperand::Reference {
+                relation: id_to_key
+                    .get(reference)
+                    .unwrap_or_else(|| panic!("unknown rendered id {reference}"))
+                    .clone(),
+            });
+        }
+        if let Some(predicate) = element.attribute("PREDICATE") {
+            let participant_place = element
+                .attribute("PARTICIPANT-PLACE")
+                .map(|place| place.parse::<usize>().expect("PARTICIPANT-PLACE is numeric"))
+                .unwrap_or(1);
+            if host_slot {
+                return new!(RelationOperand::Host { participant_place });
+            }
+            let mut fixed_arguments = BTreeMap::new();
+            for child in element.children().filter(|child| child.is_element()) {
+                assert_eq!(child.tag_name().name(), "ARG");
+                let place: usize = child
+                    .attribute("INDEX")
+                    .expect("operand ARG INDEX")
+                    .parse()
+                    .expect("operand ARG INDEX is numeric");
+                let target = child.attribute("REF").expect("operand ARG REF");
+                fixed_arguments.insert(
+                    place,
+                    id_to_key
+                        .get(target)
+                        .unwrap_or_else(|| panic!("unknown rendered id {target}"))
+                        .clone(),
+                );
+            }
+            let unfilled_places =
+                lexical_unfilled_places(dictionary, predicate, participant_place, &fixed_arguments);
+            return new!(RelationOperand::Lexical {
+                predicate: predicate.to_owned(),
+                participant_place,
+                fixed_arguments,
+                unfilled_places,
+                has_event: true,
+            });
+        }
+        let body = element
+            .children()
+            .find(|child| child.is_element() && child.tag_name().name() == "BODY")
+            .unwrap_or_else(|| panic!("operand {} has no PREDICATE=, REF=, or BODY", element.tag_name().name()));
+        let content = body
+            .children()
+            .find(roxmltree::Node::is_element)
+            .expect("BODY wraps one relation-expression subtree");
+        match content.tag_name().name() {
+            "KIND-COMPOSITION" => {
+                composition_from_xml(content, host_slot, id_to_key, dictionary, objects)
+            }
+            "CONNECTIVE" => {
+                let operator = match content.attribute("OPERATOR").expect("CONNECTIVE OPERATOR") {
+                    "AND" => "and",
+                    "OR" => "or",
+                    other => panic!("unknown relation connective operator {other}"),
+                };
+                let operands: Vec<RelationOperand> = content
+                    .children()
+                    .filter(|child| child.is_element() && child.tag_name().name() == "RELATION")
+                    .map(|leaf| operand_from_xml(leaf, false, id_to_key, dictionary, objects))
+                    .collect();
+                new!(RelationOperand::Connective {
+                    operator: operator.to_owned(),
+                    operands,
+                })
+            }
+            // A composite RELATION-lambda/abstraction subtree rendered inline:
+            // the relation it defines survives in the graph.
+            _ => {
+                let id = content.attribute("ID").map(str::to_owned);
+                let relation = match id {
+                    Some(id) => id_to_key
+                        .get(id.as_str())
+                        .unwrap_or_else(|| panic!("unknown rendered id {id}"))
+                        .clone(),
+                    // A single-use relation renders inline without an ID:
+                    // identify it by its parameter list (the rendered
+                    // PARAMETERS= are the property parameters' ids).
+                    None => {
+                        assert_eq!(content.tag_name().name(), "RELATION");
+                        let parameters: Vec<&str> = content
+                            .attribute("PARAMETERS")
+                            .expect("inline RELATION carries PARAMETERS")
+                            .split(' ')
+                            .collect();
+                        let parameter_keys: Vec<&str> = parameters
+                            .iter()
+                            .map(|rendered| {
+                                id_to_key
+                                    .get(*rendered)
+                                    .map(String::as_str)
+                                    .unwrap_or_else(|| panic!("unknown rendered id {rendered}"))
+                            })
+                            .collect();
+                        objects
+                            .iter()
+                            .find(|(_, value)| {
+                                let Some(object) = value.as_object() else {
+                                    return false;
+                                };
+                                object.get("sort").and_then(Value::as_str) == Some("relation")
+                                    && object
+                                        .get("parameters")
+                                        .and_then(Value::as_array)
+                                        .is_some_and(|object_parameters| {
+                                            object_parameters.len() == parameter_keys.len()
+                                                && object_parameters.iter().zip(
+                                                    parameter_keys.iter(),
+                                                ).all(|(object_parameter, parameter_key)| {
+                                                    object_parameter.as_str()
+                                                        == Some(*parameter_key)
+                                                })
+                                        })
+                            })
+                            .map(|(key, _)| key.clone())
+                            .expect("inline composite relation matches a graph relation")
+                    }
+                };
+                new!(RelationOperand::Reference { relation })
+            }
+        }
+    }
+
+    /// Parse a rendered KIND-COMPOSITION element back into the typed
+    /// relation-expression view.
+    #[requires(element.tag_name().name() == "KIND-COMPOSITION")]
+    #[ensures(true)]
+    fn composition_from_xml(
+        element: roxmltree::Node<'_, '_>,
+        host_slot: bool,
+        id_to_key: &HashMap<String, String>,
+        dictionary: &Dictionary<'_>,
+        objects: &Map<String, Value>,
+    ) -> RelationOperand {
+        let grouping = match element.attribute("GROUPING") {
+            None => None,
+            Some("EXPLICIT") => Some(super::CompositionGrouping::Explicit),
+            Some(other) => panic!("unknown GROUPING basis {other}"),
+        };
+        let kind = element
+            .children()
+            .find(|child| child.is_element() && child.tag_name().name() == "KIND")
+            .expect("KIND-COMPOSITION has a KIND child");
+        let modifier = element
+            .children()
+            .find(|child| child.is_element() && child.tag_name().name() == "MODIFIER")
+            .expect("KIND-COMPOSITION has a MODIFIER child");
+        new!(RelationOperand::Composition {
+            grouping,
+            kind: Box::new(operand_from_xml(kind, host_slot, id_to_key, dictionary, objects)),
+            modifier: Box::new(operand_from_xml(modifier, false, id_to_key, dictionary, objects)),
+        })
+    }
+
+    /// Locate the PREDICATION element a projected instance rendered as: by its
+    /// rendered ID when defined, otherwise by exact MODE/ARG surface match
+    /// against the surviving head predication.
+    #[requires(true)]
+    #[ensures(true)]
+    fn find_projected_predication<'a>(
+        document: &'a roxmltree::Document<'a>,
+        instance: &ProjectedInstance,
+        objects: &Map<String, Value>,
+        id_to_key: &HashMap<String, String>,
+    ) -> roxmltree::Node<'a, 'a> {
+        let head_object = objects[&instance.head_predication]
+            .as_object()
+            .expect("head predication object");
+        let expected_id = make_id(&instance.head_predication, head_object);
+        let mut candidates: Vec<roxmltree::Node<'a, 'a>> = document
+            .descendants()
+            .filter(|node| {
+                node.is_element()
+                    && node.tag_name().name() == "PREDICATION"
+                    && node
+                        .children()
+                        .find(roxmltree::Node::is_element)
+                        .is_some_and(|first| first.tag_name().name() == "KIND-COMPOSITION")
+            })
+            .collect();
+        if let Some(exact) = candidates
+            .iter()
+            .find(|node| node.attribute("ID") == Some(expected_id.as_str()))
+        {
+            return *exact;
+        }
+        let head_mode = head_object
+            .get("mode")
+            .and_then(Value::as_str)
+            .expect("head predication mode")
+            .to_uppercase();
+        let head_arguments: BTreeMap<usize, String> = head_object["arguments"]
+            .as_object()
+            .expect("head arguments")
+            .iter()
+            .map(|(place, argument)| {
+                let place: usize = place
+                    .strip_prefix('x')
+                    .and_then(|digits| digits.parse().ok())
+                    .expect("numeric argument place");
+                let argument = argument.as_object().expect("argument object");
+                let rendered = match argument.get("kind").and_then(Value::as_str) {
+                    Some("filled") => id_to_key
+                        .iter()
+                        .find(|(_, key)| {
+                            **key == argument["value"].as_str().expect("argument value")
+                        })
+                        .map(|(rendered, _)| rendered.clone())
+                        .expect("argument target renders"),
+                    Some("elided") => "SOME".to_owned(),
+                    other => panic!("unexpected head argument kind {other:?}"),
+                };
+                (place, rendered)
+            })
+            .collect();
+        candidates.retain(|node| {
+            if node.attribute("MODE") != Some(head_mode.as_str()) {
+                return false;
+            }
+            let rendered_arguments: BTreeMap<usize, String> = node
+                .children()
+                .filter(|child| child.is_element() && child.tag_name().name() == "ARG")
+                .filter_map(|argument| {
+                    let place: usize = argument
+                        .attribute("INDEX")
+                        .expect("ARG INDEX")
+                        .parse()
+                        .expect("ARG INDEX numeric");
+                    // Inline arguments (a single-use referent rendered in
+                    // place) carry no REF=; they cannot disambiguate, so only
+                    // reference-form arguments constrain the match.
+                    let reference = argument.attribute("REF")?.to_owned();
+                    Some((place, reference))
+                })
+                .collect();
+            rendered_arguments
+                .iter()
+                .all(|(place, reference)| head_arguments.get(place) == Some(reference))
+        });
+        match candidates.as_slice() {
+            [exact] => *exact,
+            [] => panic!(
+                "no PREDICATION element matches projected head {}",
+                instance.head_predication
+            ),
+            _ => panic!(
+                "ambiguous PREDICATION elements for projected head {}",
+                instance.head_predication
+            ),
+        }
     }
 
     /// Provenance fields dropped before equivalence comparison: source records,
@@ -1522,10 +1975,10 @@ pub(crate) mod reexpansion {
         let mut canonical: HashMap<String, String> = HashMap::new();
         let mut next = 0usize;
         let mut queue: VecDeque<String> = VecDeque::from([root.to_owned()]);
-        let mut rename = |id: &str,
-                         canonical: &mut HashMap<String, String>,
-                         next: &mut usize,
-                         queue: &mut VecDeque<String>| {
+        let rename = |id: &str,
+                          canonical: &mut HashMap<String, String>,
+                          next: &mut usize,
+                          queue: &mut VecDeque<String>| {
             if !canonical.contains_key(id) {
                 *next += 1;
                 canonical.insert(id.to_owned(), format!("n{next}"));
@@ -1638,13 +2091,40 @@ pub(crate) mod reexpansion {
         }
     }
 
-    /// The acceptance test driver: project, re-expand, and require the
-    /// normalized forms of the original and regenerated graphs to be identical.
+    /// The acceptance driver mandated by the round-14 decision: parse the
+    /// *rendered* SFN-XML relation expressions back into compositions,
+    /// re-expand them, and require the normalized forms of the pre-projection
+    /// graph and the regenerated graph to be identical. `objects` is the
+    /// original (unprojected) graph; `xml` is the product renderer's actual
+    /// output for it.
     #[requires(!root.is_empty())]
     #[ensures(true)]
-    pub(crate) fn assert_reexpansion_equivalent(objects: &Map<String, Value>, root: &str) {
+    pub(crate) fn assert_rendered_reexpansion_equivalent(
+        objects: &Map<String, Value>,
+        root: &str,
+        xml: &str,
+        dictionary: &Dictionary<'_>,
+    ) {
         let (transformed, projection) = project_tanru_compositions(objects);
-        let expanded = reexpand_instances(&transformed, &projection.instances);
+        let id_to_key = rendered_id_to_key_map(objects);
+        let document = roxmltree::Document::parse(xml).expect("rendered XML parses");
+        let mut expanded = transformed.clone();
+        let mut next = 0usize;
+        for instance in &projection.instances {
+            let predication_element =
+                find_projected_predication(&document, instance, objects, &id_to_key);
+            let view = composition_from_xml(
+                predication_element
+                    .children()
+                    .find(|child| child.is_element() && child.tag_name().name() == "KIND-COMPOSITION")
+                    .expect("projected predication renders KIND-COMPOSITION"),
+                true,
+                &id_to_key,
+                dictionary,
+                objects,
+            );
+            expanded = reexpand_instance(&expanded, instance, &view, &mut next);
+        }
         let original_normalized = normalize_objects(objects, root);
         let expanded_normalized = normalize_objects(&expanded, root);
         if original_normalized != expanded_normalized {
@@ -1660,7 +2140,7 @@ pub(crate) mod reexpansion {
                 }
             }
             panic!(
-                "re-expansion must reproduce the recognized subgraph modulo opaque ids and provenance"
+                "re-expanding the rendered relation expression must reproduce the recognized subgraph modulo opaque ids and provenance"
             );
         }
     }
@@ -1673,8 +2153,12 @@ mod tests {
 
     use serde_json::{Map, Value};
 
-    use super::reexpansion::assert_reexpansion_equivalent;
+    use super::reexpansion::{
+        assert_rendered_reexpansion_equivalent, normalize_objects, reexpand_instances,
+    };
+    use super::{RelationOperandData, project_tanru_compositions};
     use crate::SemanticGraph;
+    use crate::notation::render_xml_value_for_tooling;
 
     #[requires(!text.is_empty())]
     #[ensures(true)]
@@ -1699,11 +2183,27 @@ mod tests {
 
     #[requires(!text.is_empty())]
     #[ensures(true)]
+    fn graph_value(text: &str) -> Value {
+        serde_json::to_value(graph_for_text(text)).expect("graph serializes")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn objects_of(graph: &Value) -> Map<String, Value> {
+        graph["objects"].as_object().expect("objects map").clone()
+    }
+
+    /// Render the graph exactly as the product does, then run the
+    /// rendered-surface re-expansion equivalence acceptance check.
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
     fn assert_text_reexpands(text: &str) {
         let graph = graph_for_text(text);
+        let root = graph.root.to_string();
         let value = serde_json::to_value(&graph).expect("graph serializes");
-        let objects = value["objects"].as_object().expect("objects map");
-        assert_reexpansion_equivalent(objects, &graph.root.to_string());
+        let objects = objects_of(&value);
+        let xml = crate::render_xml(&graph, "<acceptance>").into_data().output;
+        assert_rendered_reexpansion_equivalent(&objects, &root, &xml, jbotci_dictionary_data::english());
     }
 
     /// The round-14 witness set plus the tricky shapes: asserted main-selbri
@@ -1724,17 +2224,16 @@ mod tests {
             "ti zdani co blanu mi",
             "lo se xekri mlatu cu barda",
             "lo xamgu be lo gerku zdani cu barda",
-            "lo nu bajra cu zdani",
-            "mi nelci lo melbi cmalu nixli je ckule",
             "lo xamgu be lo gerku be'o zdani cu barda",
+            "lo nu bajra kei zdani cu barda",
+            "mi nelci lo melbi cmalu nixli je ckule",
         ] {
-            eprintln!("=== {text}");
             assert_text_reexpands(text);
         }
     }
 
-    /// Every frozen-corpus graph must satisfy the same equivalence (the corpus
-    /// migration activates the tanru instances there).
+    /// Every frozen-corpus graph must satisfy the same rendered-surface
+    /// equivalence (the corpus migration activates the tanru instances there).
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -1744,9 +2243,8 @@ mod tests {
             .expect("corpus directory")
             .filter_map(|entry| {
                 let path = entry.expect("corpus entry").path();
-                path.extension()
-                    .filter(|extension| *extension == "json")
-                    .and_then(|_| path.file_name().map(|name| name.to_string_lossy().into_owned()))
+                path.file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
                     .filter(|name| name.ends_with(".frozen.json"))
                     .map(|_| path)
             })
@@ -1754,14 +2252,164 @@ mod tests {
         documents.sort();
         assert!(documents.len() >= 48, "the frozen corpus must stay complete");
         for path in documents {
-            let value: Value = serde_json::from_str(
+            let mut graph: Value = serde_json::from_str(
                 &std::fs::read_to_string(&path).expect("corpus document reads"),
             )
             .expect("corpus document parses");
-            let root = value["root"].as_str().expect("graph root").to_owned();
-            let objects: Map<String, Value> =
-                value["objects"].as_object().expect("objects map").clone();
-            assert_reexpansion_equivalent(&objects, &root);
+            let binder_universes: Value = serde_json::from_slice(include_bytes!(
+                "../../tests/xml_corpus/BINDER_UNIVERSES.json"
+            ))
+            .expect("binder universes parse");
+            let document_name = path
+                .file_name()
+                .expect("document name")
+                .to_string_lossy()
+                .replace(".frozen.json", "");
+            graph["scopeDependenceBinderUniverses"] = binder_universes[document_name.as_str()].clone();
+            let root = graph["root"].as_str().expect("graph root").to_owned();
+            let objects = objects_of(&graph);
+            let xml = render_xml_value_for_tooling(graph, &document_name).into_data().output;
+            assert_rendered_reexpansion_equivalent(&objects, &root, &xml, jbotci_dictionary_data::english());
         }
+    }
+
+    /// Build a witness graph and mutate its objects JSON before projection.
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn mutated_witness(
+        text: &str,
+        mutate: impl FnOnce(&mut Map<String, Value>),
+    ) -> (Value, Map<String, Value>) {
+        let graph = graph_value(text);
+        let mut objects = objects_of(&graph);
+        mutate(&mut objects);
+        (graph, objects)
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn find_predication_with_relation(objects: &Map<String, Value>, relation: &str) -> String {
+        objects
+            .iter()
+            .find(|(_, object)| {
+                object.get("type").and_then(Value::as_str) == Some("predication")
+                    && object.get("relation").and_then(Value::as_str) == Some(relation)
+            })
+            .map(|(key, _)| key.clone())
+            .unwrap_or_else(|| panic!("no predication with relation {relation}"))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn find_tanru_link_predication(objects: &Map<String, Value>) -> String {
+        objects
+            .iter()
+            .find(|(_, object)| object.get("tanruLink").is_some())
+            .map(|(key, _)| key.clone())
+            .expect("a tanru-link predication")
+    }
+
+    /// Negative fixture: unequal head/link modes must NOT compact (the
+    /// recognizer derives the link mode from the head, so a graph with unequal
+    /// modes could not be reconstructed losslessly).
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unequal_head_and_link_modes_stay_loud() {
+        let (_graph, objects) = mutated_witness("lo blanu zdani cu barda", |objects| {
+            let link = find_tanru_link_predication(objects);
+            objects
+                .get_mut(&link)
+                .and_then(Value::as_object_mut)
+                .expect("link object")
+                .insert("mode".to_owned(), Value::from("asserted"));
+        });
+        let (transformed, projection) = project_tanru_compositions(&objects);
+        assert!(
+            projection.instances.is_empty(),
+            "unequal head/link modes must reject the compact form"
+        );
+        assert_eq!(transformed.len(), objects.len(), "nothing was consumed");
+        // Sanity: the original graph itself re-expands trivially (no instances).
+        assert_eq!(normalize_objects(&objects, "utterance:5"), normalize_objects(&reexpand_instances(&transformed, &projection.instances), "utterance:5"));
+    }
+
+    /// Negative fixture: a modifier eventuality shared with an outside
+    /// predication is not the derivable fresh-local event — the modifier must
+    /// fall back to the composite reference form, never the compact leaf.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn shared_modifier_event_forces_composite_fallback() {
+        let (_graph, objects) = mutated_witness("lo blanu zdani cu barda", |objects| {
+            let blanu = find_predication_with_relation(objects, "blanu");
+            let barda = find_predication_with_relation(objects, "barda");
+            let event = objects[&blanu]["eventuality"].clone();
+            objects
+                .get_mut(&barda)
+                .and_then(Value::as_object_mut)
+                .expect("barda object")
+                .insert("eventuality".to_owned(), event);
+        });
+        assert_modifier_falls_back_to_reference(objects);
+    }
+
+    /// Negative fixture: a decorated (tense-marked) modifier eventuality is
+    /// not the derivable fresh-local event.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn decorated_modifier_event_forces_composite_fallback() {
+        let (_graph, objects) = mutated_witness("lo blanu zdani cu barda", |objects| {
+            let blanu = find_predication_with_relation(objects, "blanu");
+            let event = objects[&blanu]["eventuality"]
+                .as_str()
+                .expect("modifier event")
+                .to_owned();
+            objects
+                .get_mut(&event)
+                .and_then(Value::as_object_mut)
+                .expect("event object")
+                .insert("time".to_owned(), serde_json::json!({"kind": "offset", "direction": "past"}));
+        });
+        assert_modifier_falls_back_to_reference(objects);
+    }
+
+    /// Negative fixture: a place question on the modifier predication makes
+    /// its place map non-flat.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn non_flat_place_map_forces_composite_fallback() {
+        let (_graph, objects) = mutated_witness("lo blanu zdani cu barda", |objects| {
+            let blanu = find_predication_with_relation(objects, "blanu");
+            objects
+                .get_mut(&blanu)
+                .and_then(Value::as_object_mut)
+                .expect("blanu object")
+                .insert("placeQuestions".to_owned(), serde_json::json!([]));
+        });
+        assert_modifier_falls_back_to_reference(objects);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_modifier_falls_back_to_reference(objects: Map<String, Value>) {
+        let (_transformed, projection) = project_tanru_compositions(&objects);
+        assert_eq!(
+            projection.instances.len(),
+            1,
+            "the tanru itself is still recognized"
+        );
+        let instance = &projection.instances[0];
+        let data!(RelationOperand::Composition { modifier, .. }) = instance.composition.as_data()
+        else {
+            panic!("the projected view root is a composition");
+        };
+        assert!(
+            matches!(modifier.as_data(), data!(RelationOperand::Reference { .. })),
+            "a shared/decorated/non-flat modifier must stay in the composite reference form: {:?}",
+            modifier.as_data()
+        );
     }
 }

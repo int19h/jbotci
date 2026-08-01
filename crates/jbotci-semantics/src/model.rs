@@ -3582,8 +3582,12 @@ pub enum DisplayedContentPolarity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DisplayedContentTargetFocus {
-    Bridi,
-    Selbri,
+    /// The displayed content targets the containing clause as a whole
+    /// (a Lojban bridi).
+    Clause,
+    /// The displayed content targets the predicate-expression locus of the
+    /// containing clause (a Lojban selbri).
+    Predicate,
 }
 
 #[invariant(!relation.is_empty(), "displayed-content modifier relation must be named")]

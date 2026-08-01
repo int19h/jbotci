@@ -1674,7 +1674,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             target,
             item,
             "indicator",
-            Some(DisplayedContentTargetFocus::Bridi),
+            Some(DisplayedContentTargetFocus::Clause),
             false,
         )
     }
@@ -1742,7 +1742,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             target,
             item,
             "indicator",
-            Some(DisplayedContentTargetFocus::Bridi),
+            Some(DisplayedContentTargetFocus::Clause),
             force_assertion_effect_none,
         )
     }
@@ -2935,7 +2935,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 formula,
                 utterance_id,
                 "indicator",
-                Some(DisplayedContentTargetFocus::Selbri),
+                Some(DisplayedContentTargetFocus::Predicate),
                 false,
             )?;
         }

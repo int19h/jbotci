@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Issue #719: mechanical migration of semantic-JSON expectation surfaces.
 
-Applies exactly three model-typing transformations to canonical
+Applies exactly four model-typing transformations to canonical
 `lojban-semantics-json-1` documents, and proves nothing else changes:
 
 1. `connector.source` magic strings become the typed ConnectorSource shape:
@@ -13,6 +13,10 @@ Applies exactly three model-typing transformations to canonical
 3. The fake relation name is dropped: a predication carrying a `tanruLink`
    must have `"relation": "tanru"` and loses the field; conversely no other
    predication may carry `"relation": "tanru"`.
+4. `displayedContent.targetFocus` magic strings become English:
+   `"targetFocus": "bridi"` becomes `"clause"` and `"targetFocus": "selbri"`
+   becomes `"predicate"` (exact match on those two strings only, wherever the
+   field occurs; anything else is a hard error).
 
 Every JSON file is roundtrip-checked (`json.dumps(json.loads(x)) == x`) before
 rewriting so byte layout (key order, separators, UTF-8) is provably preserved.
@@ -52,6 +56,11 @@ LOCUS_MAP = {
     "bare-jai-raised-participant": "bareRaisedParticipant",
 }
 
+TARGET_FOCUS_MAP = {
+    "bridi": "clause",
+    "selbri": "predicate",
+}
+
 
 class MigrationError(Exception):
     pass
@@ -62,13 +71,25 @@ def canonical(text: str) -> str:
 
 
 def transform_value(value, stats, path):
-    """Apply the three transformations in place; fail on anything unexpected."""
+    """Apply the four transformations in place; fail on anything unexpected."""
     if isinstance(value, list):
         for item in value:
             transform_value(item, stats, path)
         return
     if not isinstance(value, dict):
         return
+    target_focus = value.get("targetFocus")
+    if target_focus is not None:
+        if target_focus in TARGET_FOCUS_MAP:
+            value["targetFocus"] = TARGET_FOCUS_MAP[target_focus]
+            stats["target_focus"] += 1
+        elif target_focus in TARGET_FOCUS_MAP.values():
+            # Already migrated: the English vocabulary is already in place.
+            stats["already_migrated"] += 0
+        else:
+            raise MigrationError(
+                f"{path}: unmapped displayedContent.targetFocus {target_focus!r}"
+            )
     if "tanruLink" in value:
         relation = value.pop("relation", None)
         if relation is None:
@@ -193,7 +214,11 @@ def migrate_toml(path: Path, stats, write: bool) -> bool:
             raise MigrationError(f"{path}: unterminated json block")
         json_text = text[start:end]
         cursor = end + len(delimiter)
-        if '"connector"' not in json_text and '"tanruLink"' not in json_text:
+        if (
+            '"connector"' not in json_text
+            and '"tanruLink"' not in json_text
+            and '"targetFocus"' not in json_text
+        ):
             continue
         if not json_text.lstrip().startswith('{"version":"lojban-semantics-json-1"'):
             continue
@@ -271,6 +296,7 @@ def main() -> int:
         "connector_sources": 0,
         "implicit_sources": 0,
         "loci": 0,
+        "target_focus": 0,
         "toml_changed": 0,
         "frozen_changed": 0,
         "already_migrated": 0,

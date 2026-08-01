@@ -1040,6 +1040,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit omission-family marker; no payload to constrain",
     ),
     (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::ConnectorProvenance",
+        "unit omission-family marker; no payload to constrain",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/xml.rs:XmlWaiverFamily::DescriptorWord",
         "unit omission-family marker; no payload to constrain",
     ),

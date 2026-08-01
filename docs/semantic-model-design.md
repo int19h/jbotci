@@ -58,7 +58,7 @@ KIND id : attr=val, attr=val, …
 | `FRM` | a logical formula | atom, connective, quantifier, `quantifierBundle`, or `respectivelyDistribution`; optionally owns generated events through `boundEventualities` |
 | `SGN` | a sign referent | public `type:"referent"`, `sort:"sign"`; `kind`, `text`/`letterals`/`quotation`, optional `denotes` |
 | `SEQ` | a discourse sequence | ordered `items`, optional formula/question `content`, `connectionClaims`, typed paragraph `relation`, optional `nonlogicalConnection`/`elidedConnectionOperand`; may own generated events when no formula LCA exists |
-| `DSP` | a displayed object (attitudinal/evidential/metalinguistic/emphasis) | `family`, `relation`, `experiencer`=⟨REF-id⟩, `target`=⟨id⟩, optional `targetFocus`=bridi\|selbri, `anchor`=⟨UTT-id⟩, `intensity`, `polarity`, `phase`, `modifiers`, `assertionEffect` |
+| `DSP` | a displayed object (attitudinal/evidential/metalinguistic/emphasis) | `family`, `relation`, `experiencer`=⟨REF-id⟩, `target`=⟨id⟩, optional `targetFocus`=clause\|predicate, `anchor`=⟨UTT-id⟩, `intensity`, `polarity`, `phase`, `modifiers`, `assertionEffect` |
 | `MEX` | a mathematical expression (mekso operand language) | `operator`, `operands`; or a typed `literal`; questioned operators use `operatorParameter` |
 | `QTY` | a quantity | `form`, exactly one value representation, `scale`; `questionParameters` on `xo` values |
 | `REL` | mechanical relation metadata for nonce lujvo | `relation`, resolved `sourceWords`, typed rafsi `expansion` — **no lujvo place claims; annotation only, never part of any `FRM`** |
@@ -343,7 +343,7 @@ DSP id : family=⟨emotion|propositionalAttitude|evidential|metalinguistic|empha
          intensity=⟨cai|sai|ru'e|cu'i⟩, polarity=⟨+|cu'i|nai⟩, phase=⟨bu'o:start|continue|end⟩
 ```
 - **Scope/target by placement:** sentence-initial or post-selbri indicators
-  target the relevant formula and retain `targetFocus=bridi|selbri` when that
+  target the relevant formula and retain `targetFocus=clause|predicate` when that
   distinction matters; an indicator immediately after a sumti targets that
   sumti.
 - **Pure emotion** (`.ui`/`.oi`/`.iu`…): host bridi **stays asserted**; the `DSP` displays an emotion about the target.

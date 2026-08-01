@@ -8,8 +8,9 @@
   TYPED-GRAPH fallback form.  It is both a validation schema and the reference
   documentation of the notation: every element and attribute carries an
   xs:annotation explaining its semantics.  The notation's own teaching text
-  travels inside each document as KEY/RULE prose; this schema is the
-  machine-readable counterpart.
+  travels inside each document as a single XML comment before the root
+  element (invisible to this schema); this schema is the machine-readable
+  counterpart.
 -->
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified" attributeFormDefault="unqualified">
 
@@ -20,13 +21,16 @@
       A document is a single SFN root element in one of two forms:
 
       * COMPACT form (no FORM attribute): the canonical rendering.  Top-level
-        child order is KEY, optional WORDS, WAIVERS, optional DEFS, exactly
-        one rendered graph-root element (normally UTTERANCE), optional
-        UNREACHABLE.
+        child order is optional WORDS, optional DEFS, exactly one rendered
+        graph-root element (normally UTTERANCE), optional UNREACHABLE.
       * TYPED-GRAPH form (FORM="TYPED-GRAPH"): the lossless fallback used when
         the graph contains a construct the compact notation cannot represent.
-        Top-level child order is KEY (whose last child is
-        COMPACT-INCOMPATIBILITIES listing why), WAIVERS, TYPED-GRAPH.
+        Top-level child order is COMPACT-INCOMPATIBILITIES (listing why),
+        TYPED-GRAPH.
+
+      The notation's teaching text is a single XML comment before the root
+      element (jbotci#719); as a comment it is invisible to this schema.
+      There are no KEY/RULE, WAIVERS, or CONNECTOR elements.
 
       XSD 1.0 cannot condition a content model on an attribute value, so the
       SFN type below admits both shapes in one sequence; the exact per-form
@@ -2025,7 +2029,7 @@
         NEUTRAL, NEGATIVE), ASSERTION-EFFECT its effect on the host claim
         (NONE, HOST_ASSERTED, HOST_SUBORDINATED,
         METALINGUISTICALLY_VOIDED, PERFORMATIVE), TARGET-FOCUS what it
-        targets (BRIDI or SELBRI).  EXPERIENCER, TARGET, and ANCHOR are
+        targets (CLAUSE or PREDICATE).  EXPERIENCER, TARGET, and ANCHOR are
         its participant pointers.
       </xs:documentation>
     </xs:annotation>

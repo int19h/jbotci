@@ -249,7 +249,10 @@ truth-functional formula.
   "relation": "same-topic-continuation",
   "nonlogicalConnection": {
     "operator": "mass",
-    "connector": { "source": "joi", "locus": "statement" }
+    "connector": {
+      "source": { "kind": "surfaceWord", "word": "joi" },
+      "locus": "statement"
+    }
   },
   "elidedConnectionOperand": "priorDiscourse"
 }
@@ -787,7 +790,10 @@ use their tertau/eventuality as their primary event.
   "formula:1016": {
     "type": "formula",
     "operator": "or",
-    "connector": { "source": "a du'i bo", "locus": "sumti" },
+    "connector": {
+      "source": { "kind": "surfaceWord", "word": "a du'i bo" },
+      "locus": "argument"
+    },
     "children": [
       "formula:1017",
       "formula:1018",
@@ -1030,7 +1036,7 @@ When a parenthesized mekso used as a sumti quantifier has a logical operand
 connective, the connective has formula scope over the resulting quantified
 claims.  For CLL 14.149/14.150, `vei ci .a vo prenu cu klama le zarci` is not a
 single cardinality formula with an opaque quantity; it is an `or` formula with
-`connector.locus = "mekso-operand"` whose children are the two cardinality
+`connector.locus = "operand"` whose children are the two cardinality
 formulas using quantities 3 and 4.  Shared surrounding semantic material such as
 `le zarci` remains shared by id.
 
@@ -2291,8 +2297,8 @@ Connective:
   "operator": "and",
   "children": ["formula:1074", "formula:1075"],
   "connector": {
-    "source": "je",
-    "locus": "selbri",
+    "source": { "kind": "surfaceWord", "word": "je" },
+    "locus": "predicate",
     "truthTable": "TFFF"
   }
 }
@@ -2468,6 +2474,18 @@ connective between arguments can have the same truth table but different
 sharing behavior for eventualities, arguments, or quantifier scope.  This is an
 amendment from the earlier model.
 
+`connector.source` is a tagged object, not a bare string: a connective that
+appears in the text records `{ "kind": "surfaceWord", "word": <the surface
+marker> }`, while the implicit juxtaposition connective synthesized for a
+tanru run has no surface word and records `{ "kind": "implicitJuxtaposition" }`.
+`connector.locus` uses the English ConnectorLocus vocabulary (`statement`,
+`argument`, `term`, `termSet`, `tense`, `tag`, `operand`, `clause`,
+`predicatePhrase`, `predicate`, `predicateInversion`, `predicateUnit`,
+`propertyAbstraction`, `propertyInversion`, `abstraction`, `description`,
+`mathOperator`, `bareRaisedParticipant`); Lojban grammar terms such as
+`selbri`, `bridi`, or `sumti` are parser vocabulary and never appear as locus
+values.
+
 `respectivelyDistribution` records the truth-conditional zip introduced by
 `fa'u` when multiple parallel streams co-vary by index.  Its `body` is the
 formula being distributed.  Each entry in `streams` has a `slot` parameter with
@@ -2572,7 +2590,7 @@ formula connectives.  They stay on the `sequence` as:
   "nonlogicalConnection": {
     "operator": "mass",
     "connector": {
-      "source": "joi",
+      "source": { "kind": "surfaceWord", "word": "joi" },
       "locus": "statement"
     }
   }
@@ -2593,7 +2611,10 @@ For `ta cinfo kerfa`:
   "type": "formula",
   "operator": "and",
   "children": ["formula:1099", "formula:1100"],
-  "connector": { "source": "tanru", "locus": "selbri" }
+  "connector": {
+    "source": { "kind": "implicitJuxtaposition" },
+    "locus": "predicate"
+  }
 }
 ```
 
@@ -2634,7 +2655,6 @@ For `ta cinfo kerfa`:
 ```json
 {
   "type": "predication",
-  "relation": "tanru",
   "tanruLink": {
     "head": "predication:1104",
     "modifier": "relation:1105",
@@ -2647,6 +2667,11 @@ For `ta cinfo kerfa`:
   "mode": "asserted"
 }
 ```
+
+A tanru-link predication carries no `relation` field: its typed relation is a
+predicate composition whose real content lives in the `tanruLink` sidecar
+(`head`, `modifier`, and the display-only `relationLabel`), so there is no
+relation name to state.
 
 This asserts that the referent is a mane and stands in some tanru relation to
 the property of being a lion.  It does not assert `cinfo(entity:1101)`, and
@@ -2663,7 +2688,7 @@ of the enclosing bridi.  For example, `mi troci co klama le zarci le zdani`
 has an asserted `troci` predication with its x2 and x3 elided, plus a tanru
 modifier property whose `klama` body has x2 filled by `le zarci` and x3 filled
 by `le zdani`.  The formula connective for this case uses
-`connector.locus = "selbri-inversion"` so consumers can see that the surface
+`connector.locus = "predicateInversion"` so consumers can see that the surface
 used `co` without changing the semantic graph shape.
 
 Logical connectives inside a tanru modifier do not create a vague relation
@@ -2699,7 +2724,6 @@ and the tanru link points to a composite concept:
 ```json
 {
   "type": "predication",
-  "relation": "tanru",
   "tanruLink": {
     "head": "predication:1106",
     "modifier": "entity:1107",
@@ -3209,7 +3233,7 @@ emphasis, and metalinguistic operators live here.
   "relation": "happiness",
   "experiencer": "entity:1",
   "target": "formula:1117",
-  "targetFocus": "bridi",
+  "targetFocus": "clause",
   "anchor": "utterance:1004",
   "polarity": "positive",
   "assertionEffect": "none"
@@ -3268,8 +3292,9 @@ Metalinguistic `na'i` uses `family:"metalinguistic"` and
 negation; the host predication is marked inert because the utterance is being
 challenged as mis-posed rather than asserted as true or false.  When the same
 formula can be targeted at different levels, `targetFocus` records the intended
-surface focus: leading `na'i go'i` has `targetFocus:"bridi"`, while post-selbri
-`go'i na'i` has `targetFocus:"selbri"`.
+surface focus: leading `na'i go'i` has `targetFocus:"clause"` (the whole bridi),
+while post-selbri `go'i na'i` has `targetFocus:"predicate"` (the selbri
+surface).
 
 ```json
 {
@@ -3277,7 +3302,7 @@ surface focus: leading `na'i go'i` has `targetFocus:"bridi"`, while post-selbri
   "relation": "metalinguisticNegation",
   "family": "metalinguistic",
   "target": "formula:1120",
-  "targetFocus": "selbri",
+  "targetFocus": "predicate",
   "anchor": "utterance:1004",
   "assertionEffect": "metalinguisticallyVoided"
 }
@@ -3551,7 +3576,7 @@ Logical connectives between mekso operators are not serialized as fused operator
 strings.  When such a connected operator occurs in a `li ... du ...` identity
 claim, the identity claim branches at formula level.  For CLL 14.151/14.152,
 `li re su'i je pi'i re du li vo` becomes an `and` formula with
-`connector.locus = "mekso-operator"` over two identity atoms: one for
+`connector.locus = "mathOperator"` over two identity atoms: one for
 `re su'i re = vo` and one for `re pi'i re = vo`.
 
 ### quantity
@@ -4049,7 +4074,7 @@ These are the semantic object-model changes relative to
 10. Added tanru inversion lowering for `co`.
    `B co A` is serialized with the same tertau-plus-property schema as `A B`.
    Post-`co` sumti fill the seltau property's places, and the top-level
-   connective records `connector.locus = "selbri-inversion"` to preserve the
+   connective records `connector.locus = "predicateInversion"` to preserve the
    surface scope.  This is a graph-construction amendment, not a new object
    type.
 
@@ -5377,7 +5402,8 @@ implementation gaps are listed separately in “Known Implementation Divergences
     plus a display-only `relationLabel`. Same graph shape, same (deliberately vague)
     truth conditions, but head/modifier roles become machine-readable (removes an
     untyped-blob strong-typing violation). Implemented in `tersmu` v1: the link
-    predication uses `relation:"tanru"` and the constituent label lives only in
+    predication carries no `relation` field (its typed relation is a
+    composition) and the constituent label lives only in
     `tanruLink.relationLabel`.
 
 13. **`lo'e`/`le'e` body non-veridicality (#9) — implement (the narrow real bug).**
@@ -5455,7 +5481,8 @@ implementation gaps are listed separately in “Known Implementation Divergences
 20. **Metalinguistic `na'i` target and assertion effect (#53, #54) — extend.**
     `na'i` is displayed content, not formula negation.  Add
     `DisplayedContent.targetFocus` so leading `na'i go'i` can target the whole
-    bridi while post-selbri `go'i na'i` targets the selbri/formula surface, and
+    bridi (`targetFocus:"clause"`) while post-selbri `go'i na'i` targets the
+    selbri/formula surface (`targetFocus:"predicate"`), and
     add `assertionEffect:"metalinguisticallyVoided"` so consumers know the host
     is not asserted true or false.  The affected host predications are inert.
     Implemented in `tersmu` v1.
@@ -5464,7 +5491,7 @@ implementation gaps are listed separately in “Known Implementation Divergences
     indicators attached to `.i je`/`.i ja` target the statement-connection
     formula, not either operand alone.  No new object type is needed; the
     displayed-content target points at the combined formula and uses
-    `targetFocus:"bridi"`.  Implemented in `tersmu` v1.
+    `targetFocus:"clause"`.  Implemented in `tersmu` v1.
 
 22. **Scalar-negation argument scope (#57) — extend.** Add optional
     `scalarNegation.argumentScope`, a list of numbered places syntactically
@@ -5587,10 +5614,10 @@ implementation gaps are listed separately in “Known Implementation Divergences
     represented by the quotation/sign edge that contains it, not by rewriting its
     force to `mention`.
 
-34. **Tanru connector locus spelling (#90) — doc correction.** The canonical
-    connector locus for tanru formula links is `"selbri"`.  Stale examples using
-    `"predicate"` are non-normative and should be updated or treated as a
-    deprecated alias only if consumer compatibility requires it.
+34. **Tanru connector locus spelling (#90, updated by #719) — doc correction.**
+    The canonical connector locus for tanru formula links is `"predicate"`,
+    from the English ConnectorLocus vocabulary adopted by #719; the former
+    `"selbri"` spelling is retired.
 
 35. **MAI/MO'O ordinal labels (#114) — extend.** Numerical free modifiers headed
     by `mai`/`mo'o` are truth-conditionally inert labels.  Add an ordinal label

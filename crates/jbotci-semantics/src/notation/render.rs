@@ -1649,19 +1649,12 @@ fn render_sequence(w: &mut Writer, ctx: &Ctx, key: &str, obj: &Value) {
                 } else {
                     w.field("OPERATOR", &enum_render(operator));
                 }
-                // #719: the CONNECTOR heading survives only while it has
-                // default-visible content (a non-derivable truth table or an
-                // unmodeled parameter) or provenance is on.
-                let connector = nc.get("connector").filter(|c| !c.is_null());
-                let has_default_content = connector.is_some_and(|connector| {
-                    field_str(connector, "truthTable").is_some()
-                        || connector.get("parameter").is_some_and(|p| !p.is_null())
-                });
-                if ctx.provenance || has_default_content {
-                    w.heading("CONNECTOR", |w| {
-                        render_connector(w, ctx, connector, operator);
-                    });
-                }
+                // #719: no CONNECTOR heading — connector content renders
+                // inline: TRUTH TABLE exactly when the operator does not
+                // already determine it (always, for a nonlogical operator),
+                // the parameter marker when present, and the surface word and
+                // locus only under the provenance opt-in.
+                render_connector(w, ctx, nc.get("connector"), operator);
             });
         }
         render_source(w, ctx, obj);

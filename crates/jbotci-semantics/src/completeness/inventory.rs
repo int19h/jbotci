@@ -5084,24 +5084,24 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         e(
             SurfaceCategory::Enum,
             "DisplayedContentTargetFocus",
-            "Bridi",
+            "Clause",
             EntryKind::Variant,
             Presence::VariantConditional,
             new!(Witness::Corpus {
                 doc: "paragraph-narrative",
                 path: "DisplayedContent:targetFocus",
-                expect: new!(WitnessExpect::Value("bridi"))
+                expect: new!(WitnessExpect::Value("clause"))
             }),
-            Some("bridi"),
+            Some("clause"),
         ),
         e(
             SurfaceCategory::Enum,
             "DisplayedContentTargetFocus",
-            "Selbri",
+            "Predicate",
             EntryKind::Variant,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Some("selbri"),
+            Some("predicate"),
         ),
         e(
             SurfaceCategory::Enum,

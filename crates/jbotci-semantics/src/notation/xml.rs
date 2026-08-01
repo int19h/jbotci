@@ -5478,11 +5478,11 @@ mod tests {
         assert_eq!(actual, expected);
         assert_eq!(
             aggregate_hash("frozen.json"),
-            "6f3d951a76b0b363ff3fc8a0763a0dbb34fe7fb16a23fccbe86a32fecbbfdfe7"
+            "3f5171701f45523f70a97faad8a8b86c6a96c4c98a22dffccc05d7e210d12218"
         );
         assert_eq!(
             aggregate_hash("xml.txt"),
-            "a10e826952ced297d3da81c76705c81042d02d19f8a7fc72bf28c39801ec5bd9"
+            "38e85d26ba63780c33a90ea99c9d427e3e37d6364a0cb4813f4d21615645199c"
         );
         let binder_universe_bytes = include_bytes!("../../tests/xml_corpus/BINDER_UNIVERSES.json");
         assert_eq!(
