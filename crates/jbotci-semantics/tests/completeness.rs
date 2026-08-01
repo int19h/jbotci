@@ -592,9 +592,13 @@ fn provenance_is_type_based() {
         "provenance policy disagrees with the type graph:\n{}",
         mismatches.join("\n")
     );
-    // The load-bearing distinction: Connector.source is a lexical String, not
-    // provenance — so it is NOT in the source-link set.
-    assert_eq!(graph.field_type("Connector", "source"), Some("String"));
+    // The load-bearing distinction: Connector.source is a typed ConnectorSource
+    // (surface word vs implicit juxtaposition), not SemanticSource provenance —
+    // so it is NOT in the source-link set.
+    assert_eq!(
+        graph.field_type("Connector", "source"),
+        Some("ConnectorSource")
+    );
     assert!(!links.contains(&"Connector"));
 }
 

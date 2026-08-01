@@ -1105,8 +1105,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 },
                 children,
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: "term".to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: ConnectorLocus::Term,
                     truth_table: generated_direct_term_connective_truth_table(connective),
                     parameter,
                 })),
@@ -1364,11 +1364,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source: generated_modal_forethought_pair_source(
-                        &termset.gek,
-                        &termset.first_branch.gik,
+                    source: ConnectorSource::surface_word(
+                        generated_modal_forethought_pair_source(
+                            &termset.gek,
+                            &termset.first_branch.gik,
+                        ),
                     ),
-                    locus: "termset".to_owned(),
+                    locus: ConnectorLocus::TermSet,
                     truth_table: generated_modal_forethought_gik_connective_truth_table(
                         &termset.gek,
                         &termset.first_branch.gik,
@@ -1407,7 +1409,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     false,
                     false,
                     connector_source,
-                    "termset",
+                    ConnectorLocus::TermSet,
                     formula,
                     branch_formula,
                     source.clone(),
@@ -1548,8 +1550,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 },
                 children,
                 Some(new!(Connector {
-                    source: format!("pe'e {connector_source}"),
-                    locus: "termset".to_owned(),
+                    source: ConnectorSource::surface_word(format!("pe'e {connector_source}")),
+                    locus: ConnectorLocus::TermSet,
                     truth_table: generated_statement_connective_core_truth_table(
                         &continuation.connective,
                     ),
@@ -1642,8 +1644,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![leading_replaced, trailing_replaced],
                 Some(new!(Connector {
-                    source: generated_modal_forethought_connective_source(&termset.gek),
-                    locus: "termset".to_owned(),
+                    source: ConnectorSource::surface_word(
+                        generated_modal_forethought_connective_source(&termset.gek),
+                    ),
+                    locus: ConnectorLocus::TermSet,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -1830,14 +1834,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![leading_replaced, trailing_replaced],
                 Some(new!(Connector {
-                    source: if generated_modal_forethought_connective_primary_cmavo(connective)
-                        == Some(Cmavo::Fahu)
-                    {
-                        generated_modal_forethought_connective_source(connective)
-                    } else {
-                        generated_modal_forethought_pair_source(connective, gik)
-                    },
-                    locus: "termset".to_owned(),
+                    source: ConnectorSource::surface_word(
+                        if generated_modal_forethought_connective_primary_cmavo(connective)
+                            == Some(Cmavo::Fahu)
+                        {
+                            generated_modal_forethought_connective_source(connective)
+                        } else {
+                            generated_modal_forethought_pair_source(connective, gik)
+                        },
+                    ),
+                    locus: ConnectorLocus::TermSet,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -2872,7 +2878,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source,
                 truth_table,
                 connector_question,
-                locus: "tense".to_owned(),
+                locus: ConnectorLocus::Tense,
                 connected_index,
                 branches: branches
                     .into_iter()
@@ -2896,7 +2902,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source,
                 truth_table,
                 connector_question: None,
-                locus: "modal".to_owned(),
+                locus: ConnectorLocus::Tag,
                 connected_index,
                 branches: modal_terms
                     .into_iter()
@@ -3007,8 +3013,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 connection.operator,
                 children,
                 Some(new!(Connector {
-                    source: connection.source.clone(),
-                    locus: connection.locus.clone(),
+                    source: ConnectorSource::surface_word(connection.source.clone()),
+                    locus: connection.locus,
                     truth_table: connection.truth_table.clone(),
                     parameter: connector_parameter,
                 })),
@@ -3078,8 +3084,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 distributed_children.clone(),
                 Some(new!(Connector {
-                    source: connection.source.clone(),
-                    locus: connection.locus.clone(),
+                    source: ConnectorSource::surface_word(connection.source.clone()),
+                    locus: connection.locus,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -3562,8 +3568,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     operator,
                     children,
                     Some(new!(Connector {
-                        source: generated_modal_forethought_pair_source(&operand.gek, &operand.gik),
-                        locus: "operand".to_owned(),
+                        source: ConnectorSource::surface_word(
+                            generated_modal_forethought_pair_source(&operand.gek, &operand.gik),
+                        ),
+                        locus: ConnectorLocus::Operand,
                         truth_table: generated_modal_forethought_gik_connective_truth_table(
                             &operand.gek,
                             &operand.gik,
@@ -4060,7 +4068,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &simple_tail.selbri,
                 visible_arguments,
                 formula_source,
-                "selbri",
+                ConnectorLocus::Predicate,
                 eventuality,
             )?;
             self.set_semantic_object_source(result.head_predication, predication_source)?;
@@ -4242,7 +4250,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     &simple_tail.selbri,
                     visible_arguments,
                     self.source_for_node(source_node, "bridi-formula"),
-                    "selbri",
+                    ConnectorLocus::Predicate,
                     eventuality,
                 )?;
                 self.attach_generated_modal_terms_to_formula(
@@ -4595,11 +4603,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source: generated_modal_forethought_pair_source(
-                        &connection.gek,
-                        &connection.first_branch.gik,
+                    source: ConnectorSource::surface_word(
+                        generated_modal_forethought_pair_source(
+                            &connection.gek,
+                            &connection.first_branch.gik,
+                        ),
                     ),
-                    locus: "bridi".to_owned(),
+                    locus: ConnectorLocus::Clause,
                     truth_table: generated_modal_forethought_gik_connective_truth_table(
                         &connection.gek,
                         &connection.first_branch.gik,
@@ -4648,7 +4658,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     false,
                     false,
                     connector_source,
-                    "bridi",
+                    ConnectorLocus::Clause,
                     formula,
                     branch_formula,
                     None,
@@ -5501,8 +5511,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: "bridiTail".to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: ConnectorLocus::PredicatePhrase,
                     truth_table: connector_parameter
                         .is_none()
                         .then(|| generated_bridi_tail_connective_truth_table(connective))
@@ -6182,8 +6192,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source,
-                    locus: "tense".to_owned(),
+                    source: ConnectorSource::surface_word(source),
+                    locus: ConnectorLocus::Tense,
                     truth_table,
                     parameter: connector_parameter,
                 })),
@@ -6269,7 +6279,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 tagged.inner_selbri.as_ref(),
                 assignments.visible_arguments.clone(),
                 formula_source.clone(),
-                "tense",
+                ConnectorLocus::Tense,
                 Some(branch_eventuality),
             )?;
             self.attach_generated_modal_terms_to_formula(result.formula, &assignments.modal_terms)?;
@@ -6314,8 +6324,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source,
-                    locus: "tense".to_owned(),
+                    source: ConnectorSource::surface_word(source),
+                    locus: ConnectorLocus::Tense,
                     truth_table,
                     parameter: connector_parameter,
                 })),
@@ -6618,7 +6628,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         connection,
                         visible_arguments,
                         source,
-                        "selbri",
+                        ConnectorLocus::Predicate,
                         leading_eventuality,
                     )?;
                 self.attach_generated_modal_terms_to_formula(
@@ -6982,8 +6992,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![head.formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "selbri-inversion".to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: ConnectorLocus::PredicateInversion,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -7086,8 +7096,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![head.formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "selbri-inversion".to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: ConnectorLocus::PredicateInversion,
                     truth_table: None,
                     parameter: None,
                 })),

@@ -1173,8 +1173,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 generated_distributed_sumti_connective_formula_operator(connective),
                 children,
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: "sumti".to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: ConnectorLocus::Argument,
                     truth_table: generated_distributed_sumti_connective_truth_table(connective),
                     parameter: connector_parameter,
                 })),

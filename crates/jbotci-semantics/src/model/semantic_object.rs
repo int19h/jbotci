@@ -186,12 +186,18 @@ pub struct ParameterNode {
 pub enum PredicationRelation {
     Named { relation: String },
     Parameter { parameter: SemanticObjectId },
+    /// The relation is a predicate composition (a tanru link): the real content
+    /// lives in the predication's `tanru_link` sidecar, so there is no relation
+    /// name or parameter to state. Constructing such a predication with a fake
+    /// relation name (the former `"tanru"` sentinel) is not representable.
+    Composition,
 }
 
 #[invariant(eventuality.is_none_or(eventuality_is_referent))]
 #[invariant(arguments.keys().all(|place| place.get() > 0))]
 #[invariant(relation_metadata.is_none_or(|metadata| metadata.object_kind() == SemanticObjectKind::RelationMetadata))]
 #[invariant(introduced_by.as_ref().is_none_or(|introduced_by| !introduced_by.is_empty()))]
+#[invariant(tanru_link.is_some() == matches!(relation.as_data(), data!(PredicationRelation::Composition)), "a tanru-link sidecar is present exactly when the relation is a composition")]
 #[derive(Debug, Clone, PartialEq)]
 pub struct PredicationNode {
     pub relation: PredicationRelation,
@@ -1333,10 +1339,9 @@ impl SemanticObject {
         })))
     }
 
-    #[requires(!relation.is_empty())]
+    #[requires(true)]
     #[ensures(ret.object_kind() == SemanticObjectKind::Predication)]
     pub fn tanru_link_predication(
-        relation: String,
         eventuality: Option<SemanticObjectId>,
         arguments: BTreeMap<PlaceIndex, ArgumentValue>,
         tanru_link: TanruLink,
@@ -1344,15 +1349,22 @@ impl SemanticObject {
         source: Option<SemanticSource>,
         diagnostics: Vec<SemanticDiagnostic>,
     ) -> Self {
-        let predication =
-            match Self::predication(relation, eventuality, arguments, mode, source, diagnostics)
-                .into_data()
-            {
-                data!(SemanticObject::Predication(predication)) => predication,
-                _ => unreachable!("predication constructor returns a predication"),
-            };
-        new!(SemanticObject::Predication(predication.with_data(data! {
+        // The `tanru_link` sidecar and the `Composition` relation must appear
+        // together (the `PredicationNode` invariant ties them), so the node is
+        // built in a single step rather than via `predication_with_relation`.
+        new!(SemanticObject::Predication(new!(PredicationNode {
+            relation: new!(PredicationRelation::Composition),
+            eventuality,
             tanru_link: Some(tanru_link),
+            arguments,
+            place_questions: Vec::new(),
+            adjuncts: Vec::new(),
+            reciprocity: Vec::new(),
+            mode,
+            scalar_negation: None,
+            relation_metadata: None,
+            introduced_by: None,
+            common: SemanticObjectCommon::new(source, diagnostics),
         })))
     }
 
@@ -2820,6 +2832,9 @@ fn serialize_predication<M: SerializeMap>(
         data!(PredicationRelation::Parameter { parameter }) => {
             map.serialize_entry("relationParameter", parameter)?
         }
+        // A composition relation has no name or parameter to state: the
+        // `tanruLink` entry below carries the real content.
+        data!(PredicationRelation::Composition) => {}
     }
     optional_entry!(map, "tanruLink", node.tanru_link.as_ref());
     nonempty_entry!(map, "arguments", &node.arguments);

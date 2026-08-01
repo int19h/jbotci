@@ -1865,7 +1865,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     _ => None,
                 })
                 .as_ref()
-                .is_some_and(|connector| connector.source == "tanru") =>
+                .is_some_and(|connector| connector.source.is_implicit_juxtaposition()) =>
             {
                 object
                     .formula_children()
@@ -4896,7 +4896,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             generated_modal_forethought_connective_negates_left(connective),
             generated_gik_connective_negates_right(gik),
             generated_modal_forethought_pair_source(connective, gik),
-            "statement",
+            ConnectorLocus::Statement,
             left,
             right,
             source,
@@ -4924,7 +4924,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             false,
             false,
             connector_source,
-            "statement",
+            ConnectorLocus::Statement,
             left,
             right,
             source,
@@ -4941,7 +4941,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         left_negated: bool,
         right_negated: bool,
         connector_source: String,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -4980,8 +4980,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 },
                 children,
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: connector_locus.to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: connector_locus,
                     truth_table: generated_modal_forethought_connective_truth_table_with_negations(
                         connective,
                         left_negated,
@@ -5141,6 +5141,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .and_then(|node| match node.relation.as_data() {
                     data!(PredicationRelation::Named { relation }) => Some(relation.as_str()),
                     data!(PredicationRelation::Parameter { .. }) => None,
+                    data!(PredicationRelation::Composition) => None,
                 })
                 .is_some_and(generated_relation_is_pro_bridi_label)
             && let Some(object) = self.objects.get_mut(&predication)
@@ -5250,8 +5251,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: "statement".to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: ConnectorLocus::Statement,
                     truth_table,
                     parameter,
                 })),
@@ -5303,8 +5304,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 vec![child],
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: "statement".to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: ConnectorLocus::Statement,
                     truth_table,
                     parameter,
                 })),

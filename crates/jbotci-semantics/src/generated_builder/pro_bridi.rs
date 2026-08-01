@@ -105,7 +105,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     &tanru.first_unit,
                     visible_arguments,
                     formula_source,
-                    "selbri",
+                    ConnectorLocus::Predicate,
                     Some(eventuality),
                 )?
             } else {

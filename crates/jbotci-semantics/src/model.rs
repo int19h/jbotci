@@ -3257,14 +3257,97 @@ impl QuantifierBinding {
     }
 }
 
-#[invariant(!source.is_empty())]
-#[invariant(!locus.is_empty())]
+/// Surface provenance of a connective: either the word that actually appears in
+/// the text, or an implicit juxtaposition connective synthesized for a tanru
+/// (predicate juxtaposition) run, which has no surface word at all. This replaces
+/// the former magic-string sentinel that spelled implicit connectives as `"tanru"`.
+#[invariant(::SurfaceWord { word } => !word.is_empty(), "a surface-word connector source names the word appearing in the text")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "kind")]
+pub enum ConnectorSource {
+    SurfaceWord { word: String },
+    ImplicitJuxtaposition,
+}
+
+impl ConnectorSource {
+    #[requires(!word.is_empty())]
+    #[ensures(ret.as_surface_word() == Some(old(word.clone()).as_str()))]
+    pub fn surface_word(word: String) -> Self {
+        Self::from_data(data!(ConnectorSource::SurfaceWord { word }))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(ConnectorSource::SurfaceWord { .. })))]
+    pub fn as_surface_word(&self) -> Option<&str> {
+        match self.as_data() {
+            data!(ConnectorSource::SurfaceWord { word }) => Some(word.as_str()),
+            data!(ConnectorSource::ImplicitJuxtaposition) => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(ConnectorSource::ImplicitJuxtaposition)))]
+    pub fn is_implicit_juxtaposition(&self) -> bool {
+        matches!(
+            self.as_data(),
+            data!(ConnectorSource::ImplicitJuxtaposition)
+        )
+    }
+}
+
+/// The grammatical position at which a connective joins its operands. Variants
+/// are named in English; Lojban grammar terms (selbri, bridi, sumti, ...) are
+/// parser vocabulary and must not leak into the model-facing notation.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConnectorLocus {
+    /// Sentence-level connection (`.i` / statement connectives).
+    Statement,
+    /// Connection between arguments (sumti position).
+    Argument,
+    /// Connection between terms of a bridi.
+    Term,
+    /// Connection between termsets.
+    TermSet,
+    /// Connection between tenses.
+    Tense,
+    /// Connection between modal tags (BAI/FIhO constructs).
+    Tag,
+    /// Connection between mekso operands.
+    Operand,
+    /// Forethought connection of full clauses (gek position).
+    Clause,
+    /// Connection of bridi-tails: the predicate expression together with its
+    /// trailing arguments (gihek position).
+    PredicatePhrase,
+    /// Connection of predicate expressions (selbri position), e.g. the implicit
+    /// connective of a tanru run in the main selbri.
+    Predicate,
+    /// The implicit connective of a `co`-inverted tanru in the main selbri.
+    PredicateInversion,
+    /// A `bo`-bound predicate unit nested as head inside a larger tanru chain.
+    PredicateUnit,
+    /// A tanru run inside a property abstraction (ka body).
+    PropertyAbstraction,
+    /// A `co`-inverted tanru inside a property abstraction.
+    PropertyInversion,
+    /// Connection inside an abstraction.
+    Abstraction,
+    /// A tanru run in a description (restrictive) body.
+    Description,
+    /// Connection between mekso operators.
+    MathOperator,
+    /// A bare (untagged) `jai` raising of a participant into argument position.
+    BareRaisedParticipant,
+}
+
 #[invariant(parameter.is_none_or(|parameter| parameter.object_kind() == SemanticObjectKind::Parameter))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Connector {
-    pub source: String,
-    pub locus: String,
+    pub source: ConnectorSource,
+    pub locus: ConnectorLocus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub truth_table: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -4993,8 +5076,8 @@ mod tests {
                 FormulaOperator::ConnectiveQuestion,
                 vec![child],
                 Some(new!(Connector {
-                    source: "je'i".to_owned(),
-                    locus: "tense".to_owned(),
+                    source: ConnectorSource::surface_word("je'i".to_owned()),
+                    locus: ConnectorLocus::Tense,
                     truth_table: None,
                     parameter: Some(parameter),
                 })),

@@ -99,7 +99,8 @@ use crate::model::{
     AbstractionKind, Actuality, ActualityKind, Adjunct, AdjunctData, AnchorMagnitude,
     AnchorRelation, AnchorRelationData, ArgumentValue, ArgumentValueData, ArgumentValueKind,
     Aspect, AssignedName, AssignedNameData, CommandTarget, Composition, CompositionOperator,
-    Connector, DeicticProximity, Descriptor, DescriptorDefiniteness, DescriptorKind,
+    Connector, ConnectorLocus, ConnectorSource, ConnectorSourceData, DeicticProximity, Descriptor,
+    DescriptorDefiniteness, DescriptorKind,
     DisplayedContentAssertionEffect, DisplayedContentFamily, DisplayedContentModifier,
     DisplayedContentNode, DisplayedContentPolarity, DisplayedContentTargetFocus,
     ElidedConnectionOperand, EventualityClass, EventualityNode, EventualityNodeData,
@@ -748,7 +749,6 @@ struct GeneratedConnectedModalTerm<'syntax> {
 }
 
 #[invariant(!source.is_empty())]
-#[invariant(!locus.is_empty())]
 #[invariant(branches.len() >= 2)]
 #[invariant((operator == &FormulaOperator::RespectivelyDistribution && truth_table.is_none() && connector_question.is_none()) || (operator != &FormulaOperator::RespectivelyDistribution && truth_table.is_some() != connector_question.is_some()))]
 #[derive(Debug, Clone)]
@@ -757,7 +757,7 @@ struct GeneratedLogicalTagConnection<'syntax> {
     source: String,
     truth_table: Option<String>,
     connector_question: Option<Token>,
-    locus: String,
+    locus: ConnectorLocus,
     connected_index: usize,
     branches: Vec<GeneratedLogicalTagConnectionBranch<'syntax>>,
 }
@@ -1281,8 +1281,8 @@ struct GeneratedConnectedQuantifierQuantityScope {
     source: Option<crate::model::SemanticSource>,
 }
 
-#[invariant(connector.locus == "mekso-operator")]
-#[invariant(!connector.source.is_empty())]
+#[invariant(connector.locus == ConnectorLocus::MathOperator)]
+#[invariant(connector.source.as_surface_word().is_some())]
 #[invariant(connector.truth_table.as_ref().is_none_or(|table| table.len() == 4))]
 #[derive(Debug, Clone)]
 struct GeneratedConnectedMeksoOperatorExpansion {
@@ -1519,11 +1519,11 @@ enum GeneratedAnchorDomain {
 
 impl GeneratedPropertyTanruContext {
     #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn connector_locus(self) -> &'static str {
+    #[ensures(matches!(ret, ConnectorLocus::Description | ConnectorLocus::PropertyAbstraction))]
+    fn connector_locus(self) -> ConnectorLocus {
         match self {
-            Self::Description => "description",
-            Self::PropertyAbstraction => "property-abstraction",
+            Self::Description => ConnectorLocus::Description,
+            Self::PropertyAbstraction => ConnectorLocus::PropertyAbstraction,
         }
     }
 
@@ -3618,7 +3618,7 @@ fn generated_distributed_sumti_connective_source(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|connector| connector.as_ref().is_none_or(|connector| !connector.source.is_empty() && connector.locus == "sumti")) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|connector| connector.as_ref().is_none_or(|connector| connector.source.as_surface_word().is_some() && connector.locus == ConnectorLocus::Argument)) || ret.is_err())]
 fn generated_distributed_sumti_connector(
     connective: Option<GeneratedDistributedSumtiConnective<'_>>,
     parameter: Option<SemanticObjectId>,
@@ -3628,8 +3628,8 @@ fn generated_distributed_sumti_connector(
     };
     let source = generated_distributed_sumti_connective_source(connective)?;
     Ok(Some(new!(Connector {
-        source,
-        locus: "sumti".to_owned(),
+        source: ConnectorSource::surface_word(source),
+        locus: ConnectorLocus::Argument,
         truth_table: generated_distributed_sumti_connective_truth_table(connective),
         parameter,
     })))
@@ -10027,6 +10027,9 @@ mod tests {
                 data!(crate::model::PredicationRelation::Parameter { .. }) => {
                     panic!("quoted bridi relation is not a parameter")
                 }
+                data!(crate::model::PredicationRelation::Composition) => {
+                    panic!("quoted bridi relation is not a composition")
+                }
             })
             .collect::<Vec<_>>();
         assert_eq!(quoted_bridi_relations, ["cmavo:go'oĭ-\"broda\""]);
@@ -10448,7 +10451,7 @@ mod tests {
             outer
                 .connector
                 .as_ref()
-                .map(|connector| connector.source.as_str()),
+                .and_then(|connector| connector.source.as_surface_word()),
             Some("e")
         );
         let data!(FormulaNode::Connective(inner)) = graph
@@ -10466,7 +10469,7 @@ mod tests {
             inner
                 .connector
                 .as_ref()
-                .map(|connector| connector.source.as_str()),
+                .and_then(|connector| connector.source.as_surface_word()),
             Some("e")
         );
         assert_eq!(
@@ -10556,8 +10559,8 @@ mod tests {
             connection
                 .connector
                 .as_ref()
-                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
-            Some(("e", "sumti"))
+                .map(|connector| (connector.source.as_surface_word(), connector.locus)),
+            Some((Some("e"), ConnectorLocus::Argument))
         );
         let viska = connection
             .children
@@ -10617,7 +10620,7 @@ mod tests {
             connection
                 .connector
                 .as_ref()
-                .is_some_and(|connector| connector.source == "ji" && connector.parameter.is_some())
+                .is_some_and(|connector| connector.source.as_surface_word() == Some("ji") && connector.parameter.is_some())
         );
         assert_eq!(
             graph
@@ -11356,6 +11359,7 @@ mod tests {
                             relation.starts_with("cmavo:nu-") && relation.contains("-gismu:")
                         }
                         data!(crate::model::PredicationRelation::Parameter { .. }) => false,
+                        data!(crate::model::PredicationRelation::Composition) => false,
                     }
                 })
             })
@@ -11931,8 +11935,8 @@ mod tests {
             outer
                 .connector
                 .as_ref()
-                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
-            Some(("ga gi", "bridi"))
+                .map(|connector| (connector.source.as_surface_word(), connector.locus)),
+            Some((Some("ga gi"), ConnectorLocus::Clause))
         );
         assert_eq!(
             graph.objects[&outer.children[0]].formula_predication(),
@@ -11952,8 +11956,8 @@ mod tests {
             grouped_tail
                 .connector
                 .as_ref()
-                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
-            Some(("gi'e ba bo", "bridiTail"))
+                .map(|connector| (connector.source.as_surface_word(), connector.locus)),
+            Some((Some("gi'e ba bo"), ConnectorLocus::PredicatePhrase))
         );
         assert_eq!(
             graph.objects[&grouped_tail.children[0]].formula_predication(),
@@ -11971,6 +11975,7 @@ mod tests {
                 .and_then(|predication| match predication.relation.as_data() {
                     data!(PredicationRelation::Named { relation }) => Some(relation.as_str()),
                     data!(PredicationRelation::Parameter { .. }) => None,
+                    data!(PredicationRelation::Composition) => None,
                 }),
             Some("after")
         );
@@ -13320,8 +13325,8 @@ mod tests {
             connection
                 .connector
                 .as_ref()
-                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
-            Some(("e", "term"))
+                .map(|connector| (connector.source.as_surface_word(), connector.locus)),
+            Some((Some("e"), ConnectorLocus::Term))
         );
 
         let branches = connection
@@ -13387,8 +13392,8 @@ mod tests {
             connection
                 .connector
                 .as_ref()
-                .map(|connector| (connector.source.as_str(), connector.locus.as_str())),
-            Some(("e ba bo", "sumti"))
+                .map(|connector| (connector.source.as_surface_word(), connector.locus)),
+            Some((Some("e ba bo"), ConnectorLocus::Argument))
         );
 
         let branch_events = connection.children[..2]
@@ -13527,7 +13532,7 @@ mod tests {
         assert!(graph.objects.values().any(|object| {
             object.formula_operator() == Some(FormulaOperator::And)
                 && object.as_formula().is_some_and(|formula| {
-                    matches!(formula.as_data(), data!(FormulaNode::Connective(formula)) if formula.connector.as_ref().is_some_and(|connector| connector.source == "e su'o roi bo" && connector.locus == "sumti"))
+                    matches!(formula.as_data(), data!(FormulaNode::Connective(formula)) if formula.connector.as_ref().is_some_and(|connector| connector.source.as_surface_word() == Some("e su'o roi bo") && connector.locus == ConnectorLocus::Argument))
                 })
         }));
     }
@@ -13568,8 +13573,8 @@ mod tests {
         assert_eq!(connection.operator, FormulaOperator::ConnectiveQuestion);
         assert_eq!(connection.children.len(), 2);
         assert!(connection.connector.as_ref().is_some_and(|connector| {
-            connector.source == "ji"
-                && connector.locus == "term"
+            connector.source.as_surface_word() == Some("ji")
+                && connector.locus == ConnectorLocus::Term
                 && connector.truth_table.is_none()
                 && connector.parameter.is_some()
         }));
@@ -13615,8 +13620,9 @@ mod tests {
                 Some(data!(FormulaNode::Connective(connection)))
                     if connection.operator == FormulaOperator::Or
                         && connection.connector.as_ref().is_some_and(|connector| {
-                            connector.locus == "modal"
-                                && connector.source == "fi'o selsnu ja fi'o bangu"
+                            connector.locus == ConnectorLocus::Tag
+                                && connector.source.as_surface_word()
+                                    == Some("fi'o selsnu ja fi'o bangu")
                         })
             )
         }));
@@ -13672,8 +13678,8 @@ mod tests {
                     if connection.operator == FormulaOperator::And
                         && connection.children.len() == 2
                         && connection.connector.as_ref().is_some_and(|connector| {
-                            connector.locus == "tense"
-                                && connector.source == "pu je ba zu"
+                            connector.locus == ConnectorLocus::Tense
+                                && connector.source.as_surface_word() == Some("pu je ba zu")
                                 && connector.truth_table.as_deref() == Some("TFFF")
                         })
             )
@@ -13743,8 +13749,8 @@ mod tests {
         assert_eq!(body.operator, FormulaOperator::And);
         assert_eq!(body.children, branch_stream.items);
         assert!(body.connector.as_ref().is_some_and(|connector| {
-            connector.locus == "tense"
-                && connector.source == "vi fa'u va"
+            connector.locus == ConnectorLocus::Tense
+                && connector.source.as_surface_word() == Some("vi fa'u va")
                 && connector.truth_table.is_none()
         }));
     }
@@ -13793,8 +13799,8 @@ mod tests {
                     if connection.operator == FormulaOperator::And
                         && connection.children.len() == 2
                         && connection.connector.as_ref().is_some_and(|connector| {
-                            connector.locus == "termset"
-                                && connector.source == "ge gi"
+                            connector.locus == ConnectorLocus::TermSet
+                                && connector.source.as_surface_word() == Some("ge gi")
                                 && connector.truth_table.as_deref() == Some("TFFF")
                         })
             )
@@ -13912,8 +13918,8 @@ mod tests {
             .as_ref()
             .expect("JOI should remain nonlogical rather than becoming formula conjunction");
         assert_eq!(connection.operator, CompositionOperator::Mass.label());
-        assert_eq!(connection.connector.source, "joi");
-        assert_eq!(connection.connector.locus, "statement");
+        assert_eq!(connection.connector.source.as_surface_word(), Some("joi"));
+        assert_eq!(connection.connector.locus, ConnectorLocus::Statement);
         assert_eq!(connection.connector.truth_table, None);
         assert_eq!(connection.connector.parameter, None);
         for item in &sequence.items {
@@ -13989,8 +13995,8 @@ mod tests {
             .connector
             .as_ref()
             .expect("connective question has connector metadata");
-        assert_eq!(connector.source, "ji");
-        assert_eq!(connector.locus, "property-abstraction");
+        assert_eq!(connector.source.as_surface_word(), Some("ji"));
+        assert_eq!(connector.locus, ConnectorLocus::PropertyAbstraction);
         assert_eq!(connector.truth_table, None);
         let answer = connector
             .parameter
@@ -14019,6 +14025,7 @@ mod tests {
                 .filter_map(|predication| match predication.relation.as_data() {
                     data!(PredicationRelation::Named { relation }) => Some(relation.clone()),
                     data!(PredicationRelation::Parameter { .. }) => None,
+                    data!(PredicationRelation::Composition) => None,
                 })
                 .collect::<BTreeSet<_>>(),
             BTreeSet::from(["ganse".to_owned(), "zukte".to_owned()])
@@ -14047,7 +14054,7 @@ mod tests {
             .filter_map(|object| match object.as_formula()?.as_data() {
                 data!(FormulaNode::Connective(connection))
                     if connection.connector.as_ref().is_some_and(|connector| {
-                        connector.source == "gi'e" && connector.locus == "bridiTail"
+                        connector.source.as_surface_word() == Some("gi'e") && connector.locus == ConnectorLocus::PredicatePhrase
                     }) =>
                 {
                     Some((object, connection))
@@ -14084,6 +14091,7 @@ mod tests {
                 .filter_map(|predication| match predication.relation.as_data() {
                     data!(PredicationRelation::Named { relation }) => Some(relation.clone()),
                     data!(PredicationRelation::Parameter { .. }) => None,
+                    data!(PredicationRelation::Composition) => None,
                 })
                 .collect::<BTreeSet<_>>(),
             BTreeSet::from(["broda".to_owned(), "brode".to_owned()])

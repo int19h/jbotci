@@ -112,7 +112,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .clone()
                     .flatten()
                     .or_else(|| formula_source.clone()),
-                "selbri",
+                ConnectorLocus::Predicate,
                 leading_eventuality,
             )?;
             self.set_semantic_object_source(
@@ -796,7 +796,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &simple_tail.selbri,
                 visible_arguments,
                 formula_source,
-                "selbri",
+                ConnectorLocus::Predicate,
                 Some(eventuality),
             )?;
             self.set_semantic_object_source(result.head_predication, predication_source)?;
@@ -1072,7 +1072,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     let quantity_connection = self
                         .connected_quantifier_quantity_scope_for_generated_quantifier(
                             quantifier,
-                            "mekso-operand",
+                            ConnectorLocus::Operand,
                         )?;
                     let quantity = if let Some(connection) = quantity_connection {
                         new!(GeneratedPreparedArgumentQuantity::Connected(connection))
@@ -1120,7 +1120,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         let quantity_connection = self
                             .connected_quantifier_quantity_scope_for_generated_quantifier(
                                 quantifier,
-                                "mekso-operand",
+                                ConnectorLocus::Operand,
                             )?;
                         let quantity = if let Some(connection) = quantity_connection {
                             new!(GeneratedPreparedArgumentQuantity::Connected(connection))
@@ -1216,7 +1216,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let quantity_connection = self
                 .connected_quantifier_quantity_scope_for_generated_quantifier(
                     quantifier,
-                    "mekso-operand",
+                    ConnectorLocus::Operand,
                 )?;
             let quantity = if let Some(connection) = quantity_connection {
                 new!(GeneratedPreparedArgumentQuantity::Connected(connection))
@@ -2221,8 +2221,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![head.formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "selbri".to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: ConnectorLocus::Predicate,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -2314,7 +2314,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             formula = self.build_binary_formula_for_relation_afterthought_connective(
                 &continuation.connective,
-                "selbri",
+                ConnectorLocus::Predicate,
                 formula,
                 trailing.formula,
                 source.clone(),
@@ -2362,7 +2362,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &tanru.first_unit,
                 visible_arguments,
                 source,
-                "selbri",
+                ConnectorLocus::Predicate,
                 head_eventuality,
             );
         }
@@ -2382,7 +2382,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         selbri: &'syntax SelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         match selbri {
@@ -2475,7 +2475,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         selbri: &'syntax UntaggedSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         match selbri {
@@ -2528,7 +2528,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         connection: &'syntax ForethoughtSelbriConnectionSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if !visible_arguments.contains_key(&1) {
@@ -2597,7 +2597,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         unit: &'syntax ForethoughtSelbriGroupTanruUnitSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if !visible_arguments.contains_key(&1) {
@@ -2663,7 +2663,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         unit: &'syntax TanruUnitSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if !unit.0.links.is_empty() {
@@ -2716,7 +2716,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         unit: &'syntax BoundTanruUnitSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if let Some(connective) = &unit.bo_connective {
@@ -2805,8 +2805,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![head.formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: connector_locus.to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: connector_locus,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -2857,7 +2857,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 unit,
                 visible_arguments,
                 source,
-                "tanru-unit",
+                ConnectorLocus::PredicateUnit,
                 eventuality,
             )?;
             self.attach_generated_modal_terms_to_formula(result.formula, modal_terms)?;
@@ -2878,7 +2878,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     unit,
                     visible_arguments,
                     source,
-                    "tanru-unit",
+                    ConnectorLocus::PredicateUnit,
                     eventuality,
                 )?;
                 self.attach_generated_modal_terms_to_formula(result.formula, modal_terms)?;
@@ -2889,7 +2889,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     unit,
                     visible_arguments,
                     source,
-                    "tanru-unit",
+                    ConnectorLocus::PredicateUnit,
                     eventuality,
                 ),
             BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => self
@@ -2910,7 +2910,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         unit: &'syntax TanruUnitSyntax,
         mut visible_arguments: BTreeMap<usize, ArgumentValue>,
         source: Option<crate::model::SemanticSource>,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         if !visible_arguments.contains_key(&1) {
@@ -2962,7 +2962,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         visible_arguments: BTreeMap<usize, ArgumentValue>,
         eventuality: Option<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
-        connector_locus: &str,
+        connector_locus: ConnectorLocus,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         match unit {
             BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => self
@@ -3067,7 +3067,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     base,
                     visible_arguments,
                     source.clone(),
-                    "selbri",
+                    ConnectorLocus::Predicate,
                     eventuality,
                 )?;
                 for adjunct in &adjuncts {
@@ -4061,8 +4061,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![head_formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "property-inversion".to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: ConnectorLocus::PropertyInversion,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -4123,8 +4123,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![head_formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "property-inversion".to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: ConnectorLocus::PropertyInversion,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -4323,8 +4323,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![tertau_formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: context.connector_locus().to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: context.connector_locus(),
                     truth_table: None,
                     parameter: None,
                 })),
@@ -4408,7 +4408,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             unit,
             visible_arguments,
             source,
-            "property-abstraction",
+            ConnectorLocus::PropertyAbstraction,
             leading_eventuality,
         )
         .map(|result| result.formula)
@@ -4439,7 +4439,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?;
             formula = self.build_binary_formula_for_relation_afterthought_connective(
                 &link.connective,
-                "selbri",
+                ConnectorLocus::Predicate,
                 formula,
                 trailing,
                 source.clone(),
@@ -4564,7 +4564,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )?;
             return self.build_binary_formula_for_relation_afterthought_connective(
                 connective,
-                "property-abstraction",
+                ConnectorLocus::PropertyAbstraction,
                 leading,
                 trailing,
                 source,
@@ -4621,8 +4621,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![head, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "property-abstraction".to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: ConnectorLocus::PropertyAbstraction,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -4697,8 +4697,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![tertau_formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: context.connector_locus().to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: context.connector_locus(),
                     truth_table: None,
                     parameter: None,
                 })),
@@ -4758,7 +4758,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 unit,
                 parameter,
                 source,
-                "tanru-unit",
+                ConnectorLocus::PredicateUnit,
             );
         }
         if let Some(sumti_selbri) = sumti_selbri_from_generated_tanru_unit(unit)? {
@@ -4898,13 +4898,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             unit,
             parameter,
             source,
-            "property-abstraction",
+            ConnectorLocus::PropertyAbstraction,
         )
     }
 
     #[requires(!unit.0.links.is_empty())]
     #[requires(parameter.object_kind() == crate::model::SemanticObjectKind::Parameter)]
-    #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_connected_property_formula_for_tanru_unit_chain_with_locus<
         'syntax: 'tree,
@@ -4913,7 +4912,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         unit: &'syntax TanruUnitSyntax,
         parameter: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
-        locus: &str,
+        locus: ConnectorLocus,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut formula = self.build_property_formula_for_bo_or_linked_tanru_unit(
             &unit.0.first,
@@ -5100,7 +5099,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
             &unit.guhek,
             &unit.first_branch.gik,
-            "property-abstraction",
+            ConnectorLocus::PropertyAbstraction,
             leading,
             trailing,
             source.clone(),
@@ -5114,7 +5113,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula = self.build_binary_formula_for_generated_extra_forethought_selbri_connective(
                 &unit.guhek,
                 &branch.gik,
-                "property-abstraction",
+                ConnectorLocus::PropertyAbstraction,
                 formula,
                 trailing,
                 source.clone(),
@@ -5163,7 +5162,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             return self.build_binary_formula_for_relation_afterthought_connective(
                 connective,
-                "property-abstraction",
+                ConnectorLocus::PropertyAbstraction,
                 leading,
                 trailing,
                 source,
@@ -5192,8 +5191,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 FormulaOperator::And,
                 vec![tertau_formula, relation_formula],
                 Some(new!(Connector {
-                    source: "tanru".to_owned(),
-                    locus: "property-abstraction".to_owned(),
+                    source: new!(ConnectorSource::ImplicitJuxtaposition),
+                    locus: ConnectorLocus::PropertyAbstraction,
                     truth_table: None,
                     parameter: None,
                 })),
@@ -7249,7 +7248,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.insert(
             predication,
             SemanticObject::tanru_link_predication(
-                "tanru".to_owned(),
                 None,
                 arguments,
                 TanruLink::new(
@@ -7272,12 +7270,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_relation_afterthought_connective<'syntax>(
         &mut self,
         connective: &'syntax RelationAfterthoughtConnectiveSyntax,
-        locus: &str,
+        locus: ConnectorLocus,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -7314,8 +7311,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: locus.to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: locus,
                     truth_table: generated_relation_afterthought_connective_truth_table(connective),
                     parameter,
                 })),
@@ -7328,13 +7325,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_forethought_selbri_connective<'syntax>(
         &mut self,
         guhek: &'syntax GuhekConnectiveSyntax,
         gik: &'syntax GikConnectiveSyntax,
-        locus: &str,
+        locus: ConnectorLocus,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -7354,7 +7350,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_extra_forethought_selbri_connective<
         'syntax,
@@ -7362,7 +7357,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         guhek: &'syntax GuhekConnectiveSyntax,
         gik: &'syntax ZantufaExtraGikConnectiveSyntax,
-        locus: &str,
+        locus: ConnectorLocus,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -7388,7 +7383,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(!connector_source.is_empty())]
     #[requires(left.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(right.object_kind() == crate::model::SemanticObjectKind::Formula)]
-    #[requires(!locus.is_empty())]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_formula_for_generated_forethought_selbri_connective_core<'syntax>(
         &mut self,
@@ -7397,7 +7391,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         right_negated: bool,
         connector_source: String,
         truth_table: Option<String>,
-        locus: &str,
+        locus: ConnectorLocus,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -7428,8 +7422,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source: connector_source,
-                    locus: locus.to_owned(),
+                    source: ConnectorSource::surface_word(connector_source),
+                    locus: locus,
                     truth_table,
                     parameter: None,
                 })),
