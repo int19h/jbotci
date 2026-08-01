@@ -811,8 +811,13 @@ type Ground = [String; 4];
 #[invariant(::PrototypeIdWithoutCompactUse { object } => !object.is_empty())]
 #[invariant(::DefinitionSiteDoesNotDominateUse { object } => !object.is_empty())]
 #[invariant(::DeclarationPlanningDidNotConverge { iterations } => *iterations > 0)]
+/// One declared reason a semantic graph cannot be represented truthfully by
+/// the compact SFN prototype vocabulary. Records of this type are declared in
+/// a TYPED-GRAPH document's `COMPACT-INCOMPATIBILITIES` section; the analysis
+/// is format-independent, so tooling can also compute them without rendering
+/// (jbotci#723, see [`analyze_compact_incompatibilities`]).
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum CompactIncompatibility {
+pub enum CompactIncompatibility {
     NonCanonicalGround {
         object: String,
         role: String,
@@ -862,9 +867,10 @@ enum CompactIncompatibility {
 }
 
 impl CompactIncompatibility {
+    /// The declared `KIND=` vocabulary value.
     #[requires(true)]
     #[ensures(!ret.is_empty())]
-    fn kind(&self) -> &'static str {
+    pub fn kind(&self) -> &'static str {
         match self.as_data() {
             data!(CompactIncompatibility::NonCanonicalGround { .. }) => "NON-CANONICAL-GROUND",
             data!(CompactIncompatibility::MultipleBinderOwners { .. }) => "MULTIPLE-BINDER-OWNERS",
@@ -896,6 +902,17 @@ impl CompactIncompatibility {
                 "DECLARATION-PLANNING-DID-NOT-CONVERGE"
             }
         }
+    }
+
+    /// The exact `<INCOMPATIBILITY .../>` declaration line the renderer emits
+    /// for this record in a TYPED-GRAPH document's `COMPACT-INCOMPATIBILITIES`
+    /// section (jbotci#723).
+    #[requires(true)]
+    #[ensures(ret.starts_with("<INCOMPATIBILITY KIND=\"") && ret.ends_with("/>"))]
+    pub fn declaration(&self) -> String {
+        let mut output = String::new();
+        serialize_element_inline(&render_compact_incompatibility(self), &mut output);
+        output
     }
 }
 
@@ -4340,14 +4357,9 @@ fn render_indexed_graph_with_state(
     new!(XmlRender { output, omissions })
 }
 
-#[requires(!document_name.is_empty())]
-#[ensures(ret.output.ends_with('\n'))]
-fn render_xml_graph_with_state(
-    graph: &SemanticGraph,
-    document_name: &str,
-    state: RenderState,
-    word_cards: Option<&[WordCard]>,
-) -> XmlRender {
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.objects.contains_key(&ret.root))]
+fn graph_data_from_semantic_graph(graph: &SemanticGraph) -> GraphData {
     let binder_universes: HashMap<String, BTreeSet<String>> =
         semantic_scope_dependence_binder_universes(graph.root, &graph.objects)
             .into_iter()
@@ -4365,8 +4377,53 @@ fn render_xml_graph_with_state(
         serde_json::to_value(graph).expect("SemanticGraph's canonical serialization cannot fail");
     value["scopeDependenceBinderUniverses"] =
         serde_json::to_value(binder_universes).expect("binder universes serialize as an object");
-    let indexed = GraphData::from_value(value);
+    GraphData::from_value(value)
+}
+
+#[requires(!document_name.is_empty())]
+#[ensures(ret.output.ends_with('\n'))]
+fn render_xml_graph_with_state(
+    graph: &SemanticGraph,
+    document_name: &str,
+    state: RenderState,
+    word_cards: Option<&[WordCard]>,
+) -> XmlRender {
+    let indexed = graph_data_from_semantic_graph(graph);
     render_indexed_graph_with_state(indexed, document_name, state, word_cards)
+}
+
+/// Compute the compact-representation incompatibility records that the SFN-XML
+/// renderer declares for `graph`, without serializing a document (jbotci#723).
+///
+/// The analysis is exactly the renderer's own: the graph-level representation
+/// plan, and, when that plan is compact, the declaration-scope planning pass.
+/// `word_cards_present` must be the card-presence decision of the render being
+/// analyzed (a present, non-empty word-card list), because the planning pass
+/// sees the same card context. The returned records are precisely the set the
+/// corresponding render declares in its `COMPACT-INCOMPATIBILITIES` section —
+/// empty when the document renders compact.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(true)]
+pub fn analyze_compact_incompatibilities(
+    graph: &SemanticGraph,
+    word_cards_present: bool,
+) -> Vec<CompactIncompatibility> {
+    let indexed = graph_data_from_semantic_graph(graph);
+    match indexed.representation.as_data() {
+        data!(XmlRepresentationPlan::TypedGraph { incompatibilities }) => {
+            incompatibilities.iter().cloned().collect()
+        }
+        data!(XmlRepresentationPlan::Compact) => {
+            let mut state = RenderState::new();
+            state.word_cards_present = word_cards_present;
+            let mut incompatibilities = state.plan_declaration_scopes(&indexed);
+            if incompatibilities.is_empty() {
+                state.plan_ground_scopes(&indexed);
+                incompatibilities = state.compact_planning_incompatibilities(&indexed);
+            }
+            incompatibilities.into_iter().collect()
+        }
+    }
 }
 
 #[requires(!document_name.is_empty())]
@@ -4595,6 +4652,30 @@ mod tests {
                 "{document}: known compact semantics reached generic {marker} scaffolding"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn compact_incompatibility_declaration_is_the_exact_document_line() {
+        // jbotci#723: the declaration line is the lossless record form quoted
+        // into tooling, byte-identical to the document's own declaration.
+        let record = new!(CompactIncompatibility::ScopeDependencyWithoutEnclosingBinder {
+            referent: "entity:15".to_owned(),
+            dependency: "entity:14".to_owned(),
+        });
+        assert_eq!(record.kind(), "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER");
+        assert_eq!(
+            record.declaration(),
+            "<INCOMPATIBILITY KIND=\"SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER\" REFERENT=\"entity:15\" DEPENDENCY=\"entity:14\"/>"
+        );
+        let planning = new!(CompactIncompatibility::DeclarationPlanningDidNotConverge {
+            iterations: 4,
+        });
+        assert_eq!(
+            planning.declaration(),
+            "<INCOMPATIBILITY KIND=\"DECLARATION-PLANNING-DID-NOT-CONVERGE\" ITERATIONS=\"4\"/>"
+        );
     }
 
     #[test]

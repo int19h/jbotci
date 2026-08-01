@@ -863,6 +863,16 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                     header.config.allow_degraded_search
                 )
                 .expect("writing to String cannot fail");
+                writeln!(
+                    report,
+                    "- Meaning review: `{}`",
+                    if header.config.meaning_review.enabled {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                )
+                .expect("writing to String cannot fail");
                 report.push_str("- Models:\n");
                 for participant in &header.config.participants {
                     writeln!(
@@ -981,6 +991,52 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 report.push_str("\ntersmu rendering:\n\n");
                 quote_bytes(&mut report, &message.tersmu_rendering);
                 report.push('\n');
+            }
+            bityzba::data!(ProtocolEvent::ReviewRequested {
+                speaker,
+                intent_revision_number,
+                brief,
+                ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Meaning review requested — `{speaker}`\n\nGoverning intent revision: **{intent_revision_number}**\n\nIntent:\n"
+                )
+                .expect("writing to String cannot fail");
+                quote(&mut report, &brief.meaning_en);
+                if !brief.renderer_incompatibilities.is_empty() {
+                    report.push_str("\nRenderer-declared incompatibility records:\n");
+                    for record in &brief.renderer_incompatibilities {
+                        writeln!(report, "- {record}").expect("writing to String cannot fail");
+                    }
+                }
+                report.push('\n');
+                summary.meaning_reviews += 1;
+            }
+            bityzba::data!(ProtocolEvent::ReviewReport {
+                speaker,
+                report: review_report,
+                ..
+            }) => {
+                writeln!(report, "### Meaning review report — `{speaker}`\n")
+                    .expect("writing to String cannot fail");
+                quote(&mut report, review_report);
+                report.push('\n');
+            }
+            bityzba::data!(ProtocolEvent::ReviewVerdict {
+                speaker, approved, ..
+            }) => {
+                writeln!(
+                    report,
+                    "### Meaning review verdict — `{speaker}`\n\nApproved: **{}**\n",
+                    if *approved { "yes" } else { "no" }
+                )
+                .expect("writing to String cannot fail");
+                if *approved {
+                    summary.review_approvals += 1;
+                } else {
+                    summary.review_rejections += 1;
+                }
             }
             bityzba::data!(ProtocolEvent::ListenerFlowStarted {
                 listener,
@@ -1333,6 +1389,9 @@ struct ReportSummary {
     diagnostic_categories: BTreeMap<DiagnosticCategory, usize>,
     intent_revisions: usize,
     confirm_mismatches: usize,
+    meaning_reviews: usize,
+    review_approvals: usize,
+    review_rejections: usize,
     intents: BTreeMap<usize, String>,
     blind_turns: BTreeSet<usize>,
     discrepancy_acknowledgments: Vec<(usize, String, String)>,
@@ -1398,8 +1457,12 @@ fn render_summary(report: &mut String, summary: &ReportSummary) {
 
     writeln!(
         report,
-        "\n### Revisions and mismatches\n\n- Intent revisions: {}\n- Confirmation mismatches: {}",
-        summary.intent_revisions, summary.confirm_mismatches
+        "\n### Revisions and mismatches\n\n- Intent revisions: {}\n- Confirmation mismatches: {}\n- Meaning reviews: {} (approved: {}, rejected: {})",
+        summary.intent_revisions,
+        summary.confirm_mismatches,
+        summary.meaning_reviews,
+        summary.review_approvals,
+        summary.review_rejections
     )
     .expect("writing to String cannot fail");
 

@@ -12,7 +12,8 @@ pub mod transcript;
 
 pub use config::{
     CapsConfig, ClientConfig, ConfigError, ExternalRendererCommand, ListenerMode,
-    ParticipantConfig, PromptCaching, ReasoningConfig, RunConfig, TersmuFormat, ToolChoice,
+    MeaningReviewConfig, ParticipantConfig, PromptCaching, ReasoningConfig, RunConfig, TersmuFormat,
+    ToolChoice,
 };
 pub use jbotci_tools::{
     DiagnosticCategory, EmbeddingSearchPreflightError, GateError, GateOutcome, ReferenceToolError,
@@ -27,11 +28,12 @@ pub use openrouter::{
     ToolDispatcher, Usage, UsageTotals,
 };
 pub use protocol::{
-    BlindMessage, ListenerFlowAbandonReason, ListenerPhase, ListenerState, OpenRouterParticipant,
+    BlindMessage, ListenerFlowAbandonReason, ListenerPhase, ListenerState, MeaningReview,
+    MeaningReviewer, NoReviewer, OpenRouterParticipant, OpenRouterReviewSession, OpenRouterReviewer,
     ProtocolEvent, ProtocolModel, ProtocolModelError, ProtocolPhase, ProtocolRunError,
     ProtocolRunOutcome, ProtocolRunner, ProtocolTool, ProtocolTools, ReferenceToolDispatcher,
-    RevealedMessage, RuntimeFailureRecord, RuntimeFailureSite, SpeakerPhase, SpeakerState,
-    TurnForfeitReason, VisibleMessage,
+    RevealedMessage, ReviewBrief, ReviewOutcome, RuntimeFailureRecord, RuntimeFailureSite,
+    SpeakerPhase, SpeakerState, TurnForfeitReason, VisibleMessage,
 };
 pub use report::{DialogReportError, community_file, dialog_file, report_file};
 pub use run::{

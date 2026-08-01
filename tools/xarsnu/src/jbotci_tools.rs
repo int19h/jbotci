@@ -5,9 +5,10 @@ use std::fmt;
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
 use jbotci_cli::{
-    ToolCuktaRequest, ToolGentufaRequest, ToolJvozbaRequest, ToolRenderedOutput, ToolTersmuFormat,
-    ToolTersmuRequest, ToolVlackuMode, ToolVlackuRequest, run_tool_cukta, run_tool_gentufa,
-    run_tool_jvozba, run_tool_tersmu, run_tool_vlacku, tool_request_schema,
+    ToolCuktaRequest, ToolGentufaRequest, ToolJvozbaRequest, ToolRenderedOutput,
+    ToolTersmuAnalysisData, ToolTersmuFormat, ToolTersmuRequest, ToolVlackuMode, ToolVlackuRequest,
+    run_tool_cukta, run_tool_gentufa, run_tool_jvozba, run_tool_tersmu,
+    run_tool_tersmu_with_analysis, run_tool_vlacku, tool_request_schema,
 };
 use jbotci_dialect::{DialectDefinition, DialectSettings, parse_dialect_selection_formula};
 use jbotci_morphology::{
@@ -26,7 +27,7 @@ use crate::{ExternalRendererCommand, TersmuFormat, ToolCall, ToolDefinition, Too
 
 /// Typed result of gating one candidate through the production tersmu tool.
 #[invariant(::ParseFailure { diagnostics_rendering, .. } => !diagnostics_rendering.is_empty())]
-#[invariant(::Success { tersmu_rendering } => !tersmu_rendering.is_empty())]
+#[invariant(::Success { tersmu_rendering, renderer_incompatibilities } => !tersmu_rendering.is_empty() && renderer_incompatibilities.iter().all(|record| !record.trim().is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GateOutcome {
     ParseFailure {
@@ -38,6 +39,11 @@ pub enum GateOutcome {
     Success {
         /// Exact production tersmu stdout bytes, without trimming or rewrapping.
         tersmu_rendering: Vec<u8>,
+        /// The declared compact-representation incompatibility records of the
+        /// candidate's semantic graph (issue #721/#723), each in its exact
+        /// `<INCOMPATIBILITY .../>` declaration form, computed from the same
+        /// graph as the rendering. Empty when the graph renders compact.
+        renderer_incompatibilities: Vec<String>,
     },
 }
 
@@ -82,7 +88,21 @@ impl GateOutcome {
     #[ensures(ret.is_some() == matches!(self.as_data(), bityzba::data!(GateOutcome::Success { .. })))]
     pub fn tersmu_rendering(&self) -> Option<&[u8]> {
         match self.as_data() {
-            bityzba::data!(GateOutcome::Success { tersmu_rendering }) => Some(tersmu_rendering),
+            bityzba::data!(GateOutcome::Success { tersmu_rendering, .. }) => Some(tersmu_rendering),
+            _ => None,
+        }
+    }
+
+    /// The declared renderer incompatibility records of an accepted candidate
+    /// (issue #723), in their exact `<INCOMPATIBILITY .../>` declaration form.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), bityzba::data!(GateOutcome::Success { .. })))]
+    pub fn renderer_incompatibilities(&self) -> Option<&[String]> {
+        match self.as_data() {
+            bityzba::data!(GateOutcome::Success {
+                renderer_incompatibilities,
+                ..
+            }) => Some(renderer_incompatibilities),
             _ => None,
         }
     }
@@ -112,11 +132,15 @@ pub fn gate_lojban(
         story_time: false,
         indent: None,
     };
-    let output = run_tool_tersmu(request).map_err(|error| {
+    let analysis = run_tool_tersmu_with_analysis(request).map_err(|error| {
         new!(GateError::ToolExecution {
             message: error.to_string(),
         })
     })?;
+    let bityzba::data!(ToolTersmuAnalysis {
+        rendered: output,
+        compact_incompatibilities,
+    }) = analysis.into_data();
     if output.status.is_success() {
         if output.stdout.is_empty() {
             return Err(new!(GateError::InvalidToolOutput {
@@ -127,7 +151,10 @@ pub fn gate_lojban(
             TersmuFormat::External(command) => run_external_renderer(command, &output.stdout)?,
             TersmuFormat::Json | TersmuFormat::Smusni | TersmuFormat::Xml => output.stdout,
         };
-        return Ok(new!(GateOutcome::Success { tersmu_rendering }));
+        return Ok(new!(GateOutcome::Success {
+            tersmu_rendering,
+            renderer_incompatibilities: compact_incompatibilities,
+        }));
     }
     if output.stderr.is_empty() {
         return Err(new!(GateError::InvalidToolOutput {

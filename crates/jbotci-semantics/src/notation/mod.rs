@@ -67,8 +67,9 @@ use bityzba::{ensures, invariant, requires};
 
 pub use render::SmusniConfig;
 pub use xml::{
-    XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface, XmlWaiverFamily, render_xml,
-    render_xml_value_for_tooling, render_xml_with_word_cards,
+    CompactIncompatibility, XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface,
+    XmlWaiverFamily, analyze_compact_incompatibilities, render_xml, render_xml_value_for_tooling,
+    render_xml_with_word_cards,
 };
 
 use crate::model::SemanticGraph;

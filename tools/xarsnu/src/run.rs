@@ -12,9 +12,10 @@ use bityzba::{ensures, invariant, new, requires};
 
 use crate::protocol::ProtocolRunOutcomeData;
 use crate::{
-    EmbeddingSearchPreflightError, OpenRouterClient, OpenRouterError, OpenRouterParticipant,
-    ProtocolRunError, ProtocolRunOutcome, ProtocolRunner, ReferenceToolDispatcher, RunConfig,
-    RunHeader, ScenarioInstance, TaskOutcome, TaskStatus, preflight_embedding_search,
+    EmbeddingSearchPreflightError, MeaningReviewer, OpenRouterClient, OpenRouterError,
+    OpenRouterParticipant, OpenRouterReviewer, ProtocolModel, ProtocolRunError,
+    ProtocolRunOutcome, ProtocolRunner, ReferenceToolDispatcher, RunConfig, RunHeader,
+    ScenarioInstance, TaskOutcome, TaskStatus, ToolDispatcher, preflight_embedding_search,
 };
 
 static TRANSCRIPT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -342,25 +343,72 @@ where
     let caps = config.caps.clone();
     let listener_mode = config.listener_mode;
     let tersmu_format = config.tersmu_format.clone();
+    // The adversarial reviewer is prepared before the config moves into the
+    // transcript header; `OpenRouterReviewer::new` requires `enabled` (issue #723).
+    let reviewer = config
+        .meaning_review
+        .enabled
+        .then(|| {
+            OpenRouterReviewer::new(&config.participants, config.meaning_review.clone(), &client)
+        });
     let header = RunHeader::new(config, &scenario).map_err(|error| {
         new!(RunError::Header {
             message: error.to_string(),
         })
     })?;
-    let mut runner = ProtocolRunner::new_with_scenario(
-        participants,
-        caps,
-        listener_mode,
-        tersmu_format,
-        ReferenceToolDispatcher,
-        scenario,
-    )
-    .map_err(|error| {
-        new!(RunError::ProtocolSetup {
-            message: error.to_string(),
-        })
-    })?;
-    let transcript_path = transcript_path(&config_path)?;
+    match reviewer {
+        Some(reviewer) => {
+            let runner = ProtocolRunner::new_with_scenario_and_review(
+                participants,
+                caps,
+                listener_mode,
+                tersmu_format,
+                ReferenceToolDispatcher,
+                scenario,
+                reviewer,
+            )
+            .map_err(|error| {
+                new!(RunError::ProtocolSetup {
+                    message: error.to_string(),
+                })
+            })?;
+            execute_protocol(runner, header, &config_path, degraded_search_warning)
+        }
+        None => {
+            let runner = ProtocolRunner::new_with_scenario(
+                participants,
+                caps,
+                listener_mode,
+                tersmu_format,
+                ReferenceToolDispatcher,
+                scenario,
+            )
+            .map_err(|error| {
+                new!(RunError::ProtocolSetup {
+                    message: error.to_string(),
+                })
+            })?;
+            execute_protocol(runner, header, &config_path, degraded_search_warning)
+        }
+    }
+}
+
+/// Attach the transcript, replay any tolerated preflight warning, and run the
+/// protocol to its terminal outcome.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn execute_protocol<M, D, R>(
+    mut runner: ProtocolRunner<M, D, R>,
+    header: RunHeader,
+    config_path: &Path,
+    degraded_search_warning: Option<RunWarning>,
+) -> Result<RunSummary, RunError>
+where
+    M: ProtocolModel,
+    D: ToolDispatcher,
+    R: MeaningReviewer,
+{
+    let transcript_path = transcript_path(config_path)?;
     runner
         .attach_transcript(&transcript_path, header)
         .map_err(|source| {

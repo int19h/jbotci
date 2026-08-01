@@ -244,6 +244,9 @@ fn golden_transcript_renders_every_event_kind() {
             "reference-lookup-repeated",
             "reference-research-nudge",
             "reference-tool-completed",
+            "review-report",
+            "review-requested",
+            "review-verdict",
             "run-aborted",
             "run-finished",
             "run-started",
@@ -300,6 +303,14 @@ fn golden_transcript_renders_every_event_kind() {
         "### Thinking — `alice`",
         "> First private line.\n> Second private line.",
         "fixture-signature",
+        "### Meaning review requested — `alice`",
+        "Governing intent revision: **1**",
+        "- BINDER-DOES-NOT-ENCLOSE-USE at lo nu klama",
+        "### Meaning review report — `alice`",
+        "### Meaning review verdict — `alice`",
+        "Approved: **yes**",
+        "Meaning reviews: 1 (approved: 1, rejected: 0)",
+        "- Meaning review: `disabled`",
     ] {
         assert!(report.contains(anti_no_op), "missing {anti_no_op}");
     }
@@ -593,23 +604,23 @@ fn confirm_intent_sequence_must_name_the_latest_preceding_registration() {
         .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid transcript line"))
         .collect::<Vec<_>>();
     // The fixture's only alice turn-1 registration is revision 1; its confirm is at
-    // index 8 and carries no intent_sequence (legacy). That legacy shape must read.
+    // index 11 and carries no intent_sequence (legacy). That legacy shape must read.
     let unmodified = temp_path("intent-seq-legacy");
     write_records(&unmodified, &lines);
     read_transcript(&unmodified).expect("legacy confirm without intent_sequence validates");
 
     // Naming the latest registration (revision 1) is accepted.
-    lines[8]["event"]["intent_sequence"] = serde_json::json!(1);
+    lines[11]["event"]["intent_sequence"] = serde_json::json!(1);
     let matching = temp_path("intent-seq-match");
     write_records(&matching, &lines);
     read_transcript(&matching).expect("confirm naming the latest intent validates");
 
     // Naming a non-latest revision (0 when the latest is 1) is rejected at that line.
-    lines[8]["event"]["intent_sequence"] = serde_json::json!(0);
+    lines[11]["event"]["intent_sequence"] = serde_json::json!(0);
     let mismatch = temp_path("intent-seq-mismatch");
     write_records(&mismatch, &lines);
     let error = read_transcript(&mismatch).expect_err("stale intent_sequence must fail");
-    assert_eq!(error.line, 9);
+    assert_eq!(error.line, 12);
     assert!(
         error
             .to_string()

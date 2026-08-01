@@ -1758,6 +1758,48 @@ pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput>
     run_tool_command(Command::from(request), Some(content_type))
 }
 
+/// Gate-oriented tersmu result (jbotci#723): the rendering plus the declared
+/// compact-representation incompatibility records of the candidate's semantic
+/// graph, each in its exact `<INCOMPATIBILITY .../>` declaration form. Records
+/// exist only for candidates that reach a semantic graph; a parse-level
+/// rejection carries the usual diagnostics and an empty list.
+#[invariant(compact_incompatibilities.iter().all(|record| !record.trim().is_empty()), "declared incompatibility records cannot be empty")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolTersmuAnalysis {
+    pub rendered: ToolRenderedOutput,
+    pub compact_incompatibilities: Vec<String>,
+}
+
+/// Run the production tersmu gate once and return both the rendering and the
+/// declared incompatibility records, computed from the same semantic graph
+/// (jbotci#723).
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+pub fn run_tool_tersmu_with_analysis(request: ToolTersmuRequest) -> Result<ToolTersmuAnalysis> {
+    let content_type = request.format.content_type(request.show_defs);
+    let Command::Tersmu(input) = Command::from(request) else {
+        unreachable!("ToolTersmuRequest always converts to Command::Tersmu")
+    };
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let (status, compact_incompatibilities) = commands::run_tersmu_with_incompatibilities(
+        input,
+        &mut stdout,
+        &mut stderr,
+        CliColorPolicy::never(),
+        cli_diagnostic_detail(false),
+        cli_glyph_style(false),
+        DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
+        None,
+    )?;
+    let stderr =
+        String::from_utf8(stderr).context("jbotci tool diagnostics were not valid UTF-8")?;
+    Ok(new!(ToolTersmuAnalysis {
+        rendered: ToolRenderedOutput::new(status, stdout, stderr, Some(content_type)),
+        compact_incompatibilities,
+    }))
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_tool_command(
@@ -1832,6 +1874,89 @@ mod tests {
             story_time: false,
             indent: None,
         }
+    }
+
+    // The `smusni` format renamed the earlier `lean3` working name with no
+    // deprecated alias: the serde boundary accepts `smusni` and rejects `lean3`.
+    // The retired `tree` / `tree+proj` renderers are likewise removed with no
+    // alias, so the boundary must reject their format strings too.
+    // jbotci#723: the analysis channel returns the renderer-declared
+    // compact-incompatibility records of the candidate's graph, in the exact
+    // declaration form the SFN-XML document carries, from the same single
+    // parse+build as the rendering.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_analysis_returns_the_declared_incompatibility_records() {
+        // The witness class from the #721 frontier-debate findings: a
+        // scope-dependent referent without an enclosing binder.
+        let witness = "lo nenri be lo menli be'o poi no da ka'e zgana ke'a";
+        for format in [ToolTersmuFormat::Smusni, ToolTersmuFormat::Xml] {
+            let analysis = run_tool_tersmu_with_analysis(ToolTersmuRequest {
+                text: witness.to_owned(),
+                format,
+                dialect: None,
+                show_defs: true,
+                story_time: false,
+                indent: None,
+            })
+            .expect("witness analysis");
+            assert!(analysis.rendered.status.is_success());
+            let records = &analysis.compact_incompatibilities;
+            assert_eq!(
+                records.len(),
+                3,
+                "the witness must declare three records: {records:?}"
+            );
+            assert!(
+                records
+                    .iter()
+                    .all(|record| record.starts_with("<INCOMPATIBILITY KIND=\"")
+                        && record.ends_with("/>")),
+                "records are exact declaration lines: {records:?}"
+            );
+            let kinds = records
+                .iter()
+                .map(|record| {
+                    record
+                        .split('"')
+                        .nth(1)
+                        .expect("KIND attribute value")
+                        .to_owned()
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                kinds,
+                [
+                    "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER",
+                    "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER",
+                    "NON-COMPACT-REFERENT",
+                ]
+            );
+            if format == ToolTersmuFormat::Xml {
+                // Every analyzed record is declared verbatim in the rendered
+                // document's COMPACT-INCOMPATIBILITIES section.
+                let document =
+                    String::from_utf8(analysis.rendered.stdout.clone()).expect("UTF-8 XML");
+                let section = document
+                    .split("<COMPACT-INCOMPATIBILITIES>")
+                    .nth(1)
+                    .and_then(|rest| rest.split("</COMPACT-INCOMPATIBILITIES>").next())
+                    .expect("typed-graph document declares the section");
+                for record in records {
+                    assert!(
+                        section.contains(record.as_str()),
+                        "document must declare {record}"
+                    );
+                }
+            }
+        }
+
+        // A compact candidate declares no records.
+        let compact = run_tool_tersmu_with_analysis(tersmu_request(ToolTersmuFormat::Smusni, true))
+            .expect("compact analysis");
+        assert!(compact.rendered.status.is_success());
+        assert!(compact.compact_incompatibilities.is_empty());
     }
 
     // The `smusni` format renamed the earlier `lean3` working name with no
