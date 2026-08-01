@@ -1878,10 +1878,42 @@ struct WordCardBuilder<'dict> {
     built_ids: HashSet<String>,
 }
 
+/// The cheap half of the builder's cards/registry discipline: every
+/// accumulated card's id is registered in `built_ids`, and every registered
+/// id belongs to an accumulated card — the registry is exactly the card-id
+/// set. This holds because every `built_ids` insertion is paired with
+/// exactly one card push carrying the same id. The uniqueness half is
+/// [`card_ids_are_pairwise_distinct`].
+#[requires(true)]
+#[ensures(true)]
+fn cards_and_registry_cover_each_other(cards: &[WordCard], built_ids: &HashSet<String>) -> bool {
+    cards.iter().all(|card| built_ids.contains(&card.id))
+        && built_ids
+            .iter()
+            .all(|id| cards.iter().any(|card| &card.id == id))
+}
+
+/// The expensive half of the builder's cards/registry discipline: card ids
+/// are pairwise distinct. This holds because a card is built only when its
+/// id is not yet registered, and registration happens at most once per id.
+/// O(n²) over the accumulated cards, so it runs under `expensive_ensures`
+/// like the matching uniqueness postcondition on [`build_xml_word_cards`].
+#[requires(true)]
+#[ensures(true)]
+fn card_ids_are_pairwise_distinct(cards: &[WordCard]) -> bool {
+    cards.iter().enumerate().all(|(index, card)| {
+        cards[..index]
+            .iter()
+            .all(|earlier| earlier.id != card.id)
+    })
+}
+
 impl<'dict> WordCardBuilder<'dict> {
     #[requires(true)]
-    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
-        "every accumulated card's id is registered in built_ids")]
+    #[ensures(cards_and_registry_cover_each_other(&self.cards, &self.built_ids),
+        "every card id is registered and the registry is exactly the card-id set")]
+    #[expensive_ensures(card_ids_are_pairwise_distinct(&self.cards),
+        "card ids are pairwise distinct")]
     fn push_word_like_cards(&mut self, word_like: &WordLike) {
         match word_like.as_data() {
             data!(WordLike::PlainWord(word)) => self.push_content_word_cards(word),
@@ -1906,8 +1938,10 @@ impl<'dict> WordCardBuilder<'dict> {
     }
 
     #[requires(true)]
-    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
-        "every accumulated card's id is registered in built_ids")]
+    #[ensures(cards_and_registry_cover_each_other(&self.cards, &self.built_ids),
+        "every card id is registered and the registry is exactly the card-id set")]
+    #[expensive_ensures(card_ids_are_pairwise_distinct(&self.cards),
+        "card ids are pairwise distinct")]
     fn push_content_word_cards(&mut self, word: &Word) {
         match word.kind() {
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => {
@@ -1934,8 +1968,10 @@ impl<'dict> WordCardBuilder<'dict> {
     /// words referenced by the compound's own rafsi — the guard is
     /// defense-in-depth, not a load-bearing assumption.)
     #[requires(!word_text.is_empty())]
-    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
-        "every accumulated card's id is registered in built_ids")]
+    #[ensures(cards_and_registry_cover_each_other(&self.cards, &self.built_ids),
+        "every card id is registered and the registry is exactly the card-id set")]
+    #[expensive_ensures(card_ids_are_pairwise_distinct(&self.cards),
+        "card ids are pairwise distinct")]
     fn push_brivla_card(&mut self, word_text: String, kind: WordCardKind) {
         if self.built_ids.contains(&word_text) {
             return;
@@ -1973,8 +2009,10 @@ impl<'dict> WordCardBuilder<'dict> {
     }
 
     #[requires(!word_text.is_empty())]
-    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
-        "every accumulated card's id is registered in built_ids")]
+    #[ensures(cards_and_registry_cover_each_other(&self.cards, &self.built_ids),
+        "every card id is registered and the registry is exactly the card-id set")]
+    #[expensive_ensures(card_ids_are_pairwise_distinct(&self.cards),
+        "card ids are pairwise distinct")]
     fn push_unknown_lujvo_card(&mut self, word_text: String) {
         let composed = self.compose_lujvo(&word_text);
         match composed {
@@ -2035,8 +2073,10 @@ impl<'dict> WordCardBuilder<'dict> {
     }
 
     #[requires(true)]
-    #[ensures(self.cards.iter().all(|card| self.built_ids.contains(&card.id)),
-        "every accumulated card's id is registered in built_ids")]
+    #[ensures(cards_and_registry_cover_each_other(&self.cards, &self.built_ids),
+        "every card id is registered and the registry is exactly the card-id set")]
+    #[expensive_ensures(card_ids_are_pairwise_distinct(&self.cards),
+        "card ids are pairwise distinct")]
     fn push_zei_compound_card(&mut self, word_like: &WordLike) {
         let mut parts = Vec::new();
         flatten_zei_parts(word_like, &mut parts);

@@ -1021,7 +1021,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/notation/word_cards.rs:WordCardBuilder",
-        "word-card assembly accumulator is deliberately mutable; the cards/built_ids cross-field discipline (every accumulated card's id is registered) is enforced by method postconditions",
+        "word-card assembly accumulator is deliberately mutable; the complete cards/built_ids discipline (registry is exactly the card-id set, card ids pairwise distinct) is enforced by cheap and expensive postconditions on every mutating method",
     ),
     (
         "crates/jbotci-semantics/src/notation/writer.rs:Writer",
