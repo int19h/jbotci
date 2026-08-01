@@ -1020,6 +1020,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private mutable XML construction state is constrained by its constructors and canonical serializer rather than a validated wrapper",
     ),
     (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:WordCardBuilder",
+        "word-card assembly accumulator is deliberately mutable; the complete cards/built_ids discipline (registry is exactly the card-id set, card ids pairwise distinct) is enforced by cheap and expensive postconditions on every mutating method",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/writer.rs:Writer",
         "notation Writer is a mutable line-accumulating builder, not a validated model type; its structural discipline is enforced by the RAII body closures, not a field invariant",
     ),

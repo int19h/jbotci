@@ -65,6 +65,15 @@ fn waiver_reason(entry: &InventoryEntry) -> Option<&'static str> {
 }
 
 /// The ordinary XML renderer's disposition for one completeness entry.
+///
+/// #709 two-mode note: `Predication:relationMetadata` (and the entire
+/// `RelationMetadata` object subtree it references) is `Renders` in both
+/// document shapes — never a waiver. With a WORDS word-card section present,
+/// the decomposition is rendered via the nonce word's WORD card and body
+/// predications carry no `RELATION-METADATA` element (rendered-via-card, with
+/// no omission entries); without cards, the interim body `RELATION-METADATA`
+/// preservation form is retained deliberately so the decomposition is never
+/// silently dropped.
 #[requires(true)]
 #[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_)))
     == waiver_reason(entry).is_some())]

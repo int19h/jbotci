@@ -169,7 +169,10 @@ fn render_tersmu(
         }
     };
     let mut stdout = String::new();
-    if input.show_defs {
+    // `--show-defs` is per-format (#709): `xml` embeds a structured WORDS
+    // section inside the single SFN document; `smusni` keeps the readable
+    // text-card preamble; `json` rejects the flag up front.
+    if input.show_defs && input.format != TersmuFormat::Xml {
         stdout.push_str(&render_content_word_dictionary_definitions_for_word_likes(
             words.as_slice(),
             color_policy.stdout,
@@ -202,7 +205,17 @@ fn render_tersmu(
             // The command's input label is the document identity used by the
             // canonical XML root. As with smusni, normalize the renderer's
             // trailing newline before the shared output terminator below.
-            let mut rendered = render_xml(&graph, &source_label).into_data().output;
+            let mut rendered = if input.show_defs {
+                let word_cards = jbotci_semantics::notation::word_cards::build_xml_word_cards(
+                    jbotci_dictionary_data::english(),
+                    words.as_slice(),
+                );
+                render_xml_with_word_cards(&graph, &source_label, &word_cards)
+                    .into_data()
+                    .output
+            } else {
+                render_xml(&graph, &source_label).into_data().output
+            };
             if rendered.ends_with('\n') {
                 rendered.pop();
             }

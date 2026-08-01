@@ -921,7 +921,7 @@ fn tersmu_xml_cli_output_is_one_canonical_document() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_show_defs_prepends_definitions_before_the_xml_document() {
+fn tersmu_show_defs_embeds_a_words_section_in_the_xml_document() {
     let output = run_success_stdout(&[
         "jbotci",
         "tersmu",
@@ -931,22 +931,30 @@ fn tersmu_show_defs_prepends_definitions_before_the_xml_document() {
         "--color=never",
         ".banan.",
         "cu",
-        "klama",
+        "barda",
     ]);
-    let (definitions, document) = output
-        .split_once("<SFN ")
-        .expect("XML document follows the prepended definitions");
+    // One well-formed document: no prepended text cards.
     assert!(
-        definitions.starts_with("1. klama | by: officialdata | gismu"),
-        "definitions must lead: {definitions:?}"
+        output.starts_with("<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">"),
+        "output must be a single SFN document: {}",
+        &output[..output.len().min(200)]
     );
-    assert!(!definitions.contains("banan"));
-    assert!(!definitions.contains("cmavo:"));
-    let document = format!("<SFN {document}");
-    assert!(document.starts_with("<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">"));
-    assert!(document.contains("<KEY>"));
-    assert!(document.ends_with("</SFN>\n"));
-    roxmltree::Document::parse(&document).expect("XML document suffix parses");
+    assert!(!output.contains("1. barda | by: officialdata"));
+    assert!(!output.contains("cmavo:"));
+    // The WORDS section follows the KEY and carries the barda card with
+    // glosses and place markup inside DEF.
+    assert!(
+        output.contains("</KEY>\n  <WORDS>\n"),
+        "WORDS must immediately follow KEY: {output}"
+    );
+    assert!(output.contains("<WORD ID=\"barda\">"), "{output}");
+    assert!(output.contains("<GLOSS>big</GLOSS>"), "{output}");
+    assert!(
+        output.contains("<DEF><ARG INDEX=\"1\"/> is big/large"),
+        "{output}"
+    );
+    assert!(output.ends_with("</SFN>\n"));
+    roxmltree::Document::parse(&output).expect("output is one XML document");
 }
 
 #[test]
@@ -3684,7 +3692,10 @@ fn vlacku_exact_valid_missing_outputs_classification_card() {
     assert!(run.stdout.contains("1. brodax | cmevla"));
     assert!(!run.stdout.contains("  rafsi:"));
     assert!(!run.stdout.contains("  glosses:"));
-    assert!(!run.stdout.contains("  definitions:"));
+    // Issue #709: dictionary-absent words are explicitly flagged where the
+    // definition would appear instead of rendering as a definition-less entry.
+    assert!(run.stdout.contains("  definitions:"));
+    assert!(run.stdout.contains("    not in dictionary"));
 }
 
 #[test]
@@ -3966,6 +3977,7 @@ fn vlacku_colors_card_labels_dividers_and_rich_text() {
                 word: "klama".to_owned(),
                 word_type: "gismu".to_owned(),
                 selmaho: None,
+                known: true,
                 author: None,
                 is_official: false,
                 similarity: Some(1.0),
@@ -4015,6 +4027,7 @@ fn vlacku_raw_sumti_places_keep_dollar_spans_and_color_equals() {
                 word: "klama".to_owned(),
                 word_type: "gismu".to_owned(),
                 selmaho: None,
+                known: true,
                 author: None,
                 is_official: false,
                 similarity: Some(1.0),
@@ -4054,6 +4067,7 @@ fn vlacku_raw_sumti_places_keep_gloss_and_etymology_references() {
                 word: "example".to_owned(),
                 word_type: "lujvo".to_owned(),
                 selmaho: None,
+                known: true,
                 author: None,
                 is_official: false,
                 similarity: Some(1.0),
@@ -4101,6 +4115,7 @@ fn vlacku_terminal_width_wraps_long_detail_lines_with_indent() {
                 word: "cmevla".to_owned(),
                 word_type: "lujvo".to_owned(),
                 selmaho: None,
+                known: true,
                 author: None,
                 is_official: false,
                 similarity: Some(1.0),
@@ -4147,6 +4162,7 @@ fn vlacku_official_author_renders_infinity() {
                 word: "birka".to_owned(),
                 word_type: "gismu".to_owned(),
                 selmaho: None,
+                known: true,
                 author: Some(new!(VlackuAuthor {
                     username: "officialdata".to_owned(),
                     realname: Some("Official Data".to_owned()),
@@ -4182,6 +4198,7 @@ fn vlacku_ascii_renders_index_places_and_official_votes_as_ascii() {
                 word: "fuhivla".to_owned(),
                 word_type: "fu'ivla".to_owned(),
                 selmaho: None,
+                known: true,
                 author: Some(new!(VlackuAuthor {
                     username: "officialdata".to_owned(),
                     realname: Some("Official Data".to_owned()),
@@ -4212,6 +4229,153 @@ fn vlacku_ascii_renders_index_places_and_official_votes_as_ascii() {
     assert!(output.contains("<1> is a loanword meaning <2>."));
     assert!(!output.contains('∞'));
     assert!(!output.contains('⟨'));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_unknown_gismu_shaped_word_renders_not_in_dictionary_note() {
+    let output = render_vlacku_output_with_options(
+        &VlackuSearchOutput {
+            cards: vec![new!(VlackuCard {
+                word: "blable".to_owned(),
+                word_type: "gismu".to_owned(),
+                selmaho: None,
+                known: false,
+                author: None,
+                is_official: false,
+                similarity: None,
+                votes: None,
+                rafsi: Vec::new(),
+                glosses: Vec::new(),
+                definition: String::new(),
+                notes: String::new(),
+                etymology: None,
+                decomposition: Vec::new(),
+            })],
+            outcome: VlackuOutcome::ValidMissing,
+            diagnostics: Vec::new(),
+        },
+        new!(VlackuRenderOptions {
+            color: false,
+            glyphs: GlyphStyle::Unicode,
+            output_terminal_width: None,
+            sumti_places: CliSumtiPlaces::Index,
+            show_etymology: false,
+        }),
+    );
+
+    assert_eq!(
+        output, "1. blable | gismu\n  definitions:\n    not in dictionary\n\n",
+        "{output}"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_unknown_lujvo_renders_note_and_keeps_decomposition() {
+    use jbotci_search::vlacku::{VlackuCompositionKind, VlackuCompositionPiece};
+
+    let output = render_vlacku_output_with_options(
+        &VlackuSearchOutput {
+            cards: vec![new!(VlackuCard {
+                word: "brodau".to_owned(),
+                word_type: "lujvo".to_owned(),
+                selmaho: None,
+                known: false,
+                author: None,
+                is_official: false,
+                similarity: None,
+                votes: None,
+                rafsi: Vec::new(),
+                glosses: Vec::new(),
+                definition: String::new(),
+                notes: String::new(),
+                etymology: None,
+                decomposition: vec![
+                    VlackuCompositionPiece {
+                        kind: VlackuCompositionKind::Rafsi,
+                        surface: "brod".to_owned(),
+                        source: Some("broda".to_owned()),
+                    },
+                    VlackuCompositionPiece {
+                        kind: VlackuCompositionKind::Rafsi,
+                        surface: "dau".to_owned(),
+                        source: Some("darlu".to_owned()),
+                    },
+                ],
+            })],
+            outcome: VlackuOutcome::ValidMissing,
+            diagnostics: Vec::new(),
+        },
+        new!(VlackuRenderOptions {
+            color: false,
+            glyphs: GlyphStyle::Unicode,
+            output_terminal_width: None,
+            sumti_places: CliSumtiPlaces::Index,
+            show_etymology: false,
+        }),
+    );
+
+    assert!(output.contains("  decomposition: "), "{output}");
+    assert!(
+        output
+            .lines()
+            .any(|line| line == "    not in dictionary"),
+        "{output}"
+    );
+    let definitions_index = output.find("  definitions:").expect("definitions section");
+    let decomposition_index = output.find("  decomposition: ").expect("decomposition line");
+    assert!(
+        decomposition_index < definitions_index,
+        "decomposition line must stay before the definitions section: {output}"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn vlacku_known_card_rendering_is_byte_identical_to_before_known_flag() {
+    let output = render_vlacku_output_with_options(
+        &VlackuSearchOutput {
+            cards: vec![new!(VlackuCard {
+                word: "klama".to_owned(),
+                word_type: "gismu".to_owned(),
+                selmaho: None,
+                known: true,
+                author: Some(new!(VlackuAuthor {
+                    username: "officialdata".to_owned(),
+                    realname: None,
+                })),
+                is_official: true,
+                similarity: Some(1.0),
+                votes: Some(42),
+                rafsi: vec!["kla".to_owned()],
+                glosses: vec!["come".to_owned()],
+                definition: "$x_1$ comes to $x_2$.".to_owned(),
+                notes: "some note".to_owned(),
+                etymology: None,
+                decomposition: Vec::new(),
+            })],
+            outcome: VlackuOutcome::Found,
+            diagnostics: Vec::new(),
+        },
+        new!(VlackuRenderOptions {
+            color: false,
+            glyphs: GlyphStyle::Unicode,
+            output_terminal_width: None,
+            sumti_places: CliSumtiPlaces::Index,
+            show_etymology: false,
+        }),
+    );
+
+    assert_eq!(
+        output,
+        "1. klama | by: officialdata | gismu | similarity: 100% | votes: ∞\n  rafsi: kla\n  glosses:\n    come\n  definitions:\n    ⟨1⟩ comes to ⟨2⟩.\n  notes:\n    some note\n\n",
+        "{output}"
+    );
+    assert!(!output.contains("not in dictionary"), "{output}");
 }
 
 #[test]

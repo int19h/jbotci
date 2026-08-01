@@ -2049,7 +2049,7 @@ mod tests {
                 jbotci_cli::ToolTersmuFormat::Xml,
                 true,
                 serde_json::json!({ "text": "mi nitcu lo tanxe" }),
-                "text/plain; charset=utf-8",
+                "application/xml; charset=utf-8",
             ),
             (
                 jbotci_cli::ToolTersmuFormat::Smusni,
@@ -2081,7 +2081,7 @@ mod tests {
                     "format": "xml",
                     "show-defs": true
                 }),
-                "text/plain; charset=utf-8",
+                "application/xml; charset=utf-8",
             ),
         ] {
             let request = ToolTersmuRequest {
@@ -2525,6 +2525,8 @@ mod tests {
             "`POSSIBLY-DIFFERENT-PER=`",
             "absent facet attribute means `UNSPECIFIED`",
             "distinct from an absent XML structure",
+            "`WORDS` section follows the `KEY`",
+            "`COMPOSITE-APPROX`",
             "`SFN FORM=\"TYPED-GRAPH\"` fallback uses its own embedded `KEY`",
             "`OBJECT`/`FIELD`/`RECORD`/`LIST`/`ITEM`/`REFERENCE` typed vocabulary",
             "Request `smusni`",
@@ -2842,15 +2844,31 @@ mod tests {
         let tersmu_text = tersmu_json["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu XML text");
-        let (definitions, xml_document) = tersmu_text
-            .split_once("<SFN ")
-            .expect("definitions precede the default XML document");
-        assert!(definitions.starts_with("1. klama | by: officialdata | gismu"));
-        assert!(!definitions.contains("banan"));
-        assert!(!definitions.contains("cmavo:"));
-        let xml_document = format!("<SFN {xml_document}");
-        assert!(xml_document.contains("<KEY>"));
-        roxmltree::Document::parse(&xml_document).expect("default MCP XML suffix parses");
+        // With definitions on (the default), tersmu returns one well-formed
+        // XML document: structured WORD cards live in the WORDS section
+        // following KEY, not in a prepended text block.
+        assert!(
+            tersmu_text.starts_with("<SFN "),
+            "the default MCP tersmu document is a single XML document"
+        );
+        roxmltree::Document::parse(tersmu_text).expect("default MCP XML parses");
+        assert!(tersmu_text.contains("<KEY>"));
+        let after_key = tersmu_text
+            .split_once("</KEY>")
+            .expect("KEY closes before WORDS")
+            .1;
+        assert!(after_key.starts_with("\n  <WORDS>"));
+        let words_section = after_key
+            .split_once("</WORDS>")
+            .expect("WORDS closes before WAIVERS")
+            .0;
+        assert!(words_section.contains("<WORD ID=\"klama\">"));
+        assert!(words_section.contains("<GLOSS>"));
+        assert!(words_section.contains("<ARG INDEX=\"1\"/>"));
+        // Definitions cover content words only: the cmevla and cmavo of
+        // `.banan. cu klama` produce no cards.
+        assert!(!words_section.contains("banan"));
+        assert!(!words_section.contains("cmavo:"));
 
         // An explicit `smusni` request with definitions off returns the pure
         // notation document with no prepended dictionary block.
@@ -3091,6 +3109,62 @@ mod tests {
         .await;
         let unknown_json = response_json(unknown).await;
         assert_eq!(unknown_json["error"]["code"], -32602);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn mcp_exposes_sfn_xml_schema_resource() {
+        let app = router(test_config(test_static_dir()));
+
+        let list = post_json(
+            app.clone(),
+            "/mcp",
+            serde_json::json!({ "jsonrpc": "2.0", "id": 1, "method": "resources/list" }),
+        )
+        .await;
+        assert_eq!(list.status(), StatusCode::OK);
+        let list_json = response_json(list).await;
+        let resources = list_json["result"]["resources"]
+            .as_array()
+            .expect("resources array");
+        let schema = resources
+            .iter()
+            .find(|resource| resource["name"] == "sfn-xml-schema")
+            .expect("sfn-xml schema resource listed");
+        assert_eq!(
+            schema["uri"].as_str(),
+            Some("jbotci:///tersmu/sfn-xml-v0.xsd")
+        );
+        assert_eq!(schema["mimeType"].as_str(), Some("application/xml"));
+        assert!(
+            schema["description"]
+                .as_str()
+                .is_some_and(|d| !d.is_empty())
+        );
+
+        let read = post_json(
+            app,
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "resources/read",
+                "params": { "uri": "jbotci:///tersmu/sfn-xml-v0.xsd" }
+            }),
+        )
+        .await;
+        assert_eq!(read.status(), StatusCode::OK);
+        let read_json = response_json(read).await;
+        let contents = &read_json["result"]["contents"][0];
+        assert_eq!(contents["uri"], "jbotci:///tersmu/sfn-xml-v0.xsd");
+        assert_eq!(contents["mimeType"], "application/xml");
+        let text = contents["text"].as_str().expect("schema text");
+        // Spot-check that the real XSD made it through verbatim: the XML
+        // declaration, the schema root, and a WORD element definition.
+        assert!(text.starts_with("<?xml"), "{}", &text[..text.len().min(200)]);
+        assert!(text.contains("xs:schema"));
+        assert!(text.contains("name=\"WORD\""));
     }
 
     #[tokio::test]

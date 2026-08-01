@@ -22,5 +22,13 @@ pub use model::{
 };
 pub use notation::{
     NotationProfile, SmusniConfig, XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface,
-    XmlWaiverFamily, render_notation, render_smusni, render_xml,
+    XmlWaiverFamily, render_notation, render_smusni, render_xml, render_xml_with_word_cards,
 };
+
+/// The XSD 1.0 schema for the complete SFN-XML tersmu document (the
+/// `--format xml` notation), covering the compact form, the WORDS word-card
+/// section, and the TYPED-GRAPH fallback form.  Every element and attribute
+/// is documented in `xs:annotation/xs:documentation`, making this the
+/// machine-queryable reference documentation of the notation; it is exposed
+/// over MCP as the `jbotci:///tersmu/sfn-xml-v0.xsd` resource.
+pub const SFN_XML_SCHEMA_XSD: &str = include_str!("../resources/sfn-xml-v0.xsd");

@@ -13,7 +13,10 @@
 //! `render_xml.py` at research commit `e25eeaf`, the original adoption point;
 //! [`xml`] and the corpus provenance pin the current paired prototype oracle.
 //! Its separate result type also
-//! returns occurrence-level omissions. [`NotationProfile`] remains the
+//! returns occurrence-level omissions. [`render_xml_with_word_cards`] is the
+//! #709 variant that embeds the structured `<WORDS>` word-card section (built
+//! by [`word_cards`]) between the KEY and WAIVERS of the same document.
+//! [`NotationProfile`] remains the
 //! string-only profile seam, while XML uses its richer explicit entry point.
 //!
 //! [`coverage`] and [`xml_coverage`] register both renderers against the merged
@@ -52,9 +55,11 @@
 
 pub mod coverage;
 mod render;
+pub mod word_cards;
 mod writer;
 mod xml;
 pub mod xml_coverage;
+pub(crate) mod xml_words;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
@@ -62,6 +67,7 @@ use bityzba::{ensures, invariant, requires};
 pub use render::SmusniConfig;
 pub use xml::{
     XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface, XmlWaiverFamily, render_xml,
+    render_xml_with_word_cards,
 };
 
 use crate::model::SemanticGraph;

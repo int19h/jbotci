@@ -311,10 +311,19 @@ pub struct VlackuSearchOutput {
 }
 
 #[invariant(!word.is_empty())]
+#[invariant(
+    !known -> definition.is_empty(),
+    "a dictionary-absent word has no dictionary entry carrying a definition"
+)]
 #[derive(Debug, Clone, PartialEq)]
 pub struct VlackuCard {
     pub word: String,
     pub word_type: String,
+    /// False marks a synthesized card for a word with no dictionary entry
+    /// carrying a definition (the text-card equivalent of the tersmu XML
+    /// `KNOWN="false"` attribute); renderers must flag such cards explicitly
+    /// so they do not read as definition-less known entries.
+    pub known: bool,
     pub selmaho: Option<String>,
     pub author: Option<VlackuAuthor>,
     pub is_official: bool,
@@ -1752,6 +1761,7 @@ fn entry_card_with_dictionary_decomposition(
     new!(VlackuCard {
         word: entry.word.to_owned(),
         word_type: entry.word_type.as_str().to_owned(),
+        known: true,
         selmaho: entry.selmaho.map(|selmaho| selmaho.0.to_owned()),
         author: Some(new!(VlackuAuthor {
             username: entry.user.username.to_owned(),
@@ -1787,6 +1797,7 @@ fn unknown_card(
     new!(VlackuCard {
         word: classification.word,
         word_type: classification.word_type.as_str().to_owned(),
+        known: false,
         selmaho: classification.selmaho,
         author: None,
         is_official: false,
@@ -2698,6 +2709,56 @@ mod tests {
         );
         assert!(cards.iter().any(|card| card.word == "xebro"));
         assert!(cards.iter().any(|card| card.word == "darlu"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn entry_derived_cards_are_marked_known() {
+        let entry = jbotci_dictionary_data::english()
+            .lookup_word("klama")
+            .expect("entry for klama");
+        let card = dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
+
+        assert!(card.known);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_absent_gismu_shaped_word_card_is_marked_unknown() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("blable".to_owned())],
+            &VlackuSearchOptions::default(),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::ValidMissing);
+        let card = result.cards.first().expect("synthetic card for blable");
+        assert_eq!(card.word, "blable");
+        assert!(!card.known);
+        assert!(card.definition.is_empty());
+        assert!(card.decomposition.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn dictionary_absent_lujvo_card_is_marked_unknown_with_decomposition() {
+        let result = run_vlacku_requests(
+            jbotci_dictionary_data::english(),
+            &[VlackuRequest::valsi("brodau".to_owned())],
+            &VlackuSearchOptions::default().with_data(data! {
+                decompose_lujvo: true,
+            }),
+        );
+
+        assert_eq!(result.outcome, VlackuOutcome::ValidMissing);
+        let card = result.cards.first().expect("synthetic card for brodau");
+        assert_eq!(card.word, "brodau");
+        assert!(!card.known);
+        assert!(card.definition.is_empty());
+        assert!(!card.decomposition.is_empty());
     }
 
     #[test]

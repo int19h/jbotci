@@ -1056,6 +1056,178 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit omission-family marker; no payload to constrain",
     ),
     (
+        "crates/jbotci-semantics/src/notation/xml.rs:MixedContent::Element",
+        "mutable serializer construction state; validity is established by the emission code and the canonical serializer, mirroring the audited XmlElement no-op",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:MixedContent::Text",
+        "mutable serializer construction state; validity is established by the emission code and the canonical serializer, mirroring the audited XmlElement no-op",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::Abstraction",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::Cardinal",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::Connective",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::Figurative",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::Identity",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::LetterOf",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::Ordinal",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::PredicationNegation",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::Recurrence",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::ReferentOf",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::ScalarNegation",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxExpr::TaggedPlace",
+        "composition-node variant whose fields carry their own constraints; the variant adds no cross-field invariant beyond the child expressions and the CompositeApprox escalation checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxReferent::Parameter",
+        "context-referent variant whose payload is constrained by its own field types and the enum's other arms; no additional cross-field invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxReferent::PersonalMass",
+        "context-referent variant whose payload is constrained by its own field types and the enum's other arms; no additional cross-field invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ApproxReferent::Unspecified",
+        "context-referent variant whose payload is constrained by its own field types and the enum's other arms; no additional cross-field invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:NumTok::Percent",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:NumTok::Point",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:NumTok::Quantifier",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Piece::Num",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Piece::Tok",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::Abstraction",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::Actuality",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::Aspect",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::Figurative",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::PlaceDeletion",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::ScalarNegation",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::SpaceWhole",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::TaggedPlace",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:PrefixOp::TimeWhole",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Bo",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Co",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Connective",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Expr",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Ke",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Kee",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Kei",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Na",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Postfix",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:Tok::Prefix",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ZeiPartRef::Word",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:ZeiPartRef::WordLike",
+        "internal composition-builder token; validity is established by the classification and parsing passes that construct it, not by a payload invariant",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::AcceptedProgress",
         "accepted-progress payload validity is enforced by the invariant-bearing RecoveryProgressTrial type",
     ),

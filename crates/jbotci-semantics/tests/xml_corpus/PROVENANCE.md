@@ -80,9 +80,15 @@ The first adversarial review also recorded explicit future boundaries. Current
 semantic construction emits warning diagnostics only and interval modifiers
 remain closed to aspect/recurrence; new variants require new typed forms. A
 nested-record `diagnostics` key currently fails loud through omission
-accounting but lacks a dedicated witness. Body `RELATION-METADATA` is an
-interim preservation form pending WORD-card deduplication in #709/#711, and
-`PREDICATE="tanru"` remains frozen JSON data rather than structural vocabulary.
+accounting but lacks a dedicated witness. The #709 WORD-card deduplication has
+landed: when a document carries a WORDS word-card section, body predications
+render no `RELATION-METADATA` — the `relationMetadata` subtree is accounted as
+rendered-via-card (the nonce word's WORD card carries the decomposition), with
+no omission entries. This frozen 48-document corpus is rendered without cards,
+so it deliberately retains the interim body `RELATION-METADATA` preservation
+form: with no card section to carry the decomposition, the omissions/waiver
+discipline does not allow silently dropping it. `PREDICATE="tanru"` remains
+frozen JSON data rather than structural vocabulary.
 The prototype's pre-existing rejection of the Phase-B multiple-domain question
 remains outside the 48-document parity contract. The paired research README at
 the pinned commit records these follow-ups in full.

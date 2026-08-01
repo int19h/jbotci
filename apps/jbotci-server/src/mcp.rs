@@ -33,6 +33,18 @@ const LOJBAN_GRAMMAR_DESCRIPTION: &str = "The formal EBNF grammar of Lojban — 
      prefixed with a guide to its non-standard notation (`&`, `...`, `//`, `#`). Read this to \
      understand or generate Lojban syntax.";
 
+/// The SFN-XML tersmu document schema, embedded from `jbotci-semantics` so
+/// the server stays self-contained and the resource works on any transport.
+const SFN_XML_SCHEMA_URI: &str = "jbotci:///tersmu/sfn-xml-v0.xsd";
+const SFN_XML_SCHEMA_NAME: &str = "sfn-xml-schema";
+const SFN_XML_SCHEMA_TITLE: &str = "SFN-XML v0 document schema";
+const SFN_XML_SCHEMA_MIME: &str = "application/xml";
+const SFN_XML_SCHEMA_DESCRIPTION: &str = "The XSD 1.0 schema of the complete SFN-XML tersmu document that `tersmu --format xml` \
+     emits — the compact scoped form, the `WORDS` word-card section, and the `TYPED-GRAPH` fallback form. \
+     Every element and attribute carries reference documentation in `xs:annotation`, including the \
+     ID/IDREF discipline and the constructs that resist XSD 1.0 typing. Read this to interpret or \
+     validate tersmu XML output.";
+
 #[invariant(true)]
 #[derive(Debug, Deserialize)]
 struct JsonRpcMessage {
@@ -118,6 +130,7 @@ pub(crate) async fn mcp_post(
                 .and_then(Value::as_str);
             match uri {
                 Some(LOJBAN_GRAMMAR_URI) => grammar_resource_contents(),
+                Some(SFN_XML_SCHEMA_URI) => sfn_xml_schema_resource_contents(),
                 Some(other) => {
                     return json_response(
                         StatusCode::OK,
@@ -290,9 +303,17 @@ fn mcp_tools() -> Vec<Value> {
              `POSSIBLY-DIFFERENT-PER=` names a strict subset of enclosing binders on which it may \
              depend; and an absent facet attribute means `UNSPECIFIED` (no commitment). That facet default is \
              distinct from an absent XML structure: do not invent an `UNSPECIFIED` value or a \
-             negative claim for arbitrary absent elements or attributes. The `SFN FORM=\"TYPED-GRAPH\"` \
+             negative claim for arbitrary absent elements or attributes. With definitions on (the \
+             default), a `WORDS` section follows the `KEY`: one structured `WORD` card per content \
+             word, whose `DEF` and `NOTES` dictionary prose uses `ARG INDEX=\"n\"` place markup in \
+             the same argument vocabulary as predications; `KNOWN=\"false\"` marks a \
+             dictionary-absent word, and `COMPOSITE-APPROX` shows the mechanical, suggestive-only \
+             composition of a dictionary-absent compound through the same `KIND-COMPOSITION` idiom \
+             as the body. The `SFN FORM=\"TYPED-GRAPH\"` \
              fallback uses its own embedded `KEY` and `OBJECT`/`FIELD`/`RECORD`/`LIST`/`ITEM`/`REFERENCE` \
-             typed vocabulary; follow that key instead of the ordinary scoped vocabulary. Request \
+             typed vocabulary; follow that key instead of the ordinary scoped vocabulary. The \
+             complete document schema (XSD 1.0, with per-element reference documentation) is \
+             queryable as the `jbotci:///tersmu/sfn-xml-v0.xsd` resource. Request \
              `smusni` for the alternative flat declaration listing or `json` for the canonical interchange graph. \
              For grammar use `gentufa`, for morphology use `vlasei`.",
             tool_request_schema::<ToolTersmuRequest>(),
@@ -303,13 +324,22 @@ fn mcp_tools() -> Vec<Value> {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn mcp_resources() -> Vec<Value> {
-    vec![json!({
-        "uri": LOJBAN_GRAMMAR_URI,
-        "name": LOJBAN_GRAMMAR_NAME,
-        "title": LOJBAN_GRAMMAR_TITLE,
-        "description": LOJBAN_GRAMMAR_DESCRIPTION,
-        "mimeType": LOJBAN_GRAMMAR_MIME,
-    })]
+    vec![
+        json!({
+            "uri": LOJBAN_GRAMMAR_URI,
+            "name": LOJBAN_GRAMMAR_NAME,
+            "title": LOJBAN_GRAMMAR_TITLE,
+            "description": LOJBAN_GRAMMAR_DESCRIPTION,
+            "mimeType": LOJBAN_GRAMMAR_MIME,
+        }),
+        json!({
+            "uri": SFN_XML_SCHEMA_URI,
+            "name": SFN_XML_SCHEMA_NAME,
+            "title": SFN_XML_SCHEMA_TITLE,
+            "description": SFN_XML_SCHEMA_DESCRIPTION,
+            "mimeType": SFN_XML_SCHEMA_MIME,
+        }),
+    ]
 }
 
 #[requires(true)]
@@ -322,6 +352,20 @@ fn grammar_resource_contents() -> Value {
             "title": LOJBAN_GRAMMAR_TITLE,
             "mimeType": LOJBAN_GRAMMAR_MIME,
             "text": LOJBAN_GRAMMAR_EBNF,
+        }]
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.is_object())]
+fn sfn_xml_schema_resource_contents() -> Value {
+    json!({
+        "contents": [{
+            "uri": SFN_XML_SCHEMA_URI,
+            "name": SFN_XML_SCHEMA_NAME,
+            "title": SFN_XML_SCHEMA_TITLE,
+            "mimeType": SFN_XML_SCHEMA_MIME,
+            "text": jbotci_semantics::SFN_XML_SCHEMA_XSD,
         }]
     })
 }
