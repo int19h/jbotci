@@ -460,6 +460,9 @@ fn render_vlacku_card(index: usize, card: &VlackuCard, options: &VlackuRenderOpt
             let rendered = vlacku_definition_text_for_sumti_places(line, &place_map, options);
             push_rendered_vlacku_detail_lines(&mut lines, &rendered, options);
         }
+    } else if !card.known {
+        lines.push(format!("  {}", dark("definitions:", options.color)));
+        push_rendered_vlacku_detail_lines(&mut lines, "not in dictionary", options);
     }
     if !card.notes.trim().is_empty() {
         lines.push(format!("  {}", dark("notes:", options.color)));
