@@ -7,12 +7,17 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, new, requires};
 use serde_json::{Value, json};
+use xarsnu::protocol::{ProtocolEventData, ProtocolRunOutcomeData, ReviewOutcomeData};
 use xarsnu::{
-    AbortKind, OpenRouterClient, OpenRouterClientConfig, OpenRouterError, ParticipantConversation,
-    PromptCaching, ProviderToolChoice, ProviderUsageValidationError, ReasoningConfig, RetryPolicy,
-    RunAccounting, RunConfig, ToolCall, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage,
+    AbortKind, CapsConfig, ListenerMode, MeaningReview, MeaningReviewConfig, MeaningReviewer,
+    OpenRouterClient, OpenRouterClientConfig, OpenRouterError, OpenRouterParticipant,
+    OpenRouterReviewSession, OpenRouterReviewer, ParticipantConfig, ParticipantConversation,
+    PromptCaching, ProtocolEvent, ProtocolRunner, ProviderToolChoice,
+    ProviderUsageValidationError, ReasoningConfig, ReferenceToolDispatcher, RetryPolicy,
+    ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, TersmuFormat, ToolCall, ToolChoice,
+    ToolDefinition, ToolDispatchError, ToolDispatcher, Usage, VisibleMessage,
 };
 
 static NEXT_DUMP_DIRECTORY: AtomicU64 = AtomicU64::new(1);
@@ -2254,4 +2259,323 @@ fn permanent_http_errors_fail_without_retry() {
         OpenRouterError::HttpStatus { status: 401, .. }
     ));
     assert_eq!(server.finish().len(), 1);
+}
+
+#[requires(!report.trim().is_empty())]
+#[requires(cost.is_finite() && cost >= 0.0)]
+#[ensures(ret.status == 200)]
+fn verdict_response(approved: bool, report: &str, cost: f64) -> MockResponse {
+    MockResponse {
+        status: 200,
+        body: json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": format!("call-review_verdict-{}", if approved { "approve" } else { "reject" }),
+                        "type": "function",
+                        "function": {
+                            "name": "review_verdict",
+                            "arguments": json!({ "approved": approved, "report": report }).to_string()
+                        }
+                    }]
+                }
+            }],
+            "usage": {
+                "prompt_tokens": 13,
+                "completion_tokens": 5,
+                "total_tokens": 18,
+                "cost": cost
+            }
+        }),
+    }
+}
+
+#[requires(!name.trim().is_empty())]
+#[requires(arguments.is_object())]
+#[requires(cost.is_finite() && cost >= 0.0)]
+#[ensures(ret.status == 200)]
+fn protocol_tool_response(name: &str, arguments: Value, cost: f64) -> MockResponse {
+    MockResponse {
+        status: 200,
+        body: json!({
+            "choices": [{
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "tool_calls": [{
+                        "id": format!("call-{name}"),
+                        "type": "function",
+                        "function": {
+                            "name": name,
+                            "arguments": arguments.to_string()
+                        }
+                    }]
+                }
+            }],
+            "usage": {
+                "prompt_tokens": 11,
+                "completion_tokens": 7,
+                "total_tokens": 18,
+                "cost": cost
+            }
+        }),
+    }
+}
+
+#[requires(!name.trim().is_empty())]
+#[requires(!model.trim().is_empty())]
+#[ensures(ret.name == name)]
+fn review_participant(name: &str, model: &str) -> ParticipantConfig {
+    new!(ParticipantConfig {
+        name: name.to_owned(),
+        model: model.to_owned(),
+        provider: None,
+        prompt_caching: PromptCaching::Auto,
+        tool_choice: ToolChoice::Required,
+        reasoning: None,
+        temperature: 0.5,
+        system_prompt: "Speak only Lojban.".to_owned(),
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.enabled)]
+fn enabled_review_config() -> MeaningReviewConfig {
+    new!(MeaningReviewConfig {
+        enabled: true,
+        temperature: None,
+        reasoning: None,
+    })
+}
+
+#[requires(true)]
+#[ensures(ret.meaning_en == "I go to the market.")]
+fn review_brief() -> ReviewBrief {
+    new!(ReviewBrief {
+        meaning_en: "I go to the market.".to_owned(),
+        candidate: new!(VisibleMessage {
+            text: "mi klama".to_owned(),
+            tersmu_rendering: b"(klama mi)\n".to_vec(),
+        }),
+        renderer_incompatibilities: Vec::new(),
+    })
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn reviewer_session_persists_across_candidates_and_counts_usage() {
+    // Issue #723: two candidates under the same intent go through ONE
+    // continuing reviewer session, and every reviewer call is run-accounted.
+    let server = MockServer::start(vec![
+        verdict_response(false, "na scope diverges: the rendering negates the bridi.", 0.0002),
+        verdict_response(true, "All checks pass.", 0.0003),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let participant = review_participant("alice", "mock/model");
+    let mut session = OpenRouterReviewSession::new(&participant, &enabled_review_config(), &client);
+    let mut accounting = RunAccounting::new(10.0).expect("valid budget");
+
+    let first = session
+        .review(&review_brief(), &mut accounting)
+        .expect("first review");
+    assert!(matches!(
+        first.as_data(),
+        bityzba::data!(ReviewOutcome::Decided { approved: false, report })
+            if report.contains("na scope diverges")
+    ));
+    let second = session
+        .review(&review_brief(), &mut accounting)
+        .expect("second review");
+    assert!(matches!(
+        second.as_data(),
+        bityzba::data!(ReviewOutcome::Decided { approved: true, .. })
+    ));
+    assert_eq!(session.take_observations().len(), 2);
+    assert!(
+        (accounting.usage().cost_usd - 0.0005).abs() < 1e-9,
+        "reviewer usage must be run-accounted: {}",
+        accounting.usage().cost_usd
+    );
+
+    let requests = server.finish();
+    assert_eq!(requests.len(), 2);
+    let first_messages = requests[0].body["messages"].as_array().expect("messages");
+    assert_eq!(first_messages.len(), 2, "a fresh session is system + brief");
+    assert_eq!(first_messages[0]["role"], "system");
+    assert!(
+        first_messages[0]["content"]
+            .as_str()
+            .expect("system content")
+            .contains("adversarial meaning reviewer")
+    );
+    assert_eq!(
+        requests[0].body["tool_choice"],
+        "required",
+        "the forced verdict reuses the capability-resolved tool choice"
+    );
+    let tools = requests[0].body["tools"].as_array().expect("tools");
+    assert_eq!(tools.len(), 1);
+    assert_eq!(tools[0]["function"]["name"], "review_verdict");
+    for field in ["approved", "report"] {
+        assert!(
+            tools[0]["function"]["parameters"]["required"]
+                .as_array()
+                .expect("required fields")
+                .contains(&json!(field)),
+            "verdict schema requires {field}"
+        );
+    }
+    // The second brief continues the SAME session: full history, with the
+    // same-intent revision framing and the earlier report still visible.
+    let second_messages = requests[1].body["messages"].as_array().expect("messages");
+    assert_eq!(second_messages.len(), 5);
+    assert_eq!(second_messages[4]["role"], "user");
+    let second_body = requests[1].body.to_string();
+    assert!(second_body.contains("REVISED candidate under the SAME registered intent"));
+    assert!(second_body.contains("na scope diverges"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn reviewer_usage_counts_into_the_run_cost_budget() {
+    // Issue #723: the reviewer's own provider call trips the run's cost
+    // budget exactly like a participant call would.
+    let server = MockServer::start(vec![verdict_response(true, "All checks pass.", 0.01)]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let participant = review_participant("alice", "mock/model");
+    let mut session = OpenRouterReviewSession::new(&participant, &enabled_review_config(), &client);
+    let mut accounting = RunAccounting::new(0.005).expect("valid budget");
+    let outcome = session
+        .review(&review_brief(), &mut accounting)
+        .expect("review completes with an abort, not an error");
+    assert!(matches!(
+        outcome.as_data(),
+        bityzba::data!(ReviewOutcome::BudgetAborted { .. })
+    ));
+    assert!(accounting.abort().is_some());
+    assert_eq!(server.finish().len(), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn adversarial_review_reject_feedback_revise_approve_flow_posts() {
+    // Issue #723 end to end over mocked transport: the reviewer rejects the
+    // first candidate, the report returns to the composing session as
+    // feedback, and the SAME reviewer session approves the revision, which
+    // posts without any speaker self-confirmation.
+    let server = MockServer::start(vec![
+        protocol_tool_response(
+            "register_intent",
+            json!({ "meaning_en": "I go to the market." }),
+            0.0001,
+        ),
+        protocol_tool_response("submit_lojban", json!({ "text": "mi klama" }), 0.0001),
+        verdict_response(
+            false,
+            "The destination place is elided but the intent names the market.",
+            0.0002,
+        ),
+        protocol_tool_response("submit_lojban", json!({ "text": "mi klama mi" }), 0.0001),
+        verdict_response(true, "The previously reported problem is fixed.", 0.0002),
+        protocol_tool_response(
+            "acknowledge",
+            json!({ "final_understanding_en": "You go to yourself." }),
+            0.0001,
+        ),
+    ]);
+    let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
+    let configs = vec![
+        review_participant("alice", "mock/model"),
+        review_participant("bob", "mock/model"),
+    ];
+    let participants = configs
+        .iter()
+        .map(|config| OpenRouterParticipant::new(config, &client))
+        .collect::<Vec<_>>();
+    let reviewer = OpenRouterReviewer::new(&configs, enabled_review_config(), &client);
+    let mut runner = ProtocolRunner::new_with_review(
+        participants,
+        new!(CapsConfig {
+            max_parse_attempts_per_turn: 3,
+            max_intent_revisions_per_turn: 2,
+            max_turns: 1,
+            max_cost_usd: 10.0,
+            max_reference_calls_per_phase: 16,
+            reference_dedupe: true,
+            reference_nudge_after: 6,
+        }),
+        ListenerMode::Informed,
+        TersmuFormat::Smusni,
+        ReferenceToolDispatcher,
+        reviewer,
+    )
+    .expect("runner builds");
+    let outcome = runner.run().expect("run completes");
+    assert!(matches!(
+        outcome.as_data(),
+        bityzba::data!(ProtocolRunOutcome::Completed { turns: 1 })
+    ));
+
+    let events = runner.events();
+    let kind_counts = |kind: &str| {
+        events
+            .iter()
+            .filter(|event| {
+                serde_json::to_value(event).expect("event serializes")["kind"]
+                    .as_str()
+                    .expect("kind tag")
+                    == kind
+            })
+            .count()
+    };
+    assert_eq!(kind_counts("review-requested"), 2);
+    assert_eq!(kind_counts("review-report"), 2);
+    assert_eq!(kind_counts("review-verdict"), 2);
+    assert_eq!(kind_counts("meaning-confirmed"), 0);
+    assert_eq!(kind_counts("message-posted"), 1);
+    let verdicts = events
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::ReviewVerdict { approved, .. }) => Some(*approved),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(verdicts, [false, true]);
+    assert_eq!(runner.visible_chat().len(), 1);
+    assert_eq!(runner.visible_chat()[0].text, "mi klama mi");
+    // Every provider call — including both reviewer calls — is recorded.
+    let usage_costs = events
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::UsageRecorded { usage, .. }) => Some(usage.cost),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(usage_costs.len(), 6);
+    assert!((usage_costs.iter().sum::<f64>() - 0.0008).abs() < 1e-9);
+
+    let requests = server.finish();
+    assert_eq!(requests.len(), 6);
+    // The first review ran in a FRESH session (system + brief only) ...
+    assert_eq!(
+        requests[2].body["messages"].as_array().expect("messages").len(),
+        2
+    );
+    // ... the rejection report returned to the COMPOSING session as the
+    // submit_lojban tool result, before the revised submission ...
+    let revision_request = requests[3].body.to_string();
+    assert!(revision_request.contains("REJECTED"));
+    assert!(revision_request.contains("The destination place is elided"));
+    // ... and the SAME reviewer session verified the revision, with its own
+    // earlier verdict and report still in its history.
+    let second_review_messages = requests[4].body["messages"].as_array().expect("messages");
+    assert!(second_review_messages.len() > 2);
+    let second_review = requests[4].body.to_string();
+    assert!(second_review.contains("REVISED candidate under the SAME registered intent"));
+    assert!(second_review.contains("The destination place is elided"));
 }

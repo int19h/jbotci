@@ -104,6 +104,31 @@ two-step blind interpretation and later parser reveal for explicit measurement
 arms. The selected mode is recorded in the run header, listener-flow events,
 and reports.
 
+`meaning-review` is an optional run-level table, disabled by default (issue
+#723). With `[meaning-review] enabled = true`, speaker self-confirmation of the
+tersmu rendering is replaced by an adversarial reviewer: every gate-accepted
+candidate and its governing registered intent go to a separate fresh session of
+the same model, primed with the known failure-mode catalog (na scope;
+indicator asides and their assertion effect/target, e.g. po'o outside vs
+inside negation; place-structure misuse; repeated-description coreference;
+elided or zo'e agents inside deontic contents; connective attachment;
+binder/scope anomalies). Approval posts the candidate; rejection returns the
+reviewer's report to the composing session as feedback, preserving the
+remaining parse-attempt budget. Candidates submitted under the same registered
+intent reuse the reviewer session so it can verify that reported problems were
+fixed; registering a new intent — first declaration or revision — resets it to
+a fresh session. The reviewer shares the participant's model, provider routing,
+and prompt-caching policy; its `temperature` and `reasoning` inherit the
+participant's settings unless the table overrides them, and its tool choice
+resolves through the same model-capability metadata as participants. Reviewer
+usage counts into the run's cost budget, and the transcript records
+`review-requested`, `review-report` (the complete report text, losslessly),
+and `review-verdict` events, which the full report renders and summarizes
+under "Revisions and mismatches". Renderer-declared scope incompatibility
+records are auto-quoted into the reviewer's brief when the gate reports them;
+whether they also hard-reject stays issue #721's question and is not decided
+here.
+
 `tool-choice` is also per participant and defaults to `metadata`. The vendored
 OpenRouter capability snapshot selects `required` for models known to support
 required tool calls and otherwise selects `auto`. Explicit `required` and

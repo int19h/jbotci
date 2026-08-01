@@ -5,6 +5,7 @@
 - Gate format: `smusni`
 - Listener mode: `blind-then-reveal`
 - Allow degraded search: `false`
+- Meaning review: `disabled`
 - Models:
   - `alice`: `example/alice` (temperature 0.25)
   - `bob`: `example/bob` (temperature 0.25)
@@ -123,6 +124,32 @@ Participant: `alice`
 tersmu rendering (verbatim):
 
 > (klama mi)
+
+### Meaning review requested — `alice`
+
+Governing intent revision: **1**
+
+Intent:
+
+> I am going to the market.
+
+Renderer-declared incompatibility records:
+- BINDER-DOES-NOT-ENCLOSE-USE at lo nu klama
+
+### Meaning review report — `alice`
+
+> na scope: no negation in intent or rendering.
+> Indicator asides: none present.
+> Place structures: every sumti matches its place's meaning and type.
+> Repeated descriptions: none.
+> Deontic contents: none.
+> Connective attachment: single bridi.
+> Binder/scope: the renderer-declared incompatibility quoted in the brief does not apply to this rendering; verified.
+> No divergences found.
+
+### Meaning review verdict — `alice`
+
+Approved: **yes**
 
 ### Sender confirmation
 
@@ -293,6 +320,7 @@ Aggregate: **partial**
 
 - Intent revisions: 1
 - Confirmation mismatches: 1
+- Meaning reviews: 1 (approved: 1, rejected: 0)
 
 ### Reference-loop mitigations
 

@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -9,14 +9,15 @@ use bityzba::{contract_trait, ensures, invariant, new, requires};
 use serde_json::{Value, json};
 use xarsnu::openrouter::ModelTurnData;
 use xarsnu::protocol::{
-    ListenerFlowAbandonReasonData, ProtocolEventData, ProtocolRunOutcomeData, TurnForfeitReasonData,
+    ListenerFlowAbandonReasonData, ProtocolEventData, ProtocolRunOutcomeData, ReviewOutcomeData,
+    TurnForfeitReasonData,
 };
 use xarsnu::{
-    CapsConfig, ListenerMode, MalformedToolCall, ModelTurn, ParticipantConfig, ProtocolEvent,
-    ProtocolModel, ProtocolModelError, ProtocolRunner, ProtocolTool, ProviderToolChoice,
-    ReferenceToolDispatcher, RunAccounting, RunConfig, RunHeader, ScenarioInstance, TaskStatus,
-    TersmuFormat, ToolCall, ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher,
-    read_transcript, report_file,
+    CapsConfig, ListenerMode, MalformedToolCall, MeaningReview, MeaningReviewer, ModelTurn,
+    ParticipantConfig, ProtocolEvent, ProtocolModel, ProtocolModelError, ProtocolRunner,
+    ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher, ReviewBrief, ReviewOutcome,
+    RunAccounting, RunConfig, RunHeader, ScenarioInstance, TaskStatus, TersmuFormat, ToolCall,
+    ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher, read_transcript, report_file,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -416,6 +417,117 @@ fn count_rejections(events: &[ProtocolEvent]) -> usize {
             )
         })
         .count()
+}
+
+/// Reviewer factory whose sessions play back scripted verdicts while recording
+/// every brief they receive, tagged with the session that reviewed it (issue
+/// #723 lifecycle tests).
+#[invariant(true, "test-owned scripted verdict queue")]
+#[derive(Debug)]
+struct ScriptedReviewer {
+    verdicts: Rc<RefCell<VecDeque<(bool, String)>>>,
+    sessions_started: Rc<Cell<usize>>,
+    reviewed: Rc<RefCell<Vec<(usize, ReviewBrief)>>>,
+}
+
+#[contract_trait]
+impl MeaningReviewer for ScriptedReviewer {
+    type Session = ScriptedReviewSession;
+
+    fn begin_session(&mut self, _speaker: &str) -> ScriptedReviewSession {
+        self.sessions_started.set(self.sessions_started.get() + 1);
+        ScriptedReviewSession {
+            session_id: self.sessions_started.get(),
+            verdicts: self.verdicts.clone(),
+            reviewed: self.reviewed.clone(),
+        }
+    }
+}
+
+#[invariant(true, "the factory assigns the session id; verdicts are test-owned")]
+#[derive(Debug)]
+struct ScriptedReviewSession {
+    session_id: usize,
+    verdicts: Rc<RefCell<VecDeque<(bool, String)>>>,
+    reviewed: Rc<RefCell<Vec<(usize, ReviewBrief)>>>,
+}
+
+#[contract_trait]
+impl MeaningReview for ScriptedReviewSession {
+    fn review(
+        &mut self,
+        brief: &ReviewBrief,
+        _accounting: &mut RunAccounting,
+    ) -> Result<ReviewOutcome, ProtocolModelError> {
+        self.reviewed.borrow_mut().push((self.session_id, brief.clone()));
+        let (approved, report) = self
+            .verdicts
+            .borrow_mut()
+            .pop_front()
+            .expect("scripted verdict available");
+        Ok(new!(ReviewOutcome::Decided { approved, report }))
+    }
+}
+
+#[requires(verdicts.iter().all(|(_, report)| !report.trim().is_empty()))]
+#[ensures(true)]
+fn scripted_reviewer(
+    verdicts: Vec<(bool, &str)>,
+) -> (
+    ScriptedReviewer,
+    Rc<Cell<usize>>,
+    Rc<RefCell<Vec<(usize, ReviewBrief)>>>,
+) {
+    let sessions_started = Rc::new(Cell::new(0));
+    let reviewed = Rc::new(RefCell::new(Vec::new()));
+    (
+        ScriptedReviewer {
+            verdicts: Rc::new(RefCell::new(
+                verdicts
+                    .into_iter()
+                    .map(|(approved, report)| (approved, report.to_owned()))
+                    .collect(),
+            )),
+            sessions_started: sessions_started.clone(),
+            reviewed: reviewed.clone(),
+        },
+        sessions_started,
+        reviewed,
+    )
+}
+
+#[requires(participants.len() >= 2)]
+#[ensures(ret.as_ref().is_ok_and(|runner| runner.participants().len() >= 2) || ret.is_err())]
+fn runner_with_review(
+    participants: Vec<ScriptedModel>,
+    caps: CapsConfig,
+    reviewer: ScriptedReviewer,
+) -> Result<
+    ProtocolRunner<ScriptedModel, ReferenceToolDispatcher, ScriptedReviewer>,
+    xarsnu::ProtocolRunError,
+> {
+    ProtocolRunner::new_with_review(
+        participants,
+        caps,
+        ListenerMode::Informed,
+        TersmuFormat::Smusni,
+        ReferenceToolDispatcher,
+        reviewer,
+    )
+}
+
+#[requires(!kind.trim().is_empty())]
+#[ensures(ret.len() <= events.len())]
+fn events_of_kind<'event>(events: &'event [ProtocolEvent], kind: &str) -> Vec<&'event ProtocolEvent> {
+    events
+        .iter()
+        .filter(|event| {
+            serde_json::to_value(event).expect("event serializes")["kind"]
+                .as_str()
+                .expect("kind tag is a string")
+                == kind
+        })
+        .collect()
 }
 
 #[test]
@@ -1847,6 +1959,7 @@ fn debate_runs_full_round_robin_to_instance_turn_cap_without_answer_or_checker_e
         tersmu_format: TersmuFormat::Smusni,
         listener_mode: ListenerMode::BlindThenReveal,
         allow_degraded_search: false,
+        meaning_review: xarsnu::MeaningReviewConfig::default(),
     });
     let header = RunHeader::new(run_config.clone(), &scenario).expect("transcript header");
     let transcript_path = temp_path("debate-turn-cap");
@@ -1955,6 +2068,7 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
         tersmu_format: TersmuFormat::Smusni,
         listener_mode: ListenerMode::BlindThenReveal,
         allow_degraded_search: false,
+        meaning_review: xarsnu::MeaningReviewConfig::default(),
     });
     let header = RunHeader::new(run_config.clone(), &scenario).expect("transcript header");
     let transcript_path = temp_path("malformed-tool-call");
@@ -2153,6 +2267,7 @@ fn submit_answer_unlocks_after_minimum_rounds_and_finishes_after_all_required_an
             tersmu_format: TersmuFormat::Smusni,
             listener_mode: ListenerMode::BlindThenReveal,
             allow_degraded_search: false,
+            meaning_review: xarsnu::MeaningReviewConfig::default(),
         }),
         &scenario,
     )
@@ -2696,5 +2811,286 @@ fn legacy_meaning_confirmed_without_intent_sequence_deserializes_as_none() {
             ..
         }) => assert_eq!(*intent_sequence, None),
         _ => panic!("expected a meaning-confirmed event"),
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn review_rejection_returns_feedback_and_the_same_session_verifies_the_revision() {
+    // Issue #723: the reviewer rejects the first candidate, its report goes
+    // back to the composing session as the `submit_lojban` tool result, and
+    // the revised candidate is verified by the SAME reviewer session.
+    let (reviewer, sessions_started, reviewed) = scripted_reviewer(vec![
+        (
+            false,
+            "na scope diverges: the rendering negates the main bridi, but the intent has no negation.",
+        ),
+        (true, "All checks pass: scope, places, and attachment match the intent."),
+    ]);
+    let alice = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go to the market." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama mi" }),
+            ),
+        ],
+    );
+    let bob = ScriptedModel::new("bob", informed_listener_steps("Alice goes somewhere."));
+    let mut runner =
+        runner_with_review(vec![alice, bob], caps(3, 2, 1), reviewer).expect("runner builds");
+    let outcome = runner.run().expect("run completes");
+    assert!(matches!(
+        outcome.as_data(),
+        bityzba::data!(ProtocolRunOutcome::Completed { turns: 1 })
+    ));
+    assert!(runner.participants()[0].is_complete());
+    assert!(runner.participants()[1].is_complete());
+
+    let events = runner.events();
+    assert_eq!(events_of_kind(events, "review-requested").len(), 2);
+    assert_eq!(events_of_kind(events, "review-report").len(), 2);
+    assert_eq!(events_of_kind(events, "review-verdict").len(), 2);
+    assert_eq!(events_of_kind(events, "message-posted").len(), 1);
+    // The reviewer replaces self-confirmation entirely.
+    assert_eq!(events_of_kind(events, "meaning-confirmed").len(), 0);
+    let verdicts = events
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::ReviewVerdict { approved, .. }) => Some(*approved),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(verdicts, [false, true]);
+    let revision_numbers = events
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::ReviewRequested {
+                intent_revision_number,
+                ..
+            }) => Some(*intent_revision_number),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(revision_numbers, [0, 0]);
+
+    // Both candidates went to ONE reviewer session, with the governing intent.
+    assert_eq!(sessions_started.get(), 1);
+    let reviewed = reviewed.borrow();
+    assert_eq!(reviewed.len(), 2);
+    assert!(reviewed.iter().all(|(session_id, _)| *session_id == 1));
+    assert!(
+        reviewed
+            .iter()
+            .all(|(_, brief)| brief.meaning_en == "I go to the market.")
+    );
+    assert_eq!(reviewed[0].1.candidate.text, "mi klama");
+    assert_eq!(reviewed[1].1.candidate.text, "mi klama mi");
+    drop(reviewed);
+
+    // The rejection report reached the composing session as feedback; the
+    // approval posted without any confirm_meaning call.
+    let submit_results = runner.participants()[0]
+        .tool_results
+        .iter()
+        .filter(|result| result.tool_name == "submit_lojban")
+        .map(|result| result.content.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(submit_results.len(), 2);
+    assert!(submit_results[0].contains("REJECTED"));
+    assert!(submit_results[0].contains("na scope diverges"));
+    assert!(submit_results[1].contains("approved"));
+    assert_eq!(runner.visible_chat().len(), 1);
+    assert_eq!(runner.visible_chat()[0].text, "mi klama mi");
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_newly_registered_intent_resets_the_reviewer_session() {
+    // Issue #723 lifecycle: re-declaring intent (a revision) resets the
+    // reviewer; the revised candidate is verified by a FRESH session.
+    let (reviewer, sessions_started, reviewed) = scripted_reviewer(vec![
+        (false, "The destination place is unfilled but the intent names the market."),
+        (true, "The rendering now matches the revised intent."),
+    ]);
+    let alice = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go to the market." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "register_intent",
+                json!({ "meaning_en": "I go somewhere." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+        ],
+    );
+    let bob = ScriptedModel::new("bob", informed_listener_steps("Alice goes somewhere."));
+    let mut runner =
+        runner_with_review(vec![alice, bob], caps(3, 2, 1), reviewer).expect("runner builds");
+    let outcome = runner.run().expect("run completes");
+    assert!(matches!(
+        outcome.as_data(),
+        bityzba::data!(ProtocolRunOutcome::Completed { turns: 1 })
+    ));
+    assert!(runner.participants()[0].is_complete());
+
+    assert_eq!(sessions_started.get(), 2);
+    let reviewed = reviewed.borrow();
+    assert_eq!(reviewed.len(), 2);
+    assert_eq!(reviewed[0].0, 1);
+    assert_eq!(reviewed[1].0, 2);
+    assert_eq!(reviewed[0].1.meaning_en, "I go to the market.");
+    assert_eq!(reviewed[1].1.meaning_en, "I go somewhere.");
+    drop(reviewed);
+
+    // The transcript names the governing intent revision of each review.
+    let revision_numbers = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::ReviewRequested {
+                intent_revision_number,
+                ..
+            }) => Some(*intent_revision_number),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(revision_numbers, [0, 1]);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn review_rejection_at_the_parse_cap_forfeits_the_turn() {
+    let (reviewer, _, _) = scripted_reviewer(vec![(false, "Unfixable divergence.")]);
+    let alice = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go to the market." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+        ],
+    );
+    let bob = ScriptedModel::new("bob", vec![]);
+    let mut runner =
+        runner_with_review(vec![alice, bob], caps(1, 2, 1), reviewer).expect("runner builds");
+    let outcome = runner.run().expect("run completes");
+    assert!(matches!(
+        outcome.as_data(),
+        bityzba::data!(ProtocolRunOutcome::Completed { turns: 1 })
+    ));
+    assert!(runner.participants()[0].is_complete());
+
+    let forfeits = runner
+        .events()
+        .iter()
+        .filter(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::TurnForfeited { reason, .. })
+                    if matches!(reason.as_data(), bityzba::data!(TurnForfeitReason::ParseAttempts { maximum: 1 }))
+            )
+        })
+        .count();
+    assert_eq!(forfeits, 1);
+    assert_eq!(events_of_kind(runner.events(), "message-posted").len(), 0);
+    assert_eq!(events_of_kind(runner.events(), "listener-flow-started").len(), 0);
+    assert!(runner.visible_chat().is_empty());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn review_events_serialize_with_their_documented_payloads() {
+    // Transcript event coverage for issue #723: the brief rides the
+    // review-requested event losslessly, including renderer-declared
+    // incompatibility records.
+    let requested: ProtocolEvent = serde_json::from_value(json!({
+        "kind": "review-requested",
+        "turn_number": 2,
+        "speaker": "alice",
+        "intent_revision_number": 1,
+        "brief": {
+            "meaning_en": "I go to the market.",
+            "candidate": { "text": "mi klama", "tersmu-rendering": [40, 107, 108, 97, 109, 97, 32, 109, 105, 41, 10] },
+            "renderer_incompatibilities": ["BINDER-DOES-NOT-ENCLOSE-USE"]
+        }
+    }))
+    .expect("review-requested deserializes");
+    match requested.as_data() {
+        bityzba::data!(ProtocolEvent::ReviewRequested {
+            turn_number,
+            intent_revision_number,
+            brief,
+            ..
+        }) => {
+            assert_eq!(*turn_number, 2);
+            assert_eq!(*intent_revision_number, 1);
+            assert_eq!(brief.meaning_en, "I go to the market.");
+            assert_eq!(brief.candidate.text, "mi klama");
+            assert_eq!(
+                brief.renderer_incompatibilities,
+                ["BINDER-DOES-NOT-ENCLOSE-USE"]
+            );
+        }
+        _ => panic!("expected a review-requested event"),
+    }
+    let report: ProtocolEvent = serde_json::from_value(json!({
+        "kind": "review-report",
+        "turn_number": 2,
+        "speaker": "alice",
+        "report": "Complete lossless report text.\nWith several lines."
+    }))
+    .expect("review-report deserializes");
+    match report.as_data() {
+        bityzba::data!(ProtocolEvent::ReviewReport { report, .. }) => {
+            assert_eq!(report, "Complete lossless report text.\nWith several lines.")
+        }
+        _ => panic!("expected a review-report event"),
+    }
+    let verdict: ProtocolEvent = serde_json::from_value(json!({
+        "kind": "review-verdict",
+        "turn_number": 2,
+        "speaker": "alice",
+        "approved": false
+    }))
+    .expect("review-verdict deserializes");
+    match verdict.as_data() {
+        bityzba::data!(ProtocolEvent::ReviewVerdict { approved, .. }) => assert!(!approved),
+        _ => panic!("expected a review-verdict event"),
     }
 }

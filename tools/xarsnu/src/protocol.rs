@@ -12,13 +12,14 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::model_capabilities::ParticipantModelPolicy;
-use crate::openrouter::{MalformedToolCallData, REQUIRED_TOOL_CORRECTION};
+use crate::openrouter::{MalformedToolCallData, ModelTurnData, REQUIRED_TOOL_CORRECTION};
 use crate::transcript::TranscriptWriter;
 use crate::{
-    AbortRecord, CapsConfig, DiagnosticCategory, ListenerMode, MalformedToolCall, OpenRouterClient,
-    ParticipantConfig, ParticipantConversation, ProviderCallObservation, ProviderToolChoice,
-    ReferenceTools, RunAccounting, RunHeader, TersmuFormat, ThinkingTrace, ToolCall, ToolDefinition,
-    ToolDefinitionError, ToolDispatchError, ToolDispatcher, TranscriptError, Usage,
+    AbortRecord, CapsConfig, DiagnosticCategory, ListenerMode, MalformedToolCall, MeaningReviewConfig,
+    OpenRouterClient, ParticipantConfig, ParticipantConversation, ProviderCallObservation,
+    ProviderToolChoice, ReferenceTools, RunAccounting, RunHeader, TersmuFormat, ThinkingTrace,
+    ToolCall, ToolDefinition, ToolDefinitionError, ToolDispatchError, ToolDispatcher,
+    TranscriptError, Usage,
 };
 use crate::{ScenarioAnswer, ScenarioInstance, TaskOutcome};
 
@@ -42,6 +43,38 @@ const LISTENER_INFORMED_INSTRUCTION: &str = "Interpret the following visible Loj
 const ANSWER_AVAILABLE_INSTRUCTION: &str = "You may now submit your scenario answer with `submit_answer`. The task is scored only from formal submissions; in-dialog agreement does not count.";
 const CLOSED_DIALOG_ANSWER_INSTRUCTION: &str = "The visible-channel dialog is now closed. No participant can post or see any further dialog. Submit your scenario answer independently with `submit_answer`, based only on the dialog through the final posted description. The task is scored only from formal submissions; in-dialog agreement does not count.";
 const REFERENCE_TOOL_NAMES: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
+
+/// The adversarial reviewer's only tool: a forced, machine-readable verdict.
+const REVIEW_VERDICT_TOOL_NAME: &str = "review_verdict";
+
+/// Speaker instruction when the independent reviewer replaces self-confirmation
+/// (issue #723). The candidate flow and the precision standard are unchanged;
+/// only the confirmation step moves to the reviewer session.
+const SPEAKER_TURN_INSTRUCTION_REVIEWED: &str = "You are the speaker for this turn. First register your intended meaning in English with register_intent. Then submit candidate Lojban until jbotci accepts one. Every accepted candidate is verified by an independent adversarial reviewer — a separate session of your model that does not share this conversation — which compares the tersmu rendering against your registered intent; you never confirm your own rendering. If the reviewer approves, the candidate is posted. If the reviewer rejects it, the reviewer's report is returned to you as feedback: revise the Lojban against the SAME registered intent and call submit_lojban again. The precision standard is unchanged: the tersmu rendering is the meaning that will be scored, every predicate relation as rendered under its dictionary place structure must be the intended relation, and calques or idioms from other languages (malgli) are mismatches even when a listener would get the gist. If what you want to say has changed since you registered it — a simplification, a retreat, or a pivot, all legitimate — call register_intent again with the revised meaning BEFORE submitting; re-declaring is cheap and encouraged, but note that a newly registered intent is reviewed by a fresh reviewer session that has not seen the earlier candidates. The revised intent must be a message you independently want to say, not a description read back off a rendering.";
+
+/// Adversarial reviewer doctrine (issue #723), primed with the failure-mode
+/// catalog observed in self-confirmed runs. The reviewer session consists of
+/// this system prompt plus one brief per candidate; it never sees the
+/// composing conversation, the participant persona, or the standing rules.
+const MEANING_REVIEW_SYSTEM_PROMPT: &str = concat!(
+    "You are the independent adversarial meaning reviewer in xarsnu's tool-gated Lojban discussion protocol. ",
+    "A composing model — running in a different session that you cannot see — registered an English intent and submitted candidate Lojban, which the production jbotci parser accepted and rendered as tersmu. ",
+    "Your only job is to decide whether the tersmu rendering is a PRECISE translation of the registered intent, and to deliver that verdict by calling review_verdict exactly once. ",
+    "You did not write this candidate. Treat it as suspect: self-confirming composers were repeatedly observed approving renderings that visibly contradicted the registered intent, so approval requires positive evidence that intent and rendering agree, not merely the absence of an obvious problem. ",
+    "Check the rendering against the intent for each of these known failure modes: ",
+    "(1) na scope — negation scoping over the wrong constituent, an added negation the intent does not have, or a missing one the intent requires; ",
+    "(2) indicator asides — attitudinal markers such as po'o ('only') are ASSERTION-EFFECT asides whose TARGET is the construct they follow: po'o placed outside a negation scopes differently from po'o inside it, and an aside can change what is asserted without appearing as a predicate argument, so verify each indicator's attachment and target; ",
+    "(3) place-structure misuse — every sumti must fill the selbri place whose dictionary meaning AND type it denotes (entity, agent, event, property, proposition, quantity); a place filled by the wrong type is a mismatch even when the gist is readable; ",
+    "(4) repeated-description coreference — two occurrences of the same description are distinct referents unless the rendering explicitly identifies them; if the intent needs them to be the same entity, two independent descriptions are a mismatch; ",
+    "(5) elided or zo'e agents inside deontic contents — obligations and permissions with an elided agent leave the duty with an unspecified party; if the intent assigns it to a specific agent, zo'e is a mismatch; ",
+    "(6) connective attachment — gi'e and other connectives group exactly as rendered, which may not be the intended grouping; verify the rendered attachment, not the intended one; ",
+    "(7) binder and scope anomalies — binders that do not enclose their uses, or quantifier scope that inverts the intended dependency. ",
+    "When the brief quotes renderer-declared incompatibility records, the renderer itself has flagged scope or structure problems in this rendering; weigh them as prime evidence and address each one explicitly in your report. ",
+    "Approve only when every intended predicate relation appears in the rendering with the intended arguments, scope, and attachment, and the rendering asserts nothing the intent does not. ",
+    "When you reject, your report is the composer's only feedback: name every concrete divergence and state what the rendering actually says instead. ",
+    "When a revised candidate arrives under the same intent, verify that every problem you reported is actually fixed and that the revision introduced no new divergence. ",
+    "The report is mandatory for both verdicts — an empty or perfunctory report is not acceptable; document the checks you made."
+);
 
 /// One of the six state-changing protocol tools.
 #[invariant(::RegisterIntent => true)]
@@ -403,6 +436,336 @@ impl RevealedMessage {
     }
 }
 
+/// Everything the adversarial reviewer session sees for one accepted candidate
+/// (issue #723).
+#[invariant(!meaning_en.trim().is_empty(), "the governing intent cannot be empty")]
+#[invariant(renderer_incompatibilities.iter().all(|record| !record.trim().is_empty()), "renderer incompatibility records cannot be empty")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewBrief {
+    /// The currently registered intent the rendering is measured against.
+    pub meaning_en: String,
+    /// The gate-accepted candidate and its production tersmu rendering.
+    pub candidate: VisibleMessage,
+    /// Renderer-declared scope incompatibility records, auto-quoted into the
+    /// brief when the gate reports them. The gate does not surface these
+    /// records yet (that is issue #721, whose hard-reject policy question also
+    /// stays open), so current runs always pass an empty list.
+    pub renderer_incompatibilities: Vec<String>,
+}
+
+impl ReviewBrief {
+    /// Build the reviewer user message. Follow-up briefs name the same-intent
+    /// revision explicitly so the continuing session verifies the fixes.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|prompt| prompt.contains(&self.meaning_en) && prompt.contains(&self.candidate.text)) || ret.is_err())]
+    fn prompt(&self, follow_up: bool) -> Result<String, ProtocolRunError> {
+        let rendering = std::str::from_utf8(&self.candidate.tersmu_rendering).map_err(|error| {
+            new!(ProtocolRunError::InvalidTersmuEncoding {
+                message: error.to_string(),
+            })
+        })?;
+        let mut prompt = if follow_up {
+            "The composer submitted a REVISED candidate under the SAME registered intent. Verify that every problem reported earlier in this session is actually fixed and that the revision introduced no new divergence.\n\n".to_owned()
+        } else {
+            "Adversarially review this accepted candidate against the registered intent.\n\n".to_owned()
+        };
+        write!(
+            prompt,
+            "Registered intent (English):\n{}\n\nAccepted Lojban candidate:\n{}\n\ntersmu rendering:\n{rendering}",
+            self.meaning_en, self.candidate.text
+        )
+        .expect("writing to a String cannot fail");
+        if !self.renderer_incompatibilities.is_empty() {
+            prompt.push_str(
+                "\n\nRenderer-declared incompatibility records (the renderer itself flagged these scope/structure problems; address each one explicitly in your report):",
+            );
+            for record in &self.renderer_incompatibilities {
+                write!(prompt, "\n- {record}").expect("writing to a String cannot fail");
+            }
+        }
+        prompt.push_str("\n\nDecide whether the tersmu rendering is a precise translation of the registered intent and call review_verdict exactly once.");
+        Ok(prompt)
+    }
+}
+
+/// Result of one adversarial reviewer session call (issue #723).
+#[invariant(::Decided { report, .. } => !report.trim().is_empty())]
+#[invariant(::BudgetAborted { .. } => true)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReviewOutcome {
+    /// The reviewer delivered its forced verdict.
+    Decided { approved: bool, report: String },
+    /// The run's cost budget stopped the review before a verdict.
+    BudgetAborted { record: AbortRecord },
+}
+
+/// One adversarial reviewer session: a single-purpose completion loop whose
+/// only tool is the forced verdict (issue #723). It is NOT a protocol
+/// participant; it shares no message history with any participant.
+#[contract_trait]
+pub trait MeaningReview: fmt::Debug {
+    /// Review one gate-accepted candidate against the brief's governing intent.
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn review(
+        &mut self,
+        brief: &ReviewBrief,
+        accounting: &mut RunAccounting,
+    ) -> Result<ReviewOutcome, ProtocolModelError>;
+
+    /// Drain one observability record for every provider call made by the last review.
+    #[requires(true)]
+    #[ensures(true)]
+    fn take_observations(&mut self) -> Vec<ProviderCallObservation> {
+        Vec::new()
+    }
+
+    /// Drain lossless records of malformed tool calls made by the last review.
+    #[requires(true)]
+    #[ensures(true)]
+    fn take_malformed_tool_calls(&mut self) -> Vec<MalformedToolCall> {
+        Vec::new()
+    }
+}
+
+/// Source of fresh adversarial reviewer sessions (issue #723).
+///
+/// The protocol runner starts a fresh session whenever a new intent is
+/// registered; candidates submitted under the same registered intent reuse the
+/// active session so the reviewer can verify that reported problems were fixed.
+#[contract_trait]
+pub trait MeaningReviewer: fmt::Debug {
+    /// Session type started for one registered intent.
+    type Session: MeaningReview;
+
+    /// Start a fresh review session for a newly registered intent.
+    #[requires(!speaker.trim().is_empty())]
+    #[ensures(true)]
+    fn begin_session(&mut self, speaker: &str) -> Self::Session;
+}
+
+/// Disabled meaning review. The private field makes construction impossible
+/// outside this module, so a runner built without review can never start a
+/// reviewer session.
+#[invariant(true, "never constructed; meaning review is disabled")]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct NoReviewer {
+    _private: (),
+}
+
+#[contract_trait]
+impl MeaningReview for NoReviewer {
+    fn review(
+        &mut self,
+        _brief: &ReviewBrief,
+        _accounting: &mut RunAccounting,
+    ) -> Result<ReviewOutcome, ProtocolModelError> {
+        unreachable!("meaning review is disabled; no reviewer session can exist")
+    }
+}
+
+#[contract_trait]
+impl MeaningReviewer for NoReviewer {
+    type Session = NoReviewer;
+
+    fn begin_session(&mut self, _speaker: &str) -> Self::Session {
+        unreachable!("meaning review is disabled; no reviewer session can be started")
+    }
+}
+
+/// Live adversarial reviewer session over a fresh participant-model
+/// conversation (issue #723).
+#[invariant(true, "constructed from validated participant and review configuration")]
+#[derive(Debug)]
+pub struct OpenRouterReviewSession<'client> {
+    conversation: ParticipantConversation,
+    tool_choice: ProviderToolChoice,
+    supports_prefill: bool,
+    client: &'client OpenRouterClient,
+    reviews_completed: usize,
+}
+
+impl<'client> OpenRouterReviewSession<'client> {
+    /// Start a fresh review session on the participant's own model.
+    ///
+    /// The session shares the participant's model, provider routing, and
+    /// prompt-caching policy; temperature and reasoning come from the
+    /// meaning-review config when it overrides them and otherwise from the
+    /// participant. Tool choice resolves through the same model-capability
+    /// metadata as participants, so thinking-mode providers that reject
+    /// `tool_choice: required` get the automatic corrective loop instead. The
+    /// session deliberately inherits none of the participant's message
+    /// history, persona, or standing protocol rules.
+    #[requires(true)]
+    #[ensures(ret.reviews_completed == 0)]
+    pub fn new(
+        participant: &ParticipantConfig,
+        review: &MeaningReviewConfig,
+        client: &'client OpenRouterClient,
+    ) -> Self {
+        let policy = ParticipantModelPolicy::resolve(
+            &participant.model,
+            participant.tool_choice,
+            review.reasoning.or(participant.reasoning),
+        );
+        Self {
+            conversation: ParticipantConversation::from_system_prompt(
+                participant.name.clone(),
+                participant.model.clone(),
+                participant.provider.clone(),
+                participant.prompt_caching,
+                policy.reasoning,
+                review.temperature.unwrap_or(participant.temperature),
+                MEANING_REVIEW_SYSTEM_PROMPT.to_owned(),
+            ),
+            tool_choice: policy.tool_choice,
+            supports_prefill: policy.supports_prefill,
+            client,
+            reviews_completed: 0,
+        }
+    }
+}
+
+#[contract_trait]
+impl MeaningReview for OpenRouterReviewSession<'_> {
+    fn review(
+        &mut self,
+        brief: &ReviewBrief,
+        accounting: &mut RunAccounting,
+    ) -> Result<ReviewOutcome, ProtocolModelError> {
+        let prompt = brief
+            .prompt(self.reviews_completed > 0)
+            .map_err(|error| ProtocolModelError::new(error.to_string()))?;
+        self.conversation.begin_tool_loop();
+        self.conversation.push_user(prompt);
+        let parameters = serde_json::to_value(schema_for!(ReviewVerdictArguments))
+            .expect("generated review verdict schema serializes to JSON");
+        let tools = vec![
+            ToolDefinition::new(
+                REVIEW_VERDICT_TOOL_NAME.to_owned(),
+                "Deliver the adversarial review verdict for the current candidate. Set approved=true only when the tersmu rendering is a precise translation of the registered intent. The report is mandatory for both verdicts; on rejection it is the composer's only feedback, so name every concrete divergence.".to_owned(),
+                parameters,
+            )
+            .map_err(|error| ProtocolModelError::new(error.to_string()))?,
+        ];
+        let max_reprompts = self.client.max_required_tool_reprompts();
+        let mut reprompts = 0usize;
+        loop {
+            let turn = self
+                .conversation
+                .request(self.client, &tools, self.tool_choice, accounting)
+                .map_err(|error| ProtocolModelError::new(error.to_string()))?;
+            match turn.as_data() {
+                bityzba::data!(ModelTurn::ToolCalls { calls }) => {
+                    reprompts = 0;
+                    let calls = calls.clone();
+                    let mut verdict = None;
+                    for call in &calls {
+                        let content = if verdict.is_some() {
+                            "The review verdict is already recorded by an earlier call in this batch; this call was rejected.".to_owned()
+                        } else if call.function.name == REVIEW_VERDICT_TOOL_NAME {
+                            match decode_arguments::<ReviewVerdictArguments>(call) {
+                                Ok(arguments) => {
+                                    verdict = Some(arguments);
+                                    "Review verdict recorded.".to_owned()
+                                }
+                                Err(message) => message,
+                            }
+                        } else {
+                            format!(
+                                "Unknown tool `{}`; the only tool offered to the meaning reviewer is `{REVIEW_VERDICT_TOOL_NAME}`.",
+                                call.function.name
+                            )
+                        };
+                        self.conversation.push_tool_result(call, content);
+                    }
+                    if let Some(ReviewVerdictArguments { approved, report }) = verdict {
+                        self.reviews_completed += 1;
+                        return Ok(new!(ReviewOutcome::Decided { approved, report }));
+                    }
+                }
+                bityzba::data!(ModelTurn::Message { .. }) => {
+                    // Only reachable with automatic tool choice: the required
+                    // mode corrects prose inside `request`. Bound the same
+                    // corrective machinery the protocol loop uses.
+                    if reprompts >= max_reprompts {
+                        return Err(ProtocolModelError::new(format!(
+                            "the meaning reviewer did not call `{REVIEW_VERDICT_TOOL_NAME}` after {} corrective reprompt(s)",
+                            reprompts + 1,
+                        )));
+                    }
+                    reprompts += 1;
+                    if self.supports_prefill {
+                        self.conversation.push_assistant_prefill(format!(
+                            "Actually, I must use one of the following tools: {REVIEW_VERDICT_TOOL_NAME}."
+                        ));
+                    } else {
+                        self.conversation
+                            .push_user(REQUIRED_TOOL_CORRECTION.to_owned());
+                    }
+                }
+                bityzba::data!(ModelTurn::Aborted { record }) => {
+                    return Ok(new!(ReviewOutcome::BudgetAborted {
+                        record: record.clone(),
+                    }));
+                }
+            }
+        }
+    }
+
+    fn take_observations(&mut self) -> Vec<ProviderCallObservation> {
+        self.conversation.take_pending_observations()
+    }
+
+    fn take_malformed_tool_calls(&mut self) -> Vec<MalformedToolCall> {
+        self.conversation.take_pending_malformed_tool_calls()
+    }
+}
+
+/// Live factory of fresh adversarial reviewer sessions, one per registered
+/// intent (issue #723).
+#[invariant(!participants.is_empty(), "the reviewer factory requires the run participants")]
+#[derive(Debug)]
+pub struct OpenRouterReviewer<'client> {
+    participants: BTreeMap<String, ParticipantConfig>,
+    config: MeaningReviewConfig,
+    client: &'client OpenRouterClient,
+}
+
+impl<'client> OpenRouterReviewer<'client> {
+    /// Prepare fresh-session construction for every run participant.
+    #[requires(config.enabled)]
+    #[requires(!participants.is_empty())]
+    #[ensures(ret.participants.len() == participants.len())]
+    pub fn new(
+        participants: &[ParticipantConfig],
+        config: MeaningReviewConfig,
+        client: &'client OpenRouterClient,
+    ) -> Self {
+        new!(OpenRouterReviewer {
+            participants: participants
+                .iter()
+                .map(|participant| (participant.name.clone(), participant.clone()))
+                .collect(),
+            config,
+            client,
+        })
+    }
+}
+
+#[contract_trait]
+impl<'client> MeaningReviewer for OpenRouterReviewer<'client> {
+    type Session = OpenRouterReviewSession<'client>;
+
+    fn begin_session(&mut self, speaker: &str) -> Self::Session {
+        let participant = self
+            .participants
+            .get(speaker)
+            .expect("reviewer sessions are started only for run participants");
+        OpenRouterReviewSession::new(participant, &self.config, self.client)
+    }
+}
+
 /// Typed speaker machine; each variant owns exactly the data its phase permits.
 #[invariant(::AwaitingIntent => true)]
 #[invariant(::Composing { meaning_en, .. } => !meaning_en.trim().is_empty())]
@@ -664,6 +1027,9 @@ pub struct RuntimeFailureRecord {
 #[invariant(::CandidateRejected { turn_number, speaker, text, diagnostics, attempt, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !text.trim().is_empty() && !diagnostics.is_empty() && *attempt > 0)]
 #[invariant(::CandidateAccepted { turn_number, speaker, message, attempt } => *turn_number > 0 && !speaker.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty() && *attempt > 0)]
 #[invariant(::MeaningConfirmed { turn_number, speaker, paraphrase_en, discrepancies, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !paraphrase_en.trim().is_empty() && discrepancies.as_ref().is_none_or(|value| !value.trim().is_empty()))]
+#[invariant(::ReviewRequested { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty(), "the brief's own invariant covers its contents")]
+#[invariant(::ReviewReport { turn_number, speaker, report } => *turn_number > 0 && !speaker.trim().is_empty() && !report.trim().is_empty())]
+#[invariant(::ReviewVerdict { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty())]
 #[invariant(::MessagePosted { turn_number, speaker, message } => *turn_number > 0 && !speaker.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::ListenerFlowStarted { turn_number, speaker, listener, message, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !listener.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::BlindInterpretationRecorded { turn_number, speaker, listener, interpretation_en } => *turn_number > 0 && !speaker.trim().is_empty() && !listener.trim().is_empty() && !interpretation_en.trim().is_empty())]
@@ -744,6 +1110,29 @@ pub enum ProtocolEvent {
         turn_number: usize,
         speaker: String,
         message: VisibleMessage,
+    },
+    /// An accepted candidate and its governing intent were sent to the
+    /// adversarial reviewer session (issue #723). `intent_revision_number` is
+    /// the `revision_number` of the governing `IntentRegistered` event, so the
+    /// transcript alone shows which intent a review measured and when a new
+    /// registration reset the reviewer session.
+    ReviewRequested {
+        turn_number: usize,
+        speaker: String,
+        intent_revision_number: usize,
+        brief: ReviewBrief,
+    },
+    /// The reviewer session's complete report, recorded losslessly (issue #723).
+    ReviewReport {
+        turn_number: usize,
+        speaker: String,
+        report: String,
+    },
+    /// The reviewer session's binding verdict (issue #723).
+    ReviewVerdict {
+        turn_number: usize,
+        speaker: String,
+        approved: bool,
     },
     ListenerFlowStarted {
         turn_number: usize,
@@ -916,6 +1305,9 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::CandidateAccepted { turn_number, .. })
             | bityzba::data!(ProtocolEvent::MeaningConfirmed { turn_number, .. })
             | bityzba::data!(ProtocolEvent::MessagePosted { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::ReviewRequested { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::ReviewReport { turn_number, .. })
+            | bityzba::data!(ProtocolEvent::ReviewVerdict { turn_number, .. })
             | bityzba::data!(ProtocolEvent::ListenerFlowStarted { turn_number, .. })
             | bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { turn_number, .. })
             | bityzba::data!(ProtocolEvent::TersmuRevealed { turn_number, .. })
@@ -955,6 +1347,9 @@ impl ProtocolEvent {
             | bityzba::data!(ProtocolEvent::CandidateAccepted { speaker, .. })
             | bityzba::data!(ProtocolEvent::MeaningConfirmed { speaker, .. })
             | bityzba::data!(ProtocolEvent::MessagePosted { speaker, .. })
+            | bityzba::data!(ProtocolEvent::ReviewRequested { speaker, .. })
+            | bityzba::data!(ProtocolEvent::ReviewReport { speaker, .. })
+            | bityzba::data!(ProtocolEvent::ReviewVerdict { speaker, .. })
             | bityzba::data!(ProtocolEvent::TurnForfeited { speaker, .. }) => speaker,
             bityzba::data!(ProtocolEvent::ListenerFlowStarted { listener, .. })
             | bityzba::data!(ProtocolEvent::BlindInterpretationRecorded { listener, .. })
@@ -1113,6 +1508,18 @@ struct AcknowledgeArguments {
     discrepancies: Option<String>,
 }
 
+#[invariant(true, "wire arguments are validated immediately after deserialization")]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ReviewVerdictArguments {
+    /// True only when the tersmu rendering is a precise translation of the
+    /// registered intent.
+    approved: bool,
+    /// Complete review report, mandatory for both verdicts. On rejection it is
+    /// the composer's only feedback, so name every concrete divergence.
+    report: String,
+}
+
 #[contract_trait]
 trait ProtocolArguments: for<'de> Deserialize<'de> {
     #[requires(true)]
@@ -1154,6 +1561,13 @@ impl ProtocolArguments for AcknowledgeArguments {
     fn validate(&self) -> Result<(), String> {
         require_nonempty("final_understanding_en", &self.final_understanding_en)?;
         require_present_nonempty("discrepancies", self.discrepancies.as_deref())
+    }
+}
+
+#[contract_trait]
+impl ProtocolArguments for ReviewVerdictArguments {
+    fn validate(&self) -> Result<(), String> {
+        require_nonempty("report", &self.report)
     }
 }
 
@@ -1736,10 +2150,26 @@ fn phase_instruction(
     instruction
 }
 
+/// Reviewer factory plus the active same-intent session, when review is enabled.
+#[invariant(true, "the active session always belongs to its speaker's latest registered intent")]
+#[derive(Debug)]
+struct ReviewState<R: MeaningReviewer> {
+    factory: R,
+    active: Option<ActiveReview<R::Session>>,
+}
+
+/// The reviewer session verifying candidates under one registered intent.
+#[invariant(!speaker.trim().is_empty())]
+#[derive(Debug)]
+struct ActiveReview<S> {
+    speaker: String,
+    session: S,
+}
+
 /// Sequential round-robin protocol runner.
 #[invariant(true, "validated on construction and mutated only through run")]
 #[derive(Debug)]
-pub struct ProtocolRunner<M, D> {
+pub struct ProtocolRunner<M, D, R: MeaningReviewer = NoReviewer> {
     participants: Vec<M>,
     reference_dispatcher: D,
     caps: CapsConfig,
@@ -1754,9 +2184,10 @@ pub struct ProtocolRunner<M, D> {
     degraded_search_message: Option<String>,
     turns_started: usize,
     has_run: bool,
+    review: Option<ReviewState<R>>,
 }
 
-impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
+impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D, NoReviewer> {
     /// Construct a bounded runner over at least two uniquely named participants.
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|runner| runner.participants.len() >= 2) || ret.is_err())]
@@ -1773,6 +2204,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             listener_mode,
             tersmu_format,
             reference_dispatcher,
+            None,
             None,
         )
     }
@@ -1795,6 +2227,56 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             tersmu_format,
             reference_dispatcher,
             Some(scenario),
+            None,
+        )
+    }
+}
+
+impl<M: ProtocolModel, D: ToolDispatcher, R: MeaningReviewer> ProtocolRunner<M, D, R> {
+    /// Construct a bounded runner with adversarial fresh-session meaning review
+    /// replacing speaker self-confirmation (issue #723).
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|runner| runner.participants.len() >= 2 && runner.review.is_some()) || ret.is_err())]
+    pub fn new_with_review(
+        participants: Vec<M>,
+        caps: CapsConfig,
+        listener_mode: ListenerMode,
+        tersmu_format: TersmuFormat,
+        reference_dispatcher: D,
+        reviewer: R,
+    ) -> Result<Self, ProtocolRunError> {
+        Self::new_inner(
+            participants,
+            caps,
+            listener_mode,
+            tersmu_format,
+            reference_dispatcher,
+            None,
+            Some(reviewer),
+        )
+    }
+
+    /// Construct a bounded scenario runner with adversarial fresh-session
+    /// meaning review replacing speaker self-confirmation (issue #723).
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|runner| runner.scenario.is_some() && runner.review.is_some()) || ret.is_err())]
+    pub fn new_with_scenario_and_review(
+        participants: Vec<M>,
+        caps: CapsConfig,
+        listener_mode: ListenerMode,
+        tersmu_format: TersmuFormat,
+        reference_dispatcher: D,
+        scenario: ScenarioInstance,
+        reviewer: R,
+    ) -> Result<Self, ProtocolRunError> {
+        Self::new_inner(
+            participants,
+            caps,
+            listener_mode,
+            tersmu_format,
+            reference_dispatcher,
+            Some(scenario),
+            Some(reviewer),
         )
     }
 
@@ -1807,6 +2289,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         tersmu_format: TersmuFormat,
         reference_dispatcher: D,
         scenario: Option<ScenarioInstance>,
+        reviewer: Option<R>,
     ) -> Result<Self, ProtocolRunError> {
         if participants.len() < 2 {
             return Err(new!(ProtocolRunError::InvalidConfiguration {
@@ -1861,6 +2344,10 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             degraded_search_message: None,
             turns_started: 0,
             has_run: false,
+            review: reviewer.map(|factory| ReviewState {
+                factory,
+                active: None,
+            }),
         })
     }
 
@@ -1918,6 +2405,7 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             || header.config.caps != self.caps
             || header.config.listener_mode != self.listener_mode
             || header.config.tersmu_format != self.tersmu_format
+            || header.config.meaning_review.enabled != self.review.is_some()
             || !scenario_matches
         {
             return Err(new!(ProtocolRunError::InvalidConfiguration {
@@ -2282,34 +2770,15 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
         participant_index: usize,
         participant: &str,
     ) {
-        for observation in self.participants[participant_index].take_observations() {
-            if let Some(trace) = observation.thinking {
-                self.events.push(new!(ProtocolEvent::ThinkingRecorded {
-                    turn_number,
-                    participant: participant.to_owned(),
-                    trace,
-                }));
-            }
-            self.events.push(new!(ProtocolEvent::UsageRecorded {
-                turn_number,
-                participant: participant.to_owned(),
-                usage: observation.usage,
-            }));
-        }
-        for malformed in self.participants[participant_index].take_malformed_tool_calls() {
-            let bityzba::data!(MalformedToolCall {
-                tool_name,
-                arguments,
-                message,
-            }) = malformed.into_data();
-            self.events.push(new!(ProtocolEvent::ToolCallMalformed {
-                turn_number,
-                participant: participant.to_owned(),
-                tool_name,
-                arguments,
-                message,
-            }));
-        }
+        let observations = self.participants[participant_index].take_observations();
+        let malformed = self.participants[participant_index].take_malformed_tool_calls();
+        record_drained_observations(
+            &mut self.events,
+            turn_number,
+            participant,
+            observations,
+            malformed,
+        );
     }
 
     /// Solicit one answer without reopening visible discussion or exposing another submission.
@@ -2450,7 +2919,11 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             .participant_name()
             .to_owned();
         let instruction = phase_instruction(
-            SPEAKER_TURN_INSTRUCTION,
+            if self.review.is_some() {
+                SPEAKER_TURN_INSTRUCTION_REVIEWED
+            } else {
+                SPEAKER_TURN_INSTRUCTION
+            },
             Some(new!(TurnDeadline {
                 turn_number,
                 maximum_turns: turn_limit,
@@ -2555,6 +3028,14 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         }
                         bityzba::data!(SpeakerAction::ScenarioCompleted { .. }) => {
                             outcome = Some(new!(SpeakerOutcome::ScenarioCompleted));
+                        }
+                        bityzba::data!(SpeakerAction::BudgetAborted { record, .. }) => {
+                            self.events.push(new!(ProtocolEvent::RunAborted {
+                                record: record.clone(),
+                            }));
+                            outcome = Some(new!(SpeakerOutcome::BudgetAborted {
+                                record: record.clone(),
+                            }));
                         }
                     }
                 }
@@ -2911,6 +3392,14 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                 let RegisterIntentArguments { meaning_en } = arguments;
                 let retained_candidate = state.pending_candidate().is_some();
                 *state = state.with_redeclared_intent(meaning_en.clone());
+                // Every newly registered intent — the turn's first declaration or
+                // a revision — resets the adversarial reviewer session: the next
+                // candidate is verified by a fresh session with no knowledge of
+                // earlier candidates, while candidates under one intent keep the
+                // same session so fixes can be verified (issue #723).
+                if let Some(review) = &mut self.review {
+                    review.active = None;
+                }
                 let revision_number = state.intent_revisions();
                 let content = phase_instruction(
                     if retained_candidate {
@@ -3026,6 +3515,26 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         tersmu_rendering: tersmu_rendering.to_vec(),
                     }))
                     .expect("successful gate guarantees a nonempty rendering");
+                    self.events.push(new!(ProtocolEvent::CandidateAccepted {
+                        turn_number,
+                        speaker: speaker.to_owned(),
+                        message: message.clone(),
+                        attempt,
+                    }));
+                    if self.review.is_some() {
+                        // The adversarial reviewer session replaces speaker
+                        // self-confirmation: approval posts, rejection returns
+                        // the report to the composer as feedback (issue #723).
+                        return self.dispatch_meaning_review(
+                            turn_number,
+                            speaker,
+                            state,
+                            meaning_en,
+                            intent_revisions,
+                            attempt,
+                            message,
+                        );
+                    }
                     let content = std::str::from_utf8(&message.tersmu_rendering)
                         .map_err(|error| {
                             new!(ProtocolRunError::InvalidTersmuEncoding {
@@ -3037,14 +3546,8 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
                         meaning_en,
                         intent_revisions,
                         parse_attempts: attempt,
-                        candidate: message.clone(),
+                        candidate: message,
                     });
-                    self.events.push(new!(ProtocolEvent::CandidateAccepted {
-                        turn_number,
-                        speaker: speaker.to_owned(),
-                        message,
-                        attempt,
-                    }));
                     Ok(new!(SpeakerAction::Continue { content }))
                 } else {
                     unreachable!("GateOutcome invariants cover success and failure")
@@ -3141,6 +3644,140 @@ impl<M: ProtocolModel, D: ToolDispatcher> ProtocolRunner<M, D> {
             | ProtocolTool::Acknowledge
             | ProtocolTool::SubmitAnswer => {
                 unreachable!("listener tools cannot pass speaker-state validation")
+            }
+        }
+    }
+
+    /// Verify one gate-accepted candidate through the adversarial reviewer
+    /// session (issue #723).
+    ///
+    /// Candidates submitted under the same registered intent reuse the active
+    /// session so the reviewer can verify that its reported problems were
+    /// fixed; a new registration resets the session in the `register_intent`
+    /// dispatch. Approval posts the candidate without any speaker
+    /// self-confirmation; rejection returns the report to the composing
+    /// session as feedback and preserves the remaining parse-attempt budget,
+    /// mirroring the self-confirmation mismatch path.
+    #[requires(turn_number > 0)]
+    #[requires(!speaker.trim().is_empty())]
+    #[requires(self.review.is_some())]
+    #[requires(parse_attempts > 0)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn dispatch_meaning_review(
+        &mut self,
+        turn_number: usize,
+        speaker: &str,
+        state: &mut SpeakerState,
+        meaning_en: String,
+        intent_revisions: usize,
+        parse_attempts: usize,
+        candidate: VisibleMessage,
+    ) -> Result<SpeakerAction, ProtocolRunError> {
+        let brief = new!(ReviewBrief {
+            meaning_en: meaning_en.clone(),
+            candidate: candidate.clone(),
+            // The gate does not yet surface renderer-declared scope
+            // incompatibility records (issue #721); once it does they are
+            // auto-quoted into the brief here. Whether they also hard-reject
+            // stays #721's open question and is deliberately not decided here.
+            renderer_incompatibilities: Vec::new(),
+        });
+        self.events.push(new!(ProtocolEvent::ReviewRequested {
+            turn_number,
+            speaker: speaker.to_owned(),
+            intent_revision_number: intent_revisions,
+            brief: brief.clone(),
+        }));
+        let review = self.review.as_mut().expect("review is enabled");
+        let active = match review.active.take() {
+            Some(active) if active.speaker == speaker => active,
+            _ => new!(ActiveReview {
+                speaker: speaker.to_owned(),
+                session: review.factory.begin_session(speaker),
+            }),
+        };
+        let bityzba::data!(ActiveReview { mut session, .. }) = active.into_data();
+        let outcome = session.review(&brief, &mut self.accounting);
+        let observations = session.take_observations();
+        let malformed = session.take_malformed_tool_calls();
+        review.active = Some(new!(ActiveReview {
+            speaker: speaker.to_owned(),
+            session,
+        }));
+        record_drained_observations(&mut self.events, turn_number, speaker, observations, malformed);
+        let outcome = outcome.map_err(|error| {
+            new!(ProtocolRunError::Model {
+                participant: speaker.to_owned(),
+                message: error.to_string(),
+            })
+        })?;
+        match outcome.as_data() {
+            bityzba::data!(ReviewOutcome::Decided { approved, report }) => {
+                let approved = *approved;
+                let report = report.clone();
+                self.events.push(new!(ProtocolEvent::ReviewReport {
+                    turn_number,
+                    speaker: speaker.to_owned(),
+                    report: report.clone(),
+                }));
+                self.events.push(new!(ProtocolEvent::ReviewVerdict {
+                    turn_number,
+                    speaker: speaker.to_owned(),
+                    approved,
+                }));
+                if approved {
+                    *state = new!(SpeakerState::Posted {
+                        message: candidate.clone(),
+                    });
+                    self.events.push(new!(ProtocolEvent::MessagePosted {
+                        turn_number,
+                        speaker: speaker.to_owned(),
+                        message: candidate.clone(),
+                    }));
+                    Ok(new!(SpeakerAction::Posted {
+                        content: "The independent meaning review approved the candidate; the Lojban and tersmu rendering were posted.".to_owned(),
+                        message: candidate,
+                    }))
+                } else {
+                    *state = new!(SpeakerState::Composing {
+                        meaning_en,
+                        intent_revisions,
+                        parse_attempts,
+                    });
+                    if parse_attempts >= self.caps.max_parse_attempts_per_turn {
+                        self.events.push(new!(ProtocolEvent::TurnForfeited {
+                            turn_number,
+                            speaker: speaker.to_owned(),
+                            reason: new!(TurnForfeitReason::ParseAttempts {
+                                maximum: self.caps.max_parse_attempts_per_turn,
+                            }),
+                        }));
+                        Ok(new!(SpeakerAction::Forfeited {
+                            content: format!(
+                                "The independent meaning review rejected the candidate, but no parse attempts remain; the turn is forfeited. Reviewer report:\n{report}"
+                            ),
+                        }))
+                    } else {
+                        let rendering = std::str::from_utf8(&candidate.tersmu_rendering)
+                            .map_err(|error| {
+                                new!(ProtocolRunError::InvalidTersmuEncoding {
+                                    message: error.to_string(),
+                                })
+                            })?;
+                        Ok(new!(SpeakerAction::Continue {
+                            content: format!(
+                                "tersmu rendering:\n{rendering}\n\nThe independent meaning review REJECTED this candidate. Reviewer report:\n{report}\n\nRevise the Lojban against the SAME registered intent and call submit_lojban again."
+                            ),
+                        }))
+                    }
+                }
+            }
+            bityzba::data!(ReviewOutcome::BudgetAborted { record }) => {
+                Ok(new!(SpeakerAction::BudgetAborted {
+                    content: "The run budget was exhausted during the independent meaning review."
+                        .to_owned(),
+                    record: record.clone(),
+                }))
             }
         }
     }
@@ -3415,6 +4052,7 @@ enum ClosedAnswerSubmissionOutcome {
 #[invariant(::Posted { content, message } => !content.is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty())]
 #[invariant(::Forfeited { content } => !content.is_empty())]
 #[invariant(::ScenarioCompleted { content } => !content.is_empty())]
+#[invariant(::BudgetAborted { content, .. } => !content.is_empty())]
 enum SpeakerAction {
     Continue {
         content: String,
@@ -3429,6 +4067,11 @@ enum SpeakerAction {
     ScenarioCompleted {
         content: String,
     },
+    /// The cost budget stopped the adversarial meaning review mid-dispatch.
+    BudgetAborted {
+        content: String,
+        record: AbortRecord,
+    },
 }
 
 impl SpeakerAction {
@@ -3439,7 +4082,8 @@ impl SpeakerAction {
             bityzba::data!(SpeakerAction::Continue { content })
             | bityzba::data!(SpeakerAction::Posted { content, .. })
             | bityzba::data!(SpeakerAction::Forfeited { content })
-            | bityzba::data!(SpeakerAction::ScenarioCompleted { content }) => content,
+            | bityzba::data!(SpeakerAction::ScenarioCompleted { content })
+            | bityzba::data!(SpeakerAction::BudgetAborted { content, .. }) => content,
         }
     }
 }
@@ -3511,6 +4155,50 @@ fn validate_protocol_tool(
             phase.intent(),
         ),
     ))
+}
+
+/// Record drained provider-call observations and malformed tool calls under
+/// one transcript participant. Shared by participant conversations and the
+/// adversarial reviewer session, whose usage is attributed to its speaker
+/// (issue #723).
+#[requires(turn_number > 0)]
+#[requires(!participant.trim().is_empty())]
+#[ensures(true)]
+fn record_drained_observations(
+    events: &mut ProtocolEventLog,
+    turn_number: usize,
+    participant: &str,
+    observations: Vec<ProviderCallObservation>,
+    malformed_tool_calls: Vec<MalformedToolCall>,
+) {
+    for observation in observations {
+        if let Some(trace) = observation.thinking {
+            events.push(new!(ProtocolEvent::ThinkingRecorded {
+                turn_number,
+                participant: participant.to_owned(),
+                trace,
+            }));
+        }
+        events.push(new!(ProtocolEvent::UsageRecorded {
+            turn_number,
+            participant: participant.to_owned(),
+            usage: observation.usage,
+        }));
+    }
+    for malformed in malformed_tool_calls {
+        let bityzba::data!(MalformedToolCall {
+            tool_name,
+            arguments,
+            message,
+        }) = malformed.into_data();
+        events.push(new!(ProtocolEvent::ToolCallMalformed {
+            turn_number,
+            participant: participant.to_owned(),
+            tool_name,
+            arguments,
+            message,
+        }));
+    }
 }
 
 #[requires(!participant.trim().is_empty())]

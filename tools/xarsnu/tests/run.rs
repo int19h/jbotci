@@ -909,3 +909,181 @@ fn unscored_completion_has_a_dialog_outcome_line() {
 
     assert_eq!(summary.outcome_line(), "dialog completed after 10 turns");
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn meaning_review_enabled_run_replaces_confirmation_and_records_review_events() {
+    // Issue #723, wired through the real `run` path: `[meaning-review]
+    // enabled = true` replaces the speaker's confirm_meaning with the
+    // adversarial reviewer session and records the review events.
+    let directory = temp_directory("meaning-review");
+    let scenario_path = directory.join("scenario.toml");
+    fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("scenarios")
+            .join("schedule-negotiation-1.toml"),
+        &scenario_path,
+    )
+    .expect("copy local scenario");
+    let config_source = config_source("scenario.toml", "bob")
+        .replace("max-turns = 5", "max-turns = 1")
+        .replace(
+            "[caps]",
+            "[meaning-review]\nenabled = true\n\n[caps]",
+        );
+    let config_path = write_config(&directory, &config_source);
+    let server = MockServer::start(vec![
+        tool_response(
+            1,
+            "register_intent",
+            json!({ "meaning_en": "I can meet on Tuesday." }),
+        ),
+        tool_response(2, "submit_lojban", json!({ "text": "mi klama" })),
+        tool_response(
+            3,
+            "review_verdict",
+            json!({ "approved": true, "report": "Every failure-mode check passes; the rendering precisely translates the intent." }),
+        ),
+        tool_response(
+            4,
+            "interpret_blind",
+            json!({ "interpretation_en": "Alice goes." }),
+        ),
+        tool_response(
+            5,
+            "acknowledge",
+            json!({ "final_understanding_en": "Alice goes." }),
+        ),
+    ]);
+
+    let summary = run_with_preflight(
+        &config_path,
+        |_timeout, _base_url| Ok(client(server.base_url.clone())),
+        || Ok(()),
+        |_| {},
+    )
+    .expect("review-enabled live run");
+
+    let records = read_transcript(&summary.transcript_path).expect("transcript validates");
+    let count = |kind: &str| {
+        records
+            .iter()
+            .filter(|record| {
+                serde_json::to_value(&record.event).expect("event serializes")["kind"]
+                    .as_str()
+                    .expect("kind tag")
+                    == kind
+            })
+            .count()
+    };
+    assert_eq!(count("review-requested"), 1);
+    assert_eq!(count("review-report"), 1);
+    assert_eq!(count("review-verdict"), 1);
+    assert_eq!(count("meaning-confirmed"), 0);
+    assert_eq!(count("message-posted"), 1);
+    let requested = records
+        .iter()
+        .find_map(|record| match record.event.as_data() {
+            ProtocolEventData::ReviewRequested {
+                intent_revision_number,
+                brief,
+                ..
+            } => Some((intent_revision_number, brief)),
+            _ => None,
+        })
+        .expect("review-requested recorded");
+    assert_eq!(*requested.0, 0);
+    assert_eq!(requested.1.meaning_en, "I can meet on Tuesday.");
+    assert_eq!(requested.1.candidate.text, "mi klama");
+    assert!(requested.1.renderer_incompatibilities.is_empty());
+    let review_usage = records
+        .iter()
+        .filter(|record| matches!(
+            record.event.as_data(),
+            ProtocolEventData::UsageRecorded { .. }
+        ))
+        .count();
+    assert_eq!(review_usage, 5, "reviewer calls are usage-recorded like participant calls");
+
+    let report = report_file(&summary.transcript_path).expect("report renders");
+    assert!(report.contains("- Meaning review: `enabled`"));
+    assert!(report.contains("### Meaning review requested — `alice`"));
+    assert!(report.contains("### Meaning review report — `alice`"));
+    assert!(report.contains("### Meaning review verdict — `alice`"));
+    assert!(report.contains("Approved: **yes**"));
+    assert!(report.contains("Meaning reviews: 1 (approved: 1, rejected: 0)"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn meaning_review_defaults_off_and_keeps_speaker_self_confirmation() {
+    // Issue #723: without `[meaning-review]`, existing configs are unaffected —
+    // the speaker still self-confirms and no review events appear.
+    let directory = temp_directory("meaning-review-off");
+    let scenario_path = directory.join("scenario.toml");
+    fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("scenarios")
+            .join("schedule-negotiation-1.toml"),
+        &scenario_path,
+    )
+    .expect("copy local scenario");
+    let config_source = config_source("scenario.toml", "bob").replace("max-turns = 5", "max-turns = 1");
+    let config_path = write_config(&directory, &config_source);
+    let server = MockServer::start(vec![
+        tool_response(
+            1,
+            "register_intent",
+            json!({ "meaning_en": "I can meet on Tuesday." }),
+        ),
+        tool_response(2, "submit_lojban", json!({ "text": "mi klama" })),
+        tool_response(
+            3,
+            "confirm_meaning",
+            json!({ "matches": true, "paraphrase_en": "I go." }),
+        ),
+        tool_response(
+            4,
+            "interpret_blind",
+            json!({ "interpretation_en": "Alice goes." }),
+        ),
+        tool_response(
+            5,
+            "acknowledge",
+            json!({ "final_understanding_en": "Alice goes." }),
+        ),
+    ]);
+
+    let summary = run_with_preflight(
+        &config_path,
+        |_timeout, _base_url| Ok(client(server.base_url.clone())),
+        || Ok(()),
+        |_| {},
+    )
+    .expect("default-config live run");
+
+    let records = read_transcript(&summary.transcript_path).expect("transcript validates");
+    let count = |kind: &str| {
+        records
+            .iter()
+            .filter(|record| {
+                serde_json::to_value(&record.event).expect("event serializes")["kind"]
+                    .as_str()
+                    .expect("kind tag")
+                    == kind
+            })
+            .count()
+    };
+    assert_eq!(count("meaning-confirmed"), 1);
+    assert_eq!(count("message-posted"), 1);
+    assert_eq!(count("review-requested"), 0);
+    assert_eq!(count("review-report"), 0);
+    assert_eq!(count("review-verdict"), 0);
+
+    let report = report_file(&summary.transcript_path).expect("report renders");
+    assert!(report.contains("- Meaning review: `disabled`"));
+    assert!(report.contains("### Sender confirmation"));
+    assert!(report.contains("Meaning reviews: 0 (approved: 0, rejected: 0)"));
+}

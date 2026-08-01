@@ -243,6 +243,39 @@ pub enum TersmuFormat {
     External(ExternalRendererCommand),
 }
 
+/// Adversarial fresh-session meaning review of accepted candidates (issue #723).
+///
+/// When enabled, the speaker's self-confirmation is replaced by a separate
+/// reviewer session on the same model that adversarially verifies the tersmu
+/// rendering against the registered intent. The reviewer inherits the
+/// participant's temperature and reasoning policy unless overridden here.
+#[invariant(temperature.is_none_or(|value| value.is_finite() && (0.0..=2.0).contains(&value)), "reviewer temperature must be finite and between 0 and 2")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct MeaningReviewConfig {
+    /// Replace speaker self-confirmation with the adversarial reviewer session.
+    #[serde(default)]
+    pub enabled: bool,
+    /// Reviewer temperature override; the participant's temperature when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f64>,
+    /// Reviewer reasoning override; the participant's reasoning policy when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<ReasoningConfig>,
+}
+
+impl Default for MeaningReviewConfig {
+    #[requires(true)]
+    #[ensures(!ret.enabled && ret.temperature.is_none() && ret.reasoning.is_none())]
+    fn default() -> Self {
+        Self::from_data(bityzba::data!(MeaningReviewConfig {
+            enabled: false,
+            temperature: None,
+            reasoning: None,
+        }))
+    }
+}
+
 /// Information available when a listener first interprets a posted message.
 #[invariant(::Informed => true)]
 #[invariant(::BlindThenReveal => true)]
@@ -282,6 +315,9 @@ pub struct RunConfig {
     /// Continue after a failed semantic-search preflight, with a warning event.
     #[serde(default)]
     pub allow_degraded_search: bool,
+    /// Adversarial fresh-session meaning review; disabled unless explicitly enabled.
+    #[serde(default)]
+    pub meaning_review: MeaningReviewConfig,
 }
 
 impl RunConfig {
@@ -345,6 +381,8 @@ system-prompt = "Speak only Lojban."
         assert_eq!(config.tersmu_format, TersmuFormat::Smusni);
         assert_eq!(config.listener_mode, ListenerMode::Informed);
         assert!(!config.allow_degraded_search);
+        assert_eq!(config.meaning_review, MeaningReviewConfig::default());
+        assert!(!config.meaning_review.enabled);
         assert_eq!(config.caps.max_reference_calls_per_phase, 30);
         assert!(config.caps.reference_dedupe);
         assert_eq!(config.caps.reference_nudge_after, 10);
@@ -428,6 +466,53 @@ system-prompt = "Speak only Lojban."
 
         let invalid = source.replace("blind-then-reveal", "sometimes-blind");
         assert!(RunConfig::from_toml(&invalid).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn meaning_review_is_opt_in_and_inherits_unless_overridden() {
+        let config = RunConfig::from_toml(VALID_CONFIG).expect("valid config");
+        assert!(!config.meaning_review.enabled);
+        assert_eq!(config.meaning_review.temperature, None);
+        assert_eq!(config.meaning_review.reasoning, None);
+
+        let enabled = VALID_CONFIG.replace(
+            "scenario = \"schedule-negotiation\"",
+            "scenario = \"schedule-negotiation\"\n\n[meaning-review]\nenabled = true",
+        );
+        let config = RunConfig::from_toml(&enabled).expect("valid meaning-review config");
+        assert!(config.meaning_review.enabled);
+        assert_eq!(config.meaning_review.temperature, None);
+        assert_eq!(config.meaning_review.reasoning, None);
+
+        let overridden = enabled.replace(
+            "enabled = true",
+            "enabled = true\ntemperature = 0.2\nreasoning = \"high\"",
+        );
+        let config = RunConfig::from_toml(&overridden).expect("valid meaning-review overrides");
+        assert!(config.meaning_review.enabled);
+        assert_eq!(config.meaning_review.temperature, Some(0.2));
+        assert_eq!(config.meaning_review.reasoning, Some(ReasoningConfig::High));
+
+        for value in ["-0.1", "2.1"] {
+            let invalid = enabled.replace(
+                "enabled = true",
+                &format!("enabled = true\ntemperature = {value}"),
+            );
+            let error =
+                RunConfig::from_toml(&invalid).expect_err("out-of-range temperature must fail");
+            assert!(
+                error
+                    .to_string()
+                    .contains("reviewer temperature must be finite and between 0 and 2"),
+                "{error}"
+            );
+        }
+
+        let unknown = enabled.replace("enabled = true", "enabled = true\nmodel = \"other/model\"");
+        let error = RunConfig::from_toml(&unknown).expect_err("reviewer model is not configurable");
+        assert!(error.to_string().contains("unknown field `model`"), "{error}");
     }
 
     #[test]
