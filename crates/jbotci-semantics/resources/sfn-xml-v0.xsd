@@ -52,10 +52,15 @@
       accepts the reserved keyword SOME (a distinct elided node per
       occurrence), so REF= is typed as a union of the id grammar and the SOME
       literal rather than xs:IDREF; referential integrity of REF= is
-      renderer-guaranteed.  Attributes that can only carry graph ids
-      (GROUND=, GROUND-REF=, the id-list attributes PARAMETERS=,
+      renderer-guaranteed.  DEICTIC-REFERENCE GROUND-REF= points at a
+      discourse referent (an r/e-prefixed id, not a ground unit), so it is
+      pattern-typed like the ground role attributes.  Attributes that can
+      only carry graph ids (GROUND=, the id-list attributes PARAMETERS=,
       QUESTION-PARAMETERS=, POSSIBLY-DIFFERENT-PER=, and ROOT-REF=) are typed
-      xs:IDREF/xs:IDREFS and are schema-checked.
+      xs:IDREF/xs:IDREFS and are schema-checked.  Word-card keys are
+      string-valued (apostrophes are legal), so WORD ID=/COMPONENT WORD=
+      integrity is enforced with xs:key/xs:keyref on the SFN root rather
+      than xs:ID/xs:IDREF.
 
       Documents carry no XML namespace and no XML declaration; the renderer
       emits a bare, two-space-indented SFN element.
@@ -103,7 +108,8 @@
         definition sites for the r/e-prefixed referent ids they carry, but
         XSD 1.0 allows only one xs:ID attribute per element, so they are
         pattern-typed strings: their id-defining role is normative prose,
-        not schema-enforced.
+        not schema-enforced.  The same type covers references TO those
+        speech-situation referents, such as DEICTIC-REFERENCE GROUND-REF.
       </xs:documentation>
     </xs:annotation>
     <xs:restriction base="xs:string">
@@ -928,7 +934,7 @@
         <xs:element ref="UNREACHABLE" minOccurs="0"/>
         <xs:element ref="TYPED-GRAPH" minOccurs="0"/>
       </xs:sequence>
-      <xs:attribute name="VERSION" use="required" type="xs:string" >
+      <xs:attribute name="VERSION" use="required" fixed="0" >
         <xs:annotation><xs:documentation>The notation version; fixed "0" for this schema.</xs:documentation></xs:annotation>
       </xs:attribute>
       <xs:attribute name="DOC" type="xs:string" use="required">
@@ -938,6 +944,38 @@
         <xs:annotation><xs:documentation>Absent in the canonical compact form; exactly "TYPED-GRAPH" in the fallback form.  The presence-iff correspondence with the TYPED-GRAPH child is renderer-enforced (XSD 1.0 cannot express it).</xs:documentation></xs:annotation>
       </xs:attribute>
     </xs:complexType>
+    <xs:key name="wordCardKey">
+      <xs:annotation>
+        <xs:documentation>
+          WORD ID values are unique, required card keys.  They are surface
+          spellings (the canonical spelling for one-token words;
+          hyphen-joined parts for zei compounds such as mi-zei-do —
+          hyphens never occur inside a single Lojban word, so the two
+          namespaces cannot collide) and can contain apostrophes (e.g.
+          braselju'o), so they are NOT NCNames: the key is string-valued
+          identity constraint machinery (xs:key), not xs:ID typing.  Only
+          WORD cards inside the WORDS section are selected — the WORD
+          VALUE= leaves of RELATION-METADATA SOURCE-WORDS are a different
+          element in a different namespace of meaning and are not cards.
+        </xs:documentation>
+      </xs:annotation>
+      <xs:selector xpath=".//WORDS/WORD"/>
+      <xs:field xpath="@ID"/>
+    </xs:key>
+    <xs:keyref name="componentWordCardRef" refer="wordCardKey">
+      <xs:annotation>
+        <xs:documentation>
+          Every COMPONENT WORD= must reference an
+          existing WORD card key (round-11 ID/IDREF discipline, enforced
+          here with string-valued xs:key/xs:keyref — apostrophes in card
+          keys do not require abandoning keyref integrity).  COMPONENT
+          occurs only inside COMPOSITE-APPROX trees, so the document-wide
+          selector reaches exactly the composition leaves.
+        </xs:documentation>
+      </xs:annotation>
+      <xs:selector xpath=".//COMPONENT"/>
+      <xs:field xpath="@WORD"/>
+    </xs:keyref>
   </xs:element>
 
   <xs:element name="KEY">
@@ -1797,8 +1835,9 @@
     <xs:annotation>
       <xs:documentation>
         A deictic reference (ti/ta/tu family): PROXIMITY to a discourse
-        referent, GROUND-REF naming the deictic-ground unit it is resolved
-        against (KEY rule "personal-reference").  Always empty apart from
+        referent, with GROUND-REF pointing at the discourse referent it is
+        resolved against (an r/e-prefixed referent id, NOT a deictic-ground
+        unit id; KEY rule "personal-reference").  Always empty apart from
         the EXTRA tail.
       </xs:documentation>
     </xs:annotation>
@@ -1808,7 +1847,7 @@
         <xs:element ref="WARNING" minOccurs="0" maxOccurs="unbounded"/>
       </xs:sequence>
       <xs:attribute name="PROXIMITY" type="proximityType" use="required"/>
-      <xs:attribute name="GROUND-REF" type="groundIdRefType" use="required"/>
+      <xs:attribute name="GROUND-REF" type="groundRoleIdType" use="required"/>
     </xs:complexType>
   </xs:element>
 
@@ -2861,8 +2900,8 @@
         content word of the text, in card order.  Present only when the
         document was rendered with word cards (tertmu --show-defs); never
         present in the TYPED-GRAPH form.  Card ids are unique within the
-        section (enforced by the xs:unique constraint below), but they are
-        surface-spelling keys, not graph ids.
+        document (enforced by the xs:key identity constraint on the SFN
+        root), but they are surface-spelling keys, not graph ids.
       </xs:documentation>
     </xs:annotation>
     <xs:complexType>
@@ -2870,29 +2909,13 @@
         <xs:element name="WORD" type="wordCardType" maxOccurs="unbounded"/>
       </xs:sequence>
     </xs:complexType>
-    <xs:unique name="wordCardIdUnique">
-      <xs:annotation>
-        <xs:documentation>
-          WORD ID values are unique card keys.  They are surface spellings
-          (the canonical spelling for one-token words; hyphen-joined parts
-          for zei compounds such as mi-zei-do — hyphens never occur inside
-          a single Lojban word, so the two namespaces cannot collide) and
-          can contain apostrophes (e.g. braselju'o), so they are NOT
-          NCNames: uniqueness is enforced here with xs:unique, and the
-          referential integrity of COMPONENT WORD= references to these keys
-          is renderer-guaranteed, not schema-enforced.
-        </xs:documentation>
-      </xs:annotation>
-      <xs:selector xpath="WORD"/>
-      <xs:field xpath="@ID"/>
-    </xs:unique>
   </xs:element>
 
   <xs:complexType name="wordCardType">
     <xs:annotation>
       <xs:documentation>
         One word card.  ID is the card key (a surface spelling; see the
-        WORDS xs:unique note).  KNOWN="false" marks a word with no
+        SFN xs:key note).  KNOWN="false" marks a word with no
         dictionary definition; the default true is omitted, so KNOWN is
         either absent or exactly "false".  Children in order: GLOSS
         entries, DEF, NOTES (present only when DEF is), COMPOSITE-APPROX,
@@ -2924,12 +2947,17 @@
             determines no place structure — the actual meaning and places
             were chosen by the coiner (KEY rule "compound-places").
             GROUPING and SCOPE describe the basis of the displayed tree
-            edges (KEY rule "compound-assumptions"); they appear at tree
-            level only when one tree mixes explicit and assumed edges, and
-            a two-component tree carries neither — that conditional
-            presence (basis attributes appear iff the tree has three or
-            more components) is renderer-enforced prose: XSD 1.0 cannot
-            express it.
+            edges (KEY rule "compound-assumptions").  The attributes are
+            tree-level by default: a tree whose kind-composition edges all
+            share one basis carries GROUPING at this level, and a tree
+            whose operator applications all share one scope basis carries
+            SCOPE at this level; per-node escalation happens ONLY when one
+            tree genuinely mixes explicit and assumed edges (owner round
+            13).  GROUPING exists only for trees with three or more
+            components (a two-component tree makes no grouping assumption),
+            and SCOPE exists only when scope-bearing operator nodes occur;
+            that conditional presence is renderer-enforced prose: XSD 1.0
+            cannot express it.
           </xs:documentation>
         </xs:annotation>
         <xs:complexType>
@@ -3000,9 +3028,9 @@
         <xs:annotation>
           <xs:documentation>
             A component leaf: WORD names the component's own WORD card by
-            its surface-spelling key.  The reference is renderer-guaranteed
-            (the spelling key grammar is not NCName-safe, so no
-            schema-level keyref is possible); always empty.
+            its surface-spelling key.  The reference is schema-enforced by
+            the xs:keyref identity constraint on the SFN root (string-valued
+            keys; NCName-safety is not required); always empty.
           </xs:documentation>
         </xs:annotation>
         <xs:complexType>
@@ -3233,17 +3261,20 @@
         <xs:annotation>
           <xs:documentation>
             A letteral inside a composition: either a leaf carrying TEXT
-            (the letteral's display text) or a wrapper around one
-            sub-expression.  The text-leaf versus wrapper choice is
-            data-dependent; XSD 1.0 admits both in one type.
+            (the canonical lerfu spelling, e.g. from a BY word in a zei
+            compound) and no children, or a wrapper around one
+            sub-expression (the bu postfix letter-shift) with no TEXT.
+            Exactly one of the two forms occurs; the choice is
+            data-dependent and renderer-enforced, so XSD 1.0 admits both
+            in one type (an empty TEXT-less LETTER is renderer-impossible
+            and reported here as a residual acceptance gap).
           </xs:documentation>
         </xs:annotation>
         <xs:complexType>
-          <xs:complexContent>
-            <xs:extension base="wcExprWrapperType">
-              <xs:attribute name="TEXT" type="xs:string"/>
-            </xs:extension>
-          </xs:complexContent>
+          <xs:sequence>
+            <xs:group ref="wcExprGroup" minOccurs="0"/>
+          </xs:sequence>
+          <xs:attribute name="TEXT" type="xs:string"/>
         </xs:complexType>
       </xs:element>
       <xs:element name="TENSE-MODAL">
