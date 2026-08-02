@@ -4113,7 +4113,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_name_sumti(&mut self, _node: &'tree generated::NameSumtiSyntax) {}
+    fn walk_sumti_base_name_sumti(&mut self, node: &'tree generated::NameSumtiSyntax) {
+        generated::walk::name_sumti(self, node);
+    }
 
     #[requires(true)]
     #[ensures(true)]
@@ -4724,7 +4726,6 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
             | GeneratedSyntaxNodeRef::SumtiBaseSyntaxLerfuStringSumti(_)
             | GeneratedSyntaxNodeRef::SumtiBaseSyntaxQuotedSumti(_)
             | GeneratedSyntaxNodeRef::SumtiBaseSyntaxProSumti(_)
-            | GeneratedSyntaxNodeRef::SumtiBaseSyntaxNameSumti(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxEkFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxGihekFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMeksoFragment(_)
@@ -5564,7 +5565,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
                 false
             }
-            generated::SumtiBaseSyntax::NameSumti(_) => false,
+            generated::SumtiBaseSyntax::NameSumti(name) => {
+                if let Some(clauses) = &name.relative_clauses {
+                    self.visit_relative_clause_list(argument_id, argument_id, clauses);
+                }
+                false
+            }
         }
     }
 
@@ -7320,7 +7326,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_name_sumti(&mut self, _node: &'tree generated::NameSumtiSyntax) {}
+    fn walk_sumti_base_name_sumti(&mut self, node: &'tree generated::NameSumtiSyntax) {
+        generated::walk::name_sumti(self, node);
+    }
 
     #[requires(true)]
     #[ensures(true)]

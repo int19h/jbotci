@@ -4358,12 +4358,12 @@ class SumtiBaseSyntaxBridiDescriptionSumti:
 
 @final
 class SumtiBaseSyntaxNameSumti:
-    'Uses the `name_sumti` product form, whose payload preserves `la` and `names`.'
+    'Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.'
     __match_args__: ClassVar[tuple[Literal['name_sumti']]]
     def __new__(cls, name_sumti: NameSumtiSyntax) -> SumtiBaseSyntaxNameSumti: ...
     @property
     def name_sumti(self) -> NameSumtiSyntax:
-        'Uses the `name_sumti` product form, whose payload preserves `la` and `names`.'
+        'Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -6738,12 +6738,21 @@ class ProSumtiSyntax:
 
 @final
 class NameSumtiSyntax:
-    'Product node for name; preserves `la` and `names` in source order.'
-    __match_args__: ClassVar[tuple[Literal['la'], Literal['names']]]
-    def __new__(cls, la: WithFreeModifiers[Token, FreeModifierSyntax], names: WithFreeModifiers[Sequence[Token], FreeModifierSyntax]) -> NameSumtiSyntax: ...
+    'Product node for name; preserves `la`, `relative_clauses`, and `names` in source order.'
+    __match_args__: ClassVar[tuple[Literal['la'], Literal['relative_clauses'], Literal['names']]]
+    def __new__(
+        cls,
+        la: WithFreeModifiers[Token, FreeModifierSyntax],
+        relative_clauses: RelativeClauseListSyntax | None,
+        names: WithFreeModifiers[Sequence[Token], FreeModifierSyntax],
+    ) -> NameSumtiSyntax: ...
     @property
     def la(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
         'A word from selmaho `La`.'
+        ...
+    @property
+    def relative_clauses(self) -> RelativeClauseListSyntax | None:
+        'The optional relative clauses component.'
         ...
     @property
     def names(self) -> WithFreeModifiers[tuple[Token, ...], FreeModifierSyntax]:

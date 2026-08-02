@@ -4358,12 +4358,12 @@ class SumtiBaseSyntaxBridiDescriptionSumti:
 
 @final
 class SumtiBaseSyntaxNameSumti:
-    'Uses the `name_sumti` product form, whose payload preserves `la` and `names`.'
+    'Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.'
     __match_args__: ClassVar[tuple[Literal['name_sumti']]]
     def __new__(cls, name_sumti: RecoveredField[NameSumtiSyntax]) -> SumtiBaseSyntaxNameSumti: ...
     @property
     def name_sumti(self) -> RecoveredField[NameSumtiSyntax]:
-        'Uses the `name_sumti` product form, whose payload preserves `la` and `names`.'
+        'Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -6738,12 +6738,21 @@ class ProSumtiSyntax:
 
 @final
 class NameSumtiSyntax:
-    'Product node for name; preserves `la` and `names` in source order.'
-    __match_args__: ClassVar[tuple[Literal['la'], Literal['names']]]
-    def __new__(cls, la: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], names: WithFreeModifiers[Sequence[RecoveredField[Token]], RecoveredField[FreeModifierSyntax]]) -> NameSumtiSyntax: ...
+    'Product node for name; preserves `la`, `relative_clauses`, and `names` in source order.'
+    __match_args__: ClassVar[tuple[Literal['la'], Literal['relative_clauses'], Literal['names']]]
+    def __new__(
+        cls,
+        la: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        relative_clauses: RecoveredField[RelativeClauseListSyntax] | None,
+        names: WithFreeModifiers[Sequence[RecoveredField[Token]], RecoveredField[FreeModifierSyntax]],
+    ) -> NameSumtiSyntax: ...
     @property
     def la(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
         'A word from selmaho `La`.'
+        ...
+    @property
+    def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax] | None:
+        'The optional relative clauses component.'
         ...
     @property
     def names(self) -> WithFreeModifiers[tuple[RecoveredField[Token], ...], RecoveredField[FreeModifierSyntax]]:

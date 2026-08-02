@@ -7741,6 +7741,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.queue_generated_vocative_asides(&name.names.free_modifiers)?;
         let sort = gadri_name_sort(name.la.value.cmavo());
         let id = self.next_referent_with_sort_id(sort);
+        let relative_clauses = name
+            .relative_clauses
+            .as_ref()
+            .map(|relative_clauses| self.lower_generated_relative_clause_list(relative_clauses, id))
+            .transpose()?
+            .unwrap_or_default();
         self.insert(
             id,
             SemanticObject::referent(
@@ -7753,7 +7759,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     speaker: Some(self.current_speaker()),
                     body: None,
                     veridical: None,
-                    relative_clauses: Vec::new(),
+                    relative_clauses,
                     quantity: None,
                     name: Some(token_list_text(name.names.value.iter())),
                     scale: None,

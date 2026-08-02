@@ -4727,7 +4727,7 @@ class SumtiBaseSyntaxBridiDescriptionSumti(_SyntaxNode):
 
 @final
 class SumtiBaseSyntaxNameSumti(_SyntaxNode):
-    'Uses the `name_sumti` product form, whose payload preserves `la` and `names`.'
+    'Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.'
     __slots__ = ()
     _schema_id = 229
     __match_args__ = ('name_sumti',)
@@ -4737,7 +4737,7 @@ class SumtiBaseSyntaxNameSumti(_SyntaxNode):
         pass
     @property
     def name_sumti(self) -> RecoveredField[NameSumtiSyntax]:
-        'Uses the `name_sumti` product form, whose payload preserves `la` and `names`.'
+        'Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.'
         return cast(RecoveredField[NameSumtiSyntax], self._field(0))
     def __init_subclass__(cls) -> None:
         raise TypeError('SumtiBaseSyntaxNameSumti is final')
@@ -7306,22 +7306,26 @@ class ProSumtiSyntax(_SyntaxNode):
 
 @final
 class NameSumtiSyntax(_SyntaxNode):
-    'Product node for name; preserves `la` and `names` in source order.'
+    'Product node for name; preserves `la`, `relative_clauses`, and `names` in source order.'
     __slots__ = ()
     _schema_id = 356
-    __match_args__ = ('la', 'names')
-    def __new__(cls, la: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], names: WithFreeModifiers[Sequence[RecoveredField[Token]], RecoveredField[FreeModifierSyntax]]) -> NameSumtiSyntax:
-        return cls._from_fields((la, names))
-    def __init__(self, la: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], names: WithFreeModifiers[Sequence[RecoveredField[Token]], RecoveredField[FreeModifierSyntax]]) -> None:
+    __match_args__ = ('la', 'relative_clauses', 'names')
+    def __new__(cls, la: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], relative_clauses: RecoveredField[RelativeClauseListSyntax] | None, names: WithFreeModifiers[Sequence[RecoveredField[Token]], RecoveredField[FreeModifierSyntax]]) -> NameSumtiSyntax:
+        return cls._from_fields((la, relative_clauses, names))
+    def __init__(self, la: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], relative_clauses: RecoveredField[RelativeClauseListSyntax] | None, names: WithFreeModifiers[Sequence[RecoveredField[Token]], RecoveredField[FreeModifierSyntax]]) -> None:
         pass
     @property
     def la(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
         'A word from selmaho `La`.'
         return cast(WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], self._field(0))
     @property
+    def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax] | None:
+        'The optional relative clauses component.'
+        return cast(RecoveredField[RelativeClauseListSyntax] | None, self._field(1))
+    @property
     def names(self) -> WithFreeModifiers[tuple[RecoveredField[Token], ...], RecoveredField[FreeModifierSyntax]]:
         'Non-empty ordered sequence of names components.'
-        return cast(WithFreeModifiers[tuple[RecoveredField[Token], ...], RecoveredField[FreeModifierSyntax]], self._field(1))
+        return cast(WithFreeModifiers[tuple[RecoveredField[Token], ...], RecoveredField[FreeModifierSyntax]], self._field(2))
     def __init_subclass__(cls) -> None:
         raise TypeError('NameSumtiSyntax is final')
 
