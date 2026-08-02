@@ -609,8 +609,10 @@ fn prune_to_error_path(expr: &sexpr::SExpr) -> sexpr::SExpr {
 /// - If the selection exceeds `max_chars`, neighbor regions are dropped and
 ///   each error region is pruned to the paths leading to its error markers
 ///   (see [`prune_to_error_path`]): dropped structure appears as `…`, keeping
-///   brackets balanced. Whole regions that no longer fit are reported by a
-///   trailing `… (N more error regions not shown)` line.
+///   brackets balanced. Context dropped on either side of the shown regions
+///   (including the discarded neighbor regions) is marked by a leading or
+///   trailing `…` line, and whole regions that no longer fit are reported by
+///   a trailing `… (N more error regions not shown)` line.
 /// - The output never exceeds `max_chars` characters; the only way it can
 ///   contain an unbalanced bracket is the documented last-resort string cut
 ///   of a single pruned region that alone exceeds the budget.
@@ -688,70 +690,99 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
         return Ok(candidate);
     }
     // Over budget: drop the neighbor context and prune every error region to
-    // its error paths, then keep as many regions as the budget admits.
-    let first_error_region = || {
-        let first = children
-            .iter()
-            .find(|child| sexpr::contains_error_leaf(child))
-            .expect("errors exist");
-        let pruned = prune_to_error_path(first);
-        sexpr::render_bracketed_at_depth(1, &pruned, options)
-    };
+    // its error paths. Dropped leading/trailing context is still marked by a
+    // directional `…` line, so the composer can always tell that structure
+    // was elided on that side of the shown regions.
+    let error_indices = (0..children.len())
+        .filter(|index| has_error[*index])
+        .collect::<Vec<_>>();
+    let leading_marker = error_indices[0] > 0;
+    let trailing_marker = error_indices[error_indices.len() - 1] + 1 < children.len();
     let mut items: Vec<(String, bool)> = Vec::new();
     let mut previous_error_index = None;
-    for (index, child) in children.iter().enumerate() {
-        if !has_error[index] {
-            continue;
-        }
+    for index in error_indices.iter().copied() {
         if previous_error_index.is_some_and(|previous| index > previous + 1) {
             items.push((ERROR_REGION_ELISION.to_owned(), false));
         }
         previous_error_index = Some(index);
-        let pruned = prune_to_error_path(child);
+        let pruned = prune_to_error_path(&children[index]);
         items.push((sexpr::render_bracketed_at_depth(1, &pruned, options), true));
     }
+    let total_regions = items.iter().filter(|(_, is_region)| *is_region).count();
+    let omission_note = |omitted: usize| match omitted {
+        1 => format!("{ERROR_REGION_ELISION} (1 more error region not shown)"),
+        n => format!("{ERROR_REGION_ELISION} ({n} more error regions not shown)"),
+    };
+    // Total line length of an assembly: the kept items, the directional
+    // markers, and (when regions were omitted) the note, plus one separator
+    // per line boundary.
+    let assembly_len = |content_chars: usize, kept_count: usize, omitted: usize| {
+        let fixed_chars = usize::from(leading_marker)
+            + usize::from(trailing_marker)
+            + if omitted > 0 {
+                omission_note(omitted).chars().count()
+            } else {
+                0
+            };
+        let fixed_lines =
+            usize::from(leading_marker) + usize::from(trailing_marker) + usize::from(omitted > 0);
+        content_chars + fixed_chars + (kept_count + fixed_lines).saturating_sub(1)
+    };
+    // Keep as many regions as fit alongside the markers and the note. The
+    // note's presence (and width) depends on the omission count, which the
+    // accumulation itself determines, so iterate until stable; the count is
+    // non-decreasing and bounded, so this terminates.
     let mut kept: Vec<(String, bool)> = Vec::new();
     let mut omitted_regions = 0usize;
-    let kept_chars = |kept: &[(String, bool)]| {
-        kept.iter()
-            .map(|(text, _)| text.chars().count())
-            .sum::<usize>()
-            + kept.len().saturating_sub(1)
-    };
-    for (text, is_region) in items {
-        let added = text.chars().count() + usize::from(!kept.is_empty());
-        if kept_chars(&kept) + added <= max_chars {
-            kept.push((text, is_region));
-        } else {
-            omitted_regions += usize::from(is_region);
+    loop {
+        kept.clear();
+        let mut content_chars = 0usize;
+        for (text, is_region) in &items {
+            let grown = content_chars + text.chars().count();
+            if assembly_len(grown, kept.len() + 1, omitted_regions) <= max_chars {
+                kept.push((text.clone(), *is_region));
+                content_chars = grown;
+            }
         }
-    }
-    while omitted_regions > 0 && !kept.is_empty() {
-        let note = match omitted_regions {
-            1 => format!("{ERROR_REGION_ELISION} (1 more error region not shown)"),
-            n => format!("{ERROR_REGION_ELISION} ({n} more error regions not shown)"),
-        };
-        let added = note.chars().count() + 1;
-        if kept_chars(&kept) + added <= max_chars {
-            kept.push((note, false));
+        let new_omitted = total_regions - kept.iter().filter(|(_, is_region)| *is_region).count();
+        if new_omitted == omitted_regions {
             break;
         }
-        if let Some((_, was_region)) = kept.pop() {
-            omitted_regions += usize::from(was_region);
-        }
+        omitted_regions = new_omitted;
     }
     if kept.is_empty() {
         // A single pruned region can still exceed the budget for deeply
         // nested constructs (or the budget can be too small for even the
-        // omission note); cut the first region at the budget as a last
-        // resort, its trailing `…` marking the omission.
-        return Ok(truncate_to_char_budget(&first_error_region(), max_chars));
+        // markers and the note); cut the leading marker, the first region,
+        // and a trailing marker composed together at the budget as a last
+        // resort, so both sides of the omission stay marked.
+        let first = &items
+            .iter()
+            .find(|(_, is_region)| *is_region)
+            .expect("errors exist")
+            .0;
+        let mut text = String::new();
+        if leading_marker {
+            text.push_str(ERROR_REGION_ELISION);
+            text.push('\n');
+        }
+        text.push_str(first);
+        text.push('\n');
+        text.push_str(ERROR_REGION_ELISION);
+        return Ok(truncate_to_char_budget(&text, max_chars));
     }
-    Ok(kept
-        .into_iter()
-        .map(|(text, _)| text)
-        .collect::<Vec<_>>()
-        .join("\n"))
+    let mut lines: Vec<String> = Vec::new();
+    if leading_marker {
+        lines.push(ERROR_REGION_ELISION.to_owned());
+    }
+    lines.extend(kept.into_iter().map(|(text, _)| text));
+    if trailing_marker {
+        lines.push(ERROR_REGION_ELISION.to_owned());
+    }
+    if omitted_regions > 0 {
+        lines.push(omission_note(omitted_regions));
+    }
+    Ok(lines.join("\n"))
 }
 
 #[requires(true)]
@@ -1471,7 +1502,8 @@ mod tests {
     fn error_region_brackets_prune_long_regions_to_the_error_path() {
         // A long sentence whose error sits at the very end: the full
         // rendering is 1,820 characters, but the budgeted form prunes the
-        // region to the error path with balanced brackets and `…` elision.
+        // region to the error path with balanced brackets and `…` elision,
+        // and marks the dropped leading context (the {mi} subject child).
         let source = format!("mi {}ku", "broda ".repeat(300));
         let recovered = parse_recovered_syntax(&source);
         assert_eq!(recovered.errors.len(), 1);
@@ -1492,12 +1524,12 @@ mod tests {
                 BracketRenderOptions::default(),
             )
             .expect("error region brackets");
-            assert_eq!(regions, "[bróda {… bróda ([bróda ‼ku‼] ‼‼)}]");
+            assert_eq!(regions, "…\n[bróda {… bróda ([bróda ‼ku‼] ‼‼)}]");
             assert!(regions.chars().count() <= budget);
         }
 
         // Below the pruned region's size the last-resort string cut applies:
-        // still within budget, still marked.
+        // still within budget, still marked on both sides.
         let cut = pretty_recovered_syntax_error_region_brackets_with_options(
             &recovered,
             &source,
@@ -1505,8 +1537,43 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
-        assert_eq!(cut, "[bróda {… bróda ([b…");
+        assert_eq!(cut, "…\n[bróda {… bróda (…");
         assert!(cut.chars().count() <= 20);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn error_region_brackets_mark_dropped_neighbor_context_on_both_sides() {
+        // A long immediate neighbor selected in the first pass is what pushes
+        // the rendering over budget; the fallback must not drop it silently.
+        // Leading neighbor (a long valid statement before the error region):
+        let source = format!("mi {} i do ku", "broda ".repeat(300));
+        let recovered = parse_recovered_syntax(&source);
+        assert_eq!(recovered.errors.len(), 1);
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            &source,
+            1_000,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(regions, "…\n[.i {(do ‼ku‼) ‼‼}]");
+        assert!(regions.chars().count() <= 1_000);
+
+        // Trailing neighbor (a long valid statement after the error region):
+        let source = format!("mi ku i do {}", "broda ".repeat(300));
+        let recovered = parse_recovered_syntax(&source);
+        assert_eq!(recovered.errors.len(), 1);
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            &source,
+            1_000,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(regions, "[mi ‼ku‼]\n…");
+        assert!(regions.chars().count() <= 1_000);
     }
 
     #[test]
