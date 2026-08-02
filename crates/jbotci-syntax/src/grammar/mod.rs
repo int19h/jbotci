@@ -3244,7 +3244,12 @@ pub(crate) fn parse_generated_model_syntax_tree_with_source_attempt(
     let parsed = generated::generated_model::parse_text_attempt(&tokens, options);
     let result = parsed.result.map(|parsed| {
         let mut warnings = parsed.warnings;
-        add_generated_construct_warnings(&parsed.text, &tokens, &mut warnings);
+        add_generated_construct_warnings(
+            &parsed.text,
+            &tokens,
+            options.dialect.features.contains(&DialectFeature::Cbm),
+            &mut warnings,
+        );
         new!(SyntaxParse {
             parse_tree: Box::new(parsed.text),
             warnings,
@@ -3405,7 +3410,7 @@ pub(crate) fn parse_generated_model_syntax_tokens_with_recovery_attempt(
 ) -> SyntaxRecoveryParseAttempt {
     let strict_attempt = generated::generated_model::parse_text_attempt(&tokens, options);
     if let Ok(parsed) = strict_attempt.result {
-        return valid_syntax_recovery_attempt(parsed, &tokens, strict_attempt.trace);
+        return valid_syntax_recovery_attempt(parsed, &tokens, options, strict_attempt.trace);
     }
 
     let tracked_attempt =
@@ -3419,7 +3424,7 @@ pub(crate) fn parse_generated_model_syntax_tokens_with_recovery_attempt(
     ) = tracked_attempt.into_data();
     let failure = match result {
         Ok(parsed) => {
-            return valid_syntax_recovery_attempt(parsed, &tokens, trace);
+            return valid_syntax_recovery_attempt(parsed, &tokens, options, trace);
         }
         Err(failure) => failure,
     };
@@ -3445,10 +3450,16 @@ pub(crate) fn parse_generated_model_syntax_tokens_with_recovery_attempt(
 fn valid_syntax_recovery_attempt(
     parsed: generated::generated_model::GeneratedParsedText,
     tokens: &[Token],
+    options: &ParseOptions,
     trace: Option<TraceReport>,
 ) -> SyntaxRecoveryParseAttempt {
     let mut warnings = parsed.warnings;
-    add_generated_construct_warnings(&parsed.text, tokens, &mut warnings);
+    add_generated_construct_warnings(
+        &parsed.text,
+        tokens,
+        options.dialect.features.contains(&DialectFeature::Cbm),
+        &mut warnings,
+    );
     SyntaxRecoveryParseAttempt {
         result: new!(SyntaxRecoveryParse::Valid {
             parse: new!(SyntaxParse {
@@ -4929,10 +4940,12 @@ fn recovered_value_mut<T>(
 fn add_generated_construct_warnings(
     text: &generated::generated_model::TextSyntax,
     tokens: &[Token],
+    cbm_enabled: bool,
     warnings: &mut Vec<SyntaxWarning>,
 ) {
     let mut visitor = new!(GeneratedConstructWarningVisitor {
         tokens,
+        cbm_enabled,
         warnings: RefCell::new(warnings),
     });
     generated::generated_model::TreeNode::visit_in_order(text, &mut visitor);
@@ -4946,6 +4959,7 @@ fn add_generated_construct_warnings(
 )]
 struct GeneratedConstructWarningVisitor<'a> {
     tokens: &'a [Token],
+    cbm_enabled: bool,
     warnings: RefCell<&'a mut Vec<SyntaxWarning>>,
 }
 
@@ -4966,18 +4980,19 @@ impl GeneratedConstructWarningVisitor<'_> {
         }
     }
 
-    #[requires(description.description.0.value.is_cmavo(Cmavo::La))]
+    #[requires(description.0.value.is_cmavo(Cmavo::La))]
     #[ensures(true)]
     fn warn_cbm_la_name_form(
         &mut self,
-        description: &generated::generated_model::DescriptorWithGadriSumtiSyntax,
+        description: &generated::generated_model::DescriptionHeadSyntax,
+        tail: &generated::generated_model::DescriptionTailSyntax,
     ) {
         let mut visitor = new!(FirstTokenVisitor {
             token: Cell::new(None),
         });
-        generated::generated_model::TreeNode::visit_in_order(&description.tail.tail, &mut visitor);
+        generated::generated_model::TreeNode::visit_in_order(&tail.tail, &mut visitor);
         if visitor.token.get().is_some_and(tokens::is_cmevla_word) {
-            let anchor = &description.description.0.value;
+            let anchor = &description.0.value;
             let mut warnings = self.warnings.borrow_mut();
             push_generated_construct_warning(
                 &mut warnings,
@@ -5010,9 +5025,35 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                 if let generated::generated_model::SumtiBaseSyntax::DescriptorWithGadriSumti(
                     description,
                 ) = base
+                    && self.cbm_enabled
                     && description.description.0.value.is_cmavo(Cmavo::La)
                 {
-                    self.warn_cbm_la_name_form(description);
+                    self.warn_cbm_la_name_form(&description.description, &description.tail);
+                }
+            }
+            generated::generated_model::NodeRef::SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti(
+                base,
+            ) => {
+                if let generated::generated_model::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(
+                    description,
+                ) = base
+                    && self.cbm_enabled
+                    && description.description.0.value.is_cmavo(Cmavo::La)
+                {
+                    self.warn_cbm_la_name_form(&description.description, &description.tail);
+                }
+            }
+            generated::generated_model::NodeRef::SumtiBaseSyntaxDescriptionConnectionSumti(base) => {
+                if let generated::generated_model::SumtiBaseSyntax::DescriptionConnectionSumti(
+                    description,
+                ) = base
+                    && self.cbm_enabled
+                    && description.leading_description_head.0.value.is_cmavo(Cmavo::La)
+                {
+                    self.warn_cbm_la_name_form(
+                        &description.leading_description_head,
+                        &description.tail,
+                    );
                 }
             }
             _ => {}
