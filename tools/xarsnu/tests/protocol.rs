@@ -13,12 +13,12 @@ use xarsnu::protocol::{
     TurnForfeitReasonData,
 };
 use xarsnu::{
-    CapsConfig, DiagnosticCategory, ListenerMode, MalformedToolCall, MeaningReview,
-    MeaningReviewer, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel,
-    ProtocolModelError, ProtocolRunner, ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher,
-    ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, RunHeader, ScenarioInstance, TaskStatus,
-    TersmuFormat, ToolCall, ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher,
-    read_transcript, report_file,
+    CapsConfig, DiagnosticCategory, ListenerMode, MAX_PARTIAL_PARSE_RENDERING_CHARS,
+    MalformedToolCall, MeaningReview, MeaningReviewer, ModelTurn, ParticipantConfig, ProtocolEvent,
+    ProtocolModel, ProtocolModelError, ProtocolRunner, ProtocolTool, ProviderToolChoice,
+    ReferenceToolDispatcher, ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, RunHeader,
+    ScenarioInstance, TaskStatus, TersmuFormat, ToolCall, ToolChoice, ToolDefinition,
+    ToolDispatchError, ToolDispatcher, read_transcript, report_file,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -1351,7 +1351,7 @@ fn parse_failures_keep_composing_and_record_diagnostics_before_success() {
 fn syntax_rejection_feedback_includes_bounded_recovered_partial_parse() {
     // The first statement parses cleanly; the second has a stray {ku}. The
     // rejection feedback must include the recovered partial parse of the
-    // failing region without re-rendering the error-free statement, and the
+    // failing region together with its immediate-neighbor context, and the
     // transcript event must carry the same rendering losslessly (issue #731).
     let speaker = ScriptedModel::new(
         "alice",
@@ -1418,11 +1418,12 @@ fn syntax_rejection_feedback_includes_bounded_recovered_partial_parse() {
         .expect("syntax rejections carry the recovered partial parse");
     assert!(partial_parse.contains('‼'), "{partial_parse}");
     assert!(partial_parse.contains("do"), "{partial_parse}");
-    // The bound: the error-free leading statement is omitted (the rendering
-    // stress-marks words, so `kláma` can only appear via a parse rendering;
-    // the raw diagnostics quote the unmarked source). A no-op implementation
-    // that attaches the full rendering or nothing fails here.
-    assert!(!partial_parse.contains("kláma"), "{partial_parse}");
+    // The neighbor context keeps the error-free leading statement: the
+    // rendering stress-marks words, so `kláma` can only appear via a parse
+    // rendering; the raw diagnostics quote the unmarked source. A no-op
+    // implementation that attaches nothing fails here; the character budget
+    // itself is covered at the gate level.
+    assert!(partial_parse.contains("kláma"), "{partial_parse}");
 
     // The composer receives the diagnostics followed by the same partial
     // parse the transcript recorded.
@@ -1435,7 +1436,7 @@ fn syntax_rejection_feedback_includes_bounded_recovered_partial_parse() {
         })
         .expect("rejection feedback tool result");
     let expected = format!(
-        "{diagnostics}\nRecovered partial parse (error-adjacent regions only; ‼…‼ marks what the parser could not place):\n{partial_parse}"
+        "{diagnostics}\nRecovered partial parse (error-adjacent regions, capped at {MAX_PARTIAL_PARSE_RENDERING_CHARS} characters; ‼…‼ marks what the parser could not place, … marks elided structure):\n{partial_parse}"
     );
     assert_eq!(feedback.content, expected);
 
@@ -1558,6 +1559,51 @@ fn morphology_rejection_feedback_is_diagnostics_only() {
     let round_tripped: ProtocolEvent =
         serde_json::from_value(serialized).expect("event deserializes");
     assert_eq!(&round_tripped, event);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn candidate_rejected_partial_parse_requires_the_syntax_category() {
+    // The transcript model documents that only syntax-category rejections
+    // carry a recovered partial parse; the event invariant enforces it
+    // (issue #731).
+    let rejection = json!({
+        "kind": "candidate-rejected",
+        "turn_number": 1,
+        "speaker": "alice",
+        "text": "mi @ klama",
+        "diagnostics": "error: invalid word\n",
+        "diagnostic_category": "morphology",
+        "partial_parse_rendering": "[‼kei‼ cu]",
+        "attempt": 1,
+    });
+    serde_json::from_value::<ProtocolEvent>(rejection)
+        .expect_err("a morphology rejection must not carry a partial parse");
+
+    // Positive controls: a syntax rejection with the field, and legacy
+    // rejections without it (any category), all deserialize.
+    for (category, field) in [
+        ("syntax", Some(json!("[‼kei‼ cu]"))),
+        ("syntax", None),
+        ("morphology", None),
+        ("other", None),
+    ] {
+        let mut rejection = json!({
+            "kind": "candidate-rejected",
+            "turn_number": 1,
+            "speaker": "alice",
+            "text": "mi klama",
+            "diagnostics": "error: unexpected\n",
+            "diagnostic_category": category,
+            "attempt": 1,
+        });
+        if let Some(field) = field {
+            rejection["partial_parse_rendering"] = field;
+        }
+        serde_json::from_value::<ProtocolEvent>(rejection)
+            .unwrap_or_else(|error| panic!("{category} rejection must deserialize: {error}"));
+    }
 }
 
 #[test]

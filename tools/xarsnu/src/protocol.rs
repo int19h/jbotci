@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+use crate::jbotci_tools::MAX_PARTIAL_PARSE_RENDERING_CHARS;
 use crate::model_capabilities::ParticipantModelPolicy;
 use crate::openrouter::{MalformedToolCallData, ModelTurnData, REQUIRED_TOOL_CORRECTION};
 use crate::transcript::TranscriptWriter;
@@ -1039,7 +1040,7 @@ pub struct RuntimeFailureRecord {
 #[invariant(::TurnStarted { turn_number, speaker } => *turn_number > 0 && !speaker.trim().is_empty())]
 #[invariant(::IntentRegistered { turn_number, speaker, meaning_en, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !meaning_en.trim().is_empty())]
 #[invariant(::CandidateSubmitted { turn_number, speaker, text, attempt } => *turn_number > 0 && !speaker.trim().is_empty() && !text.trim().is_empty() && *attempt > 0)]
-#[invariant(::CandidateRejected { turn_number, speaker, text, diagnostics, attempt, partial_parse_rendering, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !text.trim().is_empty() && !diagnostics.is_empty() && *attempt > 0 && partial_parse_rendering.as_ref().is_none_or(|rendering| !rendering.is_empty()))]
+#[invariant(::CandidateRejected { turn_number, speaker, text, diagnostics, attempt, partial_parse_rendering, diagnostic_category, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !text.trim().is_empty() && !diagnostics.is_empty() && *attempt > 0 && partial_parse_rendering.as_ref().is_none_or(|rendering| !rendering.is_empty()) && (partial_parse_rendering.is_none() || *diagnostic_category == DiagnosticCategory::Syntax), "a partial parse rendering exists only for syntax-category rejections; legacy syntax rejections predate the field, so None stays allowed for every category")]
 #[invariant(::CandidateAccepted { turn_number, speaker, message, attempt } => *turn_number > 0 && !speaker.trim().is_empty() && !message.text.trim().is_empty() && !message.tersmu_rendering.is_empty() && *attempt > 0)]
 #[invariant(::MeaningConfirmed { turn_number, speaker, paraphrase_en, discrepancies, .. } => *turn_number > 0 && !speaker.trim().is_empty() && !paraphrase_en.trim().is_empty() && discrepancies.as_ref().is_none_or(|value| !value.trim().is_empty()))]
 #[invariant(::ReviewRequested { turn_number, speaker, .. } => *turn_number > 0 && !speaker.trim().is_empty(), "the brief's own invariant covers its contents")]
@@ -1098,8 +1099,10 @@ pub enum ProtocolEvent {
         diagnostics: String,
         diagnostic_category: DiagnosticCategory,
         /// Bounded recovered partial parse of the rejected candidate, in the
-        /// error-region brackets form (issue #731). Present on syntax-category
-        /// rejections written after the field existed; `None` for
+        /// error-region brackets form (issue #731), capped at
+        /// `MAX_PARTIAL_PARSE_RENDERING_CHARS` characters. Present on
+        /// syntax-category rejections written after the field existed (the
+        /// invariant enforces the category link); `None` for
         /// morphology/other-category rejections (no parse to recover) and for
         /// legacy transcripts written before the field existed.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3532,7 +3535,7 @@ impl<M: ProtocolModel, D: ToolDispatcher, R: MeaningReviewer> ProtocolRunner<M, 
                     // the diagnostics spans (issue #731).
                     let feedback = match partial_parse_rendering.as_deref() {
                         Some(partial_parse) => format!(
-                            "{diagnostics}\nRecovered partial parse (error-adjacent regions only; ‼…‼ marks what the parser could not place):\n{partial_parse}"
+                            "{diagnostics}\nRecovered partial parse (error-adjacent regions, capped at {MAX_PARTIAL_PARSE_RENDERING_CHARS} characters; ‼…‼ marks what the parser could not place, … marks elided structure):\n{partial_parse}"
                         ),
                         None => diagnostics.clone(),
                     };

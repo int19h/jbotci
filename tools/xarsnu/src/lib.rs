@@ -16,8 +16,9 @@ pub use config::{
     ToolChoice,
 };
 pub use jbotci_tools::{
-    DiagnosticCategory, EmbeddingSearchPreflightError, GateError, GateOutcome, ReferenceToolError,
-    ReferenceTools, gate_lojban, preflight_embedding_search,
+    DiagnosticCategory, EmbeddingSearchPreflightError, GateError, GateOutcome,
+    MAX_PARTIAL_PARSE_RENDERING_CHARS, ReferenceToolError, ReferenceTools, gate_lojban,
+    preflight_embedding_search,
 };
 pub use model_capabilities::ProviderToolChoice;
 pub use openrouter::{

@@ -37,10 +37,12 @@ pub enum GateOutcome {
         category: DiagnosticCategory,
         /// Recovered partial parse of the failed candidate in the bounded
         /// error-region brackets form (issue #731): gentufa's most compact
-        /// rendering, restricted to the top-level regions that contain a
-        /// recovery error marker. Present exactly when `category` is
-        /// `DiagnosticCategory::Syntax`; morphology-phase failures have no
-        /// parse to recover and stay diagnostics-only.
+        /// rendering, restricted to the regions containing a recovery error
+        /// marker plus their immediate-neighbor context, hard-capped at
+        /// `MAX_PARTIAL_PARSE_RENDERING_CHARS` characters with marked elision.
+        /// Present exactly when `category` is `DiagnosticCategory::Syntax`;
+        /// morphology-phase failures have no parse to recover and stay
+        /// diagnostics-only.
         partial_parse_rendering: Option<String>,
     },
     Success {
@@ -65,6 +67,15 @@ pub enum DiagnosticCategory {
     Syntax,
     Other,
 }
+
+/// Character budget for the recovered partial parse attached to syntax-gate
+/// rejection feedback (issue #731). An ordinary single-sentence error region
+/// with its attachment context is tens to a few hundred characters, so this
+/// budget shows it in full; for long posts the renderer prunes regions to
+/// their error paths with marked elision, and the feedback rendering is
+/// hard-capped at this many characters (on the order of 250 tokens) no matter
+/// how long the candidate is or how many errors it carries.
+pub const MAX_PARTIAL_PARSE_RENDERING_CHARS: usize = 1_000;
 
 impl GateOutcome {
     /// Exact production diagnostics for a rejected candidate.
@@ -255,6 +266,7 @@ fn classify_gate_failure(
                 jbotci_output::pretty_recovered_syntax_error_region_brackets_with_options(
                     parse,
                     text,
+                    MAX_PARTIAL_PARSE_RENDERING_CHARS,
                     jbotci_output::BracketRenderOptions::default(),
                 )
                 .map_err(|error| {
@@ -739,7 +751,7 @@ mod tests {
     fn gate_syntax_failure_carries_bounded_recovered_partial_parse() {
         // The first statement parses cleanly; the second has a stray {ku}.
         // The feedback must show the recovered structure of the failing
-        // region without re-rendering the error-free statement (issue #731).
+        // region together with its immediate-neighbor context (issue #731).
         let outcome =
             gate_lojban("mi klama i do ku".to_owned(), None, None).expect("syntax failure");
         assert_eq!(
@@ -751,10 +763,34 @@ mod tests {
             .expect("syntax failures carry the recovered partial parse");
         assert!(partial.contains('‼'), "{partial}");
         assert!(partial.contains("do"), "{partial}");
-        // The bound: the error-free leading statement is omitted. A no-op
-        // implementation that attaches the full rendering (or nothing) fails
-        // this test.
-        assert!(!partial.contains("kláma"), "{partial}");
+        // The neighbor context keeps the error-free leading statement: the
+        // rendering stress-marks words, so `kláma` can only appear via a parse
+        // rendering, never via the raw diagnostics. A no-op implementation
+        // that attached nothing fails here.
+        assert!(partial.contains("kláma"), "{partial}");
+        assert!(partial.chars().count() <= MAX_PARTIAL_PARSE_RENDERING_CHARS);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gate_syntax_failure_partial_parse_respects_the_character_budget() {
+        // A long single-sentence candidate with the error at the very end:
+        // the region selection alone would return hundreds of characters, so
+        // the budget must prune the region to its error path (issue #731).
+        let candidate = format!("mi {}ku", "broda ".repeat(300));
+        let outcome = gate_lojban(candidate, None, None).expect("syntax failure");
+        assert_eq!(
+            outcome.diagnostic_category(),
+            Some(DiagnosticCategory::Syntax)
+        );
+        let partial = outcome
+            .partial_parse_rendering()
+            .expect("syntax failures carry the recovered partial parse");
+        assert!(partial.chars().count() <= MAX_PARTIAL_PARSE_RENDERING_CHARS);
+        assert!(partial.contains("‼ku‼"), "{partial}");
+        assert!(partial.contains('…'), "{partial}");
+        assert!(!partial.contains("bróda bróda"), "{partial}");
     }
 
     #[test]

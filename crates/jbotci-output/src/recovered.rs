@@ -532,28 +532,104 @@ pub fn pretty_recovered_syntax_brackets_with_options(
     Ok(sexpr::render_bracketed_with_options(&value, options))
 }
 
-/// Brackets rendering of only the error-adjacent regions of a recovered parse.
+/// Elision marker used wherever the bounded error-region rendering drops
+/// structure inside a region, whole regions, or trailing output.
+const ERROR_REGION_ELISION: &str = "…";
+
+/// Cut a rendering at a character budget, ending it with the elision marker.
+/// This is the last-resort backstop of the error-region renderer; the
+/// structural selection and pruning it backstops keep brackets balanced, a
+/// cut string may not.
+#[requires(max_chars > 0)]
+#[ensures(ret.chars().count() <= max_chars)]
+#[ensures(text.chars().count() <= max_chars -> ret == text)]
+fn truncate_to_char_budget(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_owned();
+    }
+    let cut = text
+        .char_indices()
+        .nth(max_chars - 1)
+        .map_or(text.len(), |(index, _)| index);
+    let mut truncated = text[..cut].to_owned();
+    truncated.push('…');
+    truncated
+}
+
+/// Prune a bracket expression to the paths leading to recovery error leaves.
+///
+/// Kept nodes render their brackets around the error-containing children, the
+/// leaves immediately adjacent to those children (the local context, such as
+/// the {cu} following a rejected {kei}), and one `…` elision leaf per maximal
+/// run of dropped children, in the dropped run's original position. Every
+/// error leaf of the input is retained.
+#[requires(sexpr::contains_error_leaf(expr))]
+#[ensures(sexpr::contains_error_leaf(&ret))]
+fn prune_to_error_path(expr: &sexpr::SExpr) -> sexpr::SExpr {
+    let sexpr::SExpr::Node { children, .. } = expr else {
+        return expr.clone();
+    };
+    let mut pruned = Vec::new();
+    let mut dropped_run = false;
+    for (index, child) in children.iter().enumerate() {
+        let has_error = sexpr::contains_error_leaf(child);
+        let adjacent_context_leaf = matches!(child, sexpr::SExpr::Leaf { .. })
+            && (index > 0 && sexpr::contains_error_leaf(&children[index - 1])
+                || index + 1 < children.len() && sexpr::contains_error_leaf(&children[index + 1]));
+        if has_error || adjacent_context_leaf {
+            if dropped_run {
+                pruned.push(sexpr::leaf(ERROR_REGION_ELISION.to_owned()));
+                dropped_run = false;
+            }
+            pruned.push(if has_error {
+                prune_to_error_path(child)
+            } else {
+                child.clone()
+            });
+        } else {
+            dropped_run = true;
+        }
+    }
+    sexpr::node(pruned)
+}
+
+/// Brackets rendering of the error-adjacent regions of a recovered parse,
+/// capped at an explicit character budget.
 ///
 /// This is the bounded feedback form for consumers that cannot afford a full
-/// rendering of a long recovered text (issue #731): after the same flattening
-/// the full brackets rendering uses, top-level constructs (statement or
-/// paragraph groups) that contain no recovery error marker are dropped, and
-/// each remaining region renders on its own line at its original bracket
-/// depth. Every ‼…‼ error marker of the full rendering is therefore retained,
-/// while error-free surrounding text is omitted; the result is never larger
-/// than the full brackets rendering. When the parse converted to valid, when
-/// no top-level region selection is possible, or when every region contains an
-/// error, the result is exactly the full brackets rendering.
-#[requires(true)]
+/// rendering of a long recovered text (issue #731). Starting from the same
+/// flattened brackets form the full rendering uses:
+///
+/// - Selection keeps every top-level construct (statement or paragraph group)
+///   containing a recovery error marker, plus its immediate neighbors, so the
+///   structure an error attached to — for example the abstraction a first
+///   {kei} closed before a second one was rejected — stays visible. Dropped
+///   leading or trailing regions are marked with a `…` line. When this
+///   selection is everything, the result is the full brackets rendering.
+/// - If the selection exceeds `max_chars`, neighbor regions are dropped and
+///   each error region is pruned to the paths leading to its error markers
+///   (see [`prune_to_error_path`]): dropped structure appears as `…`, keeping
+///   brackets balanced. Whole regions that no longer fit are reported by a
+///   trailing `… (N more error regions not shown)` line.
+/// - The output never exceeds `max_chars` characters; the only way it can
+///   contain an unbalanced bracket is the documented last-resort string cut
+///   of a single pruned region that alone exceeds the budget.
+///
+/// A valid parse has no error regions; its full brackets rendering is
+/// returned, cut at the budget with a trailing `…` when needed.
+#[requires(max_chars > 0)]
 #[ensures(!recovered.errors.is_empty() || ret.is_ok())]
+#[ensures(ret.as_ref().is_ok_and(|text| text.chars().count() <= max_chars) || ret.is_err())]
 #[expensive_ensures(ret.as_ref().is_ok_and(|text| !text.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
 pub fn pretty_recovered_syntax_error_region_brackets_with_options(
     recovered: &RecoveredSyntaxParse,
     source: &str,
+    max_chars: usize,
     options: BracketRenderOptions,
 ) -> Result<String, OutputError> {
     if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
-        return crate::pretty_generated_model_brackets_with_options(&valid, source, options);
+        let full = crate::pretty_generated_model_brackets_with_options(&valid, source, options)?;
+        return Ok(truncate_to_char_budget(&full, max_chars));
     }
     let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
     jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
@@ -562,18 +638,118 @@ pub fn pretty_recovered_syntax_error_region_brackets_with_options(
     );
     let value = sexpr::flatten(visitor.finish()?);
     let sexpr::SExpr::Node { children, .. } = &value else {
-        return Ok(sexpr::render_bracketed_with_options(&value, options));
+        let full = sexpr::render_bracketed_with_options(&value, options);
+        return Ok(truncate_to_char_budget(&full, max_chars));
     };
-    let regions = children
+    let has_error = children
         .iter()
-        .filter(|child| sexpr::contains_error_leaf(child))
+        .map(sexpr::contains_error_leaf)
         .collect::<Vec<_>>();
-    if regions.is_empty() || regions.len() == children.len() {
-        return Ok(sexpr::render_bracketed_with_options(&value, options));
+    if !has_error.iter().any(|flag| *flag) {
+        let full = sexpr::render_bracketed_with_options(&value, options);
+        return Ok(truncate_to_char_budget(&full, max_chars));
     }
-    Ok(regions
-        .iter()
-        .map(|region| sexpr::render_bracketed_at_depth(1, region, options))
+    // Selection with immediate-neighbor context: the region an error attached
+    // to is often the previous sibling of the error region, and dropping it
+    // would hide exactly the attachment structure the feedback exists to show.
+    let selected = (0..children.len())
+        .map(|index| {
+            has_error[index]
+                || index > 0 && has_error[index - 1]
+                || index + 1 < children.len() && has_error[index + 1]
+        })
+        .collect::<Vec<_>>();
+    let candidate = if selected.iter().all(|flag| *flag) {
+        sexpr::render_bracketed_with_options(&value, options)
+    } else {
+        let mut lines = Vec::new();
+        let first = selected
+            .iter()
+            .position(|flag| *flag)
+            .expect("errors exist");
+        let last = selected
+            .iter()
+            .rposition(|flag| *flag)
+            .expect("errors exist");
+        if first > 0 {
+            lines.push(ERROR_REGION_ELISION.to_owned());
+        }
+        for (index, child) in children.iter().enumerate() {
+            if selected[index] {
+                lines.push(sexpr::render_bracketed_at_depth(1, child, options));
+            }
+        }
+        if last + 1 < children.len() {
+            lines.push(ERROR_REGION_ELISION.to_owned());
+        }
+        lines.join("\n")
+    };
+    if candidate.chars().count() <= max_chars {
+        return Ok(candidate);
+    }
+    // Over budget: drop the neighbor context and prune every error region to
+    // its error paths, then keep as many regions as the budget admits.
+    let first_error_region = || {
+        let first = children
+            .iter()
+            .find(|child| sexpr::contains_error_leaf(child))
+            .expect("errors exist");
+        let pruned = prune_to_error_path(first);
+        sexpr::render_bracketed_at_depth(1, &pruned, options)
+    };
+    let mut items: Vec<(String, bool)> = Vec::new();
+    let mut previous_error_index = None;
+    for (index, child) in children.iter().enumerate() {
+        if !has_error[index] {
+            continue;
+        }
+        if previous_error_index.is_some_and(|previous| index > previous + 1) {
+            items.push((ERROR_REGION_ELISION.to_owned(), false));
+        }
+        previous_error_index = Some(index);
+        let pruned = prune_to_error_path(child);
+        items.push((sexpr::render_bracketed_at_depth(1, &pruned, options), true));
+    }
+    let mut kept: Vec<(String, bool)> = Vec::new();
+    let mut omitted_regions = 0usize;
+    let kept_chars = |kept: &[(String, bool)]| {
+        kept.iter()
+            .map(|(text, _)| text.chars().count())
+            .sum::<usize>()
+            + kept.len().saturating_sub(1)
+    };
+    for (text, is_region) in items {
+        let added = text.chars().count() + usize::from(!kept.is_empty());
+        if kept_chars(&kept) + added <= max_chars {
+            kept.push((text, is_region));
+        } else {
+            omitted_regions += usize::from(is_region);
+        }
+    }
+    while omitted_regions > 0 && !kept.is_empty() {
+        let note = match omitted_regions {
+            1 => format!("{ERROR_REGION_ELISION} (1 more error region not shown)"),
+            n => format!("{ERROR_REGION_ELISION} ({n} more error regions not shown)"),
+        };
+        let added = note.chars().count() + 1;
+        if kept_chars(&kept) + added <= max_chars {
+            kept.push((note, false));
+            break;
+        }
+        if let Some((_, was_region)) = kept.pop() {
+            omitted_regions += usize::from(was_region);
+        }
+    }
+    if kept.is_empty() {
+        // A single pruned region can still exceed the budget for deeply
+        // nested constructs (or the budget can be too small for even the
+        // omission note); cut the first region at the budget as a last
+        // resort, its trailing `…` marking the omission.
+        return Ok(truncate_to_char_budget(&first_error_region(), max_chars));
+    }
+    Ok(kept
+        .into_iter()
+        .map(|(text, _)| text)
         .collect::<Vec<_>>()
         .join("\n"))
 }
@@ -1164,7 +1340,10 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn error_region_brackets_keep_only_error_containing_regions() {
+    fn error_region_brackets_retain_neighbor_context_for_attachment() {
+        // The error-free leading statement is the immediate neighbor of the
+        // error region, so it is retained: dropping it would hide the
+        // structure the error attached to.
         let source = "mi klama i do ku";
         let recovered = parse_recovered_syntax(source);
         assert_eq!(recovered.errors.len(), 1);
@@ -1180,16 +1359,11 @@ mod tests {
         let regions = pretty_recovered_syntax_error_region_brackets_with_options(
             &recovered,
             source,
+            10_000,
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
-        assert_eq!(regions, "[.i {(do ‼ku‼) ‼‼}]");
-        // The bound: the error-free leading statement is omitted, every error
-        // marker is retained. A no-op implementation returning the full
-        // rendering would fail both assertions.
-        assert!(!regions.contains("kláma"), "{regions}");
-        assert!(regions.contains("‼ku‼"), "{regions}");
-        assert!(regions.len() < full.len());
+        assert_eq!(regions, full);
     }
 
     #[test]
@@ -1209,6 +1383,7 @@ mod tests {
         let regions = pretty_recovered_syntax_error_region_brackets_with_options(
             &recovered,
             source,
+            10_000,
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
@@ -1232,6 +1407,7 @@ mod tests {
         let regions = pretty_recovered_syntax_error_region_brackets_with_options(
             &recovered,
             source,
+            10_000,
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
@@ -1242,9 +1418,29 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn error_region_brackets_isolate_the_rejected_kei_region() {
+    fn error_region_brackets_truncate_valid_parse_at_budget() {
+        let source = "mi klama";
+        let recovered = parse_recovered_syntax(source);
+        assert!(recovered.errors.is_empty());
+
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            source,
+            5,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(regions, "(mi …");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn error_region_brackets_keep_the_attached_kei_context() {
         // The kei-imbalance witness class of issue #731: the first {kei}
         // attached to close the abstraction, so the second one is unplaceable.
+        // The feedback must retain that attachment structure — the closed
+        // abstraction with its accepted {kei} next to the rejected one.
         let source = "le nu mi klama kei kei cu broda";
         let recovered = parse_recovered_syntax(source);
         assert_eq!(recovered.errors.len(), 1);
@@ -1260,10 +1456,108 @@ mod tests {
         let regions = pretty_recovered_syntax_error_region_brackets_with_options(
             &recovered,
             source,
+            10_000,
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
-        assert_eq!(regions, "[‼kei‼ cu]");
+        assert_eq!(regions, full);
+        assert!(regions.contains("keĭ"), "{regions}");
+        assert!(regions.contains("‼kei‼"), "{regions}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn error_region_brackets_prune_long_regions_to_the_error_path() {
+        // A long sentence whose error sits at the very end: the full
+        // rendering is 1,820 characters, but the budgeted form prunes the
+        // region to the error path with balanced brackets and `…` elision.
+        let source = format!("mi {}ku", "broda ".repeat(300));
+        let recovered = parse_recovered_syntax(&source);
+        assert_eq!(recovered.errors.len(), 1);
+
+        let full = pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            &source,
+            BracketRenderOptions::default(),
+        )
+        .expect("full brackets");
+        assert_eq!(full.chars().count(), 1_820);
+
+        for budget in [400, 40] {
+            let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+                &recovered,
+                &source,
+                budget,
+                BracketRenderOptions::default(),
+            )
+            .expect("error region brackets");
+            assert_eq!(regions, "[bróda {… bróda ([bróda ‼ku‼] ‼‼)}]");
+            assert!(regions.chars().count() <= budget);
+        }
+
+        // Below the pruned region's size the last-resort string cut applies:
+        // still within budget, still marked.
+        let cut = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            &source,
+            20,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(cut, "[bróda {… bróda ([b…");
+        assert!(cut.chars().count() <= 20);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn error_region_brackets_report_omitted_regions_over_budget() {
+        // Two error regions whose pruned forms do not both fit the budget:
+        // the first is shown, the second is reported by the omission note.
+        let source = format!(
+            "mi {}ku i do {}ku",
+            "broda ".repeat(40),
+            "broda ".repeat(40)
+        );
+        let recovered = parse_recovered_syntax(&source);
+        assert_eq!(recovered.errors.len(), 2);
+
+        let full = pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            &source,
+            BracketRenderOptions::default(),
+        )
+        .expect("full brackets");
+        assert_eq!(full.chars().count(), 523);
+
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            &source,
+            50,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(regions, "[… ‼ku‼]\n… (1 more error region not shown)");
+        assert!(regions.chars().count() <= 50);
+
+        // Both regions fit a budget that admits them together with their
+        // elision markers; every error marker is then shown.
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            &source,
+            60,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(
+            regions,
+            "[… ‼ku‼]\n[.i {do (bróda [… bróda {(bróda ‼ku‼) ‼‼}])}]"
+        );
+        // Both error tokens are shown (the second region additionally keeps
+        // its zero-width recovery marker).
+        assert_eq!(regions.matches("‼ku‼").count(), 2);
+        assert!(regions.chars().count() <= 60);
     }
 
     #[test]
