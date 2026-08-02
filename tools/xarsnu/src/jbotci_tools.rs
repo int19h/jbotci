@@ -26,7 +26,7 @@ use thiserror::Error;
 use crate::{ExternalRendererCommand, TersmuFormat, ToolCall, ToolDefinition, ToolDefinitionError};
 
 /// Typed result of gating one candidate through the production tersmu tool.
-#[invariant(::ParseFailure { diagnostics_rendering, .. } => !diagnostics_rendering.is_empty())]
+#[invariant(::ParseFailure { diagnostics_rendering, category, partial_parse_rendering } => !diagnostics_rendering.is_empty() && (*category == DiagnosticCategory::Syntax) == partial_parse_rendering.is_some() && partial_parse_rendering.as_ref().is_none_or(|rendering| !rendering.is_empty()), "only syntax-phase failures have a parse to recover; morphology failures are diagnostics-only")]
 #[invariant(::Success { tersmu_rendering, renderer_incompatibilities } => !tersmu_rendering.is_empty() && renderer_incompatibilities.iter().all(|record| !record.trim().is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GateOutcome {
@@ -35,6 +35,15 @@ pub enum GateOutcome {
         diagnostics_rendering: String,
         /// Parser phase determined from the same structured production parse path.
         category: DiagnosticCategory,
+        /// Recovered partial parse of the failed candidate in the bounded
+        /// error-region brackets form (issue #731): gentufa's most compact
+        /// rendering, restricted to the regions containing a recovery error
+        /// marker plus their immediate-neighbor context, hard-capped at
+        /// `MAX_PARTIAL_PARSE_RENDERING_CHARS` characters with marked elision.
+        /// Present exactly when `category` is `DiagnosticCategory::Syntax`;
+        /// morphology-phase failures have no parse to recover and stay
+        /// diagnostics-only.
+        partial_parse_rendering: Option<String>,
     },
     Success {
         /// Exact production tersmu stdout bytes, without trimming or rewrapping.
@@ -59,6 +68,15 @@ pub enum DiagnosticCategory {
     Other,
 }
 
+/// Character budget for the recovered partial parse attached to syntax-gate
+/// rejection feedback (issue #731). An ordinary single-sentence error region
+/// with its attachment context is tens to a few hundred characters, so this
+/// budget shows it in full; for long posts the renderer prunes regions to
+/// their error paths with marked elision, and the feedback rendering is
+/// hard-capped at this many characters (on the order of 250 tokens) no matter
+/// how long the candidate is or how many errors it carries.
+pub const MAX_PARTIAL_PARSE_RENDERING_CHARS: usize = 1_000;
+
 impl GateOutcome {
     /// Exact production diagnostics for a rejected candidate.
     #[requires(true)]
@@ -79,6 +97,21 @@ impl GateOutcome {
     pub fn diagnostic_category(&self) -> Option<DiagnosticCategory> {
         match self.as_data() {
             bityzba::data!(GateOutcome::ParseFailure { category, .. }) => Some(*category),
+            _ => None,
+        }
+    }
+
+    /// Bounded recovered partial parse for a syntax-phase rejection (issue
+    /// #731); `None` for accepted candidates and for morphology-phase or
+    /// non-parser failures, which have no recovered parse to show.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.as_data(), bityzba::data!(GateOutcome::ParseFailure { category: DiagnosticCategory::Syntax, .. })))]
+    pub fn partial_parse_rendering(&self) -> Option<&str> {
+        match self.as_data() {
+            bityzba::data!(GateOutcome::ParseFailure {
+                partial_parse_rendering,
+                ..
+            }) => partial_parse_rendering.as_deref(),
             _ => None,
         }
     }
@@ -164,24 +197,39 @@ pub fn gate_lojban(
             ),
         }));
     }
-    let category = classify_gate_failure(&text, dialect.as_deref())?;
+    let bityzba::data!(GateFailureClassification {
+        category,
+        partial_parse_rendering,
+    }) = classify_gate_failure(&text, dialect.as_deref())?.into_data();
     Ok(new!(GateOutcome::ParseFailure {
         diagnostics_rendering: output.stderr,
         category,
+        partial_parse_rendering,
     }))
+}
+
+/// Structured outcome of the failure classification: the parser phase plus,
+/// for syntax-phase failures, the bounded recovered partial parse rendering.
+#[invariant((*category == DiagnosticCategory::Syntax) == partial_parse_rendering.is_some() && partial_parse_rendering.as_ref().is_none_or(|rendering| !rendering.is_empty()), "only syntax-phase failures carry a recovered partial parse")]
+#[derive(Debug)]
+struct GateFailureClassification {
+    category: DiagnosticCategory,
+    partial_parse_rendering: Option<String>,
 }
 
 /// Re-run only the structured morphology/syntax classification used by tersmu.
 ///
 /// This deliberately does not inspect rendered diagnostic text. A failure after
 /// valid morphology and syntax is classified as `Other` (for example, a semantic
-/// graph construction failure).
+/// graph construction failure). Syntax-phase failures additionally render the
+/// recovered parse in the bounded error-region brackets form (issue #731), so
+/// the rejection feedback shows the structure the parser actually built.
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn classify_gate_failure(
     text: &str,
     dialect: Option<&str>,
-) -> Result<DiagnosticCategory, GateError> {
+) -> Result<GateFailureClassification, GateError> {
     let dialect = dialect
         .map_or_else(
             || Ok(DialectDefinition::default()),
@@ -201,7 +249,10 @@ fn classify_gate_failure(
         );
     let morphology = &morphology_attempt.result;
     if !morphology.errors.is_empty() {
-        return Ok(DiagnosticCategory::Morphology);
+        return Ok(new!(GateFailureClassification {
+            category: DiagnosticCategory::Morphology,
+            partial_parse_rendering: None,
+        }));
     }
     let syntax_attempt = parse_syntax_tree_with_recovery_with_source_and_options_attempt(
         &morphology.words,
@@ -209,10 +260,30 @@ fn classify_gate_failure(
         &ParseOptions::default().with_dialect_definition(&dialect),
     );
     let syntax = &syntax_attempt.result;
-    Ok(match syntax.as_data() {
-        bityzba::data!(SyntaxRecoveryParse::Recovered { .. }) => DiagnosticCategory::Syntax,
-        bityzba::data!(SyntaxRecoveryParse::Valid { .. }) => DiagnosticCategory::Other,
-    })
+    match syntax.as_data() {
+        bityzba::data!(SyntaxRecoveryParse::Recovered { parse }) => {
+            let rendering =
+                jbotci_output::pretty_recovered_syntax_error_region_brackets_with_options(
+                    parse,
+                    text,
+                    MAX_PARTIAL_PARSE_RENDERING_CHARS,
+                    jbotci_output::BracketRenderOptions::default(),
+                )
+                .map_err(|error| {
+                    new!(GateError::ToolExecution {
+                        message: error.to_string(),
+                    })
+                })?;
+            Ok(new!(GateFailureClassification {
+                category: DiagnosticCategory::Syntax,
+                partial_parse_rendering: Some(rendering),
+            }))
+        }
+        bityzba::data!(SyntaxRecoveryParse::Valid { .. }) => Ok(new!(GateFailureClassification {
+            category: DiagnosticCategory::Other,
+            partial_parse_rendering: None,
+        })),
+    }
 }
 
 #[requires(true)]
@@ -672,6 +743,69 @@ mod tests {
                 .diagnostic_category(),
             Some(DiagnosticCategory::Syntax)
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gate_syntax_failure_carries_bounded_recovered_partial_parse() {
+        // The first statement parses cleanly; the second has a stray {ku}.
+        // The feedback must show the recovered structure of the failing
+        // region together with its immediate-neighbor context (issue #731).
+        let outcome =
+            gate_lojban("mi klama i do ku".to_owned(), None, None).expect("syntax failure");
+        assert_eq!(
+            outcome.diagnostic_category(),
+            Some(DiagnosticCategory::Syntax)
+        );
+        let partial = outcome
+            .partial_parse_rendering()
+            .expect("syntax failures carry the recovered partial parse");
+        assert!(partial.contains('‼'), "{partial}");
+        assert!(partial.contains("do"), "{partial}");
+        // The neighbor context keeps the error-free leading statement: the
+        // rendering stress-marks words, so `kláma` can only appear via a parse
+        // rendering, never via the raw diagnostics. A no-op implementation
+        // that attached nothing fails here.
+        assert!(partial.contains("kláma"), "{partial}");
+        assert!(partial.chars().count() <= MAX_PARTIAL_PARSE_RENDERING_CHARS);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gate_syntax_failure_partial_parse_respects_the_character_budget() {
+        // A long single-sentence candidate with the error at the very end:
+        // the region selection alone would return hundreds of characters, so
+        // the budget must prune the region to its error path (issue #731).
+        let candidate = format!("mi {}ku", "broda ".repeat(300));
+        let outcome = gate_lojban(candidate, None, None).expect("syntax failure");
+        assert_eq!(
+            outcome.diagnostic_category(),
+            Some(DiagnosticCategory::Syntax)
+        );
+        let partial = outcome
+            .partial_parse_rendering()
+            .expect("syntax failures carry the recovered partial parse");
+        assert!(partial.chars().count() <= MAX_PARTIAL_PARSE_RENDERING_CHARS);
+        assert!(partial.contains("‼ku‼"), "{partial}");
+        assert!(partial.contains('…'), "{partial}");
+        assert!(!partial.contains("bróda bróda"), "{partial}");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gate_morphology_failure_is_diagnostics_only() {
+        let outcome = gate_lojban("mi @ klama".to_owned(), None, None).expect("morphology failure");
+        assert_eq!(
+            outcome.diagnostic_category(),
+            Some(DiagnosticCategory::Morphology)
+        );
+        // Morphology-phase failures have no parse to recover (issue #731). A
+        // no-op implementation that attached a rendering here would fail.
+        assert_eq!(outcome.partial_parse_rendering(), None);
+        assert!(outcome.diagnostics_rendering().is_some());
     }
 
     #[test]

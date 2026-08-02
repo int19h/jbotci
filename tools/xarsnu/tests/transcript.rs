@@ -209,6 +209,75 @@ fn community_rejections_include_the_complete_rich_diagnostics() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn rejection_reports_include_the_recovered_partial_parse_exactly_when_present() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fixture = fs::read_to_string(root.join(FIXTURE)).expect("read golden fixture");
+    let mut records = fixture
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("valid fixture record"))
+        .collect::<Vec<_>>();
+    let rejection = records
+        .iter_mut()
+        .find(|record| record["event"]["kind"] == "candidate-rejected")
+        .expect("fixture rejection event");
+    // The fixture rejection is a morphology failure and carries no partial
+    // parse; upgrade it to a syntax rejection with a recovered partial parse
+    // (issue #731).
+    assert_eq!(
+        rejection["event"]["diagnostic_category"],
+        serde_json::json!("morphology")
+    );
+    rejection["event"]["diagnostic_category"] = serde_json::json!("syntax");
+    rejection["event"]["partial_parse_rendering"] = serde_json::json!("[.i {(do ‼ku‼) ‼‼}]");
+    let path = temp_path("rejection-partial-parse");
+    fs::write(
+        &path,
+        records
+            .iter()
+            .map(|record| serde_json::to_string(record).expect("record serializes"))
+            .collect::<Vec<_>>()
+            .join("\n")
+            + "\n",
+    )
+    .expect("write partial-parse fixture");
+
+    let read_back = read_transcript(&path).expect("partial-parse transcript validates");
+    let event = read_back
+        .iter()
+        .find_map(|record| match record.event.as_data() {
+            ProtocolEventData::CandidateRejected {
+                partial_parse_rendering,
+                ..
+            } => Some(partial_parse_rendering),
+            _ => None,
+        })
+        .expect("rejection event");
+    assert_eq!(
+        event.as_deref(),
+        Some("[.i {(do ‼ku‼) ‼‼}]"),
+        "the transcript read path keeps the field losslessly"
+    );
+
+    let community = community_file(&path).expect("community export renders");
+    assert!(community.contains("Recovered partial parse (error-adjacent regions):"));
+    assert!(community.contains("[.i {(do ‼ku‼) ‼‼}]"));
+    let report = report_file(&path).expect("report renders");
+    assert!(report.contains("Recovered partial parse (error-adjacent regions, verbatim):"));
+    assert!(report.contains("[.i {(do ‼ku‼) ‼‼}]"));
+
+    fs::remove_file(path).expect("remove temporary transcript");
+
+    // Anti-no-op: the unmodified fixture (morphology rejection, no field)
+    // renders no partial-parse section in either report.
+    let community = community_file(&root.join(FIXTURE)).expect("community export renders");
+    assert!(!community.contains("Recovered partial parse"));
+    let report = report_file(&root.join(FIXTURE)).expect("report renders");
+    assert!(!report.contains("Recovered partial parse"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn golden_transcript_renders_every_event_kind() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let records = read_transcript(&root.join(FIXTURE)).expect("golden transcript validates");

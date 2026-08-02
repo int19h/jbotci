@@ -211,6 +211,16 @@ fn attach_constructs(mut expr: SExpr, inherited: Vec<BracketSourceConstruct>) ->
     expr
 }
 
+/// Whether any leaf in the expression marks a recovery error (‼…‼).
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn contains_error_leaf(expr: &SExpr) -> bool {
+    match expr {
+        SExpr::Leaf { role, .. } => *role == LeafRole::Error,
+        SExpr::Node { children, .. } => children.iter().any(contains_error_leaf),
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn render_bracketed(expr: &SExpr) -> String {
@@ -234,7 +244,11 @@ pub(crate) fn render_bracketed_source_fragments_with_options(
 
 #[requires(true)]
 #[ensures(true)]
-fn render_bracketed_at_depth(depth: usize, expr: &SExpr, options: BracketRenderOptions) -> String {
+pub(crate) fn render_bracketed_at_depth(
+    depth: usize,
+    expr: &SExpr,
+    options: BracketRenderOptions,
+) -> String {
     match expr {
         SExpr::Leaf { text, role, .. } => style_at_depth(depth, text.clone(), options, *role),
         SExpr::Node { children, .. } => {
