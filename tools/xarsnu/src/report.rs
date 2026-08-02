@@ -334,6 +334,7 @@ fn render_participant_loop(
             bityzba::data!(ProtocolEvent::CandidateRejected {
                 speaker,
                 diagnostics,
+                partial_parse_rendering,
                 ..
             }) if speaker == participant => {
                 writeln!(
@@ -344,6 +345,10 @@ fn render_participant_loop(
                 .expect("writing to String cannot fail");
                 report.push_str("Full diagnostics:\n\n");
                 render_fenced_full(report, diagnostics);
+                if let Some(partial_parse_rendering) = partial_parse_rendering {
+                    report.push_str("\nRecovered partial parse (error-adjacent regions):\n\n");
+                    render_fenced_full(report, partial_parse_rendering);
+                }
                 report.push_str("\n**user**  \n[protocol: revise and resubmit]\n\n");
             }
             bityzba::data!(ProtocolEvent::CandidateAccepted {
@@ -949,6 +954,7 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
             bityzba::data!(ProtocolEvent::CandidateRejected {
                 diagnostic_category,
                 diagnostics,
+                partial_parse_rendering,
                 ..
             }) => {
                 writeln!(
@@ -958,6 +964,12 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 )
                 .expect("writing to String cannot fail");
                 quote(&mut report, diagnostics);
+                if let Some(partial_parse_rendering) = partial_parse_rendering {
+                    report.push_str(
+                        "\nRecovered partial parse (error-adjacent regions, verbatim):\n\n",
+                    );
+                    quote(&mut report, partial_parse_rendering);
+                }
                 report.push('\n');
                 *summary
                     .diagnostic_categories

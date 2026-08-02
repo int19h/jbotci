@@ -13,11 +13,12 @@ use xarsnu::protocol::{
     TurnForfeitReasonData,
 };
 use xarsnu::{
-    CapsConfig, ListenerMode, MalformedToolCall, MeaningReview, MeaningReviewer, ModelTurn,
-    ParticipantConfig, ProtocolEvent, ProtocolModel, ProtocolModelError, ProtocolRunner,
-    ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher, ReviewBrief, ReviewOutcome,
-    RunAccounting, RunConfig, RunHeader, ScenarioInstance, TaskStatus, TersmuFormat, ToolCall,
-    ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher, read_transcript, report_file,
+    CapsConfig, DiagnosticCategory, ListenerMode, MalformedToolCall, MeaningReview,
+    MeaningReviewer, ModelTurn, ParticipantConfig, ProtocolEvent, ProtocolModel,
+    ProtocolModelError, ProtocolRunner, ProtocolTool, ProviderToolChoice, ReferenceToolDispatcher,
+    ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, RunHeader, ScenarioInstance, TaskStatus,
+    TersmuFormat, ToolCall, ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher,
+    read_transcript, report_file,
 };
 
 const REFERENCE_TOOLS: [&str; 5] = ["vlacku", "gentufa", "tersmu", "jvozba", "cukta"];
@@ -1342,6 +1343,221 @@ fn parse_failures_keep_composing_and_record_diagnostics_before_success() {
             .iter()
             .all(|(diagnostics, _)| !diagnostics.is_empty())
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn syntax_rejection_feedback_includes_bounded_recovered_partial_parse() {
+    // The first statement parses cleanly; the second has a stray {ku}. The
+    // rejection feedback must include the recovered partial parse of the
+    // failing region without re-rendering the error-free statement, and the
+    // transcript event must carry the same rendering losslessly (issue #731).
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go and you come." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama i do ku" }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama i do klama" }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go and you come." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new(
+        "bob",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes and I come." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes and I come." }),
+            ),
+        ],
+    );
+    let mut runner = runner(vec![speaker, listener], caps(3, 2, 1)).expect("valid runner");
+
+    runner.run().expect("syntax rejection feedback run");
+
+    let rejections = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::CandidateRejected {
+                diagnostic_category,
+                diagnostics,
+                partial_parse_rendering,
+                ..
+            }) => Some((diagnostic_category, diagnostics, partial_parse_rendering)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rejections.len(), 1);
+    let (category, diagnostics, partial_parse_rendering) = rejections[0];
+    assert_eq!(*category, DiagnosticCategory::Syntax);
+    let partial_parse = partial_parse_rendering
+        .as_deref()
+        .expect("syntax rejections carry the recovered partial parse");
+    assert!(partial_parse.contains('‼'), "{partial_parse}");
+    assert!(partial_parse.contains("do"), "{partial_parse}");
+    // The bound: the error-free leading statement is omitted (the rendering
+    // stress-marks words, so `kláma` can only appear via a parse rendering;
+    // the raw diagnostics quote the unmarked source). A no-op implementation
+    // that attaches the full rendering or nothing fails here.
+    assert!(!partial_parse.contains("kláma"), "{partial_parse}");
+
+    // The composer receives the diagnostics followed by the same partial
+    // parse the transcript recorded.
+    let feedback = runner.participants()[0]
+        .tool_results
+        .iter()
+        .find(|result| {
+            result.tool_name == "submit_lojban"
+                && result.content.contains("Recovered partial parse")
+        })
+        .expect("rejection feedback tool result");
+    let expected = format!(
+        "{diagnostics}\nRecovered partial parse (error-adjacent regions only; ‼…‼ marks what the parser could not place):\n{partial_parse}"
+    );
+    assert_eq!(feedback.content, expected);
+
+    // The transcript event round-trips the new field losslessly.
+    let event = runner
+        .events()
+        .iter()
+        .find(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CandidateRejected { .. })
+            )
+        })
+        .expect("rejection event");
+    let serialized = serde_json::to_value(event).expect("event serializes");
+    assert!(
+        serialized["partial_parse_rendering"].is_string(),
+        "{serialized}"
+    );
+    let round_tripped: ProtocolEvent =
+        serde_json::from_value(serialized).expect("event deserializes");
+    assert_eq!(&round_tripped, event);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn morphology_rejection_feedback_is_diagnostics_only() {
+    // Morphology-phase failures have no parse to recover: the feedback and
+    // the transcript event stay diagnostics-only (issue #731).
+    let speaker = ScriptedModel::new(
+        "alice",
+        vec![
+            step(
+                &["register_intent"],
+                "register_intent",
+                json!({ "meaning_en": "I go." }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi @ klama" }),
+            ),
+            step(
+                &["register_intent", "submit_lojban"],
+                "submit_lojban",
+                json!({ "text": "mi klama" }),
+            ),
+            step(
+                &["register_intent", "confirm_meaning"],
+                "confirm_meaning",
+                json!({ "matches": true, "paraphrase_en": "I go." }),
+            ),
+        ],
+    );
+    let listener = ScriptedModel::new(
+        "bob",
+        vec![
+            step(
+                &["interpret_blind"],
+                "interpret_blind",
+                json!({ "interpretation_en": "Alice goes." }),
+            ),
+            step(
+                &["acknowledge"],
+                "acknowledge",
+                json!({ "final_understanding_en": "Alice goes." }),
+            ),
+        ],
+    );
+    let mut runner = runner(vec![speaker, listener], caps(3, 2, 1)).expect("valid runner");
+
+    runner.run().expect("morphology rejection feedback run");
+
+    let rejections = runner
+        .events()
+        .iter()
+        .filter_map(|event| match event.as_data() {
+            bityzba::data!(ProtocolEvent::CandidateRejected {
+                diagnostic_category,
+                diagnostics,
+                partial_parse_rendering,
+                ..
+            }) => Some((diagnostic_category, diagnostics, partial_parse_rendering)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rejections.len(), 1);
+    let (category, diagnostics, partial_parse_rendering) = rejections[0];
+    assert_eq!(*category, DiagnosticCategory::Morphology);
+    // A no-op check in the other direction: attaching a rendering for a
+    // morphology failure would trip the GateOutcome invariant and fail here.
+    assert_eq!(partial_parse_rendering, &None);
+
+    // The feedback is exactly the diagnostics, with no partial-parse section.
+    let feedback = runner.participants()[0]
+        .tool_results
+        .iter()
+        .find(|result| result.tool_name == "submit_lojban")
+        .expect("rejection feedback tool result");
+    assert_eq!(&feedback.content, diagnostics);
+    assert!(!feedback.content.contains("Recovered partial parse"));
+
+    // The transcript event omits the field entirely for morphology failures.
+    let event = runner
+        .events()
+        .iter()
+        .find(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::CandidateRejected { .. })
+            )
+        })
+        .expect("rejection event");
+    let serialized = serde_json::to_value(event).expect("event serializes");
+    assert!(
+        serialized.get("partial_parse_rendering").is_none(),
+        "{serialized}"
+    );
+    let round_tripped: ProtocolEvent =
+        serde_json::from_value(serialized).expect("event deserializes");
+    assert_eq!(&round_tripped, event);
 }
 
 #[test]
