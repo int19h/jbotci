@@ -4965,6 +4965,28 @@ impl GeneratedConstructWarningVisitor<'_> {
             push_generated_construct_warning(&mut warnings, self.tokens, construct, anchor);
         }
     }
+
+    #[requires(description.description.0.value.is_cmavo(Cmavo::La))]
+    #[ensures(true)]
+    fn warn_cbm_la_name_form(
+        &mut self,
+        description: &generated::generated_model::DescriptorWithGadriSumtiSyntax,
+    ) {
+        let mut visitor = new!(FirstTokenVisitor {
+            token: Cell::new(None),
+        });
+        generated::generated_model::TreeNode::visit_in_order(&description.tail.tail, &mut visitor);
+        if visitor.token.get().is_some_and(tokens::is_cmevla_word) {
+            let anchor = &description.description.0.value;
+            let mut warnings = self.warnings.borrow_mut();
+            push_generated_construct_warning(
+                &mut warnings,
+                self.tokens,
+                ExperimentalConstruct::ExperimentalCbmLaNameAsDescriptor,
+                anchor,
+            );
+        }
+    }
 }
 
 impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
@@ -4984,6 +5006,15 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
             generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
                 quantifier,
             ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
+            generated::generated_model::NodeRef::SumtiBaseSyntaxDescriptorWithGadriSumti(base) => {
+                if let generated::generated_model::SumtiBaseSyntax::DescriptorWithGadriSumti(
+                    description,
+                ) = base
+                    && description.description.0.value.is_cmavo(Cmavo::La)
+                {
+                    self.warn_cbm_la_name_form(description);
+                }
+            }
             _ => {}
         }
     }

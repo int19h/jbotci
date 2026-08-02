@@ -4113,7 +4113,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_name_sumti(&mut self, _node: &'tree generated::NameSumtiSyntax) {}
+    fn walk_sumti_base_name_sumti(&mut self, node: &'tree generated::NameSumtiSyntax) {
+        generated::walk::name_sumti(self, node);
+    }
 
     #[requires(true)]
     #[ensures(true)]
@@ -7320,7 +7322,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_sumti_base_name_sumti(&mut self, _node: &'tree generated::NameSumtiSyntax) {}
+    fn walk_sumti_base_name_sumti(&mut self, node: &'tree generated::NameSumtiSyntax) {
+        generated::walk::name_sumti(self, node);
+    }
 
     #[requires(true)]
     #[ensures(true)]

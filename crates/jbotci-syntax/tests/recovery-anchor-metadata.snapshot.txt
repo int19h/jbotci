@@ -4250,9 +4250,14 @@ rule pro_sumti
   field 0 koha
 rule name_sumti
   first [Selmaho(La)] conditions []
-  field 0 la
-    resume 0 origin LiteralRun start [Selmaho(La)] conditions []
-  field 1 names
+  field 1 la
+    resume 1 origin LiteralRun start [Selmaho(La)] conditions []
+    resume 2 origin FieldFirst start [Cmavo(Nohoi), Cmavo(Noi), Cmavo(Pohoi), Cmavo(Poi), Cmavo(Voi), Cmavo(Voihi), Selmaho(Goi)] conditions []
+    resume 2 origin FieldFirst start [Cmavo(Nohoi), Cmavo(Noi), Cmavo(Pohoi), Cmavo(Poi), Cmavo(Voi), Cmavo(Voihi)] conditions [Feature(ZantufaTerms)]
+  field 2 relative_clauses
+    resume 2 origin FieldFirst start [Cmavo(Nohoi), Cmavo(Noi), Cmavo(Pohoi), Cmavo(Poi), Cmavo(Voi), Cmavo(Voihi), Selmaho(Goi)] conditions []
+    resume 2 origin FieldFirst start [Cmavo(Nohoi), Cmavo(Noi), Cmavo(Pohoi), Cmavo(Poi), Cmavo(Voi), Cmavo(Voihi)] conditions [Feature(ZantufaTerms)]
+  field 3 names
 rule description_head
   first [Selmaho(La), Selmaho(Le)] conditions []
   field 0 description

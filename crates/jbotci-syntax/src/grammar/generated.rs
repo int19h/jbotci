@@ -1623,7 +1623,7 @@ pub mod generated_model {
         scalar_negated_term_wrapper,
         /// Uses the `bridi_description_sumti` product form, whose payload preserves `lohoi`, `additional_heads`, `statement`, and `kuhau`.
         bridi_description_sumti,
-        /// Uses the `name_sumti` product form, whose payload preserves `la` and `names`.
+        /// Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.
         name_sumti,
         /// Uses the `description_connection_sumti` product form, whose payload preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku`.
         description_connection_sumti,
@@ -2457,10 +2457,13 @@ pub mod generated_model {
         field koha <- word_category(ProSumti).wf();
     }
 
-    /// Product node for name; preserves `la` and `names` in source order.
-    rule "name" name_sumti -> struct {
+    /// Product node for name; preserves `la`, `relative_clauses`, and `names` in source order.
+    rule "name" name_sumti(sumti, subbridi, tense_modal, statement) -> struct {
+        assert feature(Cbm).not();
         /// A word from selmaho `La`.
         field la <- selmaho(La).wf();
+        /// The optional relative clauses component.
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         /// Non-empty ordered sequence of names components.
         field names <- [one_or_more cmevla_word()].wf();
     }
