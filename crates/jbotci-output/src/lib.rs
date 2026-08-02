@@ -44,7 +44,8 @@ pub use recovered::{
     pretty_recovered_morphology_brackets_with_options, pretty_recovered_morphology_raw,
     pretty_recovered_morphology_tree_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
-    pretty_recovered_syntax_brackets_with_options, pretty_recovered_syntax_raw,
+    pretty_recovered_syntax_brackets_with_options,
+    pretty_recovered_syntax_error_region_brackets_with_options, pretty_recovered_syntax_raw,
     pretty_recovered_syntax_tree_with_options,
 };
 pub use references::{

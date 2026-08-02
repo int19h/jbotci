@@ -532,6 +532,52 @@ pub fn pretty_recovered_syntax_brackets_with_options(
     Ok(sexpr::render_bracketed_with_options(&value, options))
 }
 
+/// Brackets rendering of only the error-adjacent regions of a recovered parse.
+///
+/// This is the bounded feedback form for consumers that cannot afford a full
+/// rendering of a long recovered text (issue #731): after the same flattening
+/// the full brackets rendering uses, top-level constructs (statement or
+/// paragraph groups) that contain no recovery error marker are dropped, and
+/// each remaining region renders on its own line at its original bracket
+/// depth. Every ‼…‼ error marker of the full rendering is therefore retained,
+/// while error-free surrounding text is omitted; the result is never larger
+/// than the full brackets rendering. When the parse converted to valid, when
+/// no top-level region selection is possible, or when every region contains an
+/// error, the result is exactly the full brackets rendering.
+#[requires(true)]
+#[ensures(!recovered.errors.is_empty() || ret.is_ok())]
+#[expensive_ensures(ret.as_ref().is_ok_and(|text| !text.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
+pub fn pretty_recovered_syntax_error_region_brackets_with_options(
+    recovered: &RecoveredSyntaxParse,
+    source: &str,
+    options: BracketRenderOptions,
+) -> Result<String, OutputError> {
+    if let Ok(valid) = recovered.parse_tree.as_ref().clone().try_into_valid() {
+        return crate::pretty_generated_model_brackets_with_options(&valid, source, options);
+    }
+    let mut visitor = RecoveredBracketBuilder::new(source, &recovered.errors, options);
+    jbotci_syntax::generated_model::recovered::TreeNode::visit_in_order(
+        recovered.parse_tree.as_ref(),
+        &mut visitor,
+    );
+    let value = sexpr::flatten(visitor.finish()?);
+    let sexpr::SExpr::Node { children, .. } = &value else {
+        return Ok(sexpr::render_bracketed_with_options(&value, options));
+    };
+    let regions = children
+        .iter()
+        .filter(|child| sexpr::contains_error_leaf(child))
+        .collect::<Vec<_>>();
+    if regions.is_empty() || regions.len() == children.len() {
+        return Ok(sexpr::render_bracketed_with_options(&value, options));
+    }
+    Ok(regions
+        .iter()
+        .map(|region| sexpr::render_bracketed_at_depth(1, region, options))
+        .collect::<Vec<_>>()
+        .join("\n"))
+}
+
 #[requires(true)]
 #[ensures(!recovered.errors.is_empty() || ret.is_ok())]
 #[expensive_ensures(ret.as_ref().is_ok_and(|fragments| !fragments.is_empty() || recovered.errors.is_empty()) || ret.is_err())]
@@ -1113,6 +1159,111 @@ mod tests {
                 ["bridi_tail"]["Gismu"]["phonemes"],
             "kláma"
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn error_region_brackets_keep_only_error_containing_regions() {
+        let source = "mi klama i do ku";
+        let recovered = parse_recovered_syntax(source);
+        assert_eq!(recovered.errors.len(), 1);
+
+        let full = pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("full brackets");
+        assert_eq!(full, "([mi kláma] [.i {(do ‼ku‼) ‼‼}])");
+
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(regions, "[.i {(do ‼ku‼) ‼‼}]");
+        // The bound: the error-free leading statement is omitted, every error
+        // marker is retained. A no-op implementation returning the full
+        // rendering would fail both assertions.
+        assert!(!regions.contains("kláma"), "{regions}");
+        assert!(regions.contains("‼ku‼"), "{regions}");
+        assert!(regions.len() < full.len());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn error_region_brackets_equal_full_rendering_when_every_region_has_errors() {
+        let source = "mi ku i do ku i mi klama";
+        let recovered = parse_recovered_syntax(source);
+        assert_eq!(recovered.errors.len(), 2);
+
+        let full = pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("full brackets");
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(regions, full);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn error_region_brackets_equal_full_rendering_for_valid_parse() {
+        let source = "mi klama";
+        let recovered = parse_recovered_syntax(source);
+        assert!(recovered.errors.is_empty());
+
+        let full = pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("full brackets");
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(full, "(mi kláma)");
+        assert_eq!(regions, full);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn error_region_brackets_isolate_the_rejected_kei_region() {
+        // The kei-imbalance witness class of issue #731: the first {kei}
+        // attached to close the abstraction, so the second one is unplaceable.
+        let source = "le nu mi klama kei kei cu broda";
+        let recovered = parse_recovered_syntax(source);
+        assert_eq!(recovered.errors.len(), 1);
+
+        let full = pretty_recovered_syntax_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("full brackets");
+        assert_eq!(full, "([le {nu (mi kláma) keĭ}] [‼kei‼ cu] bróda)");
+
+        let regions = pretty_recovered_syntax_error_region_brackets_with_options(
+            &recovered,
+            source,
+            BracketRenderOptions::default(),
+        )
+        .expect("error region brackets");
+        assert_eq!(regions, "[‼kei‼ cu]");
     }
 
     #[test]
