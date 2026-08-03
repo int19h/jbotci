@@ -2830,7 +2830,7 @@ mod tests {
                 "params": {
                     "name": "tersmu",
                     "arguments": {
-                        "text": ".banan. cu klama"
+                        "text": "mi cu klama"
                     }
                 }
             }),
@@ -2865,9 +2865,9 @@ mod tests {
         assert!(words_section.contains("<WORD ID=\"klama\">"));
         assert!(words_section.contains("<GLOSS>"));
         assert!(words_section.contains("<ARG INDEX=\"1\"/>"));
-        // Definitions cover content words only: the cmevla and cmavo of
-        // `.banan. cu klama` produce no cards.
-        assert!(!words_section.contains("banan"));
+        // Definitions cover content words only: the cmavo of `mi cu klama`
+        // produce no cards.
+        assert!(!words_section.contains("<WORD ID=\"mi\">"));
         assert!(!words_section.contains("cmavo:"));
 
         // An explicit `smusni` request with definitions off returns the pure

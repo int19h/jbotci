@@ -688,6 +688,25 @@ fn json_pointer_escape(segment: &str) -> String {
     segment.replace('~', "~0").replace('/', "~1")
 }
 
+#[requires(!segment.contains('/'))]
+#[ensures(json_pointer_escape(&ret) == segment)]
+fn json_pointer_unescape(segment: &str) -> String {
+    let mut output = String::new();
+    let mut characters = segment.chars();
+    while let Some(character) = characters.next() {
+        if character != '~' {
+            output.push(character);
+            continue;
+        }
+        match characters.next() {
+            Some('0') => output.push('~'),
+            Some('1') => output.push('/'),
+            escaped => panic!("invalid JSON pointer escape: ~{escaped:?}"),
+        }
+    }
+    output
+}
+
 /// Append the graph pointers counted by the e25eeaf prototype's ID policy.
 ///
 /// This deliberately walks every canonical JSON field except source records.
@@ -2000,6 +2019,16 @@ fn representation_plan(
                 field: "relation".to_owned(),
             }));
         }
+        if optional_string(object, "type") == Some("mathExpression")
+            && object
+                .get("endpointInclusion")
+                .is_some_and(|inclusion| inclusion.is_object() || inclusion.is_array())
+        {
+            incompatibilities.insert(new!(CompactIncompatibility::NonCompactFieldShape {
+                object: key.clone(),
+                field: "endpointInclusion".to_owned(),
+            }));
+        }
         if has_noncompact_elided_restriction(value, quantifier_restrictions) {
             incompatibilities.insert(new!(CompactIncompatibility::NonCompactFieldShape {
                 object: key.clone(),
@@ -3205,7 +3234,7 @@ impl RenderState {
             self.account_field(graph, object, "parameters");
             result.set(
                 "PARAMETERS",
-                self.pointer_list(graph, parameters, "PARAMETERS"),
+                self.pointer_list(graph, object, "parameters", parameters, "PARAMETERS"),
             );
         }
         if !self.suppress_referent_arity()
@@ -3270,7 +3299,7 @@ impl RenderState {
             self.account_field(graph, object, "value");
             let Some(value) = value.as_object() else {
                 let mut rendered = XmlElement::new("VALUE");
-                rendered.push(self.generic_value(graph, value));
+                rendered.push(self.generic_field_value(graph, object, "value", value));
                 result.push(rendered);
                 result.extend(self.extras(graph, object, &["type", "form", "scale", "value"]));
                 return result;
@@ -3290,7 +3319,13 @@ impl RenderState {
                 self.account_field(graph, value, "questionParameters");
                 rendered.set(
                     "QUESTION-PARAMETERS",
-                    self.pointer_list(graph, parameters, "QUESTION-PARAMETERS"),
+                    self.pointer_list(
+                        graph,
+                        value,
+                        "questionParameters",
+                        parameters,
+                        "QUESTION-PARAMETERS",
+                    ),
                 );
             }
             match primary[0] {
@@ -3860,6 +3895,9 @@ impl RenderState {
         graph: &GraphData,
         object: &Map<String, Value>,
     ) -> XmlElement {
+        // UNKNOWN is itself generic scaffolding, even when the record has no
+        // additional fields. The discriminant is the exact unsupported shape.
+        self.record_noncompact_field_shape(graph, object, "type");
         let mut result = XmlElement::with_attributes(
             "UNKNOWN",
             [("TYPE", optional_string(object, "type").unwrap_or("missing"))],
@@ -3877,7 +3915,7 @@ impl RenderState {
             }
             self.account_field(graph, object, key);
             let mut field = XmlElement::with_attributes("FIELD", [("NAME", key.as_str())]);
-            field.push(self.generic_value(graph, value));
+            field.push(self.generic_field_value(graph, object, key, value));
             result.push(field);
         }
         result
@@ -5182,20 +5220,54 @@ mod tests {
                     "generatedReferent": {
                         "realization": "explicit",
                         "specificity": "specific"
-                    },
-                    "adjuncts": [{"witness": "referent-level"}]
+                    }
                 }
             }
         });
-        let synthetic = render_xml_value(synthetic, "<synthetic-typed-branches>");
-        assert!(synthetic.output.contains("<INTERVAL-MODIFIERS>"));
+        let compact = render_xml_value(synthetic.clone(), "<synthetic-typed-branches>");
+        assert!(compact.output.contains("<INTERVAL-MODIFIERS>"));
         assert!(
-            synthetic.output.contains(
+            compact.output.contains(
                 "<GENERATED-REFERENT REALIZATION=\"EXPLICIT\" SPECIFICITY=\"SPECIFIC\"/>"
             )
         );
-        assert!(synthetic.output.contains("<FIELD NAME=\"witness\">"));
-        assert!(synthetic.omissions.is_empty());
+        assert!(compact.omissions.is_empty());
+
+        let mut noncompact = synthetic;
+        noncompact["objects"]["entity:1"]["adjuncts"] =
+            serde_json::json!([{"witness": "referent-level"}]);
+        let noncompact = render_xml_value(noncompact, "<synthetic-noncompact-adjunct>");
+        assert!(noncompact.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(noncompact.output.contains(
+            "<INCOMPATIBILITY KIND=\"NON-COMPACT-FIELD-SHAPE\" OBJECT=\"entity:1\" FIELD=\"adjuncts/0/witness\"/>"
+        ));
+        assert!(noncompact.output.contains("<FIELD NAME=\"witness\">"));
+        assert!(noncompact.omissions.is_empty());
+    }
+
+    /// A binder definition can render a referent while its formula caller is
+    /// still atop the traversal stack. Generic-field evidence must name the
+    /// indexed value owner, not that caller.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generic_field_evidence_uses_the_indexed_cross_object_owner() {
+        let mut graph = graph("b13");
+        graph["objects"]["eventuality:6"]["time"] = serde_json::json!({
+            "relation": "before",
+            "futureSemanticField": "must-preserve"
+        });
+
+        let rendered = render_xml_value(graph, "<cross-object-generic-owner>");
+        assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(rendered.output.contains(
+            "<INCOMPATIBILITY KIND=\"NON-COMPACT-FIELD-SHAPE\" OBJECT=\"eventuality:6\" FIELD=\"time/futureSemanticField\"/>"
+        ));
+        assert!(
+            !rendered
+                .output
+                .contains("<INCOMPATIBILITY KIND=\"NON-COMPACT-FIELD-SHAPE\" OBJECT=\"formula:")
+        );
     }
 
     #[test]
@@ -6086,7 +6158,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn text_quantity_companions_are_accounted_and_unknown_children_survive() {
+    fn text_quantity_companions_are_accounted_and_unknown_children_select_typed_graph() {
         let mut unknown = graph("b23");
         unknown["objects"]["quantity:20"]["value"]["novelNested"] = serde_json::json!({
             "inner": ["must-render"]
@@ -6098,10 +6170,11 @@ mod tests {
         })));
 
         let rendered = render_xml_value(unknown, "<text-quantity-unknown-child>");
-        assert!(!rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(rendered.output.contains("FORM=\"TYPED-GRAPH\""));
+        assert!(rendered.output.contains(
+            "<INCOMPATIBILITY KIND=\"NON-COMPACT-FIELD-SHAPE\" OBJECT=\"quantity:20\" FIELD=\"value/novelNested\"/>"
+        ));
         for preserved in [
-            "<VALUE>",
-            "<EXTRA>",
             "<FIELD NAME=\"novelNested\">",
             "<FIELD NAME=\"inner\">",
             "<LIST>",
@@ -6628,24 +6701,50 @@ impl RenderState {
         result
     }
 
-    #[requires(graph.objects.contains_key(key))]
+    #[requires(
+        graph.objects.contains_key(key)
+            && !field.is_empty()
+            && !site.is_empty()
+            && object.contains_key(field)
+    )]
     #[ensures(ret == graph.id(key))]
-    fn pointer_id(&mut self, graph: &GraphData, key: &str, site: &str) -> String {
+    fn pointer_id(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+        field: &str,
+        key: &str,
+        site: &str,
+    ) -> String {
         let rendered = self.render_pointer(graph, key);
-        assert!(
-            self.planning || Self::is_reference(&rendered),
-            "{site} attribute target is not a defined reference: {key:?}"
-        );
+        if !Self::is_reference(&rendered) {
+            if self.planning {
+                self.record_noncompact_field_shape(graph, object, field);
+            } else {
+                panic!("{site} attribute target is not a defined reference: {key:?}");
+            }
+        }
         graph.id(key).to_owned()
     }
 
-    #[requires(!keys.is_empty())]
+    #[requires(
+        !field.is_empty() && !site.is_empty() && object.contains_key(field) && !keys.is_empty()
+    )]
     #[ensures(!ret.is_empty())]
-    fn pointer_list(&mut self, graph: &GraphData, keys: &[Value], site: &str) -> String {
+    fn pointer_list(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+        field: &str,
+        keys: &[Value],
+        site: &str,
+    ) -> String {
         keys.iter()
             .map(|key| {
                 self.pointer_id(
                     graph,
+                    object,
+                    field,
                     key.as_str()
                         .unwrap_or_else(|| panic!("{site} must contain only ids")),
                     site,
@@ -6661,19 +6760,20 @@ impl RenderState {
         self.speaker_stack.last().map(String::as_str)
     }
 
-    #[requires(graph.objects.contains_key(speaker))]
+    #[requires(graph.objects.contains_key(speaker) && descriptor.contains_key("speaker"))]
     #[ensures(true)]
     fn apply_speaker_anchor(
         &mut self,
         graph: &GraphData,
         node: &mut XmlElement,
+        descriptor: &Map<String, Value>,
         speaker: &str,
         named: bool,
     ) {
-        let speaker_id = self.pointer_id(graph, speaker, "speaker anchor");
         if Some(speaker) == self.current_speaker() {
             return;
         }
+        let speaker_id = self.pointer_id(graph, descriptor, "speaker", speaker, "speaker anchor");
         if named {
             node.push(XmlElement::with_attributes("BY", [("REF", speaker_id)]));
         } else {
@@ -6705,8 +6805,8 @@ impl RenderState {
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    fn generic_value(&mut self, graph: &GraphData, value: &Value) -> XmlElement {
+    #[ensures(!ret.name.is_empty())]
+    fn generic_value_inner(&mut self, graph: &GraphData, value: &Value) -> XmlElement {
         match value {
             Value::String(value) if graph.object_keys.contains(value) => {
                 self.render_pointer(graph, value)
@@ -6725,7 +6825,7 @@ impl RenderState {
                 let mut list = XmlElement::new("LIST");
                 for item in items {
                     let mut element = XmlElement::new("ITEM");
-                    element.push(self.generic_value(graph, item));
+                    element.push(self.generic_value_inner(graph, item));
                     list.push(element);
                 }
                 list
@@ -6754,12 +6854,70 @@ impl RenderState {
                     }
                     self.account_field(graph, object, key);
                     let mut field = XmlElement::with_attributes("FIELD", [("NAME", key.as_str())]);
-                    field.push(self.generic_value(graph, item));
+                    field.push(self.generic_value_inner(graph, item));
                     record.push(field);
                 }
                 record
             }
         }
+    }
+
+    /// Record why a semantic field would require generic compact scaffolding.
+    ///
+    /// Planning walks the actual compact renderer, so this is exact evidence
+    /// from the representation path that would otherwise emit EXTRA/FIELD,
+    /// LIST/ITEM, RECORD, or UNKNOWN. The field is a JSON-pointer-relative
+    /// path beneath the owning graph object, which distinguishes nested record
+    /// fields without inventing a second renderer-shape registry.
+    #[requires(!field.is_empty())]
+    #[ensures(self.planning_incompatibilities.len() >= old(self.planning_incompatibilities.len()))]
+    fn record_noncompact_field_shape(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+        field: &str,
+    ) {
+        if !self.planning {
+            return;
+        }
+        let object_path = graph.value_path(object);
+        let relative = object_path
+            .strip_prefix("/objects/")
+            .unwrap_or_else(|| panic!("semantic record lacks an object path: {object_path:?}"));
+        let (owner, parent) = relative.split_once('/').unwrap_or((relative, ""));
+        let owner = json_pointer_unescape(owner);
+        assert!(
+            graph.objects.contains_key(&owner),
+            "semantic record owner is absent from graph: {owner:?}"
+        );
+        let field = if parent.is_empty() {
+            json_pointer_escape(field)
+        } else {
+            format!("{parent}/{}", json_pointer_escape(field))
+        };
+        self.planning_incompatibilities.insert(new!(
+            CompactIncompatibility::NonCompactFieldShape {
+                object: owner,
+                field,
+            }
+        ));
+    }
+
+    /// Render one field through the mechanically complete generic vocabulary.
+    /// Compact planning records the exact field first, causing the final
+    /// representation to be TYPED-GRAPH; the compact renderer therefore
+    /// reaches this generic path only during planning.
+    #[requires(!field.is_empty())]
+    #[ensures(!ret.name.is_empty())]
+    fn generic_field_value(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+        field: &str,
+        value: &Value,
+    ) -> XmlElement {
+        self.record_noncompact_field_shape(graph, object, field);
+        self.generic_value_inner(graph, value)
     }
 
     #[requires(true)]
@@ -6790,7 +6948,7 @@ impl RenderState {
             }
             self.account_field(graph, object, key);
             let mut field = XmlElement::with_attributes("FIELD", [("NAME", key.as_str())]);
-            field.push(self.generic_value(graph, value));
+            field.push(self.generic_field_value(graph, object, key, value));
             fields.push(field);
         }
         if fields.is_empty() {
@@ -6906,7 +7064,15 @@ impl RenderState {
                 }
                 let dependency_ids: Vec<String> = dependencies
                     .iter()
-                    .map(|dependency| self.pointer_id(graph, dependency, "POSSIBLY-DIFFERENT-PER"))
+                    .map(|dependency| {
+                        self.pointer_id(
+                            graph,
+                            value,
+                            "mayDependOn",
+                            dependency,
+                            "POSSIBLY-DIFFERENT-PER",
+                        )
+                    })
                     .collect();
                 if dependency_set.len() < active_set.len() {
                     assert!(
@@ -6984,7 +7150,7 @@ impl RenderState {
             self.account_field(graph, value, "name");
             self.account_field(graph, value, "speaker");
             let mut result = XmlElement::with_attributes("NAMED", [("TEXT", name)]);
-            self.apply_speaker_anchor(graph, &mut result, speaker, true);
+            self.apply_speaker_anchor(graph, &mut result, value, speaker, true);
             if value.contains_key("word") {
                 self.record_field_omission(graph, value, "word", XmlWaiverFamily::DescriptorWord);
             }
@@ -7010,7 +7176,7 @@ impl RenderState {
         }
         if let Some(speaker) = optional_string(value, "speaker") {
             self.account_field(graph, value, "speaker");
-            self.apply_speaker_anchor(graph, &mut result, speaker, false);
+            self.apply_speaker_anchor(graph, &mut result, value, speaker, false);
             handled.push("speaker");
         }
         for field in ["quantity", "operand", "denotes"] {
@@ -7120,7 +7286,13 @@ impl RenderState {
                 ),
                 (
                     "GROUND-REF",
-                    self.pointer_id(graph, ground, "DEICTIC-REFERENCE GROUND-REF"),
+                    self.pointer_id(
+                        graph,
+                        value,
+                        "ground",
+                        ground,
+                        "DEICTIC-REFERENCE GROUND-REF",
+                    ),
                 ),
             ],
         );
@@ -7151,9 +7323,15 @@ impl RenderState {
         result
     }
 
-    #[requires(FACET_FIELDS.contains(&field))]
+    #[requires(FACET_FIELDS.contains(&field) && object.contains_key(field))]
     #[ensures(ret.name == "FACET")]
-    fn render_facet(&mut self, graph: &GraphData, field: &str, value: &Value) -> XmlElement {
+    fn render_facet(
+        &mut self,
+        graph: &GraphData,
+        object: &Map<String, Value>,
+        field: &str,
+        value: &Value,
+    ) -> XmlElement {
         let mut result =
             XmlElement::with_attributes("FACET", [("NAME", facet_attribute_name(field))]);
         if matches!(field, "recurrence" | "spatialRecurrence")
@@ -7161,7 +7339,7 @@ impl RenderState {
         {
             for item in items {
                 let Some(item) = item.as_object() else {
-                    result.push(self.generic_value(graph, item));
+                    result.push(self.generic_field_value(graph, object, field, item));
                     continue;
                 };
                 let mut occurrence = XmlElement::new("OCCURRENCE");
@@ -7209,7 +7387,7 @@ impl RenderState {
             result.extend(self.extras(graph, value, &handled));
             return result;
         }
-        result.push(self.generic_value(graph, value));
+        result.push(self.generic_field_value(graph, object, field, value));
         result
     }
 
@@ -7236,7 +7414,7 @@ impl RenderState {
             } else if !value.is_object() && !value.is_array() {
                 node.set(facet_attribute_name(field), enum_token(value));
             } else {
-                node.push(self.render_facet(graph, field, value));
+                node.push(self.render_facet(graph, object, field, value));
             }
         }
     }
@@ -7360,14 +7538,10 @@ fn validate_generated_event_content_backlink(
 }
 
 impl RenderState {
-    #[requires(true)]
+    #[requires(value.is_object())]
     #[ensures(ret.name == "OCCURRENCE")]
     fn render_recurrence_item(&mut self, graph: &GraphData, value: &Value) -> XmlElement {
-        let Some(value) = value.as_object() else {
-            let mut result = XmlElement::new("OCCURRENCE");
-            result.push(self.generic_value(graph, value));
-            return result;
-        };
+        let value = json_object(value);
         let mut result = XmlElement::new("OCCURRENCE");
         let mut handled = Vec::from(["introducedBy"]);
         if value.contains_key("introducedBy") {
@@ -7451,7 +7625,13 @@ impl RenderState {
                 self.account_field(graph, quantity_value, "questionParameters");
                 rendered.set(
                     "QUESTION-PARAMETERS",
-                    self.pointer_list(graph, parameters, "QUESTION-PARAMETERS"),
+                    self.pointer_list(
+                        graph,
+                        quantity_value,
+                        "questionParameters",
+                        parameters,
+                        "QUESTION-PARAMETERS",
+                    ),
                 );
             }
             rendered.extend(self.extras(
@@ -7577,7 +7757,13 @@ impl RenderState {
             // an already-defined parameter object (jbotci#719: the PARAMETER
             // element spelling would collide with the parameter object
             // element in the schema's content models).
-            let id = self.pointer_id(graph, parameter, "connective question parameter");
+            let id = self.pointer_id(
+                graph,
+                connector,
+                "parameter",
+                parameter,
+                "connective question parameter",
+            );
             attributes.push(("PARAMETER".to_owned(), id));
         }
         let mut children = Vec::new();
@@ -7870,7 +8056,7 @@ impl RenderState {
                 }
                 self.account_field(graph, value, field);
                 let mut rendered = XmlElement::with_attributes("FIELD", [("NAME", field.as_str())]);
-                rendered.push(self.generic_value(graph, item));
+                rendered.push(self.generic_field_value(graph, value, field, item));
                 record.push(rendered);
             }
             result.push(record);

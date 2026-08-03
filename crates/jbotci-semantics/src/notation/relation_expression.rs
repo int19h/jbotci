@@ -465,7 +465,9 @@ fn project_modifier_body(
     if operator == "atom" {
         let predication_id = string_field_of(body, "predication")?;
         let predication = object_of(objects.get(predication_id)?)?;
-        if !is_object_type(predication, "predication") {
+        if !is_object_type(predication, "predication")
+            || string_field_of(predication, "relation").is_none()
+        {
             return None;
         }
         let locally_bound: HashSet<String> = bound_eventualities(body)
@@ -527,7 +529,9 @@ fn project_modifier_body(
         }
         let predication_id = string_field_of(child_formula, "predication")?;
         let predication = object_of(objects.get(predication_id)?)?;
-        if !is_object_type(predication, "predication") {
+        if !is_object_type(predication, "predication")
+            || string_field_of(predication, "relation").is_none()
+        {
             return None;
         }
         let locally_bound: HashSet<String> = bound_eventualities(child_formula)
@@ -739,6 +743,7 @@ fn recognize_tanru_and(
         }
         let head_predication = object_of(objects.get(head_predication_id)?)?;
         if !is_object_type(head_predication, "predication")
+            || string_field_of(head_predication, "relation").is_none()
             || string_field_of(head_predication, "mode") != Some("restrictive")
             || link_mode != "restrictive"
         {
@@ -2530,6 +2535,24 @@ mod tests {
                 .and_then(Value::as_object_mut)
                 .expect("blanu object")
                 .insert("placeQuestions".to_owned(), serde_json::json!([]));
+        });
+        assert_modifier_falls_back_to_reference(objects);
+    }
+
+    /// A structural predication without a lexical relation name is outside
+    /// the compact-leaf contract. The caller must decline the lexical
+    /// projection before invoking that recognizer.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn unnamed_modifier_declines_lexical_projection() {
+        let (_graph, objects) = mutated_witness("lo blanu zdani cu barda", |objects| {
+            let blanu = find_predication_with_relation(objects, "blanu");
+            objects
+                .get_mut(&blanu)
+                .and_then(Value::as_object_mut)
+                .expect("blanu object")
+                .remove("relation");
         });
         assert_modifier_falls_back_to_reference(objects);
     }

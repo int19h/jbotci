@@ -1866,7 +1866,10 @@ mod tests {
     #[ensures(ret.format == format && ret.show_defs == show_defs)]
     fn tersmu_request(format: ToolTersmuFormat, show_defs: bool) -> ToolTersmuRequest {
         ToolTersmuRequest {
-            text: ".banan. cu klama".to_owned(),
+            // Keep the shared happy-path witness within compact SFN-XML. The
+            // earlier sign-fragment input carries known fields outside the
+            // compact vocabulary and correctly selects TYPED-GRAPH (#744).
+            text: "mi klama".to_owned(),
             format,
             dialect: None,
             show_defs,
@@ -1956,6 +1959,45 @@ mod tests {
             .expect("compact analysis");
         assert!(compact.rendered.status.is_success());
         assert!(compact.compact_incompatibilities.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_xml_sign_text_selects_declared_typed_graph_fallback() {
+        let analysis = run_tool_tersmu_with_analysis(ToolTersmuRequest {
+            text: ".banan. cu klama".to_owned(),
+            format: ToolTersmuFormat::Xml,
+            dialect: None,
+            show_defs: false,
+            story_time: false,
+            indent: None,
+        })
+        .expect("sign witness analysis");
+        assert!(analysis.rendered.status.is_success());
+
+        let output = std::str::from_utf8(&analysis.rendered.stdout).expect("UTF-8 XML");
+        let document = roxmltree::Document::parse(output).expect("typed fallback XML parses");
+        assert_eq!(
+            document.root_element().attribute("FORM"),
+            Some("TYPED-GRAPH")
+        );
+
+        let sign_text_record = analysis
+            .compact_incompatibilities
+            .iter()
+            .find(|record| {
+                let declaration =
+                    roxmltree::Document::parse(record).expect("incompatibility declaration parses");
+                let element = declaration.root_element();
+                element.attribute("KIND") == Some("NON-COMPACT-FIELD-SHAPE")
+                    && element
+                        .attribute("OBJECT")
+                        .is_some_and(|object| object.starts_with("sign:"))
+                    && element.attribute("FIELD") == Some("text")
+            })
+            .expect("sign text must declare its compact field-shape incompatibility");
+        assert!(output.contains(sign_text_record));
     }
 
     // The `smusni` format renamed the earlier `lean3` working name with no

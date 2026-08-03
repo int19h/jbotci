@@ -922,7 +922,7 @@ fn tersmu_show_defs_embeds_a_words_section_in_the_xml_document() {
         "xml",
         "--show-defs",
         "--color=never",
-        ".banan.",
+        "mi",
         "cu",
         "barda",
     ]);

@@ -103,6 +103,11 @@ fn reviewer_regressions() -> Vec<ReviewerRegression> {
             "zo'epe mi pu xe .ei klama le spita fu le mi fetsi ca le cerni .ibabo mi klama .ei lo mikce .ibabo mi xe .ei klama lo bi'u mikce le ckule fu pa le mi panzi .ije xruti xe klama .ei .ibabo xe .ei klama le zdani le ckule fu le re panzi .ibabo xe .ei klama lo drata mikce le zdani fu pa le panzi .ibabo te gusta le vancysanmi .ibabo co'e li'o .i a'anai .oi",
             Some("NON-DERIVABLE-GENERATED-CONTENT"),
         ),
+        ("coi xo", Some("NON-COMPACT-FIELD-SHAPE")),
+        (
+            "li no ga'o bi'i ke'i pa",
+            Some("NON-COMPACT-FIELD-SHAPE"),
+        ),
     ]
     .into_iter()
     .map(|(text, typed_reason)| {
@@ -411,26 +416,37 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
     let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let fixtures = load_fixture_tree(&fixture_root).expect("repository fixtures must load");
     let fixture_count = fixtures.len();
-    let mut results: Vec<FixtureRenderResult> = fixtures
-        .par_iter()
-        .filter_map(|fixture| {
-            let test_case = &fixture.test_case;
-            let dialect = test_case
-                .dialect_definition()
-                .unwrap_or_else(|error| panic!("{} dialect: {error}", test_case.id));
-            let graph = graph_for_source_and_dialect(
-                &test_case.lojban,
-                &dialect,
-                &format!("<fixture:{}>", test_case.id),
-            )
-            .ok()?;
-            let reasons = assert_render_contract(&graph, &test_case.id);
-            Some(new!(FixtureRenderResult {
-                id: test_case.id.clone(),
-                reasons,
-            }))
-        })
-        .collect();
+    // Semantic construction and representation planning are recursively deep
+    // for some corpus fixtures. Match the repository's audited exhaustive-test
+    // policy in `fixture_suite`: 16 MiB per worker, applied explicitly to this
+    // parallel workload rather than relying on the process environment or the
+    // platform-default Rayon stack.
+    let pool = rayon::ThreadPoolBuilder::new()
+        .stack_size(16 * 1024 * 1024)
+        .build()
+        .expect("XML fixture worker pool should build");
+    let mut results: Vec<FixtureRenderResult> = pool.install(|| {
+        fixtures
+            .par_iter()
+            .filter_map(|fixture| {
+                let test_case = &fixture.test_case;
+                let dialect = test_case
+                    .dialect_definition()
+                    .unwrap_or_else(|error| panic!("{} dialect: {error}", test_case.id));
+                let graph = graph_for_source_and_dialect(
+                    &test_case.lojban,
+                    &dialect,
+                    &format!("<fixture:{}>", test_case.id),
+                )
+                .ok()?;
+                let reasons = assert_render_contract(&graph, &test_case.id);
+                Some(new!(FixtureRenderResult {
+                    id: test_case.id.clone(),
+                    reasons,
+                }))
+            })
+            .collect()
+    });
     results.sort_by(|left, right| left.id.cmp(&right.id));
     let semantic_graphs = results.len();
     let mut compact_graphs = 0usize;
@@ -456,6 +472,13 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
     );
     assert!(compact_graphs > 0, "compact form was not exercised");
     assert!(typed_graphs > 0, "typed graph form was not exercised");
+    // Require the graph-level and field-shape reasons this end-to-end corpus
+    // traversal can reach. Declaration-planner-only cycle/repeated-emission
+    // reasons are exhaustively covered by the bounded graph oracles in
+    // `notation::xml::tests::planning_preflight_covers_single_use_cycles_and_raw_only_id_uses`.
+    // A preliminary field-shape incompatibility now correctly selects
+    // TYPED-GRAPH before declaration planning, so requiring those secondary
+    // reasons from this corpus would make coverage depend on planner order.
     for required in [
         "BINDER-DOES-NOT-ENCLOSE-USE",
         "MULTIPLE-BINDER-OWNERS",
@@ -464,9 +487,7 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
         "NON-COMPACT-NAME-DESCRIPTOR",
         "NON-COMPACT-REFERENT",
         "NON-DERIVABLE-GENERATED-CONTENT",
-        "REPEATED-SINGLE-USE-EMISSION",
         "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER",
-        "UNREPRESENTABLE-CYCLE",
     ] {
         assert!(
             observed_reasons.contains(required),
