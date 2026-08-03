@@ -20,7 +20,8 @@ pub enum DocumentMode {
 }
 
 /// Non-golden corpus measurements returned alongside the document.
-#[invariant(true)]
+#[invariant(*mode == DocumentMode::Compact || *compact_objects == 0)]
+#[invariant(*object_fallbacks == 0 || !fallback_reasons.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SmusniRenderStats {
     pub mode: DocumentMode,
@@ -77,7 +78,7 @@ fn assemble_compact_document(
     (
         elaboration.body,
         elaboration.warnings,
-        SmusniRenderStats {
+        new!(SmusniRenderStats {
             mode: DocumentMode::Compact,
             compact_objects: elaboration.compact_objects,
             object_fallbacks: elaboration.object_fallbacks,
@@ -86,8 +87,8 @@ fn assemble_compact_document(
                 .values()
                 .map(|object| object.diagnostics().len())
                 .sum(),
-            fallback_reasons: elaboration.fallback_reasons,
-        },
+            fallback_reasons: elaboration.fallback_reasons
+        }),
     )
 }
 
@@ -125,7 +126,7 @@ fn render_typed_graph_with_reasons(
     (
         Datum::form("TypedGraph", children),
         Vec::new(),
-        SmusniRenderStats {
+        new!(SmusniRenderStats {
             mode: DocumentMode::TypedGraph,
             compact_objects: 0,
             object_fallbacks: graph.objects.len(),
@@ -134,8 +135,8 @@ fn render_typed_graph_with_reasons(
                 .values()
                 .map(|object| object.diagnostics().len())
                 .sum(),
-            fallback_reasons,
-        },
+            fallback_reasons: fallback_reasons
+        }),
     )
 }
 

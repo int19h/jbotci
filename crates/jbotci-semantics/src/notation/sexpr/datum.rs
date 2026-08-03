@@ -28,7 +28,7 @@ impl Atom {
                 character.is_whitespace() || matches!(character, '(' | ')' | '"' | ';')
             })
         {
-            return Err(InvalidAtom { text });
+            return Err(new!(InvalidAtom { text: text }));
         }
         Ok(new!(Atom { text: text }))
     }
@@ -42,7 +42,7 @@ impl Atom {
 }
 
 /// Error returned when syntax-significant text is used as an atom.
-#[invariant(true)]
+#[invariant(text.is_empty() || text.chars().any(|character| character.is_whitespace() || matches!(character, '(' | ')' | '"' | ';')))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvalidAtom {
     text: String,
@@ -257,7 +257,7 @@ struct Parser<'a> {
 
 impl Parser<'_> {
     /// Parse one datum at the current non-whitespace cursor.
-    #[requires(self.offset <= self.input.len())]
+    #[requires(self.offset <= self.input.len() && self.input.is_char_boundary(self.offset))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn parse_datum(&mut self) -> Result<Datum, ParseError> {
         let Some(character) = self.remaining().chars().next() else {
@@ -272,7 +272,7 @@ impl Parser<'_> {
     }
 
     /// Parse a parenthesized list.
-    #[requires(self.remaining().starts_with('('))]
+    #[requires(self.offset <= self.input.len() && self.input.is_char_boundary(self.offset) && self.remaining().starts_with('('))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn parse_list(&mut self) -> Result<Datum, ParseError> {
         self.offset += 1;
@@ -291,7 +291,7 @@ impl Parser<'_> {
     }
 
     /// Parse one JSON-compatible string token.
-    #[requires(self.remaining().starts_with('"'))]
+    #[requires(self.offset <= self.input.len() && self.input.is_char_boundary(self.offset) && self.remaining().starts_with('"'))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn parse_string(&mut self) -> Result<Datum, ParseError> {
         let start = self.offset;
@@ -322,7 +322,7 @@ impl Parser<'_> {
     }
 
     /// Parse an atom without assigning semantic meaning to its spelling.
-    #[requires(!self.remaining().is_empty())]
+    #[requires(self.offset <= self.input.len() && self.input.is_char_boundary(self.offset) && !self.remaining().is_empty())]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn parse_atom(&mut self) -> Result<Datum, ParseError> {
         let start = self.offset;
@@ -342,8 +342,8 @@ impl Parser<'_> {
     }
 
     /// Skip Unicode whitespace.
-    #[requires(self.offset <= self.input.len())]
-    #[ensures(self.offset >= old(self.offset))]
+    #[requires(self.offset <= self.input.len() && self.input.is_char_boundary(self.offset))]
+    #[ensures(self.offset >= old(self.offset) && self.input.is_char_boundary(self.offset))]
     fn skip_whitespace(&mut self) {
         while let Some(character) = self.remaining().chars().next() {
             if !character.is_whitespace() {
@@ -354,7 +354,7 @@ impl Parser<'_> {
     }
 
     /// Borrow the unconsumed input.
-    #[requires(self.offset <= self.input.len())]
+    #[requires(self.offset <= self.input.len() && self.input.is_char_boundary(self.offset))]
     #[ensures(ret.len() == self.input.len() - self.offset)]
     fn remaining(&self) -> &str {
         &self.input[self.offset..]

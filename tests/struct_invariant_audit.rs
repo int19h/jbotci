@@ -1004,6 +1004,66 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic errors are produced by constructors that attach nonempty diagnostic messages",
     ),
     (
+        "crates/jbotci-semantics/examples/smusni_corpus_report.rs:CorpusReport",
+        "corpus measurements are mutable derived counters; measure and record_success enforce their transitions",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Parser",
+        "private mutable parser state starts at byte zero and cursor-mutating methods contractually preserve UTF-8 boundaries",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactElaboration",
+        "immutable elaboration output combines independently valid typed data and derived counters from one completed pass",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ElaborationCounters",
+        "private mutable counter state is updated only by recognition and fallback helpers with transition postconditions",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:Elaborator",
+        "private read-only graph context owns mutable traversal registries whose lifecycle is enforced by rendering helper contracts",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:PredicateApplication",
+        "every typed head and ordered sequence of typed operands is a valid pending predicate application",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ReferencePlan",
+        "private planner output is constructed only by plan_references; partial analyses are hidden and complete-only queries require compact eligibility",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ScopeFailure",
+        "a closed failure kind plus optional typed binder and use-site evidence admits every typed combination",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:MapBuilder",
+        "private Serde map callback state permits both the between-entry and pending-key phases, with sequencing enforced by method contracts",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:SequenceBuilder",
+        "every sequence of already validated structural values is a valid in-progress Serde sequence",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructBuilder",
+        "private mutable Serde struct state is populated from static derived type and field names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructVariantBuilder",
+        "private mutable Serde variant state is populated from static derived type, variant, and field names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralSerializer",
+        "stateless unit serializer has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleStructBuilder",
+        "private mutable Serde tuple-struct state is populated from a static derived type name and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleVariantBuilder",
+        "private mutable Serde tuple-variant state is populated from static derived type and variant names and validated when finalized",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/xml.rs:RenderState",
         "XML render state is deliberately mutable; balanced scope and definition transitions are enforced by method contracts and assertions",
     ),

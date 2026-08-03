@@ -59,15 +59,32 @@ enum StructuralValue {
 }
 
 /// Failure from an impossible or malformed model serialization callback.
-#[invariant(true)]
+#[invariant(!message.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct StructuralError(String);
+struct StructuralError {
+    message: String,
+}
+
+impl StructuralError {
+    /// Build a nonempty structural serialization error.
+    #[requires(true)]
+    #[ensures(!ret.message.is_empty())]
+    fn new(message: impl fmt::Display) -> Self {
+        let message = message.to_string();
+        let message = if message.is_empty() {
+            "structural serialization failed".to_owned()
+        } else {
+            message
+        };
+        new!(StructuralError { message: message })
+    }
+}
 
 impl fmt::Display for StructuralError {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
+        formatter.write_str(&self.message)
     }
 }
 
@@ -77,7 +94,7 @@ impl ser::Error for StructuralError {
     #[requires(true)]
     #[ensures(true)]
     fn custom<T: fmt::Display>(message: T) -> Self {
-        Self(message.to_string())
+        Self::new(message)
     }
 }
 
@@ -149,9 +166,7 @@ impl Serializer for StructuralSerializer {
     #[ensures(ret.is_ok() == value.is_finite())]
     fn serialize_f32(self, value: f32) -> Result<Self::Ok, Self::Error> {
         if !value.is_finite() {
-            return Err(StructuralError(
-                "non-finite f32 is not representable".to_owned(),
-            ));
+            return Err(StructuralError::new("non-finite f32 is not representable"));
         }
         Ok(new!(StructuralValue::Float(f64::from(value))))
     }
@@ -160,9 +175,7 @@ impl Serializer for StructuralSerializer {
     #[ensures(ret.is_ok() == value.is_finite())]
     fn serialize_f64(self, value: f64) -> Result<Self::Ok, Self::Error> {
         if !value.is_finite() {
-            return Err(StructuralError(
-                "non-finite f64 is not representable".to_owned(),
-            ));
+            return Err(StructuralError::new("non-finite f64 is not representable"));
         }
         Ok(new!(StructuralValue::Float(value)))
     }
@@ -243,8 +256,8 @@ impl Serializer for StructuralSerializer {
         if name == SEMANTIC_OBJECT_ID_NEWTYPE {
             return match value.into_data() {
                 data!(StructuralValue::String(id)) => Ok(new!(StructuralValue::Reference(id))),
-                _ => Err(StructuralError(
-                    "SemanticObjectId newtype must contain a string".to_owned(),
+                _ => Err(StructuralError::new(
+                    "SemanticObjectId newtype must contain a string",
                 )),
             };
         }
@@ -506,7 +519,7 @@ impl SerializeMap for MapBuilder {
         let key = self
             .pending_key
             .take()
-            .ok_or_else(|| StructuralError("map value arrived before its key".to_owned()))?;
+            .ok_or_else(|| StructuralError::new("map value arrived before its key"))?;
         self.entries
             .push((key, value.serialize(StructuralSerializer)?));
         Ok(())
