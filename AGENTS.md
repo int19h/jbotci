@@ -22,6 +22,64 @@ even when lead and implementation were performed by different models. Review
 verdict, reviewer-run checks, lead approval, clean worktree, and final acceptance
 must all name the same exact commit before merge.
 
+## Codex interactive implementation PM protocol
+
+The following is the standard protocol for future implementation requests made
+directly by the human owner to a top-level, owner-attended interactive Codex
+session. When the owner tells such a session to implement a change in this
+repository, that Codex session is the PM/lead, not the implementation agent.
+Before doing task-specific work, it must reread the current `~/git/agent-ops`
+repository guidance and operating documentation, including at least
+`AGENTS.md`, `README.md`, `docs/protocol.md`, and `docs/storage.md`; remembered
+summaries are not a substitute for the current protocol.
+
+This subsection is deliberately scoped by both host and duty. It does **not**
+apply to a Claude-led interactive PM session, even though `CLAUDE.md` includes
+this file; Claude PM sessions follow their own Claude-specific instructions.
+It also does not apply recursively to dispatcher-backed children or other
+subagents that happen to read this file. A Sol implementation run, an Opus or
+Kimi planning/review run, and any other dispatched role must perform only the
+duty assigned by the PM and the agent-ops work item. Such a run must not assume
+the PM role, create a second issue/dispatch hierarchy, or restart this protocol
+merely because it can read these instructions or receives a follow-up message.
+Only a top-level, owner-attended Codex session given the implementation request
+directly by the human owner activates this protocol.
+
+For every implementation request in scope, the Codex PM must:
+
+1. Investigate the request and the relevant implementation paths in depth.
+   Search GitHub for existing issues, create any missing issues, record durable
+   scope and acceptance criteria there, and explicitly sequence dependencies or
+   prerequisite correctness-preserving refactors.
+2. Produce a concrete implementation and verification plan, then run that plan
+   past both dispatcher-backed Opus and Kimi planning reviewers. Reconcile their
+   findings into the issue and plan before implementation begins. Opus runs must
+   use `--permission-mode bypassPermissions`.
+3. Create and use an agent-ops work item with appropriate frozen checks and
+   roles. Hand implementation to a dispatcher-backed Codex Sol subagent running
+   at `xhigh` reasoning effort (the Sol-xhigh implementation subagent). That
+   implementation run owns code changes, tests, commits, and creation of the
+   GitHub pull request; the interactive Codex PM remains the supervisor and does
+   not author the implementation.
+4. Review the pull request itself and obtain code reviews from both
+   dispatcher-backed Opus and Kimi runs. Keep substantive findings and design
+   decisions in durable GitHub issue or pull-request comments. Return actionable
+   feedback to the Sol implementation session and iterate until the PM, Opus,
+   and Kimi are all satisfied, all required tests and CI pass, and the formal
+   agent-ops independent-review and exact-commit acceptance gates pass. Any
+   implementation change makes earlier exact-HEAD approvals stale and requires
+   review of the new commit.
+5. Merge only the accepted exact commit from a clean worktree. After merge,
+   deploy the result to the **test** environment and verify that the test
+   deployment completed successfully. Test deployment is part of this standard
+   flow; production deployment is not.
+
+A production deployment requires a new, explicit instruction from the human
+owner naming production on every individual occasion. Never infer production
+authorization from an implementation request, merge approval, release language,
+a prior production deployment, or this standing protocol, and never carry such
+authorization forward to another change.
+
 
 # Porting guide
 
