@@ -1038,32 +1038,35 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
                 .then_some(*id)
         })
         .expect("relation question has a mo parameter");
-    for (name, update) in [
-        (
-            "IntroducedBy",
-            Box::new(|node: jbotci_semantics::model::ParameterNode| {
-                node.with_data(data! { introduced_by: "mutated".to_owned() })
-            })
-                as Box<
-                    dyn FnOnce(
-                        jbotci_semantics::model::ParameterNode,
-                    ) -> jbotci_semantics::model::ParameterNode,
-                >,
-        ),
-        (
-            "Role",
-            Box::new(|node: jbotci_semantics::model::ParameterNode| {
-                node.with_data(data! { role: ParameterRole::RelationVariable })
-            }),
-        ),
-    ] {
-        let mut object = input.graph.objects[&parameter].clone();
-        object.update_parameter(update);
-        let graph = replace_object(input.graph.clone(), parameter, object);
-        let datum = validate_render(&graph, &render_smusni(&graph));
-        assert_eq!(count_forms(&datum, "TypedGraph"), 1);
-        assert!(contains_field(&datum, name));
-    }
+    let mut object = input.graph.objects[&parameter].clone();
+    object.update_parameter(|node| node.with_data(data! { introduced_by: "mutated".to_owned() }));
+    let graph = replace_object(input.graph.clone(), parameter, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    assert!(contains_field(&datum, "IntroducedBy"));
+
+    // Question parameters have a graph-level role invariant, so exercise role
+    // fidelity on an abstraction parameter whose alternate entity role remains
+    // a valid SemanticGraph while invalidating exact abstraction recognition.
+    let input = build_input("lo ka ce'u gleki", "abstraction-parameter-role");
+    let parameter = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_parameter()
+                .is_some_and(|node| node.role == ParameterRole::PropertySlot)
+                .then_some(*id)
+        })
+        .expect("ka abstraction has a property-slot parameter");
+    let mut object = input.graph.objects[&parameter].clone();
+    object
+        .update_parameter(|node| node.with_data(data! { role: ParameterRole::RelativeClauseHead }));
+    let graph = replace_object(input.graph.clone(), parameter, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert_compact_family_or_typed_graph(&datum, "Object", "abstraction parameter role");
+    assert!(contains_field(&datum, "Role"));
 
     let input = build_input(
         "la .djan. fa'u la .frank. cusku nu'i fa'ugi bau la .lojban. nu'u gi bai tu'a la .djordj.",
