@@ -128,6 +128,8 @@ pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> 
     let (event_support, described_events) = projected_described_event_objects(graph, plan);
     projected_description_support.extend(event_support);
     description_values.extend(described_events);
+    let projected_use_counts =
+        reference_counts_excluding_sources(graph, &projected_description_support);
     let definitions = graph
         .objects
         .iter()
@@ -142,17 +144,7 @@ pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> 
                 return None;
             }
             let needs_definition = if description_values.contains(id) {
-                graph
-                    .objects
-                    .iter()
-                    .filter(|(source, _)| !projected_description_support.contains(source))
-                    .map(|(_, object)| {
-                        let mut references = Vec::new();
-                        object.references_into(&mut references);
-                        references.into_iter().filter(|target| target == id).count()
-                    })
-                    .sum::<usize>()
-                    > 1
+                projected_use_counts.get(id).copied().unwrap_or(0) > 1
             } else {
                 plan.use_count(*id) > 1 || plan.is_cyclic(*id)
             };
@@ -180,6 +172,30 @@ pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> 
         fallback_reasons: elaborator.counters.fallback_reasons.into_inner(),
         requires_typed_graph: elaborator.counters.requires_typed_graph.get(),
     }
+}
+
+/// Count edge multiplicities after removing identities consumed inside exact
+/// projections. One reusable edge buffer keeps this O(V+E) without allocating
+/// a temporary collection per description value or per source object.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.values().all(|count| *count > 0))]
+fn reference_counts_excluding_sources(
+    graph: &SemanticGraph,
+    excluded_sources: &BTreeSet<SemanticObjectId>,
+) -> BTreeMap<SemanticObjectId, usize> {
+    let mut counts = BTreeMap::new();
+    let mut references = Vec::new();
+    for (source, object) in &graph.objects {
+        if excluded_sources.contains(source) {
+            continue;
+        }
+        references.clear();
+        object.references_into(&mut references);
+        for target in references.iter().copied() {
+            *counts.entry(target).or_default() += 1;
+        }
+    }
+    counts
 }
 
 impl Elaborator<'_> {
