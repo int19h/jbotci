@@ -682,7 +682,11 @@ impl Serialize for SemanticObjectId {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        // Newtype tagging is deliberately invisible to JSON (newtypes serialize
+        // transparently there), while allowing non-JSON structural serializers
+        // to distinguish graph references from ordinary strings without parsing
+        // the ID spelling.
+        serializer.serialize_newtype_struct("SemanticObjectId", &self.to_string())
     }
 }
 

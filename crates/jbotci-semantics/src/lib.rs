@@ -21,9 +21,10 @@ pub use model::{
     semantic_object_scope_dependences_are_derived,
 };
 pub use notation::{
-    CompactIncompatibility, NotationProfile, SmusniConfig, XML_DECLARED_WAIVERS, XmlOmission,
-    XmlRender, XmlSurface, XmlWaiverFamily, analyze_compact_incompatibilities, render_notation,
-    render_smusni, render_xml, render_xml_with_word_cards,
+    CompactIncompatibility, DocumentMode, NotationProfile, SmusniRender, SmusniRenderStats,
+    XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface, XmlWaiverFamily,
+    analyze_compact_incompatibilities, render_notation, render_smusni, render_smusni_detailed,
+    render_smusni_with_word_cards, render_xml, render_xml_with_word_cards,
 };
 
 /// The XSD 1.0 schema for the complete SFN-XML tersmu document (the

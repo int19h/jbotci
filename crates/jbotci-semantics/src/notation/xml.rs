@@ -5277,7 +5277,7 @@ mod tests {
     fn relation_metadata_dedupes_into_word_cards_when_present() {
         use jbotci_morphology::segment_words_with_modifiers;
 
-        use crate::notation::word_cards::build_xml_word_cards;
+        use crate::notation::word_cards::build_word_cards;
 
         let mut graph = graph("b13");
         graph["objects"]["predication:18"]["relationMetadata"] =
@@ -5299,7 +5299,7 @@ mod tests {
         });
 
         let words = segment_words_with_modifiers("skamymlatu").expect("skamymlatu segments");
-        let cards = build_xml_word_cards(jbotci_dictionary_data::english(), &words);
+        let cards = build_word_cards(jbotci_dictionary_data::english(), &words);
         let with_cards = render_xml_value_with_state(
             graph.clone(),
             "b13",
@@ -5478,10 +5478,10 @@ mod tests {
     fn words_section_follows_key_and_carries_its_rules() {
         use jbotci_morphology::segment_words_with_modifiers;
 
-        use crate::notation::word_cards::build_xml_word_cards;
+        use crate::notation::word_cards::build_word_cards;
 
         let words = segment_words_with_modifiers("barda").expect("barda segments");
-        let cards = build_xml_word_cards(jbotci_dictionary_data::english(), &words);
+        let cards = build_word_cards(jbotci_dictionary_data::english(), &words);
         let with_cards =
             render_xml_value_with_state(graph("b13"), "b13", RenderState::new(), Some(&cards));
         let without_cards = render_xml_value(graph("b13"), "b13");

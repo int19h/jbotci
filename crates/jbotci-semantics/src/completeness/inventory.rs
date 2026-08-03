@@ -7229,15 +7229,6 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
         ),
         e(
-            SurfaceCategory::Document,
-            "document",
-            "not-computed:denotation-multiplicity",
-            EntryKind::DerivedFact,
-            Presence::Always,
-            new!(Witness::NoCorpusWitness),
-            None,
-        ),
-        e(
             SurfaceCategory::Object,
             "Referent",
             "fact:sort-header",
@@ -7303,8 +7294,8 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
         ),
         // Tested-winner role wordings (FREEZE-PHASE-B.md (d) items 2-3): rendered
-        // wordings, unexercised by the corpus (section-8 role machinery). RENDER
-        // when their construct occurs — not NOT COMPUTED.
+        // wordings, unexercised by the corpus (section-8 role machinery). They
+        // render through typed fallback when their construct occurs.
         e(
             SurfaceCategory::Document,
             "document",

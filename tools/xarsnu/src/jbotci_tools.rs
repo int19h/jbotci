@@ -413,17 +413,18 @@ pub struct ReferenceTools;
 struct XarsnuTersmuRequest {
     /// The Lojban text to interpret.
     text: String,
-    /// How to render the graph. Defaults to the model-facing `smusni`
-    /// declaration notation on xarsnu. Use `xml` for canonical scoped SFN-XML
-    /// or `json` for the canonical interchange graph.
+    /// How to render the graph. Defaults to typed human-readable `smusni`
+    /// S-expressions on xarsnu. Use `xml` for canonical scoped SFN-XML or
+    /// `json` for the canonical interchange graph.
     #[serde(default = "xarsnu_tersmu_format_default")]
     format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
     /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them.
     #[serde(default)]
     dialect: Option<String>,
-    /// Prepend dictionary definitions for content words. Definitions are on by
-    /// default and are suppressed for JSON.
+    /// Include structured dictionary word cards for content words. Cards are
+    /// inside the single smusni document, are on by default, and are suppressed
+    /// for JSON.
     #[serde(default = "xarsnu_show_defs_default")]
     show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative story

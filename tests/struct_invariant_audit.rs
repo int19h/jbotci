@@ -1004,14 +1004,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic errors are produced by constructors that attach nonempty diagnostic messages",
     ),
     (
-        "crates/jbotci-semantics/src/notation/render.rs:Ctx",
-        "smusni render context is borrowed views (object map, id map) built together over one graph plus a bool toggle; every field combination is a valid context",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/render.rs:SmusniConfig",
-        "smusni render config is a single bool provenance toggle; every value is a valid configuration",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/xml.rs:RenderState",
         "XML render state is deliberately mutable; balanced scope and definition transitions are enforced by method contracts and assertions",
     ),
@@ -1022,10 +1014,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/word_cards.rs:WordCardBuilder",
         "word-card assembly accumulator is deliberately mutable; the complete cards/built_ids discipline (registry is exactly the card-id set, card ids pairwise distinct) is enforced by cheap and expensive postconditions on every mutating method",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/writer.rs:Writer",
-        "notation Writer is a mutable line-accumulating builder, not a validated model type; its structural discipline is enforced by the RAII body closures, not a field invariant",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgument",

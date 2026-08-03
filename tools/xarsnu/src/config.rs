@@ -261,8 +261,7 @@ impl ExternalRendererCommand {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TersmuFormat {
-    /// Model-facing `smusni` notation: a flat, self-describing declaration
-    /// listing of the semantic graph (the default).
+    /// Typed human-readable `smusni` S-expression notation (the default).
     #[default]
     Smusni,
     Json,

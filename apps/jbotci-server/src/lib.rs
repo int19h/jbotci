@@ -2895,9 +2895,12 @@ mod tests {
         let smusni_text = tersmu_smusni_json["result"]["content"][0]["text"]
             .as_str()
             .expect("tersmu smusni text");
-        assert!(smusni_text.starts_with("SEMANTIC DOCUMENT "));
-        assert!(smusni_text.contains("ID PREFIXES: r=reference"));
-        assert!(smusni_text.contains("RELATION: nitcu"));
+        let smusni_document = jbotci_semantics::notation::sexpr::parse_document(smusni_text)
+            .expect("tersmu smusni is one parseable document");
+        assert_eq!(smusni_document.form_head(), Some("Smusni"));
+        assert_eq!(smusni_document.count_forms("Smusni"), 1);
+        assert!(!smusni_text.contains("SEMANTIC DOCUMENT"));
+        assert!(!smusni_text.contains("ID PREFIXES"));
 
         let tersmu_xml = post_json(
             app.clone(),
@@ -2923,9 +2926,7 @@ mod tests {
             .as_str()
             .expect("tersmu XML text");
         assert!(tersmu_xml_text.starts_with("<!--\n"));
-        assert!(
-            tersmu_xml_text.contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">")
-        );
+        assert!(tersmu_xml_text.contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">"));
         assert!(tersmu_xml_text.contains("<UTTERANCE FORCE=\"ASSERT\" GROUND=\"g1\">"));
 
         let tersmu_json = post_json(
@@ -3165,7 +3166,11 @@ mod tests {
         let text = contents["text"].as_str().expect("schema text");
         // Spot-check that the real XSD made it through verbatim: the XML
         // declaration, the schema root, and a WORD element definition.
-        assert!(text.starts_with("<?xml"), "{}", &text[..text.len().min(200)]);
+        assert!(
+            text.starts_with("<?xml"),
+            "{}",
+            &text[..text.len().min(200)]
+        );
         assert!(text.contains("xs:schema"));
         assert!(text.contains("name=\"WORD\""));
     }

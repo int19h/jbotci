@@ -1004,10 +1004,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
-        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::NotComputedDeclared",
-        "unit disposition marking an entry the renderer declares uncomputed; no payload to constrain",
-    ),
-    (
         "crates/jbotci-semantics/src/completeness/model.rs:Disposition::Renders",
         "unit disposition marking a rendered entry; no payload to constrain",
     ),
@@ -1021,7 +1017,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/notation/mod.rs:NotationProfile::Smusni",
-        "notation profile selector; the wrapped SmusniConfig validates its own (single-bool) domain, so every Smusni value is a valid selection",
+        "unit notation-profile selector; no payload to constrain",
     ),
     (
         "crates/jbotci-semantics/src/notation/xml.rs:XmlRepresentationPlan::Compact",

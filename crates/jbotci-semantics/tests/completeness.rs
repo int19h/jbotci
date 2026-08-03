@@ -19,7 +19,7 @@
 //! Graphs are re-derived by this build from the vendored `<doc>.lojban`.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, requires};
+use bityzba::{data, ensures, requires};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
@@ -29,7 +29,7 @@ use jbotci_morphology::{
     MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
-use jbotci_semantics::completeness::model::{EntryKind, SurfaceCategory};
+use jbotci_semantics::completeness::model::{DispositionData, EntryKind, SurfaceCategory};
 use jbotci_semantics::completeness::{
     baseline_contract_for, baseline_disposition, render_field_inventory, source_link_surfaces,
 };
@@ -620,11 +620,21 @@ fn contract_disagreements_are_flagged() {
     assert!(faithful.disagreements(&baseline).is_empty());
 
     // A renderer that flips one entry's disposition is caught.
-    let target = inventory.entries()[0].key();
+    let target = inventory
+        .entries()
+        .iter()
+        .find(|entry| {
+            matches!(
+                baseline_disposition(entry).as_data(),
+                data!(Disposition::Renders)
+            )
+        })
+        .expect("inventory has a rendered entry")
+        .key();
     let mut deviating = CompletenessContract::new();
     for entry in inventory.entries() {
         let disposition = if entry.key() == target {
-            Disposition::not_computed_declared()
+            Disposition::excluded_with_reason("test-only disagreement")
         } else {
             baseline_disposition(entry)
         };

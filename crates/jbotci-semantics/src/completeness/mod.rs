@@ -91,15 +91,15 @@ mod tests {
         assert!(!audit.is_complete());
     }
 
-    /// Source-provenance surfaces are excluded with a reason; content renders;
-    /// the declared NOT-COMPUTED facts are declared, not spuriously excluded.
+    /// Source-provenance surfaces are excluded with a reason and every content
+    /// field has a rendering or typed-fallback disposition.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn disposition_policy_is_evidence_grounded() {
         let inventory = render_field_inventory();
         let mut saw_excluded = false;
-        let mut saw_not_computed = false;
+        let mut saw_rendered = false;
         for entry in inventory.entries() {
             let disposition = baseline_disposition(entry);
             if entry.surface.name == "SemanticSource" {
@@ -112,15 +112,12 @@ mod tests {
                 );
                 saw_excluded = true;
             }
-            if entry.field == "not-computed:denotation-multiplicity" {
-                assert!(matches!(
-                    disposition.as_data(),
-                    data!(Disposition::NotComputedDeclared)
-                ));
-                saw_not_computed = true;
+            if entry.surface.name == "Predication" && entry.field == "arguments" {
+                assert!(matches!(disposition.as_data(), data!(Disposition::Renders)));
+                saw_rendered = true;
             }
         }
-        assert!(saw_excluded && saw_not_computed);
+        assert!(saw_excluded && saw_rendered);
     }
 
     /// Pin the disposition-class counts so a policy-predicate regression (e.g.
@@ -132,25 +129,18 @@ mod tests {
     fn disposition_class_counts_are_pinned() {
         let inventory = render_field_inventory();
         let mut renders = 0usize;
-        let mut not_computed = 0usize;
         let mut excluded = 0usize;
         for entry in inventory.entries() {
             match baseline_disposition(entry).as_data() {
                 data!(Disposition::Renders) => renders += 1,
-                data!(Disposition::NotComputedDeclared) => not_computed += 1,
                 data!(Disposition::ExcludedWithReason(_)) => excluded += 1,
             }
         }
-        // NotComputedDeclared = the one document fact
-        // `denotation-multiplicity`. The 32 non-source question/place-question
-        // entries previously added here now render as first-class QUESTION /
-        // PLACE QUESTIONS records (jbotci#622).
-        assert_eq!(not_computed, 1, "NOT COMPUTED disposition count drifted");
         // Source provenance: SemanticSource(3) + SourceByteSpan(2) + one `source`
         // link per object kind (13) and per source-bearing value struct (12),
         // plus Adjunct.introducedBy surface provenance.
         assert_eq!(excluded, 31, "provenance ExcludedWithReason count drifted");
-        assert_eq!(renders + not_computed + excluded, inventory.len());
+        assert_eq!(renders + excluded, inventory.len());
     }
 
     /// Blocker-5 spot check: provenance is excluded by *type*. A `source` field

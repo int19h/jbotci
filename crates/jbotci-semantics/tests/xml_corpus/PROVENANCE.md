@@ -107,10 +107,10 @@ head-and-link form remains as the guarded fallback). The frozen JSON graphs
 were migrated mechanically by `scripts/migrate_issue_719_json.py` (typed
 connector source, English locus, fake relation dropped — every file
 rebuilds byte-exactly from its source text through the product pipeline),
-and the goldens were regenerated with `examples/regen_goldens.rs` under the
-mechanical-diff proof of `scripts/verify_issue_719_output_migration.py`;
-the tanru regions' semantic preservation is enforced by the re-expansion
-equivalence acceptance test in `notation::relation_expression`.
+and the XML goldens were regenerated with `examples/regen_goldens.rs`. The
+one-off issue-719 migration verifier was retired with the old smusni goldens;
+the enduring tanru semantic-preservation check is the re-expansion equivalence
+acceptance test in `notation::relation_expression`.
 
 The prototype's pre-existing rejection of the Phase-B multiple-domain question
 remains outside the 48-document parity contract. The paired research README at

@@ -61,8 +61,7 @@ impl Surface {
 /// A `Field` is a serializable field of an object or value struct; a `Variant`
 /// is an enum discriminant (a variant-conditional branch a renderer must
 /// handle); a `DerivedFact` is a rendered fact that is *not* a single serde
-/// field — e.g. the reference sort header derived from a referent's `sort`, or
-/// a `NOT COMPUTED` declaration.
+/// field — e.g. the reference sort header derived from a referent's `sort`.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EntryKind {
@@ -280,17 +279,14 @@ impl RenderFieldInventory {
 
 /// How a renderer treats an inventoried item.
 ///
-/// `Renders` — the renderer emits it. `NotComputedDeclared` — the renderer
-/// declares it explicitly uncomputed (a `NOT COMPUTED` marker), *not* the same
-/// as an absent optional. `ExcludedWithReason` — deliberately omitted, with a
-/// recorded reason so the omission is auditable rather than accidental.
+/// `Renders` means the renderer emits it. `ExcludedWithReason` means it is
+/// deliberately omitted, with a recorded reason so the omission is auditable
+/// rather than accidental. Typed fallback leaves no uncomputed disposition.
 #[invariant(::Renders => true)]
-#[invariant(::NotComputedDeclared => true)]
 #[invariant(::ExcludedWithReason(reason) => !reason.is_empty())]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Disposition {
     Renders,
-    NotComputedDeclared,
     ExcludedWithReason(&'static str),
 }
 
@@ -299,12 +295,6 @@ impl Disposition {
     #[ensures(matches!(ret.as_data(), data!(Disposition::Renders)))]
     pub fn renders() -> Self {
         new!(Disposition::Renders)
-    }
-
-    #[requires(true)]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::NotComputedDeclared)))]
-    pub fn not_computed_declared() -> Self {
-        new!(Disposition::NotComputedDeclared)
     }
 
     #[requires(!reason.is_empty())]

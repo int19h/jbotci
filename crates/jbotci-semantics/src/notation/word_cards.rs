@@ -83,7 +83,7 @@ pub const ZEI_COMPOUND_UNRECOVERABLE_WARNING: &str = "This undefined multiword c
 
 /// The morphological class a word card describes.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum WordCardKind {
     Gismu,
     Lujvo,
@@ -120,7 +120,7 @@ impl WordCardKind {
     (!known && kind.is_compound() && composition.is_none()) -> !warnings.is_empty(),
     "an unrecoverable compound composition must be disclosed by a warning"
 )]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WordCard {
     /// Card ID: the canonical spelling for one-token words; the hyphen-joined
     /// surface for zei compounds (`mi-zei-do`, `alis-zei-ninmu`; cmevla pause
@@ -144,7 +144,7 @@ pub struct WordCard {
 
 /// Basis of one kind-composition edge or of a whole tree's grouping.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum GroupingBasis {
     /// Fixed by `bo`/`ke...ke'e` in the word itself.
     Explicit,
@@ -155,7 +155,7 @@ pub enum GroupingBasis {
 
 /// Basis of one scope-bearing operator application or of a whole tree's scope.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ScopeBasis {
     /// An encoded boundary exists in the word (`kei` closure or an explicit
     /// `ke...ke'e` group around the operand).
@@ -188,7 +188,7 @@ pub enum ScopeBasis {
     scope_escalation_is_consistent(*scope, root),
     "unmixed trees use the tree-level attribute; genuinely mixed trees escalate to per-node bases"
 )]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct CompositeApprox {
     pub grouping: Option<GroupingBasis>,
     pub scope: Option<ScopeBasis>,
@@ -197,7 +197,7 @@ pub struct CompositeApprox {
 
 /// Polarity of a scalar (`NAhE`) negation.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ScalarNegationPolarity {
     /// `na'e`: other than.
     Other,
@@ -209,7 +209,7 @@ pub enum ScalarNegationPolarity {
 
 /// Logical and non-logical connective operators (`JA` and `JOI`/`BIhI`).
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ApproxConnective {
     /// `ja`.
     Or,
@@ -239,7 +239,7 @@ pub enum ApproxConnective {
 
 /// Quantity forms, spelled to mirror the body notation's `QUANTITY FORM=` tokens.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ApproxQuantityForm {
     /// An exact digit run; carries `value` (integer) or `text` (non-integer).
     Exact,
@@ -279,7 +279,7 @@ fn quantity_form_is_valued(form: ApproxQuantityForm) -> bool {
 
 /// Aspect contours, aligned with the semantic model's `Aspect::contour` strings.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ApproxAspectContour {
     /// `pu'o`.
     Prospective,
@@ -327,7 +327,7 @@ impl ApproxAspectContour {
 /// The abstract context role a pro-word denotes in discourse-free card scope.
 /// These are roles, not referents; they define no ids.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum VariableContextRole {
     /// `mi`.
     Speaker,
@@ -343,7 +343,7 @@ pub enum VariableContextRole {
 
 /// Deictic proximity of a demonstrated context role.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum Proximity {
     /// `ti`.
     Proximal,
@@ -355,7 +355,7 @@ pub enum Proximity {
 
 /// Membership of one party in a personal mass.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum Inclusion {
     Included,
     Excluded,
@@ -363,7 +363,7 @@ pub enum Inclusion {
 
 /// Sort of a logical variable.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum LogicalVariableSort {
     /// `da`/`de`/`di`.
     Entity,
@@ -373,7 +373,7 @@ pub enum LogicalVariableSort {
 
 /// Role of a parameter referent.
 #[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum ParameterRole {
     /// `ce'u`.
     PropertySlot,
@@ -394,7 +394,7 @@ pub enum ParameterRole {
 #[invariant(::PersonalMass { .. } => true)]
 #[invariant(::LogicalVariable { series, .. } => (1..=3).contains(series))]
 #[invariant(::Parameter { .. } => true)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApproxReferent {
     /// `mi`/`do`/`ti`/`ta`/`tu`/`ko'a`...`fo'u`.
     Context {
@@ -458,7 +458,7 @@ pub enum ApproxReferent {
         && matches!(*role, VariableContextRole::Assigned) == slot.is_some()
         && slot.is_none_or(|slot| (1..=10).contains(&slot)),
     "context roles carry exactly their role-specific data")]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum ApproxExpr {
     /// IDREF to the component word's own card.
     Component { word: String },
@@ -1859,7 +1859,7 @@ fn apply_postfix_operator(op: PostfixOp, inner: ApproxExpr) -> ApproxExpr {
 #[expensive_ensures(ret.iter().enumerate().all(|(index, card)| {
     ret[..index].iter().all(|earlier| earlier.id != card.id)
 }), "card IDs are unique")]
-pub fn build_xml_word_cards(dictionary: &Dictionary<'_>, words: &[WordLike]) -> Vec<WordCard> {
+pub fn build_word_cards(dictionary: &Dictionary<'_>, words: &[WordLike]) -> Vec<WordCard> {
     let mut builder = WordCardBuilder {
         dictionary,
         cards: Vec::new(),
@@ -1897,7 +1897,7 @@ fn cards_and_registry_cover_each_other(cards: &[WordCard], built_ids: &HashSet<S
 /// are pairwise distinct. This holds because a card is built only when its
 /// id is not yet registered, and registration happens at most once per id.
 /// O(n²) over the accumulated cards, so it runs under `expensive_ensures`
-/// like the matching uniqueness postcondition on [`build_xml_word_cards`].
+/// like the matching uniqueness postcondition on [`build_word_cards`].
 #[requires(true)]
 #[ensures(true)]
 fn card_ids_are_pairwise_distinct(cards: &[WordCard]) -> bool {
@@ -2468,7 +2468,7 @@ mod tests {
     fn cards_for(text: &str) -> Vec<WordCard> {
         let words = segment_words_with_modifiers(text)
             .unwrap_or_else(|error| panic!("test input `{text}` must segment: {error:?}"));
-        build_xml_word_cards(dictionary(), &words)
+        build_word_cards(dictionary(), &words)
     }
 
     /// Parse `text` and assert it is exactly one zei compound.
@@ -3444,7 +3444,7 @@ mod tests {
             word_like.bare_word().map(Word::kind),
             Some(WordKind::Cmevla)
         );
-        let cards = build_xml_word_cards(dictionary(), &words);
+        let cards = build_word_cards(dictionary(), &words);
         assert_eq!(cards.len(), 1);
         assert_eq!(cards[0].kind, WordCardKind::Cmevla);
         assert!(cards[0].known);

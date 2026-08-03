@@ -875,29 +875,17 @@ fn parses_gentufa_formats_and_flags() {
 #[requires(true)]
 #[ensures(true)]
 fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
-    // Round-1 review (Codex 3): the delivered CLI surface must be
-    // oracle-identical — `render_smusni` already ends in one newline, and the
-    // command must not double it.
     let run = run_cli_capture(
         &["jbotci", "tersmu", "--format", "smusni", "mi klama"],
         false,
     );
     assert_eq!(run.status, CliStatus::Success);
-    assert!(
-        run.stdout.starts_with("SEMANTIC DOCUMENT document_1 {\n"),
-        "smusni CLI output should be the notation document, got: {:?}",
-        &run.stdout[..run.stdout.len().min(48)]
-    );
-    assert!(run.stdout.contains("ID PREFIXES: r=reference"));
-    // Exactly one trailing newline (the closing `}` then a single `\n`).
-    assert!(
-        run.stdout.ends_with("}\n"),
-        "must end with the closing brace and one newline"
-    );
-    assert!(
-        !run.stdout.ends_with("}\n\n"),
-        "must not double the renderer's trailing newline"
-    );
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("smusni CLI output is one parseable document");
+    assert_eq!(document.form_head(), Some("Smusni"));
+    assert_eq!(document.count_forms("Smusni"), 1);
+    assert!(run.stdout.ends_with('\n'));
+    assert!(!run.stdout.ends_with("\n\n"));
 }
 
 #[test]
@@ -907,8 +895,10 @@ fn tersmu_xml_cli_output_is_one_canonical_document() {
     let run = run_cli_capture(&["jbotci", "tersmu", "--format", "xml", "mi klama"], false);
     assert_eq!(run.status, CliStatus::Success);
     // jbotci#719: the document opens with the KEY teaching comment.
-    assert!(run.stdout.starts_with("<!--
-"));
+    assert!(run.stdout.starts_with(
+        "<!--
+"
+    ));
     assert!(
         run.stdout
             .contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">")
@@ -1024,9 +1014,8 @@ fn tersmu_help_describes_the_smusni_default() {
     let help = error.to_string();
     for marker in [
         "default `smusni` format",
-        "flat, self-describing declaration listing",
-        "ID-prefix legend",
-        "NOT COMPUTED",
+        "human-readable typed S-expression document",
+        "mechanically complete typed fallbacks",
         "canonical interchange graph",
     ] {
         assert!(
@@ -1061,7 +1050,7 @@ fn tersmu_show_defs_rejects_json_cli_output() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_show_defs_prepends_definitions_before_the_smusni_document() {
+fn tersmu_show_defs_embeds_word_cards_in_the_smusni_document() {
     let output = run_success_stdout(&[
         "jbotci",
         "tersmu",
@@ -1074,28 +1063,12 @@ fn tersmu_show_defs_prepends_definitions_before_the_smusni_document() {
         "klama",
     ]);
 
-    // The content-word dictionary definitions are prepended ahead of the
-    // smusni semantic document that the default format renders.
-    let (definitions, document) = output
-        .split_once("SEMANTIC DOCUMENT ")
-        .expect("smusni document follows the prepended definitions");
-    assert!(
-        definitions.starts_with("1. klama | by: officialdata | gismu"),
-        "definitions must lead: {definitions:?}"
-    );
-    assert!(
-        !definitions.contains("banan"),
-        "unattested cmevla must not get a synthetic definition: {definitions:?}"
-    );
-    assert!(
-        !definitions.contains("cmavo:"),
-        "tersmu definitions must not define cmavo: {definitions:?}"
-    );
-    assert!(
-        document.contains("ID PREFIXES: r=reference"),
-        "the smusni document legend must follow the definitions"
-    );
-    assert!(document.contains("RELATION: klama"));
+    let document = jbotci_semantics::notation::sexpr::parse_document(&output)
+        .expect("show-defs output is one smusni document");
+    assert_eq!(document.form_head(), Some("Smusni"));
+    assert_eq!(document.count_forms("Smusni"), 1);
+    assert_eq!(document.count_forms("Words"), 1);
+    assert_eq!(document.count_forms("Word"), 1);
 }
 
 #[test]
@@ -1105,10 +1078,13 @@ fn tersmu_outputs_smusni_by_default() {
     let run = run_cli_capture(&["jbotci", "tersmu", "mi", "klama"], false);
     assert_eq!(run.status, CliStatus::Success);
     assert!(run.stderr.is_empty());
-    assert!(run.stdout.starts_with("SEMANTIC DOCUMENT "));
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("default smusni is one parseable document");
+    assert_eq!(document.form_head(), Some("Smusni"));
+    assert_eq!(document.count_forms("Smusni"), 1);
     assert!(!run.stdout.starts_with("<SFN "));
-    assert!(run.stdout.contains("ID PREFIXES: r=reference"));
-    assert!(run.stdout.contains("RELATION: klama"));
+    assert!(!run.stdout.contains("SEMANTIC DOCUMENT"));
+    assert!(!run.stdout.contains("ID PREFIXES"));
 }
 
 #[test]
@@ -4324,13 +4300,13 @@ fn vlacku_unknown_lujvo_renders_note_and_keeps_decomposition() {
 
     assert!(output.contains("  decomposition: "), "{output}");
     assert!(
-        output
-            .lines()
-            .any(|line| line == "    not in dictionary"),
+        output.lines().any(|line| line == "    not in dictionary"),
         "{output}"
     );
     let definitions_index = output.find("  definitions:").expect("definitions section");
-    let decomposition_index = output.find("  decomposition: ").expect("decomposition line");
+    let decomposition_index = output
+        .find("  decomposition: ")
+        .expect("decomposition line");
     assert!(
         decomposition_index < definitions_index,
         "decomposition line must stay before the definitions section: {output}"

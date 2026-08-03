@@ -26,10 +26,10 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use jbotci_morphology::segment_words_with_modifiers;
-use jbotci_semantics::notation::word_cards::build_xml_word_cards;
+use jbotci_semantics::notation::word_cards::build_word_cards;
 use jbotci_semantics::{
-    SemanticBuildOptions, SemanticGraph, build_generated_semantic_graph_with_dictionary_and_options,
-    render_xml_with_word_cards,
+    SemanticBuildOptions, SemanticGraph,
+    build_generated_semantic_graph_with_dictionary_and_options, render_xml_with_word_cards,
 };
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
 
@@ -62,7 +62,7 @@ fn render_with_defs(text: &str, document_name: &str) -> String {
     let words = segment_words_with_modifiers(text)
         .unwrap_or_else(|error| panic!("morphology {text}: {error}"));
     let graph = graph_for_text(text, &words);
-    let cards = build_xml_word_cards(jbotci_dictionary_data::english(), &words);
+    let cards = build_word_cards(jbotci_dictionary_data::english(), &words);
     render_xml_with_word_cards(&graph, document_name, &cards)
         .into_data()
         .output
@@ -205,7 +205,9 @@ fn live_witnesses_validate_against_the_schema() {
 #[ensures(true)]
 fn frozen_xml_corpus_validates_against_the_schema() {
     if !xmllint_available() {
-        eprintln!("skipping frozen_xml_corpus_validates_against_the_schema: xmllint is not on PATH");
+        eprintln!(
+            "skipping frozen_xml_corpus_validates_against_the_schema: xmllint is not on PATH"
+        );
         return;
     }
     let corpus_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/xml_corpus");
@@ -265,7 +267,13 @@ fn mutated_documents_are_rejected_by_the_schema() {
         document.contains("<COMPONENT WORD=\"mlatu\"/>"),
         "the render must carry the COMPONENT keyref for the mutation to be meaningful"
     );
-    let dangling_component =
-        document.replacen("<COMPONENT WORD=\"mlatu\"/>", "<COMPONENT WORD=\"missing-card\"/>", 1);
-    assert_invalid("dangling COMPONENT WORD keyref mutation", &dangling_component);
+    let dangling_component = document.replacen(
+        "<COMPONENT WORD=\"mlatu\"/>",
+        "<COMPONENT WORD=\"missing-card\"/>",
+        1,
+    );
+    assert_invalid(
+        "dangling COMPONENT WORD keyref mutation",
+        &dangling_component,
+    );
 }
