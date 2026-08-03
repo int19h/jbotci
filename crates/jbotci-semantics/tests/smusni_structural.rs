@@ -5,7 +5,7 @@
 //! diagnostics, modal, and document-shape invariants instead.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
@@ -15,7 +15,12 @@ use jbotci_morphology::{
     MorphologyOptions, WordLike, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
-use jbotci_semantics::model::{ArgumentValueKind, SemanticObject};
+use jbotci_semantics::model::{
+    Actuality, ActualityKind, AnchorRelation, ArgumentValueKind, Aspect, EventualityNode,
+    IndexicalKind, MathLiteral, ParameterRole, QuantityScale, QuantityValue, QuestionSlot,
+    QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory, ScopeDependence,
+    SemanticGraphData, SemanticObject, SemanticObjectId, Subscript,
+};
 use jbotci_semantics::notation::sexpr::{Datum, parse_document};
 use jbotci_semantics::notation::word_cards::build_word_cards;
 use jbotci_semantics::{
@@ -84,6 +89,61 @@ fn corpus_input(doc: &str) -> BuiltInput {
     let text = std::fs::read_to_string(fixture(doc))
         .unwrap_or_else(|error| panic!("read {doc}.lojban: {error}"));
     build_input(&text, doc)
+}
+
+/// Replace one object while revalidating the graph wrapper.
+#[requires(graph.objects.contains_key(&id))]
+#[requires(object.object_kind() == id.object_kind())]
+#[ensures(ret.objects.contains_key(&id))]
+fn replace_object(
+    graph: SemanticGraph,
+    id: SemanticObjectId,
+    object: SemanticObject,
+) -> SemanticGraph {
+    let data = graph.into_data();
+    let mut objects = data.objects;
+    objects.insert(id, object);
+    SemanticGraph::from_data(data!(SemanticGraph { objects, ..data }))
+}
+
+/// Insert one otherwise unreachable support object for a mutation witness.
+#[requires(!graph.objects.contains_key(&id))]
+#[requires(object.object_kind() == id.object_kind())]
+#[ensures(ret.objects.contains_key(&id))]
+fn insert_object(
+    graph: SemanticGraph,
+    id: SemanticObjectId,
+    object: SemanticObject,
+) -> SemanticGraph {
+    let data = graph.into_data();
+    let mut objects = data.objects;
+    objects.insert(id, object);
+    SemanticGraph::from_data(data!(SemanticGraph { objects, ..data }))
+}
+
+/// Locate the one matrix generated event in a simple focused graph.
+#[requires(true)]
+#[ensures(ret.is_none_or(|id| graph.objects.contains_key(&id)))]
+fn first_generated_event(graph: &SemanticGraph) -> Option<SemanticObjectId> {
+    graph.objects.iter().find_map(|(id, object)| {
+        object
+            .as_eventuality()
+            .is_some_and(|node| node.denotation.is_generated_bound())
+            .then_some(*id)
+    })
+}
+
+/// Replace the first generated event with an invariant-preserving mutation.
+#[requires(first_generated_event(&graph).is_some())]
+#[ensures(ret.objects.len() == old(graph.objects.len()))]
+fn mutate_generated_event(
+    graph: SemanticGraph,
+    update: impl FnOnce(EventualityNode) -> EventualityNode,
+) -> SemanticGraph {
+    let id = first_generated_event(&graph).expect("focused graph has a generated event");
+    let mut object = graph.objects[&id].clone();
+    object.update_eventuality(update);
+    replace_object(graph, id, object)
 }
 
 /// Parse and validate the outer document shape and newline policy.
@@ -437,6 +497,18 @@ fn collect_forms<'a>(datum: &'a Datum, head: &str, out: &mut Vec<&'a Datum>) {
     }
 }
 
+/// Whether a parsed typed fallback contains one named field.
+#[requires(!name.is_empty())]
+#[ensures(true)]
+fn contains_field(datum: &Datum, name: &str) -> bool {
+    let Some(items) = datum.as_list() else {
+        return false;
+    };
+    (items.first().and_then(Datum::as_atom) == Some("Field")
+        && items.get(1).and_then(Datum::as_atom) == Some(name))
+        || items.iter().any(|item| contains_field(item, name))
+}
+
 /// Collect string data after parser round-trip for escaping integration checks.
 #[requires(true)]
 #[ensures(true)]
@@ -701,6 +773,420 @@ fn modal_place_labels_match_the_actual_graph_maps() {
             assert_eq!(actual_places, expected_places);
         }
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn generated_event_facet_families_have_structural_witnesses() {
+    let tense = build_input("mi pu klama lo zarci", "facet-time");
+    let tense = validate_render(&tense.graph, &render_smusni(&tense.graph));
+    assert_eq!(count_forms(&tense, "Before"), 1);
+
+    let cases = [
+        (
+            "actuality",
+            Box::new(|node: EventualityNode| {
+                node.with_data(data! {
+                    actuality: Some(Actuality { kind: ActualityKind::Capable })
+                })
+            }) as Box<dyn FnOnce(EventualityNode) -> EventualityNode>,
+            "Actuality",
+        ),
+        (
+            "aspect",
+            Box::new(|node: EventualityNode| {
+                node.with_data(data! {
+                    aspect: Some(Aspect::new("ongoing".to_owned(), None))
+                })
+            }),
+            "Aspect",
+        ),
+        (
+            "recurrence",
+            Box::new(|node: EventualityNode| {
+                node.with_data(data! {
+                    recurrence: vec![Recurrence::new(
+                        RecurrenceKind::Regular,
+                        "roi".to_owned(),
+                        None,
+                        Some(QuantityValue::integer(2)),
+                        None,
+                        None,
+                        None,
+                    )]
+                })
+            }),
+            "Recurrence",
+        ),
+        (
+            "space",
+            Box::new(|node: EventualityNode| {
+                node.with_data(data! {
+                    space: Some(new!(AnchorRelation {
+                        relation: "at".to_owned(),
+                        anchor: SemanticObjectId::referent(4),
+                        sticky: false,
+                        inherited: None,
+                        distance: None,
+                        magnitude: None,
+                        scalar_negation: None,
+                        motion: None,
+                    }))
+                })
+            }),
+            "Space",
+        ),
+    ];
+    for (name, update, field) in cases {
+        let input = build_input("mi klama", name);
+        let graph = mutate_generated_event(input.graph.clone(), update);
+        let datum = validate_render(&graph, &render_smusni(&graph));
+        assert_eq!(
+            count_forms(&datum, "Facet"),
+            1,
+            "missing typed facet for {name}"
+        );
+        assert!(
+            contains_field(&datum, field),
+            "missing {field} field for {name}"
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn optional_semantic_side_fields_force_representation_or_typed_graph() {
+    let input = build_input("mi klama", "predication-introducer");
+    let predication = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| object.as_predication().map(|_| *id))
+        .expect("simple assertion has a predication");
+    let mut object = input.graph.objects[&predication].clone();
+    object.update_predication(|node| {
+        node.with_data(data! { introduced_by: Some("mutated".to_owned()) })
+    });
+    let graph = replace_object(input.graph.clone(), predication, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert!(contains_field(&datum, "IntroducedBy"));
+
+    let input = build_input("ci mlatu cu jbena", "quantity-scale");
+    let quantity = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| object.as_quantity().map(|_| *id))
+        .expect("cardinality has a quantity");
+    let mut object = input.graph.objects[&quantity].clone();
+    object.update_quantity(|node| node.with_data(data! { scale: QuantityScale::Fraction }));
+    let graph = replace_object(input.graph.clone(), quantity, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert!(count_forms(&datum, "Quantity") > 0);
+    assert!(count_forms(&datum, "Scale") > 0 || count_forms(&datum, "TypedGraph") == 1);
+
+    let input = build_input("li pa su'i re du li ci", "math-denotes");
+    let denotation = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_referent()
+                .is_some_and(|node| {
+                    node.indexical == Some(jbotci_semantics::model::IndexicalKind::Speaker)
+                })
+                .then_some(*id)
+        })
+        .expect("utterance graph has Speaker");
+    let math = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_math_expression()
+                .is_some_and(|node| {
+                    matches!(
+                        node.kind.as_data(),
+                        data!(jbotci_semantics::model::MathExpressionNodeKind::Literal { .. })
+                    )
+                })
+                .then_some(*id)
+        })
+        .expect("mekso has a math literal");
+    let mut object = input.graph.objects[&math].clone();
+    object.update_math_expression(|node| {
+        let literal = match node.kind.as_data() {
+            data!(jbotci_semantics::model::MathExpressionNodeKind::Literal { literal, .. }) => {
+                literal.clone()
+            }
+            _ => return node,
+        };
+        node.with_data(data! {
+            kind: new!(jbotci_semantics::model::MathExpressionNodeKind::Literal {
+                literal,
+                denotes: Some(denotation),
+            })
+        })
+    });
+    let graph = replace_object(input.graph.clone(), math, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert!(contains_field(&datum, "Denotes"));
+
+    let input = build_input("ti mo zdani", "question-role");
+    let question = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| object.as_question().map(|_| *id))
+        .expect("relation question has a Question object");
+    let mut object = input.graph.objects[&question].clone();
+    object.update_question(|node| {
+        let parameter = node.slots[0].parameter().expect("relation slot parameter");
+        node.with_data(data! {
+            slots: vec![QuestionSlot::homogeneous(
+                parameter,
+                QuestionSlotRole::RespectiveSlot,
+            )]
+        })
+    });
+    let graph = replace_object(input.graph.clone(), question, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+
+    let input = build_input("ti mo zdani", "parameter-subscript");
+    let parameter = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_parameter()
+                .is_some_and(|node| node.introduced_by == "mo")
+                .then_some(*id)
+        })
+        .expect("relation question has a mo parameter");
+    let math = SemanticObjectId::math_expression(10_000);
+    let graph = insert_object(
+        input.graph.clone(),
+        math,
+        SemanticObject::math_expression(
+            None,
+            Vec::new(),
+            Some(MathLiteral::integer(1)),
+            None,
+            Vec::new(),
+        ),
+    );
+    let mut object = graph.objects[&parameter].clone();
+    object.update_parameter(|node| {
+        node.with_data(data! {
+            subscript: Some(Subscript::new(math, "xi".to_owned(), None))
+        })
+    });
+    let graph = replace_object(graph, parameter, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    assert!(contains_field(&datum, "Subscript"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn binder_and_projection_recognizers_require_complete_typed_shapes() {
+    let input = build_input("ro mlatu cu jbena", "quantifier-domain-import");
+    let ordinary = validate_render(&input.graph, &render_smusni(&input.graph));
+    assert_eq!(count_forms(&ordinary, "Import"), 1);
+    let variable = input
+        .graph
+        .objects
+        .values()
+        .find_map(|object| {
+            let formula = object.as_formula()?;
+            match formula.as_data() {
+                data!(jbotci_semantics::model::FormulaNode::Quantified(node)) => {
+                    Some(node.variable)
+                }
+                _ => None,
+            }
+        })
+        .expect("ordinary universal has a bound variable");
+    let mut object = input.graph.objects[&variable].clone();
+    object.update_referent(|node| {
+        node.with_data(data! {
+            category: ReferentCategory::Constant,
+            scope_dependence: Some(ScopeDependence::fixed()),
+        })
+    });
+    let graph = replace_object(input.graph.clone(), variable, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    assert!(contains_field(&datum, "Category"));
+
+    let input = build_input("ti mo zdani", "question-parameter-fields");
+    let parameter = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_parameter()
+                .is_some_and(|node| node.introduced_by == "mo")
+                .then_some(*id)
+        })
+        .expect("relation question has a mo parameter");
+    for (name, update) in [
+        (
+            "IntroducedBy",
+            Box::new(|node: jbotci_semantics::model::ParameterNode| {
+                node.with_data(data! { introduced_by: "mutated".to_owned() })
+            })
+                as Box<
+                    dyn FnOnce(
+                        jbotci_semantics::model::ParameterNode,
+                    ) -> jbotci_semantics::model::ParameterNode,
+                >,
+        ),
+        (
+            "Role",
+            Box::new(|node: jbotci_semantics::model::ParameterNode| {
+                node.with_data(data! { role: ParameterRole::RelationVariable })
+            }),
+        ),
+    ] {
+        let mut object = input.graph.objects[&parameter].clone();
+        object.update_parameter(update);
+        let graph = replace_object(input.graph.clone(), parameter, object);
+        let datum = validate_render(&graph, &render_smusni(&graph));
+        assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+        assert!(contains_field(&datum, name));
+    }
+
+    let input = build_input(
+        "la .djan. fa'u la .frank. cusku nu'i fa'ugi bau la .lojban. nu'u gi bai tu'a la .djordj.",
+        "respectively-parameter-fields",
+    );
+    let parameter = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_parameter()
+                .is_some_and(|node| node.introduced_by == "fa'u")
+                .then_some(*id)
+        })
+        .expect("respectively distribution has a fa'u slot");
+    let mut object = input.graph.objects[&parameter].clone();
+    object.update_parameter(|node| node.with_data(data! { introduced_by: "mutated".to_owned() }));
+    let graph = replace_object(input.graph.clone(), parameter, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    assert!(contains_field(&datum, "IntroducedBy"));
+
+    let input = build_input(
+        "la djeimyz. fa'u la djordj. prami la meris. fa'u la martas.",
+        "composition-fields",
+    );
+    let composition = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_referent()
+                .is_some_and(|node| node.composition.is_some())
+                .then_some(*id)
+        })
+        .expect("respectively values have a composition referent");
+    let mut object = input.graph.objects[&composition].clone();
+    object.update_referent(|node| {
+        let composition = node
+            .composition
+            .clone()
+            .expect("selected referent has composition")
+            .with_data(data! { collective: Some(true) });
+        node.with_data(data! { composition: Some(composition) })
+    });
+    let graph = replace_object(input.graph.clone(), composition, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert!(contains_field(&datum, "Collective"));
+
+    let input = build_input("lo mlatu cu jbena", "description-fields");
+    let description = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_referent()
+                .is_some_and(|node| {
+                    node.descriptor
+                        .as_ref()
+                        .is_some_and(|descriptor| descriptor.word == "lo")
+                })
+                .then_some(*id)
+        })
+        .expect("description witness has lo referent");
+    let mut object = input.graph.objects[&description].clone();
+    object.update_referent(|node| {
+        let descriptor = node
+            .descriptor
+            .clone()
+            .expect("lo has a descriptor")
+            .with_data(data! { name: Some("mutated".to_owned()) });
+        node.with_data(data! { descriptor: Some(descriptor) })
+    });
+    let graph = replace_object(input.graph.clone(), description, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert!(contains_field(&datum, "Name"));
+
+    let input = build_input("mi pu klama", "eventuality-indexicals");
+    let now = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_eventuality()
+                .is_some_and(|node| node.indexical == Some(IndexicalKind::Now))
+                .then_some(*id)
+        })
+        .expect("tense witness has an eventuality-valued Now");
+    for kind in [
+        IndexicalKind::Speaker,
+        IndexicalKind::Audience,
+        IndexicalKind::Here,
+    ] {
+        let mut object = input.graph.objects[&now].clone();
+        object.update_eventuality(|node| node.with_data(data! { indexical: Some(kind) }));
+        let graph = replace_object(input.graph.clone(), now, object);
+        let datum = validate_render(&graph, &render_smusni(&graph));
+        assert_compact_family_or_typed_graph(&datum, "Object", "cross-sort eventuality indexical");
+        assert!(contains_field(&datum, "Indexical"));
+    }
+
+    let input = build_input("mi klama", "referent-now-indexical");
+    let speaker = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_referent()
+                .is_some_and(|node| node.indexical == Some(IndexicalKind::Speaker))
+                .then_some(*id)
+        })
+        .expect("utterance has an entity-valued Speaker");
+    let mut object = input.graph.objects[&speaker].clone();
+    object.update_referent(|node| node.with_data(data! { indexical: Some(IndexicalKind::Now) }));
+    let graph = replace_object(input.graph.clone(), speaker, object);
+    let datum = validate_render(&graph, &render_smusni(&graph));
+    assert_compact_family_or_typed_graph(&datum, "Object", "cross-sort referent indexical");
+    assert!(contains_field(&datum, "Indexical"));
 }
 
 #[test]

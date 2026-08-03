@@ -1021,7 +1021,7 @@ fn structural_datum(
             variant,
             value,
         }) => {
-            let mut arguments = vec![Datum::atom(type_name), Datum::atom(variant)];
+            let mut arguments = vec![Datum::atom(type_name), Datum::atom(pascal_case(variant))];
             arguments.extend(value.map(|value| structural_datum(*value, variables, provenance)));
             Datum::form("Variant", arguments)
         }
@@ -1102,6 +1102,21 @@ mod tests {
     fn pascal_case_is_a_fixed_name_conversion() {
         assert_eq!(pascal_case("scopeDependence"), "ScopeDependence");
         assert_eq!(pascal_case("source_words"), "SourceWords");
+        assert_eq!(pascal_case("veridicalDescription"), "VeridicalDescription");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn structural_enum_variants_use_the_intrinsic_namespace() {
+        let value = typed_value_datum(
+            &crate::model::PredicationMode::Asserted,
+            ProvenanceDisposition::Suppress,
+            &BTreeMap::new(),
+        );
+        let items = value.as_list().expect("variant is a typed form");
+        assert_eq!(items[0].as_atom(), Some("Variant"));
+        assert_eq!(items[2].as_atom(), Some("Asserted"));
     }
 
     #[test]

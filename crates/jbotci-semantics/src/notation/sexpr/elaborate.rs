@@ -8,7 +8,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_ensures, invariant, requires};
+use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 
 use super::datum::{Atom, Datum};
 use super::planner::ReferencePlan;
@@ -18,12 +18,12 @@ use crate::model::{
     DeicticProximity, DescriptorKind, DiagnosticSeverity, ElidedConnectionOperand,
     EventualityDenotationData, EventualityNode, EventualitySort, FormulaNodeData, FormulaOperator,
     IndexicalKind, MathExpressionNodeKindData, MathOperatorData, OrdinalLabel, OrdinalLabelLevel,
-    ParagraphTransition, PlaceIndex, PredicationMode, PredicationNode, PredicationRelationData,
-    QuantityForm, QuantityNode, QuantityScale, QuestionKind, QuestionMode, ReferentCategory,
-    ReferentNode, RelativeClause, RelativeClauseKind, ScopeDependenceData, SemanticDiagnostic,
-    SemanticGraph, SemanticObjectData, SemanticObjectId, SemanticSort, SequenceNode,
-    SequenceRelation, SignKind, SignNode, UtteranceForce, UtteranceNode,
-    semantic_scope_dependence_binder_universes,
+    ParagraphTransition, ParameterRole, PlaceIndex, PredicationMode, PredicationNode,
+    PredicationRelationData, QuantityForm, QuantityNode, QuantityScale, QuestionKind, QuestionMode,
+    QuestionSlotData, QuestionSlotRole, ReferentCategory, ReferentNode, RelationLabelData,
+    RelativeClause, RelativeClauseKind, ScopeDependenceData, SemanticDiagnostic, SemanticGraph,
+    SemanticObjectData, SemanticObjectId, SemanticSort, SequenceNode, SequenceRelation, SignKind,
+    SignNode, UtteranceForce, UtteranceNode, semantic_scope_dependence_binder_universes,
 };
 
 /// Mutable counters kept separate from semantic rendering decisions.
@@ -33,6 +33,7 @@ struct ElaborationCounters {
     compact_objects: Cell<usize>,
     object_fallbacks: Cell<usize>,
     fallback_reasons: RefCell<BTreeMap<&'static str, usize>>,
+    requires_typed_graph: Cell<bool>,
 }
 
 /// Predicate term plus its ordered application operands. Keeping the head
@@ -43,6 +44,31 @@ struct ElaborationCounters {
 struct PredicateApplication {
     head: Datum,
     operands: Vec<Datum>,
+}
+
+/// Description constructors whose graph encodings are inverted into lexical
+/// binders by one shared recognition proof.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DescriptionConstructor {
+    Lo,
+    Le,
+}
+
+/// Complete result of exact descriptor recognition. Planning and rendering
+/// consume this same value so support is never projected before the renderer
+/// has proved the corresponding compact constructor.
+#[invariant(::Property { property, .. } => !property.is_empty())]
+#[invariant(::Name { name } => !name.is_empty())]
+#[derive(Debug, Clone, Copy)]
+enum DescriptionRecognition<'a> {
+    Property {
+        constructor: DescriptionConstructor,
+        property: &'a str,
+    },
+    Name {
+        name: &'a str,
+    },
 }
 
 impl PredicateApplication {
@@ -67,12 +93,13 @@ impl PredicateApplication {
 /// Result of one compact elaboration pass.
 #[invariant(true)]
 #[derive(Debug, Clone)]
-pub struct CompactElaboration {
-    pub body: Datum,
-    pub warnings: Vec<Datum>,
-    pub compact_objects: usize,
-    pub object_fallbacks: usize,
-    pub fallback_reasons: BTreeMap<&'static str, usize>,
+pub(super) struct CompactElaboration {
+    pub(super) body: Datum,
+    pub(super) warnings: Vec<Datum>,
+    pub(super) compact_objects: usize,
+    pub(super) object_fallbacks: usize,
+    pub(super) fallback_reasons: BTreeMap<&'static str, usize>,
+    pub(super) requires_typed_graph: bool,
 }
 
 /// Read-only elaborator over a validated semantic graph.
@@ -86,6 +113,7 @@ struct Elaborator<'a> {
     needed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     placed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     represented_diagnostics: RefCell<BTreeSet<SemanticObjectId>>,
+    absorbed_eventualities: RefCell<BTreeSet<SemanticObjectId>>,
     counters: ElaborationCounters,
 }
 
@@ -94,15 +122,21 @@ struct Elaborator<'a> {
 #[requires(graph.objects.contains_key(&graph.root))]
 #[requires(plan.compact_is_eligible())]
 #[ensures(true)]
-pub fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> CompactElaboration {
-    let (projected_description_support, description_values) =
+pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> CompactElaboration {
+    let (mut projected_description_support, mut description_values) =
         projected_description_objects(graph, plan);
+    let (event_support, described_events) = projected_described_event_objects(graph, plan);
+    projected_description_support.extend(event_support);
+    description_values.extend(described_events);
     let definitions = graph
         .objects
         .iter()
         .filter_map(|(id, object)| {
             if plan.binder_owner(*id).is_some()
                 || is_conventional_atom(object)
+                || object
+                    .as_referent()
+                    .is_some_and(|node| exact_deictic(node, graph).is_some())
                 || projected_description_support.contains(id)
             {
                 return None;
@@ -133,6 +167,7 @@ pub fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> Compact
         needed_definitions: RefCell::new(BTreeSet::new()),
         placed_definitions: RefCell::new(BTreeSet::new()),
         represented_diagnostics: RefCell::new(BTreeSet::new()),
+        absorbed_eventualities: RefCell::new(BTreeSet::new()),
         counters: ElaborationCounters::default(),
     };
     let body = elaborator.render_with_definitions();
@@ -143,6 +178,7 @@ pub fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> Compact
         compact_objects: elaborator.counters.compact_objects.get(),
         object_fallbacks: elaborator.counters.object_fallbacks.get(),
         fallback_reasons: elaborator.counters.fallback_reasons.into_inner(),
+        requires_typed_graph: elaborator.counters.requires_typed_graph.get(),
     }
 }
 
@@ -186,11 +222,7 @@ impl Elaborator<'_> {
             let value = self.render_object(id, bound, active, None);
             Datum::list([
                 variable_datum(id),
-                sort_datum(
-                    self.graph.objects[&id]
-                        .sort()
-                        .unwrap_or(SemanticSort::AbstractNature),
-                ),
+                definition_type_datum(&self.graph.objects[&id]),
                 value,
             ])
         });
@@ -417,6 +449,20 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
         reason: &'static str,
     ) -> Datum {
+        if self.plan.is_cyclic(id)
+            || self
+                .object_references(id)
+                .into_iter()
+                .any(|reference| self.plan.binder_owner(reference) == Some(id))
+        {
+            self.counters.requires_typed_graph.set(true);
+            *self
+                .counters
+                .fallback_reasons
+                .borrow_mut()
+                .entry("unrepresentable-local-binder")
+                .or_default() += 1;
+        }
         self.counters
             .object_fallbacks
             .set(self.counters.object_fallbacks.get() + 1);
@@ -681,7 +727,13 @@ impl Elaborator<'_> {
                 [Datum::atom(operand)],
             ));
         }
-        let sequence = self.bind_generated_events(id, &generated, Datum::form("Sequence", fields));
+        let sequence = self.bind_generated_events(
+            id,
+            &generated,
+            Datum::form("Sequence", fields),
+            &scoped,
+            active,
+        );
         let sequence = match node.force {
             Some(UtteranceForce::Subordinated) => Datum::form("Subordinated", [sequence]),
             None => sequence,
@@ -743,7 +795,7 @@ impl Elaborator<'_> {
                 let mut scoped = bound.clone();
                 scoped.extend(generated.iter().copied());
                 let body = self.render_id(node.predication, &scoped, active, expected_mode);
-                self.recognized(self.bind_generated_events(id, &generated, body))
+                self.recognized(self.bind_generated_events(id, &generated, body, &scoped, active))
             }
             data!(FormulaNode::Connective(node)) => {
                 if let Some(value) =
@@ -771,9 +823,13 @@ impl Elaborator<'_> {
                         .into_iter()
                         .map(|child| self.render_id(child, &scoped, active, expected_mode)),
                 );
-                self.recognized(self.bind_generated_events(id, &generated, value))
+                self.recognized(self.bind_generated_events(id, &generated, value, &scoped, active))
             }
             data!(FormulaNode::Quantified(node)) => {
+                let Some(variable_sort) = exact_plain_bound_variable(self.graph, node.variable)
+                else {
+                    return self.fallback_object(id, bound, active, "quantifier-variable-fields");
+                };
                 let mut scoped = bound.clone();
                 scoped.insert(node.variable);
                 scoped.extend(
@@ -781,20 +837,18 @@ impl Elaborator<'_> {
                         .iter()
                         .map(|event| event.object_id()),
                 );
-                let binding = Datum::list([
-                    variable_datum(node.variable),
-                    sort_datum(
-                        self.graph.objects[&node.variable]
-                            .sort()
-                            .unwrap_or(SemanticSort::Entity),
-                    ),
-                ]);
+                let binding =
+                    Datum::list([variable_datum(node.variable), sort_datum(variable_sort)]);
                 let restriction = node.restriction.map(|restriction| {
-                    self.render_id(
+                    let content = self.render_id(
                         restriction,
                         &scoped,
                         active,
                         Some(PredicationMode::Restrictive),
+                    );
+                    quantified_restriction_datum(
+                        content,
+                        self.graph.objects[&id].formula_domain_import(),
                     )
                 });
                 let body = self.render_id(node.body, &scoped, active, expected_mode);
@@ -809,10 +863,8 @@ impl Elaborator<'_> {
                                 .chain(restriction)
                                 .chain([body]),
                         )
-                    } else if matches!(
-                        node.operator,
-                        FormulaOperator::Exists | FormulaOperator::PluralExists
-                    ) && node.quantity.is_none()
+                    } else if node.operator == FormulaOperator::Exists
+                        && node.quantity.is_none()
                         && node.source_variable.is_none()
                         && node.selection_source.is_none()
                     {
@@ -846,9 +898,19 @@ impl Elaborator<'_> {
                     .iter()
                     .map(|event| event.object_id())
                     .collect::<Vec<_>>();
-                self.recognized(self.bind_generated_events(id, &generated, quantified))
+                self.recognized(
+                    self.bind_generated_events(id, &generated, quantified, &scoped, active),
+                )
             }
             data!(FormulaNode::QuantifierBundle(node)) => {
+                let Some(variable_sorts) = node
+                    .bindings
+                    .iter()
+                    .map(|binding| exact_plain_bound_variable(self.graph, binding.variable))
+                    .collect::<Option<Vec<_>>>()
+                else {
+                    return self.fallback_object(id, bound, active, "quantifier-variable-fields");
+                };
                 let mut scoped = bound.clone();
                 scoped.extend(node.bindings.iter().map(|binding| binding.variable));
                 scoped.extend(
@@ -859,7 +921,8 @@ impl Elaborator<'_> {
                 let specs = node
                     .bindings
                     .iter()
-                    .map(|binding| {
+                    .zip(variable_sorts)
+                    .map(|(binding, variable_sort)| {
                         let operator = quantifier_operator_datum(
                             self.graph,
                             binding.operator,
@@ -870,22 +933,25 @@ impl Elaborator<'_> {
                         );
                         let mut fields = vec![
                             variable_datum(binding.variable),
-                            sort_datum(
-                                self.graph.objects[&binding.variable]
-                                    .sort()
-                                    .unwrap_or(SemanticSort::Entity),
-                            ),
+                            sort_datum(variable_sort),
                             operator,
                         ];
                         if let Some(restriction) = binding.restriction {
                             fields.push(Datum::form(
                                 "Restrict",
-                                [self.render_id(
+                                std::iter::once(self.render_id(
                                     restriction,
                                     &scoped,
                                     active,
                                     Some(PredicationMode::Restrictive),
-                                )],
+                                ))
+                                .chain(
+                                    matches!(
+                                        binding.operator,
+                                        FormulaOperator::Forall | FormulaOperator::PluralForall
+                                    )
+                                    .then_some(Datum::form("Import", [Datum::atom("Projective")])),
+                                ),
                             ));
                         }
                         if let Some(source) = binding.source_variable {
@@ -911,9 +977,23 @@ impl Elaborator<'_> {
                     .iter()
                     .map(|event| event.object_id())
                     .collect::<Vec<_>>();
-                self.recognized(self.bind_generated_events(id, &generated, value))
+                self.recognized(self.bind_generated_events(id, &generated, value, &scoped, active))
             }
             data!(FormulaNode::RespectivelyDistribution(node)) => {
+                if node.streams.iter().any(|stream| {
+                    let sort = self.graph.objects[&stream.slot]
+                        .sort()
+                        .unwrap_or(SemanticSort::Entity);
+                    !exact_parameter(
+                        self.graph,
+                        stream.slot,
+                        sort,
+                        ParameterRole::RespectiveSlot,
+                        "fa'u",
+                    )
+                }) {
+                    return self.fallback_object(id, bound, active, "respectively-slot-fields");
+                }
                 let mut scoped = bound.clone();
                 scoped.extend(node.streams.iter().map(|stream| stream.slot));
                 scoped.extend(
@@ -993,7 +1073,7 @@ impl Elaborator<'_> {
                     .iter()
                     .map(|event| event.object_id())
                     .collect::<Vec<_>>();
-                self.recognized(self.bind_generated_events(id, &generated, value))
+                self.recognized(self.bind_generated_events(id, &generated, value, &scoped, active))
             }
         }
     }
@@ -1047,6 +1127,7 @@ impl Elaborator<'_> {
             || link.reciprocity.len() > 0
             || link.scalar_negation.is_some()
             || link.relation_metadata.is_some()
+            || link.introduced_by.is_some()
             || link.arguments.len() != 2
             || link.mode != head.mode
         {
@@ -1078,6 +1159,15 @@ impl Elaborator<'_> {
         }
         let modifier_formula = modifier.body?;
         let modifier_parameter = modifier.parameters[0];
+        if !exact_parameter(
+            self.graph,
+            modifier_parameter,
+            SemanticSort::Entity,
+            ParameterRole::PropertySlot,
+            "ce'u",
+        ) {
+            return None;
+        }
         let (modifier_relation, modifier_predication, modifier_event) =
             recognize_tanru_modifier_property(
                 self.graph,
@@ -1085,6 +1175,13 @@ impl Elaborator<'_> {
                 modifier_formula,
                 modifier_parameter,
             )?;
+        let expected_label = format!("{modifier_relation}-{head_relation}");
+        if !matches!(
+            tanru.relation_label.as_data(),
+            data!(RelationLabel::Constructed { text }) if text == &expected_label
+        ) {
+            return None;
+        }
 
         let support = BTreeSet::from([
             head_formula,
@@ -1125,7 +1222,7 @@ impl Elaborator<'_> {
             head.eventuality,
         )?;
         for adjunct in &head.adjuncts {
-            application.push(self.render_modal(adjunct, bound, active));
+            application.push(self.render_modal(adjunct, bound, active)?);
         }
         let mut value = application.into_datum();
         if expected_mode != Some(head.mode) {
@@ -1139,7 +1236,7 @@ impl Elaborator<'_> {
             .iter()
             .map(|event| event.object_id())
             .collect::<Vec<_>>();
-        Some(self.bind_generated_events(id, &generated, value))
+        Some(self.bind_generated_events(id, &generated, value, bound, active))
     }
 
     /// Add explicit generated-event binders only when sharing or facets make
@@ -1151,6 +1248,8 @@ impl Elaborator<'_> {
         owner: SemanticObjectId,
         generated: &[SemanticObjectId],
         body: Datum,
+        bound: &BTreeSet<SemanticObjectId>,
+        active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
         let visible = generated
             .iter()
@@ -1163,13 +1262,97 @@ impl Elaborator<'_> {
         if visible.is_empty() {
             return body;
         }
+        let mut scoped = bound.clone();
+        scoped.extend(visible.iter().copied());
+        let facets = visible
+            .iter()
+            .flat_map(|event| self.generated_event_facets(*event, &scoped, active))
+            .collect::<Vec<_>>();
+        let body = if facets.is_empty() {
+            body
+        } else {
+            Datum::form("∧", std::iter::once(body).chain(facets))
+        };
         Datum::form(
             "∃",
             [
                 Datum::list(visible.iter().map(|event| {
-                    Datum::list([variable_datum(*event), Datum::atom("Eventuality")])
+                    let sort = self.graph.objects[event]
+                        .as_eventuality()
+                        .map(|node| SemanticSort::Eventuality(node.sort))
+                        .unwrap_or(SemanticSort::eventuality());
+                    Datum::list([variable_datum(*event), sort_datum(sort)])
                 })),
                 body,
+            ],
+        )
+    }
+
+    /// Every non-default generated-event coordinate becomes either a fixed
+    /// exact intrinsic or one complete typed facet payload.
+    #[requires(self.graph.objects.contains_key(&event))]
+    #[ensures(true)]
+    fn generated_event_facets(
+        &self,
+        event: SemanticObjectId,
+        bound: &BTreeSet<SemanticObjectId>,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Vec<Datum> {
+        let Some(node) = self.graph.objects[&event].as_eventuality() else {
+            return vec![self.typed_event_facet(event, bound, active)];
+        };
+        if generated_event_is_default_shape(node) {
+            return Vec::new();
+        }
+        if let Some(time) = exact_generated_event_time_facet(node) {
+            let intrinsic = match time.relation.as_str() {
+                "before" => "Before",
+                "after" => "After",
+                "at" => "AtTime",
+                _ => return vec![self.typed_event_facet(event, bound, active)],
+            };
+            return vec![Datum::form(
+                intrinsic,
+                [
+                    variable_datum(event),
+                    self.render_id(time.anchor, bound, active, None),
+                ],
+            )];
+        }
+        vec![self.typed_event_facet(event, bound, active)]
+    }
+
+    /// Complete local structural payload for a generated event whose facets
+    /// do not match one fixed intrinsic rule.
+    #[requires(self.graph.objects.contains_key(&event))]
+    #[ensures(matches!(ret, Datum::List(_)))]
+    fn typed_event_facet(
+        &self,
+        event: SemanticObjectId,
+        bound: &BTreeSet<SemanticObjectId>,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Datum {
+        self.counters
+            .object_fallbacks
+            .set(self.counters.object_fallbacks.get() + 1);
+        *self
+            .counters
+            .fallback_reasons
+            .borrow_mut()
+            .entry("eventuality-facets")
+            .or_default() += 1;
+        let object = &self.graph.objects[&event];
+        let references = self.fallback_reference_map(event, bound, active);
+        Datum::form(
+            "Facet",
+            [
+                variable_datum(event),
+                object_datum_with_variables(
+                    object.object_kind(),
+                    object,
+                    ProvenanceDisposition::Suppress,
+                    &references,
+                ),
             ],
         )
     }
@@ -1191,6 +1374,7 @@ impl Elaborator<'_> {
             || !node.reciprocity.is_empty()
             || node.scalar_negation.is_some()
             || node.relation_metadata.is_some()
+            || node.introduced_by.is_some()
         {
             return self.fallback_object(id, bound, active, "predication-side-fields");
         }
@@ -1219,7 +1403,10 @@ impl Elaborator<'_> {
             return self.fallback_object(id, bound, active, "argument-fields");
         };
         for adjunct in &node.adjuncts {
-            application.push(self.render_modal(adjunct, bound, active));
+            let Some(modal) = self.render_modal(adjunct, bound, active) else {
+                return self.fallback_object(id, bound, active, "adjunct-fields");
+            };
+            application.push(modal);
         }
         let mut term = application.into_datum();
         if expected_mode != Some(node.mode) {
@@ -1259,6 +1446,9 @@ impl Elaborator<'_> {
         };
         for (place, argument) in arguments {
             if argument.kind == ArgumentValueKind::Deleted {
+                if argument.introduced_by.as_deref() != Some("zi'o") {
+                    return None;
+                }
                 continue;
             }
             while deleted.contains(&PlaceIndex::new(next)) {
@@ -1267,6 +1457,8 @@ impl Elaborator<'_> {
             if argument.quantity.is_some()
                 || !argument.relative_clauses.is_empty()
                 || argument.command_target.is_some()
+                || (argument.kind == ArgumentValueKind::Elided
+                    && argument.introduced_by.as_deref() != Some("zo'e"))
             {
                 return None;
             }
@@ -1287,9 +1479,10 @@ impl Elaborator<'_> {
         }
         if let Some(eventuality) = eventuality {
             let owner = self.plan.binder_owner(eventuality);
-            let silent = owner.is_some_and(|owner| {
-                generated_event_is_default(self.graph, self.plan, owner, eventuality)
-            });
+            let silent = self.absorbed_eventualities.borrow().contains(&eventuality)
+                || owner.is_some_and(|owner| {
+                    generated_event_is_default(self.graph, self.plan, owner, eventuality)
+                });
             if !silent {
                 application.push(Datum::form(
                     "At",
@@ -1320,13 +1513,27 @@ impl Elaborator<'_> {
         {
             return false;
         }
+        self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
+    }
+
+    /// Whether a stored dependence policy is exactly the default at this
+    /// represented lexical site. `Fixed` is default only with no accessible
+    /// binder; otherwise the complete derived binder universe must be named.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn scope_dependence_is_default(
+        &self,
+        id: SemanticObjectId,
+        dependence: Option<&crate::model::ScopeDependence>,
+        bound: &BTreeSet<SemanticObjectId>,
+    ) -> bool {
         let Some(universe) = self.binder_universes.get(&id) else {
             return false;
         };
         if !universe.iter().all(|binder| bound.contains(binder)) {
             return false;
         }
-        match node.scope_dependence.as_ref().map(|value| value.as_data()) {
+        match dependence.map(|value| value.as_data()) {
             Some(data!(ScopeDependence::Fixed)) => universe.is_empty(),
             Some(data!(ScopeDependence::Underspecified { may_depend_on })) => {
                 may_depend_on == universe
@@ -1344,7 +1551,7 @@ impl Elaborator<'_> {
         adjunct: &Adjunct,
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
-    ) -> Datum {
+    ) -> Option<Datum> {
         if adjunct.component.is_none()
             && adjunct.negation.is_none()
             && adjunct.scalar_negation.is_none()
@@ -1360,27 +1567,20 @@ impl Elaborator<'_> {
                         true,
                         None,
                     ) {
-                        return Datum::form("Modal", [application.into_datum()]);
+                        return Some(Datum::form("Modal", [application.into_datum()]));
                     }
                 }
             } else if let Some(body) = adjunct.body {
-                return Datum::form(
+                return Some(Datum::form(
                     "Modal",
                     [Datum::form(
                         "Body",
                         [self.render_id(body, bound, active, None)],
                     )],
-                );
+                ));
             }
         }
-        Datum::form(
-            "Modal",
-            [typed_value_datum(
-                adjunct,
-                ProvenanceDisposition::Suppress,
-                &self.variable_map(bound),
-            )],
-        )
+        None
     }
 
     /// Render reference constructors, indexicals, composition, abstractions,
@@ -1400,23 +1600,19 @@ impl Elaborator<'_> {
         if let Some(proximity) = exact_deictic(node, self.graph) {
             return self.recognized(Datum::atom(proximity));
         }
-        if let Some(abstraction) = self.render_described_referent_abstraction(node, bound, active) {
+        if let Some(abstraction) =
+            self.render_described_referent_abstraction(id, node, bound, active)
+        {
             return self.recognized(abstraction);
         }
         if let Some(description) = self.render_description(id, node, bound, active) {
             return self.recognized(description);
         }
-        if let Some(abstraction) = self.render_referent_abstraction(node, bound, active) {
+        if let Some(abstraction) = self.render_referent_abstraction(id, node, bound, active) {
             return self.recognized(abstraction);
         }
         if let Some(composition) = &node.composition {
             if referent_except_composition_is_default(node) {
-                let operator = composition_operator_name(composition.operator);
-                let mut arguments = composition
-                    .members
-                    .iter()
-                    .map(|member| self.render_id(*member, bound, active, None))
-                    .collect::<Vec<_>>();
                 if !composition.excluded_members.is_empty()
                     || composition.collective.is_some()
                     || composition.scalar_negated.is_some()
@@ -1424,31 +1620,45 @@ impl Elaborator<'_> {
                     || composition.endpoint_inclusion.is_some()
                     || composition.operator_parameter.is_some()
                 {
-                    arguments.push(typed_value_datum(
-                        composition,
-                        ProvenanceDisposition::Suppress,
-                        &self.variable_map(bound),
-                    ));
+                    return self.fallback_object(id, bound, active, "composition-fields");
                 }
+                let operator = composition_operator_name(composition.operator);
+                let arguments = composition
+                    .members
+                    .iter()
+                    .map(|member| self.render_id(*member, bound, active, None))
+                    .collect::<Vec<_>>();
                 return self.recognized(Datum::form(operator, arguments));
             }
         }
         if default_elided_shape(node) {
-            let context = match node.scope_dependence.as_ref().map(|value| value.as_data()) {
-                Some(data!(ScopeDependence::Fixed)) => {
-                    Datum::form("Context", [Datum::atom("Fixed")])
-                }
-                Some(data!(ScopeDependence::Underspecified { may_depend_on })) => Datum::form(
-                    "Context",
-                    [Datum::form(
-                        "MayDependOn",
-                        may_depend_on.iter().map(|binder| variable_datum(*binder)),
-                    )],
-                ),
-                None => {
-                    return self.fallback_object(id, bound, active, "constant-without-dependence");
-                }
-            };
+            let context =
+                if self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound) {
+                    Datum::atom("Context")
+                } else {
+                    match node.scope_dependence.as_ref().map(|value| value.as_data()) {
+                        Some(data!(ScopeDependence::Fixed)) => {
+                            Datum::form("Context", [Datum::atom("Fixed")])
+                        }
+                        Some(data!(ScopeDependence::Underspecified { may_depend_on })) => {
+                            Datum::form(
+                                "Context",
+                                [Datum::form(
+                                    "MayDependOn",
+                                    may_depend_on.iter().map(|binder| variable_datum(*binder)),
+                                )],
+                            )
+                        }
+                        None => {
+                            return self.fallback_object(
+                                id,
+                                bound,
+                                active,
+                                "constant-without-dependence",
+                            );
+                        }
+                    }
+                };
             return self.recognized(context);
         }
         self.fallback_object(id, bound, active, "referent-fields")
@@ -1459,6 +1669,7 @@ impl Elaborator<'_> {
     #[ensures(true)]
     fn render_described_referent_abstraction(
         &self,
+        id: SemanticObjectId,
         node: &ReferentNode,
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
@@ -1467,6 +1678,7 @@ impl Elaborator<'_> {
         let kind = node.abstraction_kind?;
         let body = node.body?;
         if !referent_except_described_abstraction_is_default(node)
+            || !self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
             || descriptor.kind != DescriptorKind::VeridicalDescription
             || descriptor.word != "lo"
             || !descriptor.speaker.is_some_and(|speaker| {
@@ -1480,6 +1692,17 @@ impl Elaborator<'_> {
             || descriptor.definiteness.is_some()
             || descriptor.operand.is_some()
             || descriptor.veridical.is_some()
+            || !node.parameters.iter().all(|parameter| {
+                exact_parameter(
+                    self.graph,
+                    *parameter,
+                    self.graph.objects[parameter]
+                        .sort()
+                        .unwrap_or(SemanticSort::Entity),
+                    ParameterRole::PropertySlot,
+                    "ce'u",
+                )
+            })
         {
             return None;
         }
@@ -1532,55 +1755,36 @@ impl Elaborator<'_> {
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Option<Datum> {
-        let descriptor = node.descriptor.as_ref()?;
-        if !referent_except_descriptor_is_default(node) {
-            return None;
-        }
-        let constructor = match (descriptor.kind, descriptor.word.as_str()) {
-            (DescriptorKind::VeridicalDescription, "lo") => "Lo",
-            (DescriptorKind::SpeakerDescription, "le") => "Le",
-            (DescriptorKind::Name, "la") => "La",
-            _ => return None,
+        let scope_default =
+            self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound);
+        let recognition = recognize_description(self.graph, self.plan, id, node, scope_default)?;
+        let (constructor, property) = match recognition.as_data() {
+            data!(DescriptionRecognition::Property {
+                constructor,
+                property,
+            }) => (*constructor, *property),
+            data!(DescriptionRecognition::Name { name }) => {
+                return Some(Datum::form(
+                    "La",
+                    [Datum::form("Named", [Datum::String((*name).to_owned())])],
+                ));
+            }
         };
-        if descriptor.quantity.is_some()
-            || descriptor.scale.is_some()
-            || descriptor.definiteness.is_some()
-            || descriptor.operand.is_some()
-            || descriptor.veridical.is_some()
-        {
-            return None;
-        }
-        if constructor == "La" {
-            let name = descriptor.name.as_ref()?;
-            if descriptor.body.is_some()
-                || !descriptor.relative_clauses.is_empty()
-                || descriptor.speaker.is_some()
-            {
-                return None;
-            }
-            return Some(Datum::form(
-                "La",
-                [Datum::form("Named", [Datum::String(name.clone())])],
-            ));
-        }
-
-        let body = descriptor.body?;
-        let property = if constructor == "Lo" {
-            recognize_direct_description_property(self.graph, body, id)?
-        } else {
-            let speaker = descriptor.speaker?;
-            if !object_is_indexical(self.graph, speaker, IndexicalKind::Speaker) {
-                return None;
-            }
-            recognize_speaker_description_property(self.graph, body, id)?
+        let descriptor = node
+            .descriptor
+            .as_ref()
+            .expect("recognized property has a descriptor");
+        let constructor_name = match constructor {
+            DescriptionConstructor::Lo => "Lo",
+            DescriptionConstructor::Le => "Le",
         };
         let clauses = descriptor
             .relative_clauses
             .iter()
             .chain(node.relative_clauses.iter())
             .collect::<Vec<_>>();
-        if clauses.is_empty() && constructor == "Lo" {
-            return Some(Datum::form(constructor, [Datum::atom(property)]));
+        if clauses.is_empty() && constructor == DescriptionConstructor::Lo {
+            return Some(Datum::form(constructor_name, [Datum::atom(property)]));
         }
 
         let mut scoped = bound.clone();
@@ -1593,7 +1797,7 @@ impl Elaborator<'_> {
                 .into_iter()
                 .map(|clause| self.render_relative(clause, &scoped, active)),
         );
-        Some(Datum::form(constructor, arguments))
+        Some(Datum::form(constructor_name, arguments))
     }
 
     /// Preserve a relative clause's attachment, kind, and veridicality.
@@ -1633,13 +1837,27 @@ impl Elaborator<'_> {
     #[ensures(true)]
     fn render_referent_abstraction(
         &self,
+        id: SemanticObjectId,
         node: &ReferentNode,
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Option<Datum> {
         let kind = node.abstraction_kind?;
         let body = node.body?;
-        if !referent_except_abstraction_is_default(node) {
+        if !referent_except_abstraction_is_default(node)
+            || !self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
+            || !node.parameters.iter().all(|parameter| {
+                exact_parameter(
+                    self.graph,
+                    *parameter,
+                    self.graph.objects[parameter]
+                        .sort()
+                        .unwrap_or(SemanticSort::Entity),
+                    ParameterRole::PropertySlot,
+                    "ce'u",
+                )
+            })
+        {
             return None;
         }
         let mut scoped = bound.clone();
@@ -1688,8 +1906,8 @@ impl Elaborator<'_> {
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
-        if exact_eventuality_indexical(node) == Some(IndexicalKind::Now) {
-            return self.recognized(Datum::atom("Now"));
+        if let Some(indexical) = exact_eventuality_indexical(node) {
+            return self.recognized(Datum::atom(indexical_name(indexical)));
         }
         if node.denotation.is_generated_bound() {
             return if bound.contains(&id) {
@@ -1698,15 +1916,125 @@ impl Elaborator<'_> {
                 self.fallback_object(id, bound, active, "unbound-generated-event")
             };
         }
+        if let Some(value) = self.render_described_eventuality(id, node, bound, active) {
+            return self.recognized(value);
+        }
         if let (Some(kind), Some(body)) = (node.abstraction_kind, node.body) {
-            if eventuality_except_abstraction_is_default(node) {
+            if eventuality_except_abstraction_is_default(node)
+                && self.scope_dependence_is_default(id, node.denotation.scope_dependence(), bound)
+                && node.parameters.iter().all(|parameter| {
+                    exact_parameter(
+                        self.graph,
+                        *parameter,
+                        self.graph.objects[parameter]
+                            .sort()
+                            .unwrap_or(SemanticSort::Entity),
+                        ParameterRole::PropertySlot,
+                        "ce'u",
+                    )
+                })
+            {
                 let mut scoped = bound.clone();
                 scoped.extend(node.parameters.iter().copied());
                 let content = self.render_id(body, &scoped, active, Some(PredicationMode::Inert));
+                let content = if node.parameters.is_empty() {
+                    content
+                } else {
+                    Datum::form(
+                        "λ",
+                        [
+                            Datum::list(node.parameters.iter().map(|parameter| {
+                                Datum::list([
+                                    variable_datum(*parameter),
+                                    sort_datum(
+                                        self.graph.objects[parameter]
+                                            .sort()
+                                            .unwrap_or(SemanticSort::Entity),
+                                    ),
+                                ])
+                            })),
+                            content,
+                        ],
+                    )
+                };
                 return self.recognized(Datum::form(abstraction_name(kind), [content]));
             }
         }
         self.fallback_object(id, bound, active, "eventuality-facets")
+    }
+
+    /// Exact current-model encoding of `lo` plus an eventuality abstraction.
+    /// A sole simple time anchor is retained as an intrinsic property of the
+    /// explicitly bound described event; every richer facet shape declines to
+    /// the complete local object fallback.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn render_described_eventuality(
+        &self,
+        id: SemanticObjectId,
+        node: &EventualityNode,
+        bound: &BTreeSet<SemanticObjectId>,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Option<Datum> {
+        let descriptor = node.descriptor.as_ref()?;
+        let kind = node.abstraction_kind?;
+        let content_id = node.content?;
+        if !described_eventuality_base_is_exact(node, descriptor, kind)
+            || !self.scope_dependence_is_default(id, node.denotation.scope_dependence(), bound)
+            || !descriptor.speaker.is_some_and(|speaker| {
+                object_is_indexical(self.graph, speaker, IndexicalKind::Speaker)
+            })
+        {
+            return None;
+        }
+
+        let time = if node.time.is_some() {
+            Some(exact_described_event_time_facet(node)?)
+        } else {
+            None
+        };
+        let explicit = time.is_some();
+        let mut scoped = bound.clone();
+        if explicit {
+            scoped.insert(id);
+        }
+        assert!(
+            self.absorbed_eventualities.borrow_mut().insert(id),
+            "described-event absorption is not recursively re-entered"
+        );
+        let content = self.render_id(content_id, &scoped, active, Some(PredicationMode::Inert));
+        self.absorbed_eventualities.borrow_mut().remove(&id);
+
+        if let Some(time) = time {
+            let intrinsic = match time.relation.as_str() {
+                "before" => "Before",
+                "after" => "After",
+                "at" => "AtTime",
+                _ => return None,
+            };
+            let binder = Datum::list([
+                variable_datum(id),
+                sort_datum(SemanticSort::Eventuality(node.sort)),
+            ]);
+            return Some(Datum::form(
+                "Lo",
+                [
+                    Datum::list([binder]),
+                    Datum::form(abstraction_name(kind), [variable_datum(id), content]),
+                    Datum::form(
+                        intrinsic,
+                        [
+                            variable_datum(id),
+                            self.render_id(time.anchor, &scoped, active, None),
+                        ],
+                    ),
+                ],
+            ));
+        }
+        Some(Datum::form(
+            "Lo",
+            [Datum::form(abstraction_name(kind), [content])],
+        ))
     }
 
     /// Render complete typed questions; use `Ask λ` only under its exact default.
@@ -1719,6 +2047,9 @@ impl Elaborator<'_> {
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
+        if !question_slots_are_exact(self.graph, node) {
+            return self.fallback_object(id, bound, active, "question-slot-fields");
+        }
         let parameters = node
             .slots
             .iter()
@@ -1739,10 +2070,15 @@ impl Elaborator<'_> {
                 body,
             ],
         );
-        let ordinary_slots = node
-            .slots
-            .iter()
-            .all(|slot| slot.kind_and_domain().is_none());
+        let ordinary_slots = node.slots.iter().all(|slot| {
+            matches!(
+                slot.as_data(),
+                data!(QuestionSlot::Homogeneous {
+                    role: QuestionSlotRole::Answer,
+                    ..
+                })
+            )
+        });
         if node.mode == QuestionMode::Direct
             && object_is_indexical(self.graph, node.asker, IndexicalKind::Speaker)
             && object_is_indexical(self.graph, node.respondent, IndexicalKind::Audience)
@@ -1775,18 +2111,6 @@ impl Elaborator<'_> {
                 [self.render_id(answer, &scoped, active, None)],
             ));
         }
-        if !ordinary_slots {
-            arguments.push(Datum::form(
-                "Slots",
-                node.slots.iter().map(|slot| {
-                    typed_value_datum(
-                        slot,
-                        ProvenanceDisposition::Suppress,
-                        &self.variable_map(&scoped),
-                    )
-                }),
-            ));
-        }
         self.recognized(Datum::form("Question", arguments))
     }
 
@@ -1806,7 +2130,9 @@ impl Elaborator<'_> {
                 if node.form == QuantityForm::Exact && node.scale == QuantityScale::Count {
                     return self.recognized(Datum::Signed(i128::from(integer)));
                 }
-                if let Some(form) = numeric_quantity_form(node.form) {
+                if node.scale == QuantityScale::Count
+                    && let Some(form) = numeric_quantity_form(node.form)
+                {
                     return self
                         .recognized(Datum::form(form, [Datum::Signed(i128::from(integer))]));
                 }
@@ -1864,12 +2190,13 @@ impl Elaborator<'_> {
         }
         match node.kind.as_data() {
             data!(MathExpressionNodeKind::Literal { literal, denotes }) => {
-                if denotes.is_none() {
-                    if let data!(crate::model::MathLiteralValue::Integer(value)) =
-                        literal.value.as_data()
-                    {
-                        return self.recognized(Datum::Signed(i128::from(*value)));
-                    }
+                if denotes.is_some() {
+                    return self.fallback_object(id, bound, active, "math-literal-denotes");
+                }
+                if let data!(crate::model::MathLiteralValue::Integer(value)) =
+                    literal.value.as_data()
+                {
+                    return self.recognized(Datum::Signed(i128::from(*value)));
                 }
                 self.recognized(Datum::form(
                     "Math",
@@ -1941,10 +2268,7 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
         if node.category == ReferentCategory::Constant
-            && matches!(
-                node.scope_dependence.as_ref().map(|value| value.as_data()),
-                Some(data!(ScopeDependence::Fixed))
-            )
+            && self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
             && node.sign_kind == Some(SignKind::Quotation)
             && node.text.is_none()
             && node.letterals.is_empty()
@@ -2070,6 +2394,26 @@ fn sort_datum(sort: SemanticSort) -> Datum {
     })
 }
 
+/// Notation-level type of a shared graph value. Formulae and open predicate
+/// terms are not referents, so they must never inherit an unrelated fallback
+/// semantic sort merely because `SemanticObject::sort` is intentionally absent.
+#[requires(true)]
+#[ensures(ret.as_atom().is_some())]
+fn definition_type_datum(object: &crate::model::SemanticObject) -> Datum {
+    Datum::atom(match object.object_kind() {
+        crate::model::SemanticObjectKind::Formula => "Content",
+        crate::model::SemanticObjectKind::Predication => "PredTerm",
+        crate::model::SemanticObjectKind::Utterance => "Utterance",
+        crate::model::SemanticObjectKind::Sequence => "Content",
+        crate::model::SemanticObjectKind::DisplayedContent => "Content",
+        crate::model::SemanticObjectKind::Question => "Question",
+        crate::model::SemanticObjectKind::RelationMetadata => "RelationMetadata",
+        _ => {
+            return sort_datum(object.sort().unwrap_or(SemanticSort::AbstractNature));
+        }
+    })
+}
+
 /// Whether an object is represented losslessly by a declared context atom.
 #[requires(true)]
 #[ensures(true)]
@@ -2091,7 +2435,7 @@ fn is_conventional_atom(object: &crate::model::SemanticObject) -> bool {
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.0.iter().all(|id| graph.objects.contains_key(id)))]
 #[ensures(ret.1.iter().all(|id| graph.objects.contains_key(id)))]
-fn projected_description_objects(
+pub(super) fn projected_description_objects(
     graph: &SemanticGraph,
     plan: &ReferencePlan,
 ) -> (BTreeSet<SemanticObjectId>, BTreeSet<SemanticObjectId>) {
@@ -2101,37 +2445,45 @@ fn projected_description_objects(
         let Some(node) = object.as_referent() else {
             continue;
         };
-        let Some(descriptor) = &node.descriptor else {
+        let scope_default = matches!(
+            node.scope_dependence
+                .as_ref()
+                .map(|dependence| dependence.as_data()),
+            Some(data!(ScopeDependence::Fixed))
+        );
+        let Some(recognition) = recognize_description(graph, plan, *described, node, scope_default)
+        else {
             continue;
         };
-        if !referent_except_descriptor_is_default(node)
-            || descriptor.quantity.is_some()
-            || descriptor.scale.is_some()
-            || descriptor.definiteness.is_some()
-            || descriptor.operand.is_some()
-            || descriptor.veridical.is_some()
-        {
-            continue;
-        }
-        let Some(body) = descriptor.body else {
+        let data!(DescriptionRecognition::Property {
+            constructor,
+            property: _,
+        }) = recognition.as_data()
+        else {
             continue;
         };
+        let descriptor = node
+            .descriptor
+            .as_ref()
+            .expect("recognized property has a descriptor");
+        let body = descriptor
+            .body
+            .expect("recognized property has a descriptor body");
         let mut support = BTreeSet::new();
-        match (descriptor.kind, descriptor.word.as_str()) {
-            (DescriptorKind::VeridicalDescription, "lo")
-                if recognize_direct_description_property(graph, body, *described).is_some() =>
-            {
+        match *constructor {
+            DescriptionConstructor::Lo => {
                 collect_property_support(graph, body, *described, &mut support);
             }
-            (DescriptorKind::SpeakerDescription, "le")
-                if descriptor.speaker.is_some_and(|speaker| {
-                    object_is_indexical(graph, speaker, IndexicalKind::Speaker)
-                }) && recognize_speaker_description_property(graph, body, *described)
-                    .is_some() =>
-            {
+            DescriptionConstructor::Le => {
                 collect_speaker_description_support(graph, body, *described, &mut support);
             }
-            _ => continue,
+        }
+        for clause in descriptor
+            .relative_clauses
+            .iter()
+            .chain(node.relative_clauses.iter())
+        {
+            collect_inline_support(graph, clause.body, *described, &mut support);
         }
         let allowed_sources = support
             .iter()
@@ -2147,6 +2499,82 @@ fn projected_description_objects(
         }
     }
     (projected, descriptions)
+}
+
+/// Current described-event values and the content subgraphs that their exact
+/// `Lo`/abstraction projection renders inline. Internal backedges to the event
+/// are binder uses, not reasons to manufacture a recursive value definition.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.0.iter().all(|id| graph.objects.contains_key(id)))]
+#[ensures(ret.1.iter().all(|id| graph.objects.contains_key(id)))]
+fn projected_described_event_objects(
+    graph: &SemanticGraph,
+    plan: &ReferencePlan,
+) -> (BTreeSet<SemanticObjectId>, BTreeSet<SemanticObjectId>) {
+    let mut projected = BTreeSet::new();
+    let mut values = BTreeSet::new();
+    for (event, object) in &graph.objects {
+        let Some(node) = object.as_eventuality() else {
+            continue;
+        };
+        let (Some(descriptor), Some(kind), Some(content)) = (
+            node.descriptor.as_ref(),
+            node.abstraction_kind,
+            node.content,
+        ) else {
+            continue;
+        };
+        if !described_eventuality_base_is_exact(node, descriptor, kind)
+            || !matches!(
+                node.denotation
+                    .scope_dependence()
+                    .map(|dependence| dependence.as_data()),
+                Some(data!(ScopeDependence::Fixed))
+            )
+            || !descriptor
+                .speaker
+                .is_some_and(|speaker| object_is_indexical(graph, speaker, IndexicalKind::Speaker))
+            || (node.time.is_some() && exact_described_event_time_facet(node).is_none())
+        {
+            continue;
+        }
+        let mut support = BTreeSet::new();
+        collect_inline_support(graph, content, *event, &mut support);
+        let allowed_sources = support
+            .iter()
+            .copied()
+            .chain([*event])
+            .collect::<BTreeSet<_>>();
+        if support.iter().all(|id| {
+            plan.uses_of(*id)
+                .is_none_or(|uses| uses.is_subset(&allowed_sources))
+        }) {
+            projected.extend(support);
+            values.insert(*event);
+        }
+    }
+    (projected, values)
+}
+
+/// Collect an inline subgraph without crossing its owning self-reference or a
+/// canonical atom that is safe to repeat by identity.
+#[requires(graph.objects.contains_key(&root))]
+#[ensures(out.contains(&root) || root == owner || is_conventional_atom(&graph.objects[&root]))]
+fn collect_inline_support(
+    graph: &SemanticGraph,
+    root: SemanticObjectId,
+    owner: SemanticObjectId,
+    out: &mut BTreeSet<SemanticObjectId>,
+) {
+    let mut pending = vec![root];
+    while let Some(id) = pending.pop() {
+        if id == owner || is_conventional_atom(&graph.objects[&id]) || !out.insert(id) {
+            continue;
+        }
+        let mut references = Vec::new();
+        graph.objects[&id].references_into(&mut references);
+        pending.extend(references);
+    }
 }
 
 /// Collect the atom formula, predication, and contextual arguments consumed by
@@ -2271,6 +2699,7 @@ fn utterance_record_is_default(
         && object_is_indexical(graph, node.deictic_ground.time, IndexicalKind::Now)
         && object_is_indexical(graph, node.deictic_ground.place, IndexicalKind::Here)
         && default_locution_event(graph, node.eventuality)
+        && plan.use_count(node.eventuality) == 1
         && node.asides.is_empty()
         && node.vocative_kind.is_none()
 }
@@ -2350,13 +2779,16 @@ fn object_is_indexical(
 #[requires(true)]
 #[ensures(true)]
 fn exact_referent_indexical(node: &ReferentNode) -> Option<IndexicalKind> {
-    (node.category == ReferentCategory::Indexical
+    let indexical = node.indexical?;
+    (matches!(
+        indexical,
+        IndexicalKind::Speaker | IndexicalKind::Audience | IndexicalKind::Here
+    ) && node.category == ReferentCategory::Indexical
         && node.scope_dependence.is_none()
         && node.sort == SemanticSort::Entity
-        && node.indexical.is_some()
         && node.deictic_reference.is_none()
         && referent_payload_is_empty(node))
-    .then_some(node.indexical?)
+    .then_some(indexical)
 }
 
 /// Exact `ti`/`ta`/`tu` proximity atom grounded at declared `Here`.
@@ -2415,11 +2847,11 @@ fn exact_eventuality_indexical(node: &EventualityNode) -> Option<IndexicalKind> 
             scope_dependence: None,
         })
     );
-    (category_is_indexical
+    (node.indexical == Some(IndexicalKind::Now)
+        && category_is_indexical
         && node.sort == EventualitySort::General
-        && node.indexical.is_some()
         && eventuality_optional_fields_are_empty(node, true, false))
-    .then_some(node.indexical?)
+    .then_some(IndexicalKind::Now)
 }
 
 /// Exhaustive eventuality field audit for defaults and abstractors.
@@ -2477,18 +2909,85 @@ fn generated_event_is_default(
     let Some(node) = graph.objects[&event].as_eventuality() else {
         return false;
     };
-    node.denotation.is_generated_bound()
-        && node.actuality.is_none()
-        && node
-            .class
-            .is_none_or(|class| class == crate::model::EventualityClass::Event)
-        && eventuality_optional_fields_are_empty(node, false, true)
+    generated_event_is_default_shape(node)
         && graph.objects[&event].diagnostics().is_empty()
         && plan.binder_owner(event) == Some(owner)
         // A default event has exactly the closure-owner binding edge and the
         // predication's eventuality edge. Additional edges make its identity
         // observable even when they originate in the same object.
         && plan.use_count(event) == 2
+}
+
+/// Object-local part of the generated-event default. Sort and class are
+/// audited because a completely silent event has no binder that could retain
+/// a non-general subtype.
+#[requires(true)]
+#[ensures(true)]
+fn generated_event_is_default_shape(node: &EventualityNode) -> bool {
+    node.denotation.is_generated_bound()
+        && node.sort == EventualitySort::General
+        && node.actuality.is_none()
+        && node
+            .class
+            .is_none_or(|class| class == crate::model::EventualityClass::Event)
+        && eventuality_optional_fields_are_empty(node, false, true)
+}
+
+/// Fixed exact time-anchor facet shape. Every other eventuality coordinate is
+/// checked before `Before`, `After`, or `AtTime` may consume this record.
+#[requires(true)]
+#[ensures(ret.is_none_or(|time| !time.relation.is_empty()))]
+fn exact_generated_event_time_facet(
+    node: &EventualityNode,
+) -> Option<&crate::model::AnchorRelation> {
+    if !node.denotation.is_generated_bound()
+        || node.sort != EventualitySort::General
+        || node
+            .class
+            .is_some_and(|class| class != crate::model::EventualityClass::Event)
+        || node.indexical.is_some()
+        || node.descriptor.is_some()
+        || node.composition.is_some()
+        || !node.relative_clauses.is_empty()
+        || !node.assigned_names.is_empty()
+        || !node.adjuncts.is_empty()
+        || node.actuality.is_some()
+        || node.tense_modal.is_some()
+        || !node.time_path.is_empty()
+        || node.time_interval.is_some()
+        || node.time_span.is_some()
+        || node.aspect.is_some()
+        || !node.aspects.is_empty()
+        || !node.recurrence.is_empty()
+        || !node.interval_modifiers.is_empty()
+        || node.space.is_some()
+        || !node.space_path.is_empty()
+        || node.space_interval.is_some()
+        || node.spatial_aspect.is_some()
+        || !node.spatial_aspects.is_empty()
+        || !node.spatial_recurrence.is_empty()
+        || !node.spatial_interval_modifiers.is_empty()
+        || node.content.is_some()
+        || node.body.is_some()
+        || !node.parameters.is_empty()
+        || node.arity.is_some()
+        || !node.embedded_questions.is_empty()
+        || node.abstraction_kind.is_some()
+        || node.experiencer.is_some()
+        || node.target.is_some()
+        || node.scale.is_some()
+        || node.subscript.is_some()
+    {
+        return None;
+    }
+    let time = node.time.as_ref()?;
+    (!time.sticky
+        && time.inherited.is_none()
+        && time.distance.is_none()
+        && time.magnitude.is_none()
+        && time.scalar_negation.is_none()
+        && time.motion.is_none())
+    .then_some(time)
 }
 
 /// Exact default `zo'e` object shape before scope/use-site checks.
@@ -2560,6 +3059,7 @@ fn referent_except_descriptor_is_default(node: &ReferentNode) -> bool {
 fn referent_except_composition_is_default(node: &ReferentNode) -> bool {
     node.category == ReferentCategory::Composite
         && node.scope_dependence.is_none()
+        && node.sort == SemanticSort::Entity
         && node.indexical.is_none()
         && node.deictic_reference.is_none()
         && node.descriptor.is_none()
@@ -2668,27 +3168,196 @@ fn eventuality_except_abstraction_is_default(node: &EventualityNode) -> bool {
         && node.subscript.is_none()
 }
 
+/// Complete base shape for the builder's current described-event encoding.
+/// The abstraction kind fixes both the eventuality subtype and class; only one
+/// optional simple time facet is admitted by the compact rule below.
+#[requires(true)]
+#[ensures(true)]
+fn described_eventuality_base_is_exact(
+    node: &EventualityNode,
+    descriptor: &crate::model::Descriptor,
+    kind: AbstractionKind,
+) -> bool {
+    let expected = match kind {
+        AbstractionKind::Event => (
+            EventualitySort::General,
+            crate::model::EventualityClass::Event,
+        ),
+        AbstractionKind::Achievement => (
+            EventualitySort::Achievement,
+            crate::model::EventualityClass::Achievement,
+        ),
+        AbstractionKind::Process => (
+            EventualitySort::Process,
+            crate::model::EventualityClass::Process,
+        ),
+        AbstractionKind::Activity => (
+            EventualitySort::Activity,
+            crate::model::EventualityClass::Activity,
+        ),
+        AbstractionKind::State => (
+            EventualitySort::State,
+            crate::model::EventualityClass::State,
+        ),
+        AbstractionKind::Experience => (
+            EventualitySort::Experience,
+            crate::model::EventualityClass::Event,
+        ),
+        _ => return false,
+    };
+    node.denotation.category() == Some(ReferentCategory::Constant)
+        && node.denotation.scope_dependence().is_some()
+        && node.sort == expected.0
+        && node.class == Some(expected.1)
+        && node.indexical.is_none()
+        && descriptor.kind == DescriptorKind::VeridicalDescription
+        && descriptor.word == "lo"
+        && descriptor.speaker.is_some()
+        && descriptor.body.is_none()
+        && descriptor.veridical.is_none()
+        && descriptor.relative_clauses.is_empty()
+        && descriptor.quantity.is_none()
+        && descriptor.name.is_none()
+        && descriptor.scale.is_none()
+        && descriptor.definiteness.is_none()
+        && descriptor.operand.is_none()
+        && node.composition.is_none()
+        && node.relative_clauses.is_empty()
+        && node.assigned_names.is_empty()
+        && node.adjuncts.is_empty()
+        && node.actuality.is_none()
+        && node.tense_modal.is_none()
+        && node.time_path.is_empty()
+        && node.time_interval.is_none()
+        && node.time_span.is_none()
+        && node.aspect.is_none()
+        && node.aspects.is_empty()
+        && node.recurrence.is_empty()
+        && node.interval_modifiers.is_empty()
+        && node.space.is_none()
+        && node.space_path.is_empty()
+        && node.space_interval.is_none()
+        && node.spatial_aspect.is_none()
+        && node.spatial_aspects.is_empty()
+        && node.spatial_recurrence.is_empty()
+        && node.spatial_interval_modifiers.is_empty()
+        && node.content.is_some()
+        && node.body.is_none()
+        && node.parameters.is_empty()
+        && node.arity.is_none()
+        && node.embedded_questions.is_empty()
+        && node.abstraction_kind == Some(kind)
+        && node.experiencer.is_none()
+        && node.target.is_none()
+        && node.scale.is_none()
+        && node.subscript.is_none()
+}
+
+/// Simple anchor record consumed by a described-event time intrinsic.
+#[requires(true)]
+#[ensures(ret.is_none_or(|time| !time.relation.is_empty()))]
+fn exact_described_event_time_facet(
+    node: &EventualityNode,
+) -> Option<&crate::model::AnchorRelation> {
+    let time = node.time.as_ref()?;
+    (!time.sticky
+        && time.inherited.is_none()
+        && time.distance.is_none()
+        && time.magnitude.is_none()
+        && time.scalar_negation.is_none()
+        && time.motion.is_none()
+        && matches!(time.relation.as_str(), "before" | "after" | "at"))
+    .then_some(time)
+}
+
+/// Shared exact recognition for `lo`, `le`, and `la`. The caller supplies the
+/// scope proof because rendering knows its lexical environment while planning
+/// intentionally accepts only the independently provable fixed case. Every
+/// other descriptor and attachment coordinate is audited here once.
+#[requires(graph.objects.contains_key(&described))]
+#[ensures(true)]
+fn recognize_description<'a>(
+    graph: &'a SemanticGraph,
+    plan: &ReferencePlan,
+    described: SemanticObjectId,
+    node: &'a ReferentNode,
+    scope_is_default: bool,
+) -> Option<DescriptionRecognition<'a>> {
+    let descriptor = node.descriptor.as_ref()?;
+    if !scope_is_default
+        || !referent_except_descriptor_is_default(node)
+        || descriptor.quantity.is_some()
+        || descriptor.scale.is_some()
+        || descriptor.definiteness.is_some()
+        || descriptor.operand.is_some()
+        || descriptor.veridical.is_some()
+        || !descriptor
+            .speaker
+            .is_some_and(|speaker| object_is_indexical(graph, speaker, IndexicalKind::Speaker))
+    {
+        return None;
+    }
+
+    if descriptor.kind == DescriptorKind::Name && descriptor.word == "la" {
+        let name = descriptor.name.as_deref()?;
+        return (descriptor.body.is_none()
+            && descriptor.relative_clauses.is_empty()
+            && node.relative_clauses.is_empty())
+        .then(|| new!(DescriptionRecognition::Name { name }));
+    }
+    if descriptor.name.is_some()
+        || descriptor
+            .relative_clauses
+            .iter()
+            .chain(node.relative_clauses.iter())
+            .any(|clause| {
+                clause.kind == RelativeClauseKind::Incidental && clause.veridical.is_some()
+            })
+    {
+        return None;
+    }
+
+    let body = descriptor.body?;
+    let (constructor, property) = match (descriptor.kind, descriptor.word.as_str()) {
+        (DescriptorKind::VeridicalDescription, "lo") => (
+            DescriptionConstructor::Lo,
+            recognize_direct_description_property(graph, plan, body, described)?,
+        ),
+        (DescriptorKind::SpeakerDescription, "le") => (
+            DescriptionConstructor::Le,
+            recognize_speaker_description_property(graph, plan, body, described)?,
+        ),
+        _ => return None,
+    };
+    Some(new!(DescriptionRecognition::Property {
+        constructor,
+        property,
+    }))
+}
+
 /// Exact direct `lo` property encoding: a restrictive atom whose x1 is the
 /// described referent and whose remaining places are default contextual values.
 #[requires(graph.objects.contains_key(&formula))]
 #[ensures(true)]
-fn recognize_direct_description_property(
-    graph: &SemanticGraph,
+fn recognize_direct_description_property<'a>(
+    graph: &'a SemanticGraph,
+    plan: &ReferencePlan,
     formula: SemanticObjectId,
     described: SemanticObjectId,
-) -> Option<&str> {
-    recognize_property_formula(graph, formula, described)
+) -> Option<&'a str> {
+    recognize_property_formula(graph, plan, formula, described)
 }
 
 /// Exact recursive `skicu` encoding for `le`, including its separately stored
 /// unary property abstraction.
 #[requires(graph.objects.contains_key(&formula))]
 #[ensures(true)]
-fn recognize_speaker_description_property(
-    graph: &SemanticGraph,
+fn recognize_speaker_description_property<'a>(
+    graph: &'a SemanticGraph,
+    plan: &ReferencePlan,
     formula: SemanticObjectId,
     described: SemanticObjectId,
-) -> Option<&str> {
+) -> Option<&'a str> {
     let atom = graph.objects[&formula].as_formula()?.as_data();
     let data!(FormulaNode::Atom(atom)) = atom else {
         return None;
@@ -2718,27 +3387,44 @@ fn recognize_speaker_description_property(
     let relation_value = plain_argument_value(&predication.arguments, 4)?;
     let relation_node = graph.objects[&relation_value].as_referent()?;
     if relation_node.sort != SemanticSort::Relation
-        || relation_node.category != ReferentCategory::Constant
-        || relation_node.descriptor.is_some()
-        || relation_node.composition.is_some()
-        || relation_node.relative_clauses.len() > 0
+        || !referent_except_abstraction_is_default(relation_node)
+        || !matches!(
+            relation_node
+                .scope_dependence
+                .as_ref()
+                .map(|dependence| dependence.as_data()),
+            Some(data!(ScopeDependence::Fixed))
+        )
         || relation_node.parameters.len() != 1
         || relation_node.arity != Some(1)
-        || relation_node.abstraction_kind.is_some()
+        || relation_node.abstraction_kind != Some(AbstractionKind::Property)
+        || !exact_parameter(
+            graph,
+            relation_node.parameters[0],
+            SemanticSort::Entity,
+            ParameterRole::PropertySlot,
+            "ce'u",
+        )
     {
         return None;
     }
-    recognize_property_formula(graph, relation_node.body?, relation_node.parameters[0])
+    recognize_property_formula(
+        graph,
+        plan,
+        relation_node.body?,
+        relation_node.parameters[0],
+    )
 }
 
 /// Exact unary property atom used by both recognized description encodings.
 #[requires(graph.objects.contains_key(&formula))]
 #[ensures(true)]
-fn recognize_property_formula(
-    graph: &SemanticGraph,
+fn recognize_property_formula<'a>(
+    graph: &'a SemanticGraph,
+    plan: &ReferencePlan,
     formula: SemanticObjectId,
     subject: SemanticObjectId,
-) -> Option<&str> {
+) -> Option<&'a str> {
     let formula = graph.objects[&formula].as_formula()?;
     let data!(FormulaNode::Atom(atom)) = formula.as_data() else {
         return None;
@@ -2761,9 +3447,12 @@ fn recognize_property_formula(
         if place.get() == 1 {
             continue;
         }
-        let value = argument.value?;
+        let value = plain_elided_argument_value(argument)?;
         let referent = graph.objects[&value].as_referent()?;
-        if argument.kind != ArgumentValueKind::Elided || !default_elided_shape(referent) {
+        if !default_elided_shape(referent)
+            || !graph.objects[&value].diagnostics().is_empty()
+            || plan.use_count(value) != 1
+        {
             return None;
         }
         let dependence_matches =
@@ -2836,10 +3525,11 @@ fn recognize_tanru_modifier_property<'a>(
         if place.get() == 1 {
             continue;
         }
-        let value = argument.value?;
+        let value = plain_elided_argument_value(argument)?;
         let referent = graph.objects[&value].as_referent()?;
-        if argument.kind != ArgumentValueKind::Elided
-            || !default_elided_shape(referent)
+        if !default_elided_shape(referent)
+            || !graph.objects[&value].diagnostics().is_empty()
+            || plan.use_count(value) != 1
             || referent
                 .scope_dependence
                 .as_ref()
@@ -2864,6 +3554,112 @@ fn predication_is_otherwise_plain(node: &PredicationNode) -> bool {
         && node.reciprocity.is_empty()
         && node.scalar_negation.is_none()
         && node.relation_metadata.is_none()
+        && node.introduced_by.is_none()
+}
+
+/// Exact ordinary variable shape consumed by quantifier binders. The binding
+/// prints the identity and sort; every other referent coordinate must therefore
+/// be the unique plain-variable default. Provenance source is the ordinary
+/// profile suppression, while diagnostics are kept out of compact binding so
+/// their object attachment is retained by TypedGraph.
+#[requires(graph.objects.contains_key(&variable))]
+#[ensures(ret.is_none_or(|sort| graph.objects[&variable].sort() == Some(sort)))]
+fn exact_plain_bound_variable(
+    graph: &SemanticGraph,
+    variable: SemanticObjectId,
+) -> Option<SemanticSort> {
+    let node = graph.objects[&variable].as_referent()?;
+    (node.category == ReferentCategory::Variable
+        && node.scope_dependence.is_none()
+        && referent_payload_is_empty(node)
+        && graph.objects[&variable].diagnostics().is_empty())
+    .then_some(node.sort)
+}
+
+/// Exact parameter shape consumed by a binder declaration. The declaration
+/// prints the sort; its fixed recognizer position entails role and introducer.
+/// Subscripts and diagnostics are never silently absorbed.
+#[requires(graph.objects.contains_key(&parameter))]
+#[ensures(true)]
+fn exact_parameter(
+    graph: &SemanticGraph,
+    parameter: SemanticObjectId,
+    sort: SemanticSort,
+    role: ParameterRole,
+    introduced_by: &str,
+) -> bool {
+    let Some(node) = graph.objects[&parameter].as_parameter() else {
+        return false;
+    };
+    node.sort == sort
+        && node.role == role
+        && node.introduced_by == introduced_by
+        && node.subscript.is_none()
+        && graph.objects[&parameter].diagnostics().is_empty()
+}
+
+/// Fixed question-word/parameter-role table used by exact question binding.
+#[requires(true)]
+#[ensures(ret.is_none_or(|(_, introduced_by)| !introduced_by.is_empty()))]
+fn question_parameter_shape(kind: QuestionKind) -> Option<(ParameterRole, &'static str)> {
+    Some(match kind {
+        QuestionKind::Argument => (ParameterRole::ArgumentQuestion, "ma"),
+        QuestionKind::Relation => (ParameterRole::RelationQuestion, "mo"),
+        QuestionKind::Place => (ParameterRole::PlaceQuestion, "fi'a"),
+        QuestionKind::Connective => (ParameterRole::ConnectiveQuestion, "ji"),
+        QuestionKind::Tense => (ParameterRole::TenseQuestion, "cu'e"),
+        QuestionKind::MathOperator => (ParameterRole::MathOperatorQuestion, "ma'o"),
+        QuestionKind::Attitude => (ParameterRole::AttitudeQuestion, "pei"),
+        QuestionKind::Quantity => (ParameterRole::QuantityQuestion, "xo"),
+        QuestionKind::Truth | QuestionKind::Multiple => return None,
+    })
+}
+
+/// Every question slot must account for both its slot role and the complete
+/// underlying parameter record before the lambda projection may consume it.
+#[requires(true)]
+#[ensures(true)]
+fn question_slots_are_exact(graph: &SemanticGraph, node: &crate::model::QuestionNode) -> bool {
+    node.slots.iter().all(|slot| match slot.as_data() {
+        data!(QuestionSlot::Homogeneous { parameter, role }) => match role {
+            QuestionSlotRole::Answer => question_parameter_shape(node.kind).is_some_and(
+                |(parameter_role, introduced_by)| {
+                    exact_parameter(
+                        graph,
+                        *parameter,
+                        node.domain,
+                        parameter_role,
+                        introduced_by,
+                    )
+                },
+            ),
+            QuestionSlotRole::RespectiveSlot => false,
+        },
+        data!(QuestionSlot::Typed {
+            parameter,
+            role,
+            kind,
+            domain,
+        }) => {
+            *role == QuestionSlotRole::Answer
+                && *kind == node.kind
+                && *domain == node.domain
+                && match parameter {
+                    None => *kind == QuestionKind::Truth,
+                    Some(parameter) => question_parameter_shape(*kind).is_some_and(
+                        |(parameter_role, introduced_by)| {
+                            exact_parameter(
+                                graph,
+                                *parameter,
+                                *domain,
+                                parameter_role,
+                                introduced_by,
+                            )
+                        },
+                    ),
+                }
+        }
+    })
 }
 
 /// Extract one plain filled argument.
@@ -2875,6 +3671,19 @@ fn plain_argument_value(
 ) -> Option<SemanticObjectId> {
     let argument = arguments.get(&PlaceIndex::new(place))?;
     (argument.kind == ArgumentValueKind::Filled
+        && argument.quantity.is_none()
+        && argument.relative_clauses.is_empty()
+        && argument.command_target.is_none())
+    .then_some(argument.value?)
+}
+
+/// Extract one ordinary `zo'e` argument whose surface distinction is exactly
+/// the named provenance default. All semantic side fields must be absent.
+#[requires(true)]
+#[ensures(true)]
+fn plain_elided_argument_value(argument: &ArgumentValue) -> Option<SemanticObjectId> {
+    (argument.kind == ArgumentValueKind::Elided
+        && argument.introduced_by.as_deref() == Some("zo'e")
         && argument.quantity.is_none()
         && argument.relative_clauses.is_empty()
         && argument.command_target.is_none())
@@ -2901,10 +3710,7 @@ fn exact_universal_quantity(
     operator: FormulaOperator,
     quantity: Option<SemanticObjectId>,
 ) -> bool {
-    if !matches!(
-        operator,
-        FormulaOperator::Forall | FormulaOperator::PluralForall
-    ) {
+    if operator != FormulaOperator::Forall {
         return false;
     }
     let Some(quantity) = quantity else {
@@ -2921,6 +3727,25 @@ fn exact_universal_quantity(
         && node.value.question_parameters.is_empty()
         && node.comparison_set.is_none()
         && graph.objects[&quantity].diagnostics().is_empty()
+}
+
+/// Preserve the graph-computed domain-import commitment inside the typed
+/// restriction position. The import is computed model state even though it is
+/// not stored directly on `QuantifiedFormulaNode`.
+#[requires(true)]
+#[ensures(matches!(ret, Datum::List(_)))]
+fn quantified_restriction_datum(
+    restriction: Datum,
+    domain_import: Option<crate::model::DomainImport>,
+) -> Datum {
+    Datum::form(
+        "Restrict",
+        std::iter::once(restriction).chain(domain_import.map(|import| match import {
+            crate::model::DomainImport::Projective => {
+                Datum::form("Import", [Datum::atom("Projective")])
+            }
+        })),
+    )
 }
 
 /// Exact logical connective projection. Connector surface and locus are typed

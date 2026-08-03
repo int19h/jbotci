@@ -44,7 +44,12 @@ pub struct SmusniRender {
 pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRender {
     let plan = plan_references(graph);
     let (body, warnings, stats) = if plan.compact_is_eligible() {
-        render_compact_document(graph, &plan)
+        let elaboration = elaborate_compact(graph, &plan);
+        if elaboration.requires_typed_graph {
+            render_typed_graph_with_reasons(graph, &plan, elaboration.fallback_reasons)
+        } else {
+            assemble_compact_document(graph, elaboration)
+        }
     } else {
         render_typed_graph(graph, &plan)
     };
@@ -60,17 +65,15 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRen
     new!(SmusniRender { text, stats })
 }
 
-/// Compact semantic projection with typed object fallbacks where an exact
-/// human-readable form cannot be proved faithful.
+/// Assemble a compact elaboration after its local typed fallbacks have proved
+/// that no binder-bearing object requires whole-graph scope.
 #[requires(graph.objects.contains_key(&graph.root))]
-#[requires(plan.compact_is_eligible())]
+#[requires(!elaboration.requires_typed_graph)]
 #[ensures(true)]
-fn render_compact_document(
+fn assemble_compact_document(
     graph: &SemanticGraph,
-    plan: &ReferencePlan,
+    elaboration: super::elaborate::CompactElaboration,
 ) -> (Datum, Vec<Datum>, SmusniRenderStats) {
-    debug_assert!(plan.compact_is_eligible());
-    let elaboration = elaborate_compact(graph, plan);
     (
         elaboration.body,
         elaboration.warnings,
@@ -97,6 +100,18 @@ fn render_typed_graph(
     graph: &SemanticGraph,
     plan: &ReferencePlan,
 ) -> (Datum, Vec<Datum>, SmusniRenderStats) {
+    render_typed_graph_with_reasons(graph, plan, BTreeMap::new())
+}
+
+/// Whole-document fallback with any exact elaboration-time scope reason
+/// retained alongside planner failures.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(true)]
+fn render_typed_graph_with_reasons(
+    graph: &SemanticGraph,
+    plan: &ReferencePlan,
+    mut fallback_reasons: BTreeMap<&'static str, usize>,
+) -> (Datum, Vec<Datum>, SmusniRenderStats) {
     let mut children = vec![Datum::form("Root", [reference_datum(graph.root)])];
     children.extend(
         graph
@@ -104,7 +119,6 @@ fn render_typed_graph(
             .iter()
             .map(|(id, object)| definition_datum(*id, object)),
     );
-    let mut fallback_reasons = BTreeMap::new();
     for failure in plan.failures() {
         *fallback_reasons.entry(failure.kind.label()).or_default() += 1;
     }

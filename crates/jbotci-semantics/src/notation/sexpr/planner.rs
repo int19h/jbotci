@@ -8,7 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 
 use crate::model::{
     FormulaNodeData, SemanticGraph, SemanticObjectData, SemanticObjectId,
@@ -55,10 +55,12 @@ pub struct ScopeFailure {
     pub use_site: Option<SemanticObjectId>,
 }
 
-/// Complete deterministic reference plan for one graph.
+/// Deterministic reference plan for one graph. Binder/use data is always
+/// complete. SCC and definition-placement data is computed only while compact
+/// rendering remains eligible and is therefore private to the renderer.
 #[invariant(true)]
 #[derive(Debug, Clone)]
-pub struct ReferencePlan {
+pub(super) struct ReferencePlan {
     failures: Vec<ScopeFailure>,
     use_counts: BTreeMap<SemanticObjectId, usize>,
     uses: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
@@ -67,61 +69,122 @@ pub struct ReferencePlan {
     definition_sites: BTreeMap<SemanticObjectId, SemanticObjectId>,
 }
 
+/// Linear-space dominance representation. Immediate dominators are computed
+/// to a fixed point in reverse-postorder and answer both dominance and LCA
+/// queries without retaining one transitive dominator set per graph node.
+#[invariant(idom.get(root) == Some(root))]
+#[invariant(depth.get(root) == Some(&0))]
+#[expensive_invariant(idom.keys().eq(depth.keys()))]
+#[expensive_invariant(idom.iter().all(|(node, parent)| {
+    node == root || (node != parent && depth.get(parent).is_some_and(|parent_depth| depth[node] == parent_depth + 1))
+}))]
+#[derive(Debug, Clone)]
+struct DominanceTree {
+    root: SemanticObjectId,
+    idom: BTreeMap<SemanticObjectId, SemanticObjectId>,
+    depth: BTreeMap<SemanticObjectId, usize>,
+}
+
+impl DominanceTree {
+    /// Whether `ancestor` dominates `node` in the rooted reference graph.
+    #[requires(true)]
+    #[ensures(ret -> self.idom.contains_key(&ancestor) && self.idom.contains_key(&node))]
+    fn dominates(&self, ancestor: SemanticObjectId, node: SemanticObjectId) -> bool {
+        let (Some(&ancestor_depth), Some(&node_depth)) =
+            (self.depth.get(&ancestor), self.depth.get(&node))
+        else {
+            return false;
+        };
+        let mut candidate = node;
+        let mut candidate_depth = node_depth;
+        while candidate_depth > ancestor_depth {
+            candidate = self.idom[&candidate];
+            candidate_depth -= 1;
+        }
+        candidate == ancestor
+    }
+
+    /// Deepest common dominator of two reachable nodes.
+    #[requires(self.idom.contains_key(&left) && self.idom.contains_key(&right))]
+    #[ensures(self.dominates(ret, left) && self.dominates(ret, right))]
+    fn common_dominator(
+        &self,
+        mut left: SemanticObjectId,
+        mut right: SemanticObjectId,
+    ) -> SemanticObjectId {
+        let mut left_depth = self.depth[&left];
+        let mut right_depth = self.depth[&right];
+        while left_depth > right_depth {
+            left = self.idom[&left];
+            left_depth -= 1;
+        }
+        while right_depth > left_depth {
+            right = self.idom[&right];
+            right_depth -= 1;
+        }
+        while left != right {
+            left = self.idom[&left];
+            right = self.idom[&right];
+        }
+        left
+    }
+}
+
 impl ReferencePlan {
     /// Named failures that require a whole-document typed graph.
     #[requires(true)]
     #[ensures(true)]
-    pub fn failures(&self) -> &[ScopeFailure] {
+    pub(super) fn failures(&self) -> &[ScopeFailure] {
         &self.failures
     }
 
     /// Whether compact lexical rendering is honest for this graph.
     #[requires(true)]
     #[ensures(ret == self.failures.is_empty())]
-    pub fn compact_is_eligible(&self) -> bool {
+    pub(super) fn compact_is_eligible(&self) -> bool {
         self.failures.is_empty()
     }
 
     /// Number of graph edges that use an identity.
     #[requires(true)]
     #[ensures(true)]
-    pub fn use_count(&self, id: SemanticObjectId) -> usize {
+    pub(super) fn use_count(&self, id: SemanticObjectId) -> usize {
         self.use_counts.get(&id).copied().unwrap_or(0)
     }
 
     /// Source objects containing a reference to `id`.
     #[requires(true)]
     #[ensures(true)]
-    pub fn uses_of(&self, id: SemanticObjectId) -> Option<&BTreeSet<SemanticObjectId>> {
+    pub(super) fn uses_of(&self, id: SemanticObjectId) -> Option<&BTreeSet<SemanticObjectId>> {
         self.uses.get(&id)
     }
 
     /// The unique typed binder owner, when `id` is a lexical variable.
     #[requires(true)]
     #[ensures(true)]
-    pub fn binder_owner(&self, id: SemanticObjectId) -> Option<SemanticObjectId> {
+    pub(super) fn binder_owner(&self, id: SemanticObjectId) -> Option<SemanticObjectId> {
         self.binder_owners.get(&id).copied()
     }
 
     /// Whether `id` participates in a graph cycle and therefore requires
     /// recursive definition treatment when it is not a lexical binder.
-    #[requires(true)]
+    #[requires(self.compact_is_eligible())]
     #[ensures(true)]
-    pub fn is_cyclic(&self, id: SemanticObjectId) -> bool {
+    pub(super) fn is_cyclic(&self, id: SemanticObjectId) -> bool {
         self.cyclic.contains(&id)
     }
 
     /// Least common legal graph scope for a shared definition.
-    #[requires(true)]
+    #[requires(self.compact_is_eligible())]
     #[ensures(true)]
-    pub fn definition_site(&self, id: SemanticObjectId) -> Option<SemanticObjectId> {
+    pub(super) fn definition_site(&self, id: SemanticObjectId) -> Option<SemanticObjectId> {
         self.definition_sites.get(&id).copied()
     }
 
     /// Exact deterministic single-use inlining rule.
-    #[requires(true)]
+    #[requires(self.compact_is_eligible())]
     #[ensures(ret -> self.use_count(id) == 1 && !self.is_cyclic(id) && self.binder_owner(id).is_none())]
-    pub fn may_inline(&self, id: SemanticObjectId) -> bool {
+    pub(super) fn may_inline(&self, id: SemanticObjectId) -> bool {
         self.use_count(id) == 1 && !self.is_cyclic(id) && self.binder_owner(id).is_none()
     }
 }
@@ -129,7 +192,7 @@ impl ReferencePlan {
 /// Build the reference/scope plan from typed graph edges and typed binders.
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(true)]
-pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
+pub(super) fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
     let edges = reference_edges(graph);
     let adjacency = edges
         .iter()
@@ -138,7 +201,7 @@ pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
     let (uses, use_counts) = reverse_uses(&edges);
     let predecessors = reverse_adjacency(&adjacency);
     let reachable = reachable_from(graph.root, &adjacency);
-    let dominators = compute_dominators(graph.root, &reachable, &predecessors);
+    let dominance = compute_dominance_tree(graph.root, &adjacency, &reachable, &predecessors);
     let (binder_owner_candidates, binder_scope_roots) = binder_ownership(graph);
     let mut failures = Vec::new();
     let mut binder_owners = BTreeMap::new();
@@ -164,9 +227,7 @@ pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
                 .copied()
                 .filter(|use_site| *use_site != owner)
             {
-                let dominates = dominators
-                    .get(&use_site)
-                    .is_some_and(|set| set.contains(&owner));
+                let dominates = dominance.dominates(owner, use_site);
                 if !dominates || !permitted.contains(&use_site) {
                     failures.push(ScopeFailure {
                         kind: ScopeFailureKind::BinderDoesNotEncloseUse,
@@ -189,10 +250,7 @@ pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
                 });
                 continue;
             };
-            if !dominators
-                .get(&constant)
-                .is_some_and(|set| set.contains(&owner))
-            {
+            if !dominance.dominates(owner, constant) {
                 failures.push(ScopeFailure {
                     kind: ScopeFailureKind::ScopeDependencyWithoutEnclosingBinder,
                     binder: Some(binder),
@@ -202,6 +260,25 @@ pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
         }
     }
 
+    // Binder ownership and scope-universe failures are already sufficient,
+    // typed proof that no lexical compact tree can represent this graph. The
+    // whole-document TypedGraph path uses only the failure inventory, so SCCs,
+    // definition sites, and definition-to-binder dependency closure would be
+    // dead work. In particular, avoiding that definition × binder sweep keeps
+    // this path linear-space for very large documents such as the Alice graph.
+    if !failures.is_empty() {
+        failures.sort();
+        failures.dedup();
+        return ReferencePlan {
+            failures,
+            use_counts,
+            uses,
+            binder_owners,
+            cyclic: BTreeSet::new(),
+            definition_sites: BTreeMap::new(),
+        };
+    }
+
     let cyclic = cyclic_nodes(&adjacency);
     let mut definition_sites = BTreeMap::new();
     for id in graph.objects.keys().copied() {
@@ -209,7 +286,7 @@ pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
             continue;
         }
         let sites = uses.get(&id).cloned().unwrap_or_default();
-        let Some(site) = least_common_dominator(&sites, &dominators) else {
+        let Some(site) = least_common_dominator(&sites, &dominance) else {
             failures.push(ScopeFailure {
                 kind: ScopeFailureKind::DefinitionSiteDoesNotDominateUse,
                 binder: Some(id),
@@ -217,11 +294,10 @@ pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
             });
             continue;
         };
-        if sites.iter().any(|use_site| {
-            !dominators
-                .get(use_site)
-                .is_some_and(|set| set.contains(&site))
-        }) {
+        if sites
+            .iter()
+            .any(|use_site| !dominance.dominates(site, *use_site))
+        {
             failures.push(ScopeFailure {
                 kind: ScopeFailureKind::DefinitionSiteDoesNotDominateUse,
                 binder: Some(id),
@@ -246,10 +322,7 @@ pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
     for (definition, site) in &definition_sites {
         let dependencies = reachable_from_roots(&BTreeSet::from([*definition]), &adjacency);
         for (binder, owner) in &binder_owners {
-            let site_is_inside_binder = owner != site
-                && dominators
-                    .get(site)
-                    .is_some_and(|dominators| dominators.contains(owner));
+            let site_is_inside_binder = owner != site && dominance.dominates(*owner, *site);
             if owner != definition
                 && dependencies.contains(binder)
                 && !graph.objects[binder].is_generated_eventuality()
@@ -266,14 +339,29 @@ pub fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
 
     failures.sort();
     failures.dedup();
-    ReferencePlan {
+    let mut plan = ReferencePlan {
         failures,
         use_counts,
         uses,
         binder_owners,
         cyclic,
         definition_sites,
-    }
+    };
+
+    // Exact description inversion turns the graph's recursive self-reference
+    // into a lexical `Lo`/`Le` binder. A graph definition site for that same
+    // description value is therefore not part of the post-elaboration tree.
+    // Run the recognizer against the complete provisional usage plan, then
+    // remove only failures whose definition identity is proven consumed by
+    // that projection; ordinary binder failures remain untouched.
+    let (_, projected_descriptions) = super::elaborate::projected_description_objects(graph, &plan);
+    plan.failures.retain(|failure| {
+        failure.kind != ScopeFailureKind::DefinitionSiteDoesNotDominateUse
+            || failure
+                .binder
+                .is_none_or(|binder| !projected_descriptions.contains(&binder))
+    });
+    plan
 }
 
 /// Collect graph edges in stable object-ID order.
@@ -360,48 +448,105 @@ fn reachable_from_roots(
     reached
 }
 
-/// Classic iterative dominators over the rooted reference graph.
-#[requires(reachable.contains(&root))]
-#[ensures(ret.get(&root).is_some_and(|set| set == &BTreeSet::from([root])))]
-fn compute_dominators(
+/// Deterministic reverse postorder without recursion proportional to graph
+/// depth. Mark-on-entry preserves ordinary DFS postorder for cross edges.
+#[requires(adjacency.contains_key(&root))]
+#[ensures(ret.first() == Some(&root))]
+#[expensive_ensures(
+    ret.iter().copied().collect::<BTreeSet<_>>() == reachable_from(root, adjacency)
+)]
+fn reverse_postorder(
     root: SemanticObjectId,
+    adjacency: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
+) -> Vec<SemanticObjectId> {
+    let mut visited = BTreeSet::new();
+    let mut postorder = Vec::new();
+    let mut pending = vec![(root, false)];
+    while let Some((id, expanded)) = pending.pop() {
+        if expanded {
+            postorder.push(id);
+            continue;
+        }
+        if !visited.insert(id) {
+            continue;
+        }
+        pending.push((id, true));
+        if let Some(targets) = adjacency.get(&id) {
+            pending.extend(
+                targets
+                    .iter()
+                    .rev()
+                    .filter(|target| adjacency.contains_key(target))
+                    .map(|target| (*target, false)),
+            );
+        }
+    }
+    postorder.reverse();
+    postorder
+}
+
+/// Intersect two already-known immediate-dominator chains using reverse-
+/// postorder indices. Every step moves at least one finger toward the root.
+#[requires(idom.contains_key(&left) && idom.contains_key(&right))]
+#[requires(indices.contains_key(&left) && indices.contains_key(&right))]
+#[ensures(idom.contains_key(&ret))]
+fn intersect_immediate_dominators(
+    mut left: SemanticObjectId,
+    mut right: SemanticObjectId,
+    idom: &BTreeMap<SemanticObjectId, SemanticObjectId>,
+    indices: &BTreeMap<SemanticObjectId, usize>,
+) -> SemanticObjectId {
+    while left != right {
+        while indices[&left] > indices[&right] {
+            left = idom[&left];
+        }
+        while indices[&right] > indices[&left] {
+            right = idom[&right];
+        }
+    }
+    left
+}
+
+/// Exact Cooper-Harvey-Kennedy immediate-dominator fixed point. This computes
+/// the same dominance relation as the classic transitive-set algorithm while
+/// retaining O(V) state rather than O(V²) sets.
+#[requires(reachable.contains(&root))]
+#[requires(adjacency.contains_key(&root))]
+#[ensures(ret.idom.len() == reachable.len())]
+fn compute_dominance_tree(
+    root: SemanticObjectId,
+    adjacency: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
     reachable: &BTreeSet<SemanticObjectId>,
     predecessors: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
-) -> BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> {
-    let mut dominators = reachable
+) -> DominanceTree {
+    let order = reverse_postorder(root, adjacency);
+    let indices = order
         .iter()
         .copied()
-        .map(|id| {
-            let initial = if id == root {
-                BTreeSet::from([root])
-            } else {
-                reachable.clone()
-            };
-            (id, initial)
-        })
+        .enumerate()
+        .map(|(index, id)| (id, index))
         .collect::<BTreeMap<_, _>>();
+    let mut idom = BTreeMap::from([(root, root)]);
 
     loop {
         let mut changed = false;
-        for id in reachable.iter().copied().filter(|id| *id != root) {
-            let incoming = predecessors
+        for id in order.iter().copied().skip(1) {
+            let mut incoming = predecessors
                 .get(&id)
                 .into_iter()
                 .flat_map(|set| set.iter())
-                .filter(|predecessor| reachable.contains(predecessor))
+                .filter(|predecessor| idom.contains_key(predecessor))
                 .copied()
                 .collect::<Vec<_>>();
-            let mut next = if let Some(first) = incoming.first() {
-                dominators[first].clone()
-            } else {
-                BTreeSet::new()
+            incoming.sort_by_key(|predecessor| indices[predecessor]);
+            let Some(mut next) = incoming.first().copied() else {
+                continue;
             };
-            for predecessor in incoming.iter().skip(1) {
-                next.retain(|candidate| dominators[predecessor].contains(candidate));
+            for predecessor in incoming.iter().copied().skip(1) {
+                next = intersect_immediate_dominators(next, predecessor, &idom, &indices);
             }
-            next.insert(id);
-            if dominators.get(&id) != Some(&next) {
-                dominators.insert(id, next);
+            if idom.get(&id) != Some(&next) {
+                idom.insert(id, next);
                 changed = true;
             }
         }
@@ -409,7 +554,21 @@ fn compute_dominators(
             break;
         }
     }
-    dominators
+    assert_eq!(
+        idom.len(),
+        reachable.len(),
+        "every reachable non-root has a reachable predecessor"
+    );
+    let mut depth = BTreeMap::from([(root, 0)]);
+    for id in order.iter().copied().skip(1) {
+        let parent = idom[&id];
+        depth.insert(id, depth[&parent] + 1);
+    }
+    new!(DominanceTree {
+        root: root,
+        idom: idom,
+        depth: depth
+    })
 }
 
 /// Discover every typed binder owner and its lexical scope roots.
@@ -606,7 +765,7 @@ fn cyclic_nodes(
     let mut visited = BTreeSet::new();
     let mut order = Vec::new();
     for id in adjacency.keys().copied() {
-        finish_order(id, adjacency, &mut visited, &mut order);
+        finish_order_iterative(id, adjacency, &mut visited, &mut order);
     }
     let reverse = reverse_adjacency(adjacency);
     visited.clear();
@@ -616,7 +775,7 @@ fn cyclic_nodes(
             continue;
         }
         let mut component = BTreeSet::new();
-        collect_component(id, &reverse, &mut visited, &mut component);
+        collect_component_iterative(id, &reverse, &mut visited, &mut component);
         let self_edge = component.len() == 1
             && adjacency
                 .get(&id)
@@ -628,64 +787,203 @@ fn cyclic_nodes(
     cyclic
 }
 
-/// DFS postorder helper for SCC discovery.
+/// Iterative DFS postorder helper for SCC discovery. An explicit expansion
+/// marker avoids consuming call-stack space proportional to document depth.
 #[requires(adjacency.contains_key(&id))]
 #[ensures(visited.contains(&id))]
-fn finish_order(
+fn finish_order_iterative(
     id: SemanticObjectId,
     adjacency: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
     visited: &mut BTreeSet<SemanticObjectId>,
     order: &mut Vec<SemanticObjectId>,
 ) {
-    if !visited.insert(id) {
-        return;
-    }
-    if let Some(targets) = adjacency.get(&id) {
-        for target in targets {
-            if adjacency.contains_key(target) {
-                finish_order(*target, adjacency, visited, order);
-            }
+    let mut pending = vec![(id, false)];
+    while let Some((candidate, expanded)) = pending.pop() {
+        if expanded {
+            order.push(candidate);
+            continue;
+        }
+        if !visited.insert(candidate) {
+            continue;
+        }
+        pending.push((candidate, true));
+        if let Some(targets) = adjacency.get(&candidate) {
+            pending.extend(
+                targets
+                    .iter()
+                    .rev()
+                    .filter(|target| adjacency.contains_key(target))
+                    .map(|target| (*target, false)),
+            );
         }
     }
-    order.push(id);
 }
 
-/// Reverse-graph DFS helper for SCC discovery.
+/// Iterative reverse-graph traversal for SCC collection.
 #[requires(adjacency.contains_key(&id))]
 #[ensures(visited.contains(&id))]
-fn collect_component(
+fn collect_component_iterative(
     id: SemanticObjectId,
     adjacency: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
     visited: &mut BTreeSet<SemanticObjectId>,
     component: &mut BTreeSet<SemanticObjectId>,
 ) {
-    if !visited.insert(id) {
-        return;
-    }
-    component.insert(id);
-    if let Some(targets) = adjacency.get(&id) {
-        for target in targets {
-            collect_component(*target, adjacency, visited, component);
+    let mut pending = vec![id];
+    while let Some(candidate) = pending.pop() {
+        if !visited.insert(candidate) {
+            continue;
+        }
+        component.insert(candidate);
+        if let Some(targets) = adjacency.get(&candidate) {
+            for target in targets.iter().rev() {
+                if adjacency.contains_key(target) {
+                    pending.push(*target);
+                }
+            }
         }
     }
 }
 
-/// Deepest common dominator of all use sites; depth is the number of strict
-/// dominators and therefore independent of graph traversal order.
+/// Deepest common dominator of all use sites, independent of traversal order.
 #[requires(true)]
-#[ensures(ret.is_none() || sites.iter().all(|site| dominators.get(site).is_some_and(|set| set.contains(&ret.unwrap()))))]
+#[ensures(ret.is_none() || sites.iter().all(|site| dominance.dominates(ret.unwrap(), *site)))]
 fn least_common_dominator(
     sites: &BTreeSet<SemanticObjectId>,
-    dominators: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
+    dominance: &DominanceTree,
 ) -> Option<SemanticObjectId> {
     let mut iter = sites.iter();
-    let first = iter.next()?;
-    let mut common = dominators.get(first)?.clone();
-    for site in iter {
-        let site_dominators = dominators.get(site)?;
-        common.retain(|candidate| site_dominators.contains(candidate));
+    let mut common = *iter.next()?;
+    if !dominance.idom.contains_key(&common) {
+        return None;
     }
-    common
-        .into_iter()
-        .max_by_key(|candidate| dominators.get(candidate).map_or(0, BTreeSet::len))
+    for site in iter {
+        if !dominance.idom.contains_key(site) {
+            return None;
+        }
+        common = dominance.common_dominator(common, *site);
+    }
+    Some(common)
+}
+
+#[cfg(test)]
+mod tests {
+    #[allow(unused_imports)]
+    use bityzba::{ensures, requires};
+
+    use super::*;
+
+    /// Three stable identities used by the bounded directed-graph oracle.
+    #[requires(true)]
+    #[ensures(ret.len() == 3)]
+    fn nodes() -> [SemanticObjectId; 3] {
+        [
+            SemanticObjectId::formula(1),
+            SemanticObjectId::formula(2),
+            SemanticObjectId::formula(3),
+        ]
+    }
+
+    /// Decode one complete directed graph, including self edges, from a mask.
+    #[requires(mask < (1 << 9))]
+    #[ensures(ret.len() == 3)]
+    fn adjacency(mask: usize) -> BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> {
+        let nodes = nodes();
+        nodes
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(source_index, source)| {
+                let targets = nodes
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .filter_map(|(target_index, target)| {
+                        let bit = source_index * nodes.len() + target_index;
+                        (mask & (1 << bit) != 0).then_some(target)
+                    })
+                    .collect();
+                (source, targets)
+            })
+            .collect()
+    }
+
+    /// Small transitive-set oracle retained only for exhaustive tests.
+    #[requires(reachable.contains(&root))]
+    #[ensures(ret.len() == reachable.len())]
+    fn dominator_set_oracle(
+        root: SemanticObjectId,
+        reachable: &BTreeSet<SemanticObjectId>,
+        predecessors: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
+    ) -> BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> {
+        let mut dominators = reachable
+            .iter()
+            .copied()
+            .map(|id| {
+                (
+                    id,
+                    if id == root {
+                        BTreeSet::from([root])
+                    } else {
+                        reachable.clone()
+                    },
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        loop {
+            let mut changed = false;
+            for id in reachable.iter().copied().filter(|id| *id != root) {
+                let incoming = predecessors[&id]
+                    .iter()
+                    .filter(|predecessor| reachable.contains(predecessor))
+                    .copied()
+                    .collect::<Vec<_>>();
+                let mut next = dominators[&incoming[0]].clone();
+                for predecessor in &incoming[1..] {
+                    next.retain(|candidate| dominators[predecessor].contains(candidate));
+                }
+                next.insert(id);
+                if dominators[&id] != next {
+                    dominators.insert(id, next);
+                    changed = true;
+                }
+            }
+            if !changed {
+                return dominators;
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn immediate_dominator_tree_matches_bounded_set_oracle() {
+        let root = nodes()[0];
+        for mask in 0..(1 << 9) {
+            let adjacency = adjacency(mask);
+            let reachable = reachable_from(root, &adjacency);
+            let predecessors = reverse_adjacency(&adjacency);
+            let tree = compute_dominance_tree(root, &adjacency, &reachable, &predecessors);
+            let oracle = dominator_set_oracle(root, &reachable, &predecessors);
+            for node in &reachable {
+                for candidate in &reachable {
+                    assert_eq!(
+                        tree.dominates(*candidate, *node),
+                        oracle[node].contains(candidate),
+                        "mask={mask:#011b}, candidate={candidate}, node={node}"
+                    );
+                }
+            }
+            for left in &reachable {
+                for right in &reachable {
+                    let common = tree.common_dominator(*left, *right);
+                    let expected = oracle[left]
+                        .intersection(&oracle[right])
+                        .copied()
+                        .max_by_key(|candidate| oracle[candidate].len())
+                        .expect("root is a common dominator");
+                    assert_eq!(common, expected, "mask={mask:#011b}");
+                }
+            }
+        }
+    }
 }
