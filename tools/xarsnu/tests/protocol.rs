@@ -460,7 +460,9 @@ impl MeaningReview for ScriptedReviewSession {
         brief: &ReviewBrief,
         _accounting: &mut RunAccounting,
     ) -> Result<ReviewOutcome, ProtocolModelError> {
-        self.reviewed.borrow_mut().push((self.session_id, brief.clone()));
+        self.reviewed
+            .borrow_mut()
+            .push((self.session_id, brief.clone()));
         let (approved, report) = self
             .verdicts
             .borrow_mut()
@@ -519,7 +521,10 @@ fn runner_with_review(
 
 #[requires(!kind.trim().is_empty())]
 #[ensures(ret.len() <= events.len())]
-fn events_of_kind<'event>(events: &'event [ProtocolEvent], kind: &str) -> Vec<&'event ProtocolEvent> {
+fn events_of_kind<'event>(
+    events: &'event [ProtocolEvent],
+    kind: &str,
+) -> Vec<&'event ProtocolEvent> {
     events
         .iter()
         .filter(|event| {
@@ -2360,10 +2365,12 @@ fn malformed_tool_call_payloads_reach_the_transcript_and_report() {
     let malformed_events = runner
         .events()
         .iter()
-        .filter(|event| matches!(
-            event.as_data(),
-            bityzba::data!(ProtocolEvent::ToolCallMalformed { .. })
-        ))
+        .filter(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::ToolCallMalformed { .. })
+            )
+        })
         .collect::<Vec<_>>();
     assert_eq!(malformed_events.len(), 2);
     let bityzba::data!(ProtocolEvent::ToolCallMalformed {
@@ -3105,7 +3112,10 @@ fn review_rejection_returns_feedback_and_the_same_session_verifies_the_revision(
             false,
             "na scope diverges: the rendering negates the main bridi, but the intent has no negation.",
         ),
-        (true, "All checks pass: scope, places, and attachment match the intent."),
+        (
+            true,
+            "All checks pass: scope, places, and attachment match the intent.",
+        ),
     ]);
     let alice = ScriptedModel::new(
         "alice",
@@ -3202,7 +3212,10 @@ fn a_newly_registered_intent_resets_the_reviewer_session() {
     // Issue #723 lifecycle: re-declaring intent (a revision) resets the
     // reviewer; the revised candidate is verified by a FRESH session.
     let (reviewer, sessions_started, reviewed) = scripted_reviewer(vec![
-        (false, "The destination place is unfilled but the intent names the market."),
+        (
+            false,
+            "The destination place is unfilled but the intent names the market.",
+        ),
         (true, "The rendering now matches the revised intent."),
     ]);
     let alice = ScriptedModel::new(
@@ -3307,7 +3320,10 @@ fn review_rejection_at_the_parse_cap_forfeits_the_turn() {
         .count();
     assert_eq!(forfeits, 1);
     assert_eq!(events_of_kind(runner.events(), "message-posted").len(), 0);
-    assert_eq!(events_of_kind(runner.events(), "listener-flow-started").len(), 0);
+    assert_eq!(
+        events_of_kind(runner.events(), "listener-flow-started").len(),
+        0
+    );
     assert!(runner.visible_chat().is_empty());
 }
 
@@ -3357,7 +3373,10 @@ fn review_events_serialize_with_their_documented_payloads() {
     .expect("review-report deserializes");
     match report.as_data() {
         bityzba::data!(ProtocolEvent::ReviewReport { report, .. }) => {
-            assert_eq!(report, "Complete lossless report text.\nWith several lines.")
+            assert_eq!(
+                report,
+                "Complete lossless report text.\nWith several lines."
+            )
         }
         _ => panic!("expected a review-report event"),
     }

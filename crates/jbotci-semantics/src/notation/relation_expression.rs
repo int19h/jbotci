@@ -56,7 +56,11 @@ pub(crate) enum CompositionGrouping {
     "a relation connective conjoins at least two compact lexical leaves")]
 #[invariant(::Reference { relation } => !relation.is_empty())]
 #[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub(crate) enum RelationOperand {
     /// The enclosing predication's own predicate; the predicate name is read
     /// from the predication's `relation` field rather than duplicated here.
@@ -225,12 +229,14 @@ fn tanru_region_walk(objects: &Map<String, Value>, anchor: &str) -> BTreeSet<Str
         };
         // Head-side nested implicit AND (bo/ke right-grouping).
         if let Some(head_id) = children.first().and_then(Value::as_str) {
-            let is_nested_and = objects
-                .get(head_id)
-                .and_then(Value::as_object)
-                .is_some_and(|head| {
-                    string_field_of(head, "operator") == Some("and") && is_implicit_connector(head)
-                });
+            let is_nested_and =
+                objects
+                    .get(head_id)
+                    .and_then(Value::as_object)
+                    .is_some_and(|head| {
+                        string_field_of(head, "operator") == Some("and")
+                            && is_implicit_connector(head)
+                    });
             if is_nested_and && reached.insert(head_id.to_owned()) {
                 frontier.push(head_id.to_owned());
             }
@@ -245,10 +251,7 @@ fn tanru_region_walk(objects: &Map<String, Value>, anchor: &str) -> BTreeSet<Str
         let Some(link_predication_id) = string_field_of(link_formula, "predication") else {
             continue;
         };
-        let Some(link) = objects
-            .get(link_predication_id)
-            .and_then(Value::as_object)
-        else {
+        let Some(link) = objects.get(link_predication_id).and_then(Value::as_object) else {
             continue;
         };
         let Some(modifier) = link
@@ -469,8 +472,13 @@ fn project_modifier_body(
             .into_iter()
             .map(str::to_owned)
             .collect();
-        let (operand, events, leaf_consumed) =
-            recognize_lexical_leaf(objects, predication_id, predication, parameter, &locally_bound)?;
+        let (operand, events, leaf_consumed) = recognize_lexical_leaf(
+            objects,
+            predication_id,
+            predication,
+            parameter,
+            &locally_bound,
+        )?;
         // Every eventuality this atom binds must be the leaf's own event.
         if locally_bound.len() != events.len() {
             return None;
@@ -491,7 +499,8 @@ fn project_modifier_body(
     // leaves sharing the same property parameter.
     let connector = field(body, "connector")?.as_object()?;
     let source = field(connector, "source")?.as_object()?;
-    if string_field_of(source, "kind") != Some("surfaceWord") || !bound_eventualities(body).is_empty()
+    if string_field_of(source, "kind") != Some("surfaceWord")
+        || !bound_eventualities(body).is_empty()
     {
         return None;
     }
@@ -525,8 +534,13 @@ fn project_modifier_body(
             .into_iter()
             .map(str::to_owned)
             .collect();
-        let (operand, events, leaf_consumed) =
-            recognize_lexical_leaf(objects, predication_id, predication, parameter, &locally_bound)?;
+        let (operand, events, leaf_consumed) = recognize_lexical_leaf(
+            objects,
+            predication_id,
+            predication,
+            parameter,
+            &locally_bound,
+        )?;
         if locally_bound.len() != events.len() {
             return None;
         }
@@ -799,7 +813,7 @@ fn recognize_tanru_and(
             // bo/ke right-grouping: the nested composition sits on the head
             // side and shares this tanru's head predication; its edge is the
             // explicit one.
-        let nested = recognize_tanru_and(objects, head_id, None)?;
+            let nested = recognize_tanru_and(objects, head_id, None)?;
             if nested.head_predication != link_head || nested.participant != participant {
                 return None;
             }
@@ -896,7 +910,11 @@ fn normalize_grouping(composition: RelationOperand) -> RelationOperand {
     #[ensures(true)]
     fn all_explicit(operand: &RelationOperand) -> bool {
         match operand.as_data() {
-            data!(RelationOperand::Composition { grouping, kind, modifier }) => {
+            data!(RelationOperand::Composition {
+                grouping,
+                kind,
+                modifier
+            }) => {
                 *grouping == Some(CompositionGrouping::Explicit)
                     && all_explicit(kind)
                     && all_explicit(modifier)
@@ -925,8 +943,7 @@ fn normalize_grouping(composition: RelationOperand) -> RelationOperand {
 
     if all_explicit(&composition) {
         let cleared = clear_grouping(composition);
-        let data!(RelationOperand::Composition { kind, modifier, .. }) = cleared.into_data()
-        else {
+        let data!(RelationOperand::Composition { kind, modifier, .. }) = cleared.into_data() else {
             unreachable!("the root of a projected view is always a composition");
         };
         new!(RelationOperand::Composition {
@@ -1006,10 +1023,7 @@ pub(crate) fn project_tanru_compositions(
                 consumed_objects.insert(id.clone(), original);
             }
         }
-        rewritten_anchors.insert(
-            result.anchor.clone(),
-            transformed[&result.anchor].clone(),
-        );
+        rewritten_anchors.insert(result.anchor.clone(), transformed[&result.anchor].clone());
         let anchor_object = transformed
             .get_mut(&result.anchor)
             .and_then(Value::as_object_mut)
@@ -1041,7 +1055,12 @@ pub(crate) fn project_tanru_compositions(
         let head_object = transformed
             .get_mut(&result.head_predication)
             .and_then(Value::as_object_mut)
-            .unwrap_or_else(|| panic!("tanru head predication must survive: {}", result.head_predication));
+            .unwrap_or_else(|| {
+                panic!(
+                    "tanru head predication must survive: {}",
+                    result.head_predication
+                )
+            });
         let view = serde_json::to_value(&result.composition)
             .expect("relation-expression view serialization cannot fail");
         head_object.insert("relationExpression".to_owned(), view);
@@ -1220,9 +1239,7 @@ pub(crate) mod reexpansion {
             ("operator", Value::from("atom")),
             ("predication", Value::from(predication.as_str())),
         ]);
-        if bind_event_at_atom
-            && let Some(eventuality) = &eventuality
-        {
+        if bind_event_at_atom && let Some(eventuality) = &eventuality {
             atom_fields.push(("boundEventualities", id_list(&[eventuality.clone()])));
         }
         out.insert(atom.clone(), object(&atom_fields));
@@ -1308,7 +1325,14 @@ pub(crate) mod reexpansion {
                 let children: Vec<String> = operands
                     .iter()
                     .map(|operand| {
-                        expand_lexical_operand(next, operand, &parameter, &nested_parameters, true, out)
+                        expand_lexical_operand(
+                            next,
+                            operand,
+                            &parameter,
+                            &nested_parameters,
+                            true,
+                            out,
+                        )
                     })
                     .collect();
                 let formula = fresh_id(next, "formula");
@@ -1362,8 +1386,7 @@ pub(crate) mod reexpansion {
         enclosing_parameters: &[String],
         out: &mut Map<String, Value>,
     ) -> String {
-        let data!(RelationOperand::Composition { kind, modifier, .. }) =
-            composition.as_data()
+        let data!(RelationOperand::Composition { kind, modifier, .. }) = composition.as_data()
         else {
             panic!("expand_composition requires a composition operand");
         };
@@ -1385,8 +1408,14 @@ pub(crate) mod reexpansion {
             data!(RelationOperand::Lexical { has_event, .. }) => {
                 // A composition head's eventuality is bound by its tanru AND,
                 // not by its own atom (unlike a modifier leaf's).
-                let atom =
-                    expand_lexical_operand(next, kind, participant, enclosing_parameters, false, out);
+                let atom = expand_lexical_operand(
+                    next,
+                    kind,
+                    participant,
+                    enclosing_parameters,
+                    false,
+                    out,
+                );
                 let predication = out[&atom]["predication"]
                     .as_str()
                     .expect("atom predication")
@@ -1417,7 +1446,8 @@ pub(crate) mod reexpansion {
                     None,
                 )
             }
-            data!(RelationOperand::Connective { .. }) | data!(RelationOperand::Reference { .. }) => {
+            data!(RelationOperand::Connective { .. })
+            | data!(RelationOperand::Reference { .. }) => {
                 panic!("the kind side of a composition is never a connective or reference")
             }
         };
@@ -1709,7 +1739,11 @@ pub(crate) mod reexpansion {
         if let Some(predicate) = element.attribute("PREDICATE") {
             let participant_place = element
                 .attribute("PARTICIPANT-PLACE")
-                .map(|place| place.parse::<usize>().expect("PARTICIPANT-PLACE is numeric"))
+                .map(|place| {
+                    place
+                        .parse::<usize>()
+                        .expect("PARTICIPANT-PLACE is numeric")
+                })
                 .unwrap_or(1);
             if host_slot {
                 // The host leaf names the surviving head predication's own
@@ -1751,15 +1785,25 @@ pub(crate) mod reexpansion {
         let body = element
             .children()
             .find(|child| child.is_element() && child.tag_name().name() == "BODY")
-            .unwrap_or_else(|| panic!("operand {} has no PREDICATE=, REF=, or BODY", element.tag_name().name()));
+            .unwrap_or_else(|| {
+                panic!(
+                    "operand {} has no PREDICATE=, REF=, or BODY",
+                    element.tag_name().name()
+                )
+            });
         let content = body
             .children()
             .find(roxmltree::Node::is_element)
             .expect("BODY wraps one relation-expression subtree");
         match content.tag_name().name() {
-            "KIND-COMPOSITION" => {
-                composition_from_xml(content, host_slot, id_to_key, dictionary, objects, host_relation)
-            }
+            "KIND-COMPOSITION" => composition_from_xml(
+                content,
+                host_slot,
+                id_to_key,
+                dictionary,
+                objects,
+                host_relation,
+            ),
             "CONNECTIVE" => {
                 let operator = match content.attribute("OPERATOR").expect("CONNECTIVE OPERATOR") {
                     "AND" => "and",
@@ -1769,7 +1813,9 @@ pub(crate) mod reexpansion {
                 let operands: Vec<RelationOperand> = content
                     .children()
                     .filter(|child| child.is_element() && child.tag_name().name() == "RELATION")
-                    .map(|leaf| operand_from_xml(leaf, false, id_to_key, dictionary, objects, host_relation))
+                    .map(|leaf| {
+                        operand_from_xml(leaf, false, id_to_key, dictionary, objects, host_relation)
+                    })
                     .collect();
                 new!(RelationOperand::Connective {
                     operator: operator.to_owned(),
@@ -1816,12 +1862,13 @@ pub(crate) mod reexpansion {
                                         .and_then(Value::as_array)
                                         .is_some_and(|object_parameters| {
                                             object_parameters.len() == parameter_keys.len()
-                                                && object_parameters.iter().zip(
-                                                    parameter_keys.iter(),
-                                                ).all(|(object_parameter, parameter_key)| {
-                                                    object_parameter.as_str()
-                                                        == Some(*parameter_key)
-                                                })
+                                                && object_parameters
+                                                    .iter()
+                                                    .zip(parameter_keys.iter())
+                                                    .all(|(object_parameter, parameter_key)| {
+                                                        object_parameter.as_str()
+                                                            == Some(*parameter_key)
+                                                    })
                                         })
                             })
                             .map(|(key, _)| key.clone())
@@ -1860,8 +1907,22 @@ pub(crate) mod reexpansion {
             .expect("KIND-COMPOSITION has a MODIFIER child");
         new!(RelationOperand::Composition {
             grouping,
-            kind: Box::new(operand_from_xml(kind, host_slot, id_to_key, dictionary, objects, host_relation)),
-            modifier: Box::new(operand_from_xml(modifier, false, id_to_key, dictionary, objects, host_relation)),
+            kind: Box::new(operand_from_xml(
+                kind,
+                host_slot,
+                id_to_key,
+                dictionary,
+                objects,
+                host_relation
+            )),
+            modifier: Box::new(operand_from_xml(
+                modifier,
+                false,
+                id_to_key,
+                dictionary,
+                objects,
+                host_relation
+            )),
         })
     }
 
@@ -1980,14 +2041,17 @@ pub(crate) mod reexpansion {
     /// generated ids align by reference topology alone.
     #[requires(!root.is_empty())]
     #[ensures(true)]
-    pub(crate) fn normalize_objects(objects: &Map<String, Value>, root: &str) -> BTreeMap<String, String> {
+    pub(crate) fn normalize_objects(
+        objects: &Map<String, Value>,
+        root: &str,
+    ) -> BTreeMap<String, String> {
         let mut canonical: HashMap<String, String> = HashMap::new();
         let mut next = 0usize;
         let mut queue: VecDeque<String> = VecDeque::from([root.to_owned()]);
         let rename = |id: &str,
-                          canonical: &mut HashMap<String, String>,
-                          next: &mut usize,
-                          queue: &mut VecDeque<String>| {
+                      canonical: &mut HashMap<String, String>,
+                      next: &mut usize,
+                      queue: &mut VecDeque<String>| {
             if !canonical.contains_key(id) {
                 *next += 1;
                 canonical.insert(id.to_owned(), format!("n{next}"));
@@ -2000,7 +2064,9 @@ pub(crate) mod reexpansion {
                 continue;
             };
             for value in object.values() {
-                collect_ids(value, objects, &mut |id| rename(id, &mut canonical, &mut next, &mut queue));
+                collect_ids(value, objects, &mut |id| {
+                    rename(id, &mut canonical, &mut next, &mut queue)
+                });
             }
         }
         // Unreached stragglers (the graph should not have any, but never hide
@@ -2036,11 +2102,7 @@ pub(crate) mod reexpansion {
     /// Invoke `visit` on every string value that names an object in the map.
     #[requires(true)]
     #[ensures(true)]
-    fn collect_ids(
-        value: &Value,
-        objects: &Map<String, Value>,
-        visit: &mut impl FnMut(&str),
-    ) {
+    fn collect_ids(value: &Value, objects: &Map<String, Value>, visit: &mut impl FnMut(&str)) {
         match value {
             Value::String(text) => {
                 if objects.contains_key(text.as_str()) {
@@ -2075,7 +2137,10 @@ pub(crate) mod reexpansion {
         match value {
             Value::String(text) => format!(
                 "{:?}",
-                canonical.get(text.as_str()).map(String::as_str).unwrap_or(text)
+                canonical
+                    .get(text.as_str())
+                    .map(String::as_str)
+                    .unwrap_or(text)
             ),
             Value::Array(items) => format!(
                 "[{}]",
@@ -2129,7 +2194,9 @@ pub(crate) mod reexpansion {
             let view = composition_from_xml(
                 predication_element
                     .children()
-                    .find(|child| child.is_element() && child.tag_name().name() == "KIND-COMPOSITION")
+                    .find(|child| {
+                        child.is_element() && child.tag_name().name() == "KIND-COMPOSITION"
+                    })
                     .expect("projected predication renders KIND-COMPOSITION"),
                 true,
                 &id_to_key,
@@ -2217,7 +2284,12 @@ mod tests {
         let value = serde_json::to_value(&graph).expect("graph serializes");
         let objects = objects_of(&value);
         let xml = crate::render_xml(&graph, "<acceptance>").into_data().output;
-        assert_rendered_reexpansion_equivalent(&objects, &root, &xml, jbotci_dictionary_data::english());
+        assert_rendered_reexpansion_equivalent(
+            &objects,
+            &root,
+            &xml,
+            jbotci_dictionary_data::english(),
+        );
     }
 
     /// The round-14 witness set plus the tricky shapes: asserted main-selbri
@@ -2264,7 +2336,10 @@ mod tests {
             })
             .collect();
         documents.sort();
-        assert!(documents.len() >= 48, "the frozen corpus must stay complete");
+        assert!(
+            documents.len() >= 48,
+            "the frozen corpus must stay complete"
+        );
         for path in documents {
             let mut graph: Value = serde_json::from_str(
                 &std::fs::read_to_string(&path).expect("corpus document reads"),
@@ -2279,11 +2354,19 @@ mod tests {
                 .expect("document name")
                 .to_string_lossy()
                 .replace(".frozen.json", "");
-            graph["scopeDependenceBinderUniverses"] = binder_universes[document_name.as_str()].clone();
+            graph["scopeDependenceBinderUniverses"] =
+                binder_universes[document_name.as_str()].clone();
             let root = graph["root"].as_str().expect("graph root").to_owned();
             let objects = objects_of(&graph);
-            let xml = render_xml_value_for_tooling(graph, &document_name).into_data().output;
-            assert_rendered_reexpansion_equivalent(&objects, &root, &xml, jbotci_dictionary_data::english());
+            let xml = render_xml_value_for_tooling(graph, &document_name)
+                .into_data()
+                .output;
+            assert_rendered_reexpansion_equivalent(
+                &objects,
+                &root,
+                &xml,
+                jbotci_dictionary_data::english(),
+            );
         }
     }
 
@@ -2345,7 +2428,13 @@ mod tests {
         );
         assert_eq!(transformed.len(), objects.len(), "nothing was consumed");
         // Sanity: the original graph itself re-expands trivially (no instances).
-        assert_eq!(normalize_objects(&objects, "utterance:5"), normalize_objects(&reexpand_instances(&transformed, &projection.instances), "utterance:5"));
+        assert_eq!(
+            normalize_objects(&objects, "utterance:5"),
+            normalize_objects(
+                &reexpand_instances(&transformed, &projection.instances),
+                "utterance:5"
+            )
+        );
     }
 
     /// Negative fixture: a corrupted rendered host predicate (a swap of the
@@ -2420,7 +2509,10 @@ mod tests {
                 .get_mut(&event)
                 .and_then(Value::as_object_mut)
                 .expect("event object")
-                .insert("time".to_owned(), serde_json::json!({"kind": "offset", "direction": "past"}));
+                .insert(
+                    "time".to_owned(),
+                    serde_json::json!({"kind": "offset", "direction": "past"}),
+                );
         });
         assert_modifier_falls_back_to_reference(objects);
     }

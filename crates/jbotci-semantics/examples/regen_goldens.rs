@@ -12,8 +12,8 @@ use std::path::PathBuf;
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_semantics::notation::render_xml_value_for_tooling;
 use jbotci_semantics::{
-    SemanticBuildOptions, SemanticGraph, build_generated_semantic_graph_with_dictionary_and_options,
-    render_xml,
+    SemanticBuildOptions, SemanticGraph,
+    build_generated_semantic_graph_with_dictionary_and_options, render_xml,
 };
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
 use serde_json::Value;
@@ -64,7 +64,11 @@ fn regen_xml_corpus() {
         })
         .collect();
     documents.sort();
-    assert_eq!(documents.len(), 48, "the xml corpus must stay at 48 documents");
+    assert_eq!(
+        documents.len(),
+        48,
+        "the xml corpus must stay at 48 documents"
+    );
     for path in documents {
         let document = path
             .file_name()
@@ -73,7 +77,8 @@ fn regen_xml_corpus() {
             .into_owned()
             .replace(".frozen.json", "");
         let mut graph: Value = serde_json::from_slice(
-            &std::fs::read(&path).unwrap_or_else(|error| panic!("read {}: {error}", path.display())),
+            &std::fs::read(&path)
+                .unwrap_or_else(|error| panic!("read {}: {error}", path.display())),
         )
         .expect("frozen graph parses");
         graph["scopeDependenceBinderUniverses"] = binder_universes[document.as_str()].clone();
@@ -100,7 +105,11 @@ fn regen_focused() {
             "content-first-question-scope",
             "mi djica lo nu makau klama",
         ),
-        ("b61", "referent-sort-abstraction", "mi facki lo ni ma kau clani"),
+        (
+            "b61",
+            "referent-sort-abstraction",
+            "mi facki lo ni ma kau clani",
+        ),
         ("b62", "sign-quotation", "mi cusku lu ro da klama li'u"),
     ];
     for (document, group, text) in cases {

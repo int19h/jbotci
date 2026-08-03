@@ -12,8 +12,8 @@ pub mod transcript;
 
 pub use config::{
     CapsConfig, ClientConfig, ConfigError, ExternalRendererCommand, ListenerMode,
-    MeaningReviewConfig, ParticipantConfig, PromptCaching, ReasoningConfig, RunConfig, TersmuFormat,
-    ToolChoice,
+    MeaningReviewConfig, ParticipantConfig, PromptCaching, ReasoningConfig, RunConfig,
+    TersmuFormat, ToolChoice,
 };
 pub use jbotci_tools::{
     DiagnosticCategory, EmbeddingSearchPreflightError, GateError, GateOutcome,
@@ -22,19 +22,19 @@ pub use jbotci_tools::{
 };
 pub use model_capabilities::ProviderToolChoice;
 pub use openrouter::{
-    AbortKind, AbortRecord, ChatMessage, CompletionTokenLimit, FunctionCall, FunctionToolDefinition,
-    MalformedToolCall, ModelTurn, OpenRouterClient, OpenRouterClientConfig, OpenRouterError,
-    ParticipantConversation, ProviderCallObservation, ProviderUsageValidationError, RetryPolicy,
-    RunAccounting, ThinkingTrace, ToolCall, ToolDefinition, ToolDefinitionError, ToolDispatchError,
-    ToolDispatcher, Usage, UsageTotals,
+    AbortKind, AbortRecord, ChatMessage, CompletionTokenLimit, FunctionCall,
+    FunctionToolDefinition, MalformedToolCall, ModelTurn, OpenRouterClient, OpenRouterClientConfig,
+    OpenRouterError, ParticipantConversation, ProviderCallObservation,
+    ProviderUsageValidationError, RetryPolicy, RunAccounting, ThinkingTrace, ToolCall,
+    ToolDefinition, ToolDefinitionError, ToolDispatchError, ToolDispatcher, Usage, UsageTotals,
 };
 pub use protocol::{
     BlindMessage, ListenerFlowAbandonReason, ListenerPhase, ListenerState, MeaningReview,
-    MeaningReviewer, NoReviewer, OpenRouterParticipant, OpenRouterReviewSession, OpenRouterReviewer,
-    ProtocolEvent, ProtocolModel, ProtocolModelError, ProtocolPhase, ProtocolRunError,
-    ProtocolRunOutcome, ProtocolRunner, ProtocolTool, ProtocolTools, ReferenceToolDispatcher,
-    RevealedMessage, ReviewBrief, ReviewOutcome, RuntimeFailureRecord, RuntimeFailureSite,
-    SpeakerPhase, SpeakerState, TurnForfeitReason, VisibleMessage,
+    MeaningReviewer, NoReviewer, OpenRouterParticipant, OpenRouterReviewSession,
+    OpenRouterReviewer, ProtocolEvent, ProtocolModel, ProtocolModelError, ProtocolPhase,
+    ProtocolRunError, ProtocolRunOutcome, ProtocolRunner, ProtocolTool, ProtocolTools,
+    ReferenceToolDispatcher, RevealedMessage, ReviewBrief, ReviewOutcome, RuntimeFailureRecord,
+    RuntimeFailureSite, SpeakerPhase, SpeakerState, TurnForfeitReason, VisibleMessage,
 };
 pub use report::{DialogReportError, community_file, dialog_file, report_file};
 pub use run::{

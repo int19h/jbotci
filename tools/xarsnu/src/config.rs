@@ -547,7 +547,10 @@ system-prompt = "Speak only Lojban."
 
         let unknown = enabled.replace("enabled = true", "enabled = true\nmodel = \"other/model\"");
         let error = RunConfig::from_toml(&unknown).expect_err("reviewer model is not configurable");
-        assert!(error.to_string().contains("unknown field `model`"), "{error}");
+        assert!(
+            error.to_string().contains("unknown field `model`"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -569,7 +572,8 @@ system-prompt = "Speak only Lojban."
                 .all(|participant| participant.max_completion_tokens.is_none())
         );
         assert_eq!(
-            config.participants[0].effective_max_completion_tokens(config.client.max_completion_tokens),
+            config.participants[0]
+                .effective_max_completion_tokens(config.client.max_completion_tokens),
             32_768,
             "participants without an override inherit the client default"
         );
@@ -582,16 +586,19 @@ system-prompt = "Speak only Lojban."
         assert_eq!(config.participants[0].max_completion_tokens, Some(8_192));
         assert_eq!(config.participants[1].max_completion_tokens, None);
         assert_eq!(
-            config.participants[0].effective_max_completion_tokens(config.client.max_completion_tokens),
+            config.participants[0]
+                .effective_max_completion_tokens(config.client.max_completion_tokens),
             8_192,
             "the per-participant override wins over the client default"
         );
         assert_eq!(
-            config.participants[1].effective_max_completion_tokens(config.client.max_completion_tokens),
+            config.participants[1]
+                .effective_max_completion_tokens(config.client.max_completion_tokens),
             32_768
         );
 
-        let invalid = configured.replace("max-completion-tokens = 32768", "max-completion-tokens = 0");
+        let invalid =
+            configured.replace("max-completion-tokens = 32768", "max-completion-tokens = 0");
         let error = RunConfig::from_toml(&invalid).expect_err("zero client limit must be rejected");
         assert!(
             error

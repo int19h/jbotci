@@ -168,7 +168,10 @@ pub enum ScopeBasis {
 /// The `COMPOSITE-APPROX` content: a composition approximation tree plus the
 /// tree-level honesty attributes. `PLACES="UNKNOWN"` is not modeled: it is a
 /// constant required on every emission.
-#[invariant(true, "audited no-op; the tree-level basis discipline is expensive-checked")]
+#[invariant(
+    true,
+    "audited no-op; the tree-level basis discipline is expensive-checked"
+)]
 #[expensive_invariant(
     grouping.is_some() == (approx_expr_leaf_count(root) >= 3
         && approx_expr_kind_composition_count(root) >= 1
@@ -419,7 +422,10 @@ pub enum ApproxReferent {
     },
     /// `da`/`de`/`di` and `bu'a`/`bu'e`/`bu'i`, series 1–3. Always
     /// implicitly existentially bound (serialized `BINDING` is constant).
-    LogicalVariable { sort: LogicalVariableSort, series: u8 },
+    LogicalVariable {
+        sort: LogicalVariableSort,
+        series: u8,
+    },
     /// `ce'u`, `ma`.
     Parameter { role: ParameterRole },
 }
@@ -625,7 +631,8 @@ fn approx_expr_kind_composition_groupings_all_none(root: &ApproxExpr) -> bool {
     let mut all_none = true;
     visit_approx_expr(root, &mut |expr| {
         if let data!(ApproxExpr::KindComposition {
-            grouping: Some(_), ..
+            grouping: Some(_),
+            ..
         }) = expr.as_data()
         {
             all_none = false;
@@ -846,9 +853,8 @@ fn classify_cmavo_piece(cmavo: Cmavo) -> Option<Piece> {
     let scalar = |polarity: ScalarNegationPolarity| {
         Piece::Tok(new!(Tok::Prefix(new!(PrefixOp::ScalarNegation(polarity)))))
     };
-    let abstraction = |kind: AbstractionKind| {
-        Piece::Tok(new!(Tok::Prefix(new!(PrefixOp::Abstraction(kind)))))
-    };
+    let abstraction =
+        |kind: AbstractionKind| Piece::Tok(new!(Tok::Prefix(new!(PrefixOp::Abstraction(kind)))));
     let prefix = |op: PrefixOp| Piece::Tok(new!(Tok::Prefix(op)));
     let connective = |operator: ApproxConnective| Piece::Tok(new!(Tok::Connective(operator)));
     let postfix = |op: PostfixOp| Piece::Tok(new!(Tok::Postfix(op)));
@@ -1311,7 +1317,10 @@ fn resolve_kei_scopes(tokens: Vec<Tok>) -> Option<Vec<Tok>> {
             if inner.is_empty() {
                 return None;
             }
-            output.push(new!(Tok::ScopeGroup { kind: kind, inner: inner }));
+            output.push(new!(Tok::ScopeGroup {
+                kind: kind,
+                inner: inner
+            }));
         } else {
             output.push(token);
         }
@@ -1406,7 +1415,11 @@ fn normalize_approx_bases(expr: ApproxExpr, strip_grouping: bool, strip_scope: b
             grouping,
         }) => new!(ApproxExpr::KindComposition {
             kind: Box::new(normalize_approx_bases(*kind, strip_grouping, strip_scope)),
-            modifier: Box::new(normalize_approx_bases(*modifier, strip_grouping, strip_scope)),
+            modifier: Box::new(normalize_approx_bases(
+                *modifier,
+                strip_grouping,
+                strip_scope
+            )),
             grouping: if strip_grouping { None } else { grouping },
         }),
         data!(ApproxExpr::SwappedPlaces {
@@ -1627,10 +1640,7 @@ fn juxtaposition_edge_basis(left: UnitBoundary, right: UnitBoundary) -> Grouping
 /// is explicitly grouped.
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|(_, _, next)| *next > start))]
-fn parse_bo_chain(
-    tokens: &[&Tok],
-    start: usize,
-) -> Option<(ApproxExpr, UnitBoundary, usize)> {
+fn parse_bo_chain(tokens: &[&Tok], start: usize) -> Option<(ApproxExpr, UnitBoundary, usize)> {
     let (first, first_boundary, mut position) = parse_unit(tokens, start)?;
     if !matches!(
         tokens.get(position).map(|token| token.as_data()),
@@ -1671,10 +1681,7 @@ fn parse_unit(tokens: &[&Tok], position: usize) -> Option<(ApproxExpr, UnitBound
         data!(Tok::Group(inner)) => {
             let references: Vec<&Tok> = inner.iter().collect();
             let simple = !inner.iter().any(|token| {
-                matches!(
-                    token.as_data(),
-                    data!(Tok::Connective(..)) | data!(Tok::Co)
-                )
+                matches!(token.as_data(), data!(Tok::Connective(..)) | data!(Tok::Co))
             });
             (
                 parse_sequence(&references, simple)?,
@@ -1901,11 +1908,10 @@ fn cards_and_registry_cover_each_other(cards: &[WordCard], built_ids: &HashSet<S
 #[requires(true)]
 #[ensures(true)]
 fn card_ids_are_pairwise_distinct(cards: &[WordCard]) -> bool {
-    cards.iter().enumerate().all(|(index, card)| {
-        cards[..index]
-            .iter()
-            .all(|earlier| earlier.id != card.id)
-    })
+    cards
+        .iter()
+        .enumerate()
+        .all(|(index, card)| cards[..index].iter().all(|earlier| earlier.id != card.id))
 }
 
 impl<'dict> WordCardBuilder<'dict> {
@@ -1983,7 +1989,8 @@ impl<'dict> WordCardBuilder<'dict> {
             .find(|entry| !entry.definition.is_empty())
         {
             self.built_ids.insert(word_text.clone());
-            self.cards.push(known_word_card(word_text.clone(), word_text, kind, entry));
+            self.cards
+                .push(known_word_card(word_text.clone(), word_text, kind, entry));
             return;
         }
         match kind {
@@ -2054,7 +2061,10 @@ impl<'dict> WordCardBuilder<'dict> {
     /// collecting the referenced brivla components in stream order.
     #[requires(!word_text.is_empty())]
     #[ensures(true)]
-    fn compose_lujvo(&self, word_text: &str) -> Option<(CompositeApprox, Vec<(String, WordCardKind)>)> {
+    fn compose_lujvo(
+        &self,
+        word_text: &str,
+    ) -> Option<(CompositeApprox, Vec<(String, WordCardKind)>)> {
         let decomposition = decompose_lujvo_like(self.dictionary, word_text)?;
         let mut pieces = Vec::new();
         let mut components = Vec::new();
@@ -2080,10 +2090,7 @@ impl<'dict> WordCardBuilder<'dict> {
     fn push_zei_compound_card(&mut self, word_like: &WordLike) {
         let mut parts = Vec::new();
         flatten_zei_parts(word_like, &mut parts);
-        let piece_texts = parts
-            .iter()
-            .map(zei_part_piece_text)
-            .collect::<Vec<_>>();
+        let piece_texts = parts.iter().map(zei_part_piece_text).collect::<Vec<_>>();
         let word_text = piece_texts.join(" zei ");
         let id = piece_texts
             .iter()
@@ -2102,7 +2109,12 @@ impl<'dict> WordCardBuilder<'dict> {
             // Defined zei-lujvo: the dictionary is the sole authority, never
             // an approximation.
             self.built_ids.insert(id.clone());
-            self.cards.push(known_word_card(id, word_text, WordCardKind::ZeiCompound, entry));
+            self.cards.push(known_word_card(
+                id,
+                word_text,
+                WordCardKind::ZeiCompound,
+                entry,
+            ));
             return;
         }
         let mut pieces = Vec::new();
@@ -2416,7 +2428,11 @@ fn classify_zei_part(
         ZeiPartRef::Word(word) => match word.kind() {
             WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => {
                 let text = word_piece_text(word);
-                push_unique_component(components, text.clone(), word_card_kind_for_brivla(word.kind()));
+                push_unique_component(
+                    components,
+                    text.clone(),
+                    word_card_kind_for_brivla(word.kind()),
+                );
                 Some(Piece::Tok(new!(Tok::Expr(new!(ApproxExpr::Component {
                     word: text,
                 })))))
@@ -2432,7 +2448,8 @@ fn classify_zei_part(
                 }),
             }))))),
             WordKind::Cmavo => classify_cmavo_piece(
-                word.cmavo().expect("a word of kind Cmavo has a cmavo variant"),
+                word.cmavo()
+                    .expect("a word of kind Cmavo has a cmavo variant"),
             ),
         },
         ZeiPartRef::WordLike(word_like) => match word_like.as_data() {
@@ -2511,9 +2528,7 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn as_kind_composition(
-        expr: &ApproxExpr,
-    ) -> (&ApproxExpr, &ApproxExpr, Option<GroupingBasis>) {
+    fn as_kind_composition(expr: &ApproxExpr) -> (&ApproxExpr, &ApproxExpr, Option<GroupingBasis>) {
         match expr.as_data() {
             data!(ApproxExpr::KindComposition {
                 kind,
@@ -2567,10 +2582,7 @@ mod tests {
         let [word_like] = words.as_slice() else {
             panic!("sfoto is a single word");
         };
-        assert_eq!(
-            word_like.bare_word().map(Word::kind),
-            Some(WordKind::Gismu)
-        );
+        assert_eq!(word_like.bare_word().map(Word::kind), Some(WordKind::Gismu));
         assert_eq!(dictionary().lookup_words("sfoto").count(), 0);
 
         let card = only_card("sfoto");
@@ -2777,7 +2789,10 @@ mod tests {
         assert_eq!(cards.len(), 2);
         assert_eq!(cards[0].id, "terselju'o");
         let composition = composition_of(&cards[0]);
-        assert_eq!(composition.grouping, None, "a single unit makes no grouping assumption");
+        assert_eq!(
+            composition.grouping, None,
+            "a single unit makes no grouping assumption"
+        );
         assert_eq!(composition.scope, Some(ScopeBasis::AssumedShort));
         match composition.root.as_data() {
             data!(ApproxExpr::SwappedPlaces {
@@ -2854,7 +2869,11 @@ mod tests {
     fn mi_zei_do_builds_context_role_composition() {
         assert_zei_compound("mi zei do");
         let cards = cards_for("mi zei do");
-        assert_eq!(cards.len(), 1, "pro-word parts are cmavo: no component cards");
+        assert_eq!(
+            cards.len(),
+            1,
+            "pro-word parts are cmavo: no component cards"
+        );
         let card = &cards[0];
         assert_eq!(card.id, "mi-zei-do");
         assert_eq!(card.word, "mi zei do");
@@ -2881,7 +2900,10 @@ mod tests {
                     proximity: actual_proximity,
                     slot: actual_slot,
                 }) => {
-                    assert_eq!((*actual_role, *actual_proximity, *actual_slot), (role, proximity, slot));
+                    assert_eq!(
+                        (*actual_role, *actual_proximity, *actual_slot),
+                        (role, proximity, slot)
+                    );
                 }
                 other => panic!("expected a Context referent, got {other:?}"),
             },
@@ -2937,7 +2959,10 @@ mod tests {
         assert_eq!(card.id, "coi-zei-ninmu");
         assert!(!card.known);
         assert!(card.composition.is_none());
-        assert_eq!(card.warnings, [ZEI_COMPOUND_UNRECOVERABLE_WARNING.to_owned()]);
+        assert_eq!(
+            card.warnings,
+            [ZEI_COMPOUND_UNRECOVERABLE_WARNING.to_owned()]
+        );
     }
 
     #[test]
@@ -2947,7 +2972,10 @@ mod tests {
         assert_zei_compound("da'ei zei ninmu");
         let card = only_card("da'ei zei ninmu");
         assert!(card.composition.is_none());
-        assert_eq!(card.warnings, [ZEI_COMPOUND_UNRECOVERABLE_WARNING.to_owned()]);
+        assert_eq!(
+            card.warnings,
+            [ZEI_COMPOUND_UNRECOVERABLE_WARNING.to_owned()]
+        );
     }
 
     #[test]
@@ -2960,10 +2988,7 @@ mod tests {
         let [word_like] = words.as_slice() else {
             panic!("borbracmaxli is a single word");
         };
-        assert_eq!(
-            word_like.bare_word().map(Word::kind),
-            Some(WordKind::Lujvo)
-        );
+        assert_eq!(word_like.bare_word().map(Word::kind), Some(WordKind::Lujvo));
         assert_eq!(dictionary().lookup_words("borbracmaxli").count(), 0);
 
         let cards = cards_for("borbracmaxli");
@@ -2971,7 +2996,10 @@ mod tests {
         let card = &cards[0];
         assert!(!card.known);
         assert!(card.composition.is_none());
-        assert_eq!(card.warnings, [UNDEFINED_LUJVO_UNRECOVERABLE_WARNING.to_owned()]);
+        assert_eq!(
+            card.warnings,
+            [UNDEFINED_LUJVO_UNRECOVERABLE_WARNING.to_owned()]
+        );
     }
 
     #[test]
@@ -3025,7 +3053,10 @@ mod tests {
         assert_zei_compound("barda zei je zei nixli");
         let cards = cards_for("barda zei je zei nixli");
         let composition = composition_of(&cards[0]);
-        assert_eq!(composition.grouping, None, "no kind-composition edge, no grouping");
+        assert_eq!(
+            composition.grouping, None,
+            "no kind-composition edge, no grouping"
+        );
         match composition.root.as_data() {
             data!(ApproxExpr::Connective {
                 operator,
@@ -3159,11 +3190,10 @@ mod tests {
                     audience,
                     others,
                 }) => {
-                    assert_eq!((*speaker, *audience, *others), (
-                        Inclusion::Included,
-                        Inclusion::Included,
-                        true,
-                    ));
+                    assert_eq!(
+                        (*speaker, *audience, *others),
+                        (Inclusion::Included, Inclusion::Included, true,)
+                    );
                 }
                 other => panic!("expected PersonalMass, got {other:?}"),
             },
@@ -3294,15 +3324,23 @@ mod tests {
             None,
         );
         assert_quantity(
-            &quantity(&[new!(NumTok::Digit(1)), new!(NumTok::Point), new!(NumTok::Digit(2))])
-                .expect("1.2"),
+            &quantity(&[
+                new!(NumTok::Digit(1)),
+                new!(NumTok::Point),
+                new!(NumTok::Digit(2)),
+            ])
+            .expect("1.2"),
             ApproxQuantityForm::Exact,
             None,
             Some("1.2"),
         );
         assert_quantity(
-            &quantity(&[new!(NumTok::Digit(1)), new!(NumTok::Digit(2)), new!(NumTok::Percent)])
-                .expect("12%"),
+            &quantity(&[
+                new!(NumTok::Digit(1)),
+                new!(NumTok::Digit(2)),
+                new!(NumTok::Percent),
+            ])
+            .expect("12%"),
             ApproxQuantityForm::Exact,
             None,
             Some("12%"),
@@ -3321,10 +3359,24 @@ mod tests {
         );
         // Malformed runs fail closed.
         for run in [
-            &[new!(NumTok::Quantifier(ApproxQuantityForm::All)), new!(NumTok::Digit(1))][..],
-            &[new!(NumTok::Digit(1)), new!(NumTok::Point), new!(NumTok::Point)][..],
-            &[new!(NumTok::Digit(1)), new!(NumTok::Percent), new!(NumTok::Digit(2))][..],
-            &[new!(NumTok::Quantifier(ApproxQuantityForm::All)), new!(NumTok::Quantifier(ApproxQuantityForm::Few))][..],
+            &[
+                new!(NumTok::Quantifier(ApproxQuantityForm::All)),
+                new!(NumTok::Digit(1)),
+            ][..],
+            &[
+                new!(NumTok::Digit(1)),
+                new!(NumTok::Point),
+                new!(NumTok::Point),
+            ][..],
+            &[
+                new!(NumTok::Digit(1)),
+                new!(NumTok::Percent),
+                new!(NumTok::Digit(2)),
+            ][..],
+            &[
+                new!(NumTok::Quantifier(ApproxQuantityForm::All)),
+                new!(NumTok::Quantifier(ApproxQuantityForm::Few)),
+            ][..],
             &[new!(NumTok::Point)][..],
         ] {
             assert!(quantity(run).is_none(), "run {run:?} must fail closed");
@@ -3408,14 +3460,18 @@ mod tests {
         assert_zei_compound("ke zei barda zei cmalu zei nixli zei ke'e zei broda");
         let cards = cards_for("ke zei barda zei cmalu zei nixli zei ke'e zei broda");
         let composition = composition_of(&cards[0]);
-        assert_eq!(composition.grouping, None, "mixed trees omit the tree-level attribute");
+        assert_eq!(
+            composition.grouping, None,
+            "mixed trees omit the tree-level attribute"
+        );
         let (kind, modifier, top_grouping) = as_kind_composition(&composition.root);
         assert_eq!(component_word(kind), "broda");
         assert_eq!(top_grouping, Some(GroupingBasis::Explicit));
         let (inner_kind, inner_modifier, inner_grouping) = as_kind_composition(modifier);
         assert_eq!(component_word(inner_kind), "nixli");
         assert_eq!(inner_grouping, Some(GroupingBasis::AssumedLeft));
-        let (deepest_kind, deepest_modifier, deepest_grouping) = as_kind_composition(inner_modifier);
+        let (deepest_kind, deepest_modifier, deepest_grouping) =
+            as_kind_composition(inner_modifier);
         assert_eq!(component_word(deepest_kind), "cmalu");
         assert_eq!(component_word(deepest_modifier), "barda");
         assert_eq!(deepest_grouping, Some(GroupingBasis::AssumedLeft));
@@ -3431,7 +3487,8 @@ mod tests {
             .entries()
             .iter()
             .find(|entry| {
-                entry.word_type == jbotci_dictionary::WordType::Cmevla && !entry.definition.is_empty()
+                entry.word_type == jbotci_dictionary::WordType::Cmevla
+                    && !entry.definition.is_empty()
             })
             .expect("the dictionary contains cmevla entries");
         let word = entry.word;

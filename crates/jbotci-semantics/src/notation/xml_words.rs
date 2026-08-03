@@ -637,7 +637,10 @@ mod tests {
     #[ensures(true)]
     fn unknown_gismu_card_is_bare_known_false() {
         let xml = words_xml_for("sfoto");
-        assert_eq!(xml, "<WORDS>\n  <WORD ID=\"sfoto\" KNOWN=\"false\"/>\n</WORDS>\n");
+        assert_eq!(
+            xml,
+            "<WORDS>\n  <WORD ID=\"sfoto\" KNOWN=\"false\"/>\n</WORDS>\n"
+        );
     }
 
     #[test]

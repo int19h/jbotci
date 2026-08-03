@@ -184,8 +184,12 @@ pub struct ParameterNode {
 #[invariant(::Parameter { parameter } => parameter.object_kind() == SemanticObjectKind::Parameter)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PredicationRelation {
-    Named { relation: String },
-    Parameter { parameter: SemanticObjectId },
+    Named {
+        relation: String,
+    },
+    Parameter {
+        parameter: SemanticObjectId,
+    },
     /// The relation is a predicate composition (a tanru link): the real content
     /// lives in the predication's `tanru_link` sidecar, so there is no relation
     /// name or parameter to state. Constructing such a predication with a fake

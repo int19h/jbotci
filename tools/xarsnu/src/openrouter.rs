@@ -368,7 +368,10 @@ pub struct ProviderCallObservation {
 /// fact that something was (issue #720).
 #[invariant(!tool_name.trim().is_empty(), "malformed-call tool names cannot be empty")]
 #[invariant(!message.trim().is_empty(), "malformed-call validation messages cannot be empty")]
-#[invariant(true, "an empty payload is itself a legitimate lossless malformed capture")]
+#[invariant(
+    true,
+    "an empty payload is itself a legitimate lossless malformed capture"
+)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MalformedToolCall {
     pub tool_name: String,

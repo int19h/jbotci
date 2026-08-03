@@ -100,30 +100,29 @@ use crate::model::{
     AnchorRelation, AnchorRelationData, ArgumentValue, ArgumentValueData, ArgumentValueKind,
     Aspect, AssignedName, AssignedNameData, CommandTarget, Composition, CompositionOperator,
     Connector, ConnectorLocus, ConnectorSource, ConnectorSourceData, DeicticProximity, Descriptor,
-    DescriptorDefiniteness, DescriptorKind,
-    DisplayedContentAssertionEffect, DisplayedContentFamily, DisplayedContentModifier,
-    DisplayedContentNode, DisplayedContentPolarity, DisplayedContentTargetFocus,
-    ElidedConnectionOperand, EventualityClass, EventualityNode, EventualityNodeData,
-    EventualitySort, ForethoughtRelationBranch, FormulaNode, FormulaNodeData, FormulaOperator,
-    FormulaTraversal, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
-    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathExpressionNode,
-    MathExpressionNodeData, MathExpressionNodeKind, MathExpressionNodeKindData, MathLiteral,
-    MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, NonlogicalConnection,
-    ParagraphTransition, ParameterRole, PersonalMassMembership, PersonalParticipantMembership,
-    PlaceIndex, PlaceQuestionBinding, PlaceQuestionBindingData, PredicationMode, PredicationNode,
-    PredicationNodeData, PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode,
-    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode,
-    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange,
-    ReciprocalExchangeData, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
-    RecurrenceKind, ReferentCategory, ReferentNode, RelationExpansion, RelationLabel,
-    RelationLabelData, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
-    ScalarNegationKind, SelectionSource, SemanticGraph, SemanticObject, SemanticObjectData,
-    SemanticObjectId, SemanticSort, SequenceNode, SequenceRelation, SignKind, SignNode,
-    SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript, TaggedNegation,
-    TaggedNegationKind, TanruLink, TanruLinkData, TemporalPathAnchor, TemporalPathStep,
-    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode,
-    argument_object_kind_can_fill, diagnostic, displayed_content_target_kind_is_allowed,
-    source_from_spans,
+    DescriptorDefiniteness, DescriptorKind, DisplayedContentAssertionEffect,
+    DisplayedContentFamily, DisplayedContentModifier, DisplayedContentNode,
+    DisplayedContentPolarity, DisplayedContentTargetFocus, ElidedConnectionOperand,
+    EventualityClass, EventualityNode, EventualityNodeData, EventualitySort,
+    ForethoughtRelationBranch, FormulaNode, FormulaNodeData, FormulaOperator, FormulaTraversal,
+    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
+    LetteralUnitKind, MathExpressionNode, MathExpressionNodeData, MathExpressionNodeKind,
+    MathExpressionNodeKindData, MathLiteral, MathLiteralKind, MathOperator, MathOperatorData,
+    MixedRadixComponent, NonlogicalConnection, ParagraphTransition, ParameterRole,
+    PersonalMassMembership, PersonalParticipantMembership, PlaceIndex, PlaceQuestionBinding,
+    PlaceQuestionBindingData, PredicationMode, PredicationNode, PredicationNodeData,
+    PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode, QuantityForm,
+    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode, QuestionSlot,
+    QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, ReciprocalExchangeData,
+    Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
+    ReferentNode, RelationExpansion, RelationLabel, RelationLabelData, RelativeClause,
+    RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource,
+    SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId, SemanticSort,
+    SequenceNode, SequenceRelation, SignKind, SignNode, SourceByteSpan, SpaceInterval,
+    SpatialMotion, SpatialMotionKind, Subscript, TaggedNegation, TaggedNegationKind, TanruLink,
+    TanruLinkData, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
+    TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode, argument_object_kind_can_fill,
+    diagnostic, displayed_content_target_kind_is_allowed, source_from_spans,
 };
 
 mod connectives;
@@ -10620,7 +10619,8 @@ mod tests {
             connection
                 .connector
                 .as_ref()
-                .is_some_and(|connector| connector.source.as_surface_word() == Some("ji") && connector.parameter.is_some())
+                .is_some_and(|connector| connector.source.as_surface_word() == Some("ji")
+                    && connector.parameter.is_some())
         );
         assert_eq!(
             graph
@@ -14054,7 +14054,8 @@ mod tests {
             .filter_map(|object| match object.as_formula()?.as_data() {
                 data!(FormulaNode::Connective(connection))
                     if connection.connector.as_ref().is_some_and(|connector| {
-                        connector.source.as_surface_word() == Some("gi'e") && connector.locus == ConnectorLocus::PredicatePhrase
+                        connector.source.as_surface_word() == Some("gi'e")
+                            && connector.locus == ConnectorLocus::PredicatePhrase
                     }) =>
                 {
                     Some((object, connection))

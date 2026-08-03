@@ -2339,7 +2339,10 @@ impl RenderState {
             let base = format!("/objects/{}", json_pointer_escape(key));
             self.waive_consumed_provenance(&base, json_object(value));
             assert!(
-                remove_surface_subtree(&mut self.unaccounted_surfaces, &object_surface(base.clone())),
+                remove_surface_subtree(
+                    &mut self.unaccounted_surfaces,
+                    &object_surface(base.clone())
+                ),
                 "projected tanru object was already accounted: {base}"
             );
         }
@@ -4660,18 +4663,19 @@ mod tests {
     fn compact_incompatibility_declaration_is_the_exact_document_line() {
         // jbotci#723: the declaration line is the lossless record form quoted
         // into tooling, byte-identical to the document's own declaration.
-        let record = new!(CompactIncompatibility::ScopeDependencyWithoutEnclosingBinder {
-            referent: "entity:15".to_owned(),
-            dependency: "entity:14".to_owned(),
-        });
+        let record = new!(
+            CompactIncompatibility::ScopeDependencyWithoutEnclosingBinder {
+                referent: "entity:15".to_owned(),
+                dependency: "entity:14".to_owned(),
+            }
+        );
         assert_eq!(record.kind(), "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER");
         assert_eq!(
             record.declaration(),
             "<INCOMPATIBILITY KIND=\"SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER\" REFERENT=\"entity:15\" DEPENDENCY=\"entity:14\"/>"
         );
-        let planning = new!(CompactIncompatibility::DeclarationPlanningDidNotConverge {
-            iterations: 4,
-        });
+        let planning =
+            new!(CompactIncompatibility::DeclarationPlanningDidNotConverge { iterations: 4 });
         assert_eq!(
             planning.declaration(),
             "<INCOMPATIBILITY KIND=\"DECLARATION-PLANNING-DID-NOT-CONVERGE\" ITERATIONS=\"4\"/>"
@@ -5300,12 +5304,8 @@ mod tests {
 
         let words = segment_words_with_modifiers("skamymlatu").expect("skamymlatu segments");
         let cards = build_word_cards(jbotci_dictionary_data::english(), &words);
-        let with_cards = render_xml_value_with_state(
-            graph.clone(),
-            "b13",
-            RenderState::new(),
-            Some(&cards),
-        );
+        let with_cards =
+            render_xml_value_with_state(graph.clone(), "b13", RenderState::new(), Some(&cards));
         let without_cards = render_xml_value(graph, "b13");
 
         // Cards present: RELATION-METADATA never fires, not even in DEFS.
@@ -5519,10 +5519,7 @@ mod tests {
         }
         assert!(!without_cards.contains("<WORDS>"));
         // The body after the section is byte-identical to the card-less body.
-        let with_body = with_cards
-            .split_once("</WORDS>")
-            .expect("WORDS section")
-            .1;
+        let with_body = with_cards.split_once("</WORDS>").expect("WORDS section").1;
         let without_body = without_cards
             .split_once("\n  <DEFS>")
             .expect("DEFS after comment");
@@ -8623,8 +8620,10 @@ impl RenderState {
             Some("connective") => {
                 let operator = optional_string(operand, "operator")
                     .unwrap_or_else(|| panic!("relation connective lacks an operator"));
-                let mut connective =
-                    XmlElement::with_attributes("CONNECTIVE", [("OPERATOR", enum_string(operator))]);
+                let mut connective = XmlElement::with_attributes(
+                    "CONNECTIVE",
+                    [("OPERATOR", enum_string(operator))],
+                );
                 for leaf in operand
                     .get("operands")
                     .and_then(Value::as_array)
@@ -8741,34 +8740,33 @@ impl RenderState {
             "mode",
         ]);
         let mut result = XmlElement::new("PREDICATION");
-        let relation_value = if let Some(view) =
-            object.get("relationExpression").and_then(Value::as_object)
-        {
-            // A projected tanru (#719): the relation slot carries the composite
-            // predicate expression; the predication's own `relation` renders as
-            // the host KIND leaf's PREDICATE= rather than on the element.
-            self.account_field_tree(graph, object, "relationExpression");
-            handled.push("relationExpression");
-            let host_predicate = optional_string(object, "relation")
-                .unwrap_or_else(|| panic!("projected predication lacks its host relation"));
-            self.account_field(graph, object, "relation");
-            Some(self.render_relation_composition(graph, view, host_predicate))
-        } else if let Some(relation) = optional_string(object, "relation") {
-            self.account_field(graph, object, "relation");
-            result.set("PREDICATE", predicate_symbol(relation));
-            None
-        } else if let Some(parameter) = optional_string(object, "relationParameter") {
-            self.account_field(graph, object, "relationParameter");
-            Some(self.wrap_pointer(graph, "RELATION", parameter, Vec::new()))
-        } else if object.contains_key("tanruLink") {
-            // An unprojected tanru-link predication (the recognition guards
-            // rejected the compact form): no PREDICATE= — the KIND-COMPOSITION
-            // sidecar occupies the relation slot and carries the meaning.
-            handled.push("tanruLink");
-            Some(self.render_tanru_link_sidecar(graph, object))
-        } else {
-            Some(XmlElement::new("MISSING-RELATION"))
-        };
+        let relation_value =
+            if let Some(view) = object.get("relationExpression").and_then(Value::as_object) {
+                // A projected tanru (#719): the relation slot carries the composite
+                // predicate expression; the predication's own `relation` renders as
+                // the host KIND leaf's PREDICATE= rather than on the element.
+                self.account_field_tree(graph, object, "relationExpression");
+                handled.push("relationExpression");
+                let host_predicate = optional_string(object, "relation")
+                    .unwrap_or_else(|| panic!("projected predication lacks its host relation"));
+                self.account_field(graph, object, "relation");
+                Some(self.render_relation_composition(graph, view, host_predicate))
+            } else if let Some(relation) = optional_string(object, "relation") {
+                self.account_field(graph, object, "relation");
+                result.set("PREDICATE", predicate_symbol(relation));
+                None
+            } else if let Some(parameter) = optional_string(object, "relationParameter") {
+                self.account_field(graph, object, "relationParameter");
+                Some(self.wrap_pointer(graph, "RELATION", parameter, Vec::new()))
+            } else if object.contains_key("tanruLink") {
+                // An unprojected tanru-link predication (the recognition guards
+                // rejected the compact form): no PREDICATE= — the KIND-COMPOSITION
+                // sidecar occupies the relation slot and carries the meaning.
+                handled.push("tanruLink");
+                Some(self.render_tanru_link_sidecar(graph, object))
+            } else {
+                Some(XmlElement::new("MISSING-RELATION"))
+            };
         result.set(
             "MODE",
             object
@@ -9145,13 +9143,9 @@ impl RenderState {
             (operands, connector_parts, extras)
         });
         let (operands, connector_parts, extras) = parts;
-        let (connector_attributes, connector_children) =
-            connector_parts.unwrap_or_default();
+        let (connector_attributes, connector_children) = connector_parts.unwrap_or_default();
         let connector_rendered = !connector_attributes.is_empty() || !connector_children.is_empty();
-        if operator == "atom"
-            && declarations.is_empty()
-            && !connector_rendered
-            && extras.is_empty()
+        if operator == "atom" && declarations.is_empty() && !connector_rendered && extras.is_empty()
         {
             assert_eq!(operands.len(), 1, "atom formula has invalid operand count");
             return operands.into_iter().next().expect("one operand");

@@ -121,7 +121,10 @@ impl GateOutcome {
     #[ensures(ret.is_some() == matches!(self.as_data(), bityzba::data!(GateOutcome::Success { .. })))]
     pub fn tersmu_rendering(&self) -> Option<&[u8]> {
         match self.as_data() {
-            bityzba::data!(GateOutcome::Success { tersmu_rendering, .. }) => Some(tersmu_rendering),
+            bityzba::data!(GateOutcome::Success {
+                tersmu_rendering,
+                ..
+            }) => Some(tersmu_rendering),
             _ => None,
         }
     }
@@ -986,8 +989,7 @@ mod tests {
         // precedes the XML document, so the canonical `<SFN` root follows the
         // definitions rather than opening the payload.
         assert!(
-            xml.windows(b"<SFN ".len())
-                .any(|window| window == b"<SFN "),
+            xml.windows(b"<SFN ".len()).any(|window| window == b"<SFN "),
             "xml gate must contain the canonical scoped SFN-XML rendering"
         );
 
