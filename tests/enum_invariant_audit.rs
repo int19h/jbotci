@@ -1020,6 +1020,62 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit notation-profile selector; no payload to constrain",
     ),
     (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Atom",
+        "Atom is already a validated lexical type, so every Atom payload is valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Bool",
+        "every bool is a valid S-expression scalar",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Float",
+        "every f64 is printable: finite values use numeric syntax and non-finite values use canonical escaped strings",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::List",
+        "every sequence of already validated Datum children is a valid S-expression list",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Signed",
+        "every i128 has a canonical integer spelling",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::String",
+        "every Rust string has one canonical escaped S-expression string spelling",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Unsigned",
+        "every u128 has a canonical integer spelling",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralValue::Bool",
+        "every bool is a valid typed structural scalar",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralValue::Map",
+        "map entries contain already validated structural keys and values; all entry sequences are representable",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralValue::Sequence",
+        "sequence children are already validated StructuralValue instances and empty sequences remain meaningful",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralValue::Signed",
+        "every i128 is a valid typed structural scalar",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralValue::String",
+        "every Rust string is representable through the canonical escaped string path",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralValue::Unit",
+        "unit is a payload-free marker used for absent and unit Serde values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralValue::Unsigned",
+        "every u128 is a valid typed structural scalar",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/xml.rs:XmlRepresentationPlan::Compact",
         "unit representation-plan marker; the alternative variant enforces the nonempty incompatibility evidence",
     ),

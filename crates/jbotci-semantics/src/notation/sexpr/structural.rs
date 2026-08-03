@@ -30,12 +30,12 @@ const SEMANTIC_OBJECT_ID_NEWTYPE: &str = "SemanticObjectId";
 #[invariant(::Bool(_) => true)]
 #[invariant(::Signed(_) => true)]
 #[invariant(::Unsigned(_) => true)]
-#[invariant(::Float(_) => true)]
+#[invariant(::Float(value) => value.is_finite())]
 #[invariant(::Unit => true)]
 #[invariant(::Sequence(_) => true)]
 #[invariant(::Map(_) => true)]
-#[invariant(::Record { .. } => true)]
-#[invariant(::Variant { .. } => true)]
+#[invariant(::Record { name, fields } => !name.is_empty() && fields.iter().all(|(field, _)| !field.is_empty()))]
+#[invariant(::Variant { type_name, variant, .. } => !type_name.is_empty() && !variant.is_empty())]
 #[derive(Debug, Clone, PartialEq)]
 enum StructuralValue {
     Reference(String),
@@ -146,14 +146,24 @@ impl Serializer for StructuralSerializer {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok())]
+    #[ensures(ret.is_ok() == value.is_finite())]
     fn serialize_f32(self, value: f32) -> Result<Self::Ok, Self::Error> {
+        if !value.is_finite() {
+            return Err(StructuralError(
+                "non-finite f32 is not representable".to_owned(),
+            ));
+        }
         Ok(new!(StructuralValue::Float(f64::from(value))))
     }
 
     #[requires(true)]
-    #[ensures(ret.is_ok())]
+    #[ensures(ret.is_ok() == value.is_finite())]
     fn serialize_f64(self, value: f64) -> Result<Self::Ok, Self::Error> {
+        if !value.is_finite() {
+            return Err(StructuralError(
+                "non-finite f64 is not representable".to_owned(),
+            ));
+        }
         Ok(new!(StructuralValue::Float(value)))
     }
 
@@ -1094,6 +1104,18 @@ mod tests {
             new!(StructuralValue::Reference("entity:7".to_owned())).as_data()
         );
         assert_eq!(reference_datum(id).as_atom(), Some("@entity_7"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn structural_floats_must_be_finite() {
+        assert!(0.0_f32.serialize(StructuralSerializer).is_ok());
+        assert!(f32::INFINITY.serialize(StructuralSerializer).is_err());
+        assert!(f32::NAN.serialize(StructuralSerializer).is_err());
+        assert!(0.0_f64.serialize(StructuralSerializer).is_ok());
+        assert!(f64::NEG_INFINITY.serialize(StructuralSerializer).is_err());
+        assert!(f64::NAN.serialize(StructuralSerializer).is_err());
     }
 
     #[test]
