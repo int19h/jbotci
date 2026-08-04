@@ -968,48 +968,72 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a disposition map with no cross-field invariant; every entry-key to disposition mapping is valid",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:CuratedRoot",
-        "raw sidecar DTO intentionally admits invalid combinations so the generator returns a typed rejection",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:BundlePaths",
+        "offline bundle and generated-Rust paths are caller-selected and every I/O failure is returned as a typed error",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:DictionaryMetadata",
-        "raw dictionary-sidecar DTO is compared against exact reviewed constants after deserialization",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:BundleSnapshot",
+        "raw snapshot bytes intentionally admit invalid mutations so the verifier can reject every byte, schema, and manifest failure class",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:ExpectedCurated",
-        "private compile-time audit row is fully fixed by trusted constants",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:DictionaryIdentity",
+        "private dictionary identity is emitted only by the pinned whole-file audit and checked against curated rows before use",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:FamilyPolicy",
-        "raw policy DTO admits invalid evidence and enum text so validation can reject them explicitly",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:DispositionSeed",
+        "raw mechanical ledger projection intentionally reaches the generator validation boundary before becoming a normative DispositionRow",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:GeneratorInputs",
-        "borrowed raw inputs admit arbitrary bytes so fail-closed validation can return typed errors",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:GeneratedRelationSource",
+        "raw TOML source DTO intentionally admits invalid combinations so mint validation returns a typed rejection",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:GeneratorPaths",
-        "offline input paths are caller-selected and all I/O failures are returned as typed errors",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:LexicalSource",
+        "raw TOML source DTO intentionally admits invalid identities, types, and arities for fail-closed mint validation",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:PolicyFile",
-        "raw parsed row list is intentionally unconstrained before exact-domain validation",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:PlaceDeletionSource",
+        "raw TOML source DTO is validated against lexical rows, total surviving labels, and evidence before minting",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:RelationPlace",
-        "raw outer policy DTO admits invalid identities and ranges so validation can reject them explicitly",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:PreludeSource",
+        "raw TOML prelude DTO is parsed, typechecked, dependency-checked, and digest-checked before minting",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:RootAudit",
-        "private mutable source-audit accumulator is populated before the whole-file validation completes",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RegistryProvenance",
+        "raw provenance-sidecar DTO intentionally admits drift so the exact authority audit can return a typed rejection",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:SourceAudit",
-        "the source audit value is returned only after all source validators succeed",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RegistrySource",
+        "raw top-level TOML DTO is an unchecked staging aggregate whose complete tables are validated before minting",
     ),
     (
-        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:SourceMetadata",
-        "raw source-sidecar DTO intentionally admits drift so exact validation can reject it",
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RelationFormerSource",
+        "raw TOML relation-former DTO is template-typechecked and checked for total provenance before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:ScaleLiteralSource",
+        "raw TOML scale DTO is checked for a closed type and nonempty source coverage before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:ScopePolicyProvenance",
+        "raw provenance row is compared field-for-field with the reviewed policy source before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:ScopePolicySource",
+        "raw TOML policy DTO is range-, foreign-key-, and reviewed-provenance-checked before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticTypeRegistry",
+        "private checker maps are constructed only from validated lexical and prelude rows and never cross the mint boundary",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:Tables",
+        "private staged table aggregate intentionally exists before cross-table order, key, evidence, and semantic validation",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:TagReductionSource",
+        "raw TOML tag DTO is Hole-validated, typechecked, and graph-identity-checked before minting",
     ),
     (
         "crates/jbotci-semantics/tests/support/schema_scan.rs:EnumDef",
@@ -1038,10 +1062,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/tests/support/type_graph.rs:TypeGraph",
         "test-only edge/field maps derived from the source scan; any consistent maps are a valid graph",
-    ),
-    (
-        "crates/jbotci-semantics/tests/lexical_policy_codegen.rs:OwnedInputs",
-        "test-only raw owner represents both reviewed inputs and deliberately corrupted generator inputs",
     ),
     (
         "crates/jbotci-semantics/src/facade.rs:SemanticBuildOptions",

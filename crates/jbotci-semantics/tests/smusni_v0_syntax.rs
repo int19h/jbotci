@@ -1,11 +1,14 @@
+use std::collections::BTreeSet;
+
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
-use jbotci_semantics::notation::sexpr::datum::print_document;
+use jbotci_semantics::notation::sexpr::datum::{Datum, print_document};
 use jbotci_semantics::notation::sexpr::{
     parse_v0_document, parse_v0_expressions, print_v0_document,
 };
 
 const FROZEN_SAMPLES: &str = include_str!("../../../docs/smusni/samples.md");
+const LEXICAL_REGISTRY: &str = include_str!("../data/smusni-v0/registry/lexical.jsonl");
 const SAMPLE_BODY: &str = "(Assert (klama This))";
 
 #[invariant(*ordinal > 0 && !source.is_empty())]
@@ -20,6 +23,16 @@ struct LispBlock {
 #[ensures(true)]
 fn every_frozen_lisp_sample_obeys_the_v0_serialization_grammar() {
     let blocks = lisp_blocks(FROZEN_SAMPLES);
+    let supported_roots = LEXICAL_REGISTRY
+        .lines()
+        .map(|line| {
+            serde_json::from_str::<serde_json::Value>(line).unwrap()["normalized-root"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
+        .collect::<BTreeSet<_>>();
+    let mut sample_roots = BTreeSet::new();
     assert!(
         !blocks.is_empty(),
         "the frozen samples must contain Lisp blocks"
@@ -34,6 +47,7 @@ fn every_frozen_lisp_sample_obeys_the_v0_serialization_grammar() {
                     block.ordinal
                 )
             });
+            collect_lexical_dependencies(&document.to_datum(), &mut sample_roots);
             let printed = print_v0_document(&document);
             assert_eq!(
                 parse_v0_document(&printed),
@@ -54,6 +68,7 @@ fn every_frozen_lisp_sample_obeys_the_v0_serialization_grammar() {
                 block.ordinal,
             );
             for expression in expressions {
+                collect_lexical_dependencies(&expression.to_datum(), &mut sample_roots);
                 let printed = print_document(&expression.to_datum());
                 assert_eq!(
                     parse_v0_expressions(&printed),
@@ -63,6 +78,46 @@ fn every_frozen_lisp_sample_obeys_the_v0_serialization_grammar() {
                 );
             }
         }
+    }
+
+    let unsupported = sample_roots
+        .difference(&supported_roots)
+        .cloned()
+        .collect::<Vec<_>>();
+    assert!(
+        unsupported.is_empty(),
+        "frozen samples use lexical roots absent from the v0 registry: {unsupported:?}"
+    );
+}
+
+#[requires(true)]
+#[ensures(!ret || !token.is_empty())]
+fn is_ascii_lexical_root(token: &str) -> bool {
+    !token.is_empty()
+        && token
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || matches!(byte, b'\'' | b'-'))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn collect_lexical_dependencies(datum: &Datum, roots: &mut BTreeSet<String>) {
+    let Some(items) = datum.as_list() else {
+        return;
+    };
+    if let Some(head) = items.first().and_then(Datum::as_atom) {
+        if is_ascii_lexical_root(head) {
+            roots.insert(head.to_owned());
+        }
+        if head == "DropPlace"
+            && let Some(root) = items.get(1).and_then(Datum::as_atom)
+            && is_ascii_lexical_root(root)
+        {
+            roots.insert(root.to_owned());
+        }
+    }
+    for item in items {
+        collect_lexical_dependencies(item, roots);
     }
 }
 

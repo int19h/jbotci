@@ -1,8 +1,8 @@
-//! Minimum Draft-9 typed IR foundation for lexical dynamic edges.
+//! Minimum smusni-v0 typed IR foundation for lexical dynamic edges.
 //!
 //! This module intentionally stops before host selection. It discovers the
 //! graph-owned computation positioned at an original lexical place, resolves
-//! the exact curated `(relation, place, family)` key, and constructs an edge
+//! the exact curated `(relation, place)` key, and constructs an edge
 //! only after successful validation. Raw S-expression datums never enter this
 //! layer.
 
@@ -98,6 +98,19 @@ pub(crate) enum DynamicValueFamily {
     RefCompReferentsEventuality,
 }
 
+impl DynamicValueFamily {
+    #[requires(true)]
+    #[ensures(ret.starts_with("smusni.fallback.lexical-policy."))]
+    fn fallback_reason_id(self) -> &'static str {
+        match self {
+            Self::RefCompReferentsEntity => GENERATED_LEXICAL_POLICY_ENTITY_FALLBACK_REASON_ID,
+            Self::RefCompReferentsEventuality => {
+                GENERATED_LEXICAL_POLICY_EVENTUALITY_FALLBACK_REASON_ID
+            }
+        }
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ScopePolicy {
@@ -111,22 +124,19 @@ pub(crate) enum ScopePolicy {
 pub(crate) struct LexicalPolicyKey {
     relation: NormalizedLexicalRelationId,
     original_place: OriginalPlace,
-    family: DynamicValueFamily,
 }
 
 impl LexicalPolicyKey {
     #[requires(true)]
-    #[ensures(ret.relation == old(relation.clone()) && ret.original_place == original_place && ret.family == family)]
+    #[ensures(ret.relation == old(relation.clone()) && ret.original_place == original_place)]
     pub(crate) fn new(
         relation: NormalizedLexicalRelationId,
         original_place: OriginalPlace,
-        family: DynamicValueFamily,
     ) -> Self {
         // Every combination of these validated components is a valid lookup key.
         LexicalPolicyKey {
             relation,
             original_place,
-            family,
         }
     }
 
@@ -141,12 +151,6 @@ impl LexicalPolicyKey {
     pub(crate) fn original_place(&self) -> usize {
         self.original_place.get()
     }
-
-    #[requires(true)]
-    #[ensures(ret == self.family)]
-    pub(crate) fn family(&self) -> DynamicValueFamily {
-        self.family
-    }
 }
 
 #[invariant(key.original_place.get() <= attested_arity.get())]
@@ -154,16 +158,23 @@ impl LexicalPolicyKey {
 pub(crate) struct VerifiedLexicalPolicy {
     key: LexicalPolicyKey,
     attested_arity: AttestedArity,
+    accepted_family: DynamicValueFamily,
     policy: ScopePolicy,
 }
 
 impl VerifiedLexicalPolicy {
     #[requires(key.original_place.get() <= attested_arity.get())]
-    #[ensures(ret.key == old(key.clone()) && ret.attested_arity == attested_arity && ret.policy == policy)]
-    fn new(key: LexicalPolicyKey, attested_arity: AttestedArity, policy: ScopePolicy) -> Self {
+    #[ensures(ret.key == old(key.clone()) && ret.attested_arity == attested_arity && ret.accepted_family == accepted_family && ret.policy == policy)]
+    fn new(
+        key: LexicalPolicyKey,
+        attested_arity: AttestedArity,
+        accepted_family: DynamicValueFamily,
+        policy: ScopePolicy,
+    ) -> Self {
         new!(VerifiedLexicalPolicy {
             key,
             attested_arity,
+            accepted_family,
             policy,
         })
     }
@@ -209,6 +220,7 @@ pub(crate) enum GraphRefHostError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LexicalDynamicEdge {
     key: LexicalPolicyKey,
+    family: DynamicValueFamily,
     attested_arity: AttestedArity,
     policy: ScopePolicy,
     de_re_owner: Option<GraphRefHostId>,
@@ -216,7 +228,7 @@ pub(crate) struct LexicalDynamicEdge {
 
 impl LexicalDynamicEdge {
     #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|edge| edge.key == old(verified.key.clone()) && edge.policy == old(verified.policy)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|edge| edge.key == old(verified.key.clone()) && edge.family == old(verified.accepted_family) && edge.policy == old(verified.policy)) || ret.is_err())]
     fn from_verified(
         verified: VerifiedLexicalPolicy,
         de_re_owner: Option<GraphRefHostId>,
@@ -227,6 +239,7 @@ impl LexicalDynamicEdge {
         let verified = verified.into_data();
         Ok(new!(LexicalDynamicEdge {
             key: verified.key,
+            family: verified.accepted_family,
             attested_arity: verified.attested_arity,
             policy: verified.policy,
             de_re_owner,
@@ -242,7 +255,7 @@ pub(crate) enum LexicalEdgeOwnerFailure {
 
 #[invariant(::UnknownRelation { .. } => true)]
 #[invariant(::UnsupportedPlace { .. } => true)]
-#[invariant(::UnsupportedFamily { .. } => true)]
+#[invariant(::DynamicFamilyMismatch { observed, expected, .. } => observed != expected)]
 #[invariant(::StaleArity { observed, expected, .. } => observed != expected)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum LexicalPolicyLookupFailure {
@@ -252,8 +265,10 @@ pub(crate) enum LexicalPolicyLookupFailure {
     UnsupportedPlace {
         key: LexicalPolicyKey,
     },
-    UnsupportedFamily {
+    DynamicFamilyMismatch {
         key: LexicalPolicyKey,
+        observed: DynamicValueFamily,
+        expected: DynamicValueFamily,
     },
     StaleArity {
         key: LexicalPolicyKey,
@@ -293,34 +308,39 @@ pub(crate) struct LexicalEdgeCandidate {
     site: LexicalEdgeSite,
     value: SemanticObjectId,
     key: LexicalPolicyKey,
+    family: DynamicValueFamily,
     observed_arity: AttestedArity,
 }
 
 impl LexicalEdgeCandidate {
     #[requires(value.object_kind() == SemanticObjectKind::Referent)]
     #[requires(key.original_place.get() <= observed_arity.get())]
-    #[ensures(ret.site == site && ret.value == value && ret.key == old(key.clone()))]
+    #[ensures(ret.site == site && ret.value == value && ret.key == old(key.clone()) && ret.family == family)]
     fn new(
         site: LexicalEdgeSite,
         value: SemanticObjectId,
         key: LexicalPolicyKey,
+        family: DynamicValueFamily,
         observed_arity: AttestedArity,
     ) -> Self {
         new!(LexicalEdgeCandidate {
             site,
             value,
             key,
+            family,
             observed_arity,
         })
     }
 }
 
 #[invariant(fallback_reason_key(reason) == key)]
+#[invariant(!fallback_reason_id.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LexicalPolicyDiagnostic {
     site: LexicalEdgeSite,
     key: LexicalPolicyKey,
     reason: LexicalEdgeFallbackReason,
+    fallback_reason_id: &'static str,
 }
 
 #[invariant(::Constructed { .. } => true)]
@@ -350,19 +370,20 @@ impl LexicalPolicyRegistry {
     }
 
     #[requires(true)]
-    #[ensures(ret.rows.len() == 7)]
+    #[ensures(ret.rows.len() == GENERATED_LEXICAL_POLICY_ROWS.len())]
     fn generated() -> Self {
         let rows = GENERATED_LEXICAL_POLICY_ROWS
             .iter()
             .map(|row| {
                 let relation = NormalizedLexicalRelationId::from_canonical(row.relation)
                     .expect("generated relations were audited as canonical");
-                let key = LexicalPolicyKey::new(
-                    relation,
-                    OriginalPlace::new(row.original_place),
-                    row.family,
-                );
-                VerifiedLexicalPolicy::new(key, AttestedArity::new(row.attested_arity), row.policy)
+                let key = LexicalPolicyKey::new(relation, OriginalPlace::new(row.original_place));
+                VerifiedLexicalPolicy::new(
+                    key,
+                    AttestedArity::new(row.attested_arity),
+                    row.accepted_family,
+                    row.policy,
+                )
             })
             .collect();
         Self::new(rows)
@@ -374,16 +395,13 @@ impl LexicalPolicyRegistry {
         &self,
         key: &LexicalPolicyKey,
         observed_arity: AttestedArity,
+        observed_family: DynamicValueFamily,
     ) -> Result<VerifiedLexicalPolicy, LexicalPolicyLookupFailure> {
         let Some(row) = self.rows.iter().find(|row| row.key == *key) else {
             let failure = if !self.rows.iter().any(|row| row.key.relation == key.relation) {
                 new!(LexicalPolicyLookupFailure::UnknownRelation { key: key.clone() })
-            } else if !self.rows.iter().any(|row| {
-                row.key.relation == key.relation && row.key.original_place == key.original_place
-            }) {
-                new!(LexicalPolicyLookupFailure::UnsupportedPlace { key: key.clone() })
             } else {
-                new!(LexicalPolicyLookupFailure::UnsupportedFamily { key: key.clone() })
+                new!(LexicalPolicyLookupFailure::UnsupportedPlace { key: key.clone() })
             };
             return Err(failure);
         };
@@ -392,6 +410,13 @@ impl LexicalPolicyRegistry {
                 key: key.clone(),
                 observed: observed_arity,
                 expected: row.attested_arity,
+            }));
+        }
+        if row.accepted_family != observed_family {
+            return Err(new!(LexicalPolicyLookupFailure::DynamicFamilyMismatch {
+                key: key.clone(),
+                observed: observed_family,
+                expected: row.accepted_family,
             }));
         }
         Ok(row.clone())
@@ -411,7 +436,7 @@ struct GeneratedLexicalPolicyRow {
     relation: &'static str,
     original_place: usize,
     attested_arity: usize,
-    family: DynamicValueFamily,
+    accepted_family: DynamicValueFamily,
     policy: ScopePolicy,
 }
 
@@ -425,7 +450,8 @@ fn attempt_lexical_dynamic_edge(
     candidate: &LexicalEdgeCandidate,
     de_re_owner: Option<GraphRefHostId>,
 ) -> LexicalEdgeAttempt {
-    let verified = match registry.lookup(&candidate.key, candidate.observed_arity) {
+    let verified = match registry.lookup(&candidate.key, candidate.observed_arity, candidate.family)
+    {
         Ok(verified) => verified,
         Err(failure) => {
             let reason = new!(LexicalEdgeFallbackReason::Lookup(failure));
@@ -454,6 +480,7 @@ fn fallback_attempt(
         site: candidate.site,
         key: candidate.key.clone(),
         reason: reason.clone(),
+        fallback_reason_id: candidate.family.fallback_reason_id(),
     });
     new!(LexicalEdgeAttempt::Fallback { reason, diagnostic })
 }
@@ -473,7 +500,7 @@ fn lookup_failure_key(failure: &LexicalPolicyLookupFailure) -> &LexicalPolicyKey
     match failure.as_data() {
         data!(LexicalPolicyLookupFailure::UnknownRelation { key })
         | data!(LexicalPolicyLookupFailure::UnsupportedPlace { key })
-        | data!(LexicalPolicyLookupFailure::UnsupportedFamily { key })
+        | data!(LexicalPolicyLookupFailure::DynamicFamilyMismatch { key, .. })
         | data!(LexicalPolicyLookupFailure::StaleArity { key, .. }) => key,
     }
 }
@@ -577,8 +604,14 @@ fn collect_argument_edges(
         {
             continue;
         }
-        let key = LexicalPolicyKey::new(relation.clone(), OriginalPlace::new(place.get()), family);
-        out.push(LexicalEdgeCandidate::new(site, value, key, observed_arity));
+        let key = LexicalPolicyKey::new(relation.clone(), OriginalPlace::new(place.get()));
+        out.push(LexicalEdgeCandidate::new(
+            site,
+            value,
+            key,
+            family,
+            observed_arity,
+        ));
     }
 }
 
@@ -681,7 +714,7 @@ mod tests {
 
     use crate::{SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options};
 
-    const WITNESSES: &str = include_str!("../../data/smusni-draft9-must-compact.txt");
+    const WITNESSES: &str = include_str!("../../data/smusni-v0/sources/must-compact-witnesses.txt");
 
     #[requires(!text.is_empty())]
     #[ensures(ret.objects.contains_key(&ret.root))]
@@ -714,12 +747,11 @@ mod tests {
     }
 
     #[requires(true)]
-    #[ensures(ret.relation() == relation && ret.original_place() == place && ret.family() == family)]
-    fn key(relation: &str, place: usize, family: DynamicValueFamily) -> LexicalPolicyKey {
+    #[ensures(ret.relation() == relation && ret.original_place() == place)]
+    fn key(relation: &str, place: usize) -> LexicalPolicyKey {
         LexicalPolicyKey::new(
             NormalizedLexicalRelationId::from_canonical(relation).expect("test relation"),
             OriginalPlace::new(place),
-            family,
         )
     }
 
@@ -728,7 +760,7 @@ mod tests {
     #[ensures(true)]
     fn generated_registry_has_exact_closed_policy_counts() {
         let registry = LexicalPolicyRegistry::generated();
-        assert_eq!(registry.rows.len(), 7);
+        assert_eq!(registry.rows.len(), 8);
         assert_eq!(
             registry
                 .rows
@@ -743,7 +775,7 @@ mod tests {
                 .iter()
                 .filter(|row| row.policy == ScopePolicy::Intensional)
                 .count(),
-            1
+            2
         );
         assert!(
             registry
@@ -758,35 +790,61 @@ mod tests {
     #[ensures(true)]
     fn lookup_is_exact_and_never_borrows_or_defaults() {
         let registry = LexicalPolicyRegistry::generated();
-        let entity = DynamicValueFamily::RefCompReferentsEntity;
-        let eventuality = DynamicValueFamily::RefCompReferentsEventuality;
         let success = registry
-            .lookup(&key("klama", 2, entity), AttestedArity::new(5))
-            .expect("admitted triple");
+            .lookup(
+                &key("klama", 2),
+                AttestedArity::new(5),
+                DynamicValueFamily::RefCompReferentsEntity,
+            )
+            .expect("admitted final key");
         assert_eq!(success.policy(), ScopePolicy::Extensional);
+        let capability = registry
+            .lookup(
+                &key("kakne", 2),
+                AttestedArity::new(3),
+                DynamicValueFamily::RefCompReferentsEventuality,
+            )
+            .expect("frozen capability-content key");
+        assert_eq!(capability.policy(), ScopePolicy::Intensional);
         let unknown = registry
-            .lookup(&key("nonce", 2, entity), AttestedArity::new(5))
+            .lookup(
+                &key("nonce", 2),
+                AttestedArity::new(5),
+                DynamicValueFamily::RefCompReferentsEntity,
+            )
             .expect_err("unknown relation");
         assert!(matches!(
             unknown.as_data(),
             data!(LexicalPolicyLookupFailure::UnknownRelation { .. })
         ));
         let unsupported_place = registry
-            .lookup(&key("klama", 4, entity), AttestedArity::new(5))
+            .lookup(
+                &key("klama", 4),
+                AttestedArity::new(5),
+                DynamicValueFamily::RefCompReferentsEntity,
+            )
             .expect_err("unsupported place");
         assert!(matches!(
             unsupported_place.as_data(),
             data!(LexicalPolicyLookupFailure::UnsupportedPlace { .. })
         ));
-        let unsupported_family = registry
-            .lookup(&key("klama", 2, eventuality), AttestedArity::new(5))
-            .expect_err("unsupported family");
+        let mismatched_family = registry
+            .lookup(
+                &key("klama", 2),
+                AttestedArity::new(5),
+                DynamicValueFamily::RefCompReferentsEventuality,
+            )
+            .expect_err("actual graph family must match the lexical slot type");
         assert!(matches!(
-            unsupported_family.as_data(),
-            data!(LexicalPolicyLookupFailure::UnsupportedFamily { .. })
+            mismatched_family.as_data(),
+            data!(LexicalPolicyLookupFailure::DynamicFamilyMismatch { .. })
         ));
         let stale = registry
-            .lookup(&key("klama", 2, entity), AttestedArity::new(4))
+            .lookup(
+                &key("klama", 2),
+                AttestedArity::new(4),
+                DynamicValueFamily::RefCompReferentsEntity,
+            )
             .expect_err("stale arity");
         assert!(matches!(
             stale.as_data(),
@@ -803,7 +861,8 @@ mod tests {
                 predication: SemanticObjectId::predication(1),
             }),
             SemanticObjectId::referent(2),
-            key("skicu", 2, DynamicValueFamily::RefCompReferentsEntity),
+            key("skicu", 2),
+            DynamicValueFamily::RefCompReferentsEntity,
             AttestedArity::new(4),
         );
         let attempt =
@@ -814,6 +873,10 @@ mod tests {
         assert_eq!(reason, &diagnostic.reason);
         assert_eq!(diagnostic.site, candidate.site);
         assert_eq!(diagnostic.key, candidate.key);
+        assert_eq!(
+            diagnostic.fallback_reason_id,
+            "smusni.fallback.lexical-policy.entity"
+        );
     }
 
     #[test]
@@ -821,8 +884,9 @@ mod tests {
     #[ensures(true)]
     fn graph_owned_de_re_owner_is_checked_at_edge_construction() {
         let registry = LexicalPolicyRegistry::new(vec![VerifiedLexicalPolicy::new(
-            key("djica", 2, DynamicValueFamily::RefCompReferentsEventuality),
+            key("djica", 2),
             AttestedArity::new(3),
+            DynamicValueFamily::RefCompReferentsEventuality,
             ScopePolicy::Opaque,
         )]);
         let candidate = LexicalEdgeCandidate::new(
@@ -830,7 +894,8 @@ mod tests {
                 predication: SemanticObjectId::predication(1),
             }),
             SemanticObjectId::referent(2),
-            key("djica", 2, DynamicValueFamily::RefCompReferentsEventuality),
+            key("djica", 2),
+            DynamicValueFamily::RefCompReferentsEventuality,
             AttestedArity::new(3),
         );
         let owner = GraphRefHostId::try_new(SemanticObjectId::utterance(3)).expect("act host");
@@ -874,6 +939,7 @@ mod tests {
                         VerifiedLexicalPolicy::new(
                             row.key.clone(),
                             row.attested_arity,
+                            row.accepted_family,
                             if row.key == selected.key {
                                 alternative
                             } else {
@@ -884,7 +950,11 @@ mod tests {
                     .collect();
                 let mutated = LexicalPolicyRegistry::new(rows);
                 let looked_up = mutated
-                    .lookup(&selected.key, selected.attested_arity)
+                    .lookup(
+                        &selected.key,
+                        selected.attested_arity,
+                        selected.accepted_family,
+                    )
                     .expect("mutating policy must preserve lookup identity");
                 assert_eq!(looked_up.policy(), alternative);
                 let candidate = LexicalEdgeCandidate::new(
@@ -893,6 +963,7 @@ mod tests {
                     }),
                     SemanticObjectId::referent(81),
                     selected.key.clone(),
+                    selected.accepted_family,
                     selected.attested_arity,
                 );
                 assert!(matches!(
@@ -983,7 +1054,7 @@ mod tests {
                     .entry((
                         edge.key.relation().to_owned(),
                         edge.key.original_place(),
-                        edge.key.family(),
+                        edge.family,
                     ))
                     .or_default() += 1;
                 occurrence_count += 1;

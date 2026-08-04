@@ -1,6 +1,6 @@
 //! Ordinary-profile disposition contract for typed smusni S-expressions.
 //!
-//! Every authored semantic field and variant carries its Draft-9 disposition
+//! Every authored semantic field and variant carries its smusni-v0 disposition
 //! directly on the inventory row. There is no predicate or wildcard that can
 //! assign a new generated field a permissive default.
 

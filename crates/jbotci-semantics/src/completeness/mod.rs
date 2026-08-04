@@ -138,10 +138,10 @@ mod tests {
                 data!(Disposition::NotationDefault(_)) => counts[2] += 1,
                 data!(Disposition::ProvenanceSuppression(_)) => counts[3] += 1,
                 data!(Disposition::DiagnosticCollection) => counts[4] += 1,
-                data!(Disposition::TypedFallback(_)) => counts[5] += 1,
+                data!(Disposition::TypedFallback { .. }) => counts[5] += 1,
             }
         }
-        assert_eq!(counts, [52, 22, 4, 54, 15, 554]);
+        assert_eq!(counts, [52, 22, 4, 54, 15, 556]);
         assert_eq!(counts.iter().sum::<usize>(), inventory.len());
     }
 

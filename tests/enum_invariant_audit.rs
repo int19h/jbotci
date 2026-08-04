@@ -1004,6 +1004,62 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::AnswerSelection",
+        "static checker answer-selection elements are recursively validated StaticType values",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Concrete",
+        "static checker concrete types are validated TypeExpr values",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Function",
+        "static checker function parameters and result are recursively validated StaticType values",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::GeneralizedQuantifier",
+        "static checker generalized-quantifier element is a recursively validated StaticType value",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Group",
+        "static checker group element is a recursively validated StaticType value",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Interval",
+        "static checker interval element is a recursively validated StaticType value",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::List",
+        "static checker list element is a recursively validated StaticType value",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::TypeParameter",
+        "registry type parameters carry a validated TypeParameterName identity",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Predicate",
+        "static checker predicate carries a validated row and aligned closure policies",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Query",
+        "static checker query elements are recursively validated StaticType values",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::ReferenceComputation",
+        "static checker reference-computation result is a recursively validated StaticType value",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Referents",
+        "static checker referent element is a recursively validated StaticType value",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Set",
+        "static checker set element is a recursively validated StaticType value",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Tuple",
+        "static checker tuple elements are recursively validated StaticType values",
+    ),
+    (
         "crates/jbotci-semantics/src/completeness/model.rs:Disposition::DirectLowering",
         "unit disposition selecting direct semantic lowering; no payload to constrain",
     ),
@@ -1026,10 +1082,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyLookupFailure::UnknownRelation",
         "unknown-relation failure carries the exact validated attempted key",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyLookupFailure::UnsupportedFamily",
-        "unsupported-family failure carries the exact validated attempted key",
     ),
     (
         "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyLookupFailure::UnsupportedPlace",
