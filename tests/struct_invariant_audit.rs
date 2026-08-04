@@ -1116,6 +1116,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexFormulaScopeGroup",
+        "private prenex scope accumulator is validated when the balanced group stack is coequalized and finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexTermCollector",
+        "private mutable tree-walker state delegates syntax validity to borrowed nodes and validates balanced events when finalized",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedArgumentFormulaScope",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),

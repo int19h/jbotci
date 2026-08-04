@@ -2044,6 +2044,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexSumtiSyntax::Bound",
+        "borrowed prenex sumti view delegates validity to the referenced bound-sumti syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexSumtiSyntax::Complete",
+        "borrowed prenex sumti view delegates validity to the referenced complete sumti syntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexTermEvent::EndGroup",
+        "prenex traversal group delimiters are balanced by the collector and scope-stack checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexTermEvent::Negation",
+        "prenex negation events carry optional validated source provenance with no additional payload constraint",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexTermEvent::StartGroup",
+        "prenex traversal group delimiters are balanced by the collector and scope-stack checks",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexTermEvent::Sumti",
+        "prenex sumti events carry a typed borrowed syntax view and an intentionally total topic marker",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedOrderedFormulaScope::Argument",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
