@@ -626,7 +626,7 @@ fn contract_disagreements_are_flagged() {
         .find(|entry| {
             matches!(
                 baseline_disposition(entry).as_data(),
-                data!(Disposition::Renders)
+                data!(Disposition::DirectLowering)
             )
         })
         .expect("inventory has a rendered entry")
@@ -634,7 +634,7 @@ fn contract_disagreements_are_flagged() {
     let mut deviating = CompletenessContract::new();
     for entry in inventory.entries() {
         let disposition = if entry.key() == target {
-            Disposition::excluded_with_reason("test-only disagreement")
+            Disposition::typed_fallback("test-only disagreement")
         } else {
             baseline_disposition(entry)
         };

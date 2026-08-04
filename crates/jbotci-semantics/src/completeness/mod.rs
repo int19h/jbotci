@@ -91,33 +91,35 @@ mod tests {
         assert!(!audit.is_complete());
     }
 
-    /// Source-provenance surfaces are excluded with a reason and every content
-    /// field has a rendering or typed-fallback disposition.
+    /// Spot-check semantically distinct disposition classes on authored rows.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn disposition_policy_is_evidence_grounded() {
         let inventory = render_field_inventory();
-        let mut saw_excluded = false;
-        let mut saw_rendered = false;
+        let mut saw_provenance = false;
+        let mut saw_direct = false;
         for entry in inventory.entries() {
             let disposition = baseline_disposition(entry);
             if entry.surface.name == "SemanticSource" {
                 assert!(
                     matches!(
                         disposition.as_data(),
-                        data!(Disposition::ExcludedWithReason(_))
+                        data!(Disposition::ProvenanceSuppression(_))
                     ),
                     "source provenance must be excluded with a reason"
                 );
-                saw_excluded = true;
+                saw_provenance = true;
             }
             if entry.surface.name == "Predication" && entry.field == "arguments" {
-                assert!(matches!(disposition.as_data(), data!(Disposition::Renders)));
-                saw_rendered = true;
+                assert!(matches!(
+                    disposition.as_data(),
+                    data!(Disposition::DirectLowering)
+                ));
+                saw_direct = true;
             }
         }
-        assert!(saw_excluded && saw_rendered);
+        assert!(saw_provenance && saw_direct);
     }
 
     /// Pin the disposition-class counts so a policy-predicate regression (e.g.
@@ -128,19 +130,19 @@ mod tests {
     #[ensures(true)]
     fn disposition_class_counts_are_pinned() {
         let inventory = render_field_inventory();
-        let mut renders = 0usize;
-        let mut excluded = 0usize;
+        let mut counts = [0usize; 6];
         for entry in inventory.entries() {
             match baseline_disposition(entry).as_data() {
-                data!(Disposition::Renders) => renders += 1,
-                data!(Disposition::ExcludedWithReason(_)) => excluded += 1,
+                data!(Disposition::DirectLowering) => counts[0] += 1,
+                data!(Disposition::ProvenDesugaring) => counts[1] += 1,
+                data!(Disposition::NotationDefault(_)) => counts[2] += 1,
+                data!(Disposition::ProvenanceSuppression(_)) => counts[3] += 1,
+                data!(Disposition::DiagnosticCollection) => counts[4] += 1,
+                data!(Disposition::TypedFallback(_)) => counts[5] += 1,
             }
         }
-        // Source provenance: SemanticSource(3) + SourceByteSpan(2) + one `source`
-        // link per object kind (13) and per source-bearing value struct (12),
-        // plus Adjunct.introducedBy surface provenance.
-        assert_eq!(excluded, 31, "provenance ExcludedWithReason count drifted");
-        assert_eq!(renders + excluded, inventory.len());
+        assert_eq!(counts, [52, 22, 4, 54, 15, 554]);
+        assert_eq!(counts.iter().sum::<usize>(), inventory.len());
     }
 
     /// Blocker-5 spot check: provenance is excluded by *type*. A `source` field
@@ -169,7 +171,7 @@ mod tests {
             assert!(
                 matches!(
                     disposition.as_data(),
-                    data!(Disposition::ExcludedWithReason(_))
+                    data!(Disposition::ProvenanceSuppression(_))
                 ),
                 "{surface}.source (SemanticSource) must be excluded"
             );
@@ -177,8 +179,11 @@ mod tests {
         let connector_source =
             disposition_of("Connector", "source").expect("Connector.source not inventoried");
         assert!(
-            matches!(connector_source.as_data(), data!(Disposition::Renders)),
-            "Connector.source (a lexical String) must render"
+            !matches!(
+                connector_source.as_data(),
+                data!(Disposition::ProvenanceSuppression(_))
+            ),
+            "Connector.source is semantic lexical data, not source provenance"
         );
     }
 

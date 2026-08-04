@@ -1,46 +1,21 @@
 //! Field-level completeness registration for typed smusni S-expressions.
 //!
-//! Compact recognizers account for every field they consume. Anything they do
-//! not prove equivalent is emitted through the mechanically complete typed
-//! structural fallback. The ordinary profile suppresses only source provenance
-//! and the surface spelling of an adjunct introducer.
+//! Compact recognizers account for every field they consume. The executable
+//! inventory states whether each coordinate lowers directly, desugars, belongs
+//! to notation/provenance/diagnostics, or requires typed fallback.
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, requires};
+use bityzba::{ensures, requires};
 
-use crate::completeness::model::DispositionData;
 use crate::completeness::{
-    CompletenessContract, Disposition, InventoryEntry, adjunct_introducer_provenance_reason,
-    render_field_inventory, source_link_surfaces, source_provenance_reason,
+    CompletenessContract, Disposition, InventoryEntry, render_field_inventory,
 };
-
-/// Whether an inventory coordinate is ordinary-profile provenance.
-#[requires(true)]
-#[ensures(ret == (matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
-    || (entry.field == "source" && source_link_surfaces().contains(&entry.surface.name))
-    || (entry.surface.name == "Adjunct" && entry.field == "introducedBy")))]
-fn is_suppressed_provenance(entry: &InventoryEntry) -> bool {
-    matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
-        || (entry.field == "source" && source_link_surfaces().contains(&entry.surface.name))
-        || (entry.surface.name == "Adjunct" && entry.field == "introducedBy")
-}
 
 /// The ordinary-profile disposition of one inventoried surface.
 #[requires(true)]
-#[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_)))
-    == is_suppressed_provenance(entry))]
-#[ensures(matches!(ret.as_data(), data!(Disposition::Renders))
-    == !is_suppressed_provenance(entry))]
+#[ensures(ret == entry.disposition)]
 pub fn renderer_disposition(entry: &InventoryEntry) -> Disposition {
-    if is_suppressed_provenance(entry) {
-        let reason = if entry.surface.name == "Adjunct" && entry.field == "introducedBy" {
-            adjunct_introducer_provenance_reason()
-        } else {
-            source_provenance_reason()
-        };
-        return Disposition::excluded_with_reason(reason);
-    }
-    Disposition::renders()
+    entry.disposition
 }
 
 /// Complete field registry for the one ordinary smusni profile.

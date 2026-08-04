@@ -1004,8 +1004,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "segment mode is a private closed selector for trace label and FAhO handling",
     ),
     (
-        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::Renders",
-        "unit disposition marking a rendered entry; no payload to constrain",
+        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::DirectLowering",
+        "unit disposition selecting direct semantic lowering; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::ProvenDesugaring",
+        "unit disposition selecting a semantics-preserving desugaring; no payload to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::DiagnosticCollection",
+        "unit disposition routing diagnostics out of the notation document; no payload to constrain",
     ),
     (
         "crates/jbotci-semantics/src/completeness/model.rs:Witness::NoCorpusWitness",

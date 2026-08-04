@@ -1,16 +1,14 @@
 //! Ordinary-profile disposition contract for typed smusni S-expressions.
 //!
-//! Every semantic field and variant renders directly or through typed fallback.
-//! Only source provenance and the surface spelling of an adjunct introducer are
-//! suppressed by the named concise-profile rules.
+//! Every authored semantic field and variant carries its Draft-9 disposition
+//! directly on the inventory row. There is no predicate or wildcard that can
+//! assign a new generated field a permissive default.
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, new, requires};
+use bityzba::{ensures, requires};
 
 use super::inventory::render_field_inventory;
-use super::model::{
-    CompletenessContract, Disposition, DispositionData, InventoryEntry, RenderFieldInventory,
-};
+use super::model::{CompletenessContract, Disposition, InventoryEntry, RenderFieldInventory};
 
 const SOURCE_PROVENANCE_REASON: &str =
     "ordinary-profile source provenance suppression; retained by TypedGraph fallback";
@@ -64,34 +62,9 @@ pub fn adjunct_introducer_provenance_reason() -> &'static str {
 }
 
 #[requires(true)]
-#[ensures(ret == (matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
-    || (entry.field == "source" && SOURCE_LINK_SURFACES.contains(&entry.surface.name))))]
-fn is_source_provenance(entry: &InventoryEntry) -> bool {
-    matches!(entry.surface.name, "SemanticSource" | "SourceByteSpan")
-        || (entry.field == "source" && SOURCE_LINK_SURFACES.contains(&entry.surface.name))
-}
-
-#[requires(true)]
-#[ensures(ret == (entry.surface.name == "Adjunct" && entry.field == "introducedBy"))]
-fn is_adjunct_introducer_provenance(entry: &InventoryEntry) -> bool {
-    entry.surface.name == "Adjunct" && entry.field == "introducedBy"
-}
-
-#[requires(true)]
-#[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_)))
-    == (is_source_provenance(entry) || is_adjunct_introducer_provenance(entry)))]
-#[ensures(matches!(ret.as_data(), data!(Disposition::Renders))
-    == !(is_source_provenance(entry) || is_adjunct_introducer_provenance(entry)))]
+#[ensures(ret == entry.disposition)]
 pub fn baseline_disposition(entry: &InventoryEntry) -> Disposition {
-    if is_source_provenance(entry) {
-        return new!(Disposition::ExcludedWithReason(SOURCE_PROVENANCE_REASON));
-    }
-    if is_adjunct_introducer_provenance(entry) {
-        return new!(Disposition::ExcludedWithReason(
-            ADJUNCT_INTRODUCER_PROVENANCE_REASON
-        ));
-    }
-    new!(Disposition::Renders)
+    entry.disposition
 }
 
 #[requires(true)]

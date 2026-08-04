@@ -15,14 +15,20 @@
 use bityzba::{ensures, new, requires};
 
 use super::model::{
-    EntryKind, InventoryEntry, Presence, RenderFieldInventory, Surface, SurfaceCategory, Witness,
-    WitnessData, WitnessExpect, WitnessExpectData,
+    Disposition, EntryKind, InventoryEntry, Presence, RenderFieldInventory, Surface,
+    SurfaceCategory, Witness, WitnessData, WitnessExpect, WitnessExpectData,
 };
+
+const LATER_LOWERING_REASON: &str =
+    "classified for a later Draft-9 lowering; preserve through typed fallback until implemented";
+const NOTATION_DEFAULT_REASON: &str =
+    "document-shape convention fixed by the Draft-9 notation rather than semantic content";
+const PROVENANCE_REASON: &str = "source, construction, or dictionary provenance retained by fallback but suppressed in compact notation";
 
 #[requires(!field.is_empty())]
 #[requires(variant_of.is_none_or(|shape| !shape.is_empty()))]
 #[ensures(ret.field == field)]
-fn e(
+fn entry(
     category: SurfaceCategory,
     surface: &'static str,
     field: &'static str,
@@ -30,6 +36,7 @@ fn e(
     presence: Presence,
     witness: Witness,
     variant_of: Option<&'static str>,
+    disposition: Disposition,
 ) -> InventoryEntry {
     InventoryEntry::new(
         Surface::new(category, surface),
@@ -38,6 +45,157 @@ fn e(
         presence,
         witness,
         variant_of,
+        disposition,
+    )
+}
+
+#[requires(!field.is_empty())]
+#[requires(variant_of.is_none_or(|shape| !shape.is_empty()))]
+#[ensures(ret.field == field)]
+#[ensures(ret.disposition == Disposition::typed_fallback(LATER_LOWERING_REASON))]
+fn typed_fallback(
+    category: SurfaceCategory,
+    surface: &'static str,
+    field: &'static str,
+    kind: EntryKind,
+    presence: Presence,
+    witness: Witness,
+    variant_of: Option<&'static str>,
+) -> InventoryEntry {
+    entry(
+        category,
+        surface,
+        field,
+        kind,
+        presence,
+        witness,
+        variant_of,
+        Disposition::typed_fallback(LATER_LOWERING_REASON),
+    )
+}
+
+#[requires(!field.is_empty())]
+#[requires(variant_of.is_none_or(|shape| !shape.is_empty()))]
+#[ensures(ret.field == field)]
+#[ensures(ret.disposition == Disposition::direct_lowering())]
+fn direct(
+    category: SurfaceCategory,
+    surface: &'static str,
+    field: &'static str,
+    kind: EntryKind,
+    presence: Presence,
+    witness: Witness,
+    variant_of: Option<&'static str>,
+) -> InventoryEntry {
+    entry(
+        category,
+        surface,
+        field,
+        kind,
+        presence,
+        witness,
+        variant_of,
+        Disposition::direct_lowering(),
+    )
+}
+
+#[requires(!field.is_empty())]
+#[requires(variant_of.is_none_or(|shape| !shape.is_empty()))]
+#[ensures(ret.field == field)]
+#[ensures(ret.disposition == Disposition::proven_desugaring())]
+fn desugared(
+    category: SurfaceCategory,
+    surface: &'static str,
+    field: &'static str,
+    kind: EntryKind,
+    presence: Presence,
+    witness: Witness,
+    variant_of: Option<&'static str>,
+) -> InventoryEntry {
+    entry(
+        category,
+        surface,
+        field,
+        kind,
+        presence,
+        witness,
+        variant_of,
+        Disposition::proven_desugaring(),
+    )
+}
+
+#[requires(!field.is_empty())]
+#[requires(variant_of.is_none_or(|shape| !shape.is_empty()))]
+#[ensures(ret.field == field)]
+#[ensures(ret.disposition == Disposition::notation_default(NOTATION_DEFAULT_REASON))]
+fn notation_default(
+    category: SurfaceCategory,
+    surface: &'static str,
+    field: &'static str,
+    kind: EntryKind,
+    presence: Presence,
+    witness: Witness,
+    variant_of: Option<&'static str>,
+) -> InventoryEntry {
+    entry(
+        category,
+        surface,
+        field,
+        kind,
+        presence,
+        witness,
+        variant_of,
+        Disposition::notation_default(NOTATION_DEFAULT_REASON),
+    )
+}
+
+#[requires(!field.is_empty())]
+#[requires(variant_of.is_none_or(|shape| !shape.is_empty()))]
+#[ensures(ret.field == field)]
+#[ensures(ret.disposition == Disposition::provenance_suppression(PROVENANCE_REASON))]
+fn provenance(
+    category: SurfaceCategory,
+    surface: &'static str,
+    field: &'static str,
+    kind: EntryKind,
+    presence: Presence,
+    witness: Witness,
+    variant_of: Option<&'static str>,
+) -> InventoryEntry {
+    entry(
+        category,
+        surface,
+        field,
+        kind,
+        presence,
+        witness,
+        variant_of,
+        Disposition::provenance_suppression(PROVENANCE_REASON),
+    )
+}
+
+#[requires(!field.is_empty())]
+#[requires(variant_of.is_none_or(|shape| !shape.is_empty()))]
+#[ensures(ret.field == field)]
+#[ensures(ret.disposition == Disposition::diagnostic_collection())]
+fn diagnostic(
+    category: SurfaceCategory,
+    surface: &'static str,
+    field: &'static str,
+    kind: EntryKind,
+    presence: Presence,
+    witness: Witness,
+    variant_of: Option<&'static str>,
+) -> InventoryEntry {
+    entry(
+        category,
+        surface,
+        field,
+        kind,
+        presence,
+        witness,
+        variant_of,
+        Disposition::diagnostic_collection(),
     )
 }
 
@@ -47,7 +205,7 @@ fn e(
 #[ensures(!ret.is_empty())]
 pub fn render_field_inventory() -> RenderFieldInventory {
     let entries = vec![
-        e(
+        direct(
             SurfaceCategory::Object,
             "Utterance",
             "force",
@@ -60,7 +218,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Utterance",
             "speaker",
@@ -73,7 +231,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Utterance",
             "audience",
@@ -86,7 +244,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Utterance",
             "eventuality",
@@ -99,7 +257,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Utterance",
             "content",
@@ -112,7 +270,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Utterance",
             "deicticGround",
@@ -125,7 +283,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Utterance",
             "asides",
@@ -138,7 +296,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Utterance",
             "vocativeKind",
@@ -147,7 +305,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Utterance",
             "source",
@@ -160,7 +318,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Utterance",
             "diagnostics",
@@ -169,7 +327,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sequence",
             "force",
@@ -178,7 +336,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Sequence",
             "content",
@@ -187,7 +345,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Sequence",
             "items",
@@ -200,7 +358,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Sequence",
             "connectionClaims",
@@ -209,7 +367,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Sequence",
             "boundEventualities",
@@ -218,7 +376,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Sequence",
             "ordinalLabels",
@@ -227,7 +385,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Sequence",
             "relation",
@@ -240,7 +398,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Sequence",
             "source",
@@ -253,7 +411,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Sequence",
             "diagnostics",
@@ -262,7 +420,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "denotation",
@@ -275,7 +433,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "content",
@@ -288,7 +446,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "actuality",
@@ -301,7 +459,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "tenseModal",
@@ -310,7 +468,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "time",
@@ -323,7 +481,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "timePath",
@@ -332,7 +490,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "timeInterval",
@@ -341,7 +499,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "timeSpan",
@@ -350,7 +508,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "aspect",
@@ -363,7 +521,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "aspects",
@@ -372,7 +530,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "recurrence",
@@ -385,7 +543,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "intervalModifiers",
@@ -398,7 +556,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "space",
@@ -407,7 +565,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "spacePath",
@@ -416,7 +574,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "spaceInterval",
@@ -425,7 +583,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "spatialAspect",
@@ -434,7 +592,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "spatialAspects",
@@ -443,7 +601,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "spatialRecurrence",
@@ -452,7 +610,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "category",
@@ -465,7 +623,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "scopeDependence",
@@ -478,7 +636,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "sort",
@@ -491,7 +649,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "indexical",
@@ -504,7 +662,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "descriptor",
@@ -517,7 +675,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "composition",
@@ -526,7 +684,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "relativeClauses",
@@ -535,7 +693,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "assignedNames",
@@ -544,7 +702,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "adjuncts",
@@ -557,7 +715,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "body",
@@ -566,7 +724,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "parameters",
@@ -575,7 +733,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "arity",
@@ -584,7 +742,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "embeddedQuestions",
@@ -593,7 +751,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "experiencer",
@@ -602,7 +760,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "target",
@@ -611,7 +769,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "scale",
@@ -620,7 +778,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "subscript",
@@ -629,7 +787,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Eventuality",
             "source",
@@ -642,7 +800,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Eventuality",
             "diagnostics",
@@ -651,7 +809,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "category",
@@ -664,7 +822,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "scopeDependence",
@@ -677,7 +835,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "sort",
@@ -690,7 +848,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "indexical",
@@ -703,7 +861,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "deicticReference",
@@ -712,7 +870,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "descriptor",
@@ -725,7 +883,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "composition",
@@ -734,7 +892,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "personalMassMembership",
@@ -743,7 +901,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "generatedReferent",
@@ -752,7 +910,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "relativeClauses",
@@ -761,7 +919,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "assignedNames",
@@ -774,7 +932,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "body",
@@ -787,7 +945,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "parameters",
@@ -800,7 +958,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "arity",
@@ -813,7 +971,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "embeddedQuestions",
@@ -822,7 +980,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "abstracted",
@@ -831,7 +989,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "experiencer",
@@ -840,7 +998,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "target",
@@ -849,7 +1007,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "scale",
@@ -858,7 +1016,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "subscript",
@@ -867,7 +1025,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Referent",
             "source",
@@ -880,7 +1038,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Referent",
             "diagnostics",
@@ -889,7 +1047,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "category",
@@ -902,7 +1060,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "scopeDependence",
@@ -915,7 +1073,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "sort",
@@ -928,7 +1086,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "descriptor",
@@ -937,7 +1095,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "kind",
@@ -950,7 +1108,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "text",
@@ -959,7 +1117,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "letterals",
@@ -968,7 +1126,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "quotation",
@@ -981,7 +1139,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "denotes",
@@ -990,7 +1148,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "relativeClauses",
@@ -999,7 +1157,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "target",
@@ -1008,7 +1166,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Sign",
             "subscript",
@@ -1017,7 +1175,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Sign",
             "source",
@@ -1030,7 +1188,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Sign",
             "diagnostics",
@@ -1039,7 +1197,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Parameter",
             "sort",
@@ -1052,7 +1210,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Parameter",
             "role",
@@ -1065,7 +1223,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Parameter",
             "introducedBy",
@@ -1078,7 +1236,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Parameter",
             "subscript",
@@ -1087,7 +1245,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Parameter",
             "source",
@@ -1100,7 +1258,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Parameter",
             "diagnostics",
@@ -1109,7 +1267,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "eventuality",
@@ -1122,7 +1280,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Predication",
             "introducedBy",
@@ -1131,7 +1289,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "relation",
@@ -1144,7 +1302,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("PredicationRelation::Named"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "relationParameter",
@@ -1157,7 +1315,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("PredicationRelation::Parameter"),
         ),
-        e(
+        desugared(
             SurfaceCategory::Object,
             "Predication",
             "tanruLink",
@@ -1170,7 +1328,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("PredicationRelation::Composition"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "arguments",
@@ -1186,7 +1344,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         // `placeQuestions` (a `fi'a` place-structure question) is corpus-witnessed
         // by `mi-klama-fia` (`mi klama fi'a`) and renders as the predication's
         // first-class `PLACE QUESTIONS` ordered binding record (jbotci#622).
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "placeQuestions",
@@ -1199,7 +1357,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "adjuncts",
@@ -1212,7 +1370,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "reciprocity",
@@ -1221,7 +1379,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "mode",
@@ -1234,7 +1392,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Predication",
             "scalarNegation",
@@ -1243,7 +1401,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Predication",
             "relationMetadata",
@@ -1252,7 +1410,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Predication",
             "source",
@@ -1265,7 +1423,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Predication",
             "diagnostics",
@@ -1274,7 +1432,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "operator",
@@ -1287,7 +1445,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "predication",
@@ -1300,7 +1458,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("FormulaNode::Atom"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "children",
@@ -1313,7 +1471,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("FormulaNode::Connective"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "connector",
@@ -1326,7 +1484,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("FormulaNode::Connective"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "variable",
@@ -1339,7 +1497,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("FormulaNode::Quantified"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "sourceVariable",
@@ -1348,7 +1506,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("FormulaNode::Quantified"),
         ),
-        e(
+        desugared(
             SurfaceCategory::Object,
             "Formula",
             "selectionSource",
@@ -1357,7 +1515,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("FormulaNode::Quantified"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "restriction",
@@ -1370,7 +1528,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("FormulaNode::Quantified"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "quantity",
@@ -1383,7 +1541,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("FormulaNode::Quantified"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "bindings",
@@ -1392,7 +1550,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("FormulaNode::QuantifierBundle"),
         ),
-        e(
+        desugared(
             SurfaceCategory::Object,
             "Formula",
             "coequalScope",
@@ -1401,7 +1559,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("FormulaNode::QuantifierBundle"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "streams",
@@ -1410,7 +1568,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("FormulaNode::RespectivelyDistribution"),
         ),
-        e(
+        desugared(
             SurfaceCategory::Object,
             "Formula",
             "distinctPartition",
@@ -1419,7 +1577,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("FormulaNode::RespectivelyDistribution"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "body",
@@ -1432,7 +1590,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("FormulaNode variants"),
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "eventuality",
@@ -1441,7 +1599,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "boundEventualities",
@@ -1454,7 +1612,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Formula",
             "domainImport",
@@ -1467,7 +1625,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Formula",
             "source",
@@ -1480,7 +1638,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Formula",
             "diagnostics",
@@ -1489,7 +1647,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "relation",
@@ -1502,7 +1660,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "family",
@@ -1515,7 +1673,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "intensity",
@@ -1524,7 +1682,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "polarity",
@@ -1537,7 +1695,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "phase",
@@ -1546,7 +1704,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "modifiers",
@@ -1555,7 +1713,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "assertionEffect",
@@ -1568,7 +1726,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "experiencer",
@@ -1581,7 +1739,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "target",
@@ -1594,7 +1752,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "targetFocus",
@@ -1607,7 +1765,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "DisplayedContent",
             "anchor",
@@ -1620,7 +1778,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "DisplayedContent",
             "source",
@@ -1633,7 +1791,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "DisplayedContent",
             "diagnostics",
@@ -1642,7 +1800,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "scalarNegation",
@@ -1651,7 +1809,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "denotes",
@@ -1660,7 +1818,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "literal",
@@ -1673,7 +1831,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("MathExpressionNodeKind::Literal"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "operator",
@@ -1686,7 +1844,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("MathExpressionNodeKind::Operator"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "operatorDenotes",
@@ -1695,7 +1853,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("MathExpressionNodeKind::Operator"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "endpointInclusion",
@@ -1704,7 +1862,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("MathExpressionNodeKind::Operator"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "operands",
@@ -1717,7 +1875,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "operatorParameter",
@@ -1726,7 +1884,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("MathExpressionNodeKind::QuestionedOperator"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "MathExpression",
             "subscript",
@@ -1735,7 +1893,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "MathExpression",
             "source",
@@ -1748,7 +1906,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "MathExpression",
             "diagnostics",
@@ -1757,7 +1915,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Quantity",
             "form",
@@ -1770,7 +1928,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Quantity",
             "value",
@@ -1783,7 +1941,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Quantity",
             "scale",
@@ -1796,7 +1954,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Quantity",
             "comparisonSet",
@@ -1805,7 +1963,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Quantity",
             "source",
@@ -1818,7 +1976,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Quantity",
             "diagnostics",
@@ -1827,7 +1985,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "RelationMetadata",
             "relation",
@@ -1836,7 +1994,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "RelationMetadata",
             "sourceWords",
@@ -1845,7 +2003,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "RelationMetadata",
             "placeStructure",
@@ -1854,7 +2012,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "RelationMetadata",
             "expansion",
@@ -1863,7 +2021,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "RelationMetadata",
             "source",
@@ -1872,7 +2030,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "RelationMetadata",
             "diagnostics",
@@ -1885,7 +2043,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         // `question:11` relation question carries them (jbotci#620 round-1 review
         // B1). They render in the first-class QUESTION record specified by
         // jbotci#622.
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "body",
@@ -1898,7 +2056,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "kind",
@@ -1911,7 +2069,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "mode",
@@ -1924,7 +2082,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "asker",
@@ -1937,7 +2095,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "respondent",
@@ -1950,7 +2108,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "domain",
@@ -1963,7 +2121,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "slots",
@@ -1976,7 +2134,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "focus",
@@ -1989,7 +2147,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Question",
             "presupposedAnswer",
@@ -2002,7 +2160,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::Object,
             "Question",
             "source",
@@ -2015,7 +2173,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::Object,
             "Question",
             "diagnostics",
@@ -2024,7 +2182,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Actuality",
             "kind",
@@ -2037,7 +2195,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorMagnitude",
             "value",
@@ -2046,7 +2204,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "AnchorMagnitude",
             "introducedBy",
@@ -2055,7 +2213,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "AnchorMagnitude",
             "source",
@@ -2064,7 +2222,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorRelation",
             "relation",
@@ -2077,7 +2235,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorRelation",
             "anchor",
@@ -2090,7 +2248,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorRelation",
             "sticky",
@@ -2099,7 +2257,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorRelation",
             "inherited",
@@ -2108,7 +2266,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorRelation",
             "distance",
@@ -2117,7 +2275,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorRelation",
             "magnitude",
@@ -2126,7 +2284,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorRelation",
             "scalarNegation",
@@ -2135,7 +2293,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AnchorRelation",
             "motion",
@@ -2144,7 +2302,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ArgumentValue",
             "kind",
@@ -2157,7 +2315,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ArgumentValue",
             "value",
@@ -2170,7 +2328,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ArgumentValue",
             "quantity",
@@ -2179,7 +2337,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "ArgumentValue",
             "introducedBy",
@@ -2192,7 +2350,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "ArgumentValue",
             "source",
@@ -2201,7 +2359,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ArgumentValue",
             "relativeClauses",
@@ -2210,7 +2368,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ArgumentValue",
             "commandTarget",
@@ -2219,7 +2377,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Aspect",
             "contour",
@@ -2232,7 +2390,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Aspect",
             "anchor",
@@ -2241,7 +2399,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Aspect",
             "scalarNegation",
@@ -2250,7 +2408,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AssignedName",
             "name",
@@ -2263,7 +2421,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "AssignedName",
             "word",
@@ -2276,7 +2434,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "AssignedName",
             "introducedBy",
@@ -2289,7 +2447,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "AssignedName",
             "source",
@@ -2302,7 +2460,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "CommandTarget",
             "introducedBy",
@@ -2311,7 +2469,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Composition",
             "operator",
@@ -2320,7 +2478,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Composition",
             "operatorParameter",
@@ -2329,7 +2487,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Composition",
             "members",
@@ -2338,7 +2496,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Composition",
             "excludedMembers",
@@ -2347,7 +2505,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Composition",
             "collective",
@@ -2356,7 +2514,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Composition",
             "scalarNegated",
@@ -2365,7 +2523,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Composition",
             "complement",
@@ -2374,7 +2532,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Composition",
             "endpointInclusion",
@@ -2383,7 +2541,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DeicticReference",
             "proximity",
@@ -2392,7 +2550,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DeicticReference",
             "ground",
@@ -2401,7 +2559,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PersonalMassMembership",
             "speaker",
@@ -2410,7 +2568,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PersonalParticipantMembership",
             "membership",
@@ -2419,7 +2577,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PersonalParticipantMembership",
             "referent",
@@ -2428,7 +2586,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PersonalMassMembership",
             "audience",
@@ -2437,7 +2595,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PersonalMassMembership",
             "others",
@@ -2446,7 +2604,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "GeneratedReferent",
             "realization",
@@ -2455,7 +2613,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "GeneratedReferent",
             "specificity",
@@ -2464,7 +2622,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Connector",
             "source",
@@ -2477,7 +2635,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Connector",
             "locus",
@@ -2490,7 +2648,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Connector",
             "truthTable",
@@ -2503,7 +2661,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Connector",
             "parameter",
@@ -2512,7 +2670,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ConnectorSource",
             "kind",
@@ -2525,7 +2683,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ConnectorSource",
             "word",
@@ -2538,7 +2696,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorSource",
             "SurfaceWord",
@@ -2547,7 +2705,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("surfaceWord"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorSource",
             "ImplicitJuxtaposition",
@@ -2556,7 +2714,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("implicitJuxtaposition"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Statement",
@@ -2565,7 +2723,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("statement"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Argument",
@@ -2574,7 +2732,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("argument"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Term",
@@ -2583,7 +2741,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("term"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "TermSet",
@@ -2592,7 +2750,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("termSet"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Tense",
@@ -2601,7 +2759,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("tense"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Tag",
@@ -2610,7 +2768,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("tag"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Operand",
@@ -2619,7 +2777,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("operand"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Clause",
@@ -2628,7 +2786,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("clause"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "PredicatePhrase",
@@ -2637,7 +2795,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("predicatePhrase"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Predicate",
@@ -2646,7 +2804,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("predicate"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "PredicateInversion",
@@ -2655,7 +2813,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("predicateInversion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "PredicateUnit",
@@ -2664,7 +2822,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("predicateUnit"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "PropertyAbstraction",
@@ -2673,7 +2831,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("propertyAbstraction"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "PropertyInversion",
@@ -2682,7 +2840,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("propertyInversion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Abstraction",
@@ -2691,7 +2849,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("abstraction"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "Description",
@@ -2700,7 +2858,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("description"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "MathOperator",
@@ -2709,7 +2867,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("mathOperator"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ConnectorLocus",
             "BareRaisedParticipant",
@@ -2718,7 +2876,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("bareRaisedParticipant"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DeicticGround",
             "time",
@@ -2731,7 +2889,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DeicticGround",
             "place",
@@ -2744,7 +2902,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "kind",
@@ -2757,7 +2915,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "word",
@@ -2770,7 +2928,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "speaker",
@@ -2783,7 +2941,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "body",
@@ -2796,7 +2954,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "veridical",
@@ -2805,7 +2963,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "relativeClauses",
@@ -2818,7 +2976,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "quantity",
@@ -2831,7 +2989,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "name",
@@ -2844,7 +3002,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "scale",
@@ -2853,7 +3011,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "definiteness",
@@ -2862,7 +3020,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Descriptor",
             "operand",
@@ -2871,7 +3029,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DisplayedContentModifier",
             "relation",
@@ -2880,7 +3038,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DisplayedContentModifier",
             "family",
@@ -2889,7 +3047,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DisplayedContentModifier",
             "polarity",
@@ -2898,7 +3056,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DisplayedContentModifier",
             "intensity",
@@ -2907,7 +3065,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "DisplayedContentModifier",
             "assertionEffect",
@@ -2916,7 +3074,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "DisplayedContentModifier",
             "source",
@@ -2925,7 +3083,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "IntervalEndpointInclusion",
             "left",
@@ -2934,7 +3092,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "IntervalEndpointInclusion",
             "right",
@@ -2943,7 +3101,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "LetteralUnit",
             "kind",
@@ -2952,7 +3110,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "LetteralUnit",
             "sourceWords",
@@ -2961,7 +3119,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "LetteralUnit",
             "text",
@@ -2970,7 +3128,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "LetteralUnit",
             "value",
@@ -2979,7 +3137,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "LetteralUnit",
             "modifier",
@@ -2988,7 +3146,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "LetteralUnit",
             "buDepth",
@@ -2997,7 +3155,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "LetteralUnit",
             "parts",
@@ -3006,7 +3164,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "MathLiteral",
             "kind",
@@ -3019,7 +3177,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "MathLiteral",
             "value",
@@ -3032,7 +3190,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "MixedRadixComponent",
             "text",
@@ -3041,7 +3199,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "MixedRadixComponent",
             "integer",
@@ -3050,7 +3208,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "MixedRadixLiteral",
             "components",
@@ -3059,7 +3217,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "relation",
@@ -3072,7 +3230,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "introducedBy",
@@ -3085,7 +3243,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "arguments",
@@ -3098,7 +3256,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "body",
@@ -3107,7 +3265,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "component",
@@ -3116,7 +3274,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "negation",
@@ -3125,7 +3283,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "scalarNegation",
@@ -3134,7 +3292,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "modifiers",
@@ -3143,7 +3301,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "Adjunct",
             "source",
@@ -3156,7 +3314,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TaggedNegation",
             "kind",
@@ -3165,7 +3323,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "TaggedNegation",
             "introducedBy",
@@ -3174,7 +3332,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "NonlogicalConnection",
             "operator",
@@ -3183,7 +3341,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "NonlogicalConnection",
             "connector",
@@ -3192,7 +3350,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "OrdinalLabel",
             "target",
@@ -3201,7 +3359,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "OrdinalLabel",
             "level",
@@ -3210,7 +3368,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "OrdinalLabel",
             "value",
@@ -3219,7 +3377,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "OrdinalLabel",
             "introducedBy",
@@ -3228,7 +3386,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "OrdinalLabel",
             "source",
@@ -3237,7 +3395,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PlaceDescription",
             "place",
@@ -3246,7 +3404,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PlaceDescription",
             "description",
@@ -3255,7 +3413,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PlaceQuestionBinding",
             "parameter",
@@ -3268,7 +3426,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PlaceQuestionBinding",
             "argument",
@@ -3281,7 +3439,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "PlaceQuestionBinding",
             "candidatePlaces",
@@ -3294,7 +3452,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "PlaceQuestionBinding",
             "source",
@@ -3307,7 +3465,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "QuantifierBinding",
             "operator",
@@ -3316,7 +3474,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "QuantifierBinding",
             "variable",
@@ -3325,7 +3483,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "QuantifierBinding",
             "sourceVariable",
@@ -3334,7 +3492,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "QuantifierBinding",
             "selectionSource",
@@ -3343,7 +3501,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "QuantifierBinding",
             "restriction",
@@ -3352,7 +3510,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "QuantifierBinding",
             "quantity",
@@ -3361,7 +3519,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "QuantifierBinding",
             "source",
@@ -3370,7 +3528,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "QuantityValue",
             "integer",
@@ -3383,7 +3541,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "QuantityValue",
             "text",
@@ -3396,7 +3554,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "QuantityValue",
             "mathExpression",
@@ -3409,7 +3567,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "QuantityValue",
             "questionParameters",
@@ -3418,7 +3576,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Quotation",
             "mode",
@@ -3431,7 +3589,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Quotation",
             "utterance",
@@ -3444,7 +3602,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Quotation",
             "delimiter",
@@ -3457,7 +3615,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Quotation",
             "text",
@@ -3470,7 +3628,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "RafsiBinding",
             "rafsi",
@@ -3479,7 +3637,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "RafsiBinding",
             "sourceWord",
@@ -3488,7 +3646,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "RafsiBinding",
             "referent",
@@ -3497,7 +3655,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ReciprocalExchange",
             "left",
@@ -3506,7 +3664,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ReciprocalExchange",
             "right",
@@ -3515,7 +3673,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "ReciprocalExchange",
             "introducedBy",
@@ -3524,7 +3682,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "ReciprocalExchange",
             "source",
@@ -3533,7 +3691,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Recurrence",
             "kind",
@@ -3546,7 +3704,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "Recurrence",
             "introducedBy",
@@ -3559,7 +3717,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Recurrence",
             "connection",
@@ -3568,7 +3726,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Recurrence",
             "quantity",
@@ -3577,7 +3735,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Recurrence",
             "value",
@@ -3586,7 +3744,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Recurrence",
             "interval",
@@ -3595,7 +3753,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Recurrence",
             "negation",
@@ -3604,7 +3762,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "Recurrence",
             "source",
@@ -3613,7 +3771,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "RecurrenceConnection",
             "kind",
@@ -3622,7 +3780,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "RecurrenceConnection",
             "introducedBy",
@@ -3631,7 +3789,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "RelationExpansion",
             "kind",
@@ -3640,7 +3798,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "RelationExpansion",
             "sourceWords",
@@ -3649,7 +3807,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "RelationExpansion",
             "rafsiBindings",
@@ -3658,7 +3816,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "RelativeClause",
             "kind",
@@ -3671,7 +3829,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "RelativeClause",
             "body",
@@ -3684,7 +3842,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "RelativeClause",
             "introducedBy",
@@ -3693,7 +3851,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "RelativeClause",
             "veridical",
@@ -3702,7 +3860,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "RelativeClause",
             "source",
@@ -3715,7 +3873,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "RespectivelyStream",
             "slot",
@@ -3724,7 +3882,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "RespectivelyStream",
             "items",
@@ -3733,7 +3891,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "RespectivelyStream",
             "restriction",
@@ -3742,7 +3900,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "RespectivelyStream",
             "quantity",
@@ -3751,7 +3909,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ScalarNegation",
             "kind",
@@ -3760,7 +3918,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "ScalarNegation",
             "introducedBy",
@@ -3769,7 +3927,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ScalarNegation",
             "scale",
@@ -3778,7 +3936,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ScalarNegation",
             "argumentScope",
@@ -3787,7 +3945,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "SelectionSource",
             "kind",
@@ -3796,7 +3954,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "SelectionSource",
             "variable",
@@ -3805,7 +3963,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::ValueStruct,
             "SemanticDiagnostic",
             "severity",
@@ -3814,7 +3972,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        diagnostic(
             SurfaceCategory::ValueStruct,
             "SemanticDiagnostic",
             "message",
@@ -3823,7 +3981,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "SemanticSource",
             "span",
@@ -3836,7 +3994,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "SemanticSource",
             "text",
@@ -3849,7 +4007,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "SemanticSource",
             "construct",
@@ -3862,7 +4020,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "SourceByteSpan",
             "byteStart",
@@ -3875,7 +4033,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "SourceByteSpan",
             "byteEnd",
@@ -3888,7 +4046,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "SpaceInterval",
             "extent",
@@ -3897,7 +4055,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "SpaceInterval",
             "directions",
@@ -3906,7 +4064,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "SpaceInterval",
             "dimensions",
@@ -3915,7 +4073,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "SpaceInterval",
             "anchor",
@@ -3924,7 +4082,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "SpatialMotion",
             "kind",
@@ -3933,7 +4091,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "SpatialMotion",
             "introducedBy",
@@ -3942,7 +4100,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "Subscript",
             "value",
@@ -3951,7 +4109,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "Subscript",
             "introducedBy",
@@ -3960,7 +4118,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "Subscript",
             "source",
@@ -3969,7 +4127,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "TanruLink",
             "head",
@@ -3982,7 +4140,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "TanruLink",
             "modifier",
@@ -3995,7 +4153,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        desugared(
             SurfaceCategory::ValueStruct,
             "TanruLink",
             "relationLabel",
@@ -4008,7 +4166,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathAnchor",
             "kind",
@@ -4017,7 +4175,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathAnchor",
             "value",
@@ -4026,7 +4184,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "relation",
@@ -4035,7 +4193,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "anchor",
@@ -4044,7 +4202,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "introducedBy",
@@ -4053,7 +4211,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "sticky",
@@ -4062,7 +4220,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "inherited",
@@ -4071,7 +4229,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "distance",
@@ -4080,7 +4238,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "magnitude",
@@ -4089,7 +4247,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "scalarNegation",
@@ -4098,7 +4256,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TemporalPathStep",
             "motion",
@@ -4107,7 +4265,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TimeInterval",
             "extent",
@@ -4116,7 +4274,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TimeInterval",
             "anchor",
@@ -4125,7 +4283,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TimeSpan",
             "start",
@@ -4134,7 +4292,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TimeSpan",
             "end",
@@ -4143,7 +4301,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "TimeSpan",
             "introducedBy",
@@ -4152,7 +4310,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TimeSpanEndpoint",
             "relation",
@@ -4161,7 +4319,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TimeSpanEndpoint",
             "anchor",
@@ -4170,7 +4328,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        provenance(
             SurfaceCategory::ValueStruct,
             "TimeSpanEndpoint",
             "introducedBy",
@@ -4179,7 +4337,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TimeSpanEndpoint",
             "distance",
@@ -4188,7 +4346,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "TimeSpanEndpoint",
             "scalarNegation",
@@ -4197,7 +4355,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "QuestionSlot",
             "parameter",
@@ -4210,7 +4368,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "QuestionSlot",
             "role",
@@ -4223,7 +4381,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "QuestionSlot",
             "kind",
@@ -4236,7 +4394,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "QuestionSlot",
             "domain",
@@ -4249,7 +4407,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Event",
@@ -4258,7 +4416,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("event"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Achievement",
@@ -4267,7 +4425,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("achievement"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Process",
@@ -4276,7 +4434,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("process"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Activity",
@@ -4285,7 +4443,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("activity"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "State",
@@ -4294,7 +4452,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("state"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Property",
@@ -4303,7 +4461,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("property"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Amount",
@@ -4312,7 +4470,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("amount"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "TruthValue",
@@ -4321,7 +4479,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("truthValue"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Proposition",
@@ -4330,7 +4488,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("proposition"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "SentenceSign",
@@ -4339,7 +4497,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("sentenceSign"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Concept",
@@ -4348,7 +4506,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("concept"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Experience",
@@ -4357,7 +4515,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("experience"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "AbstractionKind",
             "Unspecified",
@@ -4366,7 +4524,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("unspecified"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ActualityKind",
             "Actual",
@@ -4379,7 +4537,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("actual"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ActualityKind",
             "Capable",
@@ -4388,7 +4546,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("capable"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ActualityKind",
             "Potential",
@@ -4397,7 +4555,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("potential"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ActualityKind",
             "Demonstrated",
@@ -4406,7 +4564,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("demonstrated"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ArgumentValueKind",
             "Filled",
@@ -4415,7 +4573,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("filled"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ArgumentValueKind",
             "Elided",
@@ -4424,7 +4582,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("elided"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ArgumentValueKind",
             "Deleted",
@@ -4433,7 +4591,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("deleted"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "ConnectiveQuestion",
@@ -4442,7 +4600,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("connectiveQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "Joint",
@@ -4451,7 +4609,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("joint"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "Mass",
@@ -4460,7 +4618,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("mass"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "Set",
@@ -4469,7 +4627,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("set"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "Sequence",
@@ -4478,7 +4636,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("sequence"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "Respectively",
@@ -4487,7 +4645,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("respectively"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "Union",
@@ -4496,7 +4654,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("union"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "Intersection",
@@ -4505,7 +4663,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("intersection"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "CrossProduct",
@@ -4514,7 +4672,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("crossProduct"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "UnorderedInterval",
@@ -4523,7 +4681,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("unorderedInterval"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "OrderedInterval",
@@ -4532,7 +4690,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("orderedInterval"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "CompositionOperator",
             "CenteredInterval",
@@ -4541,7 +4699,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("centeredInterval"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorDefiniteness",
             "AffirmedPoint",
@@ -4550,7 +4708,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("affirmedPoint"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorDefiniteness",
             "IndefiniteAlternative",
@@ -4559,7 +4717,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("indefiniteAlternative"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorDefiniteness",
             "NeutralPoint",
@@ -4568,7 +4726,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("neutralPoint"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorDefiniteness",
             "UniqueExtreme",
@@ -4577,7 +4735,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("uniqueExtreme"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "Number",
@@ -4590,7 +4748,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("number"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "Name",
@@ -4603,7 +4761,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("name"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "MassName",
@@ -4612,7 +4770,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("massName"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SetName",
@@ -4621,7 +4779,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("setName"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SpeakerDescription",
@@ -4634,7 +4792,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("speakerDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "Scale",
@@ -4643,7 +4801,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("scale"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "ProSumti",
@@ -4656,7 +4814,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("proSumti"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "UnloweredSumti",
@@ -4665,7 +4823,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("unloweredSumti"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "Description",
@@ -4674,7 +4832,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("description"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "VeridicalDescription",
@@ -4687,7 +4845,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("veridicalDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "VeridicalMassDescription",
@@ -4696,7 +4854,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("veridicalMassDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "VeridicalSetDescription",
@@ -4705,7 +4863,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("veridicalSetDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SpeakerMassDescription",
@@ -4714,7 +4872,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("speakerMassDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SpeakerSetDescription",
@@ -4723,7 +4881,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("speakerSetDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SpeakerStereotypeDescription",
@@ -4732,7 +4890,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("speakerStereotypeDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "MassNameDescription",
@@ -4741,7 +4899,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("massNameDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SetNameDescription",
@@ -4750,7 +4908,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("setNameDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "TypicalDescription",
@@ -4759,7 +4917,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("typicalDescription"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "TypicalPlaceValue",
@@ -4768,7 +4926,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("typicalPlaceValue"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "UtteranceReference",
@@ -4777,7 +4935,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("utteranceReference"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "Elided",
@@ -4790,7 +4948,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("elided"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "AbstractionAbout",
@@ -4799,7 +4957,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("abstractionAbout"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "ReferentOfSymbol",
@@ -4808,7 +4966,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("referentOfSymbol"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SymbolForReferent",
@@ -4817,7 +4975,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("symbolForReferent"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "MemberOf",
@@ -4826,7 +4984,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("memberOf"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SetFrom",
@@ -4835,7 +4993,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("setFrom"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "MassFrom",
@@ -4844,7 +5002,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("massFrom"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "SequenceFrom",
@@ -4853,7 +5011,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("sequenceFrom"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "QualifiedSumti",
@@ -4862,7 +5020,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("qualifiedSumti"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "OppositeOf",
@@ -4871,7 +5029,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("oppositeOf"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "NeutralOf",
@@ -4880,7 +5038,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("neutralOf"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "AffirmedAs",
@@ -4889,7 +5047,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("affirmedAs"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DescriptorKind",
             "OtherThan",
@@ -4898,7 +5056,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("otherThan"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DiagnosticSeverity",
             "Info",
@@ -4907,7 +5065,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("info"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DiagnosticSeverity",
             "Warning",
@@ -4916,7 +5074,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("warning"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DiagnosticSeverity",
             "Error",
@@ -4925,7 +5083,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("error"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentAssertionEffect",
             "None",
@@ -4938,7 +5096,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("none"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentAssertionEffect",
             "HostAsserted",
@@ -4947,7 +5105,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("hostAsserted"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentAssertionEffect",
             "HostSubordinated",
@@ -4956,7 +5114,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("hostSubordinated"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentAssertionEffect",
             "MetalinguisticallyVoided",
@@ -4965,7 +5123,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("metalinguisticallyVoided"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentAssertionEffect",
             "Performative",
@@ -4974,7 +5132,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("performative"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentFamily",
             "Emotion",
@@ -4983,7 +5141,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("emotion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentFamily",
             "AttitudeModifier",
@@ -4992,7 +5150,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("attitudeModifier"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentFamily",
             "PropositionalAttitude",
@@ -5001,7 +5159,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("propositionalAttitude"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentFamily",
             "Evidential",
@@ -5010,7 +5168,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("evidential"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentFamily",
             "Discursive",
@@ -5019,7 +5177,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("discursive"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentFamily",
             "Metalinguistic",
@@ -5032,7 +5190,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("metalinguistic"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentFamily",
             "Emphasis",
@@ -5041,7 +5199,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("emphasis"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentFamily",
             "QuestionPrompt",
@@ -5050,7 +5208,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("questionPrompt"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentPolarity",
             "Positive",
@@ -5063,7 +5221,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("positive"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentPolarity",
             "Neutral",
@@ -5072,7 +5230,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("neutral"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentPolarity",
             "Negative",
@@ -5081,7 +5239,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("negative"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentTargetFocus",
             "Clause",
@@ -5094,7 +5252,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("clause"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DisplayedContentTargetFocus",
             "Predicate",
@@ -5103,7 +5261,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("predicate"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DomainImport",
             "Projective",
@@ -5116,7 +5274,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("projective"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ElidedConnectionOperand",
             "PriorDiscourse",
@@ -5125,7 +5283,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("priorDiscourse"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ElidedConnectionOperand",
             "FollowingDiscourse",
@@ -5134,7 +5292,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("followingDiscourse"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EndpointInclusion",
             "Inclusive",
@@ -5143,7 +5301,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("inclusive"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EndpointInclusion",
             "Exclusive",
@@ -5152,7 +5310,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("exclusive"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EventualityClass",
             "Locution",
@@ -5161,7 +5319,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("locution"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EventualityClass",
             "Event",
@@ -5170,7 +5328,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("event"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EventualityClass",
             "State",
@@ -5179,7 +5337,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("state"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EventualityClass",
             "Process",
@@ -5188,7 +5346,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("process"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EventualityClass",
             "Activity",
@@ -5197,7 +5355,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("activity"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EventualityClass",
             "Achievement",
@@ -5206,7 +5364,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("achievement"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EventualityDenotation",
             "GeneratedBound",
@@ -5219,7 +5377,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("generated-bound"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "EventualityDenotation",
             "Referential",
@@ -5232,7 +5390,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("referential"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Atom",
@@ -5245,7 +5403,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("atom"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Affirmed",
@@ -5254,7 +5412,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("affirmed"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Not",
@@ -5267,7 +5425,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("not"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Scoped",
@@ -5276,7 +5434,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("scoped"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "And",
@@ -5289,7 +5447,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("and"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Or",
@@ -5302,7 +5460,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("or"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Implies",
@@ -5311,7 +5469,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("implies"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Iff",
@@ -5320,7 +5478,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("iff"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "ExclusiveOr",
@@ -5329,7 +5487,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("exclusiveOr"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "WhetherOrNot",
@@ -5338,7 +5496,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("whetherOrNot"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "ConnectiveQuestion",
@@ -5347,7 +5505,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("connectiveQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Exists",
@@ -5356,7 +5514,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("exists"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Forall",
@@ -5369,7 +5527,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("forall"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "None",
@@ -5378,7 +5536,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("none"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "Cardinality",
@@ -5391,7 +5549,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("cardinality"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "PluralExists",
@@ -5400,7 +5558,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("pluralExists"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "PluralForall",
@@ -5409,7 +5567,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("pluralForall"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "QuantifierBundle",
@@ -5418,7 +5576,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("quantifierBundle"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "FormulaOperator",
             "RespectivelyDistribution",
@@ -5427,7 +5585,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("respectivelyDistribution"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "IndexicalKind",
             "Speaker",
@@ -5440,7 +5598,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("speaker"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "IndexicalKind",
             "Audience",
@@ -5453,7 +5611,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("audience"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "IndexicalKind",
             "Now",
@@ -5466,7 +5624,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("now"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "IndexicalKind",
             "Here",
@@ -5479,7 +5637,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("here"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DeicticProximity",
             "Proximal",
@@ -5488,7 +5646,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("proximal"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DeicticProximity",
             "Medial",
@@ -5497,7 +5655,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("medial"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "DeicticProximity",
             "Distal",
@@ -5506,7 +5664,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("distal"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PersonalParticipantMembership",
             "Included",
@@ -5515,7 +5673,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("included"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PersonalParticipantMembership",
             "Excluded",
@@ -5524,7 +5682,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("excluded"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "GeneratedReferentRealization",
             "Elided",
@@ -5533,7 +5691,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("elided"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "GeneratedReferentSpecificity",
             "Unspecified",
@@ -5542,7 +5700,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("unspecified"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "IntervalModifier",
             "Aspect",
@@ -5555,7 +5713,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("aspect"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "IntervalModifier",
             "Recurrence",
@@ -5568,7 +5726,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("recurrence"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "LetteralUnitKind",
             "Glyph",
@@ -5577,7 +5735,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("glyph"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "LetteralUnitKind",
             "Digit",
@@ -5586,7 +5744,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("digit"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "LetteralUnitKind",
             "Shift",
@@ -5595,7 +5753,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("shift"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "LetteralUnitKind",
             "CharacterCode",
@@ -5604,7 +5762,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("characterCode"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "LetteralUnitKind",
             "Compound",
@@ -5613,7 +5771,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("compound"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralKind",
             "Integer",
@@ -5626,7 +5784,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("integer"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralKind",
             "Decimal",
@@ -5635,7 +5793,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("decimal"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralKind",
             "Number",
@@ -5644,7 +5802,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("number"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralKind",
             "SumtiOperand",
@@ -5653,7 +5811,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("sumtiOperand"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralKind",
             "SelbriOperand",
@@ -5662,7 +5820,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("selbriOperand"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralKind",
             "Expression",
@@ -5671,7 +5829,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("expression"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralKind",
             "Variable",
@@ -5680,7 +5838,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("variable"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralKind",
             "MixedRadix",
@@ -5689,7 +5847,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("mixedRadix"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralValue",
             "Integer",
@@ -5698,7 +5856,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("Integer"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralValue",
             "Text",
@@ -5707,7 +5865,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("Text"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathLiteralValue",
             "MixedRadix",
@@ -5716,7 +5874,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("MixedRadix"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "Add",
@@ -5729,7 +5887,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("add"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "Multiply",
@@ -5738,7 +5896,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("multiply"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "Power",
@@ -5747,7 +5905,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("power"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "Subtract",
@@ -5756,7 +5914,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("subtract"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "Divide",
@@ -5765,7 +5923,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("divide"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "Base",
@@ -5774,7 +5932,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("base"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "BoGroup",
@@ -5783,7 +5941,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("boGroup"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "OperandGroup",
@@ -5792,7 +5950,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("operandGroup"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "Array",
@@ -5801,7 +5959,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("array"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "UnorderedInterval",
@@ -5810,7 +5968,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("unorderedInterval"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "OrderedInterval",
@@ -5819,7 +5977,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("orderedInterval"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "CenteredInterval",
@@ -5828,7 +5986,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("centeredInterval"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "MathOperator",
             "Named",
@@ -5837,7 +5995,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("named"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "TaggedNegationKind",
             "Contradictory",
@@ -5846,7 +6004,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("contradictory"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "TaggedNegationKind",
             "OtherThan",
@@ -5855,7 +6013,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("otherThan"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "OrdinalLabelLevel",
             "Item",
@@ -5864,7 +6022,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("item"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "OrdinalLabelLevel",
             "Division",
@@ -5873,7 +6031,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("division"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParagraphTransition",
             "NewTopic",
@@ -5882,7 +6040,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("new-topic"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParagraphTransition",
             "ResumePriorTopic",
@@ -5891,7 +6049,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("resume-prior-topic"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "PropertySlot",
@@ -5904,7 +6062,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("propertySlot"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "RelativeClauseHead",
@@ -5913,7 +6071,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("relativeClauseHead"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "ArgumentQuestion",
@@ -5926,7 +6084,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("argumentQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "RelationQuestion",
@@ -5939,7 +6097,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("relationQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "RelationVariable",
@@ -5948,7 +6106,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("relationVariable"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "UnspecifiedRelation",
@@ -5957,7 +6115,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("unspecifiedRelation"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "PlaceQuestion",
@@ -5970,7 +6128,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("placeQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "ConnectiveQuestion",
@@ -5983,7 +6141,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("connectiveQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "TenseQuestion",
@@ -5996,7 +6154,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("tenseQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "MathOperatorQuestion",
@@ -6009,7 +6167,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("mathOperatorQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "QuantityQuestion",
@@ -6022,7 +6180,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("quantityQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "AttitudeQuestion",
@@ -6031,7 +6189,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("attitudeQuestion"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ParameterRole",
             "RespectiveSlot",
@@ -6040,7 +6198,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("respectiveSlot"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PredicationMode",
             "Asserted",
@@ -6053,7 +6211,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("asserted"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PredicationMode",
             "Definitional",
@@ -6066,7 +6224,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("definitional"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PredicationMode",
             "Restrictive",
@@ -6079,7 +6237,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("restrictive"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PredicationMode",
             "Incidental",
@@ -6092,7 +6250,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("incidental"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PredicationMode",
             "Displayed",
@@ -6101,7 +6259,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("displayed"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PredicationMode",
             "Inert",
@@ -6114,7 +6272,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("inert"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "PredicationMode",
             "Performative",
@@ -6123,7 +6281,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("performative"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "Exact",
@@ -6136,7 +6294,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("exact"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "All",
@@ -6149,7 +6307,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("all"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "AtLeast",
@@ -6162,7 +6320,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("atLeast"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "AtMost",
@@ -6171,7 +6329,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("atMost"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "MoreThan",
@@ -6180,7 +6338,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("moreThan"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "LessThan",
@@ -6189,7 +6347,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("lessThan"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "Approximate",
@@ -6198,7 +6356,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("approximate"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "Indefinite",
@@ -6207,7 +6365,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("indefinite"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "Enough",
@@ -6216,7 +6374,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("enough"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "TooMany",
@@ -6225,7 +6383,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("tooMany"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityForm",
             "TooFew",
@@ -6234,7 +6392,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("tooFew"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityScale",
             "Count",
@@ -6247,7 +6405,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("count"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityScale",
             "Fraction",
@@ -6256,7 +6414,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("fraction"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityScale",
             "Ordinal",
@@ -6265,7 +6423,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("ordinal"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityScale",
             "Amount",
@@ -6274,7 +6432,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("amount"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityScale",
             "Extent",
@@ -6283,7 +6441,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("extent"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuantityScale",
             "Frequency",
@@ -6296,7 +6454,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         // discriminant-verified corpus witness below. `Attitude` remains
         // `NoCorpusWitness`: the model supports it, but no builder path
         // constructs an attitude-kind Question object.
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Truth",
@@ -6309,7 +6467,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("truth"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Argument",
@@ -6322,7 +6480,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("argument"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Relation",
@@ -6335,7 +6493,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("relation"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Place",
@@ -6348,7 +6506,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("place"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Connective",
@@ -6361,7 +6519,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("connective"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Tense",
@@ -6374,7 +6532,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("tense"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "MathOperator",
@@ -6387,7 +6545,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("mathOperator"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Attitude",
@@ -6396,7 +6554,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("attitude"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Quantity",
@@ -6409,7 +6567,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("quantity"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionKind",
             "Multiple",
@@ -6422,7 +6580,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("multiple"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionMode",
             "Direct",
@@ -6435,7 +6593,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("direct"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionMode",
             "Indirect",
@@ -6451,7 +6609,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         // The builder emits Answer slots for questions. `RespectiveSlot` is a
         // model-supported role used by respectively streams, but no current
         // builder path places it in a QuestionSlot.
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionSlotRole",
             "Answer",
@@ -6464,7 +6622,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("answer"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "QuestionSlotRole",
             "RespectiveSlot",
@@ -6473,7 +6631,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("respectiveSlot"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RecurrenceConnectionKind",
             "Product",
@@ -6482,7 +6640,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("product"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RecurrenceKind",
             "OccurrenceCount",
@@ -6491,7 +6649,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("occurrenceCount"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RecurrenceKind",
             "OrdinalOccurrence",
@@ -6500,7 +6658,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("ordinalOccurrence"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RecurrenceKind",
             "Regular",
@@ -6509,7 +6667,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("regular"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RecurrenceKind",
             "Typically",
@@ -6518,7 +6676,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("typically"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RecurrenceKind",
             "Continuously",
@@ -6527,7 +6685,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("continuously"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RecurrenceKind",
             "Habitually",
@@ -6540,7 +6698,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("habitually"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ReferentCategory",
             "Constant",
@@ -6553,7 +6711,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("constant"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ReferentCategory",
             "Variable",
@@ -6566,7 +6724,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("variable"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ReferentCategory",
             "Indexical",
@@ -6579,7 +6737,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("indexical"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ReferentCategory",
             "Composite",
@@ -6588,7 +6746,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("composite"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RelativeClauseKind",
             "Incidental",
@@ -6597,7 +6755,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("incidental"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "RelativeClauseKind",
             "Restrictive",
@@ -6610,7 +6768,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("restrictive"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ScalarNegationKind",
             "OtherThan",
@@ -6619,7 +6777,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("otherThan"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ScalarNegationKind",
             "Opposite",
@@ -6628,7 +6786,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("opposite"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ScalarNegationKind",
             "Neutral",
@@ -6637,7 +6795,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("neutral"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ScalarNegationKind",
             "Affirmed",
@@ -6646,7 +6804,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("affirmed"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ScopeDependence",
             "Fixed",
@@ -6659,7 +6817,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("fixed"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "ScopeDependence",
             "Underspecified",
@@ -6672,7 +6830,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("underspecified"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SelectionSourceKind",
             "WitnessSet",
@@ -6681,7 +6839,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("witnessSet"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Entity",
@@ -6694,7 +6852,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("entity"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Mass",
@@ -6703,7 +6861,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("mass"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Set",
@@ -6712,7 +6870,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("set"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Sequence",
@@ -6721,7 +6879,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("sequence"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Time",
@@ -6730,7 +6888,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("time"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Eventuality",
@@ -6743,7 +6901,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("eventuality"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Predication",
@@ -6752,7 +6910,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("predication"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "TruthValue",
@@ -6761,7 +6919,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("truthValue"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Proposition",
@@ -6774,7 +6932,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("proposition"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Concept",
@@ -6783,7 +6941,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("concept"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Amount",
@@ -6792,7 +6950,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("amount"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Quantity",
@@ -6801,7 +6959,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("quantity"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Number",
@@ -6814,7 +6972,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("number"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Scale",
@@ -6823,7 +6981,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("scale"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Text",
@@ -6832,7 +6990,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("text"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Sign",
@@ -6845,7 +7003,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("sign"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Relation",
@@ -6858,7 +7016,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("relation"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Place",
@@ -6867,7 +7025,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("place"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "Connective",
@@ -6876,7 +7034,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("connective"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "TenseModal",
@@ -6885,7 +7043,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("tenseModal"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "MathOperator",
@@ -6894,7 +7052,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("mathOperator"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "ArgumentBundle",
@@ -6903,7 +7061,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("argumentBundle"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SemanticSort",
             "AbstractNature",
@@ -6912,7 +7070,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("abstractNature"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SequenceRelation",
             "SameTopicContinuation",
@@ -6925,7 +7083,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("same-topic-continuation"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SequenceRelation",
             "ParagraphBoundary",
@@ -6934,7 +7092,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("paragraph-boundary"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SignKind",
             "Quotation",
@@ -6947,7 +7105,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("quotation"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SignKind",
             "Letteral",
@@ -6956,7 +7114,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("letteral"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SignKind",
             "MathExpression",
@@ -6965,7 +7123,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("mathExpression"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SignKind",
             "Connective",
@@ -6974,7 +7132,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("connective"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SignKind",
             "Word",
@@ -6983,7 +7141,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("word"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SignKind",
             "Text",
@@ -6992,7 +7150,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("text"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "SpatialMotionKind",
             "Toward",
@@ -7001,7 +7159,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("toward"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "TemporalPathAnchorKind",
             "Object",
@@ -7010,7 +7168,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("object"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "TemporalPathAnchorKind",
             "Previous",
@@ -7019,7 +7177,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("previous"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "UtteranceForce",
             "Assert",
@@ -7032,7 +7190,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Some("assert"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "UtteranceForce",
             "Ask",
@@ -7041,7 +7199,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("ask"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "UtteranceForce",
             "Command",
@@ -7050,7 +7208,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("command"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "UtteranceForce",
             "Mention",
@@ -7059,7 +7217,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("mention"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "UtteranceForce",
             "Quote",
@@ -7068,7 +7226,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("quote"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "UtteranceForce",
             "Parenthetical",
@@ -7077,7 +7235,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("parenthetical"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "UtteranceForce",
             "Subordinated",
@@ -7086,7 +7244,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("subordinated"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Enum,
             "UtteranceForce",
             "Vocative",
@@ -7100,7 +7258,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         //     (`kind`'s value is the enum discriminant, inventoried above under
         //     the Enum surface; `value` inlines an Aspect/Recurrence, inventoried
         //     under those value-struct surfaces.) ---
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ScopeDependence",
             "kind",
@@ -7113,7 +7271,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "ScopeDependence",
             "mayDependOn",
@@ -7126,7 +7284,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "IntervalModifier",
             "kind",
@@ -7139,7 +7297,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "IntervalModifier",
             "value",
@@ -7155,7 +7313,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         // `SequenceRelation` (externally tagged) — `ParagraphBoundary` inlines
         // `transition` and `additional` (both `ParagraphTransition`); unexercised
         // by the corpus.
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "SequenceRelation",
             "transition",
@@ -7164,7 +7322,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Some("ParagraphBoundary"),
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::ValueStruct,
             "SequenceRelation",
             "additional",
@@ -7175,7 +7333,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         ),
         // --- Derived / document-level facts (authored from FREEZE-PHASE-B.md
         //     and the frozen smusni sample outputs; not single serde fields) ---
-        e(
+        direct(
             SurfaceCategory::Document,
             "document",
             "root",
@@ -7188,7 +7346,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Document,
             "document",
             "declarations",
@@ -7201,7 +7359,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        notation_default(
             SurfaceCategory::Document,
             "document",
             "id-prefixes-legend",
@@ -7210,7 +7368,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        notation_default(
             SurfaceCategory::Document,
             "document",
             "short-id-assignment",
@@ -7219,7 +7377,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        notation_default(
             SurfaceCategory::Document,
             "document",
             "dense-declaration-one-lining",
@@ -7228,7 +7386,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "fact:sort-header",
@@ -7241,7 +7399,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "fact:sort-header",
@@ -7254,7 +7412,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Referent",
             "fact:binding-label",
@@ -7267,7 +7425,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        notation_default(
             SurfaceCategory::Object,
             "Eventuality",
             "fact:detail-unspecified",
@@ -7280,7 +7438,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             None,
         ),
-        e(
+        typed_fallback(
             SurfaceCategory::Object,
             "Eventuality",
             "fact:denotation-reading",
@@ -7296,7 +7454,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
         // Tested-winner role wordings (FREEZE-PHASE-B.md (d) items 2-3): rendered
         // wordings, unexercised by the corpus (section-8 role machinery). They
         // render through typed fallback when their construct occurs.
-        e(
+        direct(
             SurfaceCategory::Document,
             "document",
             "fact:role-composition-all-hold",
@@ -7305,7 +7463,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Document,
             "document",
             "fact:role-binding-role-for",
@@ -7314,7 +7472,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             None,
         ),
-        e(
+        direct(
             SurfaceCategory::Object,
             "Quantity",
             "fact:explicit-counting",

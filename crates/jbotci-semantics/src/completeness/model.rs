@@ -180,6 +180,13 @@ pub struct InventoryEntry {
     pub presence: Presence,
     pub witness: Witness,
     pub variant_of: Option<&'static str>,
+    /// Draft-9's required semantic treatment of this exact surface coordinate.
+    ///
+    /// This lives on the authored inventory row so adding a model member cannot
+    /// acquire a permissive renderer default. The source/schema drift guards
+    /// require a new row, and the constructor requires that row to state its
+    /// disposition.
+    pub disposition: Disposition,
 }
 
 impl InventoryEntry {
@@ -193,6 +200,7 @@ impl InventoryEntry {
         presence: Presence,
         witness: Witness,
         variant_of: Option<&'static str>,
+        disposition: Disposition,
     ) -> Self {
         new!(InventoryEntry {
             surface,
@@ -201,6 +209,7 @@ impl InventoryEntry {
             presence,
             witness,
             variant_of,
+            disposition,
         })
     }
 
@@ -277,30 +286,63 @@ impl RenderFieldInventory {
     }
 }
 
-/// How a renderer treats an inventoried item.
+/// Draft-9's closed semantic treatment of an inventoried item.
 ///
-/// `Renders` means the renderer emits it. `ExcludedWithReason` means it is
-/// deliberately omitted, with a recorded reason so the omission is auditable
-/// rather than accidental. Typed fallback leaves no uncomputed disposition.
-#[invariant(::Renders => true)]
-#[invariant(::ExcludedWithReason(reason) => !reason.is_empty())]
+/// The variants deliberately distinguish semantic projection from notation
+/// layout and provenance. `TypedFallback` is a faithful, counted disposition,
+/// not permission to omit the field. Reasons make every non-compact treatment
+/// reviewable at the inventory row that selects it.
+#[invariant(::DirectLowering => true)]
+#[invariant(::ProvenDesugaring => true)]
+#[invariant(::NotationDefault(reason) => !reason.is_empty())]
+#[invariant(::ProvenanceSuppression(reason) => !reason.is_empty())]
+#[invariant(::DiagnosticCollection => true)]
+#[invariant(::TypedFallback(reason) => !reason.is_empty())]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Disposition {
-    Renders,
-    ExcludedWithReason(&'static str),
+    DirectLowering,
+    ProvenDesugaring,
+    NotationDefault(&'static str),
+    ProvenanceSuppression(&'static str),
+    DiagnosticCollection,
+    TypedFallback(&'static str),
 }
 
 impl Disposition {
     #[requires(true)]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::Renders)))]
-    pub fn renders() -> Self {
-        new!(Disposition::Renders)
+    #[ensures(matches!(ret.as_data(), data!(Disposition::DirectLowering)))]
+    pub fn direct_lowering() -> Self {
+        new!(Disposition::DirectLowering)
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::ProvenDesugaring)))]
+    pub fn proven_desugaring() -> Self {
+        new!(Disposition::ProvenDesugaring)
     }
 
     #[requires(!reason.is_empty())]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_))))]
-    pub fn excluded_with_reason(reason: &'static str) -> Self {
-        new!(Disposition::ExcludedWithReason(reason))
+    #[ensures(matches!(ret.as_data(), data!(Disposition::NotationDefault(_))))]
+    pub fn notation_default(reason: &'static str) -> Self {
+        new!(Disposition::NotationDefault(reason))
+    }
+
+    #[requires(!reason.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::ProvenanceSuppression(_))))]
+    pub fn provenance_suppression(reason: &'static str) -> Self {
+        new!(Disposition::ProvenanceSuppression(reason))
+    }
+
+    #[requires(true)]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::DiagnosticCollection)))]
+    pub fn diagnostic_collection() -> Self {
+        new!(Disposition::DiagnosticCollection)
+    }
+
+    #[requires(!reason.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::TypedFallback(_))))]
+    pub fn typed_fallback(reason: &'static str) -> Self {
+        new!(Disposition::TypedFallback(reason))
     }
 }
 
