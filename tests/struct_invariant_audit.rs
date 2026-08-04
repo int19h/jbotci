@@ -968,6 +968,50 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a disposition map with no cross-field invariant; every entry-key to disposition mapping is valid",
     ),
     (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:CuratedRoot",
+        "raw sidecar DTO intentionally admits invalid combinations so the generator returns a typed rejection",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:DictionaryMetadata",
+        "raw dictionary-sidecar DTO is compared against exact reviewed constants after deserialization",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:ExpectedCurated",
+        "private compile-time audit row is fully fixed by trusted constants",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:FamilyPolicy",
+        "raw policy DTO admits invalid evidence and enum text so validation can reject them explicitly",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:GeneratorInputs",
+        "borrowed raw inputs admit arbitrary bytes so fail-closed validation can return typed errors",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:GeneratorPaths",
+        "offline input paths are caller-selected and all I/O failures are returned as typed errors",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:PolicyFile",
+        "raw parsed row list is intentionally unconstrained before exact-domain validation",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:RelationPlace",
+        "raw outer policy DTO admits invalid identities and ranges so validation can reject them explicitly",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:RootAudit",
+        "private mutable source-audit accumulator is populated before the whole-file validation completes",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:SourceAudit",
+        "the source audit value is returned only after all source validators succeed",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/lexical_scope_policy.rs:SourceMetadata",
+        "raw source-sidecar DTO intentionally admits drift so exact validation can reject it",
+    ),
+    (
         "crates/jbotci-semantics/tests/support/schema_scan.rs:EnumDef",
         "test-only parsed enum record; any combination of rename/tagging/variants is a valid parse result",
     ),
@@ -994,6 +1038,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/tests/support/type_graph.rs:TypeGraph",
         "test-only edge/field maps derived from the source scan; any consistent maps are a valid graph",
+    ),
+    (
+        "crates/jbotci-semantics/tests/lexical_policy_codegen.rs:OwnedInputs",
+        "test-only raw owner represents both reviewed inputs and deliberately corrupted generator inputs",
     ),
     (
         "crates/jbotci-semantics/src/facade.rs:SemanticBuildOptions",
@@ -1062,6 +1110,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleVariantBuilder",
         "private mutable Serde tuple-variant state is populated from static derived type and variant names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:GeneratedLexicalPolicyRow",
+        "private generated rows contain only build-time-audited constants and closed enum values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyKey",
+        "every combination of normalized relation, nonzero place, and closed dynamic family is a valid lookup key",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:PreHostLexicalIr",
+        "every ordered sequence of independently validated pre-host candidates is valid",
     ),
     (
         "crates/jbotci-semantics/src/notation/xml.rs:RenderState",

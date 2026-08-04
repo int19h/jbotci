@@ -1016,6 +1016,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit disposition routing diagnostics out of the notation document; no payload to constrain",
     ),
     (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalEdgeAttempt::Constructed",
+        "constructed attempts carry an already validated lexical dynamic edge",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalEdgeFallbackReason::Lookup",
+        "lookup fallback carries a validated closed lookup-failure value",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyLookupFailure::UnknownRelation",
+        "unknown-relation failure carries the exact validated attempted key",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyLookupFailure::UnsupportedFamily",
+        "unsupported-family failure carries the exact validated attempted key",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyLookupFailure::UnsupportedPlace",
+        "unsupported-place failure carries the exact validated attempted key",
+    ),
+    (
         "crates/jbotci-semantics/src/completeness/model.rs:Witness::NoCorpusWitness",
         "unit witness marker for a field the frozen corpus does not exercise; no payload to constrain",
     ),

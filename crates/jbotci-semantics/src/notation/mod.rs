@@ -8,6 +8,7 @@
 pub mod coverage;
 pub(crate) mod relation_expression;
 pub mod sexpr;
+pub(crate) mod typed_ir;
 pub mod word_cards;
 mod xml;
 pub mod xml_coverage;
