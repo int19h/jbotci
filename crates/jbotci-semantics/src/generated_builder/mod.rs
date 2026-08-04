@@ -39,15 +39,16 @@ use jbotci_syntax::generated_model::{
     GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IParagraphStatementConnectiveSyntax,
     IStatementConnectionSyntax, IStatementConnectionTailSyntax, IStatementConnectiveSyntax,
     InfixMeksoSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JekConnectiveSyntax,
-    JoiConnectiveSyntax, JoikConnectiveSyntax, LaheSumtiSyntax, LeadingIStatementSyntax,
-    LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax, LerfuStringMeksoSyntax,
-    LerfuStringSumtiSyntax, LetterStringContinuationSyntax, LetterStringSyntax, LetterTokensSyntax,
-    LinkargsSyntax, LinkedSumtiContinuationFragmentSyntax, LinkedSumtiFragmentSyntax,
-    LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, MeksoBaseSyntax,
-    MeksoFragmentSyntax, MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax,
-    MeksoSyntax, ModalForethoughtConnectiveSyntax, ModalTenseSyntax, MultipleNaFragmentSyntax,
-    NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax, NegatedSelbriSyntax,
-    NihoParagraphSyntax, NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NumberMeksoSyntax,
+    JoiConnectiveSyntax, JoikConnectiveSyntax, KeTermsetSyntax, LaheSumtiSyntax,
+    LeadingIStatementSyntax, LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax,
+    LerfuStringMeksoSyntax, LerfuStringSumtiSyntax, LetterStringContinuationSyntax,
+    LetterStringSyntax, LetterTokensSyntax, LinkargsSyntax, LinkedSumtiContinuationFragmentSyntax,
+    LinkedSumtiFragmentSyntax, LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax,
+    LinkedTanruUnitSyntax, MeksoBaseSyntax, MeksoFragmentSyntax, MeksoOperandSyntax,
+    MeksoOperatorSyntax, MeksoPrecedenceSyntax, MeksoSyntax, ModalForethoughtConnectiveSyntax,
+    ModalTenseSyntax, MultipleNaFragmentSyntax, NameSumtiSyntax,
+    NegatedForethoughtBridiConnectionSyntax, NegatedSelbriSyntax, NihoParagraphSyntax,
+    NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NuhiTermsetSyntax, NumberMeksoSyntax,
     NumberSumtiSyntax, NumberWordContinuationSyntax, NumberWordsSyntax,
     OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
     ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
@@ -9426,6 +9427,79 @@ mod tests {
                 "de",
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn both_prenex_termset_spellings_reject_nonquantifier_scope_operators() {
+        let expected_message = "semantic interpretation is undefined for a prenex termset containing a non-quantifier scope operator";
+        let mut errors = Vec::new();
+        for source in [
+            "da ce'e na ku ce'e de zo'u da broda de",
+            "nu'i da na ku de nu'u zo'u da broda de",
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("a grouped NA KU scope has no established coequal interpretation");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(error.message, expected_message);
+            errors.push(error);
+        }
+        assert_eq!(errors[0], errors[1]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ungrouped_prenex_negation_retains_surface_scope_order() {
+        let graph = semantic_graph_for("da na ku de zo'u da broda de");
+        let content = graph.objects[&graph.root]
+            .as_utterance()
+            .and_then(|utterance| utterance.content)
+            .expect("the prenex statement has formula content");
+        let data!(FormulaNode::Quantified(da_scope)) = graph.objects[&content]
+            .as_formula()
+            .expect("the outer da scope is a formula")
+            .as_data()
+        else {
+            panic!("surface-first da must retain the outer scope");
+        };
+        assert_eq!(da_scope.operator, FormulaOperator::Exists);
+        let data!(FormulaNode::Connective(negation)) = graph.objects[&da_scope.body]
+            .as_formula()
+            .expect("NA KU contributes a formula scope")
+            .as_data()
+        else {
+            panic!("NA KU must remain between the two quantifier scopes");
+        };
+        assert_eq!(negation.operator, FormulaOperator::Not);
+        let [de_scope] = negation.children.as_slice() else {
+            panic!("prenex negation must retain its single inner formula");
+        };
+        let data!(FormulaNode::Quantified(de_scope)) = graph.objects[de_scope]
+            .as_formula()
+            .expect("the inner de scope is a formula")
+            .as_data()
+        else {
+            panic!("surface-last de must retain the inner scope");
+        };
+        assert_eq!(de_scope.operator, FormulaOperator::Exists);
+        let broda = named_predication_ids(&graph, "broda");
+        let [broda] = broda.as_slice() else {
+            panic!("the shared matrix predication must be retained once");
+        };
+        assert!(formula_contains_predication(&graph, de_scope.body, *broda));
+        let matrix = graph.objects[broda]
+            .as_predication()
+            .expect("broda remains a predication");
+        assert_eq!(
+            matrix.arguments[&argument_key(1)].value,
+            Some(da_scope.variable),
+        );
+        assert_eq!(
+            matrix.arguments[&argument_key(2)].value,
+            Some(de_scope.variable),
+        );
     }
 
     #[test]

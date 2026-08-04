@@ -102,19 +102,11 @@ impl<'builder, 'a, 'dict, 'tree> TreeWalker<'tree>
             return;
         }
         match node {
-            TermSyntax::TermsetGroup(group) => {
-                self.start_group(node);
-                TreeWalkable::walk_with(group.leading_term.as_ref(), self);
-                for continuation in &group.continuations {
-                    TreeWalkable::walk_with(continuation.trailing_term.as_ref(), self);
-                }
-                self.end_group();
-            }
-            TermSyntax::SimpleTerm(simple) => {
-                TreeWalkable::walk_with(simple, self);
+            TermSyntax::TermsetGroup(_) | TermSyntax::SimpleTerm(_) => {
+                jbotci_syntax::generated_model::walk::term(self, node);
             }
             TermSyntax::ConnectedTerm(connection) if connection.continuations.is_empty() => {
-                TreeWalkable::walk_with(connection.leading_term.as_ref(), self);
+                jbotci_syntax::generated_model::walk::term(self, node);
             }
             _ => {
                 self.error = Some(invalid_graph(
@@ -122,6 +114,14 @@ impl<'builder, 'a, 'dict, 'tree> TreeWalker<'tree>
                 ));
             }
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_term_termset_group(&mut self, node: &'tree TermsetGroupSyntax) {
+        self.start_group(node);
+        jbotci_syntax::generated_model::walk::term_termset_group(self, node);
+        self.end_group();
     }
 
     #[requires(true)]
@@ -149,19 +149,35 @@ impl<'builder, 'a, 'dict, 'tree> TreeWalker<'tree>
                     source: self.builder.source_for_node(node, "prenex-negation"),
                 });
             }
-            SimpleTermSyntax::NuhiTermset(termset) => {
-                self.start_group(node);
-                TreeWalkable::walk_with(&termset.termset, self);
-                self.end_group();
-            }
-            SimpleTermSyntax::KeTermset(termset) => {
-                self.start_group(node);
-                TreeWalkable::walk_with(&termset.termset, self);
-                self.end_group();
+            SimpleTermSyntax::NuhiTermset(_) | SimpleTermSyntax::KeTermset(_) => {
+                jbotci_syntax::generated_model::walk::simple_term(self, node);
             }
             _ => {}
         }
     }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term_nuhi_termset(&mut self, node: &'tree NuhiTermsetSyntax) {
+        self.start_group(node);
+        jbotci_syntax::generated_model::walk::simple_term_nuhi_termset(self, node);
+        self.end_group();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term_ke_termset(&mut self, node: &'tree KeTermsetSyntax) {
+        self.start_group(node);
+        jbotci_syntax::generated_model::walk::simple_term_ke_termset(self, node);
+        self.end_group();
+    }
+
+    /// Termset delimiters and connectives may carry free modifiers containing
+    /// unrelated nested terms. They are not members of the prenex termset, so
+    /// generated descent stops at that precise semantic boundary.
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_free_modifier(&mut self, _node: &'tree FreeModifierSyntax) {}
 }
 
 #[requires(true)]
@@ -191,46 +207,39 @@ fn generated_prenex_quantifier_scope_count(scopes: &[GeneratedPrenexFormulaScope
 }
 
 #[requires(true)]
-#[ensures(generated_prenex_quantifier_scope_count(&ret) == old(generated_prenex_quantifier_scope_count(&scopes)))]
+#[ensures(ret.as_ref().is_ok_and(|grouped| generated_prenex_quantifier_scope_count(grouped) == old(generated_prenex_quantifier_scope_count(&scopes))) || ret.is_err())]
 fn coequalize_generated_prenex_formula_scopes(
     scopes: Vec<GeneratedPrenexFormulaScope>,
     source: Option<crate::model::SemanticSource>,
-) -> Vec<GeneratedPrenexFormulaScope> {
+) -> Result<Vec<GeneratedPrenexFormulaScope>, SemanticsError> {
     let mut quantifiers = Vec::new();
-    let mut ungrouped = Vec::new();
-    let mut insertion_index = None;
     for scope in scopes {
         match scope.into_data() {
             data!(GeneratedPrenexFormulaScope::Quantifier(scope)) => {
-                insertion_index.get_or_insert(ungrouped.len());
                 quantifiers.push(scope);
             }
             data!(GeneratedPrenexFormulaScope::QuantifierBundle { scopes, .. }) => {
-                insertion_index.get_or_insert(ungrouped.len());
                 quantifiers.extend(scopes);
             }
-            data!(GeneratedPrenexFormulaScope::Negation { source }) => {
-                ungrouped.push(new!(GeneratedPrenexFormulaScope::Negation { source }));
+            data!(GeneratedPrenexFormulaScope::Negation { .. }) => {
+                return Err(undefined_semantics(
+                    "a prenex termset containing a non-quantifier scope operator",
+                ));
             }
         }
     }
-    let Some(insertion_index) = insertion_index else {
-        return ungrouped;
-    };
-    let grouped = if quantifiers.len() > 1 {
-        new!(GeneratedPrenexFormulaScope::QuantifierBundle {
+    Ok(if quantifiers.len() > 1 {
+        vec![new!(GeneratedPrenexFormulaScope::QuantifierBundle {
             scopes: quantifiers,
             source,
-        })
+        })]
     } else {
-        new!(GeneratedPrenexFormulaScope::Quantifier(
-            quantifiers
-                .pop()
-                .expect("an insertion index records at least one quantifier")
-        ))
-    };
-    ungrouped.insert(insertion_index, grouped);
-    ungrouped
+        quantifiers
+            .pop()
+            .map(|scope| new!(GeneratedPrenexFormulaScope::Quantifier(scope)))
+            .into_iter()
+            .collect()
+    })
 }
 
 #[requires(true)]
@@ -4351,14 +4360,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     let group = groups
                         .pop()
                         .expect("the root group remains below the group being closed");
+                    let grouped =
+                        coequalize_generated_prenex_formula_scopes(group.scopes, group.source)?;
                     groups
                         .last_mut()
                         .expect("the root prenex scope group is always present")
                         .scopes
-                        .extend(coequalize_generated_prenex_formula_scopes(
-                            group.scopes,
-                            group.source,
-                        ));
+                        .extend(grouped);
                 }
                 GeneratedPrenexTermEvent::Sumti { syntax, .. } => {
                     let scope = match syntax {
