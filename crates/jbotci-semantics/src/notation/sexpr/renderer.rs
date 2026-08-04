@@ -55,7 +55,7 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRen
         render_typed_graph(graph, &plan)
     };
 
-    let mut children = vec![Datum::Unsigned(0), body];
+    let mut children = vec![Datum::unsigned(0), body];
     if !warnings.is_empty() {
         children.push(Datum::form("Warnings", warnings));
     }

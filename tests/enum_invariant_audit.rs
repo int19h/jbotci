@@ -1052,28 +1052,248 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Atom is already a validated lexical type, so every Atom payload is valid",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Bool",
-        "every bool is a valid S-expression scalar",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Float",
-        "every f64 is printable: finite values use numeric syntax and non-finite values use canonical escaped strings",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::List",
         "every sequence of already validated Datum children is a valid S-expression list",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Signed",
-        "every i128 has a canonical integer spelling",
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Integer",
+        "integer payload is an already validated arbitrary-precision canonical decimal spelling",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::String",
         "every Rust string has one canonical escaped S-expression string spelling",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Datum::Unsigned",
-        "every u128 has a canonical integer spelling",
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ApplicationArgument::ComputedPlace",
+        "the place and value are independently validated expressions and every pair is a syntactically valid computed fill",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ApplicationArgument::EventualityPlace",
+        "every validated value expression is syntactically valid at the distinguished event-place marker",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ApplicationArgument::NumberedPlace",
+        "PositiveInteger proves the unbounded place marker is positive and the value expression is independently validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ApplicationArgument::Value",
+        "every validated expression is a syntactically valid ordinary application argument",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:DocumentBody::Performable",
+        "the syntax layer accepts a validated expression while static Performable typing is enforced by elaboration",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:DocumentBody::TypedGraph",
+        "the TypedGraph payload already proves the complete whole-document fallback grammar",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LetBinding::Prelude",
+        "PreludeBinding carries a registry-validated prelude name, type, and expression",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LetBinding::Variable",
+        "ValueBinding carries a validated variable declaration and expression",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:PlaceMarker::Eventuality",
+        "the unit variant is the one distinguished event-place marker",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:PlaceMarker::Numbered",
+        "PositiveInteger proves every numbered application marker is canonical, positive, and unbounded",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Atom",
+        "NfcText validates the exact string payload of RawAtom",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::List",
+        "every sequence of validated raw values is a valid RawList payload",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Null",
+        "the unit variant exactly represents RawNull",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Object",
+        "RawObject contains validated identity and text fields; cross-tree identity order is enforced by RawTree",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Ref",
+        "ObjectId proves positivity; cross-tree reference order is enforced by RawTree",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::String",
+        "NfcText validates the exact string payload of RawString",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::TypedAtom",
+        "both model enum type and case are independently NFC-validated strings",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Application",
+        "Application proves the nonempty exact application production",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Atom",
+        "ValueAtom proves membership in a closed value-position atom namespace",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Bind",
+        "BindForm proves the canonical one-variable Bind production",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Fallback",
+        "LocalFallback proves the expected type, registered reason, and raw-tree grammar",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Integer",
+        "Integer proves canonical arbitrary-precision decimal syntax",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Lambda",
+        "Lambda proves a nonempty duplicate-free typed parameter list",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Let",
+        "LetForm proves the canonical one-binding Let production",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::LetRec",
+        "LetRec proves nonempty unique variable bindings with lambda initializers",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Rational",
+        "Rational proves a positive denominator and lowest terms",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Sign",
+        "Sign proves the exact typed token binder and nonempty fact list",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::String",
+        "NfcText proves the string is normalized before the shared escaping boundary",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Utterance",
+        "Utterance proves the exact typed token binder and nonempty fact list",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Variable",
+        "Variable proves the reserved dollar-prefixed symbol grammar",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PlaceLabel::Eventuality",
+        "the unit variant is the one distinguished event-row label",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PlaceLabel::Numbered",
+        "PositiveInteger proves every numbered row label is canonical, positive, and unbounded",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateArgument::Computed",
+        "the PlaceOf type and validated nonempty unique candidate domain carry all syntactic constraints",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateArgument::Eventuality",
+        "every validated value type may be checked against the event slot during application",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateArgument::Numbered",
+        "PositiveInteger proves place positivity and application checks the independently valid value type",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateArgument::Plain",
+        "every validated type may be checked at the numbered fill cursor",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::DropPlace",
+        "the nested relation is validated and PositiveInteger proves the deleted ordinal is canonical and positive",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::Lexical",
+        "LexicalRoot proves the lowercase or escaped-lowercase relation namespace",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::Scalar",
+        "ScalarKind is closed and the nested relation reference is validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::Tanru",
+        "both modifier and row-owning head are independently validated relation references",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::Variable",
+        "Variable proves the lexically bound relation-reference namespace",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Act",
+        "Force is a closed enum and every member indexes a valid Act type",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::AnswerSelection",
+        "every ordered sequence of validated types is a valid answer tuple parameter",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Atom",
+        "TypeAtom is the closed primitive and literal-family type namespace",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Function",
+        "every ordered parameter sequence and validated result form a syntactically valid Fn type",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::GeneralizedQuantifier",
+        "every validated inner type is a valid GQ type parameter",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Group",
+        "every validated inner type is a valid Group type parameter",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Interval",
+        "every validated inner type is syntactically valid for Interval; orderedness is checked by signatures",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::List",
+        "every validated inner type is a valid List type parameter",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::PlaceOf",
+        "the relation, accepted type, and optional nonempty unique candidate set are independently validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Predicate",
+        "Row proves canonical unique row labels and open-tail placement",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Query",
+        "every ordered sequence of validated types is a valid query tuple parameter",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::ReferenceComputation",
+        "every validated inner type is a valid RefComp result type",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Referents",
+        "every validated inner type is a valid Referents type parameter",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Set",
+        "every validated inner type is a valid Set type parameter",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Sign",
+        "SignKind is a closed enum and every member indexes a valid Sign type",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::SignToken",
+        "SignKind is a closed enum and every member indexes a valid SignToken type",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Tuple",
+        "every ordered sequence of validated types is a valid tuple parameter",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralValue::Bool",

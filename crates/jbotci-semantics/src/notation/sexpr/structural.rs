@@ -759,9 +759,9 @@ fn supplemental_object_field_datums(
     fields
 }
 
-/// Render a graph identity in the dedicated `@` namespace.
+/// Render a legacy Draft-9 graph identity as an escaped atom.
 #[requires(true)]
-#[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with('@')))]
+#[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with("|@") && atom.ends_with('|')))]
 pub fn reference_datum(id: SemanticObjectId) -> Datum {
     reference_text_datum(&id.to_string())
 }
@@ -980,7 +980,7 @@ fn dynamic_field_datum(
     Datum::form(
         "Field",
         [
-            Datum::form("Name", [Datum::String(name)]),
+            Datum::form("Name", [Datum::string(name)]),
             structural_datum(value, variables, provenance),
         ],
     )
@@ -999,11 +999,11 @@ fn structural_datum(
             .get(&id)
             .cloned()
             .unwrap_or_else(|| reference_text_datum(&id)),
-        data!(StructuralValue::String(value)) => Datum::String(value),
-        data!(StructuralValue::Bool(value)) => Datum::Bool(value),
-        data!(StructuralValue::Signed(value)) => Datum::Signed(value),
-        data!(StructuralValue::Unsigned(value)) => Datum::Unsigned(value),
-        data!(StructuralValue::Float(value)) => Datum::Float(value),
+        data!(StructuralValue::String(value)) => Datum::string(value),
+        data!(StructuralValue::Bool(value)) => Datum::string(value.to_string()),
+        data!(StructuralValue::Signed(value)) => Datum::signed(value),
+        data!(StructuralValue::Unsigned(value)) => Datum::unsigned(value),
+        data!(StructuralValue::Float(value)) => Datum::string(value.to_string()),
         data!(StructuralValue::Unit) => Datum::atom("None"),
         data!(StructuralValue::Sequence(values)) => Datum::form(
             "List",
@@ -1051,11 +1051,13 @@ fn structural_datum(
     }
 }
 
-/// Project tagged reference text into the `@` namespace.
+/// Preserve the legacy Draft-9 `@` spelling without extending the v0 bare-atom
+/// grammar. The final raw fallback assigns its separate depth-first `%id`s in
+/// the validated serialization layer instead.
 #[requires(!id.is_empty())]
-#[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with('@')))]
+#[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with("|@") && atom.ends_with('|')))]
 fn reference_text_datum(id: &str) -> Datum {
-    Datum::atom(format!("@{}", id.replace(':', "_")))
+    Datum::atom(format!("|@{}|", id.replace(':', "_")))
 }
 
 /// Convert a serde camelCase/snake-case field to its grammar field atom.
@@ -1116,7 +1118,7 @@ mod tests {
             id.serialize(StructuralSerializer).unwrap().as_data(),
             new!(StructuralValue::Reference("entity:7".to_owned())).as_data()
         );
-        assert_eq!(reference_datum(id).as_atom(), Some("@entity_7"));
+        assert_eq!(reference_datum(id).as_atom(), Some("|@entity_7|"));
     }
 
     #[test]
@@ -1171,7 +1173,7 @@ mod tests {
         assert_eq!(field[0].as_atom(), Some("Field"));
         let name = field[1].as_list().expect("unknown key uses Name");
         assert_eq!(name[0].as_atom(), Some("Name"));
-        assert_eq!(name[1], Datum::String("future_field".to_owned()));
+        assert_eq!(name[1], Datum::string("future_field"));
     }
 
     #[test]

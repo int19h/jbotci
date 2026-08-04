@@ -157,7 +157,7 @@ fn parse_smusni(text: &str) -> Datum {
     let datum = parse_document(text).expect("renderer output must be one parseable datum");
     let items = datum.as_list().expect("Smusni document must be a list");
     assert_eq!(items.first().and_then(Datum::as_atom), Some("Smusni"));
-    assert_eq!(items.get(1).and_then(Datum::as_atom), Some("0"));
+    assert_eq!(items.get(1).and_then(Datum::as_integer), Some("0"));
     assert!(items.len() >= 3);
     datum
 }
@@ -319,22 +319,26 @@ fn validate_description(items: &[Datum], outer: &BTreeSet<String>) {
 
 /// Read and validate one graph-identity atom.
 #[requires(true)]
-#[ensures(ret.is_some() == datum.as_atom().is_some_and(|atom| atom.starts_with('@')))]
+#[ensures(ret.is_some() == datum.as_atom().is_some_and(|atom| atom.starts_with("|@") && atom.ends_with('|')))]
 fn graph_reference<'a>(datum: &'a Datum, graph_ids: &BTreeSet<String>) -> Option<&'a str> {
-    let id = datum.as_atom()?.strip_prefix('@')?;
-    assert!(graph_ids.contains(id), "unknown graph reference @{id}");
+    let id = datum.as_atom()?.strip_prefix("|@")?.strip_suffix('|')?;
+    assert!(
+        graph_ids.contains(id),
+        "unknown escaped graph reference {id}"
+    );
     Some(id)
 }
 
-/// In compact output, `@` is reserved for the diagnostic attachment exception
-/// `(SourceObject @id)`. Local `(Object ...)` fields must instead be closed by
-/// a lexical/shared `$` binding or an inlined typed value.
+/// In legacy compact output, escaped `@` atoms are reserved for the diagnostic
+/// attachment exception. Local `(Object ...)` fields must instead be closed by
+/// a lexical/shared `$` binding or an inlined typed value. Final v0 fallback
+/// uses `%id` through the validated syntax layer.
 #[requires(true)]
 #[ensures(true)]
 fn validate_compact_reference_closure(datum: &Datum, graph_ids: &BTreeSet<String>) {
     if let Some(atom) = datum.as_atom() {
         assert!(
-            !atom.starts_with('@'),
+            !atom.starts_with("|@"),
             "compact output contains an undeclared identity edge {atom}"
         );
         return;
@@ -347,7 +351,7 @@ fn validate_compact_reference_closure(datum: &Datum, graph_ids: &BTreeSet<String
             items.len() >= 2,
             "SourceObject carries its diagnostic identity"
         );
-        graph_reference(&items[1], graph_ids).expect("SourceObject identity uses @");
+        graph_reference(&items[1], graph_ids).expect("SourceObject identity uses escaped @");
         for item in &items[2..] {
             validate_compact_reference_closure(item, graph_ids);
         }
@@ -377,8 +381,9 @@ fn validate_typed_graph_reference_closure(typed_graph: &Datum, graph_ids: &BTree
             Some("Def") => {
                 let fields = child.as_list().expect("Def is a form");
                 assert!(fields.len() >= 3, "Def carries identity and kind");
-                let id = graph_reference(&fields[1], graph_ids).expect("Def identity uses @");
-                assert!(definitions.insert(id.to_owned()), "duplicate Def @{id}");
+                let id =
+                    graph_reference(&fields[1], graph_ids).expect("Def identity uses escaped @");
+                assert!(definitions.insert(id.to_owned()), "duplicate Def {id}");
             }
             other => panic!("unexpected TypedGraph child {other:?}"),
         }
@@ -394,7 +399,8 @@ fn validate_typed_graph_reference_closure(typed_graph: &Datum, graph_ids: &BTree
     validate_defined_references(typed_graph, graph_ids, &definitions);
 }
 
-/// Validate every `@` in a whole-document graph against the exact Def set.
+/// Validate every escaped legacy `@` in a whole-document graph against the
+/// exact Def set.
 #[requires(definitions.is_subset(graph_ids))]
 #[ensures(true)]
 fn validate_defined_references(
@@ -403,7 +409,7 @@ fn validate_defined_references(
     definitions: &BTreeSet<String>,
 ) {
     if let Some(id) = graph_reference(datum, graph_ids) {
-        assert!(definitions.contains(id), "dangling graph reference @{id}");
+        assert!(definitions.contains(id), "dangling graph reference {id}");
         return;
     }
     if let Some(items) = datum.as_list() {
@@ -454,10 +460,7 @@ fn count_forms(datum: &Datum, head: &str) -> usize {
 #[requires(true)]
 #[ensures(true)]
 fn parsed_unsigned(datum: &Datum) -> Option<u128> {
-    match datum {
-        Datum::Unsigned(value) => Some(*value),
-        _ => datum.as_atom()?.parse().ok(),
-    }
+    datum.as_integer().or_else(|| datum.as_atom())?.parse().ok()
 }
 
 /// Count diagnostics represented either by compact `Warning` records or a

@@ -1060,6 +1060,66 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private mutable parser state starts at byte zero and cursor-mutating methods contractually preserve UTF-8 boundaries",
     ),
     (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:BindForm",
+        "ValueBinding fixes the name to a validated variable and both binding and body are independently valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:Declaration",
+        "every validated variable and type pair is a valid typed declaration",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LetForm",
+        "LetBinding proves the closed let-name alternatives and the body is independently validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LocalFallback",
+        "the expected type, registered fallback reason, and identity-checked raw tree are independently validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ObjectId",
+        "PositiveInteger provides canonical arbitrary-precision positivity for every fallback object identity",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:PreludeBinding",
+        "PreludeName proves registry membership and every validated type/expression pair is a valid initializer",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawField",
+        "every NFC field name and validated raw value form a valid raw field",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawObject",
+        "the identity, NFC type name, and raw fields are locally valid; RawTree proves global identity order",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:TypedGraph",
+        "the NFC model-root name and identity-checked RawTree are independently valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Document",
+        "every validated body and optional sequence of validated word cards is a valid packaging value",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ValueBinding",
+        "every validated variable declaration and initializer expression is a valid variable binding",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:WordCard",
+        "LexicalRoot and NfcText independently prove both word-card fields",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:FunctionSignature",
+        "every ordered validated parameter sequence and validated result form a valid function signature",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateSignature",
+        "every validated relation identity and canonical effective row form a valid predicate signature",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RowSlot",
+        "every positive or distinguished label paired with a validated accepted type is a valid row slot",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactElaboration",
         "immutable elaboration output combines independently valid typed data and derived counters from one completed pass",
     ),

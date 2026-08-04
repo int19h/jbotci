@@ -638,7 +638,7 @@ impl Elaborator<'_> {
             )
         }));
         if let Some(kind) = &node.vocative_kind {
-            fields.push(Datum::form("VocativeKind", [Datum::String(kind.clone())]));
+            fields.push(Datum::form("VocativeKind", [Datum::string(kind)]));
         }
         self.recognized(Datum::form("Utterance", fields))
     }
@@ -784,7 +784,7 @@ impl Elaborator<'_> {
                 })],
             ),
             Datum::form("Value", [self.render_id(label.value, bound, active, None)]),
-            Datum::form("IntroducedBy", [Datum::String(label.introduced_by.clone())]),
+            Datum::form("IntroducedBy", [Datum::string(&label.introduced_by)]),
         ]);
         Datum::form("OrdinalLabel", fields)
     }
@@ -1081,7 +1081,10 @@ impl Elaborator<'_> {
                 let mut arguments = streams;
                 arguments.push(lambda);
                 if let Some(distinct) = node.distinct_partition {
-                    arguments.push(Datum::form("DistinctPartition", [Datum::Bool(distinct)]));
+                    arguments.push(Datum::form(
+                        "DistinctPartition",
+                        [Datum::string(distinct.to_string())],
+                    ));
                 }
                 let value = Datum::form("Respectively", arguments);
                 let generated = node
@@ -1453,7 +1456,7 @@ impl Elaborator<'_> {
             .map(|(place, _)| *place)
             .collect::<BTreeSet<_>>();
         for place in &deleted {
-            term = Datum::form("DropPlace", [term, Datum::Unsigned(place.get() as u128)]);
+            term = Datum::form("DropPlace", [term, Datum::unsigned(place.get() as u128)]);
         }
         let mut next = 1usize;
         let mut application = PredicateApplication {
@@ -1486,7 +1489,7 @@ impl Elaborator<'_> {
             }
             let value = self.render_id(value, bound, active, None);
             let operand = if modal || place.get() != next {
-                Datum::form("At", [Datum::Unsigned(place.get() as u128), value])
+                Datum::form("At", [Datum::unsigned(place.get() as u128), value])
             } else {
                 value
             };
@@ -1782,7 +1785,7 @@ impl Elaborator<'_> {
             data!(DescriptionRecognition::Name { name }) => {
                 return Some(Datum::form(
                     "La",
-                    [Datum::form("Named", [Datum::String((*name).to_owned())])],
+                    [Datum::form("Named", [Datum::string(name)])],
                 ));
             }
         };
@@ -2144,13 +2147,13 @@ impl Elaborator<'_> {
         if node.value.question_parameters.is_empty() && node.comparison_set.is_none() {
             if let Some(integer) = node.value.integer {
                 if node.form == QuantityForm::Exact && node.scale == QuantityScale::Count {
-                    return self.recognized(Datum::Signed(i128::from(integer)));
+                    return self.recognized(Datum::signed(i128::from(integer)));
                 }
                 if node.scale == QuantityScale::Count
                     && let Some(form) = numeric_quantity_form(node.form)
                 {
                     return self
-                        .recognized(Datum::form(form, [Datum::Signed(i128::from(integer))]));
+                        .recognized(Datum::form(form, [Datum::signed(i128::from(integer))]));
                 }
             }
         }
@@ -2162,10 +2165,10 @@ impl Elaborator<'_> {
         if let Some(integer) = node.value.integer {
             fields.insert(
                 1,
-                Datum::form("Value", [Datum::Signed(i128::from(integer))]),
+                Datum::form("Value", [Datum::signed(i128::from(integer))]),
             );
         } else if let Some(text) = &node.value.text {
-            fields.insert(1, Datum::form("ValueText", [Datum::String(text.clone())]));
+            fields.insert(1, Datum::form("ValueText", [Datum::string(text)]));
         } else if let Some(expression) = node.value.math_expression {
             fields.insert(
                 1,
@@ -2212,7 +2215,7 @@ impl Elaborator<'_> {
                 if let data!(crate::model::MathLiteralValue::Integer(value)) =
                     literal.value.as_data()
                 {
-                    return self.recognized(Datum::Signed(i128::from(*value)));
+                    return self.recognized(Datum::signed(i128::from(*value)));
                 }
                 self.recognized(Datum::form(
                     "Math",
@@ -2246,7 +2249,7 @@ impl Elaborator<'_> {
                     data!(MathOperator::OrderedInterval) => Datum::atom("OrderedInterval"),
                     data!(MathOperator::CenteredInterval) => Datum::atom("CenteredInterval"),
                     data!(MathOperator::Named(name)) => {
-                        Datum::form("NamedMathOperator", [Datum::String(name.clone())])
+                        Datum::form("NamedMathOperator", [Datum::string(name)])
                     }
                 };
                 let mut application = vec![head];
@@ -2298,8 +2301,7 @@ impl Elaborator<'_> {
                 .quotation
                 .as_ref()
                 .expect("SignNode invariant pairs quotation kind and value");
-            let mut quotation_fields =
-                vec![Datum::form("Mode", [Datum::String(quotation.mode.clone())])];
+            let mut quotation_fields = vec![Datum::form("Mode", [Datum::string(&quotation.mode)])];
             if let Some(utterance_id) = quotation.utterance {
                 let utterance = self.render_id(utterance_id, bound, active, None);
                 quotation_fields.push(if self.definitions.contains(&utterance_id) {
@@ -2309,10 +2311,10 @@ impl Elaborator<'_> {
                 });
             }
             if let Some(delimiter) = &quotation.delimiter {
-                quotation_fields.push(Datum::form("Delimiter", [Datum::String(delimiter.clone())]));
+                quotation_fields.push(Datum::form("Delimiter", [Datum::string(delimiter)]));
             }
             if let Some(text) = &quotation.text {
-                quotation_fields.push(Datum::form("Text", [Datum::String(text.clone())]));
+                quotation_fields.push(Datum::form("Text", [Datum::string(text)]));
             }
             return self.recognized(Datum::form(
                 "Sign",
@@ -2353,7 +2355,7 @@ fn warning_datum(diagnostic: &SemanticDiagnostic) -> Datum {
                     DiagnosticSeverity::Error => "Error",
                 })],
             ),
-            Datum::form("Message", [Datum::String(diagnostic.message.clone())]),
+            Datum::form("Message", [Datum::string(&diagnostic.message)]),
         ],
     )
 }

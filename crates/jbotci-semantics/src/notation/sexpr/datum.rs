@@ -8,10 +8,86 @@ use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
+use unicode_normalization::UnicodeNormalization;
+
+/// A canonical, arbitrarily large decimal integer spelling.
+#[invariant(is_canonical_integer(&text))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Integer {
+    text: String,
+}
+
+impl Integer {
+    /// Parse a canonical decimal integer.
+    #[requires(true)]
+    #[ensures(ret.is_ok() == is_canonical_integer(text))]
+    pub fn try_new(text: &str) -> Result<Self, InvalidInteger> {
+        if !is_canonical_integer(text) {
+            return Err(new!(InvalidInteger {
+                text: text.to_owned(),
+            }));
+        }
+        Ok(new!(Integer {
+            text: text.to_owned(),
+        }))
+    }
+
+    /// Construct an integer from a signed machine value.
+    #[requires(true)]
+    #[ensures(is_canonical_integer(ret.as_str()))]
+    pub fn from_i128(value: i128) -> Self {
+        Self::try_new(&value.to_string()).expect("machine integers have canonical spellings")
+    }
+
+    /// Construct an integer from an unsigned machine value.
+    #[requires(true)]
+    #[ensures(is_canonical_integer(ret.as_str()))]
+    pub fn from_u128(value: u128) -> Self {
+        Self::try_new(&value.to_string()).expect("machine integers have canonical spellings")
+    }
+
+    /// Borrow the canonical spelling.
+    #[requires(true)]
+    #[ensures(is_canonical_integer(ret))]
+    pub fn as_str(&self) -> &str {
+        &self.text
+    }
+}
+
+/// Error returned for a noncanonical integer token.
+#[invariant(!is_canonical_integer(&text))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InvalidInteger {
+    text: String,
+}
+
+impl fmt::Display for InvalidInteger {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "not a canonical integer: {:?}", self.text)
+    }
+}
+
+impl std::error::Error for InvalidInteger {}
+
+/// Test the exact version-0 integer grammar.
+#[requires(true)]
+#[ensures(true)]
+fn is_canonical_integer(text: &str) -> bool {
+    if text == "0" {
+        return true;
+    }
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    !digits.is_empty()
+        && !digits.starts_with('0')
+        && digits.bytes().all(|byte| byte.is_ascii_digit())
+}
 
 /// An atom that is safe to print without quoting.
 #[invariant(!text.is_empty())]
-#[invariant(text.chars().all(|character| !character.is_whitespace() && !matches!(character, '(' | ')' | '"' | ';')))]
+#[invariant(text.nfc().eq(text.chars()))]
+#[invariant(is_lexical_atom(&text))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Atom {
     text: String,
@@ -23,11 +99,7 @@ impl Atom {
     #[ensures(ret.as_ref().is_ok_and(|atom| !atom.as_str().is_empty()) || ret.is_err())]
     pub fn try_new(text: impl Into<String>) -> Result<Self, InvalidAtom> {
         let text = text.into();
-        if text.is_empty()
-            || text.chars().any(|character| {
-                character.is_whitespace() || matches!(character, '(' | ')' | '"' | ';')
-            })
-        {
+        if text.is_empty() || !text.nfc().eq(text.chars()) || !is_lexical_atom(&text) {
             return Err(new!(InvalidAtom { text: text }));
         }
         Ok(new!(Atom { text: text }))
@@ -42,7 +114,7 @@ impl Atom {
 }
 
 /// Error returned when syntax-significant text is used as an atom.
-#[invariant(text.is_empty() || text.chars().any(|character| character.is_whitespace() || matches!(character, '(' | ')' | '"' | ';')))]
+#[invariant(text.is_empty() || !text.nfc().eq(text.chars()) || !is_lexical_atom(&text))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvalidAtom {
     text: String,
@@ -63,19 +135,13 @@ impl std::error::Error for InvalidAtom {}
 // typed elaborator, while `Atom` enforces the only lexical restriction.
 #[invariant(::Atom(_) => true)]
 #[invariant(::String(_) => true)]
-#[invariant(::Bool(_) => true)]
-#[invariant(::Signed(_) => true)]
-#[invariant(::Unsigned(_) => true)]
-#[invariant(::Float(_) => true)]
+#[invariant(::Integer(_) => true)]
 #[invariant(::List(_) => true)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Datum {
     Atom(Atom),
     String(String),
-    Bool(bool),
-    Signed(i128),
-    Unsigned(u128),
-    Float(f64),
+    Integer(Integer),
     List(Vec<Datum>),
 }
 
@@ -86,6 +152,27 @@ impl Datum {
     pub fn atom(text: impl Into<String>) -> Self {
         let text = text.into();
         Self::Atom(Atom::try_new(text).expect("renderer atom constants must be lexically valid"))
+    }
+
+    /// Construct an NFC string datum.
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::String(_)))]
+    pub fn string(text: impl AsRef<str>) -> Self {
+        Self::String(text.as_ref().nfc().collect())
+    }
+
+    /// Construct a signed integer datum.
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Integer(_)))]
+    pub fn signed(value: i128) -> Self {
+        Self::Integer(Integer::from_i128(value))
+    }
+
+    /// Construct an unsigned integer datum.
+    #[requires(true)]
+    #[ensures(matches!(ret, Self::Integer(_)))]
+    pub fn unsigned(value: u128) -> Self {
+        Self::Integer(Integer::from_u128(value))
     }
 
     /// Construct a list with `head` as its first datum.
@@ -110,6 +197,26 @@ impl Datum {
     pub fn as_atom(&self) -> Option<&str> {
         match self {
             Self::Atom(atom) => Some(atom.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Return an integer's canonical spelling, if this datum is an integer.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self, Self::Integer(_)))]
+    pub fn as_integer(&self) -> Option<&str> {
+        match self {
+            Self::Integer(integer) => Some(integer.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Return a string's value, if this datum is a string.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self, Self::String(_)))]
+    pub fn as_string(&self) -> Option<&str> {
+        match self {
+            Self::String(value) => Some(value),
             _ => None,
         }
     }
@@ -168,22 +275,7 @@ fn print_datum(datum: &Datum, indent: usize, output: &mut String) {
         Datum::String(value) => output.push_str(
             &serde_json::to_string(value).expect("serializing a Rust string cannot fail"),
         ),
-        Datum::Bool(value) => output.push_str(if *value { "true" } else { "false" }),
-        Datum::Signed(value) => output.push_str(&value.to_string()),
-        Datum::Unsigned(value) => output.push_str(&value.to_string()),
-        Datum::Float(value) => {
-            if value.is_finite() {
-                output.push_str(&value.to_string());
-            } else {
-                // Serde never supplies non-finite JSON numbers, but Datum is a
-                // reusable syntax type. Keep the document parseable if a future
-                // direct semantic form encounters one.
-                output.push_str(
-                    &serde_json::to_string(&value.to_string())
-                        .expect("serializing a Rust string cannot fail"),
-                );
-            }
-        }
+        Datum::Integer(value) => output.push_str(value.as_str()),
         Datum::List(values) => print_list(values, indent, output),
     }
 }
@@ -245,6 +337,21 @@ pub fn parse_document(input: &str) -> Result<Datum, ParseError> {
         return Err(parser.error("trailing data after the document"));
     }
     Ok(datum)
+}
+
+/// Parse zero or more datums, principally for declared sample fragments.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub fn parse_datums(input: &str) -> Result<Vec<Datum>, ParseError> {
+    let mut parser = Parser { input, offset: 0 };
+    let mut datums = Vec::new();
+    loop {
+        parser.skip_whitespace();
+        if parser.offset == input.len() {
+            return Ok(datums);
+        }
+        datums.push(parser.parse_datum()?);
+    }
 }
 
 /// Cursor used by the non-recognizing S-expression parser.
@@ -313,6 +420,12 @@ impl Parser<'_> {
                         message: format!("invalid string escape: {error}"),
                     })
                 })?;
+                if !value.nfc().eq(value.chars()) {
+                    return Err(new!(ParseError {
+                        byte_offset: start,
+                        message: "string is not NFC-normalized".to_owned(),
+                    }));
+                }
                 self.offset = end;
                 return Ok(Datum::String(value));
             }
@@ -326,30 +439,64 @@ impl Parser<'_> {
     #[ensures(ret.is_ok() || ret.is_err())]
     fn parse_atom(&mut self) -> Result<Datum, ParseError> {
         let start = self.offset;
-        while let Some(character) = self.remaining().chars().next() {
-            if character.is_whitespace() || matches!(character, '(' | ')') {
-                break;
+        if self.remaining().starts_with('|') {
+            self.offset += 1;
+            let mut escaped = false;
+            while let Some(character) = self.remaining().chars().next() {
+                self.offset += character.len_utf8();
+                if escaped {
+                    escaped = false;
+                } else if character == '\\' {
+                    escaped = true;
+                } else if character == '|' {
+                    break;
+                }
             }
-            self.offset += character.len_utf8();
+        } else {
+            while let Some(character) = self.remaining().chars().next() {
+                if character.is_whitespace() || matches!(character, '(' | ')') {
+                    break;
+                }
+                self.offset += character.len_utf8();
+            }
         }
-        let atom = Atom::try_new(&self.input[start..self.offset]).map_err(|error| {
+        let text = &self.input[start..self.offset];
+        if is_integer_candidate(text) {
+            return Integer::try_new(text).map(Datum::Integer).map_err(|error| {
+                new!(ParseError {
+                    byte_offset: start,
+                    message: error.to_string(),
+                })
+            });
+        }
+        Atom::try_new(text).map(Datum::Atom).map_err(|error| {
             new!(ParseError {
                 byte_offset: start,
                 message: error.to_string(),
             })
-        })?;
-        Ok(Datum::Atom(atom))
+        })
     }
 
     /// Skip Unicode whitespace.
     #[requires(self.offset <= self.input.len() && self.input.is_char_boundary(self.offset))]
     #[ensures(self.offset >= old(self.offset) && self.input.is_char_boundary(self.offset))]
     fn skip_whitespace(&mut self) {
-        while let Some(character) = self.remaining().chars().next() {
-            if !character.is_whitespace() {
-                break;
+        loop {
+            while let Some(character) = self.remaining().chars().next() {
+                if !character.is_whitespace() {
+                    break;
+                }
+                self.offset += character.len_utf8();
             }
-            self.offset += character.len_utf8();
+            if !self.remaining().starts_with(';') {
+                return;
+            }
+            while let Some(character) = self.remaining().chars().next() {
+                self.offset += character.len_utf8();
+                if character == '\n' {
+                    break;
+                }
+            }
         }
     }
 
@@ -371,6 +518,110 @@ impl Parser<'_> {
     }
 }
 
+/// Return whether a token is reserved for integer syntax.
+#[requires(!text.is_empty())]
+#[ensures(true)]
+fn is_integer_candidate(text: &str) -> bool {
+    text.as_bytes()[0].is_ascii_digit()
+        || text
+            .strip_prefix('-')
+            .is_some_and(|digits| digits.as_bytes().first().is_some_and(u8::is_ascii_digit))
+}
+
+/// Validate one low-level lexical atom token.
+#[requires(true)]
+#[ensures(true)]
+fn is_lexical_atom(text: &str) -> bool {
+    if text.is_empty() {
+        return false;
+    }
+    if text.starts_with('|') {
+        return is_escaped_symbol(text);
+    }
+    if text.chars().any(|character| character.is_whitespace()) {
+        return false;
+    }
+    if matches!(
+        text,
+        "/" | "λ"
+            | "¬"
+            | "∧"
+            | "∨"
+            | "→"
+            | "↔"
+            | "⊕"
+            | "∀"
+            | "∃"
+            | "="
+            | "≠"
+            | "<"
+            | "≤"
+            | ">"
+            | "≥"
+            | "+"
+            | "−"
+            | "×"
+            | "÷"
+            | "∈"
+            | "∪"
+            | "∩"
+    ) {
+        return true;
+    }
+    if let Some(name) = text.strip_prefix('$') {
+        return is_symbol_name(name);
+    }
+    if let Some(label) = text.strip_prefix(':') {
+        return label == "Eventuality" || is_positive_integer(label);
+    }
+    if let Some(id) = text.strip_prefix('%') {
+        return is_positive_integer(id);
+    }
+    is_symbol_name(text)
+}
+
+/// Validate a bare symbol name.
+#[requires(true)]
+#[ensures(true)]
+fn is_symbol_name(text: &str) -> bool {
+    let mut characters = text.chars();
+    characters.next().is_some_and(char::is_alphabetic)
+        && characters.all(|character| {
+            character.is_alphanumeric() || matches!(character, '\'' | '-' | '_' | '.')
+        })
+}
+
+/// Validate vertical-bar escaping, including its closed escape set.
+#[requires(true)]
+#[ensures(true)]
+fn is_escaped_symbol(text: &str) -> bool {
+    if !text.ends_with('|') || text.len() < 3 {
+        return false;
+    }
+    let inner = &text[1..text.len() - 1];
+    let mut escaped = false;
+    for character in inner.chars() {
+        if escaped {
+            if !matches!(character, '|' | '\\') {
+                return false;
+            }
+            escaped = false;
+        } else if character == '\\' {
+            escaped = true;
+        } else if character == '|' {
+            return false;
+        }
+    }
+    !escaped
+}
+
+/// Validate a canonical positive integer token.
+#[requires(true)]
+#[ensures(true)]
+fn is_positive_integer(text: &str) -> bool {
+    !text.is_empty() && !text.starts_with('0') && text.bytes().all(|byte| byte.is_ascii_digit())
+}
+
 #[cfg(test)]
 mod tests {
     use bityzba::requires;
@@ -383,8 +634,8 @@ mod tests {
     fn printer_and_parser_round_trip_hostile_strings() {
         let datum = Datum::form(
             "Hostile",
-            [Datum::String(
-                "quote: \" slash: \\ newline:\n nul:\0 lojban: coi".into(),
+            [Datum::string(
+                "quote: \" slash: \\ newline:\n nul:\0 lojban: coi",
             )],
         );
         let text = print_document(&datum);
@@ -398,5 +649,26 @@ mod tests {
     #[ensures(true)]
     fn parser_rejects_multiple_documents() {
         assert!(parse_document("(Smusni 0) (Smusni 0)").is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parser_enforces_canonical_scalars_and_atom_escaping() {
+        assert!(parse_document("; accepted comment\n(|lo jban| 0 -2)").is_ok());
+        for malformed in [
+            "01",
+            "-0",
+            "+1",
+            "@x",
+            "|bad\\nescape|",
+            "|unterminated",
+            "\"e\\u0301\"",
+        ] {
+            assert!(
+                parse_document(malformed).is_err(),
+                "accepted malformed scalar {malformed}",
+            );
+        }
     }
 }
