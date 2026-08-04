@@ -744,6 +744,16 @@ impl TypeExpr {
         if self == &Self::Atom(TypeAtom::Natural) && expected == &Self::Atom(TypeAtom::Cardinal) {
             return Some(ImplicitConversion::NaturalToCardinal);
         }
+        if self == &Self::Atom(TypeAtom::Natural)
+            && expected == &Self::Referents(Box::new(Self::Atom(TypeAtom::Cardinal)))
+        {
+            return Some(ImplicitConversion::NaturalToCardinalSingletonLift);
+        }
+        if self == &Self::Referents(Box::new(Self::Atom(TypeAtom::Natural)))
+            && expected == &Self::Referents(Box::new(Self::Atom(TypeAtom::Cardinal)))
+        {
+            return Some(ImplicitConversion::PointwiseNaturalToCardinal);
+        }
         let Self::Referents(expected_inner) = expected else {
             return None;
         };
@@ -762,6 +772,8 @@ pub enum ImplicitConversion {
     Upcast,
     CovariantReferentsUpcast,
     NaturalToCardinal,
+    NaturalToCardinalSingletonLift,
+    PointwiseNaturalToCardinal,
     SingletonLift,
 }
 
@@ -1603,14 +1615,31 @@ mod tests {
         let achievement = TypeExpr::Atom(TypeAtom::Achievement);
         let eventuality = TypeExpr::Atom(TypeAtom::Eventuality);
         let entity = TypeExpr::Atom(TypeAtom::Entity);
+        let natural = TypeExpr::Atom(TypeAtom::Natural);
+        let cardinal = TypeExpr::Atom(TypeAtom::Cardinal);
+        let natural_referents = TypeExpr::Referents(Box::new(natural.clone()));
+        let cardinal_referents = TypeExpr::Referents(Box::new(cardinal.clone()));
         assert!(achievement.is_subtype_of(&eventuality));
         assert!(achievement.is_subtype_of(&entity));
         assert!(!entity.is_subtype_of(&eventuality));
-        assert!(TypeExpr::Atom(TypeAtom::Natural).is_subtype_of(&entity));
+        assert!(natural.is_subtype_of(&entity));
         assert_eq!(
-            TypeExpr::Atom(TypeAtom::Natural)
-                .implicit_conversion_to(&TypeExpr::Atom(TypeAtom::Cardinal)),
+            natural.implicit_conversion_to(&cardinal),
             Some(ImplicitConversion::NaturalToCardinal)
+        );
+        assert_eq!(
+            natural.implicit_conversion_to(&cardinal_referents),
+            Some(ImplicitConversion::NaturalToCardinalSingletonLift)
+        );
+        assert_eq!(
+            natural_referents.implicit_conversion_to(&cardinal_referents),
+            Some(ImplicitConversion::PointwiseNaturalToCardinal)
+        );
+        assert_eq!(cardinal.implicit_conversion_to(&natural), None);
+        assert_eq!(cardinal_referents.implicit_conversion_to(&natural), None);
+        assert_eq!(
+            cardinal_referents.implicit_conversion_to(&natural_referents),
+            None
         );
         assert_eq!(
             entity.implicit_conversion_to(&TypeExpr::Referents(Box::new(entity.clone()))),
