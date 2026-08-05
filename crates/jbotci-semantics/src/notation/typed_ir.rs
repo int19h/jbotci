@@ -13,6 +13,10 @@ use std::collections::{BTreeMap, BTreeSet};
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires, try_new};
 
+use super::registry::{
+    GENERATED_LEXICAL_POLICY_ENTITY_FALLBACK_REASON_ID,
+    GENERATED_LEXICAL_POLICY_EVENTUALITY_FALLBACK_REASON_ID, GENERATED_LEXICAL_POLICY_ROWS,
+};
 #[allow(unused_imports)]
 use crate::model::{
     ArgumentValue, DescriptorKind, PlaceIndex, PredicationRelation, PredicationRelationData,
@@ -429,18 +433,6 @@ fn rows_have_unique_keys(rows: &[VerifiedLexicalPolicy]) -> bool {
     let mut seen = BTreeSet::new();
     rows.iter().all(|row| seen.insert(row.key.clone()))
 }
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy)]
-struct GeneratedLexicalPolicyRow {
-    relation: &'static str,
-    original_place: usize,
-    attested_arity: usize,
-    accepted_family: DynamicValueFamily,
-    policy: ScopePolicy,
-}
-
-include!(concat!(env!("OUT_DIR"), "/lexical_scope_policies.rs"));
 
 #[requires(true)]
 #[ensures(matches!(ret.as_data(), data!(LexicalEdgeAttempt::Constructed { .. }))

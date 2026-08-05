@@ -58,15 +58,16 @@ impl Surface {
 
 /// What kind of inventory item an entry records.
 ///
-/// A `Field` is a serializable field of an object or value struct; a `Variant`
-/// is an enum discriminant (a variant-conditional branch a renderer must
-/// handle); a `DerivedFact` is a rendered fact that is *not* a single serde
-/// field — e.g. the reference sort header derived from a referent's `sort`.
+/// Constructors, discriminators, and qualified variant fields are intentionally
+/// separate: a flattened field cannot stand in for the branch that owns it.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EntryKind {
+    Constructor,
+    Discriminator,
     Field,
-    Variant,
+    EnumVariant,
+    VariantField,
     DerivedFact,
 }
 
@@ -164,7 +165,7 @@ impl WitnessExpect {
 /// One inventory entry: a serializable field, an enum variant, or a derived
 /// fact of the semantic surface.
 ///
-/// `(surface, field, kind)` is the entry's identity; the completeness contract
+/// `(surface, field, kind, variant_of)` is the entry's identity; the completeness contract
 /// keys dispositions on it. `variant_of`, when present, names the enum-variant
 /// or node-variant shape that gates a `VariantConditional` field, so the reader
 /// sees *which* branch introduces the field.
@@ -222,18 +223,21 @@ impl InventoryEntry {
             surface: self.surface.name,
             field: self.field,
             kind: self.kind,
+            variant_of: self.variant_of,
         })
     }
 }
 
 /// The identity of an inventory entry, used as the disposition map key.
 #[invariant(!surface.is_empty() && !field.is_empty())]
+#[invariant(variant_of.is_none_or(|qualifier| !qualifier.is_empty()))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EntryKey {
     pub category: SurfaceCategory,
     pub surface: &'static str,
     pub field: &'static str,
     pub kind: EntryKind,
+    pub variant_of: Option<&'static str>,
 }
 
 /// The full render-field inventory: a de-duplicated, ordered set of entries.
@@ -292,76 +296,79 @@ impl RenderFieldInventory {
 /// layout and provenance. `TypedFallback` is a faithful, counted disposition,
 /// not permission to omit the field. Reasons make every non-compact treatment
 /// reviewable at the inventory row that selects it.
-#[invariant(::DirectLowering => true)]
-#[invariant(::ProvenDesugaring => true)]
-#[invariant(::NotationDefault(reason) => !reason.is_empty())]
-#[invariant(::ProvenanceSuppression(reason) => !reason.is_empty())]
-#[invariant(::DiagnosticCollection => true)]
-#[invariant(::TypedFallback { reason, expected_type_schema, minimum_raw_owner_type, reason_id } => !reason.is_empty() && !expected_type_schema.is_empty() && !minimum_raw_owner_type.is_empty() && reason_id.is_none_or(|id| !id.is_empty()))]
+#[invariant(::DirectLowering { target_contract } => !target_contract.is_empty())]
+#[invariant(::ProvenDesugaring { target_contract } => !target_contract.is_empty())]
+#[invariant(::NotationDefault { target_contract, reason } => !target_contract.is_empty() && !reason.is_empty())]
+#[invariant(::ProvenanceSuppression { target_contract, reason } => !target_contract.is_empty() && !reason.is_empty())]
+#[invariant(::DiagnosticCollection { target_contract } => !target_contract.is_empty())]
+#[invariant(::TypedFallback { reason, expected_type_schema, minimum_raw_owner_type, reason_id } => !reason.is_empty() && !expected_type_schema.is_empty() && !minimum_raw_owner_type.is_empty() && !reason_id.is_empty())]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Disposition {
-    DirectLowering,
-    ProvenDesugaring,
-    NotationDefault(&'static str),
-    ProvenanceSuppression(&'static str),
-    DiagnosticCollection,
+    DirectLowering {
+        target_contract: &'static str,
+    },
+    ProvenDesugaring {
+        target_contract: &'static str,
+    },
+    NotationDefault {
+        target_contract: &'static str,
+        reason: &'static str,
+    },
+    ProvenanceSuppression {
+        target_contract: &'static str,
+        reason: &'static str,
+    },
+    DiagnosticCollection {
+        target_contract: &'static str,
+    },
     TypedFallback {
         reason: &'static str,
         expected_type_schema: &'static str,
         minimum_raw_owner_type: &'static str,
-        reason_id: Option<&'static str>,
+        reason_id: &'static str,
     },
 }
 
 impl Disposition {
-    #[requires(true)]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::DirectLowering)))]
-    pub fn direct_lowering() -> Self {
-        new!(Disposition::DirectLowering)
+    #[requires(!target_contract.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::DirectLowering { target_contract: target }) if *target == target_contract))]
+    pub fn direct_lowering(target_contract: &'static str) -> Self {
+        new!(Disposition::DirectLowering { target_contract })
     }
 
-    #[requires(true)]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::ProvenDesugaring)))]
-    pub fn proven_desugaring() -> Self {
-        new!(Disposition::ProvenDesugaring)
+    #[requires(!target_contract.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::ProvenDesugaring { target_contract: target }) if *target == target_contract))]
+    pub fn proven_desugaring(target_contract: &'static str) -> Self {
+        new!(Disposition::ProvenDesugaring { target_contract })
     }
 
-    #[requires(!reason.is_empty())]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::NotationDefault(_))))]
-    pub fn notation_default(reason: &'static str) -> Self {
-        new!(Disposition::NotationDefault(reason))
-    }
-
-    #[requires(!reason.is_empty())]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::ProvenanceSuppression(_))))]
-    pub fn provenance_suppression(reason: &'static str) -> Self {
-        new!(Disposition::ProvenanceSuppression(reason))
-    }
-
-    #[requires(true)]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::DiagnosticCollection)))]
-    pub fn diagnostic_collection() -> Self {
-        new!(Disposition::DiagnosticCollection)
-    }
-
-    #[requires(!reason.is_empty())]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::TypedFallback { expected_type_schema: "Performable", minimum_raw_owner_type: "SemanticGraph", reason_id: None, .. })))]
-    pub fn typed_fallback(reason: &'static str) -> Self {
-        // This is the one conservative boundary for inventory coordinates
-        // whose current projection layer does not yet establish a smaller
-        // expected type. A lowering that proves one must use
-        // `typed_fallback_at` instead of inheriting this boundary.
-        new!(Disposition::TypedFallback {
+    #[requires(!target_contract.is_empty() && !reason.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::NotationDefault { .. })))]
+    pub fn notation_default(target_contract: &'static str, reason: &'static str) -> Self {
+        new!(Disposition::NotationDefault {
+            target_contract,
             reason,
-            expected_type_schema: "Performable",
-            minimum_raw_owner_type: "SemanticGraph",
-            reason_id: None,
         })
     }
 
+    #[requires(!target_contract.is_empty() && !reason.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::ProvenanceSuppression { .. })))]
+    pub fn provenance_suppression(target_contract: &'static str, reason: &'static str) -> Self {
+        new!(Disposition::ProvenanceSuppression {
+            target_contract,
+            reason,
+        })
+    }
+
+    #[requires(!target_contract.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::DiagnosticCollection { .. })))]
+    pub fn diagnostic_collection(target_contract: &'static str) -> Self {
+        new!(Disposition::DiagnosticCollection { target_contract })
+    }
+
     #[requires(!reason.is_empty() && !expected_type_schema.is_empty() && !minimum_raw_owner_type.is_empty() && !reason_id.is_empty())]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::TypedFallback { reason_id: Some(id), .. }) if *id == reason_id))]
-    pub fn typed_fallback_at(
+    #[ensures(matches!(ret.as_data(), data!(Disposition::TypedFallback { reason_id: id, .. }) if *id == reason_id))]
+    pub fn typed_fallback(
         reason: &'static str,
         expected_type_schema: &'static str,
         minimum_raw_owner_type: &'static str,
@@ -371,7 +378,7 @@ impl Disposition {
             reason,
             expected_type_schema,
             minimum_raw_owner_type,
-            reason_id: Some(reason_id),
+            reason_id,
         })
     }
 }

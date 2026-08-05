@@ -43,6 +43,26 @@ impl ScopeFailureKind {
             Self::DeclarationPlanningDidNotConverge => "declaration-planning-did-not-converge",
         }
     }
+
+    /// Stable registered whole-document fallback reason for this failure.
+    #[requires(true)]
+    #[ensures(ret.starts_with("smusni.fallback."))]
+    pub(super) fn reason_id(self) -> &'static str {
+        match self {
+            Self::MultipleBinderOwners => "smusni.fallback.conflicting-binder-owners",
+            Self::BinderDoesNotEncloseUse => "smusni.fallback.binder-does-not-dominate-use",
+            Self::ScopeDependencyWithoutEnclosingBinder => {
+                "smusni.fallback.scope-dependency-without-binder"
+            }
+            Self::UnrepresentableCycle => "smusni.fallback.unguarded-or-unrepresentable-scc",
+            Self::DefinitionSiteDoesNotDominateUse => {
+                "smusni.fallback.definition-site-does-not-dominate-use"
+            }
+            Self::DeclarationPlanningDidNotConverge => {
+                "smusni.fallback.declaration-planning-nonconvergence"
+            }
+        }
+    }
 }
 
 /// Evidence for a scope failure. Optional IDs identify the affected binder and

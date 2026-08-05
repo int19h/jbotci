@@ -75,14 +75,14 @@ fn waiver_reason(entry: &InventoryEntry) -> Option<&'static str> {
 /// preservation form is retained deliberately so the decomposition is never
 /// silently dropped.
 #[requires(true)]
-#[ensures(matches!(ret.as_data(), data!(Disposition::ProvenanceSuppression(_)))
+#[ensures(matches!(ret.as_data(), data!(Disposition::ProvenanceSuppression { .. }))
     == waiver_reason(entry).is_some())]
-#[ensures(matches!(ret.as_data(), data!(Disposition::DirectLowering))
+#[ensures(matches!(ret.as_data(), data!(Disposition::DirectLowering { .. }))
     == waiver_reason(entry).is_none())]
 pub fn xml_renderer_disposition(entry: &InventoryEntry) -> Disposition {
     waiver_reason(entry).map_or_else(
-        Disposition::direct_lowering,
-        Disposition::provenance_suppression,
+        || Disposition::direct_lowering("xml:ordinary-semantic-surface"),
+        |reason| Disposition::provenance_suppression("xml:provenance-waiver", reason),
     )
 }
 

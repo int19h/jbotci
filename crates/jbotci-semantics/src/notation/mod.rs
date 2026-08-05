@@ -6,6 +6,7 @@
 //! the independent canonical SFN-XML renderer.
 
 pub mod coverage;
+pub(crate) mod registry;
 pub(crate) mod relation_expression;
 pub mod sexpr;
 pub(crate) mod typed_ir;
@@ -17,7 +18,7 @@ pub(crate) mod xml_words;
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 
-pub use sexpr::{DocumentMode, SmusniRender, SmusniRenderStats};
+pub use sexpr::{DocumentMode, SmusniDiagnostic, SmusniRender, SmusniRenderStats};
 pub use xml::{
     CompactIncompatibility, XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface,
     XmlWaiverFamily, analyze_compact_incompatibilities, render_xml, render_xml_value_for_tooling,
@@ -62,6 +63,9 @@ pub fn render_smusni_with_word_cards(graph: &SemanticGraph, cards: &[WordCard]) 
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.text.ends_with('\n') && !ret.text.ends_with("\n\n"))]
 pub fn render_smusni_detailed(graph: &SemanticGraph, cards: &[WordCard]) -> SmusniRender {
-    let card_data = cards.iter().map(sexpr::word_card_datum).collect::<Vec<_>>();
+    let card_data = cards
+        .iter()
+        .filter_map(sexpr::word_card_datum)
+        .collect::<Vec<_>>();
     sexpr::render_document(graph, &card_data)
 }

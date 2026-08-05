@@ -1,4 +1,4 @@
-//! Offline mint/check entry point for the immutable smusni-v0 bundle.
+//! Offline mint/check entry point for the current smusni-v0 candidate bundle.
 
 use std::error::Error;
 use std::fs;
@@ -15,6 +15,8 @@ mod smusni_v0_completeness;
 mod smusni_v0_dispositions;
 #[path = "../codegen/smusni_v0_kernel.rs"]
 mod smusni_v0_kernel;
+#[path = "../codegen/smusni_v0_surface.rs"]
+mod smusni_v0_surface;
 
 use smusni_v0_bundle::{BundleMode, BundlePaths};
 

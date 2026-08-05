@@ -30,43 +30,90 @@ fn disposition_seed(entry: &InventoryEntry) -> DispositionSeed {
         SurfaceCategory::Document => "Document",
     };
     let kind = match entry.kind {
+        EntryKind::Constructor => "Constructor",
+        EntryKind::Discriminator => "Discriminator",
         EntryKind::Field => "Field",
-        EntryKind::Variant => "Variant",
+        EntryKind::EnumVariant => "EnumVariant",
+        EntryKind::VariantField => "VariantField",
         EntryKind::DerivedFact => "DerivedFact",
     };
-    let (disposition, detail, fallback_reason_id, expected_type_schema, minimum_raw_owner_type) =
-        match entry.disposition.as_data() {
-            data!(Disposition::DirectLowering) => ("DirectLowering", None, None, None, None),
-            data!(Disposition::ProvenDesugaring) => ("ProvenDesugaring", None, None, None, None),
-            data!(Disposition::NotationDefault(reason)) => {
-                ("NotationDefault", Some(*reason), None, None, None)
-            }
-            data!(Disposition::ProvenanceSuppression(reason)) => {
-                ("ProvenanceSuppression", Some(*reason), None, None, None)
-            }
-            data!(Disposition::DiagnosticCollection) => {
-                ("DiagnosticCollection", None, None, None, None)
-            }
-            data!(Disposition::TypedFallback {
-                reason,
-                expected_type_schema,
-                minimum_raw_owner_type,
-                reason_id,
-            }) => (
-                "TypedFallback",
-                Some(*reason),
-                *reason_id,
-                Some(*expected_type_schema),
-                Some(*minimum_raw_owner_type),
-            ),
-        };
+    let (
+        disposition,
+        target_contract,
+        detail,
+        fallback_reason_id,
+        expected_type_schema,
+        minimum_raw_owner_type,
+    ) = match entry.disposition.as_data() {
+        data!(Disposition::DirectLowering { target_contract }) => (
+            "DirectLowering",
+            Some(*target_contract),
+            None,
+            None,
+            None,
+            None,
+        ),
+        data!(Disposition::ProvenDesugaring { target_contract }) => (
+            "ProvenDesugaring",
+            Some(*target_contract),
+            None,
+            None,
+            None,
+            None,
+        ),
+        data!(Disposition::NotationDefault {
+            target_contract,
+            reason
+        }) => (
+            "NotationDefault",
+            Some(*target_contract),
+            Some(*reason),
+            None,
+            None,
+            None,
+        ),
+        data!(Disposition::ProvenanceSuppression {
+            target_contract,
+            reason
+        }) => (
+            "ProvenanceSuppression",
+            Some(*target_contract),
+            Some(*reason),
+            None,
+            None,
+            None,
+        ),
+        data!(Disposition::DiagnosticCollection { target_contract }) => (
+            "DiagnosticCollection",
+            Some(*target_contract),
+            None,
+            None,
+            None,
+            None,
+        ),
+        data!(Disposition::TypedFallback {
+            reason,
+            expected_type_schema,
+            minimum_raw_owner_type,
+            reason_id,
+        }) => (
+            "TypedFallback",
+            None,
+            Some(*reason),
+            Some(*reason_id),
+            Some(*expected_type_schema),
+            Some(*minimum_raw_owner_type),
+        ),
+    };
+    let member = entry.variant_of.map_or_else(
+        || entry.field.to_owned(),
+        |variant| format!("{}@{variant}", entry.field),
+    );
     DispositionSeed {
-        owner: format!("{category}:{}:{kind}:{}", entry.surface.name, entry.field),
-        model_member: match entry.variant_of {
-            Some(variant) => format!("{kind}:{}@{variant}", entry.field),
-            None => format!("{kind}:{}", entry.field),
-        },
+        owner: format!("{category}:{}:{kind}:{member}", entry.surface.name),
+        model_member: format!("{kind}:{member}"),
         disposition: disposition.to_owned(),
+        target_contract: target_contract.map(str::to_owned),
         detail: detail.map(str::to_owned),
         fallback_reason_id: fallback_reason_id.map(str::to_owned),
         expected_type_schema: expected_type_schema.map(str::to_owned),

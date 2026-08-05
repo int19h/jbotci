@@ -6,6 +6,7 @@
 //! built directly from model types elsewhere; this module is their total,
 //! non-lossy fallback.
 
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -18,8 +19,11 @@ use serde::ser::{
 };
 
 use super::datum::Datum;
+use super::type_system::LexicalRoot;
 use crate::completeness::source_link_surfaces;
-use crate::model::{SemanticObject, SemanticObjectData, SemanticObjectId, SemanticObjectKind};
+use crate::model::{
+    SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId, SemanticObjectKind,
+};
 use crate::notation::word_cards::WordCard;
 
 const SEMANTIC_OBJECT_ID_NEWTYPE: &str = "SemanticObjectId";
@@ -614,6 +618,268 @@ pub enum ProvenanceDisposition {
     Retain,
 }
 
+/// State for the canonical depth-first raw identity projection. `%1` is
+/// reserved for the `SemanticGraph`; semantic-object identities begin at `%2`.
+#[invariant(next_raw_id.get() == object_ids.borrow().len() + 2)]
+#[invariant(semantic_ids_by_text.len() == graph.objects.len())]
+#[derive(Debug)]
+struct RawGraphProjector<'a> {
+    graph: &'a SemanticGraph,
+    semantic_ids_by_text: BTreeMap<String, SemanticObjectId>,
+    object_ids: RefCell<BTreeMap<SemanticObjectId, usize>>,
+    next_raw_id: Cell<usize>,
+}
+
+impl<'a> RawGraphProjector<'a> {
+    /// Begin a fresh raw root. Raw identities never cross fallback roots.
+    #[requires(graph.objects.contains_key(&graph.root))]
+    #[ensures(ret.next_raw_id.get() == 2 && ret.object_ids.borrow().is_empty())]
+    fn new(graph: &'a SemanticGraph) -> Self {
+        new!(RawGraphProjector {
+            graph,
+            semantic_ids_by_text: graph
+                .objects
+                .keys()
+                .copied()
+                .map(|id| (id.to_string(), id))
+                .collect(),
+            object_ids: RefCell::new(BTreeMap::new()),
+            next_raw_id: Cell::new(2),
+        })
+    }
+
+    /// Project the complete graph as one identity-bearing raw root.
+    #[requires(self.graph.objects.contains_key(&self.graph.root))]
+    #[ensures(ret.form_head() == Some("Object"))]
+    fn render_graph(self) -> Datum {
+        let root = self.render_reference(self.graph.root);
+        let object_ids = self.graph.objects.keys().copied().collect::<Vec<_>>();
+        let objects = object_ids.into_iter().map(|id| {
+            Datum::form(
+                "Entry",
+                [
+                    raw_scalar("SemanticObjectId", id.to_string()),
+                    self.render_reference(id),
+                ],
+            )
+        });
+        Datum::form(
+            "Object",
+            [
+                Datum::atom("%1"),
+                Datum::string("SemanticGraph"),
+                raw_field("version", raw_string(self.graph.version)),
+                raw_field("root", root),
+                raw_field("objects", Datum::form("RawMap", objects)),
+            ],
+        )
+    }
+
+    /// Expand the first encounter of a semantic identity and use `Ref` for
+    /// every later sharing or cycle edge.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(matches!(ret.form_head(), Some("Object" | "Ref")))]
+    fn render_reference(&self, id: SemanticObjectId) -> Datum {
+        if let Some(raw_id) = self.object_ids.borrow().get(&id).copied() {
+            return Datum::form("Ref", [raw_id_datum(raw_id)]);
+        }
+        let raw_id = self.next_raw_id.get();
+        self.next_raw_id.set(raw_id + 1);
+        self.object_ids.borrow_mut().insert(id, raw_id);
+
+        let object = &self.graph.objects[&id];
+        let kind = object.object_kind();
+        let value = object
+            .serialize(StructuralSerializer)
+            .expect("the semantic model has a complete structural serialization");
+        let data!(StructuralValue::Map(entries)) = value.into_data() else {
+            unreachable!("SemanticObject uses its declared flat map serializer")
+        };
+        let mut fields = entries
+            .into_iter()
+            .filter_map(|(key, value)| {
+                let name = structural_key_text(key);
+                (!matches!(name.as_str(), "type" | "source" | "diagnostics"))
+                    .then(|| raw_field(name, self.render_value(value)))
+            })
+            .collect::<Vec<_>>();
+        fields.extend(self.supplemental_object_fields(object));
+        // Diagnostic and provenance coordinates leave stdout through their
+        // separate channels but retain their declared canonical raw slots.
+        fields.push(raw_field("source", Datum::form("RawNull", [])));
+        fields.push(raw_field("diagnostics", Datum::form("RawList", [])));
+
+        Datum::form(
+            "Object",
+            std::iter::once(raw_id_datum(raw_id))
+                .chain([Datum::string(kind_name(kind))])
+                .chain(fields),
+        )
+    }
+
+    /// Retain model fields which intentionally remain outside the compatible
+    /// flat JSON boundary.
+    #[requires(true)]
+    #[ensures(true)]
+    fn supplemental_object_fields(&self, object: &SemanticObject) -> Vec<Datum> {
+        let mut fields = Vec::new();
+        match object.as_data() {
+            data!(SemanticObject::Eventuality(node)) => {
+                if let Some(class) = node.class {
+                    fields.push(raw_field("class", self.render_serializable(&class)));
+                }
+                if let Some(kind) = node.abstraction_kind {
+                    fields.push(raw_field(
+                        "abstractionKind",
+                        self.render_serializable(&kind),
+                    ));
+                }
+            }
+            data!(SemanticObject::Referent(node)) => {
+                if let Some(kind) = node.abstraction_kind {
+                    fields.push(raw_field(
+                        "abstractionKind",
+                        self.render_serializable(&kind),
+                    ));
+                }
+            }
+            _ => {}
+        }
+        fields
+    }
+
+    /// Serialize one owned model field before projecting references.
+    #[requires(true)]
+    #[ensures(matches!(ret, Datum::List(_)))]
+    fn render_serializable<T: Serialize>(&self, value: &T) -> Datum {
+        let value = value
+            .serialize(StructuralSerializer)
+            .expect("model values have complete structural serializations");
+        self.render_value(value)
+    }
+
+    /// Convert one typed serializer event tree to the closed raw grammar.
+    #[requires(true)]
+    #[ensures(matches!(ret, Datum::List(_)))]
+    fn render_value(&self, value: StructuralValue) -> Datum {
+        match value.into_data() {
+            data!(StructuralValue::Reference(id)) => {
+                let target = self
+                    .semantic_ids_by_text
+                    .get(&id)
+                    .copied()
+                    .expect("validated graph references resolve to typed identities");
+                self.render_reference(target)
+            }
+            data!(StructuralValue::String(value)) => raw_string(value),
+            data!(StructuralValue::Bool(value)) => raw_scalar("bool", value.to_string()),
+            data!(StructuralValue::Signed(value)) => raw_scalar("i128", value.to_string()),
+            data!(StructuralValue::Unsigned(value)) => raw_scalar("u128", value.to_string()),
+            data!(StructuralValue::Float(value)) => raw_scalar("f64", value.to_string()),
+            data!(StructuralValue::Unit) => Datum::form("RawNull", []),
+            data!(StructuralValue::Sequence(values)) => Datum::form(
+                "RawList",
+                values.into_iter().map(|value| self.render_value(value)),
+            ),
+            data!(StructuralValue::Map(entries)) => Datum::form(
+                "RawMap",
+                entries.into_iter().map(|(key, value)| {
+                    Datum::form("Entry", [self.render_value(key), self.render_value(value)])
+                }),
+            ),
+            data!(StructuralValue::Record { name, fields }) => Datum::form(
+                "RawRecord",
+                std::iter::once(Datum::string(name)).chain(fields.into_iter().map(
+                    |(field, value)| {
+                        let value = if field_is_suppressed(
+                            field,
+                            Some(name),
+                            ProvenanceDisposition::Suppress,
+                        ) {
+                            Datum::form("RawNull", [])
+                        } else {
+                            self.render_value(value)
+                        };
+                        raw_field(field, value)
+                    },
+                )),
+            ),
+            data!(StructuralValue::Variant {
+                type_name,
+                variant,
+                value,
+            }) => {
+                let mut fields = Vec::new();
+                if let Some(value) = value {
+                    match value.into_data() {
+                        data!(StructuralValue::Record {
+                            fields: payload,
+                            ..
+                        }) => fields.extend(
+                            payload
+                                .into_iter()
+                                .map(|(name, value)| raw_field(name, self.render_value(value))),
+                        ),
+                        data!(StructuralValue::Sequence(payload)) => {
+                            fields.extend(payload.into_iter().enumerate().map(|(index, value)| {
+                                raw_field(format!("item{}", index + 1), self.render_value(value))
+                            }))
+                        }
+                        other => fields.push(raw_field(
+                            "value",
+                            self.render_value(StructuralValue::from_data(other)),
+                        )),
+                    }
+                }
+                Datum::form(
+                    "RawVariant",
+                    std::iter::once(Datum::string(type_name))
+                        .chain([Datum::string(variant)])
+                        .chain(fields),
+                )
+            }
+        }
+    }
+}
+
+/// Render the complete graph root for a whole-document `TypedGraph` fallback.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.form_head() == Some("Object"))]
+pub(super) fn raw_graph_datum(graph: &SemanticGraph) -> Datum {
+    RawGraphProjector::new(graph).render_graph()
+}
+
+/// One raw object identity.
+#[requires(value > 0)]
+#[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with('%')))]
+fn raw_id_datum(value: usize) -> Datum {
+    Datum::atom(format!("%{value}"))
+}
+
+/// One canonical raw field.
+#[requires(!name.as_ref().is_empty())]
+#[ensures(ret.form_head() == Some("Field"))]
+fn raw_field(name: impl AsRef<str>, value: Datum) -> Datum {
+    Datum::form("Field", [Datum::string(name.as_ref()), value])
+}
+
+/// One raw text value.
+#[requires(true)]
+#[ensures(ret.form_head() == Some("RawString"))]
+fn raw_string(value: impl AsRef<str>) -> Datum {
+    Datum::form("RawString", [Datum::string(value.as_ref())])
+}
+
+/// One raw typed scalar normalized by the structural serializer.
+#[requires(!model_type.is_empty())]
+#[ensures(ret.form_head() == Some("RawScalar"))]
+fn raw_scalar(model_type: &str, value: impl AsRef<str>) -> Datum {
+    Datum::form(
+        "RawScalar",
+        [Datum::string(model_type), Datum::string(value.as_ref())],
+    )
+}
+
 /// Project one object to the explicit local typed fallback.
 #[requires(true)]
 #[ensures(matches!(ret, Datum::List(_)))]
@@ -665,25 +931,14 @@ pub fn typed_value_datum<T: Serialize>(
 /// Project one structured dictionary word card without introducing a second
 /// escaping or formatting path.
 #[requires(true)]
-#[ensures(matches!(ret, Datum::List(_)))]
-pub fn word_card_datum(card: &WordCard) -> Datum {
-    let value = card
-        .serialize(StructuralSerializer)
-        .expect("word cards have complete structural serializations");
-    let data!(StructuralValue::Record { fields, .. }) = value.into_data() else {
-        unreachable!("WordCard serializes as a named record")
-    };
-    Datum::form(
+#[ensures(ret.as_ref().is_none_or(|datum| datum.form_head() == Some("Word")))]
+pub fn word_card_datum(card: &WordCard) -> Option<Datum> {
+    let definition = card.definition.as_deref()?;
+    LexicalRoot::try_new(&card.word).ok()?;
+    Some(Datum::form(
         "Word",
-        fields.into_iter().map(|(name, value)| {
-            field_datum(
-                name,
-                value,
-                &BTreeMap::new(),
-                ProvenanceDisposition::Suppress,
-            )
-        }),
-    )
+        [Datum::atom(&card.word), Datum::string(definition)],
+    ))
 }
 
 /// Project one object definition for the whole-document typed graph.

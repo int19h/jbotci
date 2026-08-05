@@ -1,4 +1,4 @@
-//! Deterministic offline mint and verifier for the immutable smusni-v0 bundle.
+//! Deterministic offline mint and verifier for the current smusni-v0 candidate bundle.
 //!
 //! The checked-in JSONL files are the normative registry. This module consumes
 //! only pinned repository bytes, projects the one authored completeness ledger,
@@ -42,9 +42,9 @@ const DICTIONARY_METADATA_PATH: &str =
 const COMPLETENESS_INVENTORY_PATH: &str =
     "sources/generator-inputs/crates/jbotci-semantics/src/completeness/inventory.rs.opaque";
 
-const SPEC_SHA256: &str = "2c0b83f8c5b5b2477a74590d126edb7e8459a824bc2a0524095e014d333b80d0";
-const SAMPLES_SHA256: &str = "0816f00f29291764f26164995cbd0aa3252a1afe4e2b07d1a95b89570fb6a792";
-const SMUSNI_SOURCE_REVISION: &str = "8c2a40d52cf96b03e7818454d0eb606630f9baa1";
+const SPEC_SHA256: &str = "c2c0616b0b0d8991251f5145be4985a8191a68704cff3ae10f6f85caa34dbdc1";
+const SAMPLES_SHA256: &str = "ee4cfe6c00009f2ca0387efd0dfa6551b4e6db61e6ff9bebf891f0c0346aa50b";
+const SMUSNI_SOURCE_REVISION: &str = "86cbd9d1288d2c0232ba86cb214000a431b5db7c";
 const OBLIQUE_SHA256: &str = "355786cfd049063c92514fac2d417fc4966df7749dc17d7cfb49bd903fb6a2cb";
 const OBLIQUE_BYTE_COUNT: usize = 79_293;
 const OBLIQUE_RECORD_COUNT: usize = 3_542;
@@ -56,6 +56,53 @@ const WITNESS_COUNT: usize = 18;
 const SCOPE_POLICY_ROW_COUNT: usize = 8;
 const EXTENSIONAL_SCOPE_POLICY_COUNT: usize = 6;
 const INTENSIONAL_SCOPE_POLICY_COUNT: usize = 2;
+const DISPOSITION_ROW_COUNT: usize = 882;
+const FALLBACK_REASON_ROW_COUNT: usize = 60;
+
+const REQUIRED_GRAPH_FAILURE_REASON_IDS: &[&str] = &[
+    "smusni.fallback.abstraction-crossing-unlicensed",
+    "smusni.fallback.binder-does-not-dominate-use",
+    "smusni.fallback.computed-fill-domain-noninjective",
+    "smusni.fallback.conflicting-binder-owners",
+    "smusni.fallback.de-re-owner-dependency-illegal",
+    "smusni.fallback.de-re-owner-missing",
+    "smusni.fallback.de-re-owner-opaque",
+    "smusni.fallback.de-re-owner-unrelated-or-nondominating",
+    "smusni.fallback.de-re-owner-wrong-kind",
+    "smusni.fallback.declaration-planning-nonconvergence",
+    "smusni.fallback.definition-site-does-not-dominate-use",
+    "smusni.fallback.dependent-supplement-unrepresentable",
+    "smusni.fallback.dynamic-host-cycle",
+    "smusni.fallback.dynamic-host-not-unique",
+    "smusni.fallback.effect-handler-missing-or-illegal",
+    "smusni.fallback.event-facet-reduction-unregistered",
+    "smusni.fallback.event-owner-missing-or-nonunique",
+    "smusni.fallback.force-handler-missing-or-illegal",
+    "smusni.fallback.force-reduction-unrepresentable",
+    "smusni.fallback.generated-eventuality-unbound",
+    "smusni.fallback.higher-order-crossing-unlicensed",
+    "smusni.fallback.lexical-relation-row-missing",
+    "smusni.fallback.lexical-signature-missing-or-stale",
+    "smusni.fallback.math-reduction-unregistered",
+    "smusni.fallback.modal-tag-reduction-unregistered",
+    "smusni.fallback.place-deletion-evidence-missing",
+    "smusni.fallback.predicate-closure-unlicensed",
+    "smusni.fallback.predicate-fill-type-or-arity-mismatch",
+    "smusni.fallback.prelude-reduction-unavailable",
+    "smusni.fallback.quantifier-effect-export-illegal",
+    "smusni.fallback.quantity-reduction-unregistered",
+    "smusni.fallback.question-domain-or-answer-mismatch",
+    "smusni.fallback.reference-description-unrepresentable",
+    "smusni.fallback.relation-former-reduction-unavailable",
+    "smusni.fallback.relation-reduction-unregistered-or-inexact",
+    "smusni.fallback.scope-dependency-without-binder",
+    "smusni.fallback.sequence-reduction-unregistered",
+    "smusni.fallback.sign-identity-missing",
+    "smusni.fallback.simultaneous-termset-unlicensed",
+    "smusni.fallback.structured-quotation-transcript-entry-missing",
+    "smusni.fallback.unguarded-or-unrepresentable-scc",
+    "smusni.fallback.unknown-registry-coordinate",
+];
 
 const GENERATED_TABLES: &[(&str, SchemaId)] = &[
     (
@@ -85,6 +132,7 @@ const GENERATED_TABLES: &[(&str, SchemaId)] = &[
     ),
     ("registry/dispositions.jsonl", SchemaId::DispositionRow),
     ("registry/prelude.jsonl", SchemaId::PreludeRow),
+    ("registry/runtime.rs", SchemaId::OpaqueBytes),
 ];
 
 const MIRRORED_GENERATOR_INPUTS: &[(&str, &str)] = &[
@@ -192,6 +240,10 @@ const MIRRORED_GENERATOR_INPUTS: &[(&str, &str)] = &[
         "crates/jbotci-semantics/codegen/smusni_v0_kernel.rs",
     ),
     (
+        "sources/generator-inputs/crates/jbotci-semantics/codegen/smusni_v0_surface.rs.opaque",
+        "crates/jbotci-semantics/codegen/smusni_v0_surface.rs",
+    ),
+    (
         "sources/generator-inputs/crates/jbotci-semantics/examples/smusni_v0_bundle.rs.opaque",
         "crates/jbotci-semantics/examples/smusni_v0_bundle.rs",
     ),
@@ -202,6 +254,22 @@ const MIRRORED_GENERATOR_INPUTS: &[(&str, &str)] = &[
     (
         "sources/generator-inputs/crates/jbotci-semantics/src/completeness/model.rs.opaque",
         "crates/jbotci-semantics/src/completeness/model.rs",
+    ),
+    (
+        "sources/generator-inputs/crates/jbotci-semantics/src/model.rs.opaque",
+        "crates/jbotci-semantics/src/model.rs",
+    ),
+    (
+        "sources/generator-inputs/crates/jbotci-semantics/src/model/semantic_object.rs.opaque",
+        "crates/jbotci-semantics/src/model/semantic_object.rs",
+    ),
+    (
+        "sources/generator-inputs/crates/jbotci-semantics/src/model/event_binding.rs.opaque",
+        "crates/jbotci-semantics/src/model/event_binding.rs",
+    ),
+    (
+        "sources/generator-inputs/crates/jbotci-semantics/src/model/scope_dependence.rs.opaque",
+        "crates/jbotci-semantics/src/model/scope_dependence.rs",
     ),
     (
         "sources/generator-inputs/crates/jbotci-semantics/src/notation/sexpr/datum.rs.opaque",
@@ -333,6 +401,7 @@ pub struct DispositionSeed {
     pub owner: String,
     pub model_member: String,
     pub disposition: String,
+    pub target_contract: Option<String>,
     pub detail: Option<String>,
     pub fallback_reason_id: Option<String>,
     pub expected_type_schema: Option<String>,
@@ -881,7 +950,7 @@ struct Tables {
     prelude: Vec<PreludeRow>,
 }
 
-/// Generate or check the immutable bundle, then compile the final policy table
+/// Generate or check the candidate bundle, then compile its policy table
 /// into `OUT_DIR` for the private typed-IR consumer.
 #[requires(!dispositions.is_empty())]
 #[ensures(ret.is_ok() || ret.is_err())]
@@ -920,7 +989,7 @@ pub fn bundle_rerun_paths() -> Vec<String> {
     paths
 }
 
-/// Every repository source mirrored into the immutable bundle.
+/// Every repository source mirrored into the candidate bundle.
 #[requires(true)]
 #[ensures(ret.len() == MIRRORED_GENERATOR_INPUTS.len())]
 pub fn repository_rerun_paths() -> Vec<String> {
@@ -976,6 +1045,7 @@ fn mint_snapshot_from_registry_source(
     dispositions: &[DispositionSeed],
     source_bytes: &[u8],
 ) -> Result<BundleSnapshot, BundleError> {
+    validate_disposition_coordinate_authority(dispositions)?;
     require_nfc_utf8(SOURCE_PATH, &source_bytes)?;
     let source_text = std::str::from_utf8(source_bytes)
         .map_err(|error| BundleError::new(BundleErrorKind::ByteDomain, error.to_string()))?;
@@ -988,7 +1058,7 @@ fn mint_snapshot_from_registry_source(
     if source.format_version != 0 || source.bundle_schema_version != 1 {
         return Err(BundleError::new(
             BundleErrorKind::ClosedValue,
-            "the first immutable bundle must claim format 0 and bundle schema 1",
+            "the candidate bundle must claim format 0 and bundle schema 1",
         ));
     }
     audit_registry_provenance(root, &source.scope_policy)?;
@@ -1048,6 +1118,7 @@ fn mint_snapshot_from_registry_source(
         build_generated_relation_rows(&source.generated_relation, &mut evidence)?;
     let scale_literals = build_scale_literal_rows(&source.scale_literal, &mut evidence)?;
     let (disposition_rows, fallback_reasons) = build_disposition_rows(dispositions)?;
+    validate_minted_disposition_coordinates(dispositions, &disposition_rows)?;
     add_common_evidence(&mut evidence, &source_artifacts)?;
     evidence.sort_by(|left, right| scalar_cmp(&left.evidence_id, &right.evidence_id));
     reject_duplicate(
@@ -1194,6 +1265,12 @@ pub fn verify_snapshot(root: &Path, snapshot: &BundleSnapshot) -> Result<(), Bun
     };
     validate_tables(&tables, &spec)?;
     validate_source_summary_claims(&source, &tables)?;
+    if generate_policy_rust(&tables)? != snapshot.artifacts["registry/runtime.rs"] {
+        return Err(BundleError::new(
+            BundleErrorKind::Drift,
+            "generated runtime registry differs from the normative JSONL tables",
+        ));
+    }
     if serialize_tables(&tables)? != snapshot.artifacts {
         return Err(BundleError::new(
             BundleErrorKind::NonCanonicalOrder,
@@ -1580,7 +1657,7 @@ fn audit_witnesses(bytes: &[u8]) -> Result<(), BundleError> {
     {
         return Err(BundleError::new(
             BundleErrorKind::Drift,
-            "final v0 must-compact witness registry is not the reviewed 18-row set",
+            "must-compact witness registry is not the reviewed 18-row set",
         ));
     }
     Ok(())
@@ -3868,7 +3945,23 @@ fn collect_spec_equation_definitions(
                 format!("prelude {name} has no type-parameter declaration"),
             )
         })?;
-        let parameters = lhs_items
+        let raw_parameters = lhs_items.collect::<Vec<_>>();
+        // General prelude equations use at least one `$`-prefixed value
+        // parameter. The five closed mathematical equations are the explicit
+        // exception and use conventional bare variables. Other specification
+        // tables deliberately reuse names such as `Some` for named reduction
+        // cases (`Some Di = ...`); those are not callable-name definitions.
+        let is_closed_mathematical_equation = matches!(name, "≠" | ">" | "≥" | "∪" | "∩");
+        if !is_closed_mathematical_equation
+            && !raw_parameters
+                .iter()
+                .any(|parameter| parameter.starts_with('$'))
+        {
+            index += 1;
+            continue;
+        }
+        let parameters = raw_parameters
+            .into_iter()
             .map(|parameter| parameter.trim_start_matches('$').to_owned())
             .collect::<Vec<_>>();
         if parameters.is_empty()
@@ -4130,6 +4223,70 @@ fn is_spec_equation_parameter(text: &str) -> bool {
         && text.bytes().all(|byte| byte.is_ascii_alphanumeric())
 }
 
+/// Prove exact equality between the AST scan and the independently authored
+/// inventory projection before any registry rows are minted.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub fn validate_disposition_coordinate_authority(
+    sources: &[DispositionSeed],
+) -> Result<(), BundleError> {
+    let scan = crate::smusni_v0_surface::scan_semantic_surface().map_err(|error| {
+        BundleError::new(
+            BundleErrorKind::Drift,
+            format!("scan semantic surface: {error}"),
+        )
+    })?;
+    let scanned = scan
+        .coordinates
+        .iter()
+        .map(crate::smusni_v0_surface::SemanticCoordinate::owner)
+        .collect::<BTreeSet<_>>();
+    let authored = sources
+        .iter()
+        .map(|source| source.owner.clone())
+        .collect::<BTreeSet<_>>();
+    if authored.len() != sources.len() {
+        return Err(BundleError::new(
+            BundleErrorKind::DuplicatePrimaryKey,
+            "authored inventory contains a duplicate semantic coordinate",
+        ));
+    }
+    if scanned != authored {
+        let missing = scanned.difference(&authored).cloned().collect::<Vec<_>>();
+        let orphan = authored.difference(&scanned).cloned().collect::<Vec<_>>();
+        return Err(BundleError::new(
+            BundleErrorKind::Drift,
+            format!(
+                "semantic scan and authored inventory differ: missing={missing:?}, orphan={orphan:?}"
+            ),
+        ));
+    }
+    Ok(())
+}
+
+#[requires(sources.len() == rows.len())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn validate_minted_disposition_coordinates(
+    sources: &[DispositionSeed],
+    rows: &[DispositionRow],
+) -> Result<(), BundleError> {
+    let authored = sources
+        .iter()
+        .map(|source| source.owner.as_str())
+        .collect::<BTreeSet<_>>();
+    let minted = rows
+        .iter()
+        .map(|row| row.disposition_owner.as_str())
+        .collect::<BTreeSet<_>>();
+    if authored != minted || minted.len() != rows.len() {
+        return Err(BundleError::new(
+            BundleErrorKind::Drift,
+            "authored inventory and minted disposition coordinates differ",
+        ));
+    }
+    Ok(())
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|(rows, reasons)| rows.len() == sources.len() && reasons.len() <= rows.len()) || ret.is_err())]
 fn build_disposition_rows(
@@ -4175,6 +4332,35 @@ fn build_disposition_rows(
                 format!("non-fallback {} carries a fallback boundary", source.owner),
             ));
         }
+        if source.disposition == "TypedFallback" {
+            if source.target_contract.is_some() {
+                return Err(BundleError::new(
+                    BundleErrorKind::Type,
+                    format!("fallback {} carries a lowering target", source.owner),
+                ));
+            }
+        } else {
+            let target = source
+                .target_contract
+                .as_deref()
+                .filter(|target| !target.is_empty())
+                .ok_or_else(|| {
+                    BundleError::new(
+                        BundleErrorKind::Type,
+                        format!("non-fallback {} has no target contract", source.owner),
+                    )
+                })?;
+            if matches!(
+                target,
+                "smusni-v0-normal-form" | "verified-transparent-desugaring"
+            ) || target.contains("LATER_LOWERING")
+            {
+                return Err(BundleError::new(
+                    BundleErrorKind::Evidence,
+                    format!("disposition {} retains a placeholder target", source.owner),
+                ));
+            }
+        }
         let target = if source.disposition == "TypedFallback" {
             let expected_type_schema = source.expected_type_schema.as_deref().ok_or_else(|| {
                 BundleError::new(
@@ -4192,12 +4378,12 @@ fn build_disposition_rows(
                         format!("fallback {} has no minimum raw owner", source.owner),
                     )
                 })?;
-            let reason_id = source.fallback_reason_id.clone().unwrap_or_else(|| {
-                format!(
-                    "smusni.fallback.semantic-surface.{}",
-                    &sha256_hex(source.owner.as_bytes())[..16]
+            let reason_id = source.fallback_reason_id.clone().ok_or_else(|| {
+                BundleError::new(
+                    BundleErrorKind::ForeignKey,
+                    format!("fallback {} has no reviewed reason id", source.owner),
                 )
-            });
+            })?;
             FallbackReason::try_new(&reason_id).map_err(|error| {
                 BundleError::new(BundleErrorKind::ClosedValue, error.to_string())
             })?;
@@ -4210,15 +4396,10 @@ fn build_disposition_rows(
             }));
             reason_id
         } else {
-            match source.disposition.as_str() {
-                "DirectLowering" => "smusni-v0-normal-form",
-                "ProvenDesugaring" => "verified-transparent-desugaring",
-                "NotationDefault" => "registered-notation-default",
-                "ProvenanceSuppression" => "nonsemantic-provenance",
-                "DiagnosticCollection" => "separate-diagnostic-channel",
-                _ => unreachable!("closed disposition was checked"),
-            }
-            .to_owned()
+            source
+                .target_contract
+                .clone()
+                .expect("non-fallback target was checked")
         };
         rows.push(new!(DispositionRow {
             disposition_owner: source.owner,
@@ -4251,7 +4432,7 @@ fn add_common_evidence(
         source_id: model.source_id.clone(),
         exact_locator: "render_field_inventory() complete generated-model projection".to_owned(),
         cited_content_digest: model.artifact_digest.clone(),
-        adjudication_note: "Disposition rows are generated from the existing exhaustive inventory; no second authored ledger exists."
+        adjudication_note: "Disposition rows are generated from the existing exact inventory candidate; no second authored ledger exists."
             .to_owned(),
     }));
     Ok(())
@@ -4409,10 +4590,17 @@ fn validate_tables(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
         }
     }
     for row in &tables.fallback_reasons {
-        if !disposition_owners.contains(row.disposition_owner.as_str()) {
+        if !tables.dispositions.iter().any(|disposition| {
+            disposition.disposition_owner == row.disposition_owner
+                && disposition.disposition == "TypedFallback"
+                && disposition.target_schema_or_fallback_reason == row.reason_id
+        }) {
             return Err(BundleError::new(
                 BundleErrorKind::ForeignKey,
-                format!("fallback {} has orphan disposition owner", row.reason_id),
+                format!(
+                    "fallback {} does not join its exact TypedFallback owner",
+                    row.reason_id
+                ),
             ));
         }
         canonical_type_schema(&row.expected_type_schema)?;
@@ -4615,13 +4803,13 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
         || tables.relation_formers.len() != 1
         || tables.generated_relations.len() != 1
         || tables.scale_literals.len() != 1
-        || tables.dispositions.len() != 703
-        || tables.fallback_reasons.len() != 556
+        || tables.dispositions.len() != DISPOSITION_ROW_COUNT
+        || tables.fallback_reasons.len() != FALLBACK_REASON_ROW_COUNT
         || tables.prelude.len() != 20
     {
         return Err(BundleError::new(
             BundleErrorKind::Drift,
-            "immutable v0 registry table cardinalities differ",
+            "candidate v0 registry table cardinalities differ",
         ));
     }
     for row in &tables.lexical {
@@ -4930,28 +5118,43 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
             ));
         }
     }
+    let graph_failures = tables
+        .fallback_reasons
+        .iter()
+        .filter(|row| row.minimum_raw_owner_type == "SemanticGraph")
+        .map(|row| row.reason_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let required_graph_failures = REQUIRED_GRAPH_FAILURE_REASON_IDS
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    if !required_graph_failures.is_subset(&graph_failures) {
+        return Err(BundleError::new(
+            BundleErrorKind::ForeignKey,
+            "one or more registered planning/elaboration failure ids disappeared",
+        ));
+    }
     for row in &tables.fallback_reasons {
         canonical_type_schema(&row.expected_type_schema)?;
-        match row.reason_id.as_str() {
-            "smusni.fallback.lexical-policy.entity"
-                if row.expected_type_schema == "(Referents Entity)"
-                    && row.minimum_raw_owner_type == "Referent" => {}
-            "smusni.fallback.lexical-policy.eventuality"
-                if row.expected_type_schema == "(Referents Eventuality)"
-                    && row.minimum_raw_owner_type == "Referent" => {}
-            reason
-                if reason.starts_with("smusni.fallback.semantic-surface.")
-                    && row.expected_type_schema == "Performable"
-                    && row.minimum_raw_owner_type == "SemanticGraph" => {}
-            _ => {
-                return Err(BundleError::new(
-                    BundleErrorKind::Type,
-                    format!(
-                        "fallback {} has an unreviewed typed boundary",
-                        row.reason_id
-                    ),
-                ));
-            }
+        let compatible = match row.minimum_raw_owner_type.as_str() {
+            "SemanticGraph" => row.expected_type_schema == "Performable",
+            "Referent" => matches!(
+                row.expected_type_schema.as_str(),
+                "(Referents Entity)" | "(Referents Eventuality)"
+            ),
+            "Eventuality" => row.expected_type_schema == "Content",
+            "Quantity" => row.expected_type_schema == "Quantity",
+            "MathExpression" => row.expected_type_schema == "MathExpression",
+            _ => false,
+        };
+        if !compatible {
+            return Err(BundleError::new(
+                BundleErrorKind::Type,
+                format!(
+                    "fallback {} has an unknown or incompatible minimum raw owner boundary",
+                    row.reason_id
+                ),
+            ));
         }
     }
     Ok(())
@@ -5003,6 +5206,10 @@ fn serialize_tables(tables: &Tables) -> Result<BTreeMap<String, Vec<u8>>, Bundle
         jsonl(&tables.dispositions)?,
     );
     artifacts.insert("registry/prelude.jsonl".to_owned(), jsonl(&tables.prelude)?);
+    artifacts.insert(
+        "registry/runtime.rs".to_owned(),
+        generate_policy_rust(tables)?,
+    );
     Ok(artifacts)
 }
 
@@ -5071,13 +5278,24 @@ fn build_generated_manifest(
                     format!("generated artifact has no closed schema id: {relative}"),
                 )
             })?;
-            let row_count = bytes.iter().filter(|byte| **byte == b'\n').count();
-            if row_count == 0 || !bytes.ends_with(b"\n") {
-                return Err(BundleError::new(
-                    BundleErrorKind::ByteDomain,
-                    format!("generated JSONL is not nonempty LF records: {relative}"),
-                ));
-            }
+            let row_count = if *schema == SchemaId::OpaqueBytes {
+                if bytes.is_empty() {
+                    return Err(BundleError::new(
+                        BundleErrorKind::ByteDomain,
+                        format!("generated opaque artifact is empty: {relative}"),
+                    ));
+                }
+                1
+            } else {
+                let count = bytes.iter().filter(|byte| **byte == b'\n').count();
+                if count == 0 || !bytes.ends_with(b"\n") {
+                    return Err(BundleError::new(
+                        BundleErrorKind::ByteDomain,
+                        format!("generated JSONL is not nonempty LF records: {relative}"),
+                    ));
+                }
+                count
+            };
             Ok(new!(ArtifactRecord {
                 relative_path: relative.clone(),
                 schema_id: schema.as_str().to_owned(),
@@ -5146,8 +5364,10 @@ fn generate_policy_rust(tables: &Tables) -> Result<Vec<u8>, BundleError> {
         .map(|row| (row.normalized_root.as_str(), row))
         .collect::<BTreeMap<_, _>>();
     let mut output =
-        String::from("// @generated from the immutable smusni-v0 registry; do not edit.\n\n");
-    output.push_str("const GENERATED_LEXICAL_POLICY_ROWS: &[GeneratedLexicalPolicyRow] = &[\n");
+        String::from("// @generated from the smusni-v0 candidate registry; do not edit.\n\n");
+    output.push_str(
+        "pub(super) const GENERATED_LEXICAL_POLICY_ROWS: &[GeneratedLexicalPolicyRow] = &[\n",
+    );
     for row in &tables.scope_policies {
         let lexical_row = lexical.get(row.normalized_root.as_str()).ok_or_else(|| {
             BundleError::new(
@@ -5196,11 +5416,101 @@ fn generate_policy_rust(tables: &Tables) -> Result<Vec<u8>, BundleError> {
                 )
             })?;
         output.push_str(&format!(
-            "const {constant}: &str = {:?};\n",
+            "pub(super) const {constant}: &str = {:?};\n",
             reason.reason_id
         ));
     }
+    output.push_str("\nconst GENERATED_DISPOSITION_ROWS: &[GeneratedDispositionRow] = &[\n");
+    for row in &tables.dispositions {
+        let coordinate = parse_compiled_disposition_coordinate(&row.disposition_owner)?;
+        let target = (row.disposition != "TypedFallback")
+            .then_some(row.target_schema_or_fallback_reason.as_str());
+        let fallback = (row.disposition == "TypedFallback")
+            .then_some(row.target_schema_or_fallback_reason.as_str());
+        output.push_str(&format!(
+            "    GeneratedDispositionRow {{ category: CoordinateCategory::{}, surface: {:?}, kind: CoordinateKind::{}, member: {:?}, qualifier: {:?}, disposition: DispositionKind::{}, target_contract: {:?}, fallback_reason_id: {:?} }},\n",
+            coordinate.category,
+            coordinate.surface,
+            coordinate.kind,
+            coordinate.member,
+            coordinate.qualifier,
+            row.disposition,
+            target,
+            fallback,
+        ));
+    }
+    output.push_str(
+        "];\n\nconst GENERATED_FALLBACK_REASON_ROWS: &[GeneratedFallbackReasonRow] = &[\n",
+    );
+    for row in &tables.fallback_reasons {
+        output.push_str(&format!(
+            "    GeneratedFallbackReasonRow {{ reason_id: {:?}, expected_type_schema: {:?}, minimum_raw_owner_type: {:?}, disposition_owner: {:?} }},\n",
+            row.reason_id,
+            row.expected_type_schema,
+            row.minimum_raw_owner_type,
+            row.disposition_owner,
+        ));
+    }
+    output.push_str("];\n");
     Ok(output.into_bytes())
+}
+
+#[invariant(!category.is_empty() && !surface.is_empty() && !kind.is_empty() && !member.is_empty())]
+#[invariant(qualifier.as_ref().is_none_or(|value| !value.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CompiledDispositionCoordinate {
+    category: String,
+    surface: String,
+    kind: String,
+    member: String,
+    qualifier: Option<String>,
+}
+
+#[requires(!owner.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn parse_compiled_disposition_coordinate(
+    owner: &str,
+) -> Result<CompiledDispositionCoordinate, BundleError> {
+    let mut parts = owner.splitn(4, ':');
+    let category = parts.next().unwrap_or_default();
+    let surface = parts.next().unwrap_or_default();
+    let kind = parts.next().unwrap_or_default();
+    let member = parts.next().unwrap_or_default();
+    if !matches!(category, "Object" | "ValueStruct" | "Enum" | "Document")
+        || !matches!(
+            kind,
+            "Constructor"
+                | "Discriminator"
+                | "Field"
+                | "EnumVariant"
+                | "VariantField"
+                | "DerivedFact"
+        )
+        || surface.is_empty()
+        || member.is_empty()
+    {
+        return Err(BundleError::new(
+            BundleErrorKind::ClosedValue,
+            format!("invalid disposition coordinate {owner}"),
+        ));
+    }
+    let (member, qualifier) = member.split_once('@').map_or_else(
+        || (member, None),
+        |(member, qualifier)| (member, Some(qualifier)),
+    );
+    if member.is_empty() || qualifier.is_some_and(str::is_empty) {
+        return Err(BundleError::new(
+            BundleErrorKind::ClosedValue,
+            format!("invalid qualified disposition coordinate {owner}"),
+        ));
+    }
+    Ok(new!(CompiledDispositionCoordinate {
+        category: category.to_owned(),
+        surface: surface.to_owned(),
+        kind: kind.to_owned(),
+        member: member.to_owned(),
+        qualifier: qualifier.map(str::to_owned),
+    }))
 }
 
 #[requires(true)]

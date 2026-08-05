@@ -57,18 +57,10 @@ An actual place question uses computed `At` and no later plain operand:
 
 Two computed fills whose candidate domains overlap do not print as two `At`
 forms. The smallest content position falls back because answer substitution
-could assign both values to the same place:
-
-```lisp
-(Smusni 0
-  (Assert
-    (Fallback Content "smusni.at.overlapping-candidates"
-      (Object %1 "ComputedPlaceAssignment"
-        (Field "firstCandidates"
-          (RawList (RawString "1") (RawString "2")))
-        (Field "secondCandidates"
-          (RawList (RawString "2") (RawString "3")))))))
-```
+could assign both values to the same place. Its registered local reason is
+`smusni.fallback.at.overlapping-candidates`; the fallback preserves the actual
+smallest reachable raw model owner rather than inventing a
+`ComputedPlaceAssignment` model type. Section 20 shows the complete raw syntax.
 
 `zi'o` removes a current numbered place. Surviving labels keep their visible
 numbers and plain traversal skips the hole:
@@ -269,15 +261,10 @@ contextual argument. Actuality is a separate predicate, not assertion force:
 
 An aspect whose boundary/checkpoint relation has not yet been verified remains
 local fallback rather than an English-gloss constructor or an approximate
-`cfari` predication:
-
-```lisp
-(Smusni 0
-  (Assert
-    (Fallback Content "smusni.tag.coha.unverified-boundary"
-      (Object %1 "EventContour"
-        (Field "kind" (RawTypedAtom "EventContour" "Start"))))))
-```
+`cfari` predication. Its registered local reason is
+`smusni.fallback.tag.coha.unverified-boundary`; its raw value is the actual
+reachable owner containing the inline aspect value, not a synthetic
+`EventContour` object.
 
 A repeated tense is a path rather than two unrelated facets. This sample
 assumes one graph locus with a joint two-parameter existential; the nested-`∃`
@@ -327,18 +314,11 @@ outside `Do` with `Let` when inert or `Bind` when computed, and both repeated
 
 Version 0 does not pretend that a graph-owned noncurrent deictic ground is the
 current speech situation. Until that registered reduction exists, the smallest
-referential value falls back:
-
-```lisp
-(Smusni 0
-  (Mention
-    (Fallback (Referents Entity) "smusni.deictic.noncurrent-ground"
-      (Object %1 "DeicticReference"
-        (Field "proximity"
-          (RawTypedAtom "Proximity" "Proximal"))
-        (Field "ground"
-          (Object %2 "DeicticGround"))))))
-```
+referential value falls back with reason
+`smusni.fallback.deictic.noncurrent-ground`. The raw encoding uses a
+`RawRecord` for an inline deictic-reference value and an `Object`/`Ref` only for
+the real graph-owned ground referent; it never promotes either into an invented
+semantic-object type.
 
 ## 5. Explicit `Close` for shared predicate terms
 
@@ -349,6 +329,12 @@ An inline known-row predicate closes implicitly at `Assert`:
   (Assert
     (melbi This)))
 ```
+
+The version-0 lexical row treats `melbi` x3 and x4 as ordinary
+`Referents<Entity>` roles for the conceptual aspect/property and aesthetic
+standard, not as function-valued places. The dictionary's `(ka)` gloss does
+not itself impose a function type, so contextual closure of these roles is
+legal under that row.
 
 The same predicate term prints `Close` once it has identity of its own:
 
@@ -387,15 +373,10 @@ performance:
 The two applications substitute different x1 values; they do not mint new
 identities for klama's omitted destination, origin, route, or means sites.
 
-A nondefaultable higher-order gap cannot be silently closed:
-
-```lisp
-(Smusni 0
-  (Assert
-    (Fallback Content "smusni.close.nondefaultable-place"
-      (Object %1 "PredicateTerm"
-        (Field "root" (RawAtom "higher-order-root"))))))
-```
+A nondefaultable higher-order gap cannot be silently closed. It uses local
+fallback with reason `smusni.fallback.close.nondefaultable-place`, rooted in the
+actual reachable semantic-model owner; `PredicateTerm` is notation IR and is
+not fabricated as a raw model object.
 
 An elided value whose graph scope may depend on `$p` cannot disappear into
 `Close`; its dependency set is explicit. This is a fragment inside the binder
@@ -692,10 +673,9 @@ handler-anchored act fragments are:
 In the first, only beauty is negated. In the second, only beauty is questioned.
 Whiteness is committed once as supplementary content in both cases. A graph
 which represents a genuinely local or conditional supplement names that
-different handler explicitly. A graph which retains the supplement at its body
-position may instead print `(¬ (Supplement (melbi $dog) (blabi $dog)))`;
-section 6.4 projects the same side commitment to the legal force handler while
-negating only the at-issue body.
+different handler explicitly. Canonical output raises a projective supplement
+to the outermost type-correct position inside that handler, so the equivalent
+lower spelling `(¬ (Supplement (melbi $dog) (blabi $dog)))` does not print.
 
 Multiple clauses retain their connector rather than a list of `Relative`
 records:
@@ -918,21 +898,11 @@ identity. A witness is available only after that same application succeeds:
 ```
 
 This is not equivalent to counting members of `$dogs` after the fact. The full
-quantifier function, scope function, and success identity remain explicit.
-
-The following is deliberately invalid and therefore falls back:
-
-```lisp
-(Fallback (Referents Entity) "smusni.witness.before-success"
-  (Object %1 "WitnessRequest"
-    (Field "run"
-      (Object %2 "QuantifierApplication"))
-    (Field "status"
-      (RawTypedAtom "WitnessAvailability" "BeforeSuccess"))))
-```
-
-That fallback is a fragment inside a position expecting
-`(Referents Entity)`; it is not a complete document.
+quantifier function, scope function, and success identity remain explicit. A
+request before successful execution uses local `(Referents Entity)` fallback
+with reason `smusni.fallback.witness.before-success`, preserving the actual
+reachable quantifier owner. `WitnessRequest` and `QuantifierApplication` are
+not raw model object types and therefore never appear in its raw value.
 
 ## 12. Simultaneous termsets
 
@@ -977,15 +947,12 @@ Nesting `$dogs` around `$people` or vice versa would impose an order that can
 change generalized-quantifier truth conditions. The biconditionals also make
 this stronger than arbitrary complete-product subset selection: if four dogs
 all like the same two people, the displayed `Exactly 3`/`Exactly 2` content is
-false. A graph which records only equal scope, or which has already lost the
-coequal structure, cannot be repaired heuristically:
-
-```lisp
-(Smusni 0
-  (Assert
-    (Fallback Content "smusni.termset.equal-scope-lost"
-      (Object %1 "OrderedQuantifierNest"))))
-```
+false. A graph which retains one coequal quantifier-bundle locus but lacks the
+verified coordinate-closed profile uses local `Content` fallback with reason
+`smusni.fallback.termset.profile-unverified`, preserving that complete raw
+`Formula` object as in section 20. A graph already elaborated as an ordered
+quantifier nest instead renders that ordinary nesting; the renderer does not
+guess that it was formerly simultaneous.
 
 ## 13. Lambdas, abstractions, and event facets
 
@@ -1479,12 +1446,42 @@ sharing:
 ```lisp
 (Smusni 0
   (Assert
-    (Fallback Content "smusni.unsupported.quantity-comparison"
-      (Object %1 "QuantityComparison"
-        (Field "left"
-          (Object %2 "Quantity"
-            (Field "kind" (RawAtom "Approximate"))))
-        (Field "right" (Ref %2))))))
+    (=
+      (Fallback Number "smusni.fallback.math.power-unregistered"
+        (Object %1 "MathExpression"
+          (Field "kind"
+            (RawVariant "MathExpressionNodeKind" "Operator"
+              (Field "operator"
+                (RawVariant "MathOperator" "Power"))
+              (Field "operands"
+                (RawList
+                  (Object %2 "MathExpression"
+                    (Field "kind"
+                      (RawVariant "MathExpressionNodeKind" "Literal"
+                        (Field "literal"
+                          (RawRecord "MathLiteral"
+                            (Field "kind"
+                              (RawTypedAtom "MathLiteralKind" "Integer"))
+                            (Field "value"
+                              (RawVariant "MathLiteralValue" "Integer"
+                                (Field "value" (RawScalar "i64" "2"))))))
+                        (Field "denotes" (RawNull))))
+                    (Field "scalarNegation" (RawNull))
+                    (Field "subscript" (RawNull))
+                    (Field "common"
+                      (RawRecord "SemanticObjectCommon"
+                        (Field "source" (RawNull))
+                        (Field "diagnostics" (RawList)))))
+                  (Ref %2)))
+              (Field "operatorDenotes" (RawNull))
+              (Field "endpointInclusion" (RawNull))))
+          (Field "scalarNegation" (RawNull))
+          (Field "subscript" (RawNull))
+          (Field "common"
+            (RawRecord "SemanticObjectCommon"
+              (Field "source" (RawNull))
+              (Field "diagnostics" (RawList))))))
+      4)))
 ```
 
 If the renderer cannot establish a typed performable root, it preserves the
@@ -1492,13 +1489,25 @@ whole graph structurally:
 
 ```lisp
 (Smusni 0
-  (TypedGraph "SemanticGraph"
+  (TypedGraph "SemanticGraph" "smusni.fallback.graph.root-not-performable"
     (Object %1 "SemanticGraph"
+      (Field "version" (RawString "lojban-semantics-json-1"))
       (Field "root"
-        (Object %2 "UnknownRoot"))
+        (Object %2 "Parameter"
+          (Field "sort" (RawVariant "SemanticSort" "Entity"))
+          (Field "role"
+            (RawTypedAtom "ParameterRole" "ArgumentQuestion"))
+          (Field "introducedBy" (RawString "ma"))
+          (Field "subscript" (RawNull))
+          (Field "common"
+            (RawRecord "SemanticObjectCommon"
+              (Field "source" (RawNull))
+              (Field "diagnostics" (RawList))))))
       (Field "objects"
-        (RawList
-          (Ref %2))))))
+        (RawMap
+          (Entry
+            (RawScalar "SemanticObjectId" "parameter:1")
+            (Ref %2)))))))
 ```
 
 Neither document contains a `Warning` node. The corresponding stable diagnostic

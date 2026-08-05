@@ -1076,6 +1076,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "corpus measurements are mutable derived counters; measure and record_success enforce their transitions",
     ),
     (
+        "crates/jbotci-semantics/codegen/smusni_v0_surface.rs:SerdeContainerOptions",
+        "private serde attribute scan state admits every independently optional tag/content observation",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedDispositionRow",
+        "unchecked generated constants are accepted only through DispositionRegistry::try_from_generated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedFallbackReasonRow",
+        "unchecked generated reason constants are joined and validated only by DispositionRegistry::try_from_generated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedLexicalPolicyRow",
+        "private generated lexical rows contain build-time-audited constants and closed enum values",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Parser",
         "private mutable parser state starts at byte zero and cursor-mutating methods contractually preserve UTF-8 boundaries",
     ),
@@ -1110,6 +1126,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawObject",
         "the identity, NFC type name, and raw fields are locally valid; RawTree proves global identity order",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawMapEntry",
+        "every pair of recursively validated raw values is a valid typed raw-map entry",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawRecord",
+        "every NFC model type name and sequence of recursively validated raw fields is a valid inline record",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawVariant",
+        "every NFC enum/constructor identity and sequence of recursively validated raw fields is a valid inline variant",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:TypedGraph",
@@ -1156,6 +1184,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "every typed head and ordered sequence of typed operands is a valid pending predicate application",
     ),
     (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ReferenceBinding",
+        "graph-owned identity, parsed declared type, and rendered computation are independently valid before Bind wrapping",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ReferencePlan",
         "private planner output is constructed only by plan_references; partial analyses are hidden and complete-only queries require compact eligibility",
     ),
@@ -1190,10 +1222,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleVariantBuilder",
         "private mutable Serde tuple-variant state is populated from static derived type and variant names and validated when finalized",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/typed_ir.rs:GeneratedLexicalPolicyRow",
-        "private generated rows contain only build-time-audited constants and closed enum values",
     ),
     (
         "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyKey",

@@ -105,7 +105,7 @@ mod tests {
                 assert!(
                     matches!(
                         disposition.as_data(),
-                        data!(Disposition::ProvenanceSuppression(_))
+                        data!(Disposition::ProvenanceSuppression { .. })
                     ),
                     "source provenance must be excluded with a reason"
                 );
@@ -114,7 +114,7 @@ mod tests {
             if entry.surface.name == "Predication" && entry.field == "arguments" {
                 assert!(matches!(
                     disposition.as_data(),
-                    data!(Disposition::DirectLowering)
+                    data!(Disposition::DirectLowering { .. })
                 ));
                 saw_direct = true;
             }
@@ -133,15 +133,15 @@ mod tests {
         let mut counts = [0usize; 6];
         for entry in inventory.entries() {
             match baseline_disposition(entry).as_data() {
-                data!(Disposition::DirectLowering) => counts[0] += 1,
-                data!(Disposition::ProvenDesugaring) => counts[1] += 1,
-                data!(Disposition::NotationDefault(_)) => counts[2] += 1,
-                data!(Disposition::ProvenanceSuppression(_)) => counts[3] += 1,
-                data!(Disposition::DiagnosticCollection) => counts[4] += 1,
+                data!(Disposition::DirectLowering { .. }) => counts[0] += 1,
+                data!(Disposition::ProvenDesugaring { .. }) => counts[1] += 1,
+                data!(Disposition::NotationDefault { .. }) => counts[2] += 1,
+                data!(Disposition::ProvenanceSuppression { .. }) => counts[3] += 1,
+                data!(Disposition::DiagnosticCollection { .. }) => counts[4] += 1,
                 data!(Disposition::TypedFallback { .. }) => counts[5] += 1,
             }
         }
-        assert_eq!(counts, [52, 22, 4, 54, 15, 556]);
+        assert_eq!(counts, [627, 112, 4, 61, 18, 60]);
         assert_eq!(counts.iter().sum::<usize>(), inventory.len());
     }
 
@@ -171,7 +171,7 @@ mod tests {
             assert!(
                 matches!(
                     disposition.as_data(),
-                    data!(Disposition::ProvenanceSuppression(_))
+                    data!(Disposition::ProvenanceSuppression { .. })
                 ),
                 "{surface}.source (SemanticSource) must be excluded"
             );
@@ -181,7 +181,7 @@ mod tests {
         assert!(
             !matches!(
                 connector_source.as_data(),
-                data!(Disposition::ProvenanceSuppression(_))
+                data!(Disposition::ProvenanceSuppression { .. })
             ),
             "Connector.source is semantic lexical data, not source provenance"
         );

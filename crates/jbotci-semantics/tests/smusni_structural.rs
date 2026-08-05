@@ -19,9 +19,9 @@ use jbotci_semantics::model::{
     Actuality, ActualityKind, AnchorRelation, ArgumentValueKind, Aspect, EventualityNode,
     IndexicalKind, MathLiteral, ParameterRole, QuantityScale, QuantityValue, QuestionSlot,
     QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory, ScopeDependence,
-    SemanticGraphData, SemanticObject, SemanticObjectId, Subscript,
+    SemanticGraphData, SemanticObject, SemanticObjectId, Subscript, UtteranceForce,
 };
-use jbotci_semantics::notation::sexpr::{Datum, parse_document};
+use jbotci_semantics::notation::sexpr::{Datum, parse_document, parse_v0_document};
 use jbotci_semantics::notation::word_cards::build_word_cards;
 use jbotci_semantics::{
     SemanticBuildOptions, SemanticGraph,
@@ -155,6 +155,7 @@ fn parse_smusni(text: &str) -> Datum {
         1
     );
     let datum = parse_document(text).expect("renderer output must be one parseable datum");
+    parse_v0_document(text).expect("renderer output must satisfy the current typed grammar");
     let items = datum.as_list().expect("Smusni document must be a list");
     assert_eq!(items.first().and_then(Datum::as_atom), Some("Smusni"));
     assert_eq!(items.get(1).and_then(Datum::as_integer), Some("0"));
@@ -193,12 +194,10 @@ fn validate_bindings(datum: &Datum, bound: &BTreeSet<String>) {
         return;
     };
     match head {
-        "Let" => validate_let(items, bound, false),
+        "Let" | "Bind" => validate_let(items, bound, false),
         "LetRec" => validate_let(items, bound, true),
-        "λ" | "∀" | "∃" | "Cardinality" => validate_declaration_binder(items, bound),
-        "Quantify" => validate_quantify(items, bound),
+        "λ" => validate_declaration_binder(items, bound),
         "Utterance" => validate_utterance(items, bound),
-        "Lo" | "Le" | "La" => validate_description(items, bound),
         _ => {
             for item in &items[1..] {
                 validate_bindings(item, bound);
@@ -208,7 +207,7 @@ fn validate_bindings(datum: &Datum, bound: &BTreeSet<String>) {
 }
 
 /// Validate sequential `Let` or simultaneous `LetRec` entries.
-#[requires(items.first().and_then(Datum::as_atom).is_some_and(|head| matches!(head, "Let" | "LetRec")))]
+#[requires(items.first().and_then(Datum::as_atom).is_some_and(|head| matches!(head, "Let" | "Bind" | "LetRec")))]
 #[ensures(true)]
 fn validate_let(items: &[Datum], outer: &BTreeSet<String>, recursive: bool) {
     assert_eq!(items.len(), 3, "Let forms have bindings and body");
@@ -250,92 +249,26 @@ fn validate_declaration_binder(items: &[Datum], outer: &BTreeSet<String>) {
     }
 }
 
-/// Validate simultaneous termset/quantifier-bundle binding.
-#[requires(items.first().and_then(Datum::as_atom) == Some("Quantify"))]
-#[ensures(true)]
-fn validate_quantify(items: &[Datum], outer: &BTreeSet<String>) {
-    assert_eq!(items.len(), 3, "Quantify has specs and body");
-    let specs = items[1].as_list().expect("Quantify specs are a list");
-    let mut scoped = outer.clone();
-    for spec in specs {
-        scoped.insert(binding_name(spec));
-    }
-    for spec in specs {
-        let fields = spec.as_list().expect("Quantify spec is a list");
-        assert!(fields.len() >= 3, "Quantify spec includes an operator");
-        for field in &fields[2..] {
-            validate_bindings(field, &scoped);
-        }
-    }
-    validate_bindings(&items[2], &scoped);
-}
-
 /// Validate the utterance-token binder.
 #[requires(items.first().and_then(Datum::as_atom) == Some("Utterance"))]
 #[ensures(true)]
 fn validate_utterance(items: &[Datum], outer: &BTreeSet<String>) {
     assert!(items.len() >= 3);
-    let name = items[1].as_atom().expect("utterance binder is an atom");
-    assert!(name.starts_with('$'));
+    let declarations = items[1].as_list().expect("utterance binder is a list");
+    assert_eq!(declarations.len(), 1);
+    let name = binding_name(&declarations[0]);
     let mut scoped = outer.clone();
-    scoped.insert(name.to_owned());
+    scoped.insert(name);
     for field in &items[2..] {
         validate_bindings(field, &scoped);
     }
 }
 
-/// Validate an explicit description binder, while leaving concise `(Lo root)`
-/// forms untouched.
-#[requires(items.first().and_then(Datum::as_atom).is_some_and(|head| matches!(head, "Lo" | "Le" | "La")))]
-#[ensures(true)]
-fn validate_description(items: &[Datum], outer: &BTreeSet<String>) {
-    let Some(bindings) = items.get(1).and_then(Datum::as_list) else {
-        for item in &items[1..] {
-            validate_bindings(item, outer);
-        }
-        return;
-    };
-    let explicit = bindings.iter().all(|entry| {
-        entry
-            .as_list()
-            .and_then(|fields| fields.first())
-            .and_then(Datum::as_atom)
-            .is_some_and(|name| name.starts_with('$'))
-    });
-    if !explicit {
-        for item in &items[1..] {
-            validate_bindings(item, outer);
-        }
-        return;
-    }
-    let mut scoped = outer.clone();
-    for binding in bindings {
-        scoped.insert(binding_name(binding));
-    }
-    for item in &items[2..] {
-        validate_bindings(item, &scoped);
-    }
-}
-
-/// Read and validate one graph-identity atom.
-#[requires(true)]
-#[ensures(ret.is_some() == datum.as_atom().is_some_and(|atom| atom.starts_with("|@") && atom.ends_with('|')))]
-fn graph_reference<'a>(datum: &'a Datum, graph_ids: &BTreeSet<String>) -> Option<&'a str> {
-    let id = datum.as_atom()?.strip_prefix("|@")?.strip_suffix('|')?;
-    assert!(
-        graph_ids.contains(id),
-        "unknown escaped graph reference {id}"
-    );
-    Some(id)
-}
-
-/// In legacy compact output, escaped `@` atoms are reserved for the diagnostic
-/// attachment exception. Local `(Object ...)` fields must instead be closed by
-/// a lexical/shared `$` binding or an inlined typed value. Final v0 fallback
-/// uses `%id` through the validated syntax layer.
+/// Compact output never leaks the retired escaped graph-reference spelling.
+/// Whole-document `%id` identity closure is enforced by `parse_v0_document`.
 #[requires(true)]
 #[ensures(true)]
-fn validate_compact_reference_closure(datum: &Datum, graph_ids: &BTreeSet<String>) {
+fn validate_no_legacy_graph_references(datum: &Datum) {
     if let Some(atom) = datum.as_atom() {
         assert!(
             !atom.starts_with("|@"),
@@ -343,96 +276,9 @@ fn validate_compact_reference_closure(datum: &Datum, graph_ids: &BTreeSet<String
         );
         return;
     }
-    let Some(items) = datum.as_list() else {
-        return;
-    };
-    if items.first().and_then(Datum::as_atom) == Some("SourceObject") {
-        assert!(
-            items.len() >= 2,
-            "SourceObject carries its diagnostic identity"
-        );
-        graph_reference(&items[1], graph_ids).expect("SourceObject identity uses escaped @");
-        for item in &items[2..] {
-            validate_compact_reference_closure(item, graph_ids);
-        }
-        return;
-    }
-    for item in items {
-        validate_compact_reference_closure(item, graph_ids);
-    }
-}
-
-/// Whole-document fallback defines every graph identity exactly once, and all
-/// root/field references resolve against that definition set.
-#[requires(typed_graph.form_head() == Some("TypedGraph"))]
-#[ensures(true)]
-fn validate_typed_graph_reference_closure(typed_graph: &Datum, graph_ids: &BTreeSet<String>) {
-    let items = typed_graph.as_list().expect("TypedGraph is a form");
-    let mut definitions = BTreeSet::new();
-    let mut root = None;
-    for child in &items[1..] {
-        match child.form_head() {
-            Some("Root") => {
-                let fields = child.as_list().expect("Root is a form");
-                assert_eq!(fields.len(), 2);
-                assert!(root.is_none(), "TypedGraph has one Root");
-                root = graph_reference(&fields[1], graph_ids).map(str::to_owned);
-            }
-            Some("Def") => {
-                let fields = child.as_list().expect("Def is a form");
-                assert!(fields.len() >= 3, "Def carries identity and kind");
-                let id =
-                    graph_reference(&fields[1], graph_ids).expect("Def identity uses escaped @");
-                assert!(definitions.insert(id.to_owned()), "duplicate Def {id}");
-            }
-            other => panic!("unexpected TypedGraph child {other:?}"),
-        }
-    }
-    assert_eq!(
-        &definitions, graph_ids,
-        "TypedGraph must define the full graph"
-    );
-    assert!(
-        root.as_ref().is_some_and(|id| definitions.contains(id)),
-        "TypedGraph root must resolve to a Def"
-    );
-    validate_defined_references(typed_graph, graph_ids, &definitions);
-}
-
-/// Validate every escaped legacy `@` in a whole-document graph against the
-/// exact Def set.
-#[requires(definitions.is_subset(graph_ids))]
-#[ensures(true)]
-fn validate_defined_references(
-    datum: &Datum,
-    graph_ids: &BTreeSet<String>,
-    definitions: &BTreeSet<String>,
-) {
-    if let Some(id) = graph_reference(datum, graph_ids) {
-        assert!(definitions.contains(id), "dangling graph reference {id}");
-        return;
-    }
     if let Some(items) = datum.as_list() {
         for item in items {
-            validate_defined_references(item, graph_ids, definitions);
-        }
-    }
-}
-
-/// Select the closure proof required by the represented document mode.
-#[requires(datum.form_head() == Some("Smusni"))]
-#[ensures(true)]
-fn validate_reference_closure(datum: &Datum, graph_ids: &BTreeSet<String>) {
-    let children = datum.as_list().expect("Smusni is a form");
-    let body = children.get(2).expect("Smusni has a body");
-    if body.form_head() == Some("TypedGraph") {
-        validate_typed_graph_reference_closure(body, graph_ids);
-        for child in &children[3..] {
-            validate_compact_reference_closure(child, graph_ids);
-        }
-    } else {
-        for child in &children[2..] {
-            validate_compact_reference_closure(child, graph_ids);
+            validate_no_legacy_graph_references(item);
         }
     }
 }
@@ -456,33 +302,34 @@ fn count_forms(datum: &Datum, head: &str) -> usize {
         .sum::<usize>()
 }
 
-/// Read the parser's non-recognizing numeric atom as an unsigned value.
-#[requires(true)]
+/// Recover numbered places from one canonical application. Plain operands
+/// advance from the preceding `:n`; `:Eventuality` is a distinct row marker.
+#[requires(datum.as_list().is_some_and(|items| items.len() >= 2))]
 #[ensures(true)]
-fn parsed_unsigned(datum: &Datum) -> Option<u128> {
-    datum.as_integer().or_else(|| datum.as_atom())?.parse().ok()
-}
-
-/// Count diagnostics represented either by compact `Warning` records or a
-/// TypedGraph object's complete `Diagnostics` field.
-#[requires(true)]
-#[ensures(true)]
-fn represented_diagnostic_count(datum: &Datum) -> usize {
-    let Some(items) = datum.as_list() else {
-        return 0;
-    };
-    if items.first().and_then(Datum::as_atom) == Some("Warning") {
-        return 1;
+fn numbered_application_places(datum: &Datum) -> BTreeSet<usize> {
+    let items = datum.as_list().expect("application is a list");
+    let mut places = BTreeSet::new();
+    let mut next = 1usize;
+    let mut index = 1usize;
+    while index < items.len() {
+        if items[index].as_atom() == Some(":Eventuality") {
+            index += 2;
+            continue;
+        }
+        if let Some(place) = items[index]
+            .as_atom()
+            .and_then(|atom| atom.strip_prefix(':'))
+            .and_then(|digits| digits.parse::<usize>().ok())
+        {
+            next = place;
+            index += 1;
+        }
+        assert!(index < items.len(), "place marker has a value");
+        places.insert(next);
+        next += 1;
+        index += 1;
     }
-    if items.first().and_then(Datum::as_atom) == Some("Field")
-        && items.get(1).and_then(Datum::as_atom) == Some("Diagnostics")
-    {
-        return items
-            .get(2)
-            .and_then(Datum::as_list)
-            .map_or(0, |values| values.len().saturating_sub(1));
-    }
-    items.iter().map(represented_diagnostic_count).sum()
+    places
 }
 
 /// Return every form with a requested head.
@@ -508,7 +355,10 @@ fn contains_field(datum: &Datum, name: &str) -> bool {
         return false;
     };
     (items.first().and_then(Datum::as_atom) == Some("Field")
-        && items.get(1).and_then(Datum::as_atom) == Some(name))
+        && items
+            .get(1)
+            .and_then(|value| value.as_string().or_else(|| value.as_atom()))
+            .is_some_and(|field| field.eq_ignore_ascii_case(name)))
         || items.iter().any(|item| contains_field(item, name))
 }
 
@@ -548,18 +398,10 @@ fn validate_render(graph: &SemanticGraph, text: &str) -> Datum {
     assert!(!text.contains("NOT COMPUTED"));
     let datum = parse_smusni(text);
     validate_bindings(&datum, &BTreeSet::new());
-    let ids = graph
-        .objects
-        .keys()
-        .map(|id| id.to_string().replace(':', "_"))
-        .collect();
-    validate_reference_closure(&datum, &ids);
-    let diagnostic_count = graph
-        .objects
-        .values()
-        .map(|object| object.diagnostics().len())
-        .sum::<usize>();
-    assert_eq!(represented_diagnostic_count(&datum), diagnostic_count);
+    validate_no_legacy_graph_references(&datum);
+    for forbidden in ["WithWarnings", "Warnings", "Warning"] {
+        assert_eq!(count_forms(&datum, forbidden), 0);
+    }
     datum
 }
 
@@ -649,18 +491,10 @@ fn focused_semantic_families_are_exercised_without_output_goldens() {
         let rendered = render_smusni(&input.graph);
         let datum = validate_render(&input.graph, &rendered);
         match name {
-            "paragraph" => assert_compact_family_or_typed_graph(&datum, "Sequence", name),
+            "deleted-place" => assert_eq!(count_forms(&datum, "DropPlace"), 1),
+            "paragraph" => assert_eq!(count_forms(&datum, "NewTopic"), 1),
             "relation-question" => assert_compact_family_or_typed_graph(&datum, "Ask", name),
-            "quotation" => {
-                assert_compact_family_or_typed_graph(&datum, "Sign", name);
-                if count_forms(&datum, "TypedGraph") == 0 {
-                    assert_eq!(count_forms(&datum, "Quotation"), 1);
-                    assert_eq!(count_forms(&datum, "Utterance"), 1);
-                    assert_eq!(count_forms(&datum, "LocutionEvent"), 0);
-                    assert_eq!(count_forms(&datum, "DeicticTime"), 0);
-                    assert_eq!(count_forms(&datum, "DeicticPlace"), 0);
-                }
-            }
+            "quotation" => assert_eq!(count_forms(&datum, "TypedGraph"), 1),
             "hostile-quotation" => {
                 let mut strings = Vec::new();
                 collect_strings(&datum, &mut strings);
@@ -671,54 +505,92 @@ fn focused_semantic_families_are_exercised_without_output_goldens() {
                         && value.contains(';')
                 }));
             }
-            "termset" => assert_compact_family_or_typed_graph(&datum, "Quantify", name),
-            "respectively-distribution" => {
-                assert_compact_family_or_typed_graph(&datum, "Respectively", name)
+            "relative-clause" => {
+                assert_eq!(count_forms(&datum, "Bind"), 1);
+                assert_eq!(count_forms(&datum, "Refer"), 1);
+                assert_eq!(count_forms(&datum, "∧"), 1);
             }
-            "respectively-values" => {
-                assert_compact_family_or_typed_graph(&datum, "RespectivelyValue", name)
+            "termset" | "respectively-distribution" | "respectively-values" => {
+                assert_eq!(count_forms(&datum, "TypedGraph"), 1)
             }
-            "math" => assert_compact_family_or_typed_graph(&datum, "Math", name),
-            "displayed" => assert_compact_family_or_typed_graph(&datum, "Displayed", name),
+            "math" | "displayed" | "abstraction" => {
+                assert_compact_family_or_typed_graph(&datum, "Assert", name)
+            }
+            "tanru" => assert_compact_family_or_typed_graph(&datum, "Tanru", name),
             _ => {}
+        }
+        for retired in [
+            "WithWarnings",
+            "Warnings",
+            "Warning",
+            "Modal",
+            "Mode",
+            "Lo",
+            "Le",
+            "La",
+            "Relative",
+            "Quantify",
+            "Respectively",
+            "RespectivelyValue",
+            "OfKind",
+            "Sequence",
+            "ParagraphBoundary",
+            "Quote",
+            "Parenthetical",
+            "Subordinated",
+        ] {
+            assert_eq!(
+                count_forms(&datum, retired),
+                0,
+                "retired form {retired} in {name}"
+            );
         }
         for head in [
             "DropPlace",
             "Ask",
-            "Sign",
-            "Lo",
+            "NewTopic",
+            "Bind",
+            "Refer",
             "→",
-            "Du'u",
-            "Quantify",
-            "Respectively",
-            "RespectivelyValue",
-            "Math",
-            "Displayed",
-            "OfKind",
-            "Object",
+            "Tanru",
             "TypedGraph",
-            "Sequence",
         ] {
             if count_forms(&datum, head) > 0 {
                 observed_heads.insert(head);
             }
         }
     }
-    for required in [
-        "DropPlace",
-        "Lo",
-        "→",
-        "Du'u",
-        "Quantify",
-        "Respectively",
-        "RespectivelyValue",
-        "OfKind",
-        "Sequence",
-    ] {
+    for required in ["DropPlace", "NewTopic", "Bind", "Refer", "TypedGraph"] {
         assert!(
             observed_heads.contains(required),
             "missing structural family {required}"
         );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn unsupported_utterance_forces_use_typed_fallback_not_retired_forms() {
+    let input = build_input("mi klama", "unsupported-utterance-forces");
+    let utterance = input.graph.root;
+    assert!(
+        input.graph.objects[&utterance].as_utterance().is_some(),
+        "simple text root is an utterance",
+    );
+    for force in [
+        UtteranceForce::Quote,
+        UtteranceForce::Parenthetical,
+        UtteranceForce::Subordinated,
+    ] {
+        let mut object = input.graph.objects[&utterance].clone();
+        object.update_utterance(|node| node.with_data(data! { force: force }));
+        let graph = replace_object(input.graph.clone(), utterance, object);
+        let datum = validate_render(&graph, &render_smusni(&graph));
+        assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+        for retired in ["Quote", "Parenthetical", "Subordinated"] {
+            assert_eq!(count_forms(&datum, retired), 0);
+        }
     }
 }
 
@@ -739,14 +611,16 @@ fn modal_place_labels_match_the_actual_graph_maps() {
             .flat_map(|predication| predication.adjuncts.iter())
             .filter(|adjunct| adjunct.relation.is_some())
             .map(|adjunct| {
-                adjunct
+                let relation = adjunct.relation.clone().expect("filtered relation");
+                let places = adjunct
                     .arguments
                     .iter()
                     .filter(|(_, argument)| {
                         argument.kind == ArgumentValueKind::Filled && argument.value.is_some()
                     })
-                    .map(|(place, _)| place.get() as u128)
-                    .collect::<BTreeSet<_>>()
+                    .map(|(place, _)| place.get())
+                    .collect::<BTreeSet<_>>();
+                (relation, places)
             })
             .collect::<Vec<_>>();
         assert!(
@@ -754,26 +628,17 @@ fn modal_place_labels_match_the_actual_graph_maps() {
             "modal witness must have an adjunct map"
         );
         let datum = validate_render(&input.graph, &render_smusni(&input.graph));
-        let mut modals = Vec::new();
-        collect_forms(&datum, "Modal", &mut modals);
-        assert_eq!(modals.len(), expected.len());
-        for (modal, expected_places) in modals.into_iter().zip(expected) {
-            let application = modal
-                .as_list()
-                .and_then(|items| items.get(1))
-                .and_then(Datum::as_list)
-                .expect("Modal contains one predicate application");
-            let actual_places = application
-                .iter()
-                .skip(1)
-                .filter_map(|operand| {
-                    let fields = operand.as_list()?;
-                    (fields.first().and_then(Datum::as_atom) == Some("At"))
-                        .then(|| fields.get(1).and_then(parsed_unsigned))
-                        .flatten()
-                })
-                .collect::<BTreeSet<_>>();
-            assert_eq!(actual_places, expected_places);
+        assert_eq!(count_forms(&datum, "Modal"), 0);
+        assert_eq!(count_forms(&datum, "Joi"), 1);
+        assert_eq!(count_forms(&datum, "At"), 0);
+        for (relation, expected_places) in expected {
+            let mut applications = Vec::new();
+            collect_forms(&datum, &relation, &mut applications);
+            assert_eq!(applications.len(), 1, "one {relation} modal application");
+            assert_eq!(
+                numbered_application_places(applications[0]),
+                expected_places
+            );
         }
     }
 }
@@ -784,7 +649,9 @@ fn modal_place_labels_match_the_actual_graph_maps() {
 fn generated_event_facet_families_have_structural_witnesses() {
     let tense = build_input("mi pu klama lo zarci", "facet-time");
     let tense = validate_render(&tense.graph, &render_smusni(&tense.graph));
-    assert_eq!(count_forms(&tense, "Before"), 1);
+    assert_eq!(count_forms(&tense, "Joi"), 1);
+    assert_eq!(count_forms(&tense, "purci"), 1);
+    assert_eq!(count_forms(&tense, "Before"), 0);
 
     let cases = [
         (
@@ -845,11 +712,7 @@ fn generated_event_facet_families_have_structural_witnesses() {
         let input = build_input("mi klama", name);
         let graph = mutate_generated_event(input.graph.clone(), update);
         let datum = validate_render(&graph, &render_smusni(&graph));
-        assert_eq!(
-            count_forms(&datum, "Facet"),
-            1,
-            "missing typed facet for {name}"
-        );
+        assert_eq!(count_forms(&datum, "TypedGraph"), 1);
         assert!(
             contains_field(&datum, field),
             "missing {field} field for {name}"
@@ -887,8 +750,8 @@ fn optional_semantic_side_fields_force_representation_or_typed_graph() {
     object.update_quantity(|node| node.with_data(data! { scale: QuantityScale::Fraction }));
     let graph = replace_object(input.graph.clone(), quantity, object);
     let datum = validate_render(&graph, &render_smusni(&graph));
-    assert!(count_forms(&datum, "Quantity") > 0);
-    assert!(count_forms(&datum, "Scale") > 0 || count_forms(&datum, "TypedGraph") == 1);
+    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    assert!(contains_field(&datum, "Scale"));
 
     let input = build_input("li pa su'i re du li ci", "math-denotes");
     let denotation = input
@@ -1002,7 +865,8 @@ fn optional_semantic_side_fields_force_representation_or_typed_graph() {
 fn binder_and_projection_recognizers_require_complete_typed_shapes() {
     let input = build_input("ro mlatu cu jbena", "quantifier-domain-import");
     let ordinary = validate_render(&input.graph, &render_smusni(&input.graph));
-    assert_eq!(count_forms(&ordinary, "Import"), 1);
+    assert_eq!(count_forms(&ordinary, "Every"), 1);
+    assert_eq!(count_forms(&ordinary, "Import"), 0);
     let variable = input
         .graph
         .objects
@@ -1216,7 +1080,7 @@ fn render_stats_and_diagnostic_projection_are_complete() {
     for doc in CORPUS_DOCS {
         let input = corpus_input(doc);
         let rendered = render_smusni_detailed(&input.graph, &[]);
-        let datum = validate_render(&input.graph, &rendered.text);
+        validate_render(&input.graph, &rendered.text);
         let expected_warnings = input
             .graph
             .objects
@@ -1224,7 +1088,10 @@ fn render_stats_and_diagnostic_projection_are_complete() {
             .map(|object| object.diagnostics().len())
             .sum::<usize>();
         assert_eq!(rendered.stats.warning_count, expected_warnings);
-        assert_eq!(represented_diagnostic_count(&datum), expected_warnings);
+        assert_eq!(
+            rendered.diagnostics.len(),
+            expected_warnings + rendered.stats.fallback_reasons.len(),
+        );
         assert!(rendered.stats.compact_objects + rendered.stats.object_fallbacks > 0);
     }
 }

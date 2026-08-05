@@ -12,18 +12,17 @@ use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 
 use super::datum::{Atom, Datum};
 use super::planner::ReferencePlan;
-use super::structural::{ProvenanceDisposition, object_datum_with_variables, typed_value_datum};
+use super::structural::{ProvenanceDisposition, object_datum_with_variables};
 use crate::model::{
     AbstractionKind, ActualityKind, Adjunct, ArgumentValue, ArgumentValueKind, CompositionOperator,
-    DeicticProximity, DescriptorKind, DiagnosticSeverity, ElidedConnectionOperand,
-    EventualityDenotationData, EventualityNode, EventualitySort, FormulaNodeData, FormulaOperator,
-    IndexicalKind, MathExpressionNodeKindData, MathOperatorData, OrdinalLabel, OrdinalLabelLevel,
+    DeicticProximity, DescriptorKind, EventualityDenotationData, EventualityNode, EventualitySort,
+    FormulaNodeData, FormulaOperator, IndexicalKind, MathExpressionNodeKindData, MathOperatorData,
     ParagraphTransition, ParameterRole, PlaceIndex, PredicationMode, PredicationNode,
     PredicationRelationData, QuantityForm, QuantityNode, QuantityScale, QuestionKind, QuestionMode,
     QuestionSlotData, QuestionSlotRole, ReferentCategory, ReferentNode, RelationLabelData,
-    RelativeClause, RelativeClauseKind, ScopeDependenceData, SemanticDiagnostic, SemanticGraph,
-    SemanticObjectData, SemanticObjectId, SemanticSort, SequenceNode, SequenceRelation, SignKind,
-    SignNode, UtteranceForce, UtteranceNode, semantic_scope_dependence_binder_universes,
+    RelativeClauseKind, ScopeDependenceData, SemanticGraph, SemanticObjectData, SemanticObjectId,
+    SemanticObjectKind, SemanticSort, SequenceNode, SequenceRelation, SignNode, UtteranceForce,
+    UtteranceNode, semantic_scope_dependence_binder_universes,
 };
 
 /// Mutable counters kept separate from semantic rendering decisions.
@@ -46,6 +45,16 @@ struct PredicateApplication {
     operands: Vec<Datum>,
 }
 
+/// One fixed reference computation collected at its enclosing force segment.
+/// Version 0 deliberately keeps these distinct from pure `Let` values.
+#[invariant(true)]
+#[derive(Debug)]
+struct ReferenceBinding {
+    id: SemanticObjectId,
+    declared_type: Datum,
+    computation: Datum,
+}
+
 /// Description constructors whose graph encodings are inverted into lexical
 /// binders by one shared recognition proof.
 #[invariant(true)]
@@ -53,6 +62,94 @@ struct PredicateApplication {
 enum DescriptionConstructor {
     Lo,
     Le,
+}
+
+/// Closed reasons for declining an old compact recognizer. Until a local
+/// boundary has a proved v0 type, each cause selects a registered
+/// whole-document fallback rather than emitting an untyped pseudo-form.
+#[invariant(::UnrecognizedObjectFamily(_) => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CompactFallbackCause {
+    UnrecognizedObjectFamily(SemanticObjectKind),
+    UtteranceWithoutContent,
+    ForceFieldsRequireRecord,
+    SequenceFields,
+    ConnectiveMetadata,
+    UnrecognizedConnective,
+    QuantifierVariableFields,
+    QuantifierFields,
+    RespectivelySlotFields,
+    PredicationSideFields,
+    PredicationModeUnrepresentable,
+    NonAtomicRelation,
+    CompositionPredication,
+    ArgumentFields,
+    AdjunctFields,
+    CompositionFields,
+    ConstantWithoutDependence,
+    ReferentFields,
+    UnboundGeneratedEvent,
+    UnrepresentableRecursiveValue,
+    EventualityFacets,
+    QuestionSlotFields,
+    MathSideFields,
+    QuantityFields,
+    MathLiteralDenotes,
+    MathOperatorFields,
+    SignFields,
+}
+
+impl CompactFallbackCause {
+    /// Exact registered reason used by the current conservative boundary.
+    #[requires(true)]
+    #[ensures(ret.starts_with("smusni.fallback."))]
+    fn reason_id(self) -> &'static str {
+        match self {
+            Self::UnrecognizedObjectFamily(kind) => match kind {
+                SemanticObjectKind::DisplayedContent | SemanticObjectKind::Utterance => {
+                    "smusni.fallback.force-reduction-unrepresentable"
+                }
+                SemanticObjectKind::Parameter => "smusni.fallback.higher-order-crossing-unlicensed",
+                SemanticObjectKind::RelationMetadata => {
+                    "smusni.fallback.lexical-signature-missing-or-stale"
+                }
+                _ => "smusni.fallback.relation-reduction-unregistered-or-inexact",
+            },
+            Self::UtteranceWithoutContent
+            | Self::ForceFieldsRequireRecord
+            | Self::SequenceFields => "smusni.fallback.force-reduction-unrepresentable",
+            Self::ConnectiveMetadata
+            | Self::UnrecognizedConnective
+            | Self::PredicationSideFields
+            | Self::PredicationModeUnrepresentable
+            | Self::NonAtomicRelation => {
+                "smusni.fallback.relation-reduction-unregistered-or-inexact"
+            }
+            Self::QuantifierVariableFields | Self::QuantifierFields => {
+                "smusni.fallback.quantifier-effect-export-illegal"
+            }
+            Self::RespectivelySlotFields => "smusni.fallback.simultaneous-termset-unlicensed",
+            Self::CompositionPredication | Self::CompositionFields => {
+                "smusni.fallback.relation-former-reduction-unavailable"
+            }
+            Self::ArgumentFields => "smusni.fallback.predicate-fill-type-or-arity-mismatch",
+            Self::AdjunctFields => "smusni.fallback.modal-tag-reduction-unregistered",
+            Self::ConstantWithoutDependence | Self::ReferentFields => {
+                "smusni.fallback.reference-description-unrepresentable"
+            }
+            Self::UnboundGeneratedEvent => "smusni.fallback.generated-eventuality-unbound",
+            Self::UnrepresentableRecursiveValue => {
+                "smusni.fallback.unguarded-or-unrepresentable-scc"
+            }
+            Self::EventualityFacets => "smusni.fallback.event-facet-reduction-unregistered",
+            Self::QuestionSlotFields => "smusni.fallback.question-domain-or-answer-mismatch",
+            Self::QuantityFields => "smusni.fallback.quantity-reduction-unregistered",
+            Self::MathSideFields | Self::MathLiteralDenotes | Self::MathOperatorFields => {
+                "smusni.fallback.math-reduction-unregistered"
+            }
+            Self::SignFields => "smusni.fallback.sign-identity-missing",
+        }
+    }
 }
 
 /// Complete result of exact descriptor recognition. Planning and rendering
@@ -90,12 +187,32 @@ impl PredicateApplication {
     }
 }
 
+/// Nest single-entry dynamic bindings in discovery order. The first reference
+/// discovered is the outermost handler, matching left-to-right evaluation.
+#[requires(true)]
+#[ensures(true)]
+fn wrap_reference_bindings(bindings: Vec<ReferenceBinding>, mut body: Datum) -> Datum {
+    for binding in bindings.into_iter().rev() {
+        body = Datum::form(
+            "Bind",
+            [
+                Datum::list([Datum::list([
+                    variable_datum(binding.id),
+                    binding.declared_type,
+                    binding.computation,
+                ])]),
+                body,
+            ],
+        );
+    }
+    body
+}
+
 /// Result of one compact elaboration pass.
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(super) struct CompactElaboration {
     pub(super) body: Datum,
-    pub(super) warnings: Vec<Datum>,
     pub(super) compact_objects: usize,
     pub(super) object_fallbacks: usize,
     pub(super) fallback_reasons: BTreeMap<&'static str, usize>,
@@ -109,11 +226,12 @@ struct Elaborator<'a> {
     graph: &'a SemanticGraph,
     plan: &'a ReferencePlan,
     definitions: BTreeSet<SemanticObjectId>,
+    projected_descriptions: BTreeSet<SemanticObjectId>,
     binder_universes: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
     needed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     placed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
-    represented_diagnostics: RefCell<BTreeSet<SemanticObjectId>>,
     absorbed_eventualities: RefCell<BTreeSet<SemanticObjectId>>,
+    reference_binding_frames: RefCell<Vec<Vec<ReferenceBinding>>>,
     counters: ElaborationCounters,
 }
 
@@ -155,18 +273,17 @@ pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> 
         graph,
         plan,
         definitions,
+        projected_descriptions: description_values,
         binder_universes: semantic_scope_dependence_binder_universes(graph.root, &graph.objects),
         needed_definitions: RefCell::new(BTreeSet::new()),
         placed_definitions: RefCell::new(BTreeSet::new()),
-        represented_diagnostics: RefCell::new(BTreeSet::new()),
         absorbed_eventualities: RefCell::new(BTreeSet::new()),
+        reference_binding_frames: RefCell::new(Vec::new()),
         counters: ElaborationCounters::default(),
     };
     let body = elaborator.render_with_definitions();
-    let warnings = elaborator.document_warnings();
     CompactElaboration {
         body,
-        warnings,
         compact_objects: elaborator.counters.compact_objects.get(),
         object_fallbacks: elaborator.counters.object_fallbacks.get(),
         fallback_reasons: elaborator.counters.fallback_reasons.into_inner(),
@@ -234,14 +351,35 @@ impl Elaborator<'_> {
             .borrow_mut()
             .extend(definitions.iter().copied());
         let (ordered, recursive) = self.definition_order(&definitions);
-        let bindings = ordered.into_iter().map(|id| {
-            let value = self.render_object(id, bound, active, None);
-            Datum::list([
-                variable_datum(id),
-                definition_type_datum(&self.graph.objects[&id]),
-                value,
-            ])
-        });
+        let bindings = ordered
+            .into_iter()
+            .map(|id| {
+                let value = self.render_object(id, bound, active, None);
+                Datum::list([
+                    variable_datum(id),
+                    definition_type_datum(&self.graph.objects[&id]),
+                    value,
+                ])
+            })
+            .collect::<Vec<_>>();
+        if recursive
+            && bindings.iter().any(|binding| {
+                binding
+                    .as_list()
+                    .and_then(|fields| fields.get(2))
+                    .and_then(Datum::form_head)
+                    != Some("λ")
+            })
+        {
+            self.counters.requires_typed_graph.set(true);
+            *self
+                .counters
+                .fallback_reasons
+                .borrow_mut()
+                .entry(CompactFallbackCause::UnrepresentableRecursiveValue.reason_id())
+                .or_default() += 1;
+            return body;
+        }
         Datum::form(
             if recursive { "LetRec" } else { "Let" },
             [Datum::list(bindings), body],
@@ -395,12 +533,14 @@ impl Elaborator<'_> {
             data!(SemanticObject::Sign(node)) => self.render_sign(id, node, bound, active),
             data!(SemanticObject::DisplayedContent(_))
             | data!(SemanticObject::Parameter(_))
-            | data!(SemanticObject::RelationMetadata(_)) => {
-                self.fallback_object(id, bound, active, "unrecognized-object-family")
-            }
+            | data!(SemanticObject::RelationMetadata(_)) => self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::UnrecognizedObjectFamily(object.object_kind()),
+            ),
         };
         active.remove(&id);
-        let value = self.with_warnings(id, value, object.diagnostics());
         let definitions = self
             .definitions
             .iter()
@@ -414,47 +554,6 @@ impl Elaborator<'_> {
         self.wrap_definitions(definitions, value, bound, active)
     }
 
-    /// Attach diagnostics exactly once at their smallest represented value.
-    #[requires(true)]
-    #[ensures(true)]
-    fn with_warnings(
-        &self,
-        id: SemanticObjectId,
-        value: Datum,
-        diagnostics: &[SemanticDiagnostic],
-    ) -> Datum {
-        if diagnostics.is_empty() {
-            return value;
-        }
-        self.represented_diagnostics.borrow_mut().insert(id);
-        Datum::form(
-            "WithWarnings",
-            std::iter::once(value).chain(diagnostics.iter().map(warning_datum)),
-        )
-    }
-
-    /// Diagnostics on objects consumed by compact projection move to a
-    /// document warning entry with their original graph identity.
-    #[requires(true)]
-    #[ensures(true)]
-    fn document_warnings(&self) -> Vec<Datum> {
-        self.graph
-            .objects
-            .iter()
-            .filter(|(id, object)| {
-                !object.diagnostics().is_empty()
-                    && !self.represented_diagnostics.borrow().contains(id)
-            })
-            .map(|(id, object)| {
-                Datum::form(
-                    "SourceObject",
-                    std::iter::once(super::structural::reference_datum(*id))
-                        .chain(object.diagnostics().iter().map(warning_datum)),
-                )
-            })
-            .collect()
-    }
-
     /// Complete object-local fallback with current lexical variables preserved.
     #[requires(self.graph.objects.contains_key(&id))]
     #[ensures(true)]
@@ -463,22 +562,9 @@ impl Elaborator<'_> {
         id: SemanticObjectId,
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
-        reason: &'static str,
+        cause: CompactFallbackCause,
     ) -> Datum {
-        if self.plan.is_cyclic(id)
-            || self
-                .object_references(id)
-                .into_iter()
-                .any(|reference| self.plan.binder_owner(reference) == Some(id))
-        {
-            self.counters.requires_typed_graph.set(true);
-            *self
-                .counters
-                .fallback_reasons
-                .borrow_mut()
-                .entry("unrepresentable-local-binder")
-                .or_default() += 1;
-        }
+        self.counters.requires_typed_graph.set(true);
         self.counters
             .object_fallbacks
             .set(self.counters.object_fallbacks.get() + 1);
@@ -486,7 +572,7 @@ impl Elaborator<'_> {
             .counters
             .fallback_reasons
             .borrow_mut()
-            .entry(reason)
+            .entry(cause.reason_id())
             .or_default() += 1;
         let object = &self.graph.objects[&id];
         let references = self.fallback_reference_map(id, bound, active);
@@ -558,12 +644,38 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
         let Some(content) = node.content else {
-            return self.fallback_object(id, bound, active, "utterance-without-content");
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::UtteranceWithoutContent,
+            );
         };
+        if matches!(
+            node.force,
+            UtteranceForce::Quote
+                | UtteranceForce::Parenthetical
+                | UtteranceForce::Subordinated
+                | UtteranceForce::Command
+                | UtteranceForce::Vocative
+        ) {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::ForceFieldsRequireRecord,
+            );
+        }
         let expected_mode =
             (node.force == UtteranceForce::Assert).then_some(PredicationMode::Asserted);
         let content_id = content;
+        self.reference_binding_frames.borrow_mut().push(Vec::new());
         let content = self.render_id(content_id, bound, active, expected_mode);
+        let bindings = self
+            .reference_binding_frames
+            .borrow_mut()
+            .pop()
+            .expect("utterance rendering pushed one reference-binding frame");
         let act = match node.force {
             UtteranceForce::Assert => Datum::form("Assert", [content]),
             UtteranceForce::Ask if self.graph.objects[&content_id].as_question().is_some() => {
@@ -571,31 +683,44 @@ impl Elaborator<'_> {
             }
             UtteranceForce::Ask => Datum::form("Ask", [content]),
             UtteranceForce::Mention => Datum::form("Mention", [content]),
-            UtteranceForce::Quote => Datum::form("Quote", [content]),
-            UtteranceForce::Parenthetical => Datum::form("Parenthetical", [content]),
-            UtteranceForce::Subordinated => Datum::form("Subordinated", [content]),
-            UtteranceForce::Command | UtteranceForce::Vocative => {
-                return self.fallback_object(id, bound, active, "force-fields-require-record");
-            }
+            UtteranceForce::Quote
+            | UtteranceForce::Parenthetical
+            | UtteranceForce::Subordinated
+            | UtteranceForce::Command
+            | UtteranceForce::Vocative => unreachable!(
+                "unsupported forces return typed fallback before rendering their content"
+            ),
         };
+        let act = wrap_reference_bindings(bindings, act);
         if utterance_record_is_default(self.graph, self.plan, id, node) {
             return self.recognized(act);
+        }
+        if !node.asides.is_empty() || node.vocative_kind.is_some() {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::ForceFieldsRequireRecord,
+            );
         }
 
         let utterance_variable = variable_datum(id);
         let mut record_bound = bound.clone();
         record_bound.insert(id);
-        let mut fields = vec![utterance_variable.clone(), Datum::form("Act", [act])];
+        let mut fields = vec![Datum::list([Datum::list([
+            utterance_variable.clone(),
+            Datum::atom("UtteranceToken"),
+        ])])];
         fields.extend([
             Datum::form(
-                "Speaker",
+                "SpeakerOf",
                 [
                     utterance_variable.clone(),
                     self.render_id(node.speaker, &record_bound, active, None),
                 ],
             ),
             Datum::form(
-                "Audience",
+                "AudienceOf",
                 [
                     utterance_variable.clone(),
                     self.render_id(node.audience, &record_bound, active, None),
@@ -606,7 +731,7 @@ impl Elaborator<'_> {
             || self.plan.use_count(node.eventuality) > 1
         {
             fields.push(Datum::form(
-                "LocutionEvent",
+                "LocutionOf",
                 [
                     utterance_variable.clone(),
                     self.render_id(node.eventuality, &record_bound, active, None),
@@ -615,7 +740,7 @@ impl Elaborator<'_> {
         }
         if !object_is_indexical(self.graph, node.deictic_ground.time, IndexicalKind::Now) {
             fields.push(Datum::form(
-                "DeicticTime",
+                "DeicticTimeOf",
                 [
                     utterance_variable.clone(),
                     self.render_id(node.deictic_ground.time, &record_bound, active, None),
@@ -624,22 +749,14 @@ impl Elaborator<'_> {
         }
         if !object_is_indexical(self.graph, node.deictic_ground.place, IndexicalKind::Here) {
             fields.push(Datum::form(
-                "DeicticPlace",
+                "DeicticPlaceOf",
                 [
-                    utterance_variable,
+                    utterance_variable.clone(),
                     self.render_id(node.deictic_ground.place, &record_bound, active, None),
                 ],
             ));
         }
-        fields.extend(node.asides.iter().map(|aside| {
-            Datum::form(
-                "Displayed",
-                [self.render_id(*aside, &record_bound, active, None)],
-            )
-        }));
-        if let Some(kind) = &node.vocative_kind {
-            fields.push(Datum::form("VocativeKind", [Datum::string(kind)]));
-        }
+        fields.push(Datum::form("Realizes", [utterance_variable, act]));
         self.recognized(Datum::form("Utterance", fields))
     }
 
@@ -655,138 +772,70 @@ impl Elaborator<'_> {
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
-        if matches!(node.relation, SequenceRelation::SameTopicContinuation)
-            && node.force.is_none()
+        let ordinary_fields = node.force.is_none()
             && node.content.is_none()
             && node.connection_claims.is_empty()
             && node.bound_eventualities.is_empty()
             && node.ordinal_labels.is_empty()
             && node.nonlogical_connection.is_none()
-            && node.elided_connection_operand.is_none()
-        {
-            return self.recognized(Datum::form(
-                "Do",
-                node.items
-                    .iter()
-                    .map(|item| self.render_id(*item, bound, active, None)),
-            ));
-        }
-
-        let generated = node
-            .bound_eventualities
-            .iter()
-            .map(|event| event.object_id())
-            .collect::<Vec<_>>();
-        let mut scoped = bound.clone();
-        scoped.extend(generated.iter().copied());
-        let mut fields = vec![
-            sequence_relation_datum(&node.relation),
-            Datum::form(
-                "Items",
-                node.items
-                    .iter()
-                    .map(|item| self.render_id(*item, &scoped, active, None)),
-            ),
-        ];
-        if let Some(content) = node.content {
-            fields.push(Datum::form(
-                "Content",
-                [self.render_id(content, &scoped, active, None)],
-            ));
-        }
-        if !node.connection_claims.is_empty() {
-            fields.push(Datum::form(
-                "ConnectionClaims",
-                node.connection_claims
-                    .iter()
-                    .map(|claim| self.render_id(*claim, &scoped, active, None)),
-            ));
-        }
-        if !generated.is_empty() {
-            fields.push(Datum::form(
-                "BoundEventualities",
-                generated.iter().copied().map(variable_datum),
-            ));
-        }
-        if !node.ordinal_labels.is_empty() {
-            fields.push(Datum::form(
-                "OrdinalLabels",
-                node.ordinal_labels
-                    .iter()
-                    .map(|label| self.render_ordinal_label(label, &scoped, active)),
-            ));
-        }
-        if let Some(connection) = &node.nonlogical_connection {
-            let mut variables = self.variable_map(&scoped);
-            if let Some(parameter) = connection.connector.parameter {
-                variables.insert(
-                    parameter.to_string(),
-                    self.render_id(parameter, &scoped, active, None),
-                );
+            && node.elided_connection_operand.is_none();
+        if ordinary_fields {
+            match &node.relation {
+                SequenceRelation::SameTopicContinuation => {
+                    return self.recognized(Datum::form(
+                        "Do",
+                        node.items
+                            .iter()
+                            .map(|item| self.render_id(*item, bound, active, None)),
+                    ));
+                }
+                SequenceRelation::ParagraphBoundary {
+                    transition,
+                    additional,
+                } if additional.is_empty() && !node.items.is_empty() => {
+                    let rendered = node
+                        .items
+                        .iter()
+                        .map(|item| self.render_id(*item, bound, active, None))
+                        .collect::<Vec<_>>();
+                    let discourse = if rendered.len() == 1 {
+                        let item = node.items[0];
+                        match self.graph.objects[&item].object_kind() {
+                            SemanticObjectKind::Utterance => {
+                                let value = rendered.into_iter().next().expect("one item");
+                                if value.form_head() == Some("Utterance") {
+                                    Datum::form("PerformUtterance", [value])
+                                } else {
+                                    Datum::form("Perform", [value])
+                                }
+                            }
+                            SemanticObjectKind::Sequence => {
+                                rendered.into_iter().next().expect("one item")
+                            }
+                            _ => {
+                                return self.fallback_object(
+                                    id,
+                                    bound,
+                                    active,
+                                    CompactFallbackCause::SequenceFields,
+                                );
+                            }
+                        }
+                    } else {
+                        Datum::form("Do", rendered)
+                    };
+                    return self.recognized(Datum::form(
+                        match transition {
+                            ParagraphTransition::NewTopic => "NewTopic",
+                            ParagraphTransition::ResumePriorTopic => "Resume",
+                        },
+                        [discourse],
+                    ));
+                }
+                _ => {}
             }
-            fields.push(Datum::form(
-                "NonlogicalConnection",
-                [typed_value_datum(
-                    connection,
-                    ProvenanceDisposition::Suppress,
-                    &variables,
-                )],
-            ));
         }
-        if let Some(operand) = node.elided_connection_operand {
-            let operand = match operand {
-                ElidedConnectionOperand::PriorDiscourse => "PriorDiscourse",
-                ElidedConnectionOperand::FollowingDiscourse => "FollowingDiscourse",
-            };
-            fields.push(Datum::form(
-                "ElidedConnectionOperand",
-                [Datum::atom(operand)],
-            ));
-        }
-        let sequence = self.bind_generated_events(
-            id,
-            &generated,
-            Datum::form("Sequence", fields),
-            &scoped,
-            active,
-        );
-        let sequence = match node.force {
-            Some(UtteranceForce::Subordinated) => Datum::form("Subordinated", [sequence]),
-            None => sequence,
-            Some(_) => unreachable!("SequenceNode invariant permits only Subordinated force"),
-        };
-        self.recognized(sequence)
-    }
-
-    /// Render a sequence ordinal without suppressing its semantically relevant
-    /// introducer spelling. Only the source span is ordinary provenance.
-    #[requires(true)]
-    #[ensures(matches!(ret, Datum::List(_)))]
-    fn render_ordinal_label(
-        &self,
-        label: &OrdinalLabel,
-        bound: &BTreeSet<SemanticObjectId>,
-        active: &mut BTreeSet<SemanticObjectId>,
-    ) -> Datum {
-        let mut fields = Vec::new();
-        if let Some(target) = label.target {
-            fields.push(Datum::form(
-                "Target",
-                [self.render_id(target, bound, active, None)],
-            ));
-        }
-        fields.extend([
-            Datum::form(
-                "Level",
-                [Datum::atom(match label.level {
-                    OrdinalLabelLevel::Item => "Item",
-                    OrdinalLabelLevel::Division => "Division",
-                })],
-            ),
-            Datum::form("Value", [self.render_id(label.value, bound, active, None)]),
-            Datum::form("IntroducedBy", [Datum::string(&label.introduced_by)]),
-        ]);
-        Datum::form("OrdinalLabel", fields)
+        self.fallback_object(id, bound, active, CompactFallbackCause::SequenceFields)
     }
 
     /// Render the typed formula families, declining whenever connective
@@ -820,11 +869,21 @@ impl Elaborator<'_> {
                     return self.recognized(value);
                 }
                 if node.eventuality.is_some() {
-                    return self.fallback_object(id, bound, active, "connective-metadata");
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::ConnectiveMetadata,
+                    );
                 }
                 let Some((operator, children)) = exact_connective_projection(self.graph, node)
                 else {
-                    return self.fallback_object(id, bound, active, "unrecognized-connective");
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::UnrecognizedConnective,
+                    );
                 };
                 let generated = node
                     .bound_eventualities
@@ -844,7 +903,12 @@ impl Elaborator<'_> {
             data!(FormulaNode::Quantified(node)) => {
                 let Some(variable_sort) = exact_plain_bound_variable(self.graph, node.variable)
                 else {
-                    return self.fallback_object(id, bound, active, "quantifier-variable-fields");
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::QuantifierVariableFields,
+                    );
                 };
                 let mut scoped = bound.clone();
                 scoped.insert(node.variable);
@@ -856,59 +920,55 @@ impl Elaborator<'_> {
                 let binding =
                     Datum::list([variable_datum(node.variable), sort_datum(variable_sort)]);
                 let restriction = node.restriction.map(|restriction| {
-                    let content = self.render_id(
+                    self.render_id(
                         restriction,
                         &scoped,
                         active,
                         Some(PredicationMode::Restrictive),
-                    );
-                    quantified_restriction_datum(
-                        content,
-                        self.graph.objects[&id].formula_domain_import(),
                     )
                 });
                 let body = self.render_id(node.body, &scoped, active, expected_mode);
-                let quantified =
-                    if exact_universal_quantity(self.graph, node.operator, node.quantity)
-                        && node.source_variable.is_none()
-                        && node.selection_source.is_none()
-                    {
-                        Datum::form(
-                            "∀",
-                            std::iter::once(Datum::list([binding]))
-                                .chain(restriction)
-                                .chain([body]),
-                        )
-                    } else if node.operator == FormulaOperator::Exists
-                        && node.quantity.is_none()
-                        && node.source_variable.is_none()
-                        && node.selection_source.is_none()
-                    {
-                        Datum::form(
-                            "∃",
-                            std::iter::once(Datum::list([binding]))
-                                .chain(restriction)
-                                .chain([body]),
-                        )
-                    } else if node.operator == FormulaOperator::Cardinality {
-                        let Some(quantity) = node.quantity else {
+                let universal = exact_universal_quantity(self.graph, node.operator, node.quantity);
+                let ordinary_exists =
+                    node.operator == FormulaOperator::Exists && node.quantity.is_none();
+                if node.source_variable.is_some()
+                    || node.selection_source.is_some()
+                    || !(universal || ordinary_exists)
+                {
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::QuantifierFields,
+                    );
+                }
+                let body_function = Datum::form("λ", [Datum::list([binding.clone()]), body]);
+                let quantified = match restriction {
+                    Some(restriction) => {
+                        let restriction_function =
+                            Datum::form("λ", [Datum::list([binding]), restriction]);
+                        let constructor = if universal
+                            && self.graph.objects[&id].formula_domain_import()
+                                == Some(crate::model::DomainImport::Projective)
+                        {
+                            "Every"
+                        } else if ordinary_exists {
+                            "Some"
+                        } else {
                             return self.fallback_object(
                                 id,
                                 bound,
                                 active,
-                                "cardinality-without-quantity",
+                                CompactFallbackCause::QuantifierFields,
                             );
                         };
-                        Datum::form(
-                            "Cardinality",
-                            std::iter::once(Datum::list([binding]))
-                                .chain([self.render_id(quantity, bound, active, None)])
-                                .chain(restriction)
-                                .chain([body]),
-                        )
-                    } else {
-                        return self.fallback_object(id, bound, active, "quantifier-fields");
-                    };
+                        Datum::list([
+                            Datum::form(constructor, [restriction_function]),
+                            body_function,
+                        ])
+                    }
+                    None => Datum::form(if universal { "∀" } else { "∃" }, [body_function]),
+                };
                 let generated = node
                     .bound_eventualities
                     .iter()
@@ -918,182 +978,15 @@ impl Elaborator<'_> {
                     self.bind_generated_events(id, &generated, quantified, &scoped, active),
                 )
             }
-            data!(FormulaNode::QuantifierBundle(node)) => {
-                let Some(variable_sorts) = node
-                    .bindings
-                    .iter()
-                    .map(|binding| exact_plain_bound_variable(self.graph, binding.variable))
-                    .collect::<Option<Vec<_>>>()
-                else {
-                    return self.fallback_object(id, bound, active, "quantifier-variable-fields");
-                };
-                let mut scoped = bound.clone();
-                scoped.extend(node.bindings.iter().map(|binding| binding.variable));
-                scoped.extend(
-                    node.bound_eventualities
-                        .iter()
-                        .map(|event| event.object_id()),
-                );
-                let specs = node
-                    .bindings
-                    .iter()
-                    .zip(variable_sorts)
-                    .map(|(binding, variable_sort)| {
-                        let operator = quantifier_operator_datum(
-                            self.graph,
-                            binding.operator,
-                            binding.quantity,
-                            bound,
-                            active,
-                            self,
-                        );
-                        let mut fields = vec![
-                            variable_datum(binding.variable),
-                            sort_datum(variable_sort),
-                            operator,
-                        ];
-                        if let Some(restriction) = binding.restriction {
-                            fields.push(Datum::form(
-                                "Restrict",
-                                std::iter::once(self.render_id(
-                                    restriction,
-                                    &scoped,
-                                    active,
-                                    Some(PredicationMode::Restrictive),
-                                ))
-                                .chain(
-                                    matches!(
-                                        binding.operator,
-                                        FormulaOperator::Forall | FormulaOperator::PluralForall
-                                    )
-                                    .then_some(Datum::form("Import", [Datum::atom("Projective")])),
-                                ),
-                            ));
-                        }
-                        if let Some(source) = binding.source_variable {
-                            fields.push(Datum::form(
-                                "SourceVariable",
-                                [self.render_id(source, &scoped, active, None)],
-                            ));
-                        }
-                        if let Some(selection) = &binding.selection_source {
-                            fields.push(typed_value_datum(
-                                selection,
-                                ProvenanceDisposition::Suppress,
-                                &self.variable_map(&scoped),
-                            ));
-                        }
-                        Datum::list(fields)
-                    })
-                    .collect::<Vec<_>>();
-                let body = self.render_id(node.body, &scoped, active, expected_mode);
-                let value = Datum::form("Quantify", [Datum::list(specs), body]);
-                let generated = node
-                    .bound_eventualities
-                    .iter()
-                    .map(|event| event.object_id())
-                    .collect::<Vec<_>>();
-                self.recognized(self.bind_generated_events(id, &generated, value, &scoped, active))
+            data!(FormulaNode::QuantifierBundle(_)) => {
+                self.fallback_object(id, bound, active, CompactFallbackCause::QuantifierFields)
             }
-            data!(FormulaNode::RespectivelyDistribution(node)) => {
-                if node.streams.iter().any(|stream| {
-                    let sort = self.graph.objects[&stream.slot]
-                        .sort()
-                        .unwrap_or(SemanticSort::Entity);
-                    !exact_parameter(
-                        self.graph,
-                        stream.slot,
-                        sort,
-                        ParameterRole::RespectiveSlot,
-                        "fa'u",
-                    )
-                }) {
-                    return self.fallback_object(id, bound, active, "respectively-slot-fields");
-                }
-                let mut scoped = bound.clone();
-                scoped.extend(node.streams.iter().map(|stream| stream.slot));
-                scoped.extend(
-                    node.bound_eventualities
-                        .iter()
-                        .map(|event| event.object_id()),
-                );
-                let streams = node
-                    .streams
-                    .iter()
-                    .map(|stream| {
-                        if stream.restriction.is_none() && stream.quantity.is_none() {
-                            Datum::form(
-                                "Stream",
-                                stream
-                                    .items
-                                    .iter()
-                                    .map(|item| self.render_id(*item, bound, active, None)),
-                            )
-                        } else {
-                            let mut fields = vec![
-                                Datum::form("Slot", [variable_datum(stream.slot)]),
-                                Datum::form(
-                                    "Items",
-                                    stream
-                                        .items
-                                        .iter()
-                                        .map(|item| self.render_id(*item, bound, active, None)),
-                                ),
-                            ];
-                            if let Some(restriction) = stream.restriction {
-                                fields.push(Datum::form(
-                                    "Restrict",
-                                    [self.render_id(
-                                        restriction,
-                                        &scoped,
-                                        active,
-                                        Some(PredicationMode::Restrictive),
-                                    )],
-                                ));
-                            }
-                            if let Some(quantity) = stream.quantity {
-                                fields.push(Datum::form(
-                                    "Quantity",
-                                    [self.render_id(quantity, bound, active, None)],
-                                ));
-                            }
-                            Datum::form("Stream", fields)
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                let parameters = node.streams.iter().map(|stream| {
-                    Datum::list([
-                        variable_datum(stream.slot),
-                        sort_datum(
-                            self.graph.objects[&stream.slot]
-                                .sort()
-                                .unwrap_or(SemanticSort::Entity),
-                        ),
-                    ])
-                });
-                let lambda = Datum::form(
-                    "λ",
-                    [
-                        Datum::list(parameters),
-                        self.render_id(node.body, &scoped, active, expected_mode),
-                    ],
-                );
-                let mut arguments = streams;
-                arguments.push(lambda);
-                if let Some(distinct) = node.distinct_partition {
-                    arguments.push(Datum::form(
-                        "DistinctPartition",
-                        [Datum::string(distinct.to_string())],
-                    ));
-                }
-                let value = Datum::form("Respectively", arguments);
-                let generated = node
-                    .bound_eventualities
-                    .iter()
-                    .map(|event| event.object_id())
-                    .collect::<Vec<_>>();
-                self.recognized(self.bind_generated_events(id, &generated, value, &scoped, active))
-            }
+            data!(FormulaNode::RespectivelyDistribution(_)) => self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::RespectivelySlotFields,
+            ),
         }
     }
 
@@ -1139,7 +1032,8 @@ impl Elaborator<'_> {
         let data!(PredicationRelation::Composition) = link.relation.as_data() else {
             return None;
         };
-        if !predication_is_otherwise_plain(head)
+        if expected_mode != Some(head.mode)
+            || !predication_is_otherwise_plain(head)
             || link.eventuality.is_some()
             || link.place_questions.len() > 0
             || link.adjuncts.len() > 0
@@ -1229,27 +1123,23 @@ impl Elaborator<'_> {
         let head_atom = Atom::try_new(head_relation.clone()).ok()?;
         let modifier_atom = Atom::try_new(modifier_relation.to_owned()).ok()?;
         let root = Datum::form(
-            "OfKind",
-            [Datum::Atom(head_atom), Datum::Atom(modifier_atom)],
+            "Tanru",
+            [Datum::Atom(modifier_atom), Datum::Atom(head_atom)],
         );
-        let mut application = self.render_argument_map(
-            root,
-            &head.arguments,
-            bound,
-            active,
-            false,
-            head.eventuality,
-        )?;
-        for adjunct in &head.adjuncts {
-            application.push(self.render_modal(adjunct, bound, active)?);
-        }
-        let mut value = application.into_datum();
-        if expected_mode != Some(head.mode) {
-            value = Datum::form(
-                "Mode",
-                [Datum::atom(predication_mode_name(head.mode)), value],
-            );
-        }
+        let application =
+            self.render_argument_map(root, &head.arguments, bound, active, head.eventuality)?;
+        let mut conjuncts = vec![application.into_datum()];
+        conjuncts.extend(
+            head.adjuncts
+                .iter()
+                .map(|adjunct| self.render_modal(adjunct, bound, active))
+                .collect::<Option<Vec<_>>>()?,
+        );
+        let value = if conjuncts.len() == 1 {
+            conjuncts.pop().expect("one tanru application")
+        } else {
+            Datum::form("Joi", conjuncts)
+        };
         let generated = node
             .bound_eventualities
             .iter()
@@ -1290,20 +1180,23 @@ impl Elaborator<'_> {
         let body = if facets.is_empty() {
             body
         } else {
-            Datum::form("∧", std::iter::once(body).chain(facets))
+            Datum::form("Joi", std::iter::once(body).chain(facets))
         };
         Datum::form(
             "∃",
-            [
-                Datum::list(visible.iter().map(|event| {
-                    let sort = self.graph.objects[event]
-                        .as_eventuality()
-                        .map(|node| SemanticSort::Eventuality(node.sort))
-                        .unwrap_or(SemanticSort::eventuality());
-                    Datum::list([variable_datum(*event), sort_datum(sort)])
-                })),
-                body,
-            ],
+            [Datum::form(
+                "λ",
+                [
+                    Datum::list(visible.iter().map(|event| {
+                        let sort = self.graph.objects[event]
+                            .as_eventuality()
+                            .map(|node| SemanticSort::Eventuality(node.sort))
+                            .unwrap_or(SemanticSort::eventuality());
+                        Datum::list([variable_datum(*event), sort_datum(sort)])
+                    })),
+                    body,
+                ],
+            )],
         )
     }
 
@@ -1324,14 +1217,14 @@ impl Elaborator<'_> {
             return Vec::new();
         }
         if let Some(time) = exact_generated_event_time_facet(node) {
-            let intrinsic = match time.relation.as_str() {
-                "before" => "Before",
-                "after" => "After",
-                "at" => "AtTime",
+            let relation = match time.relation.as_str() {
+                "before" => "purci",
+                "after" => "balvi",
+                "at" => "cabna",
                 _ => return vec![self.typed_event_facet(event, bound, active)],
             };
             return vec![Datum::form(
-                intrinsic,
+                relation,
                 [
                     variable_datum(event),
                     self.render_id(time.anchor, bound, active, None),
@@ -1351,6 +1244,7 @@ impl Elaborator<'_> {
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
+        self.counters.requires_typed_graph.set(true);
         self.counters
             .object_fallbacks
             .set(self.counters.object_fallbacks.get() + 1);
@@ -1358,7 +1252,7 @@ impl Elaborator<'_> {
             .counters
             .fallback_reasons
             .borrow_mut()
-            .entry("eventuality-facets")
+            .entry(CompactFallbackCause::EventualityFacets.reason_id())
             .or_default() += 1;
         let object = &self.graph.objects[&event];
         let references = self.fallback_reference_map(event, bound, active);
@@ -1388,6 +1282,14 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
         expected_mode: Option<PredicationMode>,
     ) -> Datum {
+        if expected_mode != Some(node.mode) {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::PredicationModeUnrepresentable,
+            );
+        }
         if node.tanru_link.is_some()
             || !node.place_questions.is_empty()
             || !node.reciprocity.is_empty()
@@ -1395,12 +1297,22 @@ impl Elaborator<'_> {
             || node.relation_metadata.is_some()
             || node.introduced_by.is_some()
         {
-            return self.fallback_object(id, bound, active, "predication-side-fields");
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::PredicationSideFields,
+            );
         }
         let root = match node.relation.as_data() {
             data!(PredicationRelation::Named { relation }) => {
                 let Ok(atom) = Atom::try_new(relation.clone()) else {
-                    return self.fallback_object(id, bound, active, "non-atomic-relation");
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::NonAtomicRelation,
+                    );
                 };
                 Datum::Atom(atom)
             }
@@ -1408,37 +1320,41 @@ impl Elaborator<'_> {
                 self.render_id(*parameter, bound, active, None)
             }
             data!(PredicationRelation::Composition) => {
-                return self.fallback_object(id, bound, active, "composition-predication");
+                return self.fallback_object(
+                    id,
+                    bound,
+                    active,
+                    CompactFallbackCause::CompositionPredication,
+                );
             }
         };
-        let Some(mut application) = self.render_argument_map(
-            root,
-            &node.arguments,
-            bound,
-            active,
-            false,
-            node.eventuality,
-        ) else {
-            return self.fallback_object(id, bound, active, "argument-fields");
+        let Some(application) =
+            self.render_argument_map(root, &node.arguments, bound, active, node.eventuality)
+        else {
+            return self.fallback_object(id, bound, active, CompactFallbackCause::ArgumentFields);
         };
+        let mut conjuncts = vec![application.into_datum()];
         for adjunct in &node.adjuncts {
             let Some(modal) = self.render_modal(adjunct, bound, active) else {
-                return self.fallback_object(id, bound, active, "adjunct-fields");
+                return self.fallback_object(
+                    id,
+                    bound,
+                    active,
+                    CompactFallbackCause::AdjunctFields,
+                );
             };
-            application.push(modal);
+            conjuncts.push(modal);
         }
-        let mut term = application.into_datum();
-        if expected_mode != Some(node.mode) {
-            term = Datum::form(
-                "Mode",
-                [Datum::atom(predication_mode_name(node.mode)), term],
-            );
-        }
+        let term = if conjuncts.len() == 1 {
+            conjuncts.pop().expect("one predicate application")
+        } else {
+            Datum::form("Joi", conjuncts)
+        };
         self.recognized(term)
     }
 
-    /// Render numbered arguments. Modal maps label every retained filled place,
-    /// including x1; ordinary applications label only non-next places.
+    /// Render numbered arguments with canonical `:n` and `:Eventuality`
+    /// markers. `At` is reserved for computed place values.
     #[requires(true)]
     #[ensures(true)]
     fn render_argument_map(
@@ -1447,7 +1363,6 @@ impl Elaborator<'_> {
         arguments: &BTreeMap<PlaceIndex, ArgumentValue>,
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
-        modal: bool,
         eventuality: Option<SemanticObjectId>,
     ) -> Option<PredicateApplication> {
         let deleted = arguments
@@ -1488,12 +1403,10 @@ impl Elaborator<'_> {
                 continue;
             }
             let value = self.render_id(value, bound, active, None);
-            let operand = if modal || place.get() != next {
-                Datum::form("At", [Datum::unsigned(place.get() as u128), value])
-            } else {
-                value
-            };
-            application.push(operand);
+            if place.get() != next {
+                application.push(Datum::atom(format!(":{}", place.get())));
+            }
+            application.push(value);
             next = place.get() + 1;
         }
         if let Some(eventuality) = eventuality {
@@ -1503,13 +1416,8 @@ impl Elaborator<'_> {
                     generated_event_is_default(self.graph, self.plan, owner, eventuality)
                 });
             if !silent {
-                application.push(Datum::form(
-                    "At",
-                    [
-                        Datum::atom("Eventuality"),
-                        self.render_id(eventuality, bound, active, None),
-                    ],
-                ));
+                application.push(Datum::atom(":Eventuality"));
+                application.push(self.render_id(eventuality, bound, active, None));
             }
         }
         Some(application)
@@ -1583,20 +1491,11 @@ impl Elaborator<'_> {
                         &adjunct.arguments,
                         bound,
                         active,
-                        true,
                         None,
                     ) {
-                        return Some(Datum::form("Modal", [application.into_datum()]));
+                        return Some(application.into_datum());
                     }
                 }
-            } else if let Some(body) = adjunct.body {
-                return Some(Datum::form(
-                    "Modal",
-                    [Datum::form(
-                        "Body",
-                        [self.render_id(body, bound, active, None)],
-                    )],
-                ));
             }
         }
         None
@@ -1619,11 +1518,6 @@ impl Elaborator<'_> {
         if let Some(proximity) = exact_deictic(node, self.graph) {
             return self.recognized(Datum::atom(proximity));
         }
-        if let Some(abstraction) =
-            self.render_described_referent_abstraction(id, node, bound, active)
-        {
-            return self.recognized(abstraction);
-        }
         if let Some(description) = self.render_description(id, node, bound, active) {
             return self.recognized(description);
         }
@@ -1639,7 +1533,12 @@ impl Elaborator<'_> {
                     || composition.endpoint_inclusion.is_some()
                     || composition.operator_parameter.is_some()
                 {
-                    return self.fallback_object(id, bound, active, "composition-fields");
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::CompositionFields,
+                    );
                 }
                 let operator = composition_operator_name(composition.operator);
                 let arguments = composition
@@ -1673,98 +1572,20 @@ impl Elaborator<'_> {
                                 id,
                                 bound,
                                 active,
-                                "constant-without-dependence",
+                                CompactFallbackCause::ConstantWithoutDependence,
                             );
                         }
                     }
                 };
             return self.recognized(context);
         }
-        self.fallback_object(id, bound, active, "referent-fields")
+        self.fallback_object(id, bound, active, CompactFallbackCause::ReferentFields)
     }
 
-    /// Render the exact `lo` wrapper carried on a referent-valued abstraction.
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_described_referent_abstraction(
-        &self,
-        id: SemanticObjectId,
-        node: &ReferentNode,
-        bound: &BTreeSet<SemanticObjectId>,
-        active: &mut BTreeSet<SemanticObjectId>,
-    ) -> Option<Datum> {
-        let descriptor = node.descriptor.as_ref()?;
-        let kind = node.abstraction_kind?;
-        let body = node.body?;
-        if !referent_except_described_abstraction_is_default(node)
-            || !self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
-            || descriptor.kind != DescriptorKind::VeridicalDescription
-            || descriptor.word != "lo"
-            || !descriptor.speaker.is_some_and(|speaker| {
-                object_is_indexical(self.graph, speaker, IndexicalKind::Speaker)
-            })
-            || descriptor.body.is_some()
-            || !descriptor.relative_clauses.is_empty()
-            || descriptor.quantity.is_some()
-            || descriptor.name.is_some()
-            || descriptor.scale.is_some()
-            || descriptor.definiteness.is_some()
-            || descriptor.operand.is_some()
-            || descriptor.veridical.is_some()
-            || !node.parameters.iter().all(|parameter| {
-                exact_parameter(
-                    self.graph,
-                    *parameter,
-                    self.graph.objects[parameter]
-                        .sort()
-                        .unwrap_or(SemanticSort::Entity),
-                    ParameterRole::PropertySlot,
-                    "ce'u",
-                )
-            })
-        {
-            return None;
-        }
-        let mut scoped = bound.clone();
-        scoped.extend(node.parameters.iter().copied());
-        let body = self.render_id(
-            body,
-            &scoped,
-            active,
-            Some(if kind == AbstractionKind::Property {
-                PredicationMode::Restrictive
-            } else {
-                PredicationMode::Inert
-            }),
-        );
-        let content = if node.parameters.is_empty() {
-            body
-        } else {
-            Datum::form(
-                "λ",
-                [
-                    Datum::list(node.parameters.iter().map(|parameter| {
-                        Datum::list([
-                            variable_datum(*parameter),
-                            sort_datum(
-                                self.graph.objects[parameter]
-                                    .sort()
-                                    .unwrap_or(SemanticSort::Entity),
-                            ),
-                        ])
-                    })),
-                    body,
-                ],
-            )
-        };
-        Some(Datum::form(
-            "Lo",
-            [Datum::form(abstraction_name(kind), [content])],
-        ))
-    }
-
-    /// Invert only the two declared description encodings, preserving attached
-    /// relative clauses and their typed veridicality.
+    /// Lower one exact fixed description into a force-hosted `Refer`
+    /// computation. Unsupported description families remain typed fallback;
+    /// in particular this provisional slice does not pretend that `le` is
+    /// extensional or turn incidental relatives into conjuncts.
     #[requires(true)]
     #[ensures(true)]
     fn render_description(
@@ -1774,84 +1595,98 @@ impl Elaborator<'_> {
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Option<Datum> {
+        if node.sort != SemanticSort::Entity
+            || !self.projected_descriptions.contains(&id)
+            || self.reference_binding_frames.borrow().is_empty()
+        {
+            return None;
+        }
         let scope_default =
             self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound);
         let recognition = recognize_description(self.graph, self.plan, id, node, scope_default)?;
-        let (constructor, property) = match recognition.as_data() {
+        let mut scoped = bound.clone();
+        scoped.insert(id);
+        let variable = variable_datum(id);
+        let property = match recognition.as_data() {
             data!(DescriptionRecognition::Property {
                 constructor,
                 property,
-            }) => (*constructor, *property),
+            }) if *constructor == DescriptionConstructor::Lo => {
+                Datum::form(*property, [variable.clone()])
+            }
+            data!(DescriptionRecognition::Property { .. }) => return None,
             data!(DescriptionRecognition::Name { name }) => {
-                return Some(Datum::form(
-                    "La",
-                    [Datum::form("Named", [Datum::string(name)])],
-                ));
+                Datum::form("Named", [Datum::string(name), variable.clone()])
             }
         };
         let descriptor = node
             .descriptor
             .as_ref()
-            .expect("recognized property has a descriptor");
-        let constructor_name = match constructor {
-            DescriptionConstructor::Lo => "Lo",
-            DescriptionConstructor::Le => "Le",
-        };
+            .expect("recognized descriptions have a descriptor");
         let clauses = descriptor
             .relative_clauses
             .iter()
             .chain(node.relative_clauses.iter())
             .collect::<Vec<_>>();
-        if clauses.is_empty() && constructor == DescriptionConstructor::Lo {
-            return Some(Datum::form(constructor_name, [Datum::atom(property)]));
+        if clauses.iter().any(|clause| {
+            clause.kind != RelativeClauseKind::Restrictive || clause.veridical == Some(false)
+        }) {
+            return None;
         }
-
-        let mut scoped = bound.clone();
-        scoped.insert(id);
-        let binding = Datum::list([variable_datum(id), sort_datum(node.sort)]);
-        let base = Datum::form(property, [variable_datum(id)]);
-        let mut arguments = vec![Datum::list([binding]), base];
-        arguments.extend(
-            clauses
-                .into_iter()
-                .map(|clause| self.render_relative(clause, &scoped, active)),
-        );
-        Some(Datum::form(constructor_name, arguments))
-    }
-
-    /// Preserve a relative clause's attachment, kind, and veridicality.
-    #[requires(true)]
-    #[ensures(true)]
-    fn render_relative(
-        &self,
-        clause: &RelativeClause,
-        bound: &BTreeSet<SemanticObjectId>,
-        active: &mut BTreeSet<SemanticObjectId>,
-    ) -> Datum {
-        let mut arguments = match clause.kind {
-            RelativeClauseKind::Restrictive => vec![
-                Datum::atom("Restrictive"),
-                Datum::atom(if clause.veridical == Some(false) {
-                    "Nonveridical"
-                } else {
-                    "Veridical"
-                }),
-            ],
-            RelativeClauseKind::Incidental => vec![Datum::atom("Incidental")],
+        let frame_len = self
+            .reference_binding_frames
+            .borrow()
+            .last()
+            .expect("description requires an active force frame")
+            .len();
+        let mut conjuncts = vec![property];
+        conjuncts.extend(clauses.into_iter().map(|clause| {
+            self.render_id(
+                clause.body,
+                &scoped,
+                active,
+                Some(PredicationMode::Restrictive),
+            )
+        }));
+        let mut frames = self.reference_binding_frames.borrow_mut();
+        let frame = frames
+            .last_mut()
+            .expect("description requires an active force frame");
+        if frame.len() != frame_len {
+            // Dependency ordering belongs to the full dynamic planner. Do not
+            // emit a guessed nesting for a description property that itself
+            // performs another reference computation.
+            frame.truncate(frame_len);
+            return None;
         };
-        arguments.push(self.render_id(
-            clause.body,
-            bound,
-            active,
-            Some(match clause.kind {
-                RelativeClauseKind::Restrictive => PredicationMode::Restrictive,
-                RelativeClauseKind::Incidental => PredicationMode::Incidental,
-            }),
-        ));
-        Datum::form("Relative", arguments)
+        let body = if conjuncts.len() == 1 {
+            conjuncts.pop().expect("one description property")
+        } else {
+            Datum::form("∧", conjuncts)
+        };
+        let declared_type = referents_type_datum(node.sort);
+        let computation = Datum::form(
+            "Refer",
+            [Datum::form(
+                "λ",
+                [
+                    Datum::list([Datum::list([variable.clone(), declared_type.clone()])]),
+                    body,
+                ],
+            )],
+        );
+        frame.push(ReferenceBinding {
+            id,
+            declared_type,
+            computation,
+        });
+        Some(variable)
     }
 
-    /// Render referent-valued abstractions with explicit lambda parameters.
+    /// Render the two established pure abstraction crossings in this slice.
+    /// Event-valued abstractions are reference computations and are therefore
+    /// left to the force-hosted reference path rather than printed as `Nu`-like
+    /// constructors.
     #[requires(true)]
     #[ensures(true)]
     fn render_referent_abstraction(
@@ -1876,6 +1711,18 @@ impl Elaborator<'_> {
                     "ce'u",
                 )
             })
+            || node
+                .parameters
+                .iter()
+                .any(|parameter| self.graph.objects[parameter].sort() != Some(SemanticSort::Entity))
+        {
+            return None;
+        }
+        if !matches!(
+            kind,
+            AbstractionKind::Property | AbstractionKind::Proposition
+        ) || (kind == AbstractionKind::Property && node.parameters.is_empty())
+            || (kind == AbstractionKind::Proposition && !node.parameters.is_empty())
         {
             return None;
         }
@@ -1900,7 +1747,7 @@ impl Elaborator<'_> {
                     Datum::list(node.parameters.iter().map(|parameter| {
                         Datum::list([
                             variable_datum(*parameter),
-                            sort_datum(
+                            referents_type_datum(
                                 self.graph.objects[parameter]
                                     .sort()
                                     .unwrap_or(SemanticSort::Entity),
@@ -1911,7 +1758,11 @@ impl Elaborator<'_> {
                 ],
             )
         };
-        Some(Datum::form(abstraction_name(kind), [value]))
+        Some(if kind == AbstractionKind::Proposition {
+            Datum::form("Reify", [value])
+        } else {
+            value
+        })
     }
 
     /// Eventualities use the same abstraction family and fixed indexicals;
@@ -1932,128 +1783,15 @@ impl Elaborator<'_> {
             return if bound.contains(&id) {
                 variable_datum(id)
             } else {
-                self.fallback_object(id, bound, active, "unbound-generated-event")
+                self.fallback_object(
+                    id,
+                    bound,
+                    active,
+                    CompactFallbackCause::UnboundGeneratedEvent,
+                )
             };
         }
-        if let Some(value) = self.render_described_eventuality(id, node, bound, active) {
-            return self.recognized(value);
-        }
-        if let (Some(kind), Some(body)) = (node.abstraction_kind, node.body) {
-            if eventuality_except_abstraction_is_default(node)
-                && self.scope_dependence_is_default(id, node.denotation.scope_dependence(), bound)
-                && node.parameters.iter().all(|parameter| {
-                    exact_parameter(
-                        self.graph,
-                        *parameter,
-                        self.graph.objects[parameter]
-                            .sort()
-                            .unwrap_or(SemanticSort::Entity),
-                        ParameterRole::PropertySlot,
-                        "ce'u",
-                    )
-                })
-            {
-                let mut scoped = bound.clone();
-                scoped.extend(node.parameters.iter().copied());
-                let content = self.render_id(body, &scoped, active, Some(PredicationMode::Inert));
-                let content = if node.parameters.is_empty() {
-                    content
-                } else {
-                    Datum::form(
-                        "λ",
-                        [
-                            Datum::list(node.parameters.iter().map(|parameter| {
-                                Datum::list([
-                                    variable_datum(*parameter),
-                                    sort_datum(
-                                        self.graph.objects[parameter]
-                                            .sort()
-                                            .unwrap_or(SemanticSort::Entity),
-                                    ),
-                                ])
-                            })),
-                            content,
-                        ],
-                    )
-                };
-                return self.recognized(Datum::form(abstraction_name(kind), [content]));
-            }
-        }
-        self.fallback_object(id, bound, active, "eventuality-facets")
-    }
-
-    /// Exact current-model encoding of `lo` plus an eventuality abstraction.
-    /// A sole simple time anchor is retained as an intrinsic property of the
-    /// explicitly bound described event; every richer facet shape declines to
-    /// the complete local object fallback.
-    #[requires(self.graph.objects.contains_key(&id))]
-    #[ensures(true)]
-    fn render_described_eventuality(
-        &self,
-        id: SemanticObjectId,
-        node: &EventualityNode,
-        bound: &BTreeSet<SemanticObjectId>,
-        active: &mut BTreeSet<SemanticObjectId>,
-    ) -> Option<Datum> {
-        let descriptor = node.descriptor.as_ref()?;
-        let kind = node.abstraction_kind?;
-        let content_id = node.content?;
-        if !described_eventuality_base_is_exact(node, descriptor, kind)
-            || !self.scope_dependence_is_default(id, node.denotation.scope_dependence(), bound)
-            || !descriptor.speaker.is_some_and(|speaker| {
-                object_is_indexical(self.graph, speaker, IndexicalKind::Speaker)
-            })
-        {
-            return None;
-        }
-
-        let time = if node.time.is_some() {
-            Some(exact_described_event_time_facet(node)?)
-        } else {
-            None
-        };
-        let explicit = time.is_some();
-        let mut scoped = bound.clone();
-        if explicit {
-            scoped.insert(id);
-        }
-        assert!(
-            self.absorbed_eventualities.borrow_mut().insert(id),
-            "described-event absorption is not recursively re-entered"
-        );
-        let content = self.render_id(content_id, &scoped, active, Some(PredicationMode::Inert));
-        self.absorbed_eventualities.borrow_mut().remove(&id);
-
-        if let Some(time) = time {
-            let intrinsic = match time.relation.as_str() {
-                "before" => "Before",
-                "after" => "After",
-                "at" => "AtTime",
-                _ => return None,
-            };
-            let binder = Datum::list([
-                variable_datum(id),
-                sort_datum(SemanticSort::Eventuality(node.sort)),
-            ]);
-            return Some(Datum::form(
-                "Lo",
-                [
-                    Datum::list([binder]),
-                    Datum::form(abstraction_name(kind), [variable_datum(id), content]),
-                    Datum::form(
-                        intrinsic,
-                        [
-                            variable_datum(id),
-                            self.render_id(time.anchor, &scoped, active, None),
-                        ],
-                    ),
-                ],
-            ));
-        }
-        Some(Datum::form(
-            "Lo",
-            [Datum::form(abstraction_name(kind), [content])],
-        ))
+        self.fallback_object(id, bound, active, CompactFallbackCause::EventualityFacets)
     }
 
     /// Render complete typed questions; use `Ask λ` only under its exact default.
@@ -2067,7 +1805,12 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
         if !question_slots_are_exact(self.graph, node) {
-            return self.fallback_object(id, bound, active, "question-slot-fields");
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::QuestionSlotFields,
+            );
         }
         let parameters = node
             .slots
@@ -2077,18 +1820,6 @@ impl Elaborator<'_> {
         let mut scoped = bound.clone();
         scoped.extend(parameters.iter().copied());
         let body = self.render_id(node.body, &scoped, active, Some(PredicationMode::Asserted));
-        let lambda = Datum::form(
-            "λ",
-            [
-                Datum::list(parameters.iter().map(|parameter| {
-                    Datum::list([
-                        variable_datum(*parameter),
-                        sort_datum(self.graph.objects[parameter].sort().unwrap_or(node.domain)),
-                    ])
-                })),
-                body,
-            ],
-        );
         let ordinary_slots = node.slots.iter().all(|slot| {
             matches!(
                 slot.as_data(),
@@ -2105,32 +1836,31 @@ impl Elaborator<'_> {
             && node.focus.is_none()
             && node.presupposed_answer.is_none()
         {
-            return self.recognized(Datum::form("Ask", [lambda]));
+            if node.kind == QuestionKind::Truth && parameters.is_empty() {
+                return self.recognized(Datum::form("Ask", [Datum::form("Polar", [body])]));
+            }
+            if node.kind == QuestionKind::Argument
+                && !parameters.is_empty()
+                && parameters.iter().all(|parameter| {
+                    self.graph.objects[parameter].sort() == Some(SemanticSort::Entity)
+                })
+            {
+                let lambda = Datum::form(
+                    "λ",
+                    [
+                        Datum::list(parameters.iter().map(|parameter| {
+                            Datum::list([
+                                variable_datum(*parameter),
+                                referents_type_datum(SemanticSort::Entity),
+                            ])
+                        })),
+                        body,
+                    ],
+                );
+                return self.recognized(Datum::form("Ask", [Datum::form("OpenQ", [lambda])]));
+            }
         }
-        let mut arguments = vec![
-            Datum::atom(question_kind_name(node.kind)),
-            Datum::atom(question_mode_name(node.mode)),
-            Datum::form("Asker", [self.render_id(node.asker, bound, active, None)]),
-            Datum::form(
-                "Respondent",
-                [self.render_id(node.respondent, bound, active, None)],
-            ),
-            Datum::form("Domain", [sort_datum(node.domain)]),
-            Datum::form("Body", [lambda]),
-        ];
-        if let Some(focus) = node.focus {
-            arguments.push(Datum::form(
-                "Focus",
-                [self.render_id(focus, &scoped, active, None)],
-            ));
-        }
-        if let Some(answer) = node.presupposed_answer {
-            arguments.push(Datum::form(
-                "PresupposedAnswer",
-                [self.render_id(answer, &scoped, active, None)],
-            ));
-        }
-        self.recognized(Datum::form("Question", arguments))
+        self.fallback_object(id, bound, active, CompactFallbackCause::QuestionSlotFields)
     }
 
     /// Preserve quantity form, value, scale, comparison set, and question
@@ -2158,39 +1888,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let mut fields = vec![
-            Datum::form("Form", [Datum::atom(quantity_form_name(node.form))]),
-            Datum::form("Scale", [Datum::atom(quantity_scale_name(node.scale))]),
-        ];
-        if let Some(integer) = node.value.integer {
-            fields.insert(
-                1,
-                Datum::form("Value", [Datum::signed(i128::from(integer))]),
-            );
-        } else if let Some(text) = &node.value.text {
-            fields.insert(1, Datum::form("ValueText", [Datum::string(text)]));
-        } else if let Some(expression) = node.value.math_expression {
-            fields.insert(
-                1,
-                Datum::form("Value", [self.render_id(expression, bound, active, None)]),
-            );
-        }
-        if !node.value.question_parameters.is_empty() {
-            fields.push(Datum::form(
-                "QuestionParameters",
-                node.value
-                    .question_parameters
-                    .iter()
-                    .map(|parameter| self.render_id(*parameter, bound, active, None)),
-            ));
-        }
-        if let Some(comparison) = node.comparison_set {
-            fields.push(Datum::form(
-                "ComparisonSet",
-                [self.render_id(comparison, bound, active, None)],
-            ));
-        }
-        self.recognized(Datum::form("Quantity", fields))
+        self.fallback_object(id, bound, active, CompactFallbackCause::QuantityFields)
     }
 
     /// Render fixed math operators through the declared Unicode table; named
@@ -2205,26 +1903,24 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
         if node.scalar_negation.is_some() || node.subscript.is_some() {
-            return self.fallback_object(id, bound, active, "math-side-fields");
+            return self.fallback_object(id, bound, active, CompactFallbackCause::MathSideFields);
         }
         match node.kind.as_data() {
             data!(MathExpressionNodeKind::Literal { literal, denotes }) => {
                 if denotes.is_some() {
-                    return self.fallback_object(id, bound, active, "math-literal-denotes");
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::MathLiteralDenotes,
+                    );
                 }
                 if let data!(crate::model::MathLiteralValue::Integer(value)) =
                     literal.value.as_data()
                 {
                     return self.recognized(Datum::signed(i128::from(*value)));
                 }
-                self.recognized(Datum::form(
-                    "Math",
-                    [typed_value_datum(
-                        literal,
-                        ProvenanceDisposition::Suppress,
-                        &self.variable_map(bound),
-                    )],
-                ))
+                self.fallback_object(id, bound, active, CompactFallbackCause::MathOperatorFields)
             }
             data!(MathExpressionNodeKind::Operator {
                 operator,
@@ -2233,23 +1929,33 @@ impl Elaborator<'_> {
                 endpoint_inclusion,
             }) => {
                 if operator_denotes.is_some() || endpoint_inclusion.is_some() {
-                    return self.fallback_object(id, bound, active, "math-operator-fields");
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::MathOperatorFields,
+                    );
+                }
+                if operands.len() != 2 {
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::MathOperatorFields,
+                    );
                 }
                 let head = match operator.as_data() {
                     data!(MathOperator::Add) => Datum::atom("+"),
                     data!(MathOperator::Multiply) => Datum::atom("×"),
                     data!(MathOperator::Subtract) => Datum::atom("−"),
                     data!(MathOperator::Divide) => Datum::atom("÷"),
-                    data!(MathOperator::Power) => Datum::atom("Power"),
-                    data!(MathOperator::Base) => Datum::atom("Base"),
-                    data!(MathOperator::BoGroup) => Datum::atom("BoGroup"),
-                    data!(MathOperator::OperandGroup) => Datum::atom("OperandGroup"),
-                    data!(MathOperator::Array) => Datum::atom("Array"),
-                    data!(MathOperator::UnorderedInterval) => Datum::atom("UnorderedInterval"),
-                    data!(MathOperator::OrderedInterval) => Datum::atom("OrderedInterval"),
-                    data!(MathOperator::CenteredInterval) => Datum::atom("CenteredInterval"),
-                    data!(MathOperator::Named(name)) => {
-                        Datum::form("NamedMathOperator", [Datum::string(name)])
+                    _ => {
+                        return self.fallback_object(
+                            id,
+                            bound,
+                            active,
+                            CompactFallbackCause::MathOperatorFields,
+                        );
                     }
                 };
                 let mut application = vec![head];
@@ -2258,20 +1964,14 @@ impl Elaborator<'_> {
                         .iter()
                         .map(|operand| self.render_id(*operand, bound, active, None)),
                 );
-                self.recognized(Datum::form("Math", [Datum::List(application)]))
+                self.recognized(Datum::List(application))
             }
             data!(MathExpressionNodeKind::QuestionedOperator {
                 operator_parameter,
                 operands,
             }) => {
-                let mut application =
-                    vec![self.render_id(*operator_parameter, bound, active, None)];
-                application.extend(
-                    operands
-                        .iter()
-                        .map(|operand| self.render_id(*operand, bound, active, None)),
-                );
-                self.recognized(Datum::form("Math", [Datum::List(application)]))
+                let _ = (operator_parameter, operands);
+                self.fallback_object(id, bound, active, CompactFallbackCause::MathOperatorFields)
             }
         }
     }
@@ -2282,49 +1982,11 @@ impl Elaborator<'_> {
     fn render_sign(
         &self,
         id: SemanticObjectId,
-        node: &SignNode,
+        _node: &SignNode,
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
-        if node.category == ReferentCategory::Constant
-            && self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
-            && node.sign_kind == Some(SignKind::Quotation)
-            && node.text.is_none()
-            && node.letterals.is_empty()
-            && node.denotes.is_none()
-            && node.descriptor.is_none()
-            && node.relative_clauses.is_empty()
-            && node.target.is_none()
-            && node.subscript.is_none()
-        {
-            let quotation = node
-                .quotation
-                .as_ref()
-                .expect("SignNode invariant pairs quotation kind and value");
-            let mut quotation_fields = vec![Datum::form("Mode", [Datum::string(&quotation.mode)])];
-            if let Some(utterance_id) = quotation.utterance {
-                let utterance = self.render_id(utterance_id, bound, active, None);
-                quotation_fields.push(if self.definitions.contains(&utterance_id) {
-                    Datum::form("Utterance", [utterance])
-                } else {
-                    utterance
-                });
-            }
-            if let Some(delimiter) = &quotation.delimiter {
-                quotation_fields.push(Datum::form("Delimiter", [Datum::string(delimiter)]));
-            }
-            if let Some(text) = &quotation.text {
-                quotation_fields.push(Datum::form("Text", [Datum::string(text)]));
-            }
-            return self.recognized(Datum::form(
-                "Sign",
-                [
-                    Datum::form("Kind", [Datum::atom("Quotation")]),
-                    Datum::form("Quotation", quotation_fields),
-                ],
-            ));
-        }
-        self.fallback_object(id, bound, active, "sign-fields")
+        self.fallback_object(id, bound, active, CompactFallbackCause::SignFields)
     }
 }
 
@@ -2338,26 +2000,6 @@ fn datum_contains_atom(datum: &Datum, needle: &str) -> bool {
         || datum
             .as_list()
             .is_some_and(|items| items.iter().any(|item| datum_contains_atom(item, needle)))
-}
-
-/// One diagnostic record in the canonical warning grammar.
-#[requires(!diagnostic.message.is_empty())]
-#[ensures(true)]
-fn warning_datum(diagnostic: &SemanticDiagnostic) -> Datum {
-    Datum::form(
-        "Warning",
-        [
-            Datum::form(
-                "Severity",
-                [Datum::atom(match diagnostic.severity {
-                    DiagnosticSeverity::Info => "Info",
-                    DiagnosticSeverity::Warning => "Warning",
-                    DiagnosticSeverity::Error => "Error",
-                })],
-            ),
-            Datum::form("Message", [Datum::string(&diagnostic.message)]),
-        ],
-    )
 }
 
 /// Stable lexical variable datum for a typed graph identity.
@@ -2410,6 +2052,13 @@ fn sort_datum(sort: SemanticSort) -> Datum {
         SemanticSort::ArgumentBundle => "ArgumentBundle",
         SemanticSort::AbstractNature => "AbstractNature",
     })
+}
+
+/// Number-neutral reference type for one represented semantic sort.
+#[requires(true)]
+#[ensures(ret.form_head() == Some("Referents"))]
+fn referents_type_datum(sort: SemanticSort) -> Datum {
+    Datum::form("Referents", [sort_datum(sort)])
 }
 
 /// Notation-level type of a shared graph value. Formulae and open predicate
@@ -2666,39 +2315,6 @@ fn collect_speaker_description_support(
     out.extend(relation_node.parameters.iter().copied());
     if let (Some(body), Some(parameter)) = (relation_node.body, relation_node.parameters.first()) {
         collect_property_support(graph, body, *parameter, out);
-    }
-}
-
-/// Exact typed relation child for a full discourse sequence.
-#[requires(true)]
-#[ensures(true)]
-fn sequence_relation_datum(relation: &SequenceRelation) -> Datum {
-    match relation {
-        SequenceRelation::SameTopicContinuation => Datum::atom("SameTopicContinuation"),
-        SequenceRelation::ParagraphBoundary {
-            transition,
-            additional,
-        } => {
-            let transition_name = |transition: ParagraphTransition| match transition {
-                ParagraphTransition::NewTopic => "NewTopic",
-                ParagraphTransition::ResumePriorTopic => "ResumePriorTopic",
-            };
-            let mut fields = vec![Datum::form(
-                "Transition",
-                [Datum::atom(transition_name(*transition))],
-            )];
-            if !additional.is_empty() {
-                fields.push(Datum::form(
-                    "Additional",
-                    additional
-                        .iter()
-                        .copied()
-                        .map(transition_name)
-                        .map(Datum::atom),
-                ));
-            }
-            Datum::form("ParagraphBoundary", fields)
-        }
     }
 }
 
@@ -3747,25 +3363,6 @@ fn exact_universal_quantity(
         && graph.objects[&quantity].diagnostics().is_empty()
 }
 
-/// Preserve the graph-computed domain-import commitment inside the typed
-/// restriction position. The import is computed model state even though it is
-/// not stored directly on `QuantifiedFormulaNode`.
-#[requires(true)]
-#[ensures(matches!(ret, Datum::List(_)))]
-fn quantified_restriction_datum(
-    restriction: Datum,
-    domain_import: Option<crate::model::DomainImport>,
-) -> Datum {
-    Datum::form(
-        "Restrict",
-        std::iter::once(restriction).chain(domain_import.map(|import| match import {
-            crate::model::DomainImport::Projective => {
-                Datum::form("Import", [Datum::atom("Projective")])
-            }
-        })),
-    )
-}
-
 /// Exact logical connective projection. Connector surface and locus are typed
 /// provenance; a stored truth table must agree with the graph operator or
 /// license the declared `∨(¬P,Q)` implication normalization.
@@ -3856,31 +3453,6 @@ fn canonical_connective_truth_table(operator: FormulaOperator) -> Option<&'stati
     }
 }
 
-/// Typed operator position inside a simultaneous `Quantify` binding.
-#[requires(true)]
-#[ensures(true)]
-fn quantifier_operator_datum(
-    graph: &SemanticGraph,
-    operator: FormulaOperator,
-    quantity: Option<SemanticObjectId>,
-    bound: &BTreeSet<SemanticObjectId>,
-    active: &mut BTreeSet<SemanticObjectId>,
-    elaborator: &Elaborator<'_>,
-) -> Datum {
-    if exact_universal_quantity(graph, operator, quantity) {
-        return Datum::atom("Forall");
-    }
-    let mut arguments = vec![Datum::atom(formula_operator_name(operator))];
-    if let Some(quantity) = quantity {
-        arguments.push(elaborator.render_id(quantity, bound, active, None));
-    }
-    if arguments.len() == 1 {
-        arguments.pop().expect("one operator atom")
-    } else {
-        Datum::form("Operator", arguments)
-    }
-}
-
 /// Fixed composition constructor table.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
@@ -3901,27 +3473,6 @@ fn composition_operator_name(operator: CompositionOperator) -> &'static str {
     }
 }
 
-/// Fixed abstraction constructor table.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn abstraction_name(kind: AbstractionKind) -> &'static str {
-    match kind {
-        AbstractionKind::Event => "Nu",
-        AbstractionKind::Achievement => "Mu'e",
-        AbstractionKind::Process => "Pu'u",
-        AbstractionKind::Activity => "Zu'o",
-        AbstractionKind::State => "Za'i",
-        AbstractionKind::Property => "Ka",
-        AbstractionKind::Amount => "Ni",
-        AbstractionKind::TruthValue => "Jei",
-        AbstractionKind::Proposition => "Du'u",
-        AbstractionKind::SentenceSign => "Li'i",
-        AbstractionKind::Concept => "Si'o",
-        AbstractionKind::Experience => "Li'iExperience",
-        AbstractionKind::Unspecified => "Abstraction",
-    }
-}
-
 /// Fixed indexical atom table.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
@@ -3931,48 +3482,6 @@ fn indexical_name(indexical: IndexicalKind) -> &'static str {
         IndexicalKind::Audience => "Audience",
         IndexicalKind::Now => "Now",
         IndexicalKind::Here => "Here",
-    }
-}
-
-/// Fixed predication mode table.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn predication_mode_name(mode: PredicationMode) -> &'static str {
-    match mode {
-        PredicationMode::Asserted => "Asserted",
-        PredicationMode::Definitional => "Definitional",
-        PredicationMode::Restrictive => "Restrictive",
-        PredicationMode::Incidental => "Incidental",
-        PredicationMode::Displayed => "Displayed",
-        PredicationMode::Inert => "Inert",
-        PredicationMode::Performative => "Performative",
-    }
-}
-
-/// Fixed formula operator table for typed non-glyph positions.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn formula_operator_name(operator: FormulaOperator) -> &'static str {
-    match operator {
-        FormulaOperator::Atom => "Atom",
-        FormulaOperator::Affirmed => "Affirmed",
-        FormulaOperator::Not => "Not",
-        FormulaOperator::Scoped => "Scoped",
-        FormulaOperator::And => "And",
-        FormulaOperator::Or => "Or",
-        FormulaOperator::Implies => "Implies",
-        FormulaOperator::Iff => "Iff",
-        FormulaOperator::ExclusiveOr => "ExclusiveOr",
-        FormulaOperator::WhetherOrNot => "WhetherOrNot",
-        FormulaOperator::ConnectiveQuestion => "ConnectiveQuestion",
-        FormulaOperator::Exists => "Exists",
-        FormulaOperator::Forall => "Forall",
-        FormulaOperator::None => "None",
-        FormulaOperator::Cardinality => "Cardinality",
-        FormulaOperator::PluralExists => "PluralExists",
-        FormulaOperator::PluralForall => "PluralForall",
-        FormulaOperator::QuantifierBundle => "QuantifierBundle",
-        FormulaOperator::RespectivelyDistribution => "RespectivelyDistribution",
     }
 }
 
@@ -3990,66 +3499,5 @@ fn numeric_quantity_form(form: QuantityForm) -> Option<&'static str> {
         QuantityForm::TooMany => Some("TooMany"),
         QuantityForm::TooFew => Some("TooFew"),
         QuantityForm::Exact | QuantityForm::All | QuantityForm::Indefinite => None,
-    }
-}
-
-/// Full quantity form table.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn quantity_form_name(form: QuantityForm) -> &'static str {
-    match form {
-        QuantityForm::Exact => "Exact",
-        QuantityForm::All => "All",
-        QuantityForm::AtLeast => "AtLeast",
-        QuantityForm::AtMost => "AtMost",
-        QuantityForm::MoreThan => "MoreThan",
-        QuantityForm::LessThan => "LessThan",
-        QuantityForm::Approximate => "Approximate",
-        QuantityForm::Indefinite => "Indefinite",
-        QuantityForm::Enough => "Enough",
-        QuantityForm::TooMany => "TooMany",
-        QuantityForm::TooFew => "TooFew",
-    }
-}
-
-/// Full quantity scale table.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn quantity_scale_name(scale: QuantityScale) -> &'static str {
-    match scale {
-        QuantityScale::Count => "Count",
-        QuantityScale::Fraction => "Fraction",
-        QuantityScale::Ordinal => "Ordinal",
-        QuantityScale::Amount => "Amount",
-        QuantityScale::Extent => "Extent",
-        QuantityScale::Frequency => "Frequency",
-    }
-}
-
-/// Question kind table.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn question_kind_name(kind: QuestionKind) -> &'static str {
-    match kind {
-        QuestionKind::Truth => "Truth",
-        QuestionKind::Argument => "Argument",
-        QuestionKind::Relation => "Relation",
-        QuestionKind::Place => "Place",
-        QuestionKind::Connective => "Connective",
-        QuestionKind::Tense => "Tense",
-        QuestionKind::MathOperator => "MathOperator",
-        QuestionKind::Attitude => "Attitude",
-        QuestionKind::Quantity => "Quantity",
-        QuestionKind::Multiple => "Multiple",
-    }
-}
-
-/// Question mode table.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn question_mode_name(mode: QuestionMode) -> &'static str {
-    match mode {
-        QuestionMode::Direct => "Direct",
-        QuestionMode::Indirect => "Indirect",
     }
 }

@@ -880,12 +880,40 @@ fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
         false,
     );
     assert_eq!(run.status, CliStatus::Success);
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("smusni CLI output satisfies the current typed grammar");
     let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
-        .expect("smusni CLI output is one parseable document");
+        .expect("smusni CLI output is one datum");
     assert_eq!(document.form_head(), Some("Smusni"));
     assert_eq!(document.count_forms("Smusni"), 1);
     assert!(run.stdout.ends_with('\n'));
     assert!(!run.stdout.ends_with("\n\n"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_smusni_fallback_diagnostics_use_stderr_only() {
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--format",
+            "smusni",
+            "mi cusku lu mi prami do li'u",
+        ],
+        false,
+    );
+    assert_eq!(run.status, CliStatus::Success);
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("fallback stdout remains a typed Smusni document");
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("fallback stdout is one datum");
+    assert_eq!(document.count_forms("TypedGraph"), 1);
+    for forbidden in ["WithWarnings", "Warnings", "Warning"] {
+        assert_eq!(document.count_forms(forbidden), 0);
+    }
+    assert!(!run.stderr.is_empty(), "fallback has a standard diagnostic");
 }
 
 #[test]
@@ -1051,20 +1079,30 @@ fn tersmu_show_defs_rejects_json_cli_output() {
 #[requires(true)]
 #[ensures(true)]
 fn tersmu_show_defs_embeds_word_cards_in_the_smusni_document() {
-    let output = run_success_stdout(&[
-        "jbotci",
-        "tersmu",
-        "--show-defs",
-        "--format",
-        "smusni",
-        "--color=never",
-        ".banan.",
-        "cu",
-        "klama",
-    ]);
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--show-defs",
+            "--format",
+            "smusni",
+            "--color=never",
+            ".banan.",
+            "cu",
+            "klama",
+        ],
+        false,
+    );
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(
+        !run.stderr.is_empty(),
+        "the unsupported sign identity is reported separately"
+    );
 
-    let document = jbotci_semantics::notation::sexpr::parse_document(&output)
-        .expect("show-defs output is one smusni document");
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("show-defs output satisfies the current typed grammar");
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("show-defs output is one smusni datum");
     assert_eq!(document.form_head(), Some("Smusni"));
     assert_eq!(document.count_forms("Smusni"), 1);
     assert_eq!(document.count_forms("Words"), 1);
@@ -1078,8 +1116,10 @@ fn tersmu_outputs_smusni_by_default() {
     let run = run_cli_capture(&["jbotci", "tersmu", "mi", "klama"], false);
     assert_eq!(run.status, CliStatus::Success);
     assert!(run.stderr.is_empty());
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("default smusni satisfies the current typed grammar");
     let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
-        .expect("default smusni is one parseable document");
+        .expect("default smusni is one datum");
     assert_eq!(document.form_head(), Some("Smusni"));
     assert_eq!(document.count_forms("Smusni"), 1);
     assert!(!run.stdout.starts_with("<SFN "));

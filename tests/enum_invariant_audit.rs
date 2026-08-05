@@ -1060,16 +1060,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "static checker tuple elements are recursively validated StaticType values",
     ),
     (
-        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::DirectLowering",
-        "unit disposition selecting direct semantic lowering; no payload to constrain",
+        "crates/jbotci-semantics/src/notation/registry.rs:RegisteredDisposition::TypedFallback",
+        "FallbackBoundary already validates the exact disposition/reason/type/owner join",
     ),
     (
-        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::ProvenDesugaring",
-        "unit disposition selecting a semantics-preserving desugaring; no payload to constrain",
-    ),
-    (
-        "crates/jbotci-semantics/src/completeness/model.rs:Disposition::DiagnosticCollection",
-        "unit disposition routing diagnostics out of the notation document; no payload to constrain",
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallbackCause::UnrecognizedObjectFamily",
+        "every closed SemanticObjectKind is valid evidence for this private conservative fallback cause",
     ),
     (
         "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalEdgeAttempt::Constructed",
@@ -1174,6 +1170,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Ref",
         "ObjectId proves positivity; cross-tree reference order is enforced by RawTree",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Record",
+        "RawRecord carries independently validated NFC names, fields, and recursively valid raw values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Variant",
+        "RawVariant carries independently validated NFC enum identity, constructor, fields, and raw values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Map",
+        "every sequence of validated RawMapEntry values is a valid RawMap payload",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Scalar",
+        "both the model scalar type and its exact lexical value are independently NFC-normalized",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::String",

@@ -9,7 +9,9 @@ pub mod syntax;
 pub mod type_system;
 
 pub use datum::{Datum, ParseError, parse_document};
-pub use renderer::{DocumentMode, SmusniRender, SmusniRenderStats, render_document};
+pub use renderer::{
+    DocumentMode, SmusniDiagnostic, SmusniRender, SmusniRenderStats, render_document,
+};
 pub use structural::word_card_datum;
 pub use syntax::{
     V0Document, V0Expr, V0ParseError, parse_v0_document, parse_v0_expression, parse_v0_expressions,

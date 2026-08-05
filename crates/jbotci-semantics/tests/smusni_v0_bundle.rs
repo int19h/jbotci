@@ -1,4 +1,4 @@
-//! Structural and reproducibility tests for the immutable smusni-v0 bundle.
+//! Structural and reproducibility tests for the current smusni-v0 candidate bundle.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -16,6 +16,8 @@ mod smusni_v0_completeness;
 mod smusni_v0_dispositions;
 #[path = "../codegen/smusni_v0_kernel.rs"]
 mod smusni_v0_kernel;
+#[path = "../codegen/smusni_v0_surface.rs"]
+mod smusni_v0_surface;
 
 use smusni_v0_bundle::{BundleErrorKind, BundleMode, BundlePaths, BundleSnapshot, DispositionSeed};
 use smusni_v0_kernel::datum::{Datum, parse_document};
@@ -75,7 +77,7 @@ fn jsonl_rows(path: &str) -> Vec<serde_json::Value> {
 }
 
 #[requires(true)]
-#[ensures(ret.artifacts.len() == 12)]
+#[ensures(ret.artifacts.len() == 13)]
 fn snapshot() -> BundleSnapshot {
     smusni_v0_bundle::mint_snapshot(
         &manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT),
@@ -176,11 +178,11 @@ fn pinned_sources_and_final_witness_registry_are_exact() {
     assert!(!REGISTRY_SOURCE.contains("canonical_definition"));
     assert_eq!(
         format!("{:x}", Sha256::digest(SPEC)),
-        "2c0b83f8c5b5b2477a74590d126edb7e8459a824bc2a0524095e014d333b80d0"
+        "c2c0616b0b0d8991251f5145be4985a8191a68704cff3ae10f6f85caa34dbdc1"
     );
     assert_eq!(
         format!("{:x}", Sha256::digest(SAMPLES)),
-        "0816f00f29291764f26164995cbd0aa3252a1afe4e2b07d1a95b89570fb6a792"
+        "ee4cfe6c00009f2ca0387efd0dfa6551b4e6db61e6ff9bebf891f0c0346aa50b"
     );
 }
 
@@ -276,7 +278,7 @@ fn generated_table_counts_and_final_policy_keys_are_closed() {
     assert_eq!(manifest["bundle-schema-version"], 1);
     assert_eq!(
         manifest["generated-artifacts"].as_array().unwrap().len(),
-        12
+        13
     );
     let lexical = jsonl_rows("registry/lexical.jsonl");
     assert_eq!(lexical.len(), 44);
@@ -289,9 +291,9 @@ fn generated_table_counts_and_final_policy_keys_are_closed() {
                 })
     }));
     assert_eq!(jsonl_rows("registry/source-artifacts.jsonl").len(), 6);
-    assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 703);
+    assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 882);
     let fallback_reasons = jsonl_rows("registry/fallback-reasons.jsonl");
-    assert_eq!(fallback_reasons.len(), 556);
+    assert_eq!(fallback_reasons.len(), 60);
     assert_eq!(
         fallback_reasons
             .iter()
@@ -300,7 +302,7 @@ fn generated_table_counts_and_final_policy_keys_are_closed() {
                     && row["minimum-raw-owner-type"] == "SemanticGraph"
             })
             .count(),
-        554,
+        55,
     );
     assert!(fallback_reasons.iter().any(|row| {
         row["reason-id"] == "smusni.fallback.lexical-policy.entity"
@@ -546,9 +548,14 @@ fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
         &mut fallback_boundary,
         "registry/fallback-reasons.jsonl",
         |row| {
+            let replacement = if row["expected-type-schema"] == "Performable" {
+                "Content"
+            } else {
+                "Performable"
+            };
             row.insert(
                 "expected-type-schema".to_owned(),
-                serde_json::json!("Performable"),
+                serde_json::json!(replacement),
             );
         },
     );

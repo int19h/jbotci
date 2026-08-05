@@ -237,7 +237,12 @@ fn render_tersmu(
             },
         )?,
         TersmuFormat::Smusni => {
-            let mut rendered = jbotci_semantics::render_smusni_with_word_cards(&graph, &word_cards);
+            let rendered = jbotci_semantics::render_smusni_detailed(&graph, &word_cards);
+            for diagnostic in &rendered.diagnostics {
+                stderr.push_str(&diagnostic.to_string());
+                stderr.push('\n');
+            }
+            let mut rendered = rendered.into_data().text;
             if rendered.ends_with('\n') {
                 rendered.pop();
             }
