@@ -628,6 +628,32 @@ fn speaker_description_is_one_nonveridical_reference_computation() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn description_property_retains_filled_conventional_places() {
+    let input = build_input("lo penbi be mi cu barda", "description-filled-place");
+    let datum = validate_render(&input.graph, &render_smusni(&input.graph));
+
+    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
+    assert_eq!(count_forms(&datum, "Bind"), 1);
+    assert_eq!(count_forms(&datum, "Refer"), 1);
+    let mut properties = Vec::new();
+    collect_forms(&datum, "penbi", &mut properties);
+    assert_eq!(properties.len(), 1);
+    assert_eq!(
+        numbered_application_places(properties[0]),
+        BTreeSet::from([1, 2])
+    );
+
+    let nested = build_input(
+        "lo penbi be lo cukta cu barda",
+        "description-nested-reference",
+    );
+    let nested = validate_render(&nested.graph, &render_smusni(&nested.graph));
+    assert_eq!(count_forms(&nested, "TypedGraph"), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn modal_place_labels_match_the_actual_graph_maps() {
     for (name, text) in [
         ("converted-modal", "mi klama sepi'o lo karce"),

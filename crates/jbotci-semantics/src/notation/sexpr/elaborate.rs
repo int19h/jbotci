@@ -155,7 +155,7 @@ impl CompactFallbackCause {
 /// Complete result of exact descriptor recognition. Planning and rendering
 /// consume this same value so support is never projected before the renderer
 /// has proved the corresponding compact constructor.
-#[invariant(::Property { constructor, property, parameter } => !property.is_empty() && match constructor {
+#[invariant(::Property { constructor, property, parameter, .. } => !property.is_empty() && match constructor {
     DescriptionConstructor::Lo => parameter.is_none(),
     DescriptionConstructor::Le => parameter.as_ref().is_some_and(|id| id.object_kind() == SemanticObjectKind::Parameter),
 })]
@@ -165,6 +165,7 @@ enum DescriptionRecognition<'a> {
     Property {
         constructor: DescriptionConstructor,
         property: &'a str,
+        arguments: &'a BTreeMap<PlaceIndex, ArgumentValue>,
         parameter: Option<SemanticObjectId>,
     },
     Name {
@@ -1616,16 +1617,31 @@ impl Elaborator<'_> {
             data!(DescriptionRecognition::Property {
                 constructor,
                 property,
+                arguments,
                 parameter: None,
-            }) if *constructor == DescriptionConstructor::Lo => {
-                Datum::form(*property, [variable.clone()])
-            }
+            }) if *constructor == DescriptionConstructor::Lo => self
+                .render_argument_map(Datum::atom(*property), arguments, &scoped, active, None)
+                .expect("recognized description property has printable arguments")
+                .into_datum(),
             data!(DescriptionRecognition::Property {
                 constructor,
                 property,
+                arguments,
                 parameter: Some(parameter),
             }) if *constructor == DescriptionConstructor::Le => {
                 let property_candidate = variable_datum(*parameter);
+                let mut property_scope = scoped.clone();
+                property_scope.insert(*parameter);
+                let property_body = self
+                    .render_argument_map(
+                        Datum::atom(*property),
+                        arguments,
+                        &property_scope,
+                        active,
+                        None,
+                    )
+                    .expect("recognized speaker description has printable property arguments")
+                    .into_datum();
                 Datum::form(
                     "skicu",
                     [
@@ -1639,7 +1655,7 @@ impl Elaborator<'_> {
                                     property_candidate.clone(),
                                     referents_type_datum(node.sort),
                                 ])]),
-                                Datum::form(*property, [property_candidate]),
+                                property_body,
                             ],
                         ),
                     ],
@@ -2158,6 +2174,7 @@ pub(super) fn projected_description_objects(
         let data!(DescriptionRecognition::Property {
             constructor,
             property: _,
+            arguments: _,
             parameter: _,
         }) = recognition.as_data()
         else {
@@ -2986,22 +3003,29 @@ fn recognize_description<'a>(
     }
 
     let body = descriptor.body?;
-    let (constructor, property, parameter) = match (descriptor.kind, descriptor.word.as_str()) {
-        (DescriptorKind::VeridicalDescription, "lo") => (
-            DescriptionConstructor::Lo,
-            recognize_direct_description_property(graph, plan, body, described)?,
-            None,
-        ),
-        (DescriptorKind::SpeakerDescription, "le") => {
-            let (property, parameter) =
-                recognize_speaker_description_property(graph, plan, body, described)?;
-            (DescriptionConstructor::Le, property, Some(parameter))
-        }
-        _ => return None,
-    };
+    let (constructor, property, arguments, parameter) =
+        match (descriptor.kind, descriptor.word.as_str()) {
+            (DescriptorKind::VeridicalDescription, "lo") => {
+                let (property, arguments) =
+                    recognize_direct_description_property(graph, plan, body, described)?;
+                (DescriptionConstructor::Lo, property, arguments, None)
+            }
+            (DescriptorKind::SpeakerDescription, "le") => {
+                let (property, arguments, parameter) =
+                    recognize_speaker_description_property(graph, plan, body, described)?;
+                (
+                    DescriptionConstructor::Le,
+                    property,
+                    arguments,
+                    Some(parameter),
+                )
+            }
+            _ => return None,
+        };
     Some(new!(DescriptionRecognition::Property {
         constructor,
         property,
+        arguments,
         parameter,
     }))
 }
@@ -3015,7 +3039,7 @@ fn recognize_direct_description_property<'a>(
     plan: &ReferencePlan,
     formula: SemanticObjectId,
     described: SemanticObjectId,
-) -> Option<&'a str> {
+) -> Option<(&'a str, &'a BTreeMap<PlaceIndex, ArgumentValue>)> {
     recognize_property_formula(graph, plan, formula, described)
 }
 
@@ -3028,7 +3052,11 @@ fn recognize_speaker_description_property<'a>(
     plan: &ReferencePlan,
     formula: SemanticObjectId,
     described: SemanticObjectId,
-) -> Option<(&'a str, SemanticObjectId)> {
+) -> Option<(
+    &'a str,
+    &'a BTreeMap<PlaceIndex, ArgumentValue>,
+    SemanticObjectId,
+)> {
     let atom = graph.objects[&formula].as_formula()?.as_data();
     let data!(FormulaNode::Atom(atom)) = atom else {
         return None;
@@ -3081,7 +3109,7 @@ fn recognize_speaker_description_property<'a>(
     }
     let parameter = relation_node.parameters[0];
     recognize_property_formula(graph, plan, relation_node.body?, parameter)
-        .map(|property| (property, parameter))
+        .map(|(property, arguments)| (property, arguments, parameter))
 }
 
 /// Exact unary property atom used by both recognized description encodings.
@@ -3092,7 +3120,7 @@ fn recognize_property_formula<'a>(
     plan: &ReferencePlan,
     formula: SemanticObjectId,
     subject: SemanticObjectId,
-) -> Option<&'a str> {
+) -> Option<(&'a str, &'a BTreeMap<PlaceIndex, ArgumentValue>)> {
     let formula = graph.objects[&formula].as_formula()?;
     let data!(FormulaNode::Atom(atom)) = formula.as_data() else {
         return None;
@@ -3113,6 +3141,13 @@ fn recognize_property_formula<'a>(
     }
     for (place, argument) in &predication.arguments {
         if place.get() == 1 {
+            continue;
+        }
+        if argument.kind == ArgumentValueKind::Filled {
+            let value = plain_argument_value(&predication.arguments, place.get())?;
+            if !is_conventional_atom(&graph.objects[&value]) {
+                return None;
+            }
             continue;
         }
         let value = plain_elided_argument_value(argument)?;
@@ -3144,7 +3179,7 @@ fn recognize_property_formula<'a>(
         }
     }
     Atom::try_new(relation.clone()).ok()?;
-    Some(relation)
+    Some((relation, &predication.arguments))
 }
 
 /// Borrow the atom payload of one exact formula object.
