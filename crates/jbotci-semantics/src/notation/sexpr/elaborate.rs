@@ -28,30 +28,84 @@ use crate::model::{
 };
 
 /// Mutable counters kept separate from semantic rendering decisions.
-///
-/// Failures are keyed by object rather than counted because one object's
-/// projection can be attempted twice: a recognizer may render children, then
-/// decline and route the whole object through [`Elaborator::fallback_object`],
-/// which renders those same children again. The re-render also loses the
-/// caller's expectations — a predication re-rendered from a fallback reference
-/// map has no expected mode, for instance — so a second attempt can decline at
-/// a boundary the object never really reached. One entry per object, holding
-/// the boundary that first declined in the object's real context, is therefore
-/// both the honest failure and the guarantee that a wrapper never duplicates or
-/// relabels its children's failures.
 #[invariant(true)]
 #[derive(Debug, Default)]
 struct ElaborationCounters {
     compact_objects: Cell<usize>,
-    failures: RefCell<BTreeMap<SemanticObjectId, CompactFallbackCause>>,
+    failures: CompactFallbackLog,
 }
 
-/// One failed compact projection, identified by the object it was attempted on.
+/// One failed compact projection edge.
+///
+/// The pair is the edge's identity, not merely a report about it. `owner` is
+/// the graph object whose compact projection was attempted, and `cause` is the
+/// exact typed boundary inside that projection which declined; the cause
+/// vocabulary is closed and exhaustive, so it is a stable site identity rather
+/// than free-form text. Two boundaries of one object are therefore two edges,
+/// while re-reaching one boundary is the same edge.
+///
+/// Field order is also the channel's stable order: failures sort by owner, then
+/// by declining boundary.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) struct CompactFallback {
     pub(super) owner: SemanticObjectId,
     pub(super) cause: CompactFallbackCause,
+}
+
+/// Every distinct failed projection edge discovered by one elaboration pass.
+///
+/// One object's projection can be attempted more than once: a recognizer may
+/// render children, decline, and route the whole object through
+/// [`Elaborator::fallback_object`], which renders those same children again.
+/// Keying by object alone answered that by keeping only the first boundary,
+/// which silently discarded every later distinct boundary and so could not
+/// carry specification section 16.1's one-record-per-failed-edge contract.
+/// Keying by the whole edge keeps both laws instead: re-entering a boundary
+/// that already failed adds nothing, so a declining wrapper never duplicates or
+/// relabels a child's failure, while a genuinely different boundary on the same
+/// owner survives as its own record.
+#[invariant(true)]
+#[derive(Debug, Default)]
+struct CompactFallbackLog {
+    edges: RefCell<BTreeSet<CompactFallback>>,
+}
+
+impl CompactFallbackLog {
+    /// Record one failed projection edge, deduplicating exact re-entry.
+    #[requires(true)]
+    #[ensures(self.contains(edge), "a recorded edge is always retained")]
+    #[ensures(
+        self.len() <= old(self.len()) + 1,
+        "re-entering one edge never adds a second record for it"
+    )]
+    fn record(&self, edge: CompactFallback) {
+        self.edges.borrow_mut().insert(edge);
+    }
+
+    /// Whether this exact failed edge has already been recorded.
+    #[requires(true)]
+    #[ensures(true)]
+    fn contains(&self, edge: CompactFallback) -> bool {
+        self.edges.borrow().contains(&edge)
+    }
+
+    /// Number of distinct failed projection edges recorded so far.
+    #[requires(true)]
+    #[ensures(true)]
+    fn len(&self) -> usize {
+        self.edges.borrow().len()
+    }
+
+    /// Consume the log into the ordered per-edge diagnostic channel.
+    #[requires(true)]
+    #[ensures(
+        ret.windows(2).all(|pair| pair[0] < pair[1]),
+        "the channel is strictly increasing, so it is both ordered and deduplicated"
+    )]
+    fn into_ordered(self) -> Vec<CompactFallback> {
+        self.edges.into_inner().into_iter().collect()
+    }
 }
 
 /// Predicate term plus its ordered application operands. Keeping the head
@@ -347,12 +401,22 @@ impl CompactElaboration {
         !self.failures.is_empty()
     }
 
-    /// Number of objects whose compact projection was declined, which is also
-    /// the number of per-edge fallback records this pass contributes.
+    /// Number of distinct objects whose compact projection was declined.
+    ///
+    /// This is deliberately not `failures.len()`: that is the failed-*edge*
+    /// count, and one object can decline at two different boundaries. The
+    /// channel is sorted by owner first, so distinct owners are the positions
+    /// where the owner changes.
     #[requires(true)]
-    #[ensures(ret == self.failures.len())]
-    pub(super) fn object_fallbacks(&self) -> usize {
-        self.failures.len()
+    #[ensures(ret <= self.failures.len())]
+    #[ensures(ret > 0 || self.failures.is_empty())]
+    pub(super) fn failed_owners(&self) -> usize {
+        self.failures
+            .iter()
+            .zip(self.failures.iter().skip(1))
+            .filter(|(previous, next)| previous.owner != next.owner)
+            .count()
+            + usize::from(!self.failures.is_empty())
     }
 }
 
@@ -422,15 +486,10 @@ pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> 
     new!(CompactElaboration {
         body: body,
         compact_objects: elaborator.counters.compact_objects.get(),
-        // `BTreeMap` iteration is the stable order required of the per-edge
-        // diagnostic channel: one record per failed object, in identity order.
-        failures: elaborator
-            .counters
-            .failures
-            .into_inner()
-            .into_iter()
-            .map(|(owner, cause)| CompactFallback { owner, cause })
-            .collect(),
+        // `BTreeSet` iteration is the stable order required of the per-edge
+        // diagnostic channel: one record per failed edge, ordered by owner
+        // identity and then by declining boundary.
+        failures: elaborator.counters.failures.into_ordered(),
     })
 }
 
@@ -730,17 +789,16 @@ impl Elaborator<'_> {
     /// Record one failed projection edge, which also requires the
     /// graph-faithful document fallback.
     ///
-    /// Recording keeps the first boundary that declined for an object: a later
-    /// attempt is the same failed edge re-entered from a fallback re-render,
-    /// not a second failure.
+    /// The edge is `(id, cause)`. Re-entering the same boundary from a
+    /// declining wrapper's re-render is the same edge and adds nothing; a
+    /// second, different boundary on the same object is a second failed edge
+    /// and is retained.
     #[requires(true)]
-    #[ensures(self.counters.failures.borrow().contains_key(&id))]
+    #[ensures(self.counters.failures.contains(CompactFallback { owner: id, cause }))]
     fn record_object_fallback(&self, id: SemanticObjectId, cause: CompactFallbackCause) {
         self.counters
             .failures
-            .borrow_mut()
-            .entry(id)
-            .or_insert(cause);
+            .record(CompactFallback { owner: id, cause });
     }
 
     /// Count one successful compact object recognition.
@@ -3781,6 +3839,176 @@ mod tests {
             SemanticSort::Relation,
         ] {
             assert_eq!(sort_type_expr(erased), None);
+        }
+    }
+
+    /// Compose one failed projection edge without needing a whole graph.
+    #[requires(index > 0)]
+    #[ensures(ret.owner.index() == index && ret.cause == cause)]
+    fn edge(index: usize, cause: CompactFallbackCause) -> CompactFallback {
+        CompactFallback {
+            owner: SemanticObjectId::predication(index),
+            cause,
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn re_entering_one_failed_edge_records_it_once() {
+        let log = CompactFallbackLog::default();
+        let repeated = edge(1, CompactFallbackCause::ArgumentFields);
+        log.record(repeated);
+        log.record(repeated);
+        log.record(repeated);
+        assert_eq!(log.into_ordered(), vec![repeated]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn two_boundaries_of_one_owner_are_two_failed_edges() {
+        // Keying by owner alone kept whichever boundary declined first and
+        // dropped the other, so this is the law that regression must not lose.
+        let log = CompactFallbackLog::default();
+        let arguments = edge(1, CompactFallbackCause::ArgumentFields);
+        let relation = edge(1, CompactFallbackCause::NonAtomicRelation);
+        log.record(relation);
+        log.record(arguments);
+        log.record(relation);
+        let recorded = log.into_ordered();
+        assert_eq!(recorded.len(), 2, "{recorded:?}");
+        assert!(
+            recorded
+                .iter()
+                .all(|failure| failure.owner == arguments.owner)
+        );
+        assert_eq!(
+            recorded
+                .iter()
+                .map(|failure| failure.cause)
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                CompactFallbackCause::ArgumentFields,
+                CompactFallbackCause::NonAtomicRelation,
+            ]),
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn distinct_failed_owners_are_counted_separately_from_failed_edges() {
+        // `SmusniRenderStats::object_fallbacks` reports objects and the reason
+        // aggregate reports edges, so the two must stay separable here: three
+        // edges over two owners are three records but two failed objects.
+        let log = CompactFallbackLog::default();
+        for failure in [
+            edge(1, CompactFallbackCause::ArgumentFields),
+            edge(1, CompactFallbackCause::NonAtomicRelation),
+            edge(2, CompactFallbackCause::ArgumentFields),
+        ] {
+            log.record(failure);
+        }
+        let elaboration = new!(CompactElaboration {
+            body: Datum::atom("This"),
+            compact_objects: 0,
+            failures: log.into_ordered(),
+        });
+        assert_eq!(elaboration.failures.len(), 3, "three distinct failed edges");
+        assert_eq!(elaboration.failed_owners(), 2, "over two distinct owners");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn one_failed_edge_is_one_failed_owner() {
+        let log = CompactFallbackLog::default();
+        log.record(edge(1, CompactFallbackCause::SignFields));
+        let elaboration = new!(CompactElaboration {
+            body: Datum::atom("This"),
+            compact_objects: 0,
+            failures: log.into_ordered(),
+        });
+        assert_eq!(elaboration.failures.len(), 1);
+        assert_eq!(elaboration.failed_owners(), 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn two_owners_declining_for_one_reason_are_two_failed_edges() {
+        let log = CompactFallbackLog::default();
+        let first = edge(1, CompactFallbackCause::SignFields);
+        let second = edge(2, CompactFallbackCause::SignFields);
+        log.record(second);
+        log.record(first);
+        let recorded = log.into_ordered();
+        assert_eq!(recorded, vec![first, second]);
+        assert_eq!(first.cause.reason_id(), second.cause.reason_id());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_failed_edge_channel_is_ordered_by_owner_then_boundary() {
+        let log = CompactFallbackLog::default();
+        // Recorded in an order that is neither owner order nor boundary order.
+        let edges = [
+            edge(2, CompactFallbackCause::ArgumentFields),
+            edge(1, CompactFallbackCause::SignFields),
+            edge(2, CompactFallbackCause::SignFields),
+            edge(1, CompactFallbackCause::ArgumentFields),
+        ];
+        for failure in edges {
+            log.record(failure);
+        }
+        let recorded = log.into_ordered();
+        let mut expected = edges;
+        expected.sort();
+        assert_eq!(recorded, expected.to_vec());
+        assert!(recorded.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_boundary_has_one_stable_code_and_message_at_every_occurrence() {
+        // The code and message are functions of the typed boundary alone, so
+        // two occurrences of one boundary cannot drift apart, and a boundary
+        // that shares a registered reason with another still says which
+        // boundary was actually reached.
+        let first = edge(1, CompactFallbackCause::SignFields);
+        let second = edge(2, CompactFallbackCause::SignFields);
+        assert_eq!(first.cause.reason_id(), second.cause.reason_id());
+        assert_eq!(first.cause.message(), second.cause.message());
+
+        let shared_reason = [
+            CompactFallbackCause::MathSideFields,
+            CompactFallbackCause::MathLiteralDenotes,
+            CompactFallbackCause::MathOperatorFields,
+        ];
+        assert_eq!(
+            shared_reason
+                .iter()
+                .map(|cause| cause.reason_id())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            1,
+            "these boundaries deliberately share one registered reason",
+        );
+        assert_eq!(
+            shared_reason
+                .iter()
+                .map(|cause| cause.message())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            shared_reason.len(),
+            "a shared reason must not erase which boundary declined",
+        );
+        for cause in shared_reason {
+            assert!(cause.reason_id().starts_with("smusni.fallback."));
+            assert!(!cause.message().is_empty());
         }
     }
 

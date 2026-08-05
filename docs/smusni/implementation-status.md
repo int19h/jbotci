@@ -14,7 +14,8 @@ The samples are design specimens, not output expectations.
 | Family | Current behavior | Boundary |
 |---|---|---|
 | Document packaging | One typed-grammar-parseable `(Smusni 0 ...)` datum with one trailing newline. The optional `Words` section uses only `(Word root definition)` cards. | Spec sections 2.2 and 2.4 |
-| Diagnostics | Collected once as structured `SmusniDiagnostic` values and kept out of the datum. Every failed projection edge gets its own `Fallback` record with a stable reason code, a stable message fixed by its typed cause, and the affected owner/use identities; `SmusniRenderStats::fallback_reasons` is a summary of those records, never a substitute. CLI display is deliberately deferred until these records can use the existing source-aware diagnostic renderer; provisional formatter strings are not printed. | Spec sections 2.4 and 16 |
+| Diagnostics | Collected once as structured `SmusniDiagnostic` values and kept out of the datum. Every failed projection edge gets its own `Fallback` record with a stable reason code and a stable message fixed by its typed cause. Owner and use-site identities travel as evidence where the failure site has them; they are optional and a consumer must not require them. An edge's identity is typed rather than textual: `(owner, declining boundary)` in the elaborator and `(kind, binder, use site)` in the scope planner. Re-entering one edge — for instance when a declining wrapper re-renders a child — records nothing further, while a second distinct boundary on the same owner is a second record. `SmusniRenderStats::failed_projection_edges` and `fallback_reasons` both count failed edges; `SmusniRenderStats::object_fallbacks` counts graph objects and is a different measurement. Ordering is deterministic from the typed channels; the internal sort key is not a public tuple contract. CLI display is deliberately deferred until these records can use the existing source-aware diagnostic renderer; provisional formatter strings are not printed. | Spec sections 2.4 and 16 |
+| Variable spelling | Generated variables are composed from typed identity components through closed token tables, never by rewriting an identity's display text. Every token begins lowercase, so no generated name enters the PascalCase namespace that section 2.1 reserves for primitives, prelude names, types, and literals. Structural object kinds carry a `…Node` stem and referent sorts do not, which keeps the two namespaces injective without using letter case as the separator. Section 15.3's short `$x`/`$e`/`$p` alpha-renaming is not yet implemented. | Spec sections 2.1 and 15.3 |
 | Predication | Named predicate terms, ordinary fills, `:n`, `:Eventuality`, numbered-only `DropPlace`, default closure omission, and explicit `Assert` are compact for their exact typed shapes. | Spec sections 4 and 5 |
 | Logical composition | Registered ordinary truth-functional connectives render with their logical operators. Unsupported connector metadata falls back. | Spec section 6 |
 | Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`; its predicate property retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. Nested reference effects, richer descriptors, incidental/nonveridical relatives, and shared placement fall back. | Spec sections 6.3, 8.3, and 8.4 |
@@ -114,13 +115,36 @@ them, and they will move whenever a compact recognizer is added.
 
 | Slice | Inputs | Renders | Render panics | Notes |
 |---|---:|---:|---:|---|
+| `phaseb` | 48 | 48 | 0 | the frozen structural corpus; 16 compact documents, 32 typed-graph documents |
 | `cll` | 1,247 | 1,245 | 0 | 2 pre-render morphology failures; 146 compact documents, 1,099 typed-graph documents |
+| `focused` | 16 | 16 | 0 | 6 compact documents, 10 typed-graph documents |
 | `alice-lines` | 2,436 | 1,084 | 0 | the remaining inputs fail earlier parsing or building, mostly syntax |
 | `alice-whole` | 1 | 1 | 0 | one `TypedGraph` over 49,172 objects |
 
-The whole-Alice run is the memory reference point: 7,523,544 KiB RSS after the
-graph build and a 9,523,648 KiB peak after rendering, so it needs a host with
+The whole-Alice run is the memory reference point: 7,527,052 KiB RSS after the
+graph build and a 9,527,072 KiB peak after rendering, so it needs a host with
 more than 10 GiB free.
+
+The same sweep reports the object statistic and the per-edge diagnostic channel
+separately. `Objects not projected` is `SmusniRenderStats::object_fallbacks`;
+`failed edges` is `SmusniRenderStats::failed_projection_edges`, which is also the
+number of `Fallback` records and the sum of `fallback_reasons`. `Failing owners`
+counts the distinct owners those records name, and `multi-edge owners` counts the
+owners named by more than one record. Like the table above, these are
+observations of the current slice rather than expectations.
+
+| Slice | Objects not projected | Failed edges | Failing owners | Multi-edge owners |
+|---|---:|---:|---:|---:|
+| `phaseb` | 280 | 94 | 91 | 3 |
+| `cll` | 12,840 | 3,063 | 2,900 | 113 |
+| `focused` | 33 | 34 | 33 | 1 |
+| `alice-lines` | 15,764 | 2,824 | 2,599 | 149 |
+| `alice-whole` | 49,172 | 376 | 122 | 55 |
+
+The two measurements differ because they count different things, which is why
+they are reported side by side rather than derived from one another. The
+per-edge identity in the code is justified by the typed law tests over the
+channel representations, not by these numbers.
 
 The five CLL inputs that previously panicked while manufacturing a variable
 atom — `c11e12d2`, `c11e3d1`, `c11e3d3`, `c11e3d4`, and `c11e9d1` — now render.

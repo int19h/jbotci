@@ -89,14 +89,39 @@ impl ScopeFailureKind {
     }
 }
 
-/// Evidence for a scope failure. Optional IDs identify the affected binder and
-/// use site without changing the failure class used for aggregate reporting.
+/// One failed projection edge found by scope planning.
+///
+/// The whole `(kind, binder, use_site)` triple is the edge's identity: one
+/// binder can fail against several distinct use sites, and several binders can
+/// fail for one reason, so only an exact repeat of the triple is a duplicate
+/// discovery of one edge. This is the planner's counterpart to the elaborator's
+/// `(owner, cause)` edge identity.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ScopeFailure {
     pub kind: ScopeFailureKind,
     pub binder: Option<SemanticObjectId>,
     pub use_site: Option<SemanticObjectId>,
+}
+
+/// Order one planner channel and drop only exact repeats of a single edge.
+///
+/// Sorting before deduplicating is what makes the order stable across runs and
+/// what makes `dedup` see every repeat, since discovery order follows the
+/// traversal rather than identity order.
+#[requires(true)]
+#[ensures(
+    ret.windows(2).all(|pair| pair[0] < pair[1]),
+    "the channel is strictly increasing, so it is both ordered and deduplicated"
+)]
+#[ensures(
+    ret.len() <= old(failures.len()),
+    "deduplication only removes repeats; it never invents an edge"
+)]
+fn stable_failure_channel(mut failures: Vec<ScopeFailure>) -> Vec<ScopeFailure> {
+    failures.sort();
+    failures.dedup();
+    failures
 }
 
 /// Deterministic reference plan for one graph. Binder/use data is always
@@ -311,10 +336,8 @@ pub(super) fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
     // dead work. In particular, avoiding that definition × binder sweep keeps
     // this path linear-space for very large documents such as the Alice graph.
     if !failures.is_empty() {
-        failures.sort();
-        failures.dedup();
         return ReferencePlan {
-            failures,
+            failures: stable_failure_channel(failures),
             use_counts,
             uses,
             binder_owners,
@@ -381,10 +404,8 @@ pub(super) fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
         }
     }
 
-    failures.sort();
-    failures.dedup();
     let mut plan = ReferencePlan {
-        failures,
+        failures: stable_failure_channel(failures),
         use_counts,
         uses,
         binder_owners,
@@ -915,6 +936,79 @@ mod tests {
     use bityzba::{ensures, requires};
 
     use super::*;
+
+    /// Compose one scope-failure edge for the channel laws.
+    #[requires(true)]
+    #[ensures(ret.kind == kind)]
+    fn scope_edge(
+        kind: ScopeFailureKind,
+        binder: Option<usize>,
+        use_site: Option<usize>,
+    ) -> ScopeFailure {
+        ScopeFailure {
+            kind,
+            binder: binder.map(SemanticObjectId::referent),
+            use_site: use_site.map(SemanticObjectId::referent),
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rediscovering_one_scope_edge_records_it_once() {
+        let repeated = scope_edge(ScopeFailureKind::BinderDoesNotEncloseUse, Some(1), Some(2));
+        assert_eq!(
+            stable_failure_channel(vec![repeated, repeated, repeated]),
+            vec![repeated],
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn one_binder_failing_against_two_use_sites_is_two_scope_edges() {
+        // Collapsing to the failure class alone would report one record here,
+        // which is exactly what the per-edge contract forbids.
+        let first = scope_edge(ScopeFailureKind::BinderDoesNotEncloseUse, Some(1), Some(2));
+        let second = scope_edge(ScopeFailureKind::BinderDoesNotEncloseUse, Some(1), Some(3));
+        let channel = stable_failure_channel(vec![second, first, second]);
+        assert_eq!(channel, vec![first, second]);
+        assert_eq!(channel[0].kind, channel[1].kind);
+        assert_eq!(channel[0].binder, channel[1].binder);
+        assert_ne!(channel[0].use_site, channel[1].use_site);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn two_binders_failing_for_one_reason_are_two_scope_edges() {
+        let first = scope_edge(ScopeFailureKind::MultipleBinderOwners, Some(1), None);
+        let second = scope_edge(ScopeFailureKind::MultipleBinderOwners, Some(2), None);
+        let channel = stable_failure_channel(vec![second, first]);
+        assert_eq!(channel, vec![first, second]);
+        assert_eq!(first.kind.reason_id(), second.kind.reason_id());
+        assert_eq!(first.kind.message(), second.kind.message());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_scope_edge_channel_is_stably_ordered_whatever_the_discovery_order() {
+        let edges = [
+            scope_edge(ScopeFailureKind::UnrepresentableCycle, Some(2), None),
+            scope_edge(ScopeFailureKind::MultipleBinderOwners, Some(3), None),
+            scope_edge(ScopeFailureKind::BinderDoesNotEncloseUse, Some(1), Some(4)),
+            scope_edge(ScopeFailureKind::MultipleBinderOwners, Some(1), None),
+        ];
+        let mut expected = edges;
+        expected.sort();
+        for rotation in 0..edges.len() {
+            let mut discovered = edges.to_vec();
+            discovered.rotate_left(rotation);
+            assert_eq!(stable_failure_channel(discovered), expected.to_vec());
+        }
+        assert!(expected.windows(2).all(|pair| pair[0] < pair[1]));
+    }
 
     /// Three stable identities used by the bounded directed-graph oracle.
     #[requires(true)]

@@ -22,20 +22,37 @@ pub enum DocumentMode {
 
 /// Non-golden corpus measurements returned alongside the document.
 ///
-/// This is the aggregate channel. Per-failure detail belongs to
-/// [`SmusniRender::diagnostics`]; `fallback_reasons` only counts how many
-/// distinct failed projection edges each registered reason accounts for.
+/// This is the aggregate channel; per-failure detail belongs to
+/// [`SmusniRender::diagnostics`]. Objects and edges are separate measurements
+/// and must not be conflated: `object_fallbacks` counts graph objects, while
+/// `failed_projection_edges` and `fallback_reasons` count failed projection
+/// edges. Since one object can decline at two different boundaries, the edge
+/// count can exceed the number of distinct failed objects.
 #[invariant(*mode == DocumentMode::Compact || *compact_objects == 0)]
 #[invariant(*object_fallbacks == 0 || !fallback_reasons.is_empty())]
+#[invariant(
+    *failed_projection_edges == fallback_reasons.values().sum::<usize>(),
+    "the reason aggregate accounts for exactly the failed projection edges"
+)]
 #[invariant(fallback_reasons.values().all(|count| *count > 0))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SmusniRenderStats {
     pub mode: DocumentMode,
     pub compact_objects: usize,
+    /// Graph objects that did not reach a compact projection: the distinct
+    /// objects whose own projection was declined, or the whole object count
+    /// when scope planning rejected compact rendering before elaboration. This
+    /// is an object count and never the failed-edge count.
     pub object_fallbacks: usize,
+    /// Failed projection edges, which is also the number of
+    /// `SmusniDiagnostic::Fallback` records in [`SmusniRender::diagnostics`]
+    /// and the sum of `fallback_reasons`.
+    pub failed_projection_edges: usize,
     /// Total graph-owned semantic diagnostics of every severity, not warnings
     /// alone.
     pub semantic_diagnostic_count: usize,
+    /// One entry per registered reason, counting the failed projection edges it
+    /// accounts for.
     pub fallback_reasons: BTreeMap<&'static str, usize>,
 }
 
@@ -113,6 +130,11 @@ pub struct SmusniRender {
 /// Render one graph, appending pre-rendered word-card data inside the document.
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.text.ends_with('\n') && !ret.text.ends_with("\n\n"))]
+#[ensures(
+    ret.diagnostics.iter().filter(|diagnostic| matches!(diagnostic.as_data(), data!(SmusniDiagnostic::Fallback { .. }))).count()
+        == ret.stats.failed_projection_edges,
+    "every failed projection edge reaches the diagnostic channel as its own record"
+)]
 pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRender {
     let plan = plan_references(graph);
     let mut fallbacks = plan
@@ -124,7 +146,10 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRen
         let elaboration = elaborate_compact(graph, &plan);
         if elaboration.requires_typed_graph() {
             // The planner proved compact eligibility, so `fallbacks` is empty
-            // here and the elaborator owns every failed edge.
+            // here and the elaborator owns every failed edge. The object
+            // statistic counts the distinct objects those edges name, which is
+            // deliberately smaller than the edge count when one object declined
+            // at more than one boundary.
             fallbacks = elaboration
                 .failures
                 .iter()
@@ -134,7 +159,7 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRen
                 typed_graph_datum(graph, &fallbacks),
                 DocumentMode::TypedGraph,
                 0,
-                elaboration.object_fallbacks(),
+                elaboration.failed_owners(),
             )
         } else {
             let data!(CompactElaboration {
@@ -145,6 +170,8 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRen
             (body, DocumentMode::Compact, compact_objects, 0)
         }
     } else {
+        // Scope planning rejected compact rendering before any object was
+        // projected, so every graph object is rendered raw.
         (
             typed_graph_datum(graph, &fallbacks),
             DocumentMode::TypedGraph,
@@ -162,6 +189,7 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRen
         mode: mode,
         compact_objects: compact_objects,
         object_fallbacks: object_fallbacks,
+        failed_projection_edges: fallbacks.len(),
         semantic_diagnostic_count: graph
             .objects
             .values()

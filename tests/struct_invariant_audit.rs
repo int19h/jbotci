@@ -1168,8 +1168,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "every positive or distinguished label paired with a validated accepted type is a valid row slot",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactElaboration",
-        "immutable elaboration output combines independently valid typed data and derived counters from one completed pass",
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallback",
+        "one failed projection edge pairs any graph identity with any declining boundary; every combination names a real edge",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallbackLog",
+        "the ordered, deduplicated per-edge channel is a BTreeSet property rather than a state constraint, and every set of edges is a valid log",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ElaborationCounters",

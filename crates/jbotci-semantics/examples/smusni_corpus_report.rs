@@ -8,14 +8,15 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_morphology::{
     MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
+use jbotci_semantics::model::SemanticObjectId;
 use jbotci_semantics::{
-    DocumentMode, SemanticBuildOptions, SemanticGraph,
+    DocumentMode, SemanticBuildOptions, SemanticGraph, SmusniDiagnosticData, SmusniRender,
     build_generated_semantic_graph_with_dictionary_and_options, render_smusni_detailed,
 };
 use jbotci_source::SourceId;
@@ -44,16 +45,47 @@ struct CorpusReport {
     object_fallback_documents: usize,
     typed_graph_documents: usize,
     compact_objects: usize,
+    /// The renderer's object statistic: distinct declined objects, or the whole
+    /// object count when scope planning rejected compact rendering.
     object_fallbacks: usize,
+    /// The renderer's edge statistic. Reporting both is what makes the per-edge
+    /// channel observable in a corpus: an owner that declines at two different
+    /// boundaries contributes two edges and one owner.
+    failed_projection_edges: usize,
+    /// Distinct owners named by those edges.
+    failing_owners: usize,
+    multi_edge_owners: usize,
     semantic_diagnostics: usize,
     fallback_reasons: BTreeMap<&'static str, usize>,
+}
+
+/// Count failed projection edges per named owner in one rendered document.
+///
+/// Owner evidence is optional, so a record that carries none simply does not
+/// contribute to this observation.
+#[requires(true)]
+#[ensures(ret.values().all(|total| *total > 0))]
+fn edges_per_owner(rendered: &SmusniRender) -> BTreeMap<SemanticObjectId, usize> {
+    let mut owners = BTreeMap::<SemanticObjectId, usize>::new();
+    for diagnostic in &rendered.diagnostics {
+        if let data!(SmusniDiagnostic::Fallback { owner, .. }) = diagnostic.as_data()
+            && let Some(owner) = owner
+        {
+            *owners.entry(*owner).or_default() += 1;
+        }
+    }
+    owners
 }
 
 impl CorpusReport {
     /// Record one successful rendering and its renderer-provided measurements.
     #[requires(true)]
     #[ensures(self.successes == old(self.successes) + 1)]
-    fn record_success(&mut self, stats: &jbotci_semantics::SmusniRenderStats) {
+    fn record_success(&mut self, rendered: &SmusniRender) {
+        let stats = &rendered.stats;
+        let owners = edges_per_owner(rendered);
+        self.failing_owners += owners.len();
+        self.multi_edge_owners += owners.values().filter(|total| **total > 1).count();
         self.successes += 1;
         match stats.mode {
             DocumentMode::Compact if stats.object_fallbacks == 0 => {
@@ -68,6 +100,7 @@ impl CorpusReport {
         }
         self.compact_objects += stats.compact_objects;
         self.object_fallbacks += stats.object_fallbacks;
+        self.failed_projection_edges += stats.failed_projection_edges;
         self.semantic_diagnostics += stats.semantic_diagnostic_count;
         for (reason, count) in &stats.fallback_reasons {
             *self.fallback_reasons.entry(reason).or_default() += count;
@@ -79,7 +112,7 @@ impl CorpusReport {
     #[ensures(true)]
     fn print(&self, corpus: &str) {
         println!(
-            "SUMMARY\t{corpus}\tinputs={}\tsuccesses={}\tbuild_failures={}\tbuild_panics={}\trender_panics={}\tcompact_documents={}\tobject_fallback_documents={}\ttyped_graph_documents={}\tcompact_objects={}\tobject_fallbacks={}\tsemantic_diagnostics={}",
+            "SUMMARY\t{corpus}\tinputs={}\tsuccesses={}\tbuild_failures={}\tbuild_panics={}\trender_panics={}\tcompact_documents={}\tobject_fallback_documents={}\ttyped_graph_documents={}\tcompact_objects={}\tobject_fallbacks={}\tfailed_projection_edges={}\tfailing_owners={}\tmulti_edge_owners={}\tsemantic_diagnostics={}",
             self.inputs,
             self.successes,
             self.build_failures.values().sum::<usize>(),
@@ -90,6 +123,9 @@ impl CorpusReport {
             self.typed_graph_documents,
             self.compact_objects,
             self.object_fallbacks,
+            self.failed_projection_edges,
+            self.failing_owners,
+            self.multi_edge_owners,
             self.semantic_diagnostics,
         );
         for (stage, count) in &self.build_failures {
@@ -179,7 +215,7 @@ fn measure(inputs: &[CorpusInput]) -> CorpusReport {
                         process_status_kib("VmHWM:").unwrap_or(0),
                     );
                 }
-                report.record_success(&rendered.stats);
+                report.record_success(&rendered);
             }
             Err(_) => report.render_panics += 1,
         }

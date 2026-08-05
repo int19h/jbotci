@@ -7,6 +7,14 @@
 //! carried by [`SemanticIdPrefix`] and the identity index — through the closed
 //! token tables below, never by rewriting display text.
 //!
+//! Every token begins with an ASCII lowercase letter. Specification section 2.1
+//! gives PascalCase its own closed namespace of registered primitives, prelude
+//! names, types, and literals, so a generated `$Formula_1` would read as a
+//! reserved spelling wearing a variable marker even though the grammar's
+//! `symbol-name` production admits it. The renderer therefore keeps generated
+//! variables inside the lowercase namespace that section 15.3's `$x`/`$e`/`$p`
+//! stems already occupy.
+//!
 //! The tables deliberately duplicate no label from `model`: the display labels
 //! belong to the identity module's own spelling, while these tokens belong to
 //! this notation. Keeping them separate is what lets this notation guarantee
@@ -25,6 +33,10 @@ use crate::model::{
 /// Stable lexical variable for one typed graph identity.
 #[requires(true)]
 #[ensures(ret.as_str().starts_with('$'))]
+#[ensures(
+    ret.as_str()[1..].starts_with(|first: char| first.is_ascii_lowercase()),
+    "a generated variable never enters the reserved PascalCase namespace"
+)]
 pub(super) fn object_variable(id: SemanticObjectId) -> Variable {
     Variable::from_token_and_index(identity_namespace_token(id.prefix()), id.index())
 }
@@ -32,6 +44,7 @@ pub(super) fn object_variable(id: SemanticObjectId) -> Variable {
 /// Stable lexical variable datum for one typed graph identity.
 #[requires(true)]
 #[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with('$')))]
+#[ensures(ret.as_atom().is_some_and(|atom| atom[1..].starts_with(|first: char| first.is_ascii_lowercase())))]
 pub(super) fn variable_datum(id: SemanticObjectId) -> Datum {
     object_variable(id).to_datum()
 }
@@ -41,12 +54,15 @@ pub(super) fn variable_datum(id: SemanticObjectId) -> Datum {
 /// `SemanticObjectKind` and `SemanticSort` share five display labels
 /// (`sequence`, `eventuality`, `predication`, `quantity`, and `sign`), so a
 /// spelling that merely reused those labels would map two distinct identities
-/// onto one variable. Structural kinds are therefore spelled PascalCase and
-/// referent sorts camelCase: the leading character alone separates the two
-/// namespaces, each table is injective, and no token contains `_`, so
+/// onto one variable. Both namespaces must nevertheless stay lowercase, so the
+/// leading character cannot be the separator. Structural kinds instead carry
+/// the model's own `…Node` stem for the graph object they identify, and no
+/// referent sort's stem ends that way. Each table is injective, no token
+/// contains `_`, and the `Node` suffix separates the tables, so
 /// `$<token>_<index>` is injective over every `SemanticObjectId`.
 #[requires(true)]
 #[ensures(!ret.is_empty() && !ret.contains('_'))]
+#[ensures(ret.starts_with(|first: char| first.is_ascii_lowercase()))]
 fn identity_namespace_token(prefix: SemanticIdPrefix) -> &'static str {
     match prefix {
         SemanticIdPrefix::Structural(kind) => structural_namespace_token(kind),
@@ -54,31 +70,38 @@ fn identity_namespace_token(prefix: SemanticIdPrefix) -> &'static str {
     }
 }
 
-/// PascalCase token for one structural object kind.
+/// camelCase `…Node` token for one structural object kind.
+///
+/// The suffix is what keeps this table disjoint from the referent-sort table
+/// now that neither may use the leading character as its namespace marker. It
+/// is also the model's own naming for these payloads (`UtteranceNode`,
+/// `SequenceNode`, `ReferentNode`, and so on), so the spelling stays legible.
 #[requires(true)]
-#[ensures(ret.starts_with(|first: char| first.is_ascii_uppercase()) && !ret.contains('_'))]
+#[ensures(ret.starts_with(|first: char| first.is_ascii_lowercase()) && !ret.contains('_'))]
+#[ensures(ret.ends_with("Node"), "the structural namespace is marked by its stem, not its case")]
 fn structural_namespace_token(kind: SemanticObjectKind) -> &'static str {
     match kind {
-        SemanticObjectKind::Utterance => "Utterance",
-        SemanticObjectKind::Sequence => "Sequence",
-        SemanticObjectKind::Eventuality => "Eventuality",
-        SemanticObjectKind::Referent => "Referent",
-        SemanticObjectKind::Parameter => "Parameter",
-        SemanticObjectKind::Predication => "Predication",
-        SemanticObjectKind::Formula => "Formula",
-        SemanticObjectKind::Abstraction => "Abstraction",
-        SemanticObjectKind::Sign => "Sign",
-        SemanticObjectKind::DisplayedContent => "Display",
-        SemanticObjectKind::MathExpression => "Math",
-        SemanticObjectKind::Quantity => "Quantity",
-        SemanticObjectKind::RelationMetadata => "RelationMetadata",
-        SemanticObjectKind::Question => "Question",
+        SemanticObjectKind::Utterance => "utteranceNode",
+        SemanticObjectKind::Sequence => "sequenceNode",
+        SemanticObjectKind::Eventuality => "eventualityNode",
+        SemanticObjectKind::Referent => "referentNode",
+        SemanticObjectKind::Parameter => "parameterNode",
+        SemanticObjectKind::Predication => "predicationNode",
+        SemanticObjectKind::Formula => "formulaNode",
+        SemanticObjectKind::Abstraction => "abstractionNode",
+        SemanticObjectKind::Sign => "signNode",
+        SemanticObjectKind::DisplayedContent => "displayNode",
+        SemanticObjectKind::MathExpression => "mathNode",
+        SemanticObjectKind::Quantity => "quantityNode",
+        SemanticObjectKind::RelationMetadata => "relationMetadataNode",
+        SemanticObjectKind::Question => "questionNode",
     }
 }
 
 /// camelCase token for one referent sort.
 #[requires(true)]
 #[ensures(ret.starts_with(|first: char| first.is_ascii_lowercase()) && !ret.contains('_'))]
+#[ensures(!ret.ends_with("Node"), "the `…Node` stem belongs to the structural namespace")]
 fn referent_namespace_token(sort: SemanticSort) -> &'static str {
     match sort {
         SemanticSort::Entity => "entity",
@@ -230,6 +253,35 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn every_namespace_stays_out_of_the_reserved_pascal_case_namespace() {
+        for prefix in all_prefixes() {
+            let token = identity_namespace_token(prefix);
+            assert!(
+                token.starts_with(|first: char| first.is_ascii_lowercase()),
+                "{prefix} spells the reserved-looking token {token:?}",
+            );
+            for index in [1usize, 9, 10, usize::MAX] {
+                // The model keeps `SemanticObjectId`'s prefix constructor
+                // private, so this composes the same spelling `object_variable`
+                // composes rather than only the ids that have public
+                // constructors; `distinct_identities_have_distinct_variables`
+                // covers the constructible ids through `object_variable`.
+                let variable = Variable::from_token_and_index(token, index);
+                let after_marker = variable
+                    .as_str()
+                    .strip_prefix('$')
+                    .expect("a variable always carries its `$` marker");
+                assert!(
+                    after_marker.starts_with(|first: char| first.is_ascii_lowercase()),
+                    "{variable:?} puts a reserved PascalCase spelling behind `$`",
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn namespaces_never_collide() {
         let prefixes = all_prefixes();
         let tokens = prefixes
@@ -241,6 +293,14 @@ mod tests {
             prefixes.len(),
             "identity namespace tokens must be pairwise distinct",
         );
+        // Both tables are lowercase, so the `…Node` stem — not the leading
+        // character — is what keeps the two namespaces apart.
+        for kind in ALL_KINDS {
+            assert!(structural_namespace_token(kind).ends_with("Node"));
+        }
+        for sort in all_sorts() {
+            assert!(!referent_namespace_token(sort).ends_with("Node"));
+        }
         // Five kind labels and sort labels coincide in the model's own display
         // spelling; the namespaces must nevertheless stay separated here.
         for shared in [
