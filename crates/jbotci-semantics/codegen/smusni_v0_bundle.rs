@@ -34,11 +34,10 @@ pub const OBLIQUE_PATH: &str = "sources/lojban-org/oblique_keywords.txt";
 pub const OBLIQUE_METADATA_PATH: &str = "sources/lojban-org/oblique_keywords.metadata.toml";
 
 const INPUT_PREFIX: &str = "sources/generator-inputs";
-const SPEC_PATH: &str = "sources/generator-inputs/docs/smusni/spec.md";
+const SPEC_PATH: &str = "sources/smusni/spec.md";
 const DICTIONARY_PATH: &str =
-    "sources/generator-inputs/crates/jbotci-dictionary-data/data/dictionary-en.json";
-const DICTIONARY_METADATA_PATH: &str =
-    "sources/generator-inputs/crates/jbotci-dictionary-data/data/dictionary-en.metadata.toml";
+    "sources/generator-inputs/crates/jbotci-dictionary-data/data/dictionary-en.json.opaque";
+const DICTIONARY_METADATA_PATH: &str = "sources/generator-inputs/crates/jbotci-dictionary-data/data/dictionary-en.metadata.toml.opaque";
 const COMPLETENESS_INVENTORY_PATH: &str =
     "sources/generator-inputs/crates/jbotci-semantics/src/completeness/inventory.rs.opaque";
 
@@ -135,161 +134,66 @@ const GENERATED_TABLES: &[(&str, SchemaId)] = &[
     ("registry/runtime.rs", SchemaId::OpaqueBytes),
 ];
 
-const MIRRORED_GENERATOR_INPUTS: &[(&str, &str)] = &[
-    ("sources/generator-inputs/Cargo.lock", "Cargo.lock"),
-    ("sources/generator-inputs/Cargo.toml", "Cargo.toml"),
-    (SPEC_PATH, "docs/smusni/spec.md"),
-    (
-        "sources/generator-inputs/crates/bityzba/Cargo.toml",
-        "crates/bityzba/Cargo.toml",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba/src/contract_scanner.rs.opaque",
-        "crates/bityzba/src/contract_scanner.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba/src/lib.rs.opaque",
-        "crates/bityzba/src/lib.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-contract-syntax/Cargo.toml",
-        "crates/bityzba-contract-syntax/Cargo.toml",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-contract-syntax/src/lib.rs.opaque",
-        "crates/bityzba-contract-syntax/src/lib.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/Cargo.toml",
-        "crates/bityzba-macros/Cargo.toml",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/codegen.rs.opaque",
-        "crates/bityzba-macros/src/implementation/codegen.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/data.rs.opaque",
-        "crates/bityzba-macros/src/implementation/data.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/doc.rs.opaque",
-        "crates/bityzba-macros/src/implementation/doc.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/ensures.rs.opaque",
-        "crates/bityzba-macros/src/implementation/ensures.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/invariant.rs.opaque",
-        "crates/bityzba-macros/src/implementation/invariant.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/mod.rs.opaque",
-        "crates/bityzba-macros/src/implementation/mod.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/parse.rs.opaque",
-        "crates/bityzba-macros/src/implementation/parse.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/requires.rs.opaque",
-        "crates/bityzba-macros/src/implementation/requires.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/traits.rs.opaque",
-        "crates/bityzba-macros/src/implementation/traits.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/implementation/type_invariant.rs.opaque",
-        "crates/bityzba-macros/src/implementation/type_invariant.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/bityzba-macros/src/lib.rs.opaque",
-        "crates/bityzba-macros/src/lib.rs",
-    ),
-    (
-        DICTIONARY_PATH,
-        "crates/jbotci-dictionary-data/data/dictionary-en.json",
-    ),
-    (
-        DICTIONARY_METADATA_PATH,
-        "crates/jbotci-dictionary-data/data/dictionary-en.metadata.toml",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/Cargo.toml",
-        "crates/jbotci-semantics/Cargo.toml",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/build.rs.opaque",
-        "crates/jbotci-semantics/build.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/codegen/smusni_v0_bundle.rs.opaque",
-        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/codegen/smusni_v0_completeness.rs.opaque",
-        "crates/jbotci-semantics/codegen/smusni_v0_completeness.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/codegen/smusni_v0_dispositions.rs.opaque",
-        "crates/jbotci-semantics/codegen/smusni_v0_dispositions.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/codegen/smusni_v0_kernel.rs.opaque",
-        "crates/jbotci-semantics/codegen/smusni_v0_kernel.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/codegen/smusni_v0_surface.rs.opaque",
-        "crates/jbotci-semantics/codegen/smusni_v0_surface.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/examples/smusni_v0_bundle.rs.opaque",
-        "crates/jbotci-semantics/examples/smusni_v0_bundle.rs",
-    ),
-    (
-        COMPLETENESS_INVENTORY_PATH,
-        "crates/jbotci-semantics/src/completeness/inventory.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/src/completeness/model.rs.opaque",
-        "crates/jbotci-semantics/src/completeness/model.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/src/model.rs.opaque",
-        "crates/jbotci-semantics/src/model.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/src/model/semantic_object.rs.opaque",
-        "crates/jbotci-semantics/src/model/semantic_object.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/src/model/event_binding.rs.opaque",
-        "crates/jbotci-semantics/src/model/event_binding.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/src/model/scope_dependence.rs.opaque",
-        "crates/jbotci-semantics/src/model/scope_dependence.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/src/notation/sexpr/datum.rs.opaque",
-        "crates/jbotci-semantics/src/notation/sexpr/datum.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/src/notation/sexpr/syntax.rs.opaque",
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs",
-    ),
-    (
-        "sources/generator-inputs/crates/jbotci-semantics/src/notation/sexpr/type_system.rs.opaque",
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs",
-    ),
+/// Repository sources mirrored into the retained generator-input tree.
+///
+/// Only the repository path is authored here. The bundled location is computed
+/// by [`bundled_generator_input_path`], so a mirror can never be filed under a
+/// path that disagrees with the source it snapshots, and every mirror carries
+/// the `.opaque` suffix that keeps the retained tree inert.
+const MIRRORED_GENERATOR_INPUTS: &[&str] = &[
+    "Cargo.lock",
+    "Cargo.toml",
+    "crates/bityzba/Cargo.toml",
+    "crates/bityzba/src/contract_scanner.rs",
+    "crates/bityzba/src/lib.rs",
+    "crates/bityzba-contract-syntax/Cargo.toml",
+    "crates/bityzba-contract-syntax/src/lib.rs",
+    "crates/bityzba-macros/Cargo.toml",
+    "crates/bityzba-macros/src/implementation/codegen.rs",
+    "crates/bityzba-macros/src/implementation/data.rs",
+    "crates/bityzba-macros/src/implementation/doc.rs",
+    "crates/bityzba-macros/src/implementation/ensures.rs",
+    "crates/bityzba-macros/src/implementation/invariant.rs",
+    "crates/bityzba-macros/src/implementation/mod.rs",
+    "crates/bityzba-macros/src/implementation/parse.rs",
+    "crates/bityzba-macros/src/implementation/requires.rs",
+    "crates/bityzba-macros/src/implementation/traits.rs",
+    "crates/bityzba-macros/src/implementation/type_invariant.rs",
+    "crates/bityzba-macros/src/lib.rs",
+    "crates/jbotci-dictionary-data/data/dictionary-en.json",
+    "crates/jbotci-dictionary-data/data/dictionary-en.metadata.toml",
+    "crates/jbotci-semantics/Cargo.toml",
+    "crates/jbotci-semantics/build.rs",
+    "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs",
+    "crates/jbotci-semantics/codegen/smusni_v0_completeness.rs",
+    "crates/jbotci-semantics/codegen/smusni_v0_dispositions.rs",
+    "crates/jbotci-semantics/codegen/smusni_v0_kernel.rs",
+    "crates/jbotci-semantics/codegen/smusni_v0_surface.rs",
+    "crates/jbotci-semantics/examples/smusni_v0_bundle.rs",
+    "crates/jbotci-semantics/src/completeness/inventory.rs",
+    "crates/jbotci-semantics/src/completeness/model.rs",
+    "crates/jbotci-semantics/src/model.rs",
+    "crates/jbotci-semantics/src/model/semantic_object.rs",
+    "crates/jbotci-semantics/src/model/event_binding.rs",
+    "crates/jbotci-semantics/src/model/scope_dependence.rs",
+    "crates/jbotci-semantics/src/notation/sexpr/datum.rs",
+    "crates/jbotci-semantics/src/notation/sexpr/syntax.rs",
+    "crates/jbotci-semantics/src/notation/sexpr/type_system.rs",
 ];
 
+/// Retained inputs the bundle owns outright. Each one snapshots an external
+/// authority recorded in a provenance sidecar rather than a live repository
+/// file, so no mirror comparison applies to them. `spec.md` belongs here: its
+/// authority is smusni design revision [`SMUSNI_SOURCE_REVISION`], and the
+/// repository's published `docs/smusni/spec.md` is a second copy of that same
+/// external artifact, pinned to [`SPEC_SHA256`] by the test suite rather than
+/// derived from this one.
 const BUNDLE_NATIVE_GENERATOR_INPUTS: &[&str] = &[
     OBLIQUE_PATH,
     OBLIQUE_METADATA_PATH,
     SOURCE_PATH,
     SOURCE_PROVENANCE_PATH,
+    SPEC_PATH,
     WITNESS_PATH,
 ];
 
@@ -959,7 +863,8 @@ pub fn run(
     dispositions: &[DispositionSeed],
     mode: BundleMode,
 ) -> Result<(), BundleError> {
-    validate_local_dependency_mappings(&paths.repository_root, MIRRORED_GENERATOR_INPUTS)?;
+    validate_generator_input_layout()?;
+    validate_local_dependency_closure(&paths.repository_root, &repository_rerun_paths())?;
     synchronize_generator_inputs(paths, mode)?;
     let minted = mint_snapshot(&paths.root, dispositions)?;
     verify_snapshot(&paths.root, &minted)?;
@@ -974,6 +879,29 @@ pub fn run(
         )
     })?;
     Ok(())
+}
+
+/// A writable scratch directory for generator side outputs.
+///
+/// The permanent tests and the reviewer CLI must run for any contributor, so no
+/// machine-specific absolute path belongs in them. `CARGO_TARGET_DIR` keeps
+/// these artifacts on whatever volume the caller already builds into — on this
+/// project's dev box that is the wipeable `/build` partition, because every lane
+/// sets that variable — and otherwise the workspace's own `target` directory is
+/// used, which is already ignored by git.
+#[requires(!purpose.is_empty())]
+#[ensures(ret.ends_with(purpose))]
+pub fn scratch_dir(purpose: &str) -> PathBuf {
+    let target = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .and_then(Path::parent)
+                .expect("semantics crate has a workspace root")
+                .join("target")
+        });
+    target.join("smusni-v0-scratch").join(purpose)
 }
 
 /// Every bundled input or generated artifact whose change must rerun the build
@@ -995,7 +923,7 @@ pub fn bundle_rerun_paths() -> Vec<String> {
 pub fn repository_rerun_paths() -> Vec<String> {
     MIRRORED_GENERATOR_INPUTS
         .iter()
-        .map(|(_, source)| (*source).to_owned())
+        .map(|source| (*source).to_owned())
         .collect()
 }
 
@@ -1004,7 +932,7 @@ pub fn repository_rerun_paths() -> Vec<String> {
 fn generator_input_paths() -> Vec<String> {
     MIRRORED_GENERATOR_INPUTS
         .iter()
-        .map(|(bundled, _)| (*bundled).to_owned())
+        .map(|repository| bundled_generator_input_path(repository))
         .chain(
             BUNDLE_NATIVE_GENERATOR_INPUTS
                 .iter()
@@ -1354,18 +1282,13 @@ fn parse_jsonl_artifact<T: DeserializeOwned + Serialize>(
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 fn synchronize_generator_inputs(paths: &BundlePaths, mode: BundleMode) -> Result<(), BundleError> {
-    for (bundled, repository) in MIRRORED_GENERATOR_INPUTS {
-        if !bundled.starts_with(&format!("{INPUT_PREFIX}/")) {
-            return Err(BundleError::new(
-                BundleErrorKind::Manifest,
-                format!("mirrored generator input is outside {INPUT_PREFIX}: {bundled}"),
-            ));
-        }
+    for repository in MIRRORED_GENERATOR_INPUTS {
+        let bundled = bundled_generator_input_path(repository);
         let source = read_relative(&paths.repository_root, repository)?;
         match mode {
-            BundleMode::Generate => write_relative(&paths.root, bundled, &source)?,
+            BundleMode::Generate => write_relative(&paths.root, &bundled, &source)?,
             BundleMode::Check => {
-                let checked_in = read_relative(&paths.root, bundled)?;
+                let checked_in = read_relative(&paths.root, &bundled)?;
                 if checked_in != source {
                     return Err(BundleError::new(
                         BundleErrorKind::Drift,
@@ -1406,27 +1329,26 @@ pub fn validate_local_dependency_closure(
     Ok(())
 }
 
-#[requires(!mappings.is_empty())]
+/// Prove that no retained input is filed where `cargo package` would prune it.
+///
+/// Cargo skips any subdirectory containing a `Cargo.toml`, so one mirrored
+/// manifest under the retained tree removes the whole closure from every source
+/// distribution. The mirror suffix already makes that impossible by
+/// construction; this restates the law over the complete inventory so a future
+/// bundle-native input cannot reintroduce it.
+#[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
-fn validate_local_dependency_mappings(
-    repository_root: &Path,
-    mappings: &[(&str, &str)],
-) -> Result<(), BundleError> {
-    let repository_inputs = mappings
-        .iter()
-        .map(|(_, repository)| (*repository).to_owned())
-        .collect::<Vec<_>>();
-    validate_local_dependency_closure(repository_root, &repository_inputs)?;
-    for (bundled, repository) in mappings
-        .iter()
-        .filter(|(_, repository)| is_local_dependency_path(repository))
-    {
-        let expected = bundled_local_dependency_path(repository);
-        if *bundled != expected {
+fn validate_generator_input_layout() -> Result<(), BundleError> {
+    for relative in generator_input_paths() {
+        if Path::new(&relative)
+            .file_name()
+            .is_some_and(|name| name == "Cargo.toml")
+        {
             return Err(BundleError::new(
                 BundleErrorKind::Manifest,
                 format!(
-                    "local dependency {repository} must be mirrored at {expected}, not {bundled}"
+                    "retained generator input {relative} is named Cargo.toml, which makes \
+                     cargo prune its directory out of every source distribution"
                 ),
             ));
         }
@@ -1535,14 +1457,18 @@ fn is_local_dependency_path(path: &str) -> bool {
     .any(|prefix| path.starts_with(prefix))
 }
 
-#[requires(is_local_dependency_path(repository_path))]
-#[ensures(ret.starts_with(INPUT_PREFIX))]
-fn bundled_local_dependency_path(repository_path: &str) -> String {
-    if repository_path.ends_with(".rs") {
-        format!("{INPUT_PREFIX}/{repository_path}.opaque")
-    } else {
-        format!("{INPUT_PREFIX}/{repository_path}")
-    }
+/// Where a mirrored repository source is retained inside the bundle.
+///
+/// The `.opaque` suffix is load-bearing, not cosmetic. `cargo package` treats
+/// any subdirectory that contains a `Cargo.toml` as a nested package and prunes
+/// that whole subtree, so a mirror filed under its natural manifest name
+/// silently removes the entire retained closure from every source distribution
+/// while leaving the working tree green. Suffixing every mirror keeps the
+/// retained tree inert to all build tooling by construction.
+#[requires(!repository_path.is_empty())]
+#[ensures(ret.starts_with(INPUT_PREFIX) && ret.ends_with(".opaque"))]
+fn bundled_generator_input_path(repository_path: &str) -> String {
+    format!("{INPUT_PREFIX}/{repository_path}.opaque")
 }
 
 #[requires(true)]
@@ -8146,10 +8072,8 @@ mod static_checker_tests {
     fn artifact_paths_reject_parent_and_symlink_escapes() {
         use std::os::unix::fs::symlink;
 
-        let scratch = PathBuf::from(format!(
-            "/build/jbotci/scratch/issue-741/smusni-v0-path-test-{}",
-            std::process::id()
-        ));
+        let scratch = scratch_dir(&format!("path-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&scratch);
         let root = scratch.join("root");
         let outside = scratch.join("outside");
         fs::create_dir_all(&root).unwrap();

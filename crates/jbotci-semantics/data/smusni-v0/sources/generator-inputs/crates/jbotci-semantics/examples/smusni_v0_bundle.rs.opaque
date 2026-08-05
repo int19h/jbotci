@@ -2,7 +2,7 @@
 
 use std::error::Error;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
@@ -31,8 +31,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     if std::env::args().nth(2).is_some() {
         return Err("usage: smusni_v0_bundle (--check|--generate)".into());
     }
-    let scratch = Path::new("/build/jbotci/scratch/issue-741/smusni-v0-bundle-cli");
-    fs::create_dir_all(scratch)?;
+    let scratch = smusni_v0_bundle::scratch_dir("bundle-cli");
+    fs::create_dir_all(&scratch)?;
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let paths =
         BundlePaths::for_manifest_dir(&manifest_dir, scratch.join("lexical_scope_policies.rs"));

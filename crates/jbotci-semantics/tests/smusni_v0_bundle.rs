@@ -22,18 +22,11 @@ mod smusni_v0_surface;
 use smusni_v0_bundle::{BundleErrorKind, BundleMode, BundlePaths, BundleSnapshot, DispositionSeed};
 use smusni_v0_kernel::datum::{Datum, parse_document};
 
-// The shared kernel's own unit tests retain their normal library-crate path
-// when this source is included into the standalone generator test crate.
-mod notation {
-    pub(crate) mod sexpr {
-        pub(crate) use crate::smusni_v0_kernel::datum;
-    }
-}
-
 const OBLIQUE: &[u8] = include_bytes!("../data/smusni-v0/sources/lojban-org/oblique_keywords.txt");
 const WITNESSES: &str = include_str!("../data/smusni-v0/sources/must-compact-witnesses.txt");
 const REGISTRY_SOURCE: &str = include_str!("../data/smusni-v0/sources/registry-source.toml");
 const SPEC: &[u8] = include_bytes!("../../../docs/smusni/spec.md");
+const RETAINED_SPEC: &[u8] = include_bytes!("../data/smusni-v0/sources/smusni/spec.md");
 const SAMPLES: &[u8] = include_bytes!("../../../docs/smusni/samples.md");
 
 #[requires(true)]
@@ -184,6 +177,135 @@ fn pinned_sources_and_candidate_witness_registry_are_exact() {
         format!("{:x}", Sha256::digest(SAMPLES)),
         "ee4cfe6c00009f2ca0387efd0dfa6551b4e6db61e6ff9bebf891f0c0346aa50b"
     );
+    // The bundle retains its own copy of the same external design artifact
+    // rather than mirroring the published document, so state their equality
+    // directly instead of leaving it implied by two separate digest pins.
+    assert_eq!(SPEC, RETAINED_SPEC);
+}
+
+/// The package that owns `relative`: the nearest ancestor directory holding a
+/// `Cargo.toml`, which is exactly the unit `cargo package` operates on.
+#[requires(!relative.is_empty())]
+#[ensures(repository_root().join(&ret).join("Cargo.toml").is_file())]
+fn owning_package_dir(relative: &str) -> String {
+    let root = repository_root();
+    let mut candidate = PathBuf::from(relative);
+    while candidate.pop() {
+        if root.join(&candidate).join("Cargo.toml").is_file() {
+            return candidate
+                .to_str()
+                .expect("repository paths are UTF-8")
+                .to_owned();
+        }
+    }
+    String::new()
+}
+
+/// Files listed by `cargo package` for one package, relative to that package.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn cargo_package_list(package_dir: &str) -> BTreeSet<String> {
+    let root = repository_root();
+    let manifest = root.join(package_dir).join("Cargo.toml");
+    let output = std::process::Command::new(env!("CARGO"))
+        .current_dir(&root)
+        // A private target directory keeps this nested invocation off the
+        // outer test run's build lock.
+        .env(
+            "CARGO_TARGET_DIR",
+            smusni_v0_bundle::scratch_dir("package-list"),
+        )
+        .args([
+            "package",
+            "--list",
+            "--locked",
+            "--offline",
+            "--allow-dirty",
+        ])
+        .arg("--manifest-path")
+        .arg(&manifest)
+        .output()
+        .expect("run cargo package --list");
+    assert!(
+        output.status.success(),
+        "cargo package --list failed for {}: {}",
+        manifest.display(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .expect("cargo package --list emits UTF-8")
+        .lines()
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Every file `build.rs` reads must survive `cargo package`, because the Python
+/// source distribution rebuilds the workspace from the extracted archive alone
+/// with the original checkout made unreadable.
+///
+/// Cargo prunes any subdirectory containing a `Cargo.toml` as a nested package,
+/// and honours each package's own `exclude`/`include` patterns. Either rule can
+/// drop a retained generator input while every in-tree check stays green; both
+/// did, and the failure only surfaced as a `build.rs` canonicalize error inside
+/// CI's isolated round trip. Ask cargo itself rather than restating its rules,
+/// and derive the file set from the bundle's own inventory rather than naming
+/// individual files.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn every_build_time_generator_input_survives_cargo_packaging() {
+    let bundle_root = Path::new("crates/jbotci-semantics")
+        .join(smusni_v0_bundle::BUNDLE_ROOT)
+        .to_str()
+        .expect("bundle root is UTF-8")
+        .to_owned();
+    let required = smusni_v0_bundle::bundle_rerun_paths()
+        .into_iter()
+        .map(|relative| format!("{bundle_root}/{relative}"))
+        .chain(smusni_v0_bundle::repository_rerun_paths())
+        .collect::<BTreeSet<_>>();
+    assert!(required.len() > 90, "inventory shrank unexpectedly");
+
+    let mut by_package: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+    for relative in &required {
+        assert!(
+            repository_root().join(relative).is_file(),
+            "declared generator input is absent: {relative}"
+        );
+        by_package
+            .entry(owning_package_dir(relative))
+            .or_default()
+            .push(relative.clone());
+    }
+
+    for (package_dir, paths) in by_package {
+        if package_dir.is_empty() {
+            // Cargo writes the manifest and lockfile into every package archive,
+            // and maturin writes the workspace manifest and lock into the sdist,
+            // so asking cargo about these two would be vacuous. Any *other*
+            // workspace-root input would genuinely reach no archive, so require
+            // the set to stay exactly those two.
+            assert_eq!(
+                paths,
+                vec!["Cargo.lock".to_owned(), "Cargo.toml".to_owned()],
+                "a workspace-root generator input other than the manifest and \
+                 lockfile cannot reach any package archive"
+            );
+            continue;
+        }
+        let listed = cargo_package_list(&package_dir);
+        let prefix = format!("{package_dir}/");
+        for relative in paths {
+            let in_package = relative
+                .strip_prefix(&prefix)
+                .expect("path lies inside its owning package");
+            assert!(
+                listed.contains(in_package),
+                "cargo package drops required generator input {relative}; \
+                 a source distribution built from it cannot run build.rs"
+            );
+        }
+    }
 }
 
 #[test]
@@ -214,8 +336,8 @@ fn every_local_contract_dependency_influence_is_mirrored() {
 #[requires(true)]
 #[ensures(true)]
 fn checked_bundle_is_current_and_generation_is_reproducible() {
-    let scratch = Path::new("/build/jbotci/scratch/issue-741/smusni-v0-bundle-tests");
-    fs::create_dir_all(scratch).expect("create bundle test scratch");
+    let scratch = smusni_v0_bundle::scratch_dir("bundle-tests");
+    fs::create_dir_all(&scratch).expect("create bundle test scratch");
     let first = scratch.join("policies-first.rs");
     let second = scratch.join("policies-second.rs");
     let seeds = dispositions();

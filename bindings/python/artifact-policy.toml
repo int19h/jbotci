@@ -10,20 +10,30 @@
 # sizes, while `max_entries` catches accidental trees of many small files.
 
 # The sdist ratchets were recalibrated for #741, which projects the smusni
-# S-expression notation from `jbotci-semantics` and adds 34 net logical
-# members: five codegen files, the data `.gitattributes`, the generated
-# smusni-v0 registry with its retained sources, the notation registry module,
-# the `sexpr` modules, and the typed IR, less the retired flat renderer and
-# writer. All three sdist ratchets moved together so the byte ceilings are not
-# left marginal while only the member count is raised; the growth allowance is
-# unchanged. The byte baselines round up the *normalized* archive that
-# `inspect` receives, not Maturin's raw output, because that is the artifact the
-# ratchet compares. See that pull request for the measured archive diff.
+# S-expression notation from `jbotci-semantics` and adds 74 net logical members
+# against the pre-#741 baseline: five codegen files, the data `.gitattributes`,
+# the generated smusni-v0 registry, the notation registry module, the `sexpr`
+# modules, the typed IR, the bundle CLI example, and the 44 retained
+# generator-input sources, less the retired flat renderer and writer.
+#
+# The retained sources dominate the byte growth. `build.rs` verifies the frozen
+# bundle against its own generator inputs on every build, so a source
+# distribution that omits them cannot build at all; the tree therefore ships a
+# byte-exact mirror of every generator input, including the ~9.9 MB pinned
+# dictionary snapshot that also appears as `jbotci-dictionary-data`'s live copy.
+# That duplication is the deliberate price of a bundle whose provenance is
+# checkable from the archive alone.
+#
+# All three sdist ratchets move together so the byte ceilings are not left
+# marginal while only the member count is raised; the growth allowance is
+# unchanged. The byte baselines round up the *normalized* archive that `inspect`
+# receives, not Maturin's raw output, because that is the artifact the ratchet
+# compares. See that pull request for the measured archive diff.
 [sizes.sdist]
-baseline_bytes = 3600000
-baseline_unpacked_bytes = 24000000
+baseline_bytes = 5700000
+baseline_unpacked_bytes = 35800000
 max_growth_percent = 15
-max_entries = 280
+max_entries = 325
 
 [sizes.linux-x86_64]
 baseline_bytes = 20000000

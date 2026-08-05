@@ -7,7 +7,15 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
-exclude = ["/tests/**", "/benches/**", "/examples/**"]
+# `build.rs` verifies the retained smusni-v0 bundle against its own generator
+# sources on every build, and the bundle CLI is one of those sources, so it must
+# stay inside the published package even though the other examples do not.
+exclude = [
+    "/tests/**",
+    "/benches/**",
+    "/examples/**",
+    "!/examples/smusni_v0_bundle.rs",
+]
 
 [features]
 expensive_contracts = []
