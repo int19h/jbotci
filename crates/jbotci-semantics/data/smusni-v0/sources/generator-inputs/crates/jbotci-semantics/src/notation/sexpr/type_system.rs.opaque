@@ -1580,8 +1580,8 @@ fn require_len(items: &[Datum], expected: usize, context: &str) -> Result<(), Ty
 mod tests {
     use bityzba::requires;
 
+    use super::super::datum::parse_document;
     use super::*;
-    use crate::notation::sexpr::datum::parse_document;
 
     /// Parse one raw type specimen.
     #[requires(true)]
