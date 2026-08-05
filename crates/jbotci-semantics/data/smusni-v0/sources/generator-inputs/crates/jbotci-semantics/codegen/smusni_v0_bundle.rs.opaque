@@ -13,7 +13,7 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 #[allow(unused_imports)]
-use bityzba::{data, ensures, invariant, new, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires, try_new};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
@@ -1291,11 +1291,13 @@ fn synchronize_generator_inputs(paths: &BundlePaths, mode: BundleMode) -> Result
                 // Read the mirror either way, so a missing retained input still
                 // fails here rather than later.
                 let checked_in = read_relative(&paths.root, &bundled)?;
-                if distribution_preserves_input(repository) && checked_in != source {
-                    return Err(BundleError::new(
-                        BundleErrorKind::Drift,
-                        format!("bundled generator input is stale: {bundled}"),
-                    ));
+                if checked_in != source {
+                    validate_packaging_rewrite(
+                        &paths.repository_root,
+                        repository,
+                        &checked_in,
+                        &source,
+                    )?;
                 }
             }
         }
@@ -1473,28 +1475,522 @@ pub fn bundled_generator_input_path(repository_path: &str) -> String {
     format!("{INPUT_PREFIX}/{repository_path}.opaque")
 }
 
-/// Whether a source distribution reproduces this repository input byte for byte.
+/// Top-level workspace-root manifest sections that packaging removes.
 ///
-/// Manifests and lockfiles are packaging metadata that the packaging tools own
-/// and normalize: cargo rewrites a packaged crate's manifest (adding a detected
-/// `readme` key, for instance), and maturin prunes the workspace member list and
-/// regenerates the lockfile for the reduced closure — this workspace's 913
-/// locked packages become 99. Comparing a retained snapshot against those
-/// rewritten files inside a distribution therefore cannot succeed, and demanding
-/// it is what stops the extracted archive from building at all.
+/// They describe the root package and the full workspace build, neither of
+/// which exists inside a source distribution: `cargo package` drops the root
+/// package's own sections, and the artifact tool removes `[patch]` because its
+/// path targets are not packaged.
+const PACKAGED_ROOT_MANIFEST_REMOVED_SECTIONS: &[&str] = &[
+    "build-dependencies",
+    "dependencies",
+    "dev-dependencies",
+    "features",
+    "lints",
+    "package",
+    "patch",
+];
+
+/// Prove that a live file which is not byte-equal to its retained mirror is
+/// exactly the audited packaging rewrite of it.
 ///
-/// The snapshots stay exact evidence of what the generator compiled against.
-/// Their equality with the live files is a *repository* invariant, asserted by
-/// the test suite, which only ever runs inside the repository.
+/// Byte equality is the rule for every retained generator input. A source
+/// distribution is a *pruned workspace*, so exactly two files cannot satisfy it:
+/// the workspace-root manifest, which packaging rewrites structurally, and the
+/// lockfile, which has to describe the packaged workspace because consumers
+/// build it with `cargo --locked` and that refuses to update one. Measured
+/// against a maturin 1.14.1 archive, this workspace's 913-package lockfile makes
+/// `cargo fetch --locked` fail outright on the extracted tree, and the
+/// 99-package lockfile written for the packaged workspace is what succeeds.
+///
+/// Neither case is waived. Each is decided semantically against the retained
+/// mirror, so a distribution still cannot ship a manifest or a lockfile that
+/// says anything this repository did not. Every other input, including each
+/// packaged crate manifest that `cargo package` normalizes, is restored to its
+/// retained bytes by the artifact tool and compared exactly.
 #[requires(!repository_path.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn validate_packaging_rewrite(
+    distribution_root: &Path,
+    repository_path: &str,
+    retained: &[u8],
+    live: &[u8],
+) -> Result<(), BundleError> {
+    match repository_path {
+        "Cargo.lock" => validate_packaged_lockfile(retained, live),
+        "Cargo.toml" => validate_packaged_root_manifest(distribution_root, retained, live),
+        _ => Err(BundleError::new(
+            BundleErrorKind::Drift,
+            format!(
+                "bundled generator input is stale: {}",
+                bundled_generator_input_path(repository_path)
+            ),
+        )),
+    }
+}
+
+/// Prove that the packaged workspace-root manifest is the retained manifest
+/// after exactly the audited structural packaging transform.
+///
+/// The expected manifest is *derived* from the retained one rather than
+/// compared loosely against the live one: the removed sections are a closed
+/// list, `default-members` goes with the root package, and both the member list
+/// and the workspace path dependencies are filtered by what the distribution
+/// actually contains, keeping the retained order. Any remaining delta — a
+/// changed dependency requirement, an added member, an edited
+/// `[workspace.package]` field — is rejected.
+#[requires(!retained.is_empty() && !live.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub fn validate_packaged_root_manifest(
+    distribution_root: &Path,
+    retained: &[u8],
+    live: &[u8],
+) -> Result<(), BundleError> {
+    let mut expected = parse_manifest("retained root manifest", retained)?;
+    let actual = parse_manifest("packaged root manifest", live)?;
+    for section in PACKAGED_ROOT_MANIFEST_REMOVED_SECTIONS {
+        expected.remove(*section);
+    }
+    let workspace = expected
+        .get_mut("workspace")
+        .and_then(toml::Value::as_table_mut)
+        .ok_or_else(|| {
+            BundleError::new(
+                BundleErrorKind::Manifest,
+                "retained root manifest has no [workspace] table",
+            )
+        })?;
+    workspace.remove("default-members");
+    if let Some(members) = workspace.get_mut("members") {
+        let packaged = members
+            .as_array()
+            .ok_or_else(|| {
+                BundleError::new(
+                    BundleErrorKind::Manifest,
+                    "retained [workspace] members is not an array",
+                )
+            })?
+            .iter()
+            .filter(|member| match member.as_str() {
+                // The root package is removed above, so it can no longer be a
+                // member of the packaged workspace.
+                Some(".") => false,
+                // A non-string member is kept so the comparison below reports it
+                // rather than this filter silently dropping it.
+                Some(path) => is_packaged_crate(distribution_root, path),
+                None => true,
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        *members = toml::Value::Array(packaged);
+    }
+    if let Some(dependencies) = workspace
+        .get_mut("dependencies")
+        .and_then(toml::Value::as_table_mut)
+    {
+        *dependencies = std::mem::take(dependencies)
+            .into_iter()
+            .filter(
+                |(_, dependency)| match dependency.get("path").and_then(toml::Value::as_str) {
+                    Some(path) => is_packaged_crate(distribution_root, path),
+                    None => true,
+                },
+            )
+            .collect();
+    }
+    match first_manifest_difference(
+        "",
+        &toml::Value::Table(expected),
+        &toml::Value::Table(actual),
+    ) {
+        None => Ok(()),
+        Some(difference) => Err(BundleError::new(
+            BundleErrorKind::Manifest,
+            format!(
+                "packaged root manifest is not the audited packaging rewrite of its \
+                 retained mirror: {difference}"
+            ),
+        )),
+    }
+}
+
+#[requires(!relative.is_empty())]
 #[ensures(true)]
-pub fn distribution_preserves_input(repository_path: &str) -> bool {
-    !matches!(
-        Path::new(repository_path)
-            .file_name()
-            .and_then(|name| name.to_str()),
-        Some("Cargo.toml" | "Cargo.lock")
-    )
+fn is_packaged_crate(distribution_root: &Path, relative: &str) -> bool {
+    distribution_root
+        .join(relative)
+        .join("Cargo.toml")
+        .is_file()
+}
+
+/// The first place two manifests disagree, named by its dotted key path.
+#[requires(true)]
+#[ensures(true)]
+fn first_manifest_difference(
+    path: &str,
+    expected: &toml::Value,
+    actual: &toml::Value,
+) -> Option<String> {
+    match (expected, actual) {
+        (toml::Value::Table(expected), toml::Value::Table(actual)) => {
+            for key in expected
+                .keys()
+                .chain(actual.keys())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+            {
+                let child = if path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{path}.{key}")
+                };
+                match (expected.get(key), actual.get(key)) {
+                    (Some(expected), Some(actual)) => {
+                        if let Some(difference) =
+                            first_manifest_difference(&child, expected, actual)
+                        {
+                            return Some(difference);
+                        }
+                    }
+                    (Some(_), None) => {
+                        return Some(format!("{child} is missing from the packaged manifest"));
+                    }
+                    (None, Some(_)) => {
+                        return Some(format!("{child} is only in the packaged manifest"));
+                    }
+                    (None, None) => {}
+                }
+            }
+            None
+        }
+        _ if expected == actual => None,
+        _ => Some(format!(
+            "{path} is {actual:?} in the packaged manifest, expected {expected:?}"
+        )),
+    }
+}
+
+/// One `[[package]]` entry exactly as the file spells it.
+///
+/// `deny_unknown_fields` is deliberate: a lockfile key this validator does not
+/// understand must be audited before a distribution can carry it. Every
+/// combination this decodes is valid raw syntax, so the meaning is imposed by
+/// [`parse_lockfile`], which reports each defect with its own error kind rather
+/// than failing the decode.
+#[invariant(true)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawLockedPackage {
+    name: String,
+    version: String,
+    #[serde(default)]
+    source: Option<String>,
+    #[serde(default)]
+    checksum: Option<String>,
+    #[serde(default)]
+    dependencies: Vec<String>,
+}
+
+/// A `Cargo.lock` exactly as the file spells it.
+#[invariant(true)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawLockfile {
+    version: u32,
+    #[serde(default)]
+    package: Vec<RawLockedPackage>,
+}
+
+/// One locked package, after [`parse_lockfile`] has given it a meaning.
+///
+/// The identity fields are populated, and a checksum attests bytes fetched from
+/// somewhere, so it cannot stand without the source it attests.
+#[invariant(!name.is_empty(), "a locked package is named")]
+#[invariant(!version.is_empty(), "a locked package has a version")]
+#[invariant(
+    checksum.is_none() || source.is_some(),
+    "cargo records a checksum only for a package fetched from a source"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LockedPackage {
+    name: String,
+    version: String,
+    source: Option<String>,
+    checksum: Option<String>,
+    dependencies: Vec<String>,
+}
+
+/// A lockfile whose packages are named, populated, and distinct.
+///
+/// Only formats that record their own version reach this type: cargo omitted the
+/// key entirely before version 3, so a lockfile here has always named the format
+/// its entries follow. Distinctness is the expensive half of the same idea —
+/// a repeated identity would decide silently which entry a dependency resolved
+/// against — and [`parse_lockfile`] reports it as a typed duplicate-key error
+/// before construction, so this states the guarantee rather than discovering it.
+#[invariant(
+    *version >= 3,
+    "a lockfile records the format its entries follow"
+)]
+#[invariant(!package.is_empty(), "a lockfile locks at least one package")]
+#[expensive_invariant(
+    package
+        .iter()
+        .map(LockedPackage::identity)
+        .collect::<BTreeSet<_>>()
+        .len()
+        == package.len(),
+    "a lockfile locks each package identity exactly once"
+)]
+#[derive(Debug, Clone)]
+struct Lockfile {
+    version: u32,
+    package: Vec<LockedPackage>,
+}
+
+impl LockedPackage {
+    /// The fully qualified identity cargo writes into a dependency string.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn identity(&self) -> String {
+        match &self.source {
+            Some(source) => format!("{} {} ({source})", self.name, self.version),
+            None => format!("{} {}", self.name, self.version),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.identity() == other.identity()))]
+    fn is_same_package(&self, other: &Self) -> bool {
+        self.name == other.name && self.version == other.version && self.source == other.source
+    }
+}
+
+/// Prove that the packaged lockfile is a projection of the retained one.
+///
+/// Every package the distribution locks must be locked identically here — same
+/// name, version, source, and checksum — and every dependency edge it resolves
+/// must be an edge this repository also resolved. Completeness is not this
+/// check's job and is not claimed: a consumer builds the archive with
+/// `cargo --locked`, which fails unless the packaged lockfile covers the whole
+/// packaged workspace. Together those two properties say the distribution
+/// builds against exactly the dependency versions this repository resolved, and
+/// nothing else.
+#[requires(!retained.is_empty() && !live.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub fn validate_packaged_lockfile(retained: &[u8], live: &[u8]) -> Result<(), BundleError> {
+    let retained = parse_lockfile("retained lockfile", retained)?;
+    let live = parse_lockfile("packaged lockfile", live)?;
+    if retained.version != live.version {
+        return Err(BundleError::new(
+            BundleErrorKind::Manifest,
+            format!(
+                "packaged lockfile format version {} is not the retained {}",
+                live.version, retained.version
+            ),
+        ));
+    }
+    for package in &live.package {
+        let counterpart = retained
+            .package
+            .iter()
+            .find(|candidate| candidate.is_same_package(package))
+            .ok_or_else(|| {
+                BundleError::new(
+                    BundleErrorKind::ForeignKey,
+                    format!(
+                        "packaged lockfile locks {}, which the retained lockfile does not",
+                        package.identity()
+                    ),
+                )
+            })?;
+        if counterpart.checksum != package.checksum {
+            return Err(BundleError::new(
+                BundleErrorKind::Digest,
+                format!(
+                    "packaged lockfile gives {} checksum {:?}, the retained lockfile gives {:?}",
+                    package.identity(),
+                    package.checksum,
+                    counterpart.checksum
+                ),
+            ));
+        }
+        let retained_edges = counterpart
+            .dependencies
+            .iter()
+            .map(|specification| {
+                resolve_locked_dependency("retained lockfile", &retained.package, specification)
+                    .map(LockedPackage::identity)
+            })
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        for specification in &package.dependencies {
+            let resolved =
+                resolve_locked_dependency("packaged lockfile", &live.package, specification)?
+                    .identity();
+            if !retained_edges.contains(&resolved) {
+                return Err(BundleError::new(
+                    BundleErrorKind::ForeignKey,
+                    format!(
+                        "packaged lockfile edge {} -> {resolved} is not an edge of the \
+                         retained lockfile",
+                        package.identity()
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Resolve one `dependencies` entry against the lockfile that wrote it.
+///
+/// Cargo writes `name`, `name version`, or `name version (source)`, qualifying
+/// an entry with exactly as much as it needs to be unambiguous. The grammar is
+/// parsed strictly rather than by loose splitting: an unparenthesized or
+/// unbalanced source, a parenthesized version, or any trailing field is a
+/// malformed entry, not a field to ignore. An entry that then matches no
+/// package, or more than one, is itself a defect.
+#[requires(!label.is_empty() && !packages.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn resolve_locked_dependency<'a>(
+    label: &str,
+    packages: &'a [LockedPackage],
+    specification: &str,
+) -> Result<&'a LockedPackage, BundleError> {
+    let malformed = |reason: &str| {
+        BundleError::new(
+            BundleErrorKind::ByteDomain,
+            format!("{label} dependency {specification:?} is malformed: {reason}"),
+        )
+    };
+    let fields = specification.split_whitespace().collect::<Vec<_>>();
+    let [name, qualifiers @ ..] = fields.as_slice() else {
+        return Err(malformed("it names no package"));
+    };
+    let (version, source) = match qualifiers {
+        [] => (None, None),
+        [version] => (Some(*version), None),
+        [version, source] => (Some(*version), Some(*source)),
+        _ => return Err(malformed("it has more fields than `name version (source)`")),
+    };
+    if version.is_some_and(|version| version.starts_with('(')) {
+        return Err(malformed("its version is parenthesized"));
+    }
+    let source = match source {
+        None => None,
+        Some(source) => {
+            let inner = source
+                .strip_prefix('(')
+                .and_then(|source| source.strip_suffix(')'))
+                .ok_or_else(|| malformed("its source is not wrapped in one pair of parentheses"))?;
+            if inner.is_empty() || inner.contains(['(', ')']) {
+                return Err(malformed("its source is empty or nests parentheses"));
+            }
+            Some(inner)
+        }
+    };
+    let mut resolved = packages.iter().filter(|package| {
+        package.name == *name
+            && version.is_none_or(|version| package.version == version)
+            && source.is_none_or(|source| package.source.as_deref() == Some(source))
+    });
+    let first = resolved.next().ok_or_else(|| {
+        BundleError::new(
+            BundleErrorKind::ForeignKey,
+            format!("{label} dependency {specification:?} resolves to no locked package"),
+        )
+    })?;
+    if resolved.next().is_some() {
+        return Err(BundleError::new(
+            BundleErrorKind::ForeignKey,
+            format!("{label} dependency {specification:?} resolves to several locked packages"),
+        ));
+    }
+    Ok(first)
+}
+
+/// Decode a lockfile and give it a meaning, or say exactly what is wrong.
+///
+/// Each defect gets its own error kind, which is why the raw decode and the
+/// validated value are separate types: serde only knows the syntax, and a
+/// located [`BundleError`] is a better diagnostic than a failed decode.
+#[requires(!label.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn parse_lockfile(label: &str, bytes: &[u8]) -> Result<Lockfile, BundleError> {
+    let raw: RawLockfile = toml::from_str(&decode_utf8(label, bytes)?).map_err(|error| {
+        BundleError::new(BundleErrorKind::Parse, format!("parse {label}: {error}"))
+    })?;
+    if raw.package.is_empty() {
+        return Err(BundleError::new(
+            BundleErrorKind::ByteDomain,
+            format!("{label} locks no packages"),
+        ));
+    }
+    let mut packages = Vec::with_capacity(raw.package.len());
+    for package in raw.package {
+        if package.name.is_empty() || package.version.is_empty() {
+            return Err(BundleError::new(
+                BundleErrorKind::ByteDomain,
+                format!("{label} locks {package:?} without a name or a version"),
+            ));
+        }
+        packages.push(
+            try_new!(LockedPackage {
+                name: package.name,
+                version: package.version,
+                source: package.source,
+                checksum: package.checksum,
+                dependencies: package.dependencies,
+            })
+            .map_err(|error| {
+                BundleError::new(
+                    BundleErrorKind::ByteDomain,
+                    format!("{label} locks an unusable package: {error}"),
+                )
+            })?,
+        );
+    }
+    // A repeated identity would make dependency resolution ambiguous and would
+    // let one of the two entries carry a checksum nothing ever compares.
+    let mut identities = BTreeSet::new();
+    if let Some(package) = packages
+        .iter()
+        .find(|package| !identities.insert(package.identity()))
+    {
+        return Err(BundleError::new(
+            BundleErrorKind::DuplicatePrimaryKey,
+            format!("{label} locks {} more than once", package.identity()),
+        ));
+    }
+    try_new!(Lockfile {
+        version: raw.version,
+        package: packages,
+    })
+    .map_err(|error| {
+        BundleError::new(
+            BundleErrorKind::ByteDomain,
+            format!("{label} is not a usable lockfile: {error}"),
+        )
+    })
+}
+
+#[requires(!label.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn parse_manifest(label: &str, bytes: &[u8]) -> Result<toml::Table, BundleError> {
+    toml::from_str(&decode_utf8(label, bytes)?).map_err(|error| {
+        BundleError::new(BundleErrorKind::Parse, format!("parse {label}: {error}"))
+    })
+}
+
+#[requires(!label.is_empty())]
+#[ensures(ret.is_ok() || ret.is_err())]
+fn decode_utf8(label: &str, bytes: &[u8]) -> Result<String, BundleError> {
+    String::from_utf8(bytes.to_vec()).map_err(|error| {
+        BundleError::new(
+            BundleErrorKind::ByteDomain,
+            format!("{label} is not UTF-8: {error}"),
+        )
+    })
 }
 
 #[requires(true)]

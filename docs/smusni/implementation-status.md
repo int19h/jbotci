@@ -132,6 +132,26 @@ nested package and prunes the whole subtree, so a mirror filed under its natural
 manifest name silently removes the entire retained closure from every source
 distribution while leaving the working tree green.
 
+Every build compares each retained mirror against its live counterpart byte for
+byte, inside a source distribution as much as in a checkout, so a generator
+input that changes without a regenerated bundle fails the build. Exactly two
+files cannot satisfy that, because a distribution is a pruned workspace rather
+than a copy of this one: the workspace-root
+manifest, which packaging rewrites structurally, and the lockfile, which has to
+describe the packaged workspace because consumers build the archive with
+`cargo --locked` and that refuses to update one. Neither is waived. The packaged
+root manifest is compared against the retained manifest put through exactly the
+audited packaging transform — drop the root package's sections and `[patch]`,
+drop `workspace.default-members`, and filter the members and workspace path
+dependencies to what the archive contains, in the retained order — and any other
+delta is rejected. The packaged lockfile must be a projection of the retained
+one: every package identity and checksum it locks, and every dependency edge it
+resolves, has to be one this repository also resolved, with completeness
+supplied by the consumer's own `--locked` build. Every other input, including
+the crate manifests `cargo package` annotates with a detected `readme` key, is
+restored to its retained bytes by `bindings/python/tools/python_artifacts.py`
+and compared exactly.
+
 ## Reproducible observations
 
 Smoke outputs and their separate stderr files are written under

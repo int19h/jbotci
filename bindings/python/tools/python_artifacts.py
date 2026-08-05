@@ -9,7 +9,6 @@ import hashlib
 import io
 import json
 import math
-import os
 import re
 import subprocess
 import tarfile
@@ -177,6 +176,19 @@ SDIST_OMITTED_PATCH = (
     b"[patch.crates-io]\n"
     b'llama-cpp-sys-4 = { path = "crates/vendor/llama-cpp-sys-4" }\n\n'
 )
+
+# The smusni-v0 bundle retains a byte-exact mirror of every source its
+# generator compiled against, and `crates/jbotci-semantics/build.rs` compares
+# each one against the live file on every build, inside a distribution as much
+# as in a checkout.
+GENERATOR_INPUT_PREFIX = (
+    "crates/jbotci-semantics/data/smusni-v0/sources/generator-inputs"
+)
+# `cargo package` normalizes a packaged crate manifest by adding the `readme`
+# key it detects from the crate directory. That is the only edit it makes to
+# the manifests here, and undoing it exactly is what keeps those mirrors
+# byte-comparable inside the archive.
+CARGO_INSERTED_README_KEY = re.compile(rb'^readme = "[^"\n]*"\n', re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -409,6 +421,37 @@ def _normalized_workspace_manifest(contents: bytes) -> bytes:
     return contents.replace(SDIST_OMITTED_PATCH, b"")
 
 
+def _restore_packaged_crate_manifests(root: Path) -> list[str]:
+    """Undo cargo's manifest normalization for every retained crate manifest.
+
+    `cargo package` rewrites a packaged crate's manifest, which would leave the
+    smusni-v0 bundle's byte-exact mirrors uncomparable inside the archive. The
+    single edit it makes here is the `readme` key it detects from the crate
+    directory, so removing exactly that key must reproduce the retained bytes;
+    anything else is a difference this tool must not paper over.
+    """
+    mirrors = root / GENERATOR_INPUT_PREFIX
+    assert mirrors.is_dir(), mirrors
+    restored: list[str] = []
+    for mirror in sorted(mirrors.rglob("*.opaque")):
+        relative = mirror.relative_to(mirrors).with_suffix("")
+        if relative.name != "Cargo.toml" or str(relative) == "Cargo.toml":
+            # The workspace-root manifest is genuinely rewritten, and the other
+            # retained inputs are already byte-exact.
+            continue
+        packaged = root / relative
+        assert packaged.is_file(), packaged
+        retained = mirror.read_bytes()
+        contents = packaged.read_bytes()
+        if contents == retained:
+            continue
+        stripped, removed = CARGO_INSERTED_README_KEY.subn(b"", contents)
+        assert removed == 1 and stripped == retained, relative
+        packaged.write_bytes(retained)
+        restored.append(str(relative))
+    return restored
+
+
 def normalize_sdist(input_path: Path, output_path: Path) -> None:
     """Write a deterministic standalone sdist from Maturin's raw archive."""
     input_path = input_path.resolve()
@@ -448,7 +491,17 @@ def normalize_sdist(input_path: Path, output_path: Path) -> None:
                 members.append((member.name, tarfile.REGTYPE, member.mode))
 
         assert root_manifest is not None
-        environment = os.environ.copy()
+        for relative in _restore_packaged_crate_manifests(root_manifest.parent):
+            print(f"restored the retained crate manifest: {relative}")
+        # Resolve the workspace that is actually packaged, and let cargo write
+        # the lockfile that describes it. A source distribution is a pruned
+        # workspace: Maturin ships this repository's own lockfile but cuts the
+        # workspace down to the binding dependency closure, and a lockfile for
+        # the full repository workspace is not a valid lockfile for the smaller
+        # one. Downstream consumers, including the isolated round trip's
+        # `cargo fetch --locked` and `maturin build --locked`, refuse to update
+        # a lockfile, so the archive has to leave here already carrying one that
+        # matches its own workspace. This unlocked run is what produces it.
         subprocess.run(
             [
                 "cargo",
@@ -458,10 +511,15 @@ def normalize_sdist(input_path: Path, output_path: Path) -> None:
                 "--format-version",
                 "1",
             ],
-            env=environment,
             stdout=subprocess.DEVNULL,
             check=True,
         )
+        # Then fail closed unless the rewritten workspace still loads from the
+        # archive alone. `--no-deps` resolves no dependency graph, so this
+        # proves the root manifest and every packaged member manifest parse and
+        # resolve offline after the edits above; it does not re-check the
+        # lockfile, whose agreement the run above has just established and the
+        # `--locked` consumers enforce again.
         subprocess.run(
             [
                 "cargo",
@@ -474,7 +532,6 @@ def normalize_sdist(input_path: Path, output_path: Path) -> None:
                 "--offline",
                 "--no-deps",
             ],
-            env=environment,
             stdout=subprocess.DEVNULL,
             check=True,
         )

@@ -183,32 +183,273 @@ fn pinned_sources_and_candidate_witness_registry_are_exact() {
     assert_eq!(SPEC, RETAINED_SPEC);
 }
 
-/// Packaging owns manifest and lockfile normalization, so `build.rs` cannot
-/// compare those retained snapshots against the live files inside a source
-/// distribution — cargo and maturin have rewritten them by then. Their equality
-/// with the repository is a repository invariant, and this is where it holds.
+/// Every byte this build compares must survive checkout unchanged.
+///
+/// Git decides end-of-line conversion per path, so a retained mirror and the
+/// file it snapshots that disagree about the `text` attribute drift apart on a
+/// Windows checkout and nowhere else — which is exactly how the pinned
+/// dictionary mirror broke while every Linux job stayed green. The bundle's own
+/// retained sources are in the same position, because the build recomputes
+/// their digests. Deriving the inventory from the generator rather than from
+/// `.gitattributes` keeps the policy closed: a new generator input that nothing
+/// marks fails here.
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn distribution_rewritten_snapshots_still_match_the_repository() {
+fn every_compared_byte_is_checked_out_verbatim() {
     let root = repository_root();
-    let bundle = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let bundle_dir = Path::new("crates/jbotci-semantics").join(smusni_v0_bundle::BUNDLE_ROOT);
+    let mut paths = smusni_v0_bundle::bundle_rerun_paths()
+        .into_iter()
+        .map(|relative| {
+            bundle_dir
+                .join(relative)
+                .to_str()
+                .expect("repository paths are UTF-8")
+                .to_owned()
+        })
+        .collect::<BTreeSet<_>>();
+    paths.extend(smusni_v0_bundle::repository_rerun_paths());
+    assert!(paths.len() > 90, "inventory shrank unexpectedly");
+
+    let output = std::process::Command::new("git")
+        .current_dir(&root)
+        .args(["check-attr", "text", "--"])
+        .args(&paths)
+        .output()
+        .expect("run git check-attr");
+    assert!(
+        output.status.success(),
+        "git check-attr failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let reported = String::from_utf8(output.stdout).expect("git reports UTF-8 paths");
     let mut checked = 0;
-    for relative in smusni_v0_bundle::repository_rerun_paths() {
-        if smusni_v0_bundle::distribution_preserves_input(&relative) {
-            continue;
-        }
-        let snapshot = bundle.join(smusni_v0_bundle::bundled_generator_input_path(&relative));
-        assert_eq!(
-            fs::read(root.join(&relative)).expect("live generator input"),
-            fs::read(&snapshot).expect("retained generator input"),
-            "retained snapshot is stale: {relative}"
-        );
+    for line in reported.lines() {
+        // `-text` is the only setting that survives every platform's checkout
+        // verbatim; `git check-attr` spells it `unset`.
+        let (path, value) = line
+            .rsplit_once(": ")
+            .expect("git check-attr reports `<path>: text: <value>`");
+        assert_eq!(value, "unset", "{path} is not checked out verbatim");
         checked += 1;
     }
-    // The workspace manifest and lockfile plus the four path-dependency and
-    // owning-crate manifests.
-    assert_eq!(checked, 6);
+    assert_eq!(checked, paths.len());
+}
+
+/// A retained lockfile in the shape cargo writes: one workspace member, two
+/// registry packages, and edges from the member to `leaf` and from `trunk` to
+/// `leaf`. The member never depends on `trunk` directly.
+const RETAINED_LOCKFILE: &str = concat!(
+    "version = 4\n",
+    "\n",
+    "[[package]]\n",
+    "name = \"member\"\n",
+    "version = \"0.1.0\"\n",
+    "dependencies = [\n",
+    " \"leaf\",\n",
+    "]\n",
+    "\n",
+    "[[package]]\n",
+    "name = \"leaf\"\n",
+    "version = \"1.2.3\"\n",
+    "source = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+    "checksum = \"1111111111111111111111111111111111111111111111111111111111111111\"\n",
+    "\n",
+    "[[package]]\n",
+    "name = \"trunk\"\n",
+    "version = \"4.5.6\"\n",
+    "source = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+    "checksum = \"2222222222222222222222222222222222222222222222222222222222222222\"\n",
+    "dependencies = [\n",
+    " \"leaf\",\n",
+    "]\n",
+);
+
+/// The projection a source distribution carries: the same identities and edges
+/// for the packaged subset, with `trunk` pruned away.
+const PACKAGED_LOCKFILE: &str = concat!(
+    "version = 4\n",
+    "\n",
+    "[[package]]\n",
+    "name = \"member\"\n",
+    "version = \"0.1.0\"\n",
+    "dependencies = [\n",
+    " \"leaf\",\n",
+    "]\n",
+    "\n",
+    "[[package]]\n",
+    "name = \"leaf\"\n",
+    "version = \"1.2.3\"\n",
+    "source = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+    "checksum = \"1111111111111111111111111111111111111111111111111111111111111111\"\n",
+);
+
+/// A packaged lockfile is accepted only when every identity and every resolved
+/// edge it carries is one the retained lockfile also carries. The mutations are
+/// the four ways a distribution could otherwise build against something this
+/// repository never resolved.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn packaged_lockfile_must_project_the_retained_lockfile() {
+    let retained = RETAINED_LOCKFILE.as_bytes();
+    smusni_v0_bundle::validate_packaged_lockfile(retained, PACKAGED_LOCKFILE.as_bytes())
+        .expect("the pruned projection is accepted");
+
+    let retargeted_version = PACKAGED_LOCKFILE.replace("1.2.3", "1.2.4");
+    let retargeted_checksum = PACKAGED_LOCKFILE.replace(&"1".repeat(64), &"3".repeat(64));
+    let retargeted_source = PACKAGED_LOCKFILE.replace("crates.io-index", "other-index");
+    // `member` never depends on `trunk` directly, so this edge is new even
+    // though both endpoints are locked identically.
+    let retargeted_edge = PACKAGED_LOCKFILE.replace(
+        " \"leaf\",\n]\n\n[[package]]\nname = \"leaf\"",
+        " \"leaf\",\n \"trunk\",\n]\n\n[[package]]\nname = \"leaf\"",
+    ) + concat!(
+        "\n[[package]]\n",
+        "name = \"trunk\"\n",
+        "version = \"4.5.6\"\n",
+        "source = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
+        "checksum = \"2222222222222222222222222222222222222222222222222222222222222222\"\n",
+    );
+    // The lockfile grammar itself: a repeated identity makes resolution
+    // ambiguous, and a dependency entry is `name`, `name version`, or
+    // `name version (source)` and nothing else.
+    let duplicate_identity =
+        format!("{PACKAGED_LOCKFILE}\n[[package]]\nname = \"member\"\nversion = \"0.1.0\"\n");
+    let trailing_field = PACKAGED_LOCKFILE.replace(
+        " \"leaf\",\n",
+        " \"leaf 1.2.3 (registry+https://github.com/rust-lang/crates.io-index) extra\",\n",
+    );
+    let unbalanced_source = PACKAGED_LOCKFILE.replace(
+        " \"leaf\",\n",
+        " \"leaf 1.2.3 registry+https://github.com/rust-lang/crates.io-index\",\n",
+    );
+    for (mutation, expected) in [
+        (&retargeted_version, BundleErrorKind::ForeignKey),
+        (&retargeted_checksum, BundleErrorKind::Digest),
+        (&retargeted_source, BundleErrorKind::ForeignKey),
+        (&retargeted_edge, BundleErrorKind::ForeignKey),
+        (&duplicate_identity, BundleErrorKind::DuplicatePrimaryKey),
+        (&trailing_field, BundleErrorKind::ByteDomain),
+        (&unbalanced_source, BundleErrorKind::ByteDomain),
+    ] {
+        assert_ne!(
+            mutation.as_str(),
+            PACKAGED_LOCKFILE,
+            "mutation changed nothing"
+        );
+        let error = smusni_v0_bundle::validate_packaged_lockfile(retained, mutation.as_bytes())
+            .expect_err("the mutated lockfile is rejected");
+        assert_eq!(error.kind, expected, "{}", error.message);
+    }
+
+    // The retained lockfile is held to the same grammar: a duplicate identity
+    // there would silently decide which entry a live edge resolved against.
+    let duplicate_retained = format!(
+        "{RETAINED_LOCKFILE}\n[[package]]\nname = \"leaf\"\nversion = \"1.2.3\"\n\
+         source = \"registry+https://github.com/rust-lang/crates.io-index\"\n\
+         checksum = \"1111111111111111111111111111111111111111111111111111111111111111\"\n"
+    );
+    let error = smusni_v0_bundle::validate_packaged_lockfile(
+        duplicate_retained.as_bytes(),
+        PACKAGED_LOCKFILE.as_bytes(),
+    )
+    .expect_err("a duplicated retained identity is rejected");
+    assert_eq!(
+        error.kind,
+        BundleErrorKind::DuplicatePrimaryKey,
+        "{}",
+        error.message
+    );
+}
+
+/// The packaged root manifest is derived from the retained one and compared
+/// exactly, so packaging may drop the root package's sections and the members
+/// and path dependencies the archive does not contain, and nothing else.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn packaged_root_manifest_must_be_the_audited_packaging_rewrite() {
+    let distribution = repository_root();
+    let retained = concat!(
+        "[workspace]\n",
+        "members = [\".\", \"crates/bityzba\", \"crates/absent\"]\n",
+        "default-members = [\".\"]\n",
+        "resolver = \"3\"\n",
+        "\n",
+        "[workspace.package]\n",
+        "version = \"0.1.0\"\n",
+        "\n",
+        "[workspace.dependencies]\n",
+        "serde = \"1\"\n",
+        "bityzba = { path = \"crates/bityzba\" }\n",
+        "absent = { path = \"crates/absent\" }\n",
+        "\n",
+        "[package]\n",
+        "name = \"jbotci-workspace\"\n",
+        "\n",
+        "[features]\n",
+        "expensive_contracts = []\n",
+        "\n",
+        "[dependencies]\n",
+        "bityzba.workspace = true\n",
+        "\n",
+        "[dev-dependencies]\n",
+        "bityzba.workspace = true\n",
+        "\n",
+        "[build-dependencies]\n",
+        "bityzba.workspace = true\n",
+        "\n",
+        "[lints]\n",
+        "workspace = true\n",
+        "\n",
+        "[patch.crates-io]\n",
+        "absent = { path = \"crates/absent\" }\n",
+    );
+    let packaged = concat!(
+        "[workspace]\n",
+        "members = [\"crates/bityzba\"]\n",
+        "resolver = \"3\"\n",
+        "\n",
+        "[workspace.package]\n",
+        "version = \"0.1.0\"\n",
+        "\n",
+        "[workspace.dependencies]\n",
+        "serde = \"1\"\n",
+        "bityzba = { path = \"crates/bityzba\" }\n",
+    );
+    smusni_v0_bundle::validate_packaged_root_manifest(
+        &distribution,
+        retained.as_bytes(),
+        packaged.as_bytes(),
+    )
+    .expect("the audited packaging rewrite is accepted");
+
+    for mutation in [
+        // A requirement the repository never stated.
+        packaged.replace("serde = \"1\"", "serde = \"2\""),
+        // A workspace field the repository never stated.
+        packaged.replace("version = \"0.1.0\"", "version = \"9.9.9\""),
+        // A member the archive does not contain.
+        packaged.replace(
+            "members = [\"crates/bityzba\"]",
+            "members = [\"crates/bityzba\", \"crates/absent\"]",
+        ),
+        // A packaged member silently dropped.
+        packaged.replace("members = [\"crates/bityzba\"]", "members = []"),
+        // A root-package section packaging must have removed.
+        format!("{packaged}\n[package]\nname = \"jbotci-workspace\"\n"),
+    ] {
+        assert_ne!(mutation.as_str(), packaged, "mutation changed nothing");
+        let error = smusni_v0_bundle::validate_packaged_root_manifest(
+            &distribution,
+            retained.as_bytes(),
+            mutation.as_bytes(),
+        )
+        .expect_err("the mutated packaged manifest is rejected");
+        assert_eq!(error.kind, BundleErrorKind::Manifest, "{}", error.message);
+    }
 }
 
 /// The package that owns `relative`: the nearest ancestor directory holding a
