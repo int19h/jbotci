@@ -344,31 +344,6 @@ pub(crate) fn render_dictionary_definitions_for_word_likes(
     render_dictionary_definition_cards(cards, color, glyphs)
 }
 
-/// Render dictionary definitions for content words only (brivla and cmevla).
-/// Gentufa keeps the unfiltered renderer above.
-#[requires(true)]
-#[ensures(words.is_empty() -> ret.is_empty())]
-pub(crate) fn render_content_word_dictionary_definitions_for_word_likes(
-    words: &[WordLike],
-    color: bool,
-    glyphs: GlyphStyle,
-) -> String {
-    let mut cards = Vec::new();
-    for parsed_match in
-        dictionary_matches_for_content_word_likes(jbotci_dictionary_data::english(), words)
-    {
-        for card in parsed_match.into_data().cards {
-            if !cards.contains(&card) {
-                cards.push(card);
-            }
-        }
-    }
-    if cards.is_empty() {
-        return String::new();
-    }
-    render_dictionary_definition_cards(cards, color, glyphs)
-}
-
 #[requires(true)]
 #[ensures(old(cards.is_empty()) -> ret.is_empty())]
 fn render_dictionary_definition_cards(

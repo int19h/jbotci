@@ -619,6 +619,27 @@ fn is_escaped_symbol(text: &str) -> bool {
     !escaped
 }
 
+/// Spell arbitrary text as a vertical-bar escaped symbol token.
+///
+/// This is the writing direction of the production [`is_escaped_symbol`] reads,
+/// kept beside it so the escape set stays defined exactly once. Callers use it
+/// for graph-owned text whose exact spelling must be preserved even though it is
+/// not a bare symbol name, such as a zei-lujvo's multi-word dictionary surface.
+#[requires(!text.is_empty())]
+#[ensures(is_escaped_symbol(&ret))]
+pub(super) fn escape_symbol(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len() + 2);
+    escaped.push('|');
+    for character in text.chars() {
+        if matches!(character, '|' | '\\') {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped.push('|');
+    escaped
+}
+
 /// Validate a canonical positive integer token.
 #[requires(true)]
 #[ensures(true)]

@@ -18,7 +18,7 @@ use serde::ser::{
     SerializeTupleStruct, SerializeTupleVariant, Serializer,
 };
 
-use super::datum::Datum;
+use super::datum::{Datum, escape_symbol};
 use super::type_system::LexicalRoot;
 use crate::completeness::source_link_surfaces;
 use crate::model::{
@@ -934,10 +934,17 @@ pub fn typed_value_datum<T: Serialize>(
 #[ensures(ret.as_ref().is_none_or(|datum| datum.form_head() == Some("Word")))]
 pub fn word_card_datum(card: &WordCard) -> Option<Datum> {
     let definition = card.definition.as_deref()?;
-    LexicalRoot::try_new(&card.word).ok()?;
+    // A card's word is its exact dictionary surface, and for a zei-lujvo that
+    // surface is a multi-word run such as `abu zei sance`. The grammar admits
+    // exactly that through its escaped lexical-root spelling, so escape the
+    // surface rather than dropping reference data the XML rendering keeps or
+    // substituting a different lexical identity for it.
+    let root = LexicalRoot::try_new(&card.word)
+        .or_else(|_| LexicalRoot::try_new(&escape_symbol(&card.word)))
+        .ok()?;
     Some(Datum::form(
         "Word",
-        [Datum::atom(&card.word), Datum::string(definition)],
+        [Datum::atom(root.as_str()), Datum::string(definition)],
     ))
 }
 

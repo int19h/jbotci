@@ -166,6 +166,7 @@ pub(super) enum CompactFallbackCause {
     DefinitionTypeUnrepresentable,
     EventualityFacets,
     QuestionSlotFields,
+    AskForceWithoutQuestion,
     MathSideFields,
     QuantityFields,
     MathLiteralDenotes,
@@ -219,7 +220,9 @@ impl CompactFallbackCause {
                 "smusni.fallback.higher-order-crossing-unlicensed"
             }
             Self::EventualityFacets => "smusni.fallback.event-facet-reduction-unregistered",
-            Self::QuestionSlotFields => "smusni.fallback.question-domain-or-answer-mismatch",
+            Self::QuestionSlotFields | Self::AskForceWithoutQuestion => {
+                "smusni.fallback.question-domain-or-answer-mismatch"
+            }
             Self::QuantityFields => "smusni.fallback.quantity-reduction-unregistered",
             Self::MathSideFields | Self::MathLiteralDenotes | Self::MathOperatorFields => {
                 "smusni.fallback.math-reduction-unregistered"
@@ -300,6 +303,9 @@ impl CompactFallbackCause {
             Self::EventualityFacets => "these event facets have no registered compact reduction",
             Self::QuestionSlotFields => {
                 "the question's domain or answer slot does not match a compact form"
+            }
+            Self::AskForceWithoutQuestion => {
+                "ask force carries content that is not a typed question, so no well-typed act exists"
             }
             Self::MathSideFields => "these math side fields have no registered reduction",
             Self::QuantityFields => "this quantity has no registered compact reduction",
@@ -431,7 +437,6 @@ struct Elaborator<'a> {
     binder_universes: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
     needed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     placed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
-    absorbed_eventualities: RefCell<BTreeSet<SemanticObjectId>>,
     reference_binding_frames: RefCell<Vec<Vec<ReferenceBinding>>>,
     counters: ElaborationCounters,
 }
@@ -478,7 +483,6 @@ pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> 
         binder_universes: semantic_scope_dependence_binder_universes(graph.root, &graph.objects),
         needed_definitions: RefCell::new(BTreeSet::new()),
         placed_definitions: RefCell::new(BTreeSet::new()),
-        absorbed_eventualities: RefCell::new(BTreeSet::new()),
         reference_binding_frames: RefCell::new(Vec::new()),
         counters: ElaborationCounters::default(),
     };
@@ -883,6 +887,20 @@ impl Elaborator<'_> {
                 CompactFallbackCause::ForceFieldsRequireRecord,
             );
         }
+        // Spec section 12 types the interrogative act as
+        // `Ask : Query<A> -> Act<Question>`. The question renderer is the only
+        // site that can build that operand, so ask force over content that is
+        // not a typed question has no well-typed compact act at all. Decline
+        // before rendering rather than applying `Ask` at the wrong type.
+        if node.force == UtteranceForce::Ask && self.graph.objects[&content].as_question().is_none()
+        {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::AskForceWithoutQuestion,
+            );
+        }
         let expected_mode =
             (node.force == UtteranceForce::Assert).then_some(PredicationMode::Asserted);
         let content_id = content;
@@ -895,10 +913,9 @@ impl Elaborator<'_> {
             .expect("utterance rendering pushed one reference-binding frame");
         let act = match node.force {
             UtteranceForce::Assert => Datum::form("Assert", [content]),
-            UtteranceForce::Ask if self.graph.objects[&content_id].as_question().is_some() => {
-                content
-            }
-            UtteranceForce::Ask => Datum::form("Ask", [content]),
+            // The question renderer already produced the complete `Ask` act,
+            // and the guard above proved the content is a typed question.
+            UtteranceForce::Ask => content,
             UtteranceForce::Mention => Datum::form("Mention", [content]),
             UtteranceForce::Quote
             | UtteranceForce::Parenthetical
@@ -1214,9 +1231,10 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Project the canonical flat tanru graph to `(OfKind head modifier)` only
-    /// after proving the link predication, head conjunct, property abstraction,
-    /// and absorbed modifier event are private and otherwise default.
+    /// Project the canonical flat tanru graph to the registered relation former
+    /// `(Tanru modifier head)` only after proving the link predication, head
+    /// conjunct, property abstraction, and absorbed modifier event are private
+    /// and otherwise default.
     #[requires(self.graph.objects.contains_key(&id))]
     #[ensures(true)]
     fn render_tanru_projection(
@@ -1630,10 +1648,9 @@ impl Elaborator<'_> {
         }
         if let Some(eventuality) = eventuality {
             let owner = self.plan.binder_owner(eventuality);
-            let silent = self.absorbed_eventualities.borrow().contains(&eventuality)
-                || owner.is_some_and(|owner| {
-                    generated_event_is_default(self.graph, self.plan, owner, eventuality)
-                });
+            let silent = owner.is_some_and(|owner| {
+                generated_event_is_default(self.graph, self.plan, owner, eventuality)
+            });
             if !silent {
                 application.push(Datum::atom(":Eventuality"));
                 application.push(self.render_id(eventuality, bound, active, None));

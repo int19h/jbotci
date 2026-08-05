@@ -1112,6 +1112,68 @@ fn tersmu_show_defs_embeds_word_cards_in_the_smusni_document() {
     assert_eq!(document.count_forms("Word"), 1);
 }
 
+/// A defined zei-lujvo's dictionary surface is a multi-word run, which is a
+/// lexical root only in the grammar's escaped spelling. `--show-defs` must
+/// still carry its card rather than dropping the entry.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_show_defs_keeps_a_defined_zei_lujvo_card() {
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--show-defs",
+            "--format",
+            "smusni",
+            "--color=never",
+            "mi",
+            "klama",
+            "lo",
+            "abu",
+            "zei",
+            "sance",
+        ],
+        false,
+    );
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stderr.is_empty());
+
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("show-defs output satisfies the current typed grammar");
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("show-defs output is one smusni datum");
+    assert_eq!(document.count_forms("Words"), 1);
+    assert_eq!(document.count_forms("Word"), 2);
+
+    let mut roots = Vec::new();
+    collect_word_card_roots(&document, &mut roots);
+    assert!(
+        roots.iter().any(|root| root == "|abu zei sance|"),
+        "the zei-lujvo card keeps its exact surface as an escaped lexical root; found {roots:?}",
+    );
+}
+
+/// Collect every `(Word root definition)` card's root from a parsed document.
+#[requires(true)]
+#[ensures(true)]
+fn collect_word_card_roots(
+    datum: &jbotci_semantics::notation::sexpr::Datum,
+    out: &mut Vec<String>,
+) {
+    let Some(items) = datum.as_list() else {
+        return;
+    };
+    if datum.form_head() == Some("Word") {
+        if let Some(root) = items.get(1).and_then(|item| item.as_atom()) {
+            out.push(root.to_owned());
+        }
+    }
+    for item in items {
+        collect_word_card_roots(item, out);
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]

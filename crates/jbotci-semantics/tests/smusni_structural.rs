@@ -531,7 +531,7 @@ fn focused_semantic_families_are_exercised_without_output_goldens() {
             "math" | "displayed" | "abstraction" => {
                 assert_compact_family_or_typed_graph(&datum, "Assert", name)
             }
-            "tanru" => assert_compact_family_or_typed_graph(&datum, "Tanru", name),
+            "tanru" => assert_eq!(count_forms(&datum, "Tanru"), 1),
             _ => {}
         }
         for retired in [
@@ -607,6 +607,25 @@ fn unsupported_utterance_forces_use_typed_fallback_not_retired_forms() {
             assert_eq!(count_forms(&datum, retired), 0);
         }
     }
+
+    // `Ask : Query<A> -> Act<Question>`, so ask force over content that is not
+    // a typed question must fail closed rather than apply `Ask` at the wrong
+    // type. Nothing in the model constrains an utterance's content object, so
+    // this boundary is a contract the renderer has to enforce itself.
+    let mut object = input.graph.objects[&utterance].clone();
+    object.update_utterance(|node| node.with_data(data! { force: UtteranceForce::Ask }));
+    let graph = replace_object(input.graph.clone(), utterance, object);
+    let rendered = render_smusni_detailed(&graph, &[]);
+    let datum = validate_render(&graph, &rendered.text);
+    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    assert_eq!(count_forms(&datum, "Ask"), 0);
+    assert_eq!(
+        rendered
+            .stats
+            .fallback_reasons
+            .get("smusni.fallback.question-domain-or-answer-mismatch"),
+        Some(&1),
+    );
 }
 
 #[test]
@@ -686,6 +705,49 @@ fn atomic_relation_question_uses_a_typed_open_predicate_row() {
     let tanru = build_input("ti mo zdani", "relation-question-tanru");
     let tanru = validate_render(&tanru.graph, &render_smusni(&tanru.graph));
     assert_eq!(count_forms(&tanru, "TypedGraph"), 1);
+}
+
+/// The canonical flat tanru graph is one of the compact families this milestone
+/// claims, so pin the recognized route exactly. A disjunctive
+/// compact-or-`TypedGraph` check would let a silent withdrawal of the
+/// recognizer pass by falling back instead.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn canonical_flat_tanru_projects_the_registered_relation_former() {
+    let input = build_input("ti blanu zdani", "canonical-flat-tanru");
+    let rendered = render_smusni_detailed(&input.graph, &[]);
+    assert_eq!(rendered.stats.mode, jbotci_semantics::DocumentMode::Compact);
+    assert!(rendered.stats.fallback_reasons.is_empty());
+    let datum = validate_render(&input.graph, &rendered.text);
+    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
+
+    let mut formers = Vec::new();
+    collect_forms(&datum, "Tanru", &mut formers);
+    assert_eq!(formers.len(), 1);
+    // `(Tanru modifier head)`: the seltau precedes the tertau and neither root
+    // leaves the lowercase content-root namespace.
+    assert_eq!(
+        formers[0]
+            .as_list()
+            .expect("relation former is a list")
+            .iter()
+            .map(|item| item.as_atom().expect("former operands are atoms"))
+            .collect::<Vec<_>>(),
+        ["Tanru", "blanu", "zdani"],
+    );
+
+    // The former is applied to the tertau's own numbered places, so the asserted
+    // content is one application of it to the single deictic argument.
+    let mut asserted = Vec::new();
+    collect_forms(&datum, "Assert", &mut asserted);
+    assert_eq!(asserted.len(), 1);
+    let application = asserted[0].as_list().expect("Assert is a list")[1]
+        .as_list()
+        .expect("asserted content is an application");
+    assert_eq!(application.len(), 2);
+    assert_eq!(&application[0], formers[0]);
+    assert_eq!(application[1].as_atom(), Some("This"));
 }
 
 #[test]
@@ -1137,7 +1199,6 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
         .update_parameter(|node| node.with_data(data! { role: ParameterRole::RelativeClauseHead }));
     let graph = replace_object(input.graph.clone(), parameter, object);
     let datum = validate_render(&graph, &render_smusni(&graph));
-    assert_compact_family_or_typed_graph(&datum, "Object", "abstraction parameter role");
     assert!(contains_field(&datum, "Role"));
 
     let input = build_input(
@@ -1240,7 +1301,6 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
         object.update_eventuality(|node| node.with_data(data! { indexical: Some(kind) }));
         let graph = replace_object(input.graph.clone(), now, object);
         let datum = validate_render(&graph, &render_smusni(&graph));
-        assert_compact_family_or_typed_graph(&datum, "Object", "cross-sort eventuality indexical");
         assert!(contains_field(&datum, "Indexical"));
     }
 
@@ -1260,7 +1320,6 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
     object.update_referent(|node| node.with_data(data! { indexical: Some(IndexicalKind::Now) }));
     let graph = replace_object(input.graph.clone(), speaker, object);
     let datum = validate_render(&graph, &render_smusni(&graph));
-    assert_compact_family_or_typed_graph(&datum, "Object", "cross-sort referent indexical");
     assert!(contains_field(&datum, "Indexical"));
 }
 
@@ -1276,6 +1335,39 @@ fn word_cards_are_inside_the_single_smusni_document() {
     assert_eq!(count_forms(&datum, "Words"), 1);
     assert_eq!(count_forms(&datum, "Word"), cards.len());
     assert_eq!(count_forms(&datum, "Smusni"), 1);
+
+    // A defined zei-lujvo's card word is its exact multi-word dictionary
+    // surface. The grammar admits that through its escaped lexical-root
+    // spelling, so the card must survive with that identity instead of being
+    // dropped from the reference section the XML rendering still carries.
+    let zei = build_input("mi klama lo abu zei sance", "word-cards-zei-lujvo");
+    let zei_cards = build_word_cards(jbotci_dictionary_data::english(), &zei.words);
+    assert!(
+        zei_cards
+            .iter()
+            .any(|card| card.word == "abu zei sance" && card.definition.is_some()),
+        "witness must produce a defined zei-lujvo card",
+    );
+    let defined = zei_cards
+        .iter()
+        .filter(|card| card.definition.is_some())
+        .count();
+    let datum = validate_render(
+        &zei.graph,
+        &render_smusni_with_word_cards(&zei.graph, &zei_cards),
+    );
+    assert_eq!(count_forms(&datum, "Word"), defined);
+    let mut emitted = Vec::new();
+    collect_forms(&datum, "Word", &mut emitted);
+    assert!(
+        emitted.iter().any(|card| {
+            card.as_list()
+                .and_then(|items| items.get(1))
+                .and_then(Datum::as_atom)
+                == Some("|abu zei sance|")
+        }),
+        "the zei-lujvo card must keep its exact surface as an escaped lexical root",
+    );
 }
 
 #[test]

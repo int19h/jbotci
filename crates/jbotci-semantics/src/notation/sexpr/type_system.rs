@@ -1573,6 +1573,13 @@ fn is_lexical_root_token(text: &str) -> bool {
         }
         return !escaped && decoded.chars().next().is_some_and(char::is_lowercase);
     }
+    // Specification section 2.1 reserves `λ` as the lambda special-form marker
+    // rather than a callable atom, so the bare glyph is not a lexical root even
+    // though it is a lowercase alphabetic character. The escaped spelling above
+    // stays available: `|λ|` cannot be confused with the marker.
+    if text == "λ" {
+        return false;
+    }
     is_symbol_name(text) && text.chars().next().is_some_and(char::is_lowercase)
 }
 

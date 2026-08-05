@@ -190,9 +190,8 @@ use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
     WordTypeFilter, dictionary_cards_for_word_likes, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_content_word_likes,
-    dictionary_matches_for_word_likes, format_vote_display, normalize_word_type_filter,
-    parse_word_type_filter, run_vlacku_requests,
+    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
+    normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,

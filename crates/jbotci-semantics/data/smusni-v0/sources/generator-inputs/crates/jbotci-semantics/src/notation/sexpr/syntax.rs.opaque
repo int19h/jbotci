@@ -1596,6 +1596,13 @@ fn parse_words(datum: &Datum) -> Result<Vec<WordCard>, V0ParseError> {
     if items.first().and_then(Datum::as_atom) != Some("Words") {
         return Err(V0ParseError::new("third document child must be Words"));
     }
+    // The grammar is `words ::= (Words word-card+)`, and section 2.4 requires
+    // omitting the section entirely when there is nothing to declare.
+    if items.len() < 2 {
+        return Err(V0ParseError::new(
+            "Words requires at least one Word card; omit the section when empty",
+        ));
+    }
     items[1..]
         .iter()
         .map(|word| {
@@ -2108,14 +2115,38 @@ mod tests {
         for malformed in [
             r#"(Smusni 1 (Assert This))"#,
             r#"(Smusni 0 (Assert This) (Words) extra)"#,
+            // `words ::= (Words word-card+)`: an empty section is not the same
+            // as an omitted one.
+            r#"(Smusni 0 (Assert This) (Words))"#,
             r#"(Smusni 0 (Assert This) (Word klama "goes"))"#,
             r#"(Smusni 0 (Assert This) (Words (Word Klama "goes")))"#,
             r#"(Smusni 0 (Assert This) (Words (Word klama "goes" extra)))"#,
+            // `λ` is the lambda marker, so it is not a word-card root either.
+            r#"(Smusni 0 (Assert This) (Words (Word λ "lambda")))"#,
         ] {
             assert!(
                 parse_v0_document(malformed).is_err(),
                 "accepted malformed document {malformed}",
             );
         }
+        // A document with no word cards omits the section entirely.
+        assert!(parse_v0_document("(Smusni 0 (Assert This))\n").is_ok());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reserved_lambda_marker_is_not_a_value_position_atom() {
+        // The marker still heads its own special form.
+        assert!(parse_v0_expression("(λ (($x Entity)) (klama $x))").is_ok());
+        // ... but it is not a callable atom or a bare operand.
+        for malformed in ["λ", "(λ)", "(Assert λ)", "(klama λ)", "(λ This)"] {
+            assert!(
+                parse_v0_expression(malformed).is_err(),
+                "accepted reserved lambda marker in value position: {malformed}",
+            );
+        }
+        // The escaped spelling stays available and cannot be confused with it.
+        assert!(parse_v0_expression("(|λ| This)").is_ok());
     }
 }
