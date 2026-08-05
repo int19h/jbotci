@@ -750,6 +750,69 @@ fn canonical_flat_tanru_projects_the_registered_relation_former() {
     assert_eq!(application[1].as_atom(), Some("This"));
 }
 
+/// The fixed `la` + cmevla name description is one of the compact families this
+/// milestone claims, so pin the recognized route exactly for the same reason
+/// `canonical_flat_tanru_projects_the_registered_relation_former` does: a
+/// compact-or-`TypedGraph` disjunction would let a silent withdrawal of the
+/// recognizer pass as a fallback. The second half pins the honest boundary —
+/// a `la` descriptor over a selbri body carries no name and stays fallback.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn fixed_name_description_projects_one_named_reference_computation() {
+    let input = build_input("la .alis. cu bajra", "fixed-name-description");
+    let rendered = render_smusni_detailed(&input.graph, &[]);
+    assert_eq!(rendered.stats.mode, jbotci_semantics::DocumentMode::Compact);
+    assert!(rendered.stats.fallback_reasons.is_empty());
+    let datum = validate_render(&input.graph, &rendered.text);
+    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
+    assert_eq!(count_forms(&datum, "Bind"), 1);
+    assert_eq!(count_forms(&datum, "Refer"), 1);
+
+    // `(Named "alis" $var)`: the name is a string operand, never an atom that
+    // would collide with the content-root namespace, and it is applied to the
+    // variable the hosting `Bind` introduces.
+    let mut names = Vec::new();
+    collect_forms(&datum, "Named", &mut names);
+    assert_eq!(names.len(), 1);
+    let operands = names[0].as_list().expect("Named is a list");
+    assert_eq!(operands.len(), 3);
+    assert_eq!(operands[1].as_string(), Some("alis"));
+    let variable = operands[2].as_atom().expect("Named applies to a variable");
+
+    let mut bindings = Vec::new();
+    collect_forms(&datum, "Bind", &mut bindings);
+    let entries = bindings[0].as_list().expect("Bind is a list")[1]
+        .as_list()
+        .expect("Bind entries are a list");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(binding_name(&entries[0]), variable);
+
+    // The predication applies to that same bound variable, so the name is the
+    // runner rather than a second, unrelated referent.
+    let mut asserted = Vec::new();
+    collect_forms(&datum, "Assert", &mut asserted);
+    assert_eq!(asserted.len(), 1);
+    let application = asserted[0].as_list().expect("Assert is a list")[1]
+        .as_list()
+        .expect("asserted content is an application");
+    assert_eq!(application.len(), 2);
+    assert_eq!(application[0].as_atom(), Some("bajra"));
+    assert_eq!(application[1].as_atom(), Some(variable));
+
+    // `la` over a selbri body is a different descriptor: it has no name field,
+    // so no compact constructor is recognized and the document stays typed.
+    let body = build_input("la gerku cu bajra", "name-description-selbri-body");
+    let body_rendered = render_smusni_detailed(&body.graph, &[]);
+    assert_eq!(
+        body_rendered.stats.mode,
+        jbotci_semantics::DocumentMode::TypedGraph
+    );
+    let body_datum = validate_render(&body.graph, &body_rendered.text);
+    assert_eq!(count_forms(&body_datum, "TypedGraph"), 1);
+    assert_eq!(count_forms(&body_datum, "Named"), 0);
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]

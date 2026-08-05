@@ -22,7 +22,7 @@ The samples are design specimens, not output expectations.
 | Quantification | Restricted quantification over a planned binder renders `Every` or `Some`; unrestricted quantification renders bare `∀` or `∃`. Selection sources, plural quantifiers, inner/outer cardinality, witness export, and effect routing are not implemented and fall back. | Spec sections 9.2 through 9.5 |
 | Shared values and recursion | A value used more than once is bound once and shared. Nonrecursive groups nest canonical single-binding `Let` forms; a recursive strongly connected component uses `LetRec` only when every initializer in the group is a top-level lambda. Any other recursive value falls back. | Spec sections 2.2 and 15 (item 2) |
 | Contextual and deictic values | `Speaker`, `Audience`, `Now`, `Here`, and the proximity deictics `This`, `That`, and `Yonder` render as the declared atoms. A fixed context renders as the bare `Context` primitive and an underspecified one as `(Context deps…)` over its direct dependencies. A deictic with a non-current ground falls back. | Spec sections 3.5 and 6.1 |
-| Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`; its predicate property retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. Nested reference effects, richer descriptors, incidental/nonveridical relatives, and shared placement fall back. | Spec sections 6.3, 8.3, and 8.4 |
+| Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`. For `lo` and `le` the descriptor body is the property: it retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. The compact `la` shape is exactly the fixed name description — `la` with a cmevla name and no descriptor body and no relative clause — whose property is `(Named "name" $var)`; a `la` description over a selbri body carries no name at all and has no compact route. Nested reference effects, richer descriptors, incidental/nonveridical relatives, and shared placement fall back. | Spec sections 6.3, 8.3, and 8.4 |
 | Modals and tense | Exact represented modal predicates are joined to the host by `Joi` and share the graph event under one lambda-shaped existential. The verified `before`/`at`/`after` event relations lower to `purci`/`cabna`/`balvi`. Other tag maps and event facets fall back. | Spec sections 10.1 through 10.4 |
 | Discourse | Same-topic items use `Do`; exact paragraph provenance uses `NewTopic` or `Resume`, with explicit `Perform`/`PerformUtterance` crossings at the transition operand. | Spec sections 7.1 and 7.2 |
 | Force | `Assert` and `Mention` are compact for their exact typed shapes. `Ask` is emitted only by the question projection below, so ask force over content that is not a typed question fails closed rather than applying `Ask` at the wrong type. Quote, parenthetical, subordinated, command, and vocative force fall back. | Spec sections 1.3 and 7.1 |
@@ -107,6 +107,9 @@ immutable, exhaustive, or final: the current runnable slice still exercises
 whole-graph fallback for many rows classified for later direct lowering, and
 the runtime application/signature registry requires further semantic review.
 No renderer behavior is licensed merely by the existence of an inventory row.
+`sources/must-compact-witnesses.txt` is part of that retained material, and its
+name overstates it: it is a structurally exercised witness corpus and a
+registry-audit input, not a claim that each of its lines renders compactly.
 
 ## Regenerating and checking the bundle
 
@@ -171,7 +174,7 @@ them, and they will move whenever a compact recognizer is added.
 | Slice | Inputs | Renders | Render panics | Notes |
 |---|---:|---:|---:|---|
 | `phaseb` | 48 | 48 | 0 | the frozen structural corpus; 16 compact documents, 32 typed-graph documents |
-| `cll` | 1,247 | 1,245 | 0 | 2 pre-render morphology failures; 146 compact documents, 1,099 typed-graph documents |
+| `cll` | 1,247 | 1,245 | 0 | 2 pre-render morphology failures; 204 compact documents, 1,041 typed-graph documents |
 | `focused` | 16 | 16 | 0 | 6 compact documents, 10 typed-graph documents |
 | `alice-lines` | 2,436 | 1,084 | 0 | the remaining inputs fail earlier parsing or building, mostly syntax |
 | `alice-whole` | 1 | 1 | 0 | one `TypedGraph` over 49,172 objects |
@@ -190,9 +193,9 @@ observations of the current slice rather than expectations.
 
 | Slice | Objects not projected | Failed edges | Failing owners | Multi-edge owners |
 |---|---:|---:|---:|---:|
-| `phaseb` | 280 | 94 | 91 | 3 |
-| `cll` | 12,840 | 3,063 | 2,900 | 113 |
-| `focused` | 33 | 34 | 33 | 1 |
+| `phaseb` | 277 | 91 | 88 | 3 |
+| `cll` | 12,583 | 2,806 | 2,643 | 113 |
+| `focused` | 29 | 30 | 29 | 1 |
 | `alice-lines` | 15,764 | 2,824 | 2,599 | 149 |
 | `alice-whole` | 49,172 | 376 | 122 | 55 |
 

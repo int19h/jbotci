@@ -2432,7 +2432,9 @@ fn is_conventional_atom(object: &crate::model::SemanticObject) -> bool {
 /// Objects consumed by an exact description-constructor projection, plus the
 /// description values whose internal builder cycles have thereby disappeared.
 /// A support component is projected only when none of its identities is used
-/// outside that constructor.
+/// outside that constructor. Name descriptions have no support component at
+/// all, but they are description values on the same terms: the renderer owns
+/// their binder, so no graph definition site does.
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.0.iter().all(|id| graph.objects.contains_key(id)))]
 #[ensures(ret.1.iter().all(|id| graph.objects.contains_key(id)))]
@@ -2456,37 +2458,46 @@ pub(super) fn projected_description_objects(
         else {
             continue;
         };
-        let data!(DescriptionRecognition::Property {
-            constructor,
-            property: _,
-            arguments: _,
-            parameter: _,
-        }) = recognition.as_data()
-        else {
-            continue;
-        };
-        let descriptor = node
-            .descriptor
-            .as_ref()
-            .expect("recognized property has a descriptor");
-        let body = descriptor
-            .body
-            .expect("recognized property has a descriptor body");
         let mut support = BTreeSet::new();
-        match *constructor {
-            DescriptionConstructor::Lo => {
-                collect_property_support(graph, body, *described, &mut support);
+        match recognition.as_data() {
+            data!(DescriptionRecognition::Property {
+                constructor,
+                property: _,
+                arguments: _,
+                parameter: _,
+            }) => {
+                let descriptor = node
+                    .descriptor
+                    .as_ref()
+                    .expect("recognized property has a descriptor");
+                let body = descriptor
+                    .body
+                    .expect("recognized property has a descriptor body");
+                match *constructor {
+                    DescriptionConstructor::Lo => {
+                        collect_property_support(graph, body, *described, &mut support);
+                    }
+                    DescriptionConstructor::Le => {
+                        collect_speaker_description_support(graph, body, *described, &mut support);
+                    }
+                }
+                for clause in descriptor
+                    .relative_clauses
+                    .iter()
+                    .chain(node.relative_clauses.iter())
+                {
+                    collect_inline_support(graph, clause.body, *described, &mut support);
+                }
             }
-            DescriptionConstructor::Le => {
-                collect_speaker_description_support(graph, body, *described, &mut support);
-            }
-        }
-        for clause in descriptor
-            .relative_clauses
-            .iter()
-            .chain(node.relative_clauses.iter())
-        {
-            collect_inline_support(graph, clause.body, *described, &mut support);
+            // A recognized name description has no descriptor body and no
+            // relative clauses at all, so its exact `Named` projection consumes
+            // no other graph identity: the support component is empty and the
+            // value is admitted unconditionally by the check below. The
+            // description value itself still belongs in `descriptions` so that
+            // the renderer hosts its `Refer` binding exactly like `lo`/`le`,
+            // and so that the planner drops the definition-site failure for a
+            // value that description inversion turns into a lexical binder.
+            data!(DescriptionRecognition::Name { name: _ }) => {}
         }
         let allowed_sources = support
             .iter()
