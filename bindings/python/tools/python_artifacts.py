@@ -387,6 +387,12 @@ def _check_sdist(entries: dict[str, bytes]) -> None:
             continue
         allowed_large_members = {
             "crates/jbotci-dictionary-data/data/dictionary-en.json": 10_000_000,
+            # The smusni-v0 bundle retains a byte-exact mirror of the pinned
+            # dictionary snapshot as a generator input, and its `build.rs`
+            # compares the two on every build, so the distribution must carry
+            # both copies of the same already-allowed member.
+            "crates/jbotci-semantics/data/smusni-v0/sources/generator-inputs"
+            "/crates/jbotci-dictionary-data/data/dictionary-en.json.opaque": 10_000_000,
         }
         assert (
             name in allowed_large_members
