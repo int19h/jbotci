@@ -1,8 +1,8 @@
 # Smusni version-0 implementation status
 
 This renderer is an experimental implementation candidate, not a minted or
-exhaustive version-0 implementation. Its normative inputs are the smusni design
-repository at commit `86cbd9d1288d2c0232ba86cb214000a431b5db7c`, this
+exhaustive version-0 implementation. Its candidate design inputs are the smusni
+design repository at commit `86cbd9d1288d2c0232ba86cb214000a431b5db7c`, this
 directory's `spec.md` (SHA-256
 `c2c0616b0b0d8991251f5145be4985a8191a68704cff3ae10f6f85caa34dbdc1`),
 and `samples.md` (SHA-256
@@ -14,13 +14,13 @@ The samples are design specimens, not output expectations.
 | Family | Current behavior | Boundary |
 |---|---|---|
 | Document packaging | One typed-grammar-parseable `(Smusni 0 ...)` datum with one trailing newline. The optional `Words` section uses only `(Word root definition)` cards. | Spec sections 2.2 and 2.4 |
-| Diagnostics | Collected once as structured `SmusniDiagnostic` values. The CLI writes them to stderr; no warning or diagnostic wrapper is emitted in the datum. | Spec sections 2.4 and 16 |
+| Diagnostics | Collected once as structured `SmusniDiagnostic` values and kept out of the datum. CLI display is deliberately deferred until these records can use the existing source-aware diagnostic renderer; provisional formatter strings are not printed. | Spec sections 2.4 and 16 |
 | Predication | Named predicate terms, ordinary fills, `:n`, `:Eventuality`, numbered-only `DropPlace`, default closure omission, and explicit `Assert` are compact for their exact typed shapes. | Spec sections 4 and 5 |
 | Logical composition | Registered ordinary truth-functional connectives render with their logical operators. Unsupported connector metadata falls back. | Spec section 6 |
 | Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`; its predicate property retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. Nested reference effects, richer descriptors, incidental/nonveridical relatives, and shared placement fall back. | Spec sections 6.3, 8.3, and 8.4 |
 | Modals and tense | Exact represented modal predicates are joined to the host by `Joi` and share the graph event under one lambda-shaped existential. The verified `before`/`at`/`after` event relations lower to `purci`/`cabna`/`balvi`. Other tag maps and event facets fall back. | Spec sections 10.1 through 10.4 |
 | Discourse | Same-topic items use `Do`; exact paragraph provenance uses `NewTopic` or `Resume`, with explicit `Perform`/`PerformUtterance` crossings at the transition operand. | Spec sections 7.1 and 7.2 |
-| Questions | Exact direct polar questions render `Ask` plus `Polar`. The exact entity open-question lowering exists, but current `ti mo zdani` still reaches the whole-graph boundary because its generated event cannot yet be legally hosted. Embedded and richer questions fall back. | Spec section 12 |
+| Questions | Exact direct polar questions render `Ask` plus `Polar`; exact entity argument questions and atomic `ti mo`-style relation questions render `OpenQ`, with the latter retaining a typed open predicate row and explicit `Close`. Tanru-like `ti mo zdani`, embedded, multi-slot, and richer questions fall back. | Spec section 12 |
 | Abstractions | Exact unary entity properties render as lambdas and exact proposition crossings use `Reify` when their complete model shape is eligible. Event-valued and richer abstraction families fall back. | Spec section 11 |
 | Utterance entries | Retained entries use the fresh `UtteranceToken` binder and registered `SpeakerOf`, `AudienceOf`, `LocutionOf`, deictic, and `Realizes` facts. Unsupported force/asides use fallback. | Spec section 7.2 |
 | Raw fallback | Unproved compact projection selects one typed `TypedGraph` document with graph-owned `%id` sharing and a registered reason. The current vertical slice does not yet emit typed local `Fallback`. | Spec section 20 |
@@ -31,8 +31,9 @@ Each item names the observed construct, current honest boundary, and intended
 specification destination.
 
 - Dynamic host planning: `ro da poi gerku cu bajra` currently reaches
-  `TypedGraph` at definition placement, and `ti mo zdani` reaches it at the
-  generated-event boundary. Implement graph-owned accessibility, force
+  `TypedGraph` at definition placement, and the tanru-like `ti mo zdani`
+  question still has unlicensed relation/property crossings and event hosting.
+  Implement graph-owned accessibility, force
   handlers, dependency lifting, and legal shared capture before enabling these
   compact paths (sections 6.2–6.5 and 12).
 - Simultaneous termsets: both grammar-licensed prenex spellings retain their one
@@ -54,8 +55,10 @@ specification destination.
   10.3–10.4 and 11.2–11.3).
 - Respectively, collections, and richer math: these retain the graph through
   `TypedGraph` except for exact integer literals and binary kernel arithmetic.
-  Implement `ZipWith`, typed collection kernels, and registered math rows
-  without generic `Math`, `Quantity`, or `Respectively` records (section 13).
+  Generic composition records and non-exact quantities do not borrow callable
+  names from the registry. Implement `ZipWith`, typed collection kernels,
+  generalized-quantifier reductions, and registered math rows without generic
+  `Math`, `Quantity`, or `Respectively` records (section 13).
 - Raw tuple payload coordinates currently use deterministic `item1`, `item2`,
   and so on because serde does not expose source field names. Replace them with
   projection-declared stable names before claiming the raw schema final

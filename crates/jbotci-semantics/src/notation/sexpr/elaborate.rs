@@ -13,10 +13,11 @@ use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use super::datum::{Atom, Datum};
 use super::planner::ReferencePlan;
 use super::structural::{ProvenanceDisposition, object_datum_with_variables};
+use super::type_system::{PlaceLabel, Row, RowSlot, TypeAtom, TypeExpr};
 use crate::model::{
-    AbstractionKind, ActualityKind, Adjunct, ArgumentValue, ArgumentValueKind, CompositionOperator,
-    DeicticProximity, DescriptorKind, EventualityDenotationData, EventualityNode, EventualitySort,
-    FormulaNodeData, FormulaOperator, IndexicalKind, MathExpressionNodeKindData, MathOperatorData,
+    AbstractionKind, ActualityKind, Adjunct, ArgumentValue, ArgumentValueKind, DeicticProximity,
+    DescriptorKind, EventualityDenotationData, EventualityNode, EventualitySort, FormulaNodeData,
+    FormulaOperator, IndexicalKind, MathExpressionNodeKindData, MathOperatorData,
     ParagraphTransition, ParameterRole, PlaceIndex, PredicationMode, PredicationNode,
     PredicationRelationData, QuantityForm, QuantityNode, QuantityScale, QuestionKind, QuestionMode,
     QuestionSlotData, QuestionSlotRole, ReferentCategory, ReferentNode, RelationLabelData,
@@ -90,6 +91,7 @@ enum CompactFallbackCause {
     ReferentFields,
     UnboundGeneratedEvent,
     UnrepresentableRecursiveValue,
+    DefinitionTypeUnrepresentable,
     EventualityFacets,
     QuestionSlotFields,
     MathSideFields,
@@ -140,6 +142,9 @@ impl CompactFallbackCause {
             Self::UnboundGeneratedEvent => "smusni.fallback.generated-eventuality-unbound",
             Self::UnrepresentableRecursiveValue => {
                 "smusni.fallback.unguarded-or-unrepresentable-scc"
+            }
+            Self::DefinitionTypeUnrepresentable => {
+                "smusni.fallback.higher-order-crossing-unlicensed"
             }
             Self::EventualityFacets => "smusni.fallback.event-facet-reduction-unregistered",
             Self::QuestionSlotFields => "smusni.fallback.question-domain-or-answer-mismatch",
@@ -211,6 +216,15 @@ fn wrap_reference_bindings(bindings: Vec<ReferenceBinding>, mut body: Datum) -> 
         );
     }
     body
+}
+
+/// Nest canonical single-binding `Let` forms in dependency order.
+#[requires(bindings.iter().all(|binding| binding.as_list().is_some_and(|items| items.len() == 3)))]
+#[ensures(true)]
+fn wrap_nonrecursive_definitions(bindings: Vec<Datum>, body: Datum) -> Datum {
+    bindings.into_iter().rev().fold(body, |body, binding| {
+        Datum::form("Let", [Datum::list([binding]), body])
+    })
 }
 
 /// Result of one compact elaboration pass.
@@ -356,15 +370,24 @@ impl Elaborator<'_> {
             .borrow_mut()
             .extend(definitions.iter().copied());
         let (ordered, recursive) = self.definition_order(&definitions);
-        let bindings = ordered
+        let Some(typed_definitions) = ordered
             .into_iter()
             .map(|id| {
+                definition_type_datum(&self.graph.objects[&id])
+                    .map(|declared_type| (id, declared_type))
+            })
+            .collect::<Option<Vec<_>>>()
+        else {
+            self.record_whole_document_fallback(
+                CompactFallbackCause::DefinitionTypeUnrepresentable,
+            );
+            return body;
+        };
+        let bindings = typed_definitions
+            .into_iter()
+            .map(|(id, declared_type)| {
                 let value = self.render_object(id, bound, active, None);
-                Datum::list([
-                    variable_datum(id),
-                    definition_type_datum(&self.graph.objects[&id]),
-                    value,
-                ])
+                Datum::list([variable_datum(id), declared_type, value])
             })
             .collect::<Vec<_>>();
         if recursive
@@ -376,19 +399,16 @@ impl Elaborator<'_> {
                     != Some("λ")
             })
         {
-            self.counters.requires_typed_graph.set(true);
-            *self
-                .counters
-                .fallback_reasons
-                .borrow_mut()
-                .entry(CompactFallbackCause::UnrepresentableRecursiveValue.reason_id())
-                .or_default() += 1;
+            self.record_whole_document_fallback(
+                CompactFallbackCause::UnrepresentableRecursiveValue,
+            );
             return body;
         }
-        Datum::form(
-            if recursive { "LetRec" } else { "Let" },
-            [Datum::list(bindings), body],
-        )
+        if recursive {
+            Datum::form("LetRec", [Datum::list(bindings), body])
+        } else {
+            wrap_nonrecursive_definitions(bindings, body)
+        }
     }
 
     /// Include shared definitions referenced by binding values. This is a
@@ -569,16 +589,10 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
         cause: CompactFallbackCause,
     ) -> Datum {
-        self.counters.requires_typed_graph.set(true);
+        self.record_whole_document_fallback(cause);
         self.counters
             .object_fallbacks
             .set(self.counters.object_fallbacks.get() + 1);
-        *self
-            .counters
-            .fallback_reasons
-            .borrow_mut()
-            .entry(cause.reason_id())
-            .or_default() += 1;
         let object = &self.graph.objects[&id];
         let references = self.fallback_reference_map(id, bound, active);
         object_datum_with_variables(
@@ -587,6 +601,19 @@ impl Elaborator<'_> {
             ProvenanceDisposition::Suppress,
             &references,
         )
+    }
+
+    /// Record one registered reason that requires graph-faithful document fallback.
+    #[requires(true)]
+    #[ensures(self.counters.requires_typed_graph.get())]
+    fn record_whole_document_fallback(&self, cause: CompactFallbackCause) {
+        self.counters.requires_typed_graph.set(true);
+        *self
+            .counters
+            .fallback_reasons
+            .borrow_mut()
+            .entry(cause.reason_id())
+            .or_default() += 1;
     }
 
     /// Count one successful compact object recognition.
@@ -922,8 +949,15 @@ impl Elaborator<'_> {
                         .iter()
                         .map(|event| event.object_id()),
                 );
-                let binding =
-                    Datum::list([variable_datum(node.variable), sort_datum(variable_sort)]);
+                let Some(variable_type) = sort_type_datum(variable_sort) else {
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::QuantifierVariableFields,
+                    );
+                };
+                let binding = Datum::list([variable_datum(node.variable), variable_type]);
                 let restriction = node.restriction.map(|restriction| {
                     self.render_id(
                         restriction,
@@ -1197,7 +1231,11 @@ impl Elaborator<'_> {
                             .as_eventuality()
                             .map(|node| SemanticSort::Eventuality(node.sort))
                             .unwrap_or(SemanticSort::eventuality());
-                        Datum::list([variable_datum(*event), sort_datum(sort)])
+                        Datum::list([
+                            variable_datum(*event),
+                            sort_type_datum(sort)
+                                .expect("every EventualitySort has a closed v0 subtype atom"),
+                        ])
                     })),
                     body,
                 ],
@@ -1529,60 +1567,24 @@ impl Elaborator<'_> {
         if let Some(abstraction) = self.render_referent_abstraction(id, node, bound, active) {
             return self.recognized(abstraction);
         }
-        if let Some(composition) = &node.composition {
-            if referent_except_composition_is_default(node) {
-                if !composition.excluded_members.is_empty()
-                    || composition.collective.is_some()
-                    || composition.scalar_negated.is_some()
-                    || composition.complement.is_some()
-                    || composition.endpoint_inclusion.is_some()
-                    || composition.operator_parameter.is_some()
-                {
-                    return self.fallback_object(
-                        id,
-                        bound,
-                        active,
-                        CompactFallbackCause::CompositionFields,
-                    );
-                }
-                let operator = composition_operator_name(composition.operator);
-                let arguments = composition
-                    .members
-                    .iter()
-                    .map(|member| self.render_id(*member, bound, active, None))
-                    .collect::<Vec<_>>();
-                return self.recognized(Datum::form(operator, arguments));
-            }
+        if node.composition.is_some() {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::CompositionFields,
+            );
         }
         if default_elided_shape(node) {
-            let context =
-                if self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound) {
-                    Datum::atom("Context")
-                } else {
-                    match node.scope_dependence.as_ref().map(|value| value.as_data()) {
-                        Some(data!(ScopeDependence::Fixed)) => {
-                            Datum::form("Context", [Datum::atom("Fixed")])
-                        }
-                        Some(data!(ScopeDependence::Underspecified { may_depend_on })) => {
-                            Datum::form(
-                                "Context",
-                                [Datum::form(
-                                    "MayDependOn",
-                                    may_depend_on.iter().map(|binder| variable_datum(*binder)),
-                                )],
-                            )
-                        }
-                        None => {
-                            return self.fallback_object(
-                                id,
-                                bound,
-                                active,
-                                CompactFallbackCause::ConstantWithoutDependence,
-                            );
-                        }
-                    }
-                };
-            return self.recognized(context);
+            let Some(dependence) = node.scope_dependence.as_ref() else {
+                return self.fallback_object(
+                    id,
+                    bound,
+                    active,
+                    CompactFallbackCause::ConstantWithoutDependence,
+                );
+            };
+            return self.recognized(context_datum(dependence));
         }
         self.fallback_object(id, bound, active, CompactFallbackCause::ReferentFields)
     }
@@ -1610,6 +1612,7 @@ impl Elaborator<'_> {
         let scope_default =
             self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound);
         let recognition = recognize_description(self.graph, self.plan, id, node, scope_default)?;
+        let declared_type = referents_type_datum(node.sort)?;
         let mut scoped = bound.clone();
         scoped.insert(id);
         let variable = variable_datum(id);
@@ -1653,7 +1656,7 @@ impl Elaborator<'_> {
                             [
                                 Datum::list([Datum::list([
                                     property_candidate.clone(),
-                                    referents_type_datum(node.sort),
+                                    declared_type.clone(),
                                 ])]),
                                 property_body,
                             ],
@@ -1713,7 +1716,6 @@ impl Elaborator<'_> {
         } else {
             Datum::form("∧", conjuncts)
         };
-        let declared_type = referents_type_datum(node.sort);
         let computation = Datum::form(
             "Refer",
             [Datum::form(
@@ -1800,7 +1802,8 @@ impl Elaborator<'_> {
                                 self.graph.objects[parameter]
                                     .sort()
                                     .unwrap_or(SemanticSort::Entity),
-                            ),
+                            )
+                            .expect("recognized property parameters have Entity sort"),
                         ])
                     })),
                     body,
@@ -1900,7 +1903,8 @@ impl Elaborator<'_> {
                         Datum::list(parameters.iter().map(|parameter| {
                             Datum::list([
                                 variable_datum(*parameter),
-                                referents_type_datum(SemanticSort::Entity),
+                                referents_type_datum(SemanticSort::Entity)
+                                    .expect("Entity is a closed v0 primitive sort"),
                             ])
                         })),
                         body,
@@ -1908,8 +1912,77 @@ impl Elaborator<'_> {
                 );
                 return self.recognized(Datum::form("Ask", [Datum::form("OpenQ", [lambda])]));
             }
+            if node.kind == QuestionKind::Relation
+                && parameters.len() == 1
+                && let Some(parameter_type) =
+                    self.exact_open_relation_question_type(node, parameters[0])
+            {
+                let lambda = Datum::form(
+                    "λ",
+                    [
+                        Datum::list([Datum::list([variable_datum(parameters[0]), parameter_type])]),
+                        Datum::form("Close", [body]),
+                    ],
+                );
+                return self.recognized(Datum::form("Ask", [Datum::form("OpenQ", [lambda])]));
+            }
         }
         self.fallback_object(id, bound, active, CompactFallbackCause::QuestionSlotFields)
+    }
+
+    /// Exact `mo` parameter type for one atomic relation question. The open
+    /// numbered tail preserves the respondent's ability to supply a predicate
+    /// with additional places; every place already filled by the question and
+    /// the graph-owned event slot remains explicit in the row.
+    #[requires(self.graph.objects.contains_key(&node.body))]
+    #[requires(parameter.object_kind() == SemanticObjectKind::Parameter)]
+    #[ensures(ret.as_ref().is_none_or(|datum| datum.form_head() == Some("PredTerm")))]
+    fn exact_open_relation_question_type(
+        &self,
+        node: &crate::model::QuestionNode,
+        parameter: SemanticObjectId,
+    ) -> Option<Datum> {
+        if node.domain != SemanticSort::Relation {
+            return None;
+        }
+        let formula = self.graph.objects[&node.body].as_formula()?;
+        let data!(FormulaNode::Atom(atom)) = formula.as_data() else {
+            return None;
+        };
+        if atom.bound_eventualities.len() != 1 {
+            return None;
+        }
+        let event = atom.bound_eventualities[0].object_id();
+        let predication = self.graph.objects[&atom.predication].as_predication()?;
+        if !matches!(
+            predication.relation.as_data(),
+            data!(PredicationRelation::Parameter { parameter: relation }) if *relation == parameter
+        ) || predication.mode != PredicationMode::Asserted
+            || !predication_is_otherwise_plain(predication)
+            || predication.eventuality != Some(event)
+            || !generated_event_is_default(self.graph, self.plan, node.body, event)
+            || predication.arguments.is_empty()
+        {
+            return None;
+        }
+        let entity_referents = referents_type_expr(SemanticSort::Entity)?;
+        let eventuality_referents = referents_type_expr(SemanticSort::eventuality())?;
+        let mut slots = Vec::with_capacity(predication.arguments.len() + 1);
+        for (place, argument) in &predication.arguments {
+            let value = plain_argument_value(&predication.arguments, place.get())?;
+            if argument.kind != ArgumentValueKind::Filled
+                || self.graph.objects[&value].sort() != Some(SemanticSort::Entity)
+            {
+                return None;
+            }
+            let place = u32::try_from(place.get()).ok()?;
+            slots.push(RowSlot::new(
+                PlaceLabel::numbered(place),
+                entity_referents.clone(),
+            ));
+        }
+        slots.push(RowSlot::new(PlaceLabel::Eventuality, eventuality_referents));
+        Some(TypeExpr::Predicate(Row::new(slots, true)).to_datum())
     }
 
     /// Preserve quantity form, value, scale, comparison set, and question
@@ -1923,18 +1996,13 @@ impl Elaborator<'_> {
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
-        if node.value.question_parameters.is_empty() && node.comparison_set.is_none() {
-            if let Some(integer) = node.value.integer {
-                if node.form == QuantityForm::Exact && node.scale == QuantityScale::Count {
-                    return self.recognized(Datum::signed(i128::from(integer)));
-                }
-                if node.scale == QuantityScale::Count
-                    && let Some(form) = numeric_quantity_form(node.form)
-                {
-                    return self
-                        .recognized(Datum::form(form, [Datum::signed(i128::from(integer))]));
-                }
-            }
+        if node.form == QuantityForm::Exact
+            && node.scale == QuantityScale::Count
+            && node.value.question_parameters.is_empty()
+            && node.comparison_set.is_none()
+            && let Some(integer) = node.value.integer
+        {
+            return self.recognized(Datum::signed(i128::from(integer)));
         }
 
         self.fallback_object(id, bound, active, CompactFallbackCause::QuantityFields)
@@ -2066,68 +2134,107 @@ fn variable_name(id: SemanticObjectId) -> String {
     format!("${}", id.to_string().replace(':', "_"))
 }
 
-/// Sort spelling table used by every binder form.
+/// Closed version-0 type spelling for model sorts that carry enough information.
 #[requires(true)]
-#[ensures(ret.as_atom().is_some())]
-fn sort_datum(sort: SemanticSort) -> Datum {
-    Datum::atom(match sort {
-        SemanticSort::Entity => "Entity",
-        SemanticSort::Mass => "Mass",
-        SemanticSort::Set => "Set",
-        SemanticSort::Sequence => "Sequence",
-        SemanticSort::Time => "Time",
-        SemanticSort::Eventuality(EventualitySort::General) => "Eventuality",
-        SemanticSort::Eventuality(EventualitySort::State) => "Eventuality/State",
-        SemanticSort::Eventuality(EventualitySort::Process) => "Eventuality/Process",
-        SemanticSort::Eventuality(EventualitySort::Activity) => "Eventuality/Activity",
-        SemanticSort::Eventuality(EventualitySort::Achievement) => "Eventuality/Achievement",
-        SemanticSort::Eventuality(EventualitySort::Experience) => "Eventuality/Experience",
-        SemanticSort::Eventuality(EventualitySort::Locution) => "Eventuality/Locution",
-        SemanticSort::Predication => "Predication",
-        SemanticSort::TruthValue => "TruthValue",
-        SemanticSort::Proposition => "Proposition",
-        SemanticSort::Concept => "Concept",
-        SemanticSort::Amount => "Amount",
-        SemanticSort::Quantity => "Quantity",
-        SemanticSort::Number => "Number",
-        SemanticSort::Scale => "Scale",
-        SemanticSort::Text => "Text",
-        SemanticSort::Sign => "Sign",
-        SemanticSort::Relation => "Relation",
-        SemanticSort::Place => "Place",
-        SemanticSort::Connective => "Connective",
-        SemanticSort::TenseModal => "TenseModal",
-        SemanticSort::MathOperator => "MathOperator",
-        SemanticSort::ArgumentBundle => "ArgumentBundle",
-        SemanticSort::AbstractNature => "AbstractNature",
-    })
+#[ensures(ret.as_ref().is_none_or(|datum| TypeExpr::parse(datum).is_ok()))]
+fn sort_type_datum(sort: SemanticSort) -> Option<Datum> {
+    sort_type_expr(sort).map(|value| value.to_datum())
+}
+
+/// Closed typed counterpart of [`sort_type_datum`]. Composite model sorts do
+/// not retain the component type required by v0 and therefore fail closed.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| TypeExpr::parse(&value.to_datum()).is_ok()))]
+fn sort_type_expr(sort: SemanticSort) -> Option<TypeExpr> {
+    let atom = match sort {
+        SemanticSort::Entity => TypeAtom::Entity,
+        SemanticSort::Eventuality(EventualitySort::General) => TypeAtom::Eventuality,
+        SemanticSort::Eventuality(EventualitySort::State) => TypeAtom::State,
+        SemanticSort::Eventuality(EventualitySort::Process) => TypeAtom::Process,
+        SemanticSort::Eventuality(EventualitySort::Activity) => TypeAtom::Activity,
+        SemanticSort::Eventuality(EventualitySort::Achievement) => TypeAtom::Achievement,
+        SemanticSort::Eventuality(EventualitySort::Experience) => TypeAtom::Experience,
+        SemanticSort::Eventuality(EventualitySort::Locution) => TypeAtom::Locution,
+        SemanticSort::TruthValue => TypeAtom::TruthValue,
+        SemanticSort::Proposition => TypeAtom::Proposition,
+        SemanticSort::Concept => TypeAtom::Concept,
+        SemanticSort::Amount => TypeAtom::Amount,
+        SemanticSort::Number => TypeAtom::Number,
+        SemanticSort::Scale => TypeAtom::Scale,
+        SemanticSort::Text => TypeAtom::Text,
+        SemanticSort::AbstractNature => TypeAtom::AbstractNature,
+        SemanticSort::Mass
+        | SemanticSort::Set
+        | SemanticSort::Sequence
+        | SemanticSort::Time
+        | SemanticSort::Predication
+        | SemanticSort::Quantity
+        | SemanticSort::Sign
+        | SemanticSort::Relation
+        | SemanticSort::Place
+        | SemanticSort::Connective
+        | SemanticSort::TenseModal
+        | SemanticSort::MathOperator
+        | SemanticSort::ArgumentBundle => return None,
+    };
+    Some(TypeExpr::Atom(atom))
 }
 
 /// Number-neutral reference type for one represented semantic sort.
 #[requires(true)]
-#[ensures(ret.form_head() == Some("Referents"))]
-fn referents_type_datum(sort: SemanticSort) -> Datum {
-    Datum::form("Referents", [sort_datum(sort)])
+#[ensures(ret.as_ref().is_none_or(|datum| datum.form_head() == Some("Referents") && TypeExpr::parse(datum).is_ok()))]
+fn referents_type_datum(sort: SemanticSort) -> Option<Datum> {
+    referents_type_expr(sort).map(|value| value.to_datum())
+}
+
+/// Typed number-neutral reference type, when the component sort is closed.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|value| matches!(value, TypeExpr::Referents(_))))]
+fn referents_type_expr(sort: SemanticSort) -> Option<TypeExpr> {
+    sort_type_expr(sort).map(|value| TypeExpr::Referents(Box::new(value)))
 }
 
 /// Notation-level type of a shared graph value. Formulae and open predicate
 /// terms are not referents, so they must never inherit an unrelated fallback
 /// semantic sort merely because `SemanticObject::sort` is intentionally absent.
 #[requires(true)]
-#[ensures(ret.as_atom().is_some())]
-fn definition_type_datum(object: &crate::model::SemanticObject) -> Datum {
-    Datum::atom(match object.object_kind() {
-        crate::model::SemanticObjectKind::Formula => "Content",
-        crate::model::SemanticObjectKind::Predication => "PredTerm",
-        crate::model::SemanticObjectKind::Utterance => "Utterance",
-        crate::model::SemanticObjectKind::Sequence => "Content",
-        crate::model::SemanticObjectKind::DisplayedContent => "Content",
-        crate::model::SemanticObjectKind::Question => "Question",
-        crate::model::SemanticObjectKind::RelationMetadata => "RelationMetadata",
-        _ => {
-            return sort_datum(object.sort().unwrap_or(SemanticSort::AbstractNature));
+#[ensures(ret.as_ref().is_none_or(|datum| TypeExpr::parse(datum).is_ok()))]
+fn definition_type_datum(object: &crate::model::SemanticObject) -> Option<Datum> {
+    let value = match object.as_data() {
+        data!(SemanticObject::Formula(_)) => TypeExpr::Atom(TypeAtom::Content),
+        data!(SemanticObject::MathExpression(_)) => sort_type_expr(object.sort()?)?,
+        data!(SemanticObject::Quantity(node))
+            if node.form == QuantityForm::Exact
+                && node.scale == QuantityScale::Count
+                && node.value.question_parameters.is_empty()
+                && node.comparison_set.is_none()
+                && node.value.integer.is_some() =>
+        {
+            TypeExpr::Atom(if node.value.integer.is_some_and(|value| value >= 0) {
+                TypeAtom::Natural
+            } else {
+                TypeAtom::Number
+            })
         }
-    })
+        _ => return None,
+    };
+    Some(value.to_datum())
+}
+
+/// Closed context spelling: fixed context is the primitive atom, while an
+/// underspecified context applies that primitive directly to every permitted
+/// dependency. The retired `Fixed` and `MayDependOn` record vocabulary is not
+/// part of the v0 kernel.
+#[requires(true)]
+#[ensures(matches!(dependence.as_data(), data!(ScopeDependence::Fixed)) == ret.as_atom().is_some())]
+fn context_datum(dependence: &crate::model::ScopeDependence) -> Datum {
+    match dependence.as_data() {
+        data!(ScopeDependence::Fixed) => Datum::atom("Context"),
+        data!(ScopeDependence::Underspecified { may_depend_on }) => Datum::form(
+            "Context",
+            may_depend_on.iter().map(|binder| variable_datum(*binder)),
+        ),
+    }
 }
 
 /// Whether an object is represented losslessly by a declared context atom.
@@ -2725,32 +2832,6 @@ fn referent_except_descriptor_is_default(node: &ReferentNode) -> bool {
         && node.composition.is_none()
         && node.personal_mass_membership.is_none()
         && node.generated_referent.is_none()
-        && node.assigned_names.is_empty()
-        && node.body.is_none()
-        && node.parameters.is_empty()
-        && node.arity.is_none()
-        && node.embedded_questions.is_empty()
-        && node.abstraction_kind.is_none()
-        && node.abstracted.is_none()
-        && node.experiencer.is_none()
-        && node.target.is_none()
-        && node.scale.is_none()
-        && node.subscript.is_none()
-}
-
-/// Composition referent has no second denotation mechanism or attachments.
-#[requires(true)]
-#[ensures(true)]
-fn referent_except_composition_is_default(node: &ReferentNode) -> bool {
-    node.category == ReferentCategory::Composite
-        && node.scope_dependence.is_none()
-        && node.sort == SemanticSort::Entity
-        && node.indexical.is_none()
-        && node.deictic_reference.is_none()
-        && node.descriptor.is_none()
-        && node.personal_mass_membership.is_none()
-        && node.generated_referent.is_none()
-        && node.relative_clauses.is_empty()
         && node.assigned_names.is_empty()
         && node.body.is_none()
         && node.parameters.is_empty()
@@ -3522,23 +3603,113 @@ fn canonical_connective_truth_table(operator: FormulaOperator) -> Option<&'stati
     }
 }
 
-/// Fixed composition constructor table.
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn composition_operator_name(operator: CompositionOperator) -> &'static str {
-    match operator {
-        CompositionOperator::ConnectiveQuestion => "ConnectiveQuestion",
-        CompositionOperator::Joint => "Joint",
-        CompositionOperator::Mass => "Mass",
-        CompositionOperator::Set => "Set",
-        CompositionOperator::Sequence => "SequenceValue",
-        CompositionOperator::Respectively => "RespectivelyValue",
-        CompositionOperator::Union => "Union",
-        CompositionOperator::Intersection => "Intersection",
-        CompositionOperator::CrossProduct => "CrossProduct",
-        CompositionOperator::UnorderedInterval => "UnorderedInterval",
-        CompositionOperator::OrderedInterval => "OrderedInterval",
-        CompositionOperator::CenteredInterval => "CenteredInterval",
+#[cfg(test)]
+mod tests {
+    use bityzba::requires;
+
+    use super::*;
+    use crate::notation::sexpr::syntax::V0Expr;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nonrecursive_definition_groups_are_nested_single_binding_lets() {
+        let bindings = vec![
+            Datum::list([
+                Datum::atom("$first"),
+                Datum::atom("Entity"),
+                Datum::atom("This"),
+            ]),
+            Datum::list([
+                Datum::atom("$second"),
+                Datum::atom("Entity"),
+                Datum::atom("$first"),
+            ]),
+        ];
+        let wrapped = wrap_nonrecursive_definitions(bindings, Datum::atom("$second"));
+        V0Expr::parse(&wrapped).expect("nested definition group satisfies the v0 grammar");
+
+        let outer = wrapped.as_list().expect("outer Let is a list");
+        assert_eq!(outer.first().and_then(Datum::as_atom), Some("Let"));
+        assert_eq!(outer[1].as_list().expect("outer bindings").len(), 1);
+        let inner = outer[2].as_list().expect("inner Let is a list");
+        assert_eq!(inner.first().and_then(Datum::as_atom), Some("Let"));
+        assert_eq!(inner[1].as_list().expect("inner bindings").len(), 1);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn model_event_subtypes_use_closed_v0_atoms_and_erased_composites_fail() {
+        for (sort, expected) in [
+            (SemanticSort::eventuality(), TypeAtom::Eventuality),
+            (
+                SemanticSort::Eventuality(EventualitySort::State),
+                TypeAtom::State,
+            ),
+            (
+                SemanticSort::Eventuality(EventualitySort::Process),
+                TypeAtom::Process,
+            ),
+            (
+                SemanticSort::Eventuality(EventualitySort::Activity),
+                TypeAtom::Activity,
+            ),
+            (
+                SemanticSort::Eventuality(EventualitySort::Achievement),
+                TypeAtom::Achievement,
+            ),
+            (
+                SemanticSort::Eventuality(EventualitySort::Experience),
+                TypeAtom::Experience,
+            ),
+            (
+                SemanticSort::Eventuality(EventualitySort::Locution),
+                TypeAtom::Locution,
+            ),
+        ] {
+            assert_eq!(sort_type_expr(sort), Some(TypeExpr::Atom(expected)));
+        }
+        for erased in [
+            SemanticSort::Mass,
+            SemanticSort::Set,
+            SemanticSort::Sequence,
+            SemanticSort::Sign,
+            SemanticSort::Relation,
+        ] {
+            assert_eq!(sort_type_expr(erased), None);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn context_spelling_uses_the_primitive_and_direct_dependency_operands() {
+        let fixed = context_datum(&crate::model::ScopeDependence::fixed());
+        assert_eq!(fixed.as_atom(), Some("Context"));
+
+        let dependencies = BTreeSet::from([
+            SemanticObjectId::referent(7),
+            SemanticObjectId::referent(11),
+        ]);
+        let underspecified = context_datum(&crate::model::ScopeDependence::underspecified(
+            dependencies.clone(),
+        ));
+        V0Expr::parse(&underspecified).expect("direct Context application satisfies v0 grammar");
+        let items = underspecified
+            .as_list()
+            .expect("Context application is a list");
+        assert_eq!(items.first().and_then(Datum::as_atom), Some("Context"));
+        assert_eq!(items.len(), dependencies.len() + 1);
+        let expected = dependencies
+            .iter()
+            .map(|dependency| variable_datum(*dependency))
+            .collect::<Vec<_>>();
+        assert_eq!(&items[1..], expected.as_slice());
+        assert!(!items.iter().any(|item| {
+            item.as_atom()
+                .is_some_and(|atom| matches!(atom, "Fixed" | "MayDependOn"))
+        }));
     }
 }
 
@@ -3551,22 +3722,5 @@ fn indexical_name(indexical: IndexicalKind) -> &'static str {
         IndexicalKind::Audience => "Audience",
         IndexicalKind::Now => "Now",
         IndexicalKind::Here => "Here",
-    }
-}
-
-/// Numeric quantity shorthand table; text values never enter this function.
-#[requires(true)]
-#[ensures(true)]
-fn numeric_quantity_form(form: QuantityForm) -> Option<&'static str> {
-    match form {
-        QuantityForm::AtLeast => Some("AtLeast"),
-        QuantityForm::AtMost => Some("AtMost"),
-        QuantityForm::MoreThan => Some("MoreThan"),
-        QuantityForm::LessThan => Some("LessThan"),
-        QuantityForm::Approximate => Some("Approximate"),
-        QuantityForm::Enough => Some("Enough"),
-        QuantityForm::TooMany => Some("TooMany"),
-        QuantityForm::TooFew => Some("TooFew"),
-        QuantityForm::Exact | QuantityForm::All | QuantityForm::Indefinite => None,
     }
 }

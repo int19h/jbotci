@@ -1,9 +1,9 @@
-//! Deterministic offline mint and verifier for the current smusni-v0 candidate bundle.
+//! Deterministic offline generator and verifier for the current smusni-v0 candidate bundle.
 //!
-//! The checked-in JSONL files are the normative registry. This module consumes
-//! only pinned repository bytes, projects the one authored completeness ledger,
-//! validates every cross-table invariant, and either writes the exact bundle or
-//! proves that the checked-in bytes are already current.
+//! The checked-in JSONL files are the reviewed candidate registry. This module
+//! consumes only pinned repository bytes, projects the one authored completeness
+//! ledger, validates every cross-table invariant, and either writes the exact
+//! bundle or proves that the checked-in bytes are already current.
 
 #![allow(dead_code)] // build.rs and the rejection-test crate exercise different APIs.
 
@@ -1268,7 +1268,7 @@ pub fn verify_snapshot(root: &Path, snapshot: &BundleSnapshot) -> Result<(), Bun
     if generate_policy_rust(&tables)? != snapshot.artifacts["registry/runtime.rs"] {
         return Err(BundleError::new(
             BundleErrorKind::Drift,
-            "generated runtime registry differs from the normative JSONL tables",
+            "generated runtime registry differs from the candidate JSONL tables",
         ));
     }
     if serialize_tables(&tables)? != snapshot.artifacts {
@@ -1280,7 +1280,7 @@ pub fn verify_snapshot(root: &Path, snapshot: &BundleSnapshot) -> Result<(), Bun
     if generate_policy_rust(&tables)? != snapshot.policy_rust {
         return Err(BundleError::new(
             BundleErrorKind::Drift,
-            "compiled policy artifact differs from the normative table",
+            "compiled policy artifact differs from the candidate table",
         ));
     }
     let source_manifest = build_source_manifest(root)?;
@@ -1696,7 +1696,7 @@ fn audit_registry_provenance(
     {
         return Err(BundleError::new(
             BundleErrorKind::Evidence,
-            "registry provenance sidecar differs from the final reviewed authority",
+            "registry provenance sidecar differs from the reviewed candidate authority",
         ));
     }
     let expected = scope_rows
@@ -1942,7 +1942,7 @@ fn build_source_artifact_rows(
         }),
         new!(SourceArtifactRow {
             source_id: "smusni-v0-spec".to_owned(),
-            source_kind: "frozen-normative-specification".to_owned(),
+            source_kind: "versioned-design-candidate".to_owned(),
             immutable_revision: SMUSNI_SOURCE_REVISION.to_owned(),
             canonical_locator: "jbotci:docs/smusni/spec.md".to_owned(),
             artifact_digest: sha256_hex(&spec),

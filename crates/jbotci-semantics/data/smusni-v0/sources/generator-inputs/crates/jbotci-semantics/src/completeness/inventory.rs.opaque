@@ -1,7 +1,7 @@
 //! Exact authored semantic-surface inventory for smusni v0.
 //!
 //! Every row below is an independent reviewed coordinate. The build-time AST
-//! scan, this inventory, and the immutable minted registry must be equal as
+//! scan, this inventory, and the generated candidate registry must be equal as
 //! sets; no wildcard assigns a disposition to a future model member.
 
 #[allow(unused_imports)]

@@ -166,7 +166,7 @@ fn registry_datum_contains_bare_t(source: &str) -> bool {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn pinned_sources_and_final_witness_registry_are_exact() {
+fn pinned_sources_and_candidate_witness_registry_are_exact() {
     assert_eq!(OBLIQUE.len(), 79_293);
     assert_eq!(OBLIQUE.iter().filter(|byte| **byte == b'\n').count(), 3_542);
     assert_eq!(
@@ -264,7 +264,7 @@ fn manifest_generator_inputs_are_physical_bundle_children() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn generated_table_counts_and_final_policy_keys_are_closed() {
+fn generated_table_counts_and_candidate_policy_keys_are_closed() {
     let manifest: serde_json::Value = serde_json::from_slice(
         &fs::read(
             manifest_dir()
@@ -477,7 +477,15 @@ fn validator_rejects_byte_order_digest_and_manifest_mutations() {
     let mut digest = snapshot();
     let mut manifest: serde_json::Value = serde_json::from_slice(&digest.manifest).unwrap();
     let bundle_digest = manifest["bundle-digest"].as_str().unwrap();
-    let replacement = format!("0{}", &bundle_digest[1..]);
+    let replacement = format!(
+        "{}{}",
+        if bundle_digest.starts_with('0') {
+            '1'
+        } else {
+            '0'
+        },
+        &bundle_digest[1..],
+    );
     manifest["bundle-digest"] = serde_json::Value::String(replacement);
     digest.manifest = serde_json::to_vec(&manifest).unwrap();
     digest.manifest.push(b'\n');

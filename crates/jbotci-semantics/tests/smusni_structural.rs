@@ -17,9 +17,10 @@ use jbotci_morphology::{
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::model::{
     Actuality, ActualityKind, AnchorRelation, ArgumentValueKind, Aspect, EventualityNode,
-    IndexicalKind, MathLiteral, ParameterRole, QuantityScale, QuantityValue, QuestionSlot,
-    QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory, ScopeDependence,
-    SemanticGraphData, SemanticObject, SemanticObjectId, Subscript, UtteranceForce,
+    IndexicalKind, MathLiteral, ParameterRole, QuantityForm, QuantityScale, QuantityValue,
+    QuestionSlot, QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory, ScopeDependence,
+    ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId, Subscript,
+    UtteranceForce,
 };
 use jbotci_semantics::notation::sexpr::{Datum, parse_document, parse_v0_document};
 use jbotci_semantics::notation::word_cards::build_word_cards;
@@ -300,6 +301,19 @@ fn count_forms(datum: &Datum, head: &str) -> usize {
         .flat_map(|items| items.iter())
         .map(|item| count_forms(item, head))
         .sum::<usize>()
+}
+
+/// Count one exact atom at every tree position.
+#[requires(!atom.is_empty())]
+#[ensures(true)]
+fn count_atoms(datum: &Datum, atom: &str) -> usize {
+    usize::from(datum.as_atom() == Some(atom))
+        + datum
+            .as_list()
+            .into_iter()
+            .flat_map(|items| items.iter())
+            .map(|item| count_atoms(item, atom))
+            .sum::<usize>()
 }
 
 /// Recover numbered places from one canonical application. Plain operands
@@ -649,6 +663,139 @@ fn description_property_retains_filled_conventional_places() {
     );
     let nested = validate_render(&nested.graph, &render_smusni(&nested.graph));
     assert_eq!(count_forms(&nested, "TypedGraph"), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn atomic_relation_question_uses_a_typed_open_predicate_row() {
+    let input = build_input("ti mo", "atomic-relation-question");
+    let rendered = render_smusni_detailed(&input.graph, &[]);
+    assert_eq!(rendered.stats.mode, jbotci_semantics::DocumentMode::Compact);
+    assert!(rendered.stats.fallback_reasons.is_empty());
+    let datum = validate_render(&input.graph, &rendered.text);
+
+    assert_eq!(count_forms(&datum, "Ask"), 1);
+    assert_eq!(count_forms(&datum, "OpenQ"), 1);
+    assert_eq!(count_forms(&datum, "PredTerm"), 1);
+    assert_eq!(count_forms(&datum, "Row"), 1);
+    assert_eq!(count_forms(&datum, "Close"), 1);
+    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
+
+    let tanru = build_input("ti mo zdani", "relation-question-tanru");
+    let tanru = validate_render(&tanru.graph, &render_smusni(&tanru.graph));
+    assert_eq!(count_forms(&tanru, "TypedGraph"), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn fixed_context_uses_the_bare_primitive_atom() {
+    let input = build_input("mi klama", "fixed-context-spelling");
+    let selected = input.graph.objects.iter().find_map(|(id, object)| {
+        let predication = object.as_predication()?;
+        predication.arguments.iter().find_map(|(place, argument)| {
+            if argument.kind != ArgumentValueKind::Elided {
+                return None;
+            }
+            let value = argument.value?;
+            let referent = input.graph.objects[&value].as_referent()?;
+            matches!(
+                referent.scope_dependence.as_ref()?.as_data(),
+                data!(ScopeDependence::Fixed)
+            )
+            .then_some((*id, *place, value))
+        })
+    });
+    let (predication, place, source_context) =
+        selected.expect("witness has a fixed elided context");
+    let context = SemanticObjectId::referent(999_999);
+    assert!(!input.graph.objects.contains_key(&context));
+    let graph = insert_object(
+        input.graph.clone(),
+        context,
+        input.graph.objects[&source_context].clone(),
+    );
+    let mut object = graph.objects[&predication].clone();
+    object.update_predication(|node| {
+        let mut arguments = node.arguments.clone();
+        let argument = arguments
+            .remove(&place)
+            .expect("selected argument remains present")
+            .with_data(data! {
+                kind: ArgumentValueKind::Filled,
+                value: Some(context),
+                introduced_by: None,
+            });
+        arguments.insert(place, argument);
+        node.with_data(data! { arguments: arguments })
+    });
+    let graph = replace_object(graph, predication, object);
+    let rendered = render_smusni_detailed(&graph, &[]);
+    let datum = validate_render(&graph, &rendered.text);
+    assert_eq!(
+        count_forms(&datum, "TypedGraph"),
+        0,
+        "unexpected context fallback: {:?}",
+        rendered.stats.fallback_reasons,
+    );
+    assert_eq!(count_atoms(&datum, "Fixed"), 0);
+    assert_eq!(count_forms(&datum, "MayDependOn"), 0);
+    assert_eq!(count_forms(&datum, "Context"), 0);
+    assert!(count_atoms(&datum, "Context") > 0);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn generic_composition_and_nonexact_quantities_do_not_borrow_callable_heads() {
+    let composition = build_input("mi joi do cu klama", "generic-composition");
+    assert!(composition.graph.objects.values().any(|object| {
+        object
+            .as_referent()
+            .is_some_and(|node| node.composition.is_some())
+    }));
+    let composition = validate_render(&composition.graph, &render_smusni(&composition.graph));
+    assert_eq!(count_forms(&composition, "TypedGraph"), 1);
+    for head in [
+        "Joint",
+        "Mass",
+        "SequenceValue",
+        "RespectivelyValue",
+        "Union",
+        "Intersection",
+        "CrossProduct",
+        "UnorderedInterval",
+        "OrderedInterval",
+        "CenteredInterval",
+    ] {
+        assert_eq!(count_forms(&composition, head), 0);
+    }
+
+    let input = build_input("ci mlatu cu jbena", "nonexact-quantity");
+    let quantity = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| object.as_quantity().is_some().then_some(*id))
+        .expect("cardinality witness has a quantity");
+    let mut object = input.graph.objects[&quantity].clone();
+    object.update_quantity(|node| node.with_data(data! { form: QuantityForm::AtLeast }));
+    let graph = replace_object(input.graph.clone(), quantity, object);
+    let quantity = validate_render(&graph, &render_smusni(&graph));
+    assert_eq!(count_forms(&quantity, "TypedGraph"), 1);
+    for head in [
+        "AtLeast",
+        "AtMost",
+        "MoreThan",
+        "LessThan",
+        "Approximate",
+        "Enough",
+        "TooMany",
+        "TooFew",
+    ] {
+        assert_eq!(count_forms(&quantity, head), 0);
+    }
 }
 
 #[test]

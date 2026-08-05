@@ -238,10 +238,10 @@ fn render_tersmu(
         )?,
         TersmuFormat::Smusni => {
             let rendered = jbotci_semantics::render_smusni_detailed(&graph, &word_cards);
-            for diagnostic in &rendered.diagnostics {
-                stderr.push_str(&diagnostic.to_string());
-                stderr.push('\n');
-            }
+            // Renderer diagnostics remain structured beside the document until
+            // they can be converted to the standard source-aware CLI renderer.
+            // Printing their provisional Display text would create a second,
+            // location-free diagnostic presentation.
             let mut rendered = rendered.into_data().text;
             if rendered.ends_with('\n') {
                 rendered.pop();

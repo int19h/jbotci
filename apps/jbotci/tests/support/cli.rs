@@ -893,7 +893,7 @@ fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_smusni_fallback_diagnostics_use_stderr_only() {
+fn tersmu_smusni_fallback_diagnostics_are_deferred_without_polluting_stdout() {
     let run = run_cli_capture(
         &[
             "jbotci",
@@ -913,7 +913,10 @@ fn tersmu_smusni_fallback_diagnostics_use_stderr_only() {
     for forbidden in ["WithWarnings", "Warnings", "Warning"] {
         assert_eq!(document.count_forms(forbidden), 0);
     }
-    assert!(!run.stderr.is_empty(), "fallback has a standard diagnostic");
+    assert!(
+        run.stderr.is_empty(),
+        "provisional smusni diagnostics must wait for the standard source-aware renderer",
+    );
 }
 
 #[test]
@@ -1095,8 +1098,8 @@ fn tersmu_show_defs_embeds_word_cards_in_the_smusni_document() {
     );
     assert_eq!(run.status, CliStatus::Success);
     assert!(
-        !run.stderr.is_empty(),
-        "the unsupported sign identity is reported separately"
+        run.stderr.is_empty(),
+        "provisional smusni diagnostics must wait for the standard source-aware renderer",
     );
 
     jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)

@@ -2063,6 +2063,35 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn binder_types_use_only_closed_atoms_or_complete_constructors() {
+        for valid in [
+            "(Let (($state State Context)) $state)",
+            "(Let (($events (Referents Process) Context)) $events)",
+            "(Let (($set (Set Entity) Context)) $set)",
+            "(Let (($predicate (PredTerm (Row (1 (Referents Entity)) Open)) klama)) $predicate)",
+        ] {
+            assert!(
+                parse_v0_expression(valid).is_ok(),
+                "rejected closed type specimen {valid}",
+            );
+        }
+        for invalid in [
+            "(Let (($state Eventuality/State Context)) $state)",
+            "(Let (($set Set Context)) $set)",
+            "(Let (($predicate PredTerm klama)) $predicate)",
+            "(Let (($relation Relation klama)) $relation)",
+            "(Let (($mass Mass Context)) $mass)",
+        ] {
+            assert!(
+                parse_v0_expression(invalid).is_err(),
+                "accepted invented or incomplete type specimen {invalid}",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn vertical_bar_symbols_and_hostile_strings_round_trip() {
         let expression =
             parse_v0_expression(r#"(|lo jban| "quote: \" slash: \\ newline:\n nul:\u0000")"#)
