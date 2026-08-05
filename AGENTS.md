@@ -158,7 +158,7 @@ If you add debug logging that is broadly useful beyond a one-off investigation, 
 
 Use `bityzba` for design by contract throughout the workspace, including private functions, trait methods, `impl` methods, and public model types. `bityzba` is the public facade crate; `bityzba-macros` is an implementation detail and should not be imported directly. Import the macros you need from `bityzba::{requires, ensures, invariant, contract_trait, expensive_requires, expensive_ensures, expensive_invariant, data, new, try_new}`.
 
-Cheap contracts use `requires`, `ensures`, and `invariant`; they run in normal builds and should be cheap enough for routine execution. Expensive contracts use `expensive_requires`, `expensive_ensures`, and `expensive_invariant`; they are disabled by default and enabled by `cargo test --workspace --all-targets --features expensive_contracts -j 16 -- --test-threads=16`. Do not use `test_requires`, `test_ensures`, or `test_invariant` for production expensive contracts; reserve them for genuinely test-only APIs.
+Cheap contracts use `requires`, `ensures`, and `invariant`; they run in normal builds and should be cheap enough for routine execution. Expensive contracts use `expensive_requires`, `expensive_ensures`, and `expensive_invariant`; they are disabled by default and enabled by `cargo test -r --workspace --all-targets --features expensive_contracts -j 16 -- --test-threads=16`. Run this gate in release: the contracts are feature-gated, not `debug_assertions`-gated, so optimized builds keep every check (the optimizer may only remove a check it proves can never fire, which is semantically harmless), and release execution is several times faster over the large fixture corpora. Do not run the expensive gate in debug mode. Do not use `test_requires`, `test_ensures`, or `test_invariant` for production expensive contracts; reserve them for genuinely test-only APIs.
 
 Keep contracts in mind whenever writing or touching code. Capture preconditions, postconditions, type invariants, and function or `impl` invariants where they make correctness assumptions explicit. The build-time contract scanner requires every function and method to have both a precondition marker and a postcondition marker, and every struct or enum to have an invariant marker. Reason about the real contract first. Use `#[requires(true)]`, `#[ensures(true)]`, or `#[invariant(true)]` only when there is genuinely no stronger useful contract beyond what the types already express. The order should always be: requires, ensures, invariant.
 
@@ -405,7 +405,7 @@ On the dev box, all transient artifacts live on the dedicated `/build` partition
 - Builds in worktrees set `CARGO_TARGET_DIR=/build/jbotci/target/<lane>`, where `<lane>` names the worktree or work item (e.g. `issue-642`).
 - Transient test artifacts, pipeline intermediates, and per-issue work areas go to `/build/jbotci/scratch/<topic>`; long run logs (e.g. codex exec logs) go to `/build/jbotci/logs/`.
 - `/tmp` is a small RAM tmpfs shared by every session — never write large files there; use `/build/tmp` or `/build/jbotci/scratch` instead.
-- After a heavy all-targets test gate (e.g. expensive contracts), purge that lane's `target/<lane>/debug` — debug trees run to ~50G each.
+- After a heavy all-targets test gate, purge that lane's heavy profile subtree (`target/<lane>/debug` if a debug all-targets build ever ran — those trees reach ~50G; release trees are smaller but still worth purging when the lane retires).
 
 
 # Test suite
