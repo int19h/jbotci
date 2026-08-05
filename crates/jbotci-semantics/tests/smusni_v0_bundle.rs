@@ -183,6 +183,34 @@ fn pinned_sources_and_candidate_witness_registry_are_exact() {
     assert_eq!(SPEC, RETAINED_SPEC);
 }
 
+/// Packaging owns manifest and lockfile normalization, so `build.rs` cannot
+/// compare those retained snapshots against the live files inside a source
+/// distribution — cargo and maturin have rewritten them by then. Their equality
+/// with the repository is a repository invariant, and this is where it holds.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn distribution_rewritten_snapshots_still_match_the_repository() {
+    let root = repository_root();
+    let bundle = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let mut checked = 0;
+    for relative in smusni_v0_bundle::repository_rerun_paths() {
+        if smusni_v0_bundle::distribution_preserves_input(&relative) {
+            continue;
+        }
+        let snapshot = bundle.join(smusni_v0_bundle::bundled_generator_input_path(&relative));
+        assert_eq!(
+            fs::read(root.join(&relative)).expect("live generator input"),
+            fs::read(&snapshot).expect("retained generator input"),
+            "retained snapshot is stale: {relative}"
+        );
+        checked += 1;
+    }
+    // The workspace manifest and lockfile plus the four path-dependency and
+    // owning-crate manifests.
+    assert_eq!(checked, 6);
+}
+
 /// The package that owns `relative`: the nearest ancestor directory holding a
 /// `Cargo.toml`, which is exactly the unit `cargo package` operates on.
 #[requires(!relative.is_empty())]

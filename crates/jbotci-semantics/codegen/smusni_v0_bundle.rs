@@ -1288,8 +1288,10 @@ fn synchronize_generator_inputs(paths: &BundlePaths, mode: BundleMode) -> Result
         match mode {
             BundleMode::Generate => write_relative(&paths.root, &bundled, &source)?,
             BundleMode::Check => {
+                // Read the mirror either way, so a missing retained input still
+                // fails here rather than later.
                 let checked_in = read_relative(&paths.root, &bundled)?;
-                if checked_in != source {
+                if distribution_preserves_input(repository) && checked_in != source {
                     return Err(BundleError::new(
                         BundleErrorKind::Drift,
                         format!("bundled generator input is stale: {bundled}"),
@@ -1467,8 +1469,32 @@ fn is_local_dependency_path(path: &str) -> bool {
 /// retained tree inert to all build tooling by construction.
 #[requires(!repository_path.is_empty())]
 #[ensures(ret.starts_with(INPUT_PREFIX) && ret.ends_with(".opaque"))]
-fn bundled_generator_input_path(repository_path: &str) -> String {
+pub fn bundled_generator_input_path(repository_path: &str) -> String {
     format!("{INPUT_PREFIX}/{repository_path}.opaque")
+}
+
+/// Whether a source distribution reproduces this repository input byte for byte.
+///
+/// Manifests and lockfiles are packaging metadata that the packaging tools own
+/// and normalize: cargo rewrites a packaged crate's manifest (adding a detected
+/// `readme` key, for instance), and maturin prunes the workspace member list and
+/// regenerates the lockfile for the reduced closure — this workspace's 913
+/// locked packages become 99. Comparing a retained snapshot against those
+/// rewritten files inside a distribution therefore cannot succeed, and demanding
+/// it is what stops the extracted archive from building at all.
+///
+/// The snapshots stay exact evidence of what the generator compiled against.
+/// Their equality with the live files is a *repository* invariant, asserted by
+/// the test suite, which only ever runs inside the repository.
+#[requires(!repository_path.is_empty())]
+#[ensures(true)]
+pub fn distribution_preserves_input(repository_path: &str) -> bool {
+    !matches!(
+        Path::new(repository_path)
+            .file_name()
+            .and_then(|name| name.to_str()),
+        Some("Cargo.toml" | "Cargo.lock")
+    )
 }
 
 #[requires(true)]
