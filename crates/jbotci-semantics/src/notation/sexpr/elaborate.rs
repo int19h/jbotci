@@ -155,13 +155,17 @@ impl CompactFallbackCause {
 /// Complete result of exact descriptor recognition. Planning and rendering
 /// consume this same value so support is never projected before the renderer
 /// has proved the corresponding compact constructor.
-#[invariant(::Property { property, .. } => !property.is_empty())]
+#[invariant(::Property { constructor, property, parameter } => !property.is_empty() && match constructor {
+    DescriptionConstructor::Lo => parameter.is_none(),
+    DescriptionConstructor::Le => parameter.as_ref().is_some_and(|id| id.object_kind() == SemanticObjectKind::Parameter),
+})]
 #[invariant(::Name { name } => !name.is_empty())]
 #[derive(Debug, Clone, Copy)]
 enum DescriptionRecognition<'a> {
     Property {
         constructor: DescriptionConstructor,
         property: &'a str,
+        parameter: Option<SemanticObjectId>,
     },
     Name {
         name: &'a str,
@@ -1582,10 +1586,11 @@ impl Elaborator<'_> {
         self.fallback_object(id, bound, active, CompactFallbackCause::ReferentFields)
     }
 
-    /// Lower one exact fixed description into a force-hosted `Refer`
-    /// computation. Unsupported description families remain typed fallback;
-    /// in particular this provisional slice does not pretend that `le` is
-    /// extensional or turn incidental relatives into conjuncts.
+    /// Lower one exact fixed `lo`, `le`, or `la` description into a
+    /// force-hosted `Refer` computation. The `le` branch retains the builder's
+    /// explicit speaker/audience `skicu` property and never asserts the base
+    /// classification. Unsupported description families remain typed fallback;
+    /// incidental relatives are not turned into conjuncts.
     #[requires(true)]
     #[ensures(true)]
     fn render_description(
@@ -1611,10 +1616,38 @@ impl Elaborator<'_> {
             data!(DescriptionRecognition::Property {
                 constructor,
                 property,
+                parameter: None,
             }) if *constructor == DescriptionConstructor::Lo => {
                 Datum::form(*property, [variable.clone()])
             }
-            data!(DescriptionRecognition::Property { .. }) => return None,
+            data!(DescriptionRecognition::Property {
+                constructor,
+                property,
+                parameter: Some(parameter),
+            }) if *constructor == DescriptionConstructor::Le => {
+                let property_candidate = variable_datum(*parameter);
+                Datum::form(
+                    "skicu",
+                    [
+                        Datum::atom("Speaker"),
+                        variable.clone(),
+                        Datum::atom("Audience"),
+                        Datum::form(
+                            "λ",
+                            [
+                                Datum::list([Datum::list([
+                                    property_candidate.clone(),
+                                    referents_type_datum(node.sort),
+                                ])]),
+                                Datum::form(*property, [property_candidate]),
+                            ],
+                        ),
+                    ],
+                )
+            }
+            data!(DescriptionRecognition::Property { .. }) => {
+                unreachable!("validated recognition pairs each constructor with its parameter")
+            }
             data!(DescriptionRecognition::Name { name }) => {
                 Datum::form("Named", [Datum::string(name), variable.clone()])
             }
@@ -2125,6 +2158,7 @@ pub(super) fn projected_description_objects(
         let data!(DescriptionRecognition::Property {
             constructor,
             property: _,
+            parameter: _,
         }) = recognition.as_data()
         else {
             continue;
@@ -2952,20 +2986,23 @@ fn recognize_description<'a>(
     }
 
     let body = descriptor.body?;
-    let (constructor, property) = match (descriptor.kind, descriptor.word.as_str()) {
+    let (constructor, property, parameter) = match (descriptor.kind, descriptor.word.as_str()) {
         (DescriptorKind::VeridicalDescription, "lo") => (
             DescriptionConstructor::Lo,
             recognize_direct_description_property(graph, plan, body, described)?,
+            None,
         ),
-        (DescriptorKind::SpeakerDescription, "le") => (
-            DescriptionConstructor::Le,
-            recognize_speaker_description_property(graph, plan, body, described)?,
-        ),
+        (DescriptorKind::SpeakerDescription, "le") => {
+            let (property, parameter) =
+                recognize_speaker_description_property(graph, plan, body, described)?;
+            (DescriptionConstructor::Le, property, Some(parameter))
+        }
         _ => return None,
     };
     Some(new!(DescriptionRecognition::Property {
         constructor,
         property,
+        parameter,
     }))
 }
 
@@ -2991,7 +3028,7 @@ fn recognize_speaker_description_property<'a>(
     plan: &ReferencePlan,
     formula: SemanticObjectId,
     described: SemanticObjectId,
-) -> Option<&'a str> {
+) -> Option<(&'a str, SemanticObjectId)> {
     let atom = graph.objects[&formula].as_formula()?.as_data();
     let data!(FormulaNode::Atom(atom)) = atom else {
         return None;
@@ -3042,12 +3079,9 @@ fn recognize_speaker_description_property<'a>(
     {
         return None;
     }
-    recognize_property_formula(
-        graph,
-        plan,
-        relation_node.body?,
-        relation_node.parameters[0],
-    )
+    let parameter = relation_node.parameters[0];
+    recognize_property_formula(graph, plan, relation_node.body?, parameter)
+        .map(|property| (property, parameter))
 }
 
 /// Exact unary property atom used by both recognized description encodings.

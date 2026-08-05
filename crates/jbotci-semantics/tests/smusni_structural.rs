@@ -597,6 +597,37 @@ fn unsupported_utterance_forces_use_typed_fallback_not_retired_forms() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn speaker_description_is_one_nonveridical_reference_computation() {
+    let input = build_input("le mlatu cu gerku", "speaker-description");
+    let datum = validate_render(&input.graph, &render_smusni(&input.graph));
+
+    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
+    assert_eq!(count_forms(&datum, "Bind"), 1);
+    assert_eq!(count_forms(&datum, "Refer"), 1);
+    assert_eq!(count_forms(&datum, "skicu"), 1);
+    assert_eq!(count_forms(&datum, "mlatu"), 1);
+    assert_eq!(count_forms(&datum, "Le"), 0);
+
+    let mut descriptions = Vec::new();
+    collect_forms(&datum, "skicu", &mut descriptions);
+    let fields = descriptions[0]
+        .as_list()
+        .expect("skicu description is an application");
+    assert_eq!(fields.len(), 5);
+    assert_eq!(fields[1].as_atom(), Some("Speaker"));
+    assert!(
+        fields[2]
+            .as_atom()
+            .is_some_and(|atom| atom.starts_with('$'))
+    );
+    assert_eq!(fields[3].as_atom(), Some("Audience"));
+    assert_eq!(count_forms(&fields[4], "λ"), 1);
+    assert_eq!(count_forms(&fields[4], "mlatu"), 1);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn modal_place_labels_match_the_actual_graph_maps() {
     for (name, text) in [
         ("converted-modal", "mi klama sepi'o lo karce"),
