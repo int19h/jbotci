@@ -14,7 +14,7 @@ The samples are design specimens, not output expectations.
 | Family | Current behavior | Boundary |
 |---|---|---|
 | Document packaging | One typed-grammar-parseable `(Smusni 0 ...)` datum with one trailing newline. The optional `Words` section uses only `(Word root definition)` cards. | Spec sections 2.2 and 2.4 |
-| Diagnostics | Collected once as structured `SmusniDiagnostic` values and kept out of the datum. CLI display is deliberately deferred until these records can use the existing source-aware diagnostic renderer; provisional formatter strings are not printed. | Spec sections 2.4 and 16 |
+| Diagnostics | Collected once as structured `SmusniDiagnostic` values and kept out of the datum. Every failed projection edge gets its own `Fallback` record with a stable reason code, a stable message fixed by its typed cause, and the affected owner/use identities; `SmusniRenderStats::fallback_reasons` is a summary of those records, never a substitute. CLI display is deliberately deferred until these records can use the existing source-aware diagnostic renderer; provisional formatter strings are not printed. | Spec sections 2.4 and 16 |
 | Predication | Named predicate terms, ordinary fills, `:n`, `:Eventuality`, numbered-only `DropPlace`, default closure omission, and explicit `Assert` are compact for their exact typed shapes. | Spec sections 4 and 5 |
 | Logical composition | Registered ordinary truth-functional connectives render with their logical operators. Unsupported connector metadata falls back. | Spec section 6 |
 | Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`; its predicate property retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. Nested reference effects, richer descriptors, incidental/nonveridical relatives, and shared placement fall back. | Spec sections 6.3, 8.3, and 8.4 |
@@ -24,6 +24,23 @@ The samples are design specimens, not output expectations.
 | Abstractions | Exact unary entity properties render as lambdas and exact proposition crossings use `Reify` when their complete model shape is eligible. Event-valued and richer abstraction families fall back. | Spec section 11 |
 | Utterance entries | Retained entries use the fresh `UtteranceToken` binder and registered `SpeakerOf`, `AudienceOf`, `LocutionOf`, deictic, and `Realizes` facts. Unsupported force/asides use fallback. | Spec section 7.2 |
 | Raw fallback | Unproved compact projection selects one typed `TypedGraph` document with graph-owned `%id` sharing and a registered reason. The current vertical slice does not yet emit typed local `Fallback`. | Spec section 20 |
+
+## What the current acceptance gate does and does not prove
+
+Structural tests parse every rendered document with `parse_v0_document`. That
+gate validates the closed serialization grammar of specification section 2.2
+and the typed annotations those productions carry: document packaging, the
+lexical token grammars, binder and declaration shapes, and the declared type
+expressions that appear in the output.
+
+It is not a typechecker. There is no whole-expression static check proving that
+every compact output is well-typed — that each application's operand type
+matches its operator's domain, that each place fill respects the predicate
+term's row, and that each closure boundary consumes the content type it
+declares. That is a known post-slice gap. It is not authority to add a
+superficial validator: a check that accepts everything the renderer currently
+emits would prove nothing, so the real kernel-directed typechecker is the only
+acceptable way to close it.
 
 ## Known limitations and next corrections
 
@@ -89,3 +106,23 @@ simple assertion, restrictive description, modal event sharing, paragraph
 transition, direct polar question, open question, quantification, and
 structured quotation. These files are observations only and are safe to wipe;
 typed/structural tests, not rendered bytes, are the acceptance oracle.
+
+`cargo run -r -p jbotci-semantics --example smusni_corpus_report -- <slice>`
+reproduces the aggregate corpus measurements below. They are **observations of
+what the current conservative slice does**, not expectations: no test asserts
+them, and they will move whenever a compact recognizer is added.
+
+| Slice | Inputs | Renders | Render panics | Notes |
+|---|---:|---:|---:|---|
+| `cll` | 1,247 | 1,245 | 0 | 2 pre-render morphology failures; 146 compact documents, 1,099 typed-graph documents |
+| `alice-lines` | 2,436 | 1,084 | 0 | the remaining inputs fail earlier parsing or building, mostly syntax |
+| `alice-whole` | 1 | 1 | 0 | one `TypedGraph` over 49,172 objects |
+
+The whole-Alice run is the memory reference point: 7,523,544 KiB RSS after the
+graph build and a 9,523,648 KiB peak after rendering, so it needs a host with
+more than 10 GiB free.
+
+The five CLL inputs that previously panicked while manufacturing a variable
+atom — `c11e12d2`, `c11e3d1`, `c11e3d3`, `c11e3d4`, and `c11e9d1` — now render.
+They are retained as structural regressions beside one witness per eventuality
+subtype, so the sweep's zero-panic result has a cheap test-suite counterpart.
