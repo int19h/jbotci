@@ -473,12 +473,25 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
     assert!(compact_graphs > 0, "compact form was not exercised");
     assert!(typed_graphs > 0, "typed graph form was not exercised");
     // Require the graph-level and field-shape reasons this end-to-end corpus
-    // traversal can reach. Declaration-planner-only cycle/repeated-emission
-    // reasons are exhaustively covered by the bounded graph oracles in
+    // traversal can reach. The declaration-planner-only reasons are excluded
+    // because a preliminary field-shape incompatibility now correctly selects
+    // TYPED-GRAPH before declaration planning, so requiring them here would make
+    // coverage depend on planner order.
+    //
+    // Of those, UNREPRESENTABLE-CYCLE, PROTOTYPE-ID-WITHOUT-COMPACT-USE, and
+    // DEFINITION-SITE-DOES-NOT-DOMINATE-USE are covered by the bounded graph
+    // oracles in
     // `notation::xml::tests::planning_preflight_covers_single_use_cycles_and_raw_only_id_uses`.
-    // A preliminary field-shape incompatibility now correctly selects
-    // TYPED-GRAPH before declaration planning, so requiring those secondary
-    // reasons from this corpus would make coverage depend on planner order.
+    // REPEATED-SINGLE-USE-EMISSION is *not*: it is the acyclic residue of the
+    // very same planning branch that produces UNREPRESENTABLE-CYCLE (see
+    // `notation::xml`, where one `planning_repeated_single_use` entry becomes
+    // one or the other purely by whether its reference-graph node is cyclic).
+    // Reaching it needs a graph the compact renderer traverses through a node
+    // twice while the prototype reference count says once and no cycle exists;
+    // no corpus fixture and no constructed oracle graph has produced one, so
+    // this test does not claim coverage for it. Outside planning the same branch
+    // panics, so the reason exists as a fail-closed planning guard rather than
+    // as an observed classification.
     for required in [
         "BINDER-DOES-NOT-ENCLOSE-USE",
         "MULTIPLE-BINDER-OWNERS",

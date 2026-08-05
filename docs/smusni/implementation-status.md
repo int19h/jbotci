@@ -13,18 +13,24 @@ The samples are design specimens, not output expectations.
 
 | Family | Current behavior | Boundary |
 |---|---|---|
-| Document packaging | One typed-grammar-parseable `(Smusni 0 ...)` datum with one trailing newline. The optional `Words` section uses only `(Word root definition)` cards. | Spec sections 2.2 and 2.4 |
-| Diagnostics | Collected once as structured `SmusniDiagnostic` values and kept out of the datum. Every failed projection edge gets its own `Fallback` record with a stable reason code and a stable message fixed by its typed cause. Owner and use-site identities travel as evidence where the failure site has them; they are optional and a consumer must not require them. An edge's identity is typed rather than textual: `(owner, declining boundary)` in the elaborator and `(kind, binder, use site)` in the scope planner. Re-entering one edge — for instance when a declining wrapper re-renders a child — records nothing further, while a second distinct boundary on the same owner is a second record. `SmusniRenderStats::failed_projection_edges` and `fallback_reasons` both count failed edges; `SmusniRenderStats::object_fallbacks` counts graph objects and is a different measurement. Ordering is deterministic from the typed channels; the internal sort key is not a public tuple contract. CLI display is deliberately deferred until these records can use the existing source-aware diagnostic renderer; provisional formatter strings are not printed. | Spec sections 2.4 and 16 |
-| Variable spelling | Generated variables are composed from typed identity components through closed token tables, never by rewriting an identity's display text. Every token begins lowercase, so no generated name enters the PascalCase namespace that section 2.1 reserves for primitives, prelude names, types, and literals. Structural object kinds carry a `…Node` stem and referent sorts do not, which keeps the two namespaces injective without using letter case as the separator. Section 15.3's short `$x`/`$e`/`$p` alpha-renaming is not yet implemented. | Spec sections 2.1 and 15.3 |
+| Document packaging | One typed-grammar-parseable `(Smusni 0 ...)` datum with one trailing newline. The optional `Words` section carries one `(Word root definition)` card per content word that has a dictionary definition. A card whose word is not a bare lexical root — a defined zei-lujvo's multi-word surface such as `abu zei sance` — keeps that exact surface through the grammar's escaped spelling `|abu zei sance|`. Words with no dictionary definition have no card, because the grammar's card production has no place for a missing definition; the XML rendering states them as `KNOWN="false"` instead. | Spec sections 2.2 and 2.4 |
+| Diagnostics | Collected once as structured `SmusniDiagnostic` values and kept out of the datum. Every failed projection edge gets its own `Fallback` record with a stable reason code and a stable message fixed by its typed cause. Owner and use-site identities travel as evidence where the failure site has them; they are optional and a consumer must not require them. An edge's identity is typed rather than textual: `(owner, declining boundary)` in the elaborator and `(kind, binder, use site)` in the scope planner. Re-entering one edge — for instance when a declining wrapper re-renders a child — records nothing further, while a second distinct boundary on the same owner is a second record. `SmusniRenderStats::failed_projection_edges` and `fallback_reasons` both count failed edges; `SmusniRenderStats::object_fallbacks` counts graph objects and is a different measurement. Ordering is deterministic from the typed channels; the internal sort key is not a public tuple contract. **Deliberate deviation from the specification:** section 16.1 describes the CLI profile as writing these records to stderr in the shared `gentufa` format, and this implementation does not. CLI display is deferred until the records can use the existing source-aware diagnostic renderer; the provisional formatter strings are not printed anywhere. | Spec sections 2.4 and 16.1 |
+| Variable spelling | Generated variables are composed from typed identity components through closed token tables, never by rewriting an identity's display text. Every token begins lowercase, so no generated name enters the PascalCase namespace that section 2.1 reserves for primitives, prelude names, types, and literals. Structural object kinds carry a `…Node` stem and referent sorts do not, which keeps the two namespaces injective without using letter case as the separator. The short `$x`/`$e`/`$p`/`$q`/`$u`/`$s`/`$v` alpha-renaming of section 15 item 3 is not yet implemented. | Spec sections 2.1 and 15 (item 3) |
 | Predication | Named predicate terms, ordinary fills, `:n`, `:Eventuality`, numbered-only `DropPlace`, default closure omission, and explicit `Assert` are compact for their exact typed shapes. | Spec sections 4 and 5 |
-| Logical composition | Registered ordinary truth-functional connectives render with their logical operators. Unsupported connector metadata falls back. | Spec section 6 |
+| Relation formers | The canonical flat binary tanru graph projects to the registered former `(Tanru modifier head)` applied to the tertau's own places. The recognizer requires an implicit-juxtaposition `And` connective at predicate locus with exactly two children, a named tertau predication that is otherwise plain, a `Composition` link predication with exactly two plain arguments and no side fields, a fixed constant unary property abstraction over an exact `ce'u` entity parameter as the seltau, a `modifier-head` constructed relation label, and every supporting object private to this projection. Any other relation-former shape falls back, and the tanru-*like* relation question below is a separate unsupported family. | Spec section 4.6 |
+| Logical composition | Registered ordinary truth-functional connectives render with `¬`, `∧`, `∨`, `→`, `↔`, and `⊕`. Unsupported connector metadata falls back. | Spec section 9.1 |
+| Quantification | Restricted quantification over a planned binder renders `Every` or `Some`; unrestricted quantification renders bare `∀` or `∃`. Selection sources, plural quantifiers, inner/outer cardinality, witness export, and effect routing are not implemented and fall back. | Spec sections 9.2 through 9.5 |
+| Shared values and recursion | A value used more than once is bound once and shared. Nonrecursive groups nest canonical single-binding `Let` forms; a recursive strongly connected component uses `LetRec` only when every initializer in the group is a top-level lambda. Any other recursive value falls back. | Spec sections 2.2 and 15 (item 2) |
+| Contextual and deictic values | `Speaker`, `Audience`, `Now`, `Here`, and the proximity deictics `This`, `That`, and `Yonder` render as the declared atoms. A fixed context renders as the bare `Context` primitive and an underspecified one as `(Context deps…)` over its direct dependencies. A deictic with a non-current ground falls back. | Spec sections 3.5 and 6.1 |
 | Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`; its predicate property retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. Nested reference effects, richer descriptors, incidental/nonveridical relatives, and shared placement fall back. | Spec sections 6.3, 8.3, and 8.4 |
 | Modals and tense | Exact represented modal predicates are joined to the host by `Joi` and share the graph event under one lambda-shaped existential. The verified `before`/`at`/`after` event relations lower to `purci`/`cabna`/`balvi`. Other tag maps and event facets fall back. | Spec sections 10.1 through 10.4 |
 | Discourse | Same-topic items use `Do`; exact paragraph provenance uses `NewTopic` or `Resume`, with explicit `Perform`/`PerformUtterance` crossings at the transition operand. | Spec sections 7.1 and 7.2 |
-| Questions | Exact direct polar questions render `Ask` plus `Polar`; exact entity argument questions and atomic `ti mo`-style relation questions render `OpenQ`, with the latter retaining a typed open predicate row and explicit `Close`. Tanru-like `ti mo zdani`, embedded, multi-slot, and richer questions fall back. | Spec section 12 |
-| Abstractions | Exact unary entity properties render as lambdas and exact proposition crossings use `Reify` when their complete model shape is eligible. Event-valued and richer abstraction families fall back. | Spec section 11 |
+| Force | `Assert` and `Mention` are compact for their exact typed shapes. `Ask` is emitted only by the question projection below, so ask force over content that is not a typed question fails closed rather than applying `Ask` at the wrong type. Quote, parenthetical, subordinated, command, and vocative force fall back. | Spec sections 1.3 and 7.1 |
+| Questions | Exact direct polar questions render `Ask` plus `Polar`; exact entity argument questions and atomic `ti mo`-style relation questions render `OpenQ`, with the latter retaining a typed open predicate row and explicit `Close`. Tanru-like `ti mo zdani`, embedded, multi-slot, and richer questions fall back. No answer family is projected: section 12.2's `Answer`, `PolarAnswer`, `TupleAnswer`, `ContextualAnswer`, and `UnresolvedAnswer` have no compact route. | Spec section 12 |
+| Abstractions | Exact entity properties render as lambdas over the abstraction's own entity parameters, which may be more than one, and exact proposition crossings use `Reify` when their complete model shape is eligible. Event-valued and richer abstraction families fall back. | Spec section 11 |
 | Utterance entries | Retained entries use the fresh `UtteranceToken` binder and registered `SpeakerOf`, `AudienceOf`, `LocutionOf`, deictic, and `Realizes` facts. Unsupported force/asides use fallback. | Spec section 7.2 |
-| Raw fallback | Unproved compact projection selects one typed `TypedGraph` document with graph-owned `%id` sharing and a registered reason. The current vertical slice does not yet emit typed local `Fallback`. | Spec section 20 |
+| Everything else | **Catch-all:** every specification family not named as compact above reaches the whole-document typed fallback. In particular that covers indicators and displayed content (7.4), sign and quotation constructors (7.3, 13.3), set/group descriptions and referential connections (8.5), simultaneous termsets (9.5), witness export (9.4), respectively-distribution, quantities, and math beyond exact integer literals and binary kernel arithmetic (13.1, 13.2), and answers (12.2). No compact head is emitted for any of them. | Whole specification |
+| Raw fallback | Unproved compact projection selects one typed `TypedGraph` document with graph-owned `%id` sharing and a registered reason. The current vertical slice does not yet emit typed local `Fallback`. | Spec sections 16.2 and 16.3 |
 
 ## What the current acceptance gate does and does not prove
 
@@ -53,16 +59,17 @@ specification destination.
   question still has unlicensed relation/property crossings and event hosting.
   Implement graph-owned accessibility, force
   handlers, dependency lifting, and legal shared capture before enabling these
-  compact paths (sections 6.2–6.5 and 12).
+  compact paths (sections 6.2–6.4 and 12.1).
 - Simultaneous termsets: both grammar-licensed prenex spellings retain their one
   semantic `QuantifierBundle`, but projection currently uses `TypedGraph`.
-  Implement the approved equal-scope reduction rather than reviving
-  `Quantify` or choosing a nested order (section 9 and section 12 of the
-  samples).
+  Implement the approved equal-scope reduction rather than choosing a nested
+  order or reviving one of the forbidden record shapes of section 14.3
+  (section 9.5, and section 12 of the samples).
 - Quantification: the compact lowering recognizes the simple `Every`/`Some`
-  function shapes after scope planning, but selection sources, plural
-  quantifiers, cardinality, witness export, and effect routing are not yet
-  complete (sections 9 and 10).
+  function shapes after scope planning and bare `∀`/`∃` for unrestricted
+  quantification, but selection sources and plural quantifiers (section 9.2),
+  inner and outer cardinality (section 9.3), witness export (section 9.4), and
+  effect routing (section 6.4) are not yet complete.
 - Signs and quotation: structured and opaque quotation currently use
   `TypedGraph`; no transcript is synthesized and no retired `Quotation` record
   prints. Add `StructuredQuote`, `OpaqueQuote`, raw sign constructors, and sign
@@ -76,18 +83,20 @@ specification destination.
   Generic composition records and non-exact quantities do not borrow callable
   names from the registry. Implement `ZipWith`, typed collection kernels,
   generalized-quantifier reductions, and registered math rows without generic
-  `Math`, `Quantity`, or `Respectively` records (section 13).
+  `Math`, `Quantity`, or `Respectively` records; the generalized-quantifier
+  reductions in that list belong to sections 9.2 and 9.5 rather than to
+  section 13 (sections 13.1 and 13.2).
 - Raw tuple payload coordinates currently use deterministic `item1`, `item2`,
   and so on because serde does not expose source field names. Replace them with
   projection-declared stable names before claiming the raw schema final
-  (section 20).
+  (section 16.2).
 - Raw numeric scalar type names currently expose the serializer's normalized
   `i128`, `u128`, and `f64` carriers. Bind them to declared model scalar types
-  before minting a stable raw schema (section 20).
+  before minting a stable raw schema (section 16.2).
 - Local fallback: the current conservative implementation promotes every
   unproved local boundary to `TypedGraph`. Introduce local `(Fallback T reason
   raw)` only when the expected type and minimum graph-owned raw owner are both
-  proved (section 20).
+  proved (sections 16.2 and 14.4).
 
 ## Registry status
 
@@ -99,10 +108,36 @@ whole-graph fallback for many rows classified for later direct lowering, and
 the runtime application/signature registry requires further semantic review.
 No renderer behavior is licensed merely by the existence of an inventory row.
 
+## Regenerating and checking the bundle
+
+Every `cargo build -p jbotci-semantics` verifies the checked-in bundle in check
+mode through `build.rs`. The reviewer-facing entry point is the same generator
+run directly:
+
+```sh
+cargo run -r -p jbotci-semantics --example smusni_v0_bundle -- --check
+cargo run -r -p jbotci-semantics --example smusni_v0_bundle -- --generate
+```
+
+`JBOTCI_SMUSNI_V0_BUNDLE_MODE=generate cargo build -p jbotci-semantics` is the
+equivalent through the build script. Generation is deterministic: running it on
+an already-current tree changes no byte. The example writes only its compiled
+policy table, into `$CARGO_TARGET_DIR/smusni-v0-scratch/` or the workspace
+`target/` directory when that variable is unset.
+
+The retained generator inputs under `data/smusni-v0/sources/generator-inputs/`
+are all stored with a `.opaque` suffix. That is load-bearing rather than
+cosmetic: `cargo package` treats any subdirectory containing a `Cargo.toml` as a
+nested package and prunes the whole subtree, so a mirror filed under its natural
+manifest name silently removes the entire retained closure from every source
+distribution while leaving the working tree green.
+
 ## Reproducible observations
 
 Smoke outputs and their separate stderr files are written under
-`/build/jbotci/scratch/issue-741/runnable-smoke/`. Representative inputs cover
+`/build/jbotci/scratch/issue-741/runnable-smoke/` on the project's dev box; that
+location is an observation area, not a path any test depends on. Representative
+inputs cover
 simple assertion, restrictive description, modal event sharing, paragraph
 transition, direct polar question, open question, quantification, and
 structured quotation. These files are observations only and are safe to wipe;
@@ -121,9 +156,9 @@ them, and they will move whenever a compact recognizer is added.
 | `alice-lines` | 2,436 | 1,084 | 0 | the remaining inputs fail earlier parsing or building, mostly syntax |
 | `alice-whole` | 1 | 1 | 0 | one `TypedGraph` over 49,172 objects |
 
-The whole-Alice run is the memory reference point: 7,527,052 KiB RSS after the
-graph build and a 9,527,072 KiB peak after rendering, so it needs a host with
-more than 10 GiB free.
+The whole-Alice run is the memory reference point: 7,523,428 KiB RSS after the
+graph build and a 9,523,660 KiB peak after rendering, so it needs a host with
+more than 10 GiB free. Those two figures vary by a few MiB between runs.
 
 The same sweep reports the object statistic and the per-edge diagnostic channel
 separately. `Objects not projected` is `SmusniRenderStats::object_fallbacks`;

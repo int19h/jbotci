@@ -2677,6 +2677,15 @@ impl RenderState {
                 &self.planning_compact_adjacency,
             );
             let components = reference_graph.strongly_connected_components();
+            // One entry becomes one of two reasons purely by cyclicity. The
+            // cyclic case is exercised by
+            // `planning_preflight_covers_single_use_cycles_and_raw_only_id_uses`;
+            // the acyclic case needs a graph traversed through a node twice
+            // while its prototype reference count says once, which no fixture or
+            // constructed oracle graph has produced. It is retained as a
+            // fail-closed planning guard — outside planning the same branch
+            // panics — and `tests/xml_fixture_coverage.rs` deliberately does not
+            // claim corpus coverage for it.
             for key in &self.planning_repeated_single_use {
                 let node = reference_graph.index(key);
                 let incompatibility = if components.node_is_cyclic(&reference_graph, node) {
