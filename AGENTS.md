@@ -18,9 +18,20 @@ assigned IRC identity, never a shared default identity.
 
 Every autonomously implemented work item requires a separate adversarial review
 by a dispatcher-backed run from a different model family than the implementer,
-even when lead and implementation were performed by different models. Review
-verdict, reviewer-run checks, lead approval, clean worktree, and final acceptance
+even when lead and implementation were performed by different models. The
+reviewer exists to catch the implementer's honest mistakes, not because the
+implementer is untrusted: reviewer effort goes to reading the code, and a
+reviewer must not re-run test suites whose results the implementer has already
+reported. Review verdict, lead approval, clean worktree, and final acceptance
 must all name the same exact commit before merge.
+
+Heavy verification (the full fixture profile, expensive contracts, debug and
+Dioxus builds) runs once, before merge, arranged by the lead, and only for the
+suites the change can actually affect — not per commit, not per submission, and
+not by the reviewer. Work items freeze at most a light check set (formatting
+plus fast tests). Do not build evidence-trail scaffolding — digest manifests,
+attestation chains, byte-exactness proofs — unless the owner explicitly asks;
+due diligence belongs to the design and the code, not to ceremony.
 
 ## Codex interactive implementation PM protocol
 
@@ -55,20 +66,22 @@ For every implementation request in scope, the Codex PM must:
    past both dispatcher-backed Opus and Kimi planning reviewers. Reconcile their
    findings into the issue and plan before implementation begins. Opus runs must
    use `--permission-mode bypassPermissions`.
-3. Create and use an agent-ops work item with appropriate frozen checks and
+3. Create and use an agent-ops work item with a light frozen check set and
    roles. Hand implementation to a dispatcher-backed Codex Sol subagent running
    at `xhigh` reasoning effort (the Sol-xhigh implementation subagent). That
    implementation run owns code changes, tests, commits, and creation of the
    GitHub pull request; the interactive Codex PM remains the supervisor and does
    not author the implementation.
 4. Review the pull request itself and obtain code reviews from both
-   dispatcher-backed Opus and Kimi runs. Keep substantive findings and design
-   decisions in durable GitHub issue or pull-request comments. Return actionable
-   feedback to the Sol implementation session and iterate until the PM, Opus,
-   and Kimi are all satisfied, all required tests and CI pass, and the formal
-   agent-ops independent-review and exact-commit acceptance gates pass. Any
-   implementation change makes earlier exact-HEAD approvals stale and requires
-   review of the new commit.
+   dispatcher-backed Opus and Kimi runs; these are code reviews, and the
+   reviewers must not re-run suites the implementer already ran. Keep
+   substantive findings and design decisions in durable GitHub issue or
+   pull-request comments. Return actionable feedback to the Sol implementation
+   session and iterate until the PM, Opus, and Kimi are all satisfied, the
+   independent review verdict names the merge-candidate commit, and required
+   tests and CI are green once at that candidate. Any implementation change
+   makes earlier exact-HEAD approvals stale and requires review of the new
+   commit.
 5. Merge only the accepted exact commit from a clean worktree. After merge,
    deploy the result to the **test** environment and verify that the test
    deployment completed successfully. Test deployment is part of this standard
