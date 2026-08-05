@@ -7,8 +7,8 @@ use std::fmt;
 use bityzba::{data, ensures, invariant, new, requires};
 
 use super::datum::{Datum, print_document};
-use super::elaborate::elaborate_compact;
-use super::planner::{ReferencePlan, ScopeFailureKind, plan_references};
+use super::elaborate::{CompactElaborationData, CompactFallback, elaborate_compact};
+use super::planner::{ScopeFailure, ScopeFailureKind, plan_references};
 use super::structural::raw_graph_datum;
 use crate::model::{DiagnosticSeverity, SemanticGraph, SemanticObjectId};
 
@@ -21,20 +21,34 @@ pub enum DocumentMode {
 }
 
 /// Non-golden corpus measurements returned alongside the document.
+///
+/// This is the aggregate channel. Per-failure detail belongs to
+/// [`SmusniRender::diagnostics`]; `fallback_reasons` only counts how many
+/// distinct failed projection edges each registered reason accounts for.
 #[invariant(*mode == DocumentMode::Compact || *compact_objects == 0)]
 #[invariant(*object_fallbacks == 0 || !fallback_reasons.is_empty())]
+#[invariant(fallback_reasons.values().all(|count| *count > 0))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SmusniRenderStats {
     pub mode: DocumentMode,
     pub compact_objects: usize,
     pub object_fallbacks: usize,
-    pub warning_count: usize,
+    /// Total graph-owned semantic diagnostics of every severity, not warnings
+    /// alone.
+    pub semantic_diagnostic_count: usize,
     pub fallback_reasons: BTreeMap<&'static str, usize>,
 }
 
 /// One renderer diagnostic carried beside, never inside, the semantic datum.
+///
+/// `Fallback` is one record per failed projection edge, not an aggregate: the
+/// reason code and message are stable for the failure's typed cause, and the
+/// affected graph objects travel as typed evidence. `owner` is the object whose
+/// projection or binding failed; `use_site` is the referring object when the
+/// failure is about a relationship between two objects rather than one object's
+/// own shape.
 #[invariant(::Semantic { message, .. } => !message.is_empty())]
-#[invariant(::Fallback { reason_id, occurrences } => reason_id.starts_with("smusni.fallback.") && *occurrences > 0)]
+#[invariant(::Fallback { reason_id, message, .. } => reason_id.starts_with("smusni.fallback.") && !message.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SmusniDiagnostic {
     Semantic {
@@ -44,7 +58,9 @@ pub enum SmusniDiagnostic {
     },
     Fallback {
         reason_id: &'static str,
-        occurrences: usize,
+        message: &'static str,
+        owner: Option<SemanticObjectId>,
+        use_site: Option<SemanticObjectId>,
     },
 }
 
@@ -68,12 +84,19 @@ impl fmt::Display for SmusniDiagnostic {
             ),
             data!(SmusniDiagnostic::Fallback {
                 reason_id,
-                occurrences,
-            }) => write!(
-                formatter,
-                "smusni fallback: {reason_id} ({occurrences} occurrence{})",
-                if *occurrences == 1 { "" } else { "s" },
-            ),
+                message,
+                owner,
+                use_site,
+            }) => {
+                write!(formatter, "smusni fallback {reason_id}")?;
+                if let Some(owner) = owner {
+                    write!(formatter, " on {owner}")?;
+                }
+                if let Some(use_site) = use_site {
+                    write!(formatter, " used by {use_site}")?;
+                }
+                write!(formatter, ": {message}")
+            }
         }
     }
 }
@@ -92,15 +115,42 @@ pub struct SmusniRender {
 #[ensures(ret.text.ends_with('\n') && !ret.text.ends_with("\n\n"))]
 pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRender {
     let plan = plan_references(graph);
-    let (body, stats) = if plan.compact_is_eligible() {
+    let mut fallbacks = plan
+        .failures()
+        .iter()
+        .map(scope_diagnostic)
+        .collect::<Vec<_>>();
+    let (body, mode, compact_objects, object_fallbacks) = if plan.compact_is_eligible() {
         let elaboration = elaborate_compact(graph, &plan);
-        if elaboration.requires_typed_graph {
-            render_typed_graph_with_reasons(graph, &plan, elaboration.fallback_reasons)
+        if elaboration.requires_typed_graph() {
+            // The planner proved compact eligibility, so `fallbacks` is empty
+            // here and the elaborator owns every failed edge.
+            fallbacks = elaboration
+                .failures
+                .iter()
+                .map(compact_diagnostic)
+                .collect();
+            (
+                typed_graph_datum(graph, &fallbacks),
+                DocumentMode::TypedGraph,
+                0,
+                elaboration.object_fallbacks(),
+            )
         } else {
-            assemble_compact_document(graph, elaboration)
+            let data!(CompactElaboration {
+                body,
+                compact_objects,
+                ..
+            }) = elaboration.into_data();
+            (body, DocumentMode::Compact, compact_objects, 0)
         }
     } else {
-        render_typed_graph(graph, &plan)
+        (
+            typed_graph_datum(graph, &fallbacks),
+            DocumentMode::TypedGraph,
+            0,
+            graph.objects.len(),
+        )
     };
 
     let mut children = vec![Datum::unsigned(0), body];
@@ -108,7 +158,18 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRen
         children.push(Datum::form("Words", word_cards.iter().cloned()));
     }
     let text = print_document(&Datum::form("Smusni", children));
-    let diagnostics = collect_diagnostics(graph, &stats.fallback_reasons);
+    let stats = new!(SmusniRenderStats {
+        mode: mode,
+        compact_objects: compact_objects,
+        object_fallbacks: object_fallbacks,
+        semantic_diagnostic_count: graph
+            .objects
+            .values()
+            .map(|object| object.diagnostics().len())
+            .sum(),
+        fallback_reasons: fallback_reason_counts(&fallbacks),
+    });
+    let diagnostics = collect_diagnostics(graph, fallbacks);
     new!(SmusniRender {
         text,
         stats,
@@ -116,12 +177,52 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniRen
     })
 }
 
-/// Collect graph diagnostics and renderer fallbacks once in stable order.
+/// Project one planner scope failure into its per-edge diagnostic record.
+#[requires(true)]
+#[ensures(matches!(ret.as_data(), data!(SmusniDiagnostic::Fallback { .. })))]
+fn scope_diagnostic(failure: &ScopeFailure) -> SmusniDiagnostic {
+    new!(SmusniDiagnostic::Fallback {
+        reason_id: failure.kind.reason_id(),
+        message: failure.kind.message(),
+        owner: failure.binder,
+        use_site: failure.use_site,
+    })
+}
+
+/// Project one declined compact projection into its per-edge diagnostic record.
+#[requires(true)]
+#[ensures(matches!(ret.as_data(), data!(SmusniDiagnostic::Fallback { .. })))]
+fn compact_diagnostic(failure: &CompactFallback) -> SmusniDiagnostic {
+    new!(SmusniDiagnostic::Fallback {
+        reason_id: failure.cause.reason_id(),
+        message: failure.cause.message(),
+        owner: Some(failure.owner),
+        // A declined compact projection is a property of one object's own
+        // shape, so there is no second object to name.
+        use_site: None,
+    })
+}
+
+/// Count how many failed edges each registered reason accounts for.
+#[requires(fallbacks.iter().all(|diagnostic| matches!(diagnostic.as_data(), data!(SmusniDiagnostic::Fallback { .. }))))]
+#[ensures(ret.values().all(|count| *count > 0))]
+#[ensures(ret.values().sum::<usize>() == fallbacks.len())]
+fn fallback_reason_counts(fallbacks: &[SmusniDiagnostic]) -> BTreeMap<&'static str, usize> {
+    let mut counts = BTreeMap::new();
+    for fallback in fallbacks {
+        if let data!(SmusniDiagnostic::Fallback { reason_id, .. }) = fallback.as_data() {
+            *counts.entry(*reason_id).or_default() += 1;
+        }
+    }
+    counts
+}
+
+/// Collect graph diagnostics and the already ordered per-edge fallback records.
 #[requires(graph.objects.contains_key(&graph.root))]
-#[ensures(ret.len() >= fallback_reasons.len())]
+#[ensures(ret.len() >= old(fallbacks.len()))]
 fn collect_diagnostics(
     graph: &SemanticGraph,
-    fallback_reasons: &BTreeMap<&'static str, usize>,
+    fallbacks: Vec<SmusniDiagnostic>,
 ) -> Vec<SmusniDiagnostic> {
     let mut diagnostics = graph
         .objects
@@ -136,89 +237,26 @@ fn collect_diagnostics(
             })
         })
         .collect::<Vec<_>>();
-    diagnostics.extend(fallback_reasons.iter().map(|(reason_id, occurrences)| {
-        new!(SmusniDiagnostic::Fallback {
-            reason_id: *reason_id,
-            occurrences: *occurrences,
-        })
-    }));
+    diagnostics.extend(fallbacks);
     diagnostics
 }
 
-/// Assemble a compact elaboration after its local typed fallbacks have proved
-/// that no binder-bearing object requires whole-graph scope.
+/// Whole-document graph-faithful representation, labelled with the first
+/// registered reason in the ordered failure channel.
 #[requires(graph.objects.contains_key(&graph.root))]
-#[requires(!elaboration.requires_typed_graph)]
-#[ensures(true)]
-fn assemble_compact_document(
-    graph: &SemanticGraph,
-    elaboration: super::elaborate::CompactElaboration,
-) -> (Datum, SmusniRenderStats) {
-    (
-        elaboration.body,
-        new!(SmusniRenderStats {
-            mode: DocumentMode::Compact,
-            compact_objects: elaboration.compact_objects,
-            object_fallbacks: elaboration.object_fallbacks,
-            warning_count: graph
-                .objects
-                .values()
-                .map(|object| object.diagnostics().len())
-                .sum(),
-            fallback_reasons: elaboration.fallback_reasons
-        }),
-    )
-}
-
-/// Whole-document graph-faithful fallback selected only for named scope
-/// planning failures.
-#[requires(graph.objects.contains_key(&graph.root))]
-#[requires(!plan.compact_is_eligible())]
-#[ensures(true)]
-fn render_typed_graph(graph: &SemanticGraph, plan: &ReferencePlan) -> (Datum, SmusniRenderStats) {
-    render_typed_graph_with_reasons(graph, plan, BTreeMap::new())
-}
-
-/// Whole-document fallback with any exact elaboration-time scope reason
-/// retained alongside planner failures.
-#[requires(graph.objects.contains_key(&graph.root))]
-#[ensures(true)]
-fn render_typed_graph_with_reasons(
-    graph: &SemanticGraph,
-    plan: &ReferencePlan,
-    mut fallback_reasons: BTreeMap<&'static str, usize>,
-) -> (Datum, SmusniRenderStats) {
-    for failure in plan.failures() {
-        *fallback_reasons
-            .entry(failure.kind.reason_id())
-            .or_default() += 1;
-    }
-    let reason_id = plan
-        .failures()
-        .first()
-        .map(|failure| failure.kind.reason_id())
-        .or_else(|| fallback_reasons.keys().copied().next())
-        .expect("whole-document fallback always has a registered cause");
-    (
-        Datum::form(
-            "TypedGraph",
-            [
-                Datum::string("SemanticGraph"),
-                Datum::string(reason_id),
-                raw_graph_datum(graph),
-            ],
-        ),
-        new!(SmusniRenderStats {
-            mode: DocumentMode::TypedGraph,
-            compact_objects: 0,
-            object_fallbacks: graph.objects.len(),
-            warning_count: graph
-                .objects
-                .values()
-                .map(|object| object.diagnostics().len())
-                .sum(),
-            fallback_reasons: fallback_reasons
-        }),
+#[requires(!fallbacks.is_empty())]
+#[ensures(ret.form_head() == Some("TypedGraph"))]
+fn typed_graph_datum(graph: &SemanticGraph, fallbacks: &[SmusniDiagnostic]) -> Datum {
+    let data!(SmusniDiagnostic::Fallback { reason_id, .. }) = fallbacks[0].as_data() else {
+        unreachable!("the fallback channel carries only fallback records")
+    };
+    Datum::form(
+        "TypedGraph",
+        [
+            Datum::string("SemanticGraph"),
+            Datum::string(*reason_id),
+            raw_graph_datum(graph),
+        ],
     )
 }
 

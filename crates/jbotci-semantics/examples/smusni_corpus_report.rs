@@ -45,7 +45,7 @@ struct CorpusReport {
     typed_graph_documents: usize,
     compact_objects: usize,
     object_fallbacks: usize,
-    warnings: usize,
+    semantic_diagnostics: usize,
     fallback_reasons: BTreeMap<&'static str, usize>,
 }
 
@@ -68,7 +68,7 @@ impl CorpusReport {
         }
         self.compact_objects += stats.compact_objects;
         self.object_fallbacks += stats.object_fallbacks;
-        self.warnings += stats.warning_count;
+        self.semantic_diagnostics += stats.semantic_diagnostic_count;
         for (reason, count) in &stats.fallback_reasons {
             *self.fallback_reasons.entry(reason).or_default() += count;
         }
@@ -79,7 +79,7 @@ impl CorpusReport {
     #[ensures(true)]
     fn print(&self, corpus: &str) {
         println!(
-            "SUMMARY\t{corpus}\tinputs={}\tsuccesses={}\tbuild_failures={}\tbuild_panics={}\trender_panics={}\tcompact_documents={}\tobject_fallback_documents={}\ttyped_graph_documents={}\tcompact_objects={}\tobject_fallbacks={}\twarnings={}",
+            "SUMMARY\t{corpus}\tinputs={}\tsuccesses={}\tbuild_failures={}\tbuild_panics={}\trender_panics={}\tcompact_documents={}\tobject_fallback_documents={}\ttyped_graph_documents={}\tcompact_objects={}\tobject_fallbacks={}\tsemantic_diagnostics={}",
             self.inputs,
             self.successes,
             self.build_failures.values().sum::<usize>(),
@@ -90,7 +90,7 @@ impl CorpusReport {
             self.typed_graph_documents,
             self.compact_objects,
             self.object_fallbacks,
-            self.warnings,
+            self.semantic_diagnostics,
         );
         for (stage, count) in &self.build_failures {
             println!("BUILD_FAILURE\t{corpus}\t{stage}\t{count}");

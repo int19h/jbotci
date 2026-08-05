@@ -63,6 +63,30 @@ impl ScopeFailureKind {
             }
         }
     }
+
+    /// Stable human-readable statement of the scope mismatch.
+    ///
+    /// Fixed per failure class so a per-edge diagnostic record's message is
+    /// determined by its typed cause rather than composed at the failure site;
+    /// the affected binder and use site travel as typed evidence instead.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub(super) fn message(self) -> &'static str {
+        match self {
+            Self::MultipleBinderOwners => "this binder is owned by more than one graph scope",
+            Self::BinderDoesNotEncloseUse => "the binder's scope does not enclose this use",
+            Self::ScopeDependencyWithoutEnclosingBinder => {
+                "a recorded scope dependence names a binder that does not enclose the constant"
+            }
+            Self::UnrepresentableCycle => "this graph cycle has no representable lexical form",
+            Self::DefinitionSiteDoesNotDominateUse => {
+                "no shared definition site dominates every use of this identity"
+            }
+            Self::DeclarationPlanningDidNotConverge => {
+                "shared-declaration planning did not reach a fixed point"
+            }
+        }
+    }
 }
 
 /// Evidence for a scope failure. Optional IDs identify the affected binder and

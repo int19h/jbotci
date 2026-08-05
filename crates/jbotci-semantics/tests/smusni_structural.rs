@@ -17,15 +17,16 @@ use jbotci_morphology::{
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::model::{
     Actuality, ActualityKind, AnchorRelation, ArgumentValueKind, Aspect, EventualityNode,
-    IndexicalKind, MathLiteral, ParameterRole, QuantityForm, QuantityScale, QuantityValue,
-    QuestionSlot, QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory, ScopeDependence,
-    ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId, Subscript,
-    UtteranceForce,
+    EventualitySort, IndexicalKind, MathLiteral, ParameterRole, QuantityForm, QuantityScale,
+    QuantityValue, QuestionSlot, QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory,
+    ScopeDependence, ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId,
+    Subscript, UtteranceForce,
 };
+use jbotci_semantics::notation::sexpr::type_system::Variable;
 use jbotci_semantics::notation::sexpr::{Datum, parse_document, parse_v0_document};
 use jbotci_semantics::notation::word_cards::build_word_cards;
 use jbotci_semantics::{
-    SemanticBuildOptions, SemanticGraph,
+    SemanticBuildOptions, SemanticGraph, SmusniDiagnosticData,
     build_generated_semantic_graph_with_dictionary_and_options, render_smusni,
     render_smusni_detailed, render_smusni_with_word_cards,
 };
@@ -1285,17 +1286,246 @@ fn render_stats_and_diagnostic_projection_are_complete() {
         let input = corpus_input(doc);
         let rendered = render_smusni_detailed(&input.graph, &[]);
         validate_render(&input.graph, &rendered.text);
-        let expected_warnings = input
+        let expected_semantic = input
             .graph
             .objects
             .values()
             .map(|object| object.diagnostics().len())
             .sum::<usize>();
-        assert_eq!(rendered.stats.warning_count, expected_warnings);
+        assert_eq!(rendered.stats.semantic_diagnostic_count, expected_semantic);
+        // The aggregate reason counts are exactly a summary of the per-edge
+        // records, never a substitute for them.
         assert_eq!(
             rendered.diagnostics.len(),
-            expected_warnings + rendered.stats.fallback_reasons.len(),
+            expected_semantic + rendered.stats.fallback_reasons.values().sum::<usize>(),
         );
         assert!(rendered.stats.compact_objects + rendered.stats.object_fallbacks > 0);
     }
+}
+
+/// One Lojban input per eventuality subtype the model can mint.
+///
+/// Subtype identities are spelled `eventuality/<subtype>` by the model, so
+/// every one of them is a regression witness for variable spelling.
+const EVENTUALITY_SUBTYPE_INPUTS: [(EventualitySort, &str); 7] = [
+    (EventualitySort::General, "mi djuno lo nu do klama"),
+    (EventualitySort::State, "le za'i mi jmive cu ckape do"),
+    (EventualitySort::Process, "mi tatpi ri'a le pu'u mi plipe"),
+    (EventualitySort::Activity, "mi tatpi ri'a le zu'o mi plipe"),
+    (
+        EventualitySort::Achievement,
+        "le mu'e la .djan. catra la .djim. cu zekri",
+    ),
+    (EventualitySort::Experience, "mi morji le li'i mi verba"),
+    (EventualitySort::Locution, "mi klama"),
+];
+
+/// The CLL inputs whose renders manufactured an invalid variable atom.
+const CLL_VARIABLE_SPELLING_REGRESSIONS: [(&str, &str); 5] = [
+    (
+        "c11e12d2",
+        "le mikce cu se cinri le pu'u jenai za'i mi sipna",
+    ),
+    ("c11e3d1", "le mu'e la .djan. catra la .djim. cu zekri"),
+    ("c11e3d3", "mi tatpi ri'a le zu'o mi plipe"),
+    ("c11e3d4", "le za'i mi jmive cu ckape do"),
+    ("c11e9d1", "mi morji le li'i mi verba"),
+];
+
+/// Collect every `$` atom occurring in a rendered document.
+#[requires(true)]
+#[ensures(ret.iter().all(|name| name.starts_with('$')))]
+fn variable_atoms(datum: &Datum) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    collect_variable_atoms(datum, &mut names);
+    names
+}
+
+/// Accumulate `$` atoms into a caller-owned set.
+#[requires(true)]
+#[ensures(out.len() >= old(out.len()))]
+fn collect_variable_atoms(datum: &Datum, out: &mut BTreeSet<String>) {
+    match datum {
+        Datum::Atom(_) => {
+            if let Some(name) = datum.as_atom().filter(|name| name.starts_with('$')) {
+                out.insert(name.to_owned());
+            }
+        }
+        Datum::List(items) => {
+            for item in items {
+                collect_variable_atoms(item, out);
+            }
+        }
+        Datum::String(_) | Datum::Integer(_) => {}
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn every_eventuality_subtype_renders_a_valid_variable_grammar() {
+    for (sort, text) in EVENTUALITY_SUBTYPE_INPUTS {
+        let input = build_input(text, &format!("eventuality-{sort:?}"));
+        assert!(
+            input.graph.objects.values().any(|object| object
+                .as_eventuality()
+                .is_some_and(|node| node.sort == sort)),
+            "{text:?} was expected to mint an {sort:?} eventuality",
+        );
+        // Rendering used to panic while manufacturing `$eventuality/<subtype>`.
+        let datum = validate_render(&input.graph, &render_smusni(&input.graph));
+        for name in variable_atoms(&datum) {
+            Variable::try_new(&name)
+                .unwrap_or_else(|error| panic!("{text:?} spelled {name:?}: {error}"));
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn named_cll_regressions_render_without_manufacturing_invalid_atoms() {
+    for (name, text) in CLL_VARIABLE_SPELLING_REGRESSIONS {
+        let input = build_input(text, name);
+        let rendered = render_smusni_detailed(&input.graph, &[]);
+        let datum = validate_render(&input.graph, &rendered.text);
+        for variable in variable_atoms(&datum) {
+            Variable::try_new(&variable)
+                .unwrap_or_else(|error| panic!("{name} spelled {variable:?}: {error}"));
+        }
+        assert!(rendered.stats.compact_objects + rendered.stats.object_fallbacks > 0);
+    }
+}
+
+/// Borrow every per-edge fallback record in renderer order.
+#[requires(true)]
+#[ensures(ret.len() <= rendered.diagnostics.len())]
+fn fallback_records(
+    rendered: &jbotci_semantics::SmusniRender,
+) -> Vec<(
+    &'static str,
+    &'static str,
+    Option<SemanticObjectId>,
+    Option<SemanticObjectId>,
+)> {
+    rendered
+        .diagnostics
+        .iter()
+        .filter_map(|diagnostic| match diagnostic.as_data() {
+            data!(SmusniDiagnostic::Fallback {
+                reason_id,
+                message,
+                owner,
+                use_site,
+            }) => Some((*reason_id, *message, *owner, *use_site)),
+            data!(SmusniDiagnostic::Semantic { .. }) => None,
+        })
+        .collect()
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn fallback_diagnostics_are_one_record_per_failed_edge() {
+    // Two distinct objects decline for the same registered reason. An
+    // aggregated channel would collapse them into one record; the per-edge
+    // channel must keep both and name each affected object.
+    let input = build_input(
+        "mi cusku lu mi prami do li'u .i do cusku lu mi klama li'u",
+        "per-edge",
+    );
+    let rendered = render_smusni_detailed(&input.graph, &[]);
+    validate_render(&input.graph, &rendered.text);
+    let records = fallback_records(&rendered);
+    assert!(
+        !records.is_empty(),
+        "structured quotation still reaches the typed-graph fallback",
+    );
+    let repeated = records
+        .iter()
+        .filter(|(reason_id, ..)| *reason_id == "smusni.fallback.sign-identity-missing")
+        .collect::<Vec<_>>();
+    assert!(
+        repeated.len() > 1,
+        "two quoted signs must produce two records, found {repeated:?}",
+    );
+    assert_eq!(
+        repeated
+            .iter()
+            .filter_map(|(.., owner, _)| *owner)
+            .collect::<BTreeSet<_>>()
+            .len(),
+        repeated.len(),
+        "same-reason records must name distinct owners",
+    );
+    assert_eq!(
+        rendered
+            .stats
+            .fallback_reasons
+            .get("smusni.fallback.sign-identity-missing")
+            .copied(),
+        Some(repeated.len()),
+        "aggregate counts must summarize exactly the per-edge records",
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn fallback_diagnostics_are_stable_deduplicated_and_evidenced() {
+    for doc in CORPUS_DOCS {
+        let input = corpus_input(doc);
+        let rendered = render_smusni_detailed(&input.graph, &[]);
+        let records = fallback_records(&rendered);
+        // A declining wrapper re-renders its children through the fallback
+        // path, so an aggregating channel would count those children twice.
+        let unique = records
+            .iter()
+            .map(|(reason_id, _, owner, use_site)| (*owner, *use_site, *reason_id))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            unique.len(),
+            records.len(),
+            "{doc}: duplicated fallback records: {records:?}"
+        );
+        let keys = records
+            .iter()
+            .map(|(reason_id, _, owner, use_site)| (*owner, *use_site, *reason_id))
+            .collect::<Vec<_>>();
+        assert!(
+            keys.is_sorted(),
+            "{doc}: fallback records are not in stable order"
+        );
+        for (reason_id, message, owner, _) in &records {
+            assert!(reason_id.starts_with("smusni.fallback."));
+            assert!(!message.is_empty());
+            assert!(
+                owner.is_some_and(|owner| input.graph.objects.contains_key(&owner)),
+                "{doc}: {reason_id} carries no resolvable owner evidence",
+            );
+        }
+        // Rendering the same graph twice must yield the identical channel.
+        assert_eq!(
+            records,
+            fallback_records(&render_smusni_detailed(&input.graph, &[]))
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn scope_failures_carry_binder_and_use_evidence() {
+    // Definition placement, not a local recognizer, is what declines here, so
+    // the record comes from the planner channel.
+    let input = build_input("ro da poi gerku cu bajra", "scope-evidence");
+    let rendered = render_smusni_detailed(&input.graph, &[]);
+    validate_render(&input.graph, &rendered.text);
+    let records = fallback_records(&rendered);
+    assert!(
+        records.iter().any(|(reason_id, _, owner, _)| reason_id
+            .starts_with("smusni.fallback.definition-site")
+            && owner.is_some()),
+        "planner failures must name the affected identity: {records:?}",
+    );
 }

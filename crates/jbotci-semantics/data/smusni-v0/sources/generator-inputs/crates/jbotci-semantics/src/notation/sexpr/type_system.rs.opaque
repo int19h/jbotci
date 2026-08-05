@@ -13,7 +13,7 @@ use bityzba::{ensures, invariant, new, requires};
 use num_bigint::BigUint;
 use unicode_normalization::UnicodeNormalization;
 
-use super::datum::Datum;
+use super::datum::{Datum, is_symbol_name};
 
 /// A version-0 primitive type atom.
 #[invariant(true)]
@@ -312,11 +312,36 @@ impl Variable {
         }))
     }
 
+    /// Compose `$<token>_<index>` from an already valid bare-symbol token.
+    ///
+    /// The precondition is what makes the result valid by construction: a bare
+    /// symbol followed by `_` and decimal digits is itself a bare symbol, so no
+    /// caller has to sanitize text or handle a parse failure. Rejecting `_` in
+    /// the token additionally keeps `(token, index)` recoverable from the
+    /// spelling, which is what makes derived namespaces collision-free.
+    #[requires(is_symbol_name(token) && !token.contains('_'))]
+    #[ensures(ret.as_str().starts_with('$'))]
+    pub(super) fn from_token_and_index(token: &str, index: usize) -> Self {
+        new!(Variable {
+            text: format!("${token}_{index}"),
+        })
+    }
+
     /// Borrow the complete `$name` spelling.
     #[requires(true)]
     #[ensures(ret.starts_with('$'))]
     pub fn as_str(&self) -> &str {
         &self.text
+    }
+
+    /// Print this variable as its canonical atom datum.
+    ///
+    /// The type invariant already proves the spelling is a lexical atom, so
+    /// this conversion cannot fail.
+    #[requires(true)]
+    #[ensures(ret.as_atom() == Some(self.as_str()))]
+    pub fn to_datum(&self) -> Datum {
+        Datum::atom(self.as_str())
     }
 }
 
@@ -1509,17 +1534,6 @@ fn domains_are_pairwise_disjoint(domains: &[Vec<PlaceLabel>]) -> bool {
         .iter()
         .flat_map(|domain| domain.iter())
         .all(|label| seen.insert(label.clone()))
-}
-
-/// Validate a raw symbol-name component.
-#[requires(true)]
-#[ensures(true)]
-fn is_symbol_name(text: &str) -> bool {
-    let mut characters = text.chars();
-    characters.next().is_some_and(char::is_alphabetic)
-        && characters.all(|character| {
-            character.is_alphanumeric() || matches!(character, '\'' | '-' | '_' | '.')
-        })
 }
 
 /// Validate the exact unbounded positive-integer token grammar.

@@ -2,6 +2,7 @@
 
 pub mod datum;
 pub mod elaborate;
+mod identity;
 pub mod planner;
 pub mod renderer;
 pub mod structural;
@@ -10,7 +11,8 @@ pub mod type_system;
 
 pub use datum::{Datum, ParseError, parse_document};
 pub use renderer::{
-    DocumentMode, SmusniDiagnostic, SmusniRender, SmusniRenderStats, render_document,
+    DocumentMode, SmusniDiagnostic, SmusniDiagnosticData, SmusniRender, SmusniRenderStats,
+    render_document,
 };
 pub use structural::word_card_datum;
 pub use syntax::{

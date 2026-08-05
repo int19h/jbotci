@@ -581,9 +581,13 @@ fn is_lexical_atom(text: &str) -> bool {
 }
 
 /// Validate a bare symbol name.
+///
+/// This is the single definition of the version-0 bare-symbol production. The
+/// typed lexical wrappers in `type_system` share it so a variable that
+/// validates as a `Variable` is always printable as an [`Atom`].
 #[requires(true)]
 #[ensures(true)]
-fn is_symbol_name(text: &str) -> bool {
+pub(super) fn is_symbol_name(text: &str) -> bool {
     let mut characters = text.chars();
     characters.next().is_some_and(char::is_alphabetic)
         && characters.all(|character| {

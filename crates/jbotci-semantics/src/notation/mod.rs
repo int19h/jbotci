@@ -18,7 +18,9 @@ pub(crate) mod xml_words;
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 
-pub use sexpr::{DocumentMode, SmusniDiagnostic, SmusniRender, SmusniRenderStats};
+pub use sexpr::{
+    DocumentMode, SmusniDiagnostic, SmusniDiagnosticData, SmusniRender, SmusniRenderStats,
+};
 pub use xml::{
     CompactIncompatibility, XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface,
     XmlWaiverFamily, analyze_compact_incompatibilities, render_xml, render_xml_value_for_tooling,

@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 
 use super::datum::{Atom, Datum};
+use super::identity::{object_variable, variable_datum};
 use super::planner::ReferencePlan;
 use super::structural::{ProvenanceDisposition, object_datum_with_variables};
 use super::type_system::{PlaceLabel, Row, RowSlot, TypeAtom, TypeExpr};
@@ -27,13 +28,30 @@ use crate::model::{
 };
 
 /// Mutable counters kept separate from semantic rendering decisions.
+///
+/// Failures are keyed by object rather than counted because one object's
+/// projection can be attempted twice: a recognizer may render children, then
+/// decline and route the whole object through [`Elaborator::fallback_object`],
+/// which renders those same children again. The re-render also loses the
+/// caller's expectations — a predication re-rendered from a fallback reference
+/// map has no expected mode, for instance — so a second attempt can decline at
+/// a boundary the object never really reached. One entry per object, holding
+/// the boundary that first declined in the object's real context, is therefore
+/// both the honest failure and the guarantee that a wrapper never duplicates or
+/// relabels its children's failures.
 #[invariant(true)]
 #[derive(Debug, Default)]
 struct ElaborationCounters {
     compact_objects: Cell<usize>,
-    object_fallbacks: Cell<usize>,
-    fallback_reasons: RefCell<BTreeMap<&'static str, usize>>,
-    requires_typed_graph: Cell<bool>,
+    failures: RefCell<BTreeMap<SemanticObjectId, CompactFallbackCause>>,
+}
+
+/// One failed compact projection, identified by the object it was attempted on.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) struct CompactFallback {
+    pub(super) owner: SemanticObjectId,
+    pub(super) cause: CompactFallbackCause,
 }
 
 /// Predicate term plus its ordered application operands. Keeping the head
@@ -69,8 +87,8 @@ enum DescriptionConstructor {
 /// boundary has a proved v0 type, each cause selects a registered
 /// whole-document fallback rather than emitting an untyped pseudo-form.
 #[invariant(::UnrecognizedObjectFamily(_) => true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CompactFallbackCause {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) enum CompactFallbackCause {
     UnrecognizedObjectFamily(SemanticObjectKind),
     UtteranceWithoutContent,
     ForceFieldsRequireRecord,
@@ -105,7 +123,7 @@ impl CompactFallbackCause {
     /// Exact registered reason used by the current conservative boundary.
     #[requires(true)]
     #[ensures(ret.starts_with("smusni.fallback."))]
-    fn reason_id(self) -> &'static str {
+    pub(super) fn reason_id(self) -> &'static str {
         match self {
             Self::UnrecognizedObjectFamily(kind) => match kind {
                 SemanticObjectKind::DisplayedContent | SemanticObjectKind::Utterance => {
@@ -153,6 +171,87 @@ impl CompactFallbackCause {
                 "smusni.fallback.math-reduction-unregistered"
             }
             Self::SignFields => "smusni.fallback.sign-identity-missing",
+        }
+    }
+
+    /// Stable human-readable statement of why the compact projection declined.
+    ///
+    /// This is finer-grained than [`Self::reason_id`] on purpose: several
+    /// distinct causes share one registered reason, and a per-edge diagnostic
+    /// record should still say which boundary was actually reached. The text is
+    /// `&'static str` so a record's message is fixed by its cause rather than
+    /// composed at the failure site.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub(super) fn message(self) -> &'static str {
+        match self {
+            Self::UnrecognizedObjectFamily(kind) => match kind {
+                SemanticObjectKind::DisplayedContent | SemanticObjectKind::Utterance => {
+                    "no compact force reduction is registered for this object family"
+                }
+                SemanticObjectKind::Parameter => {
+                    "a bare parameter object crosses a higher order that version 0 does not license"
+                }
+                SemanticObjectKind::RelationMetadata => {
+                    "the lexical signature for this relation is missing or stale"
+                }
+                _ => "no compact relation reduction is registered for this object family",
+            },
+            Self::UtteranceWithoutContent => "the utterance act has no content to close",
+            Self::ForceFieldsRequireRecord => {
+                "utterance asides or vocative force require an utterance record"
+            }
+            Self::SequenceFields => "no compact discourse form covers these sequence fields",
+            Self::ConnectiveMetadata => "connective metadata has no compact representation",
+            Self::UnrecognizedConnective => {
+                "the connective is not a registered ordinary truth function"
+            }
+            Self::QuantifierVariableFields => {
+                "the quantifier's bound-variable fields have no compact representation"
+            }
+            Self::QuantifierFields => "the quantifier shape is not a registered compact reduction",
+            Self::RespectivelySlotFields => {
+                "simultaneous termset slots are not licensed by version 0"
+            }
+            Self::PredicationSideFields => {
+                "predication side fields have no compact projection at this boundary"
+            }
+            Self::PredicationModeUnrepresentable => {
+                "the predication mode is not representable at this boundary"
+            }
+            Self::NonAtomicRelation => "the relation spelling is not a lexical atom",
+            Self::CompositionPredication => {
+                "a composition predication has no registered relation former"
+            }
+            Self::ArgumentFields => {
+                "the argument map does not match the predicate's fill type or arity"
+            }
+            Self::AdjunctFields => "no registered modal-tag reduction covers this adjunct",
+            Self::CompositionFields => {
+                "these composition fields have no registered relation former"
+            }
+            Self::ConstantWithoutDependence => {
+                "a constant referent carries no recorded scope dependence"
+            }
+            Self::ReferentFields => {
+                "these reference or description fields have no compact projection"
+            }
+            Self::UnboundGeneratedEvent => "a generated eventuality has no lexical binding site",
+            Self::UnrepresentableRecursiveValue => {
+                "this recursive value is unguarded or lexically unrepresentable"
+            }
+            Self::DefinitionTypeUnrepresentable => {
+                "the shared definition's type crosses an unlicensed higher order"
+            }
+            Self::EventualityFacets => "these event facets have no registered compact reduction",
+            Self::QuestionSlotFields => {
+                "the question's domain or answer slot does not match a compact form"
+            }
+            Self::MathSideFields => "these math side fields have no registered reduction",
+            Self::QuantityFields => "this quantity has no registered compact reduction",
+            Self::MathLiteralDenotes => "this math literal's denotation is unregistered",
+            Self::MathOperatorFields => "these math operator fields have no registered reduction",
+            Self::SignFields => "the sign's graph-owned identity is missing",
         }
     }
 }
@@ -228,14 +327,33 @@ fn wrap_nonrecursive_definitions(bindings: Vec<Datum>, body: Datum) -> Datum {
 }
 
 /// Result of one compact elaboration pass.
-#[invariant(true)]
+#[invariant(
+    failures.windows(2).all(|pair| pair[0] < pair[1]),
+    "each failed projection edge is recorded once, in stable order"
+)]
 #[derive(Debug, Clone)]
 pub(super) struct CompactElaboration {
     pub(super) body: Datum,
     pub(super) compact_objects: usize,
-    pub(super) object_fallbacks: usize,
-    pub(super) fallback_reasons: BTreeMap<&'static str, usize>,
-    pub(super) requires_typed_graph: bool,
+    pub(super) failures: Vec<CompactFallback>,
+}
+
+impl CompactElaboration {
+    /// Whether any boundary declined, which promotes the whole document to the
+    /// graph-faithful representation.
+    #[requires(true)]
+    #[ensures(ret == !self.failures.is_empty())]
+    pub(super) fn requires_typed_graph(&self) -> bool {
+        !self.failures.is_empty()
+    }
+
+    /// Number of objects whose compact projection was declined, which is also
+    /// the number of per-edge fallback records this pass contributes.
+    #[requires(true)]
+    #[ensures(ret == self.failures.len())]
+    pub(super) fn object_fallbacks(&self) -> usize {
+        self.failures.len()
+    }
 }
 
 /// Read-only elaborator over a validated semantic graph.
@@ -301,13 +419,19 @@ pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> 
         counters: ElaborationCounters::default(),
     };
     let body = elaborator.render_with_definitions();
-    CompactElaboration {
-        body,
+    new!(CompactElaboration {
+        body: body,
         compact_objects: elaborator.counters.compact_objects.get(),
-        object_fallbacks: elaborator.counters.object_fallbacks.get(),
-        fallback_reasons: elaborator.counters.fallback_reasons.into_inner(),
-        requires_typed_graph: elaborator.counters.requires_typed_graph.get(),
-    }
+        // `BTreeMap` iteration is the stable order required of the per-edge
+        // diagnostic channel: one record per failed object, in identity order.
+        failures: elaborator
+            .counters
+            .failures
+            .into_inner()
+            .into_iter()
+            .map(|(owner, cause)| CompactFallback { owner, cause })
+            .collect(),
+    })
 }
 
 /// Count edge multiplicities after removing identities consumed inside exact
@@ -370,28 +494,29 @@ impl Elaborator<'_> {
             .borrow_mut()
             .extend(definitions.iter().copied());
         let (ordered, recursive) = self.definition_order(&definitions);
-        let Some(typed_definitions) = ordered
-            .into_iter()
-            .map(|id| {
-                definition_type_datum(&self.graph.objects[&id])
-                    .map(|declared_type| (id, declared_type))
-            })
-            .collect::<Option<Vec<_>>>()
-        else {
-            self.record_whole_document_fallback(
-                CompactFallbackCause::DefinitionTypeUnrepresentable,
-            );
-            return body;
-        };
+        // Declining here is still a per-object failure, so the loop keeps the
+        // exact identity that could not be typed rather than reporting the
+        // whole declaration group.
+        let mut typed_definitions = Vec::with_capacity(ordered.len());
+        for id in ordered {
+            let Some(declared_type) = definition_type_datum(&self.graph.objects[&id]) else {
+                self.record_object_fallback(
+                    id,
+                    CompactFallbackCause::DefinitionTypeUnrepresentable,
+                );
+                return body;
+            };
+            typed_definitions.push((id, declared_type));
+        }
         let bindings = typed_definitions
             .into_iter()
             .map(|(id, declared_type)| {
                 let value = self.render_object(id, bound, active, None);
-                Datum::list([variable_datum(id), declared_type, value])
+                (id, Datum::list([variable_datum(id), declared_type, value]))
             })
             .collect::<Vec<_>>();
         if recursive
-            && bindings.iter().any(|binding| {
+            && let Some((id, _)) = bindings.iter().find(|(_, binding)| {
                 binding
                     .as_list()
                     .and_then(|fields| fields.get(2))
@@ -399,11 +524,13 @@ impl Elaborator<'_> {
                     != Some("λ")
             })
         {
-            self.record_whole_document_fallback(
-                CompactFallbackCause::UnrepresentableRecursiveValue,
-            );
+            self.record_object_fallback(*id, CompactFallbackCause::UnrepresentableRecursiveValue);
             return body;
         }
+        let bindings = bindings
+            .into_iter()
+            .map(|(_, binding)| binding)
+            .collect::<Vec<_>>();
         if recursive {
             Datum::form("LetRec", [Datum::list(bindings), body])
         } else {
@@ -589,10 +716,7 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
         cause: CompactFallbackCause,
     ) -> Datum {
-        self.record_whole_document_fallback(cause);
-        self.counters
-            .object_fallbacks
-            .set(self.counters.object_fallbacks.get() + 1);
+        self.record_object_fallback(id, cause);
         let object = &self.graph.objects[&id];
         let references = self.fallback_reference_map(id, bound, active);
         object_datum_with_variables(
@@ -603,17 +727,20 @@ impl Elaborator<'_> {
         )
     }
 
-    /// Record one registered reason that requires graph-faithful document fallback.
+    /// Record one failed projection edge, which also requires the
+    /// graph-faithful document fallback.
+    ///
+    /// Recording keeps the first boundary that declined for an object: a later
+    /// attempt is the same failed edge re-entered from a fallback re-render,
+    /// not a second failure.
     #[requires(true)]
-    #[ensures(self.counters.requires_typed_graph.get())]
-    fn record_whole_document_fallback(&self, cause: CompactFallbackCause) {
-        self.counters.requires_typed_graph.set(true);
-        *self
-            .counters
-            .fallback_reasons
+    #[ensures(self.counters.failures.borrow().contains_key(&id))]
+    fn record_object_fallback(&self, id: SemanticObjectId, cause: CompactFallbackCause) {
+        self.counters
+            .failures
             .borrow_mut()
-            .entry(cause.reason_id())
-            .or_default() += 1;
+            .entry(id)
+            .or_insert(cause);
     }
 
     /// Count one successful compact object recognition.
@@ -1204,7 +1331,7 @@ impl Elaborator<'_> {
             .copied()
             .filter(|event| {
                 !generated_event_is_default(self.graph, self.plan, owner, *event)
-                    || datum_contains_atom(&body, &variable_name(*event))
+                    || datum_contains_atom(&body, object_variable(*event).as_str())
             })
             .collect::<Vec<_>>();
         if visible.is_empty() {
@@ -1287,16 +1414,7 @@ impl Elaborator<'_> {
         bound: &BTreeSet<SemanticObjectId>,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Datum {
-        self.counters.requires_typed_graph.set(true);
-        self.counters
-            .object_fallbacks
-            .set(self.counters.object_fallbacks.get() + 1);
-        *self
-            .counters
-            .fallback_reasons
-            .borrow_mut()
-            .entry(CompactFallbackCause::EventualityFacets.reason_id())
-            .or_default() += 1;
+        self.record_object_fallback(event, CompactFallbackCause::EventualityFacets);
         let object = &self.graph.objects[&event];
         let references = self.fallback_reference_map(event, bound, active);
         Datum::form(
@@ -2117,21 +2235,6 @@ fn datum_contains_atom(datum: &Datum, needle: &str) -> bool {
         || datum
             .as_list()
             .is_some_and(|items| items.iter().any(|item| datum_contains_atom(item, needle)))
-}
-
-/// Stable lexical variable datum for a typed graph identity.
-#[requires(true)]
-#[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with('$')))]
-fn variable_datum(id: SemanticObjectId) -> Datum {
-    Datum::atom(variable_name(id))
-}
-
-/// Stable lexical variable spelling; the typed ID chooses the namespace and the
-/// textual conversion merely replaces the separator with atom-safe `_`.
-#[requires(true)]
-#[ensures(ret.starts_with('$'))]
-fn variable_name(id: SemanticObjectId) -> String {
-    format!("${}", id.to_string().replace(':', "_"))
 }
 
 /// Closed version-0 type spelling for model sorts that carry enough information.

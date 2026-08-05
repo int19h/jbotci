@@ -651,6 +651,17 @@ impl SemanticObjectId {
         self.prefix.object_kind()
     }
 
+    /// The typed namespace this identity was minted in.
+    ///
+    /// Consumers that must spell an identity in another notation derive that
+    /// spelling from these typed components rather than from the `Display`
+    /// text, whose separators belong to this module alone.
+    #[requires(true)]
+    #[ensures(ret.object_kind() == self.object_kind())]
+    pub fn prefix(self) -> SemanticIdPrefix {
+        self.prefix
+    }
+
     #[requires(true)]
     #[ensures(ret.is_some() == (self.object_kind() == SemanticObjectKind::Referent))]
     pub fn referent_sort(self) -> Option<SemanticSort> {
