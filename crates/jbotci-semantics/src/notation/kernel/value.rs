@@ -174,8 +174,9 @@ impl CollectionKind {
     intrinsic.instantiate(&operand_types(arguments)).as_ref() == Ok(value_type),
     "the stored type is exactly the registered signature's instantiation")]
 #[invariant(::Apply { head, arguments, value_type } => head.signature()
-    .is_some_and(|signature| signature.apply(&operand_types(arguments)) == Ok(value_type)),
-    "an application's stored type is its callee's result type")]
+    .is_some_and(|signature| kernel_checked_apply(&signature, &operand_types(arguments))
+        .as_ref() == Ok(value_type)),
+    "an application's stored type is its callee's result type under the strict operand rule")]
 #[invariant(::Let(_) => true)]
 #[invariant(::Bind(_) => true)]
 #[invariant(::LetRec(_) => true)]
@@ -292,7 +293,7 @@ impl Value {
         let signature = head
             .signature()
             .ok_or_else(|| KernelTypeError::new("only a callable value can be applied"))?;
-        let value_type = signature.apply(&operand_types(&arguments))?.clone();
+        let value_type = kernel_checked_apply(&signature, &operand_types(&arguments))?;
         Ok(new!(Value::Apply {
             head,
             arguments,
@@ -769,6 +770,13 @@ impl RefComp {
     }
 
     /// Record this computation's binder introductions and uses.
+    ///
+    /// A `Witnesses` run handle is used at the one type section 9.4 gives it —
+    /// the `Content` identity of the quantifier application — so the audit can
+    /// check it against its binder. A `Context` dependency list stores no type
+    /// at all, so it records no use; `append_free_binders_to` still reports
+    /// those names, which is what makes the document's free-binder rule reject
+    /// an unbound dependency.
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
@@ -783,7 +791,10 @@ impl RefComp {
                 describer.collect_scope_facts(facts);
                 facts.record_lambda(property);
             }
-            data!(RefComp::Context { .. }) | data!(RefComp::Witnesses { .. }) => {}
+            data!(RefComp::Witnesses { run, .. }) => {
+                facts.record_use(run, atom(TypeAtom::Content));
+            }
+            data!(RefComp::Context { .. }) => {}
         }
     }
 }
@@ -862,6 +873,34 @@ impl Category for Operand {
 #[ensures(ret.len() == arguments.len())]
 pub(super) fn operand_types(arguments: &[Operand]) -> Vec<TypeExpr> {
     arguments.iter().map(Category::value_type).collect()
+}
+
+/// Apply an ordered function signature under the strict kernel operand rule.
+///
+/// [`FunctionSignature::apply`] is the notation-era application kernel and still
+/// admits the implicit conversions of section 3.1, including the singleton lift.
+/// The kernel keeps that crossing explicit, so every kernel application node
+/// checks its operands here first and delegates only the result computation to
+/// the unchanged signature kernel. Predicate fills are the one deliberate
+/// exception: they run through `apply_predicate`, which keeps the lift until
+/// route migration can re-measure the fill path against a strict rule.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(super) fn kernel_checked_apply(
+    signature: &FunctionSignature,
+    arguments: &[TypeExpr],
+) -> Result<TypeExpr, KernelTypeError> {
+    if arguments.len() != signature.parameters().len() {
+        return Err(KernelTypeError::new("function application arity mismatch"));
+    }
+    for (actual, declared) in arguments.iter().zip(signature.parameters()) {
+        if !kernel_accepts(actual, declared) {
+            return Err(KernelTypeError::new(
+                "a function argument does not inhabit its declared parameter type",
+            ));
+        }
+    }
+    Ok(signature.apply(arguments)?.clone())
 }
 
 /// Read a callable type as an ordered function signature.

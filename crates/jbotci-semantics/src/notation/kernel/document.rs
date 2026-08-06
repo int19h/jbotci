@@ -3,9 +3,9 @@
 //! Every constructor below this one already checked its own local rule, so
 //! well-typedness of the whole tree follows by induction — bityzba wrappers
 //! admit no mutation path. What induction does *not* give is a global property:
-//! that binder names really are identities. The expensive document invariant
-//! proves exactly that, independently of the cached free-binder sets the
-//! binding forms carry.
+//! that binder names really are identities. [`document_scope_audit`] proves
+//! exactly that, independently of the cached free-binder sets the binding forms
+//! carry.
 
 use std::collections::BTreeMap;
 
@@ -21,8 +21,12 @@ use super::types::{TypeExpr, Variable};
 use super::value::{FnValue, Operand, RefComp, Value};
 
 /// One complete typed kernel document.
+///
+/// There is deliberately no `#[expensive_invariant(document_scope_audit(body))]`
+/// here: the constructor runs that audit in every build and the value is
+/// immutable afterwards, so an invariant re-running it would be pure double
+/// work in the expensive-contracts profile.
 #[invariant(!body.is_reference_only(), "a document body is performed, not a reference-only constant")]
-#[expensive_invariant(document_scope_audit(body).is_ok())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KernelDocument {
     body: Performable,
@@ -32,7 +36,9 @@ impl KernelDocument {
     /// Close a document over a performable body.
     ///
     /// The cheap check is the free-variable one: a document with a free binder
-    /// name has no printable spelling for it, so it is not a document.
+    /// name has no printable spelling for it, so it is not a document. The scope
+    /// audit then runs unconditionally, because it is the product gate for
+    /// name-as-identity rather than a debugging aid.
     #[requires(true)]
     #[ensures(ret.is_ok() || ret.is_err())]
     pub fn new(body: Performable) -> Result<Self, KernelTypeError> {
@@ -52,7 +58,7 @@ impl KernelDocument {
 
     /// Borrow the performable body.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(*ret == self.body)]
     pub fn body(&self) -> &Performable {
         &self.body
     }
@@ -170,6 +176,15 @@ scope_walk!(
 /// resolves to exactly one binder without a scope walk; and every use carries
 /// exactly the type its binder declared, so a `Bound` node's stored type is not
 /// an independent claim.
+///
+/// One position is exempt from the second property by construction: a
+/// `RefComp::Context` dependency list is a bare list of names with no stored
+/// type, so there is nothing to disagree with a binder about and the walk
+/// records no use for it. Those names are still reported as free binders, so
+/// the document's root free-binder check is what rejects an unbound dependency.
+/// The same limit applies to a bound relation identity reached through a
+/// `Tanru` modifier or a `DropPlace`, whose declared row the composed signature
+/// no longer records.
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 pub fn document_scope_audit(body: &Performable) -> Result<(), KernelTypeError> {

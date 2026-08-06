@@ -17,6 +17,7 @@ use std::collections::BTreeSet;
 use bityzba::{contract_trait, ensures, expensive_invariant, invariant, new, requires};
 
 use super::error::KernelTypeError;
+use super::intrinsic::kernel_accepts;
 use super::types::{TypeExpr, Variable};
 use super::value::{FnValue, Operand, RefComp};
 
@@ -155,7 +156,7 @@ impl<C: Category> Lambda<C> {
 
     /// Borrow the carried free-binder set.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(*ret == self.free_binders)]
     pub fn free_binders(&self) -> &BinderSet {
         &self.free_binders
     }
@@ -181,9 +182,14 @@ impl<C: Category> Lambda<C> {
 /// of specification section 14.1 are the format's implicit prelude and never
 /// print as a document binding, so they are modelled as registered callables
 /// rather than as declarations a graph could mint.
+///
+/// The initializer is admitted under the strict kernel operand rule: an
+/// initializer that would need a singleton lift to inhabit its declared type
+/// must carry an explicit `Singleton` node, because eliding the crossing is the
+/// printer's decision and not a fact the kernel may invent.
 #[invariant(
-    initializer.value_type().implicit_conversion_to(declared_type).is_some(),
-    "a declaration's initializer must inhabit its declared type"
+    kernel_accepts(&initializer.value_type(), declared_type),
+    "a declaration's initializer must inhabit its declared type without an implicit crossing"
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Declaration {
@@ -201,11 +207,7 @@ impl Declaration {
         declared_type: TypeExpr,
         initializer: Operand,
     ) -> Result<Self, KernelTypeError> {
-        if initializer
-            .value_type()
-            .implicit_conversion_to(&declared_type)
-            .is_none()
-        {
+        if !kernel_accepts(&initializer.value_type(), &declared_type) {
             return Err(KernelTypeError::new(
                 "Let initializer does not inhabit its declared type",
             ));
@@ -290,7 +292,7 @@ impl<C: Category> Let<C> {
 
     /// Borrow the carried free-binder set.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(*ret == self.free_binders)]
     pub fn free_binders(&self) -> &BinderSet {
         &self.free_binders
     }
@@ -303,8 +305,8 @@ impl<C: Category> Let<C> {
 /// operand. Making the field's type `RefComp` is what makes a `Refer` in
 /// ordinary value position unrepresentable.
 #[invariant(
-    computation.result_type().implicit_conversion_to(declared_type).is_some(),
-    "the computation's result must inhabit the declared binder type"
+    kernel_accepts(&computation.result_type(), declared_type),
+    "the computation's result must inhabit the declared binder type without an implicit crossing"
 )]
 #[expensive_invariant(*free_binders == bind_free_binders(variable, computation, body.as_ref()))]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -326,11 +328,7 @@ impl<C: Category> Bind<C> {
         computation: RefComp,
         body: C,
     ) -> Result<Self, KernelTypeError> {
-        if computation
-            .result_type()
-            .implicit_conversion_to(&declared_type)
-            .is_none()
-        {
+        if !kernel_accepts(&computation.result_type(), &declared_type) {
             return Err(KernelTypeError::new(
                 "Bind computation does not produce its declared binder type",
             ));
@@ -375,7 +373,7 @@ impl<C: Category> Bind<C> {
 
     /// Borrow the carried free-binder set.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(*ret == self.free_binders)]
     pub fn free_binders(&self) -> &BinderSet {
         &self.free_binders
     }
@@ -384,8 +382,8 @@ impl<C: Category> Bind<C> {
 /// One member of a recursive binding group.
 #[invariant(initializer.is_lambda(), "every LetRec initializer is an inert lambda")]
 #[invariant(
-    initializer.value_type().implicit_conversion_to(declared_type).is_some(),
-    "a recursive initializer must inhabit its declared type"
+    kernel_accepts(&initializer.value_type(), declared_type),
+    "a recursive initializer must inhabit its declared type without an implicit crossing"
 )]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecursiveDeclaration {
@@ -408,11 +406,7 @@ impl RecursiveDeclaration {
                 "a LetRec initializer must be an inert lambda",
             ));
         }
-        if initializer
-            .value_type()
-            .implicit_conversion_to(&declared_type)
-            .is_none()
-        {
+        if !kernel_accepts(&initializer.value_type(), &declared_type) {
             return Err(KernelTypeError::new(
                 "LetRec initializer does not inhabit its declared type",
             ));
@@ -495,7 +489,7 @@ impl<C: Category> LetRec<C> {
 
     /// Borrow the carried free-binder set.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(*ret == self.free_binders)]
     pub fn free_binders(&self) -> &BinderSet {
         &self.free_binders
     }

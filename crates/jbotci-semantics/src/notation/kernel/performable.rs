@@ -306,9 +306,13 @@ impl Discourse {
 
     /// Report whether this value is one of the reference-only constants.
     ///
-    /// The restriction also follows the value through identity-preserving
-    /// bindings, which a bare `Bound` spelling cannot show; the whole-document
-    /// audit is where a rebound constant is caught.
+    /// The test is structural. Section 7.1's restriction also follows the value
+    /// through identity-preserving bindings, which a bare `Bound` spelling
+    /// cannot show, and nothing in this increment recovers it: the document
+    /// audit checks name identity and use types, not what a name was bound to.
+    /// A `PriorDiscourse` rebound by `Let` and then performed through its
+    /// `$variable` is therefore still admitted, and closing that gap needs the
+    /// binder environment the next increment introduces.
     #[requires(true)]
     #[ensures(true)]
     pub fn is_reference_only(&self) -> bool {

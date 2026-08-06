@@ -349,7 +349,9 @@ impl PredTerm {
     #[ensures(true)]
     pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
         match self.as_data() {
-            data!(PredTerm::Relation(_)) => {}
+            data!(PredTerm::Relation(signature)) => {
+                append_relation_scope_facts_to(signature.relation(), signature.row(), facts);
+            }
             data!(PredTerm::Applied { head, fills, .. }) => {
                 head.collect_scope_facts(facts);
                 for fill in fills {
@@ -389,6 +391,33 @@ impl Category for PredTerm {
             data!(PredTerm::Let(form)) => binders.extend(form.free_binders().iter().cloned()),
             data!(PredTerm::Bind(form)) => binders.extend(form.free_binders().iter().cloned()),
             data!(PredTerm::LetRec(form)) => binders.extend(form.free_binders().iter().cloned()),
+        }
+    }
+}
+
+/// Record the uses of the bound relation identities a relation expression names.
+///
+/// A use can only be checked against its binder where the composed signature
+/// still records the row the binder declared. `Scalar` and a `Tanru` head
+/// preserve the row (section 14.1), so a variable there is used at exactly this
+/// row. A `Tanru` modifier and a `DropPlace` operand do not: the composed
+/// signature keeps the head's row and the reduced row respectively, and the
+/// inner row is no longer recoverable from it. Those uses are therefore checked
+/// for boundness by the document's free-binder rule alone, which
+/// [`append_relation_binders_to`] feeds.
+#[requires(true)]
+#[ensures(true)]
+fn append_relation_scope_facts_to(relation: &RelationRef, row: &Row, facts: &mut ScopeFacts) {
+    match relation {
+        RelationRef::Lexical(_) | RelationRef::DropPlace { .. } => {}
+        RelationRef::Variable(variable) => {
+            facts.record_use(variable, TypeExpr::Predicate(row.clone()));
+        }
+        RelationRef::Scalar { relation, .. } => {
+            append_relation_scope_facts_to(relation, row, facts);
+        }
+        RelationRef::Tanru { head, .. } => {
+            append_relation_scope_facts_to(head, row, facts);
         }
     }
 }

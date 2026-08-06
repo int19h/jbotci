@@ -538,6 +538,60 @@ fn a_simple_transcript_entry_contracts_on_the_performance_spine() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn operand_positions_require_an_explicit_singleton_lift() {
+    // The kernel's operand rule admits identity, a declared upcast, and the
+    // finite `Natural`-to-`Cardinal` embedding, but never the section 3.1
+    // singleton lift: a crossing is a node, and eliding it is the printer's
+    // decision. Predicate fills are the one disclosed exception, so this test
+    // exercises the two operand paths a fill does not cover.
+    let natural = TypeExpr::Atom(TypeAtom::Natural);
+    let three = Value::literal(Literal::integer(3));
+    let lifted = Value::intrinsic(Intrinsic::Singleton, vec![Operand::Value(three.clone())])
+        .expect("Singleton lifts any value");
+
+    // A `Let` declaration.
+    assert!(
+        Declaration::new(
+            variable("$n"),
+            referents(natural.clone()),
+            Operand::Value(three.clone()),
+        )
+        .is_err(),
+        "a declaration accepted an initializer that needs a singleton lift"
+    );
+    assert!(
+        Declaration::new(
+            variable("$n"),
+            referents(natural.clone()),
+            Operand::Value(lifted.clone()),
+        )
+        .is_ok(),
+        "the same value with an explicit Singleton must declare"
+    );
+
+    // A function application argument.
+    let signature = FunctionSignature::new(vec![referents(natural)], content_type());
+    assert!(
+        Content::apply(
+            FnValue::bound(variable("$f"), signature.clone()),
+            vec![Operand::Value(three)],
+        )
+        .is_err(),
+        "an application accepted an argument that needs a singleton lift"
+    );
+    assert!(
+        Content::apply(
+            FnValue::bound(variable("$f"), signature),
+            vec![Operand::Value(lifted)],
+        )
+        .is_ok(),
+        "the same argument with an explicit Singleton must apply"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn predicate_application_rejects_ill_typed_and_out_of_row_fills() {
     // A place the row does not have.
     assert!(
@@ -817,6 +871,99 @@ fn the_document_audit_rejects_unbound_and_shadowed_names() {
     assert!(
         KernelDocument::new(Performable::Act(Act::assert(Content::let_form(mistyped)))).is_err(),
         "accepted a use at a type its binder did not declare"
+    );
+}
+
+/// Assert a `Witnesses` run over a `$run` binder declared at `declared_type`.
+#[requires(true)]
+#[ensures(true)]
+fn witnesses_document(declared_type: TypeExpr, initializer: Operand) -> Performable {
+    let selection = RefComp::witnesses(variable("$run"), referents(entity()))
+        .expect("a witness selection is a number-neutral reference");
+    let retrieval = Content::bind_form(
+        Bind::new(
+            variable("$dogs"),
+            referents(entity()),
+            selection,
+            Content::close(
+                PredTerm::applied(
+                    lexical("tatpi", 2),
+                    vec![PlaceFill::plain(Operand::Value(Value::bound(
+                        variable("$dogs"),
+                        referents(entity()),
+                    )))],
+                )
+                .expect("filling tatpi x1 is well typed"),
+            )
+            .expect("the remaining row is closeable"),
+        )
+        .expect("the computation produces the declared reference type"),
+    );
+    Performable::Act(Act::assert(Content::let_form(
+        Let::new(
+            vec![
+                Declaration::new(variable("$run"), declared_type, initializer)
+                    .expect("the initializer inhabits its declared type"),
+            ],
+            retrieval,
+        )
+        .expect("a Let block is nonempty"),
+    )))
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn the_audit_sees_witness_runs_and_bound_relation_identities() {
+    // Both positions used to record no use at all, so the audit could not check
+    // them against their binders. Section 9.4 types a `Witnesses` run handle as
+    // the `Content` identity of the quantifier application.
+    assert!(
+        KernelDocument::new(witnesses_document(
+            content_type(),
+            Operand::Content(Content::close(lexical("gerku", 1)).expect("the row is closeable")),
+        ))
+        .is_ok(),
+        "a run handle declared at Content is well scoped"
+    );
+    assert!(
+        KernelDocument::new(witnesses_document(
+            referents(entity()),
+            Operand::Value(speaker()),
+        ))
+        .is_err(),
+        "accepted a Witnesses run at a type its binder did not declare"
+    );
+
+    // A bound relation identity is used at the row the signature carries.
+    let declared_row = ordinary_row(1);
+    let bound_relation = |row: Row| {
+        Performable::Act(Act::assert(Content::let_form(
+            Let::new(
+                vec![
+                    Declaration::new(
+                        variable("$r"),
+                        TypeExpr::Predicate(declared_row.clone()),
+                        Operand::Predicate(lexical("gerku", 1)),
+                    )
+                    .expect("the initializer inhabits its declared type"),
+                ],
+                Content::close(PredTerm::relation(PredicateSignature::new(
+                    RelationRef::Variable(variable("$r")),
+                    row,
+                )))
+                .expect("the row is closeable"),
+            )
+            .expect("a Let block is nonempty"),
+        )))
+    };
+    assert!(
+        KernelDocument::new(bound_relation(ordinary_row(1))).is_ok(),
+        "a bound relation used at its declared row is well scoped"
+    );
+    assert!(
+        KernelDocument::new(bound_relation(ordinary_row(2))).is_err(),
+        "accepted a bound relation used at a row its binder did not declare"
     );
 }
 

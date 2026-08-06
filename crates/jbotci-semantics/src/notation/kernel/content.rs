@@ -15,7 +15,7 @@ use super::error::KernelTypeError;
 use super::intrinsic::{Intrinsic, atom};
 use super::predicate::PredTerm;
 use super::types::{AnswerExhaustivity, AnswerPolarity, Row, TypeAtom, TypeExpr, Variable};
-use super::value::{FnValue, Operand, Value, operand_types};
+use super::value::{FnValue, Operand, Value, kernel_checked_apply, operand_types};
 
 /// The associative and nonlogical n-ary content connectives.
 #[invariant(
@@ -105,8 +105,9 @@ impl QuantifierOp {
     intrinsic.instantiate(&operand_types(arguments)) == Ok(TypeExpr::Atom(TypeAtom::Content)),
     "a content intrinsic call instantiates to Content")]
 #[invariant(::Apply { head, arguments } => head.signature().is_some_and(|signature|
-    signature.apply(&operand_types(arguments)) == Ok(&TypeExpr::Atom(TypeAtom::Content))),
-    "a content application's callee returns Content")]
+    kernel_checked_apply(&signature, &operand_types(arguments))
+        == Ok(TypeExpr::Atom(TypeAtom::Content))),
+    "a content application's callee returns Content under the strict operand rule")]
 #[invariant(::Let(_) => true)]
 #[invariant(::Bind(_) => true)]
 #[invariant(::LetRec(_) => true)]
@@ -268,7 +269,8 @@ impl Content {
         let signature = head
             .signature()
             .ok_or_else(|| KernelTypeError::new("only a callable value can be applied"))?;
-        if signature.apply(&operand_types(&arguments))? != &atom(TypeAtom::Content) {
+        if kernel_checked_apply(&signature, &operand_types(&arguments))? != atom(TypeAtom::Content)
+        {
             return Err(KernelTypeError::new(
                 "this application does not return Content",
             ));
