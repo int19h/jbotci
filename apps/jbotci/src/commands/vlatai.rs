@@ -392,6 +392,10 @@ fn render_plain_word_classification_text(
                 "{prefix}phonemes: {}\n",
                 render_vlatai_phonemes(&classification.phonemes, phoneme_options)
             ));
+            out.push_str(&format!(
+                "{prefix}possible rafsi: {}\n",
+                vlatai_possible_rafsi(classification).join(" ")
+            ));
         }
         WordKind::Lujvo => {
             out.push_str(&format!("{prefix}category: lujvo\n"));
@@ -500,7 +504,32 @@ fn plain_word_classification_json(
         &classification.phonemes,
         phoneme_options,
     ));
+    // Derivable from the word itself, so it is injected here instead of taxing
+    // every `PlainWordClassification` produced by vlasei and the IDE.
+    if classification.category == WordKind::Gismu {
+        value["possible-rafsi"] = serde_json::Value::Array(
+            vlatai_possible_rafsi(classification)
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        );
+    }
     value
+}
+
+/// Return the short rafsi a gismu classification could claim, in sorted order.
+///
+/// Availability is deliberately absent: vlatai never consults the dictionary,
+/// so it reports what CLL phonotactics permit and leaves who already holds a
+/// rafsi to `vlacku`. Canonical phoneme text marks stress with acute accents,
+/// so it is folded back to plain gismu letters before derivation.
+#[requires(classification.category == WordKind::Gismu)]
+#[ensures(true)]
+fn vlatai_possible_rafsi(classification: &PlainWordClassification) -> Vec<String> {
+    possible_short_rafsi_forms(&fold_lojban_diacritics(&classification.phonemes))
+        .into_iter()
+        .map(|form| form.into_data().form)
+        .collect()
 }
 
 #[requires(true)]

@@ -33,8 +33,8 @@ use jbotci_gentufa::{
 pub use jbotci_gimfihi::{
     CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
     GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiPreset, GimfihiScorer, GismuShape,
-    RafsiAvailability, RafsiCandidate, ResolvedSource, ResolvedSourceWord, all_presets,
-    resolve_source_word,
+    RafsiAvailability, RafsiAvailabilityData, RafsiCandidate, RafsiClaimKind, ResolvedSource,
+    ResolvedSourceWord, all_presets, resolve_source_word,
 };
 use jbotci_gimfihi::{
     GimfihiError, GimfihiRequest, GimfihiSourceInput, compose_gismu, default_shapes,

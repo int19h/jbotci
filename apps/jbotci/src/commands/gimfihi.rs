@@ -211,30 +211,29 @@ fn format_gimfihi_rafsi(candidate: &GimfihiCandidate) -> String {
         .rafsi()
         .iter()
         .map(|rafsi| {
-            let status = match rafsi.availability {
-                RafsiAvailability::Free => "free".to_owned(),
-                RafsiAvailability::OfficialTaken => format!(
-                    "official-taken{}",
-                    format_taken_rafsi_sources(&rafsi.taken_by)
-                ),
-                RafsiAvailability::ExperimentalTaken => format!(
-                    "experimental-taken{}",
-                    format_taken_rafsi_sources(&rafsi.taken_by)
-                ),
-            };
-            format!("{}:{status}", rafsi.form)
+            format!(
+                "{}:{}",
+                rafsi.form,
+                format_rafsi_availability(&rafsi.availability)
+            )
         })
         .collect::<Vec<_>>()
         .join(", ")
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn format_taken_rafsi_sources(sources: &[String]) -> String {
-    if sources.is_empty() {
-        String::new()
-    } else {
-        format!("({})", sources.join("/"))
+#[ensures(!ret.is_empty())]
+fn format_rafsi_availability(availability: &RafsiAvailability) -> String {
+    match availability.as_data() {
+        data!(RafsiAvailability::Free) => "free".to_owned(),
+        data!(RafsiAvailability::Taken { kind, words }) => {
+            let kind = match kind {
+                RafsiClaimKind::Official => "official-taken",
+                RafsiClaimKind::Experimental => "experimental-taken",
+            };
+            let words = words.iter().map(String::as_str).collect::<Vec<_>>();
+            format!("{kind}({})", words.join("/"))
+        }
     }
 }
 

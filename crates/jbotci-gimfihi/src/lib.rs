@@ -12,6 +12,13 @@ use jbotci_morphology::{
     ConsonantPairClass, GlideMark, PhonemeRenderOptions, StressMark, WordKind,
     consonant_pair_class, is_consonant, is_vowel, segment_words_with_modifiers,
 };
+// Short-rafsi derivation is pure phonotactics and lives in the morphology
+// crate; availability against the dictionary lives in the dictionary crate.
+// They are re-exported because they appear in gimfi'i's request and output.
+pub use jbotci_dictionary::{
+    RafsiAvailability, RafsiAvailabilityData, RafsiCandidate, RafsiCandidateData, RafsiClaimKind,
+};
+pub use jbotci_morphology::{GismuShape, ShortRafsiShape};
 use jbotci_phonetic::{
     AlineNormalizer, AlineParameters, AlineScorer, AlineSimilarityScratch, IpaSegmentId,
     PreparedAlineSource, PreparedAlineTargetInventory, lojban_gismu_letter_to_ipa_segment,
@@ -246,43 +253,6 @@ fn preset_entries(entries: &[PresetEntrySpec]) -> Box<[PresetEntry]> {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum GismuShape {
-    Ccvcv,
-    Cvccv,
-}
-
-impl GismuShape {
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Ccvcv => "ccvcv",
-            Self::Cvccv => "cvccv",
-        }
-    }
-}
-
-impl fmt::Display for GismuShape {
-    #[requires(true)]
-    #[ensures(true)]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for GismuShape {
-    type Err = GimfihiError;
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|shape| !shape.as_str().is_empty()) || ret.is_err())]
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        parse_shape(value)
-    }
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
 pub enum CollisionScope {
     All,
     Official,
@@ -458,34 +428,6 @@ impl Default for GimfihiRequest {
             highlight: None,
         }
     }
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RafsiKind {
-    Cvc,
-    Ccv,
-    Cvv,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum RafsiAvailability {
-    Free,
-    OfficialTaken,
-    ExperimentalTaken,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct RafsiCandidate {
-    pub form: String,
-    pub kind: RafsiKind,
-    pub availability: RafsiAvailability,
-    pub taken_by: Vec<String>,
 }
 
 #[invariant(true)]
@@ -1366,7 +1308,7 @@ fn score_candidate_for_ranking_with_scratch(
         .map(|source| score_source_value(candidate_self, source, phonetic_scorer, scratch))
         .sum::<f64>();
     let collision = collision_index.find(&word);
-    let rafsi = include_rafsi.then(|| possible_short_rafsis(dictionary, &word));
+    let rafsi = include_rafsi.then(|| dictionary.short_rafsi_candidates(&word));
     new!(ScoredGimfihiCandidate {
         word,
         score,
@@ -1395,7 +1337,7 @@ fn materialize_candidate_details(
     let word = candidate.word;
     let rafsi = candidate
         .rafsi
-        .unwrap_or_else(|| possible_short_rafsis(dictionary, &word));
+        .unwrap_or_else(|| dictionary.short_rafsi_candidates(&word));
     GimfihiCandidate {
         highlighted: highlighted_word.is_some_and(|highlighted| highlighted == word.as_str()),
         word,
@@ -1863,148 +1805,6 @@ fn too_similar_consonant(proposed: char, existing: char) -> bool {
     }
 }
 
-#[requires(word.chars().count() == 5)]
-#[ensures(true)]
-pub fn possible_short_rafsis(dictionary: &Dictionary<'_>, word: &str) -> Vec<RafsiCandidate> {
-    let chars = word.chars().collect::<Vec<_>>();
-    let shape = gismu_shape_for_word(&chars);
-    let mut raw = Vec::new();
-    match shape {
-        Some(GismuShape::Cvccv) => {
-            push_rafsi(&mut raw, RafsiKind::Cvc, &[chars[0], chars[1], chars[2]]);
-            push_rafsi(&mut raw, RafsiKind::Cvc, &[chars[0], chars[1], chars[3]]);
-            push_rafsi(
-                &mut raw,
-                RafsiKind::Cvv,
-                &[chars[0], chars[1], '\'', chars[4]],
-            );
-            push_cvv_without_apostrophe(&mut raw, chars[0], chars[1], chars[4]);
-            push_ccv_if_initial(&mut raw, chars[2], chars[3], chars[4]);
-            push_ccv_if_initial(&mut raw, chars[0], chars[2], chars[1]);
-        }
-        Some(GismuShape::Ccvcv) => {
-            push_rafsi(&mut raw, RafsiKind::Cvc, &[chars[0], chars[2], chars[3]]);
-            push_rafsi(&mut raw, RafsiKind::Cvc, &[chars[1], chars[2], chars[3]]);
-            push_rafsi(
-                &mut raw,
-                RafsiKind::Cvv,
-                &[chars[0], chars[2], '\'', chars[4]],
-            );
-            push_cvv_without_apostrophe(&mut raw, chars[0], chars[2], chars[4]);
-            push_rafsi(
-                &mut raw,
-                RafsiKind::Cvv,
-                &[chars[1], chars[2], '\'', chars[4]],
-            );
-            push_cvv_without_apostrophe(&mut raw, chars[1], chars[2], chars[4]);
-            push_ccv_if_initial(&mut raw, chars[0], chars[1], chars[2]);
-        }
-        None => {}
-    }
-    raw.sort_by(|left, right| left.form.cmp(&right.form));
-    raw.dedup_by(|left, right| left.form == right.form);
-    raw.into_iter()
-        .map(|mut rafsi| {
-            let (availability, taken_by) = rafsi_availability(dictionary, &rafsi.form);
-            rafsi.availability = availability;
-            rafsi.taken_by = taken_by;
-            rafsi
-        })
-        .collect()
-}
-
-#[requires(chars.len() == 5)]
-#[ensures(true)]
-fn gismu_shape_for_word(chars: &[char]) -> Option<GismuShape> {
-    if is_consonant(chars[0])
-        && is_consonant(chars[1])
-        && is_vowel(chars[2])
-        && is_consonant(chars[3])
-        && is_vowel(chars[4])
-    {
-        Some(GismuShape::Ccvcv)
-    } else if is_consonant(chars[0])
-        && is_vowel(chars[1])
-        && is_consonant(chars[2])
-        && is_consonant(chars[3])
-        && is_vowel(chars[4])
-    {
-        Some(GismuShape::Cvccv)
-    } else {
-        None
-    }
-}
-
-#[requires(!letters.is_empty())]
-#[ensures(output.last().is_some_and(|rafsi| !rafsi.form.is_empty()))]
-fn push_rafsi(output: &mut Vec<RafsiCandidate>, kind: RafsiKind, letters: &[char]) {
-    output.push(RafsiCandidate {
-        form: letters.iter().collect(),
-        kind,
-        availability: RafsiAvailability::Free,
-        taken_by: Vec::new(),
-    });
-}
-
-#[requires(is_consonant(consonant))]
-#[requires(is_vowel(first_vowel))]
-#[requires(is_vowel(second_vowel))]
-#[ensures(true)]
-fn push_cvv_without_apostrophe(
-    output: &mut Vec<RafsiCandidate>,
-    consonant: char,
-    first_vowel: char,
-    second_vowel: char,
-) {
-    if matches!(
-        (first_vowel, second_vowel),
-        ('a', 'i') | ('e', 'i') | ('o', 'i') | ('a', 'u')
-    ) {
-        push_rafsi(
-            output,
-            RafsiKind::Cvv,
-            &[consonant, first_vowel, second_vowel],
-        );
-    }
-}
-
-#[requires(is_consonant(first))]
-#[requires(is_consonant(second))]
-#[requires(is_vowel(vowel))]
-#[ensures(true)]
-fn push_ccv_if_initial(output: &mut Vec<RafsiCandidate>, first: char, second: char, vowel: char) {
-    if consonant_pair_class(first, second) == Some(ConsonantPairClass::Initial) {
-        push_rafsi(output, RafsiKind::Ccv, &[first, second, vowel]);
-    }
-}
-
-#[requires(!rafsi.is_empty())]
-#[ensures(true)]
-fn rafsi_availability(
-    dictionary: &Dictionary<'_>,
-    rafsi: &str,
-) -> (RafsiAvailability, Vec<String>) {
-    let matches = dictionary.lookup_rafsi(rafsi).collect::<Vec<_>>();
-    let official = matches
-        .iter()
-        .filter(|matched| matched.entry.word_type == WordType::Gismu)
-        .map(|matched| matched.entry.word.to_owned())
-        .collect::<Vec<_>>();
-    if !official.is_empty() {
-        return (RafsiAvailability::OfficialTaken, official);
-    }
-    let experimental = matches
-        .iter()
-        .filter(|matched| matched.entry.word_type == WordType::ExperimentalGismu)
-        .map(|matched| matched.entry.word.to_owned())
-        .collect::<Vec<_>>();
-    if !experimental.is_empty() {
-        (RafsiAvailability::ExperimentalTaken, experimental)
-    } else {
-        (RafsiAvailability::Free, Vec::new())
-    }
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn scored_candidate_passes_filters(
@@ -2018,7 +1818,7 @@ fn scored_candidate_passes_filters(
                 .as_deref()
                 .unwrap_or(&[])
                 .iter()
-                .any(|rafsi| rafsi.availability == RafsiAvailability::Free))
+                .any(|rafsi| rafsi.availability.is_free()))
 }
 
 #[cfg(test)]
@@ -2030,7 +1830,7 @@ fn candidate_passes_filters(candidate: &GimfihiCandidate, request: &GimfihiReque
             || candidate
                 .rafsi()
                 .iter()
-                .any(|rafsi| rafsi.availability == RafsiAvailability::Free))
+                .any(|rafsi| rafsi.availability.is_free()))
 }
 
 #[cfg(test)]
@@ -2300,7 +2100,7 @@ mod tests {
                 .as_ref()
                 .is_some_and(|highlighted| highlighted == &candidate.word);
             if candidate.rafsi.is_none() {
-                candidate.rafsi = Some(possible_short_rafsis(dictionary, &candidate.word));
+                candidate.rafsi = Some(dictionary.short_rafsi_candidates(&candidate.word));
             }
         }
         Ok(GimfihiOutput {
@@ -2359,7 +2159,7 @@ mod tests {
             .map(|source_score| source_score.weighted_score)
             .sum::<f64>();
         let collision = collision_index.find(&word);
-        let rafsi = include_rafsi.then(|| possible_short_rafsis(dictionary, &word));
+        let rafsi = include_rafsi.then(|| dictionary.short_rafsi_candidates(&word));
         GimfihiCandidate {
             word,
             score,
@@ -2674,24 +2474,6 @@ mod tests {
                 );
             }
         }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn rafsi_availability_uses_dictionary_index() {
-        let dictionary = jbotci_dictionary_data::english();
-        let rafsi = possible_short_rafsis(dictionary, "sakli");
-        let sal = rafsi
-            .iter()
-            .find(|candidate| candidate.form == "sal")
-            .expect("sal");
-        assert_eq!(sal.availability, RafsiAvailability::OfficialTaken);
-        let nanpe = possible_short_rafsis(dictionary, "nanpe");
-        let free = nanpe
-            .iter()
-            .any(|candidate| candidate.availability == RafsiAvailability::Free);
-        assert!(free);
     }
 
     #[test]

@@ -1015,7 +1015,7 @@ fn collect_gimfihi_page_find_entries(
         }
         for rafsi in candidate.rafsi() {
             push_page_find_entry(entries, rafsi.form.clone());
-            for source in &rafsi.taken_by {
+            for source in rafsi.availability.claimant_words() {
                 push_page_find_entry(entries, source.clone());
             }
         }

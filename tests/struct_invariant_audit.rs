@@ -684,10 +684,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "LCS scratch rows are mutable work storage whose temporary lengths are controlled by longest_common_subsequence_len_chars",
     ),
     (
-        "crates/jbotci-gimfihi/src/lib.rs:RafsiCandidate",
-        "short rafsi candidates are generated and classified by possible_short_rafsis",
-    ),
-    (
         "crates/jbotci-ide/src/snapshot/completion.rs:CompletionCancellationToken",
         "completion cancellation token is a shared atomic flag whose only valid state transition is enforced by cancel",
     ),
