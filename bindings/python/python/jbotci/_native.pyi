@@ -488,6 +488,7 @@ class _diagnostics_DiagnosticSeverity(StrEnum):
 class _diagnostics_DiagnosticPhase(StrEnum):
     MORPHOLOGY = 'morphology'
     SYNTAX = 'syntax'
+    SEMANTIC_PROJECTION = 'semantic-projection'
 
 @final
 class _diagnostics_TracePhase(StrEnum):
