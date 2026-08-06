@@ -1156,15 +1156,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "LexicalRoot and NfcText independently prove both word-card fields",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:FunctionSignature",
+        "crates/jbotci-semantics/src/notation/kernel/apply.rs:FunctionSignature",
         "every ordered validated parameter sequence and validated result form a valid function signature",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateSignature",
+        "crates/jbotci-semantics/src/notation/kernel/apply.rs:PredicateSignature",
         "every validated relation identity and canonical effective row form a valid predicate signature",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RowSlot",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:RowSlot",
         "every positive or distinguished label paired with a validated accepted type is a valid row slot",
     ),
     (

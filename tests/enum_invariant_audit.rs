@@ -1264,115 +1264,115 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "Variable proves the reserved dollar-prefixed symbol grammar",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PlaceLabel::Eventuality",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:PlaceLabel::Eventuality",
         "the unit variant is the one distinguished event-row label",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PlaceLabel::Numbered",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:PlaceLabel::Numbered",
         "PositiveInteger proves every numbered row label is canonical, positive, and unbounded",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateArgument::Computed",
+        "crates/jbotci-semantics/src/notation/kernel/apply.rs:PredicateArgument::Computed",
         "the PlaceOf type and validated nonempty unique candidate domain carry all syntactic constraints",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateArgument::Eventuality",
+        "crates/jbotci-semantics/src/notation/kernel/apply.rs:PredicateArgument::Eventuality",
         "every validated value type may be checked against the event slot during application",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateArgument::Numbered",
+        "crates/jbotci-semantics/src/notation/kernel/apply.rs:PredicateArgument::Numbered",
         "PositiveInteger proves place positivity and application checks the independently valid value type",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateArgument::Plain",
+        "crates/jbotci-semantics/src/notation/kernel/apply.rs:PredicateArgument::Plain",
         "every validated type may be checked at the numbered fill cursor",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::DropPlace",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:RelationRef::DropPlace",
         "the nested relation is validated and PositiveInteger proves the deleted ordinal is canonical and positive",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::Lexical",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:RelationRef::Lexical",
         "LexicalRoot proves the lowercase or escaped-lowercase relation namespace",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::Scalar",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:RelationRef::Scalar",
         "ScalarKind is closed and the nested relation reference is validated",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::Tanru",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:RelationRef::Tanru",
         "both modifier and row-owning head are independently validated relation references",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RelationRef::Variable",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:RelationRef::Variable",
         "Variable proves the lexically bound relation-reference namespace",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Act",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Act",
         "Force is a closed enum and every member indexes a valid Act type",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::AnswerSelection",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::AnswerSelection",
         "every ordered sequence of validated types is a valid answer tuple parameter",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Atom",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Atom",
         "TypeAtom is the closed primitive and literal-family type namespace",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Function",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Function",
         "every ordered parameter sequence and validated result form a syntactically valid Fn type",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::GeneralizedQuantifier",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::GeneralizedQuantifier",
         "every validated inner type is a valid GQ type parameter",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Group",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Group",
         "every validated inner type is a valid Group type parameter",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Interval",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Interval",
         "every validated inner type is syntactically valid for Interval; orderedness is checked by signatures",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::List",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::List",
         "every validated inner type is a valid List type parameter",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::PlaceOf",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::PlaceOf",
         "the relation, accepted type, and optional nonempty unique candidate set are independently validated",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Predicate",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Predicate",
         "Row proves canonical unique row labels and open-tail placement",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Query",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Query",
         "every ordered sequence of validated types is a valid query tuple parameter",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::ReferenceComputation",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::ReferenceComputation",
         "every validated inner type is a valid RefComp result type",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Referents",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Referents",
         "every validated inner type is a valid Referents type parameter",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Set",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Set",
         "every validated inner type is a valid Set type parameter",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Sign",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Sign",
         "SignKind is a closed enum and every member indexes a valid Sign type",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::SignToken",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::SignToken",
         "SignKind is a closed enum and every member indexes a valid SignToken type",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:TypeExpr::Tuple",
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:TypeExpr::Tuple",
         "every ordered sequence of validated types is a valid tuple parameter",
     ),
     (

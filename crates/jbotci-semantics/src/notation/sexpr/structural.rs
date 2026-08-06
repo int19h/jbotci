@@ -18,8 +18,8 @@ use serde::ser::{
     SerializeTupleStruct, SerializeTupleVariant, Serializer,
 };
 
+use super::super::kernel::types::LexicalRoot;
 use super::datum::{Datum, escape_symbol};
-use super::type_system::LexicalRoot;
 use crate::completeness::source_link_surfaces;
 use crate::model::{
     SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId, SemanticObjectKind,

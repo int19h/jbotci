@@ -20,7 +20,7 @@ mod smusni_v0_kernel;
 mod smusni_v0_surface;
 
 use smusni_v0_bundle::{BundleErrorKind, BundleMode, BundlePaths, BundleSnapshot, DispositionSeed};
-use smusni_v0_kernel::datum::{Datum, parse_document};
+use smusni_v0_kernel::sexpr::datum::{Datum, parse_document};
 
 const OBLIQUE: &[u8] = include_bytes!("../data/smusni-v0/sources/lojban-org/oblique_keywords.txt");
 const WITNESSES: &str = include_str!("../data/smusni-v0/sources/must-compact-witnesses.txt");

@@ -10,6 +10,8 @@ use std::fmt;
 use bityzba::{ensures, invariant, new, requires};
 use unicode_normalization::UnicodeNormalization;
 
+use super::super::kernel::lexicon::is_symbol_name;
+
 /// A canonical, arbitrarily large decimal integer spelling.
 #[invariant(is_canonical_integer(&text))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -87,11 +89,10 @@ fn is_canonical_integer(text: &str) -> bool {
 
 /// The largest integer literal this grammar accepts, in decimal digits.
 ///
-/// Integers are arbitrary-precision, so an untrusted document could otherwise
-/// spend unbounded time and memory on one token. Version 0's real literals are
-/// place indices, cardinalities, and small numbers; four thousand digits is far
-/// beyond any of them and still bounds the work.
-pub const MAX_INTEGER_DIGITS: usize = 4_096;
+/// The bound is the kernel's, because kernel place labels obey it whether or
+/// not a parser ever saw them; it is re-exported here so document-facing
+/// callers keep one spelling for the parser's limits.
+pub use super::super::kernel::lexicon::MAX_INTEGER_DIGITS;
 
 /// The largest document this parser accepts, in bytes.
 ///
@@ -636,21 +637,6 @@ fn is_lexical_atom(text: &str) -> bool {
         return is_positive_integer(id);
     }
     is_symbol_name(text)
-}
-
-/// Validate a bare symbol name.
-///
-/// This is the single definition of the version-0 bare-symbol production. The
-/// typed lexical wrappers in `type_system` share it so a variable that
-/// validates as a `Variable` is always printable as an [`Atom`].
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn is_symbol_name(text: &str) -> bool {
-    let mut characters = text.chars();
-    characters.next().is_some_and(char::is_alphabetic)
-        && characters.all(|character| {
-            character.is_alphanumeric() || matches!(character, '\'' | '-' | '_' | '.')
-        })
 }
 
 /// Validate vertical-bar escaping, including its closed escape set.

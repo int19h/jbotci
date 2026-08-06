@@ -18,11 +18,12 @@ use std::collections::BTreeSet;
 use bityzba::{ensures, invariant, new, requires};
 use num_bigint::BigUint;
 
+use super::super::kernel::types::{PositiveInteger, TypeExpr};
 use super::datum::{Datum, parse_document};
 use super::syntax::{
     NfcText, ProjectionReasonId, V0ParseError, is_projection_reason_id, require_len, text_from,
 };
-use super::type_system::{PositiveInteger, TypeExpr};
+use super::type_syntax::{parse_type, type_to_datum};
 use crate::model::SemanticGraph;
 
 /// A positive fallback-object identity.
@@ -251,7 +252,7 @@ impl LocalFallback {
         Datum::form(
             "Fallback",
             [
-                self.expected_type.to_datum(),
+                type_to_datum(&self.expected_type),
                 Datum::string(self.reason.as_str()),
                 self.raw.root.to_datum(),
             ],
@@ -290,7 +291,7 @@ impl TypedGraph {
 fn parse_local_fallback(items: &[Datum]) -> Result<LocalFallback, V0ParseError> {
     require_len(items, 4, "Fallback")?;
     let expected_type =
-        TypeExpr::parse(&items[1]).map_err(|error| V0ParseError::new(error.to_string()))?;
+        parse_type(&items[1]).map_err(|error| V0ParseError::new(error.to_string()))?;
     let reason = items[2]
         .as_string()
         .ok_or_else(|| V0ParseError::new("Fallback reason must be a string"))?;

@@ -14,8 +14,11 @@ use num_bigint::BigInt;
 use num_integer::Integer as _;
 use unicode_normalization::UnicodeNormalization;
 
+use super::super::kernel::types::{
+    LexicalRoot, PositiveInteger, SignKind, TypeAtom, TypeExpr, Variable,
+};
 use super::datum::{Datum, Integer, parse_datums, parse_document, print_document};
-use super::type_system::{LexicalRoot, PositiveInteger, SignKind, TypeExpr, Variable};
+use super::type_syntax::{parse_type, type_to_datum};
 
 /// NFC-normalized text carried by a string datum.
 #[invariant(text.nfc().eq(text.chars()))]
@@ -164,7 +167,7 @@ impl Declaration {
     fn to_datum(&self) -> Datum {
         Datum::list([
             Datum::atom(self.variable.as_str()),
-            self.declared_type.to_datum(),
+            type_to_datum(&self.declared_type),
         ])
     }
 }
@@ -234,7 +237,7 @@ impl PreludeBinding {
     fn to_datum(&self) -> Datum {
         Datum::list([
             Datum::atom(self.name.as_str()),
-            self.declared_type.to_datum(),
+            type_to_datum(&self.declared_type),
             self.value.to_datum(),
         ])
     }
@@ -292,7 +295,7 @@ impl ValueBinding {
     fn to_datum(&self) -> Datum {
         Datum::list([
             Datum::atom(self.declaration.variable.as_str()),
-            self.declaration.declared_type.to_datum(),
+            type_to_datum(&self.declaration.declared_type),
             self.value.to_datum(),
         ])
     }
@@ -579,7 +582,7 @@ impl Sign {
     fn to_datum(&self) -> Datum {
         let mut values = vec![Datum::list([Datum::list([
             Datum::atom(self.token.as_str()),
-            TypeExpr::SignToken(self.kind).to_datum(),
+            type_to_datum(&TypeExpr::SignToken(self.kind)),
         ])])];
         values.extend(self.items.iter().map(V0Expr::to_datum));
         Datum::form("Sign", values)
@@ -952,7 +955,7 @@ fn parse_value_binding(datum: &Datum) -> Result<ValueBinding, V0ParseError> {
     require_len(items, 3, "value binding")?;
     let variable = parse_variable(&items[0])?;
     let declared_type =
-        TypeExpr::parse(&items[1]).map_err(|error| V0ParseError::new(error.to_string()))?;
+        parse_type(&items[1]).map_err(|error| V0ParseError::new(error.to_string()))?;
     Ok(ValueBinding::new(
         Declaration::new(variable, declared_type),
         parse_expression(&items[2])?,
@@ -974,7 +977,7 @@ fn parse_let_binding(datum: &Datum) -> Result<LetBinding, V0ParseError> {
         .as_atom()
         .ok_or_else(|| V0ParseError::new("Let name must be a variable or prelude name"))?;
     let declared_type =
-        TypeExpr::parse(&items[1]).map_err(|error| V0ParseError::new(error.to_string()))?;
+        parse_type(&items[1]).map_err(|error| V0ParseError::new(error.to_string()))?;
     Ok(LetBinding::Prelude(PreludeBinding::new(
         PreludeName::try_new(name)?,
         declared_type,
@@ -997,7 +1000,7 @@ fn parse_declarations(datum: &Datum) -> Result<Vec<Declaration>, V0ParseError> {
             require_len(items, 2, "declaration")?;
             Ok(Declaration::new(
                 parse_variable(&items[0])?,
-                TypeExpr::parse(&items[1]).map_err(|error| V0ParseError::new(error.to_string()))?,
+                parse_type(&items[1]).map_err(|error| V0ParseError::new(error.to_string()))?,
             ))
         })
         .collect()
@@ -1011,7 +1014,7 @@ fn parse_utterance(items: &[Datum]) -> Result<Utterance, V0ParseError> {
         return Err(V0ParseError::new("Utterance requires a token and facts"));
     }
     let (token, declared_type) = parse_token_declaration(&items[1])?;
-    if declared_type != TypeExpr::Atom(super::type_system::TypeAtom::UtteranceToken) {
+    if declared_type != TypeExpr::Atom(TypeAtom::UtteranceToken) {
         return Err(V0ParseError::new(
             "Utterance binder must declare UtteranceToken",
         ));
@@ -1061,7 +1064,7 @@ fn parse_token_declaration(datum: &Datum) -> Result<(Variable, TypeExpr), V0Pars
     require_len(inner, 2, "token declaration")?;
     Ok((
         parse_variable(&inner[0])?,
-        TypeExpr::parse(&inner[1]).map_err(|error| V0ParseError::new(error.to_string()))?,
+        parse_type(&inner[1]).map_err(|error| V0ParseError::new(error.to_string()))?,
     ))
 }
 
