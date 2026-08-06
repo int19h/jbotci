@@ -26,31 +26,32 @@ use crate::smusni_v0_kernel::type_system::{
 };
 
 pub const BUNDLE_ROOT: &str = "data/smusni-v0";
-pub const MANIFEST_PATH: &str = "registry/manifest.json";
 pub const SOURCE_PATH: &str = "sources/registry-source.toml";
 pub const SOURCE_PROVENANCE_PATH: &str = "sources/registry-source.provenance.toml";
 pub const WITNESS_PATH: &str = "sources/must-compact-witnesses.txt";
 pub const OBLIQUE_PATH: &str = "sources/lojban-org/oblique_keywords.txt";
 pub const OBLIQUE_METADATA_PATH: &str = "sources/lojban-org/oblique_keywords.metadata.toml";
 
-const INPUT_PREFIX: &str = "sources/generator-inputs";
+/// The bundle's own copy of the dual-homed specification.
+///
+/// Prelude signatures and canonical definitions are extracted from it, and a
+/// source distribution carries no `docs/` tree, so the copy has to live beside
+/// the registry. `tests/smusni_v0_bundle.rs` asserts that it is byte-identical
+/// to `docs/smusni/spec.md`; that plain equality replaces the retired digest
+/// pin.
 const SPEC_PATH: &str = "sources/smusni/spec.md";
-const DICTIONARY_PATH: &str =
-    "sources/generator-inputs/crates/jbotci-dictionary-data/data/dictionary-en.json.opaque";
-const DICTIONARY_METADATA_PATH: &str = "sources/generator-inputs/crates/jbotci-dictionary-data/data/dictionary-en.metadata.toml.opaque";
-const COMPLETENESS_INVENTORY_PATH: &str =
-    "sources/generator-inputs/crates/jbotci-semantics/src/completeness/inventory.rs.opaque";
 
-const SPEC_SHA256: &str = "c2c0616b0b0d8991251f5145be4985a8191a68704cff3ae10f6f85caa34dbdc1";
-const SAMPLES_SHA256: &str = "ee4cfe6c00009f2ca0387efd0dfa6551b4e6db61e6ff9bebf891f0c0346aa50b";
-const SMUSNI_SOURCE_REVISION: &str = "86cbd9d1288d2c0232ba86cb214000a431b5db7c";
+/// Repository-relative dictionary snapshot paths.
+///
+/// The bundle reads the live vendored files rather than a second retained copy.
+const DICTIONARY_PATH: &str = "crates/jbotci-dictionary-data/data/dictionary-en.json";
+const DICTIONARY_METADATA_PATH: &str =
+    "crates/jbotci-dictionary-data/data/dictionary-en.metadata.toml";
+
 const OBLIQUE_SHA256: &str = "355786cfd049063c92514fac2d417fc4966df7749dc17d7cfb49bd903fb6a2cb";
 const OBLIQUE_BYTE_COUNT: usize = 79_293;
 const OBLIQUE_RECORD_COUNT: usize = 3_542;
 const DICTIONARY_SHA256: &str = "ba268ad701f8f44656ea4b17a1fd9539cfc1a3c523d0bdf581a44e3e93bb412f";
-const FINAL_PLAN_SHA256: &str = "803c3b35f211dacd910efa1d1e793dde3698e0c90b124550a6ab42531d9fe312";
-const POLICY_DOSSIER_SHA256: &str =
-    "dfc69782de2206d048ad7a519af2a0e3a9b6cbd2fc161f76ad2425c8cb4743d1";
 const WITNESS_COUNT: usize = 18;
 const SCOPE_POLICY_ROW_COUNT: usize = 8;
 const EXTENSIONAL_SCOPE_POLICY_COUNT: usize = 6;
@@ -103,92 +104,23 @@ const REQUIRED_GRAPH_FAILURE_REASON_IDS: &[&str] = &[
     "smusni.fallback.unknown-registry-coordinate",
 ];
 
-const GENERATED_TABLES: &[(&str, SchemaId)] = &[
-    (
-        "registry/source-artifacts.jsonl",
-        SchemaId::SourceArtifactRow,
-    ),
-    ("registry/evidence.jsonl", SchemaId::EvidenceRow),
-    ("registry/lexical.jsonl", SchemaId::LexicalRow),
-    ("registry/scope-policies.jsonl", SchemaId::ScopePolicyRow),
-    (
-        "registry/place-deletions.jsonl",
-        SchemaId::PlaceDeletionEvidenceRow,
-    ),
-    ("registry/tag-reductions.jsonl", SchemaId::TagReductionRow),
-    (
-        "registry/relation-formers.jsonl",
-        SchemaId::RelationFormerReductionRow,
-    ),
-    (
-        "registry/generated-relations.jsonl",
-        SchemaId::GeneratedRelationRow,
-    ),
-    ("registry/scale-literals.jsonl", SchemaId::ScaleLiteralRow),
-    (
-        "registry/fallback-reasons.jsonl",
-        SchemaId::FallbackReasonRow,
-    ),
-    ("registry/dispositions.jsonl", SchemaId::DispositionRow),
-    ("registry/prelude.jsonl", SchemaId::PreludeRow),
-    ("registry/runtime.rs", SchemaId::OpaqueBytes),
+const GENERATED_TABLES: &[&str] = &[
+    "registry/evidence.jsonl",
+    "registry/lexical.jsonl",
+    "registry/scope-policies.jsonl",
+    "registry/place-deletions.jsonl",
+    "registry/tag-reductions.jsonl",
+    "registry/relation-formers.jsonl",
+    "registry/generated-relations.jsonl",
+    "registry/scale-literals.jsonl",
+    "registry/fallback-reasons.jsonl",
+    "registry/dispositions.jsonl",
+    "registry/prelude.jsonl",
+    "registry/runtime.rs",
 ];
 
-/// Repository sources mirrored into the retained generator-input tree.
-///
-/// Only the repository path is authored here. The bundled location is computed
-/// by [`bundled_generator_input_path`], so a mirror can never be filed under a
-/// path that disagrees with the source it snapshots, and every mirror carries
-/// the `.opaque` suffix that keeps the retained tree inert.
-const MIRRORED_GENERATOR_INPUTS: &[&str] = &[
-    "Cargo.lock",
-    "Cargo.toml",
-    "crates/bityzba/Cargo.toml",
-    "crates/bityzba/src/contract_scanner.rs",
-    "crates/bityzba/src/lib.rs",
-    "crates/bityzba-contract-syntax/Cargo.toml",
-    "crates/bityzba-contract-syntax/src/lib.rs",
-    "crates/bityzba-macros/Cargo.toml",
-    "crates/bityzba-macros/src/implementation/codegen.rs",
-    "crates/bityzba-macros/src/implementation/data.rs",
-    "crates/bityzba-macros/src/implementation/doc.rs",
-    "crates/bityzba-macros/src/implementation/ensures.rs",
-    "crates/bityzba-macros/src/implementation/invariant.rs",
-    "crates/bityzba-macros/src/implementation/mod.rs",
-    "crates/bityzba-macros/src/implementation/parse.rs",
-    "crates/bityzba-macros/src/implementation/requires.rs",
-    "crates/bityzba-macros/src/implementation/traits.rs",
-    "crates/bityzba-macros/src/implementation/type_invariant.rs",
-    "crates/bityzba-macros/src/lib.rs",
-    "crates/jbotci-dictionary-data/data/dictionary-en.json",
-    "crates/jbotci-dictionary-data/data/dictionary-en.metadata.toml",
-    "crates/jbotci-semantics/Cargo.toml",
-    "crates/jbotci-semantics/build.rs",
-    "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs",
-    "crates/jbotci-semantics/codegen/smusni_v0_completeness.rs",
-    "crates/jbotci-semantics/codegen/smusni_v0_dispositions.rs",
-    "crates/jbotci-semantics/codegen/smusni_v0_kernel.rs",
-    "crates/jbotci-semantics/codegen/smusni_v0_surface.rs",
-    "crates/jbotci-semantics/examples/smusni_v0_bundle.rs",
-    "crates/jbotci-semantics/src/completeness/inventory.rs",
-    "crates/jbotci-semantics/src/completeness/model.rs",
-    "crates/jbotci-semantics/src/model.rs",
-    "crates/jbotci-semantics/src/model/semantic_object.rs",
-    "crates/jbotci-semantics/src/model/event_binding.rs",
-    "crates/jbotci-semantics/src/model/scope_dependence.rs",
-    "crates/jbotci-semantics/src/notation/sexpr/datum.rs",
-    "crates/jbotci-semantics/src/notation/sexpr/syntax.rs",
-    "crates/jbotci-semantics/src/notation/sexpr/type_system.rs",
-];
-
-/// Retained inputs the bundle owns outright. Each one snapshots an external
-/// authority recorded in a provenance sidecar rather than a live repository
-/// file, so no mirror comparison applies to them. `spec.md` belongs here: its
-/// authority is smusni design revision [`SMUSNI_SOURCE_REVISION`], and the
-/// repository's published `docs/smusni/spec.md` is a second copy of that same
-/// external artifact, pinned to [`SPEC_SHA256`] by the test suite rather than
-/// derived from this one.
-const BUNDLE_NATIVE_GENERATOR_INPUTS: &[&str] = &[
+/// Checked-in bundle inputs the generator reads.
+const BUNDLE_GENERATOR_INPUTS: &[&str] = &[
     OBLIQUE_PATH,
     OBLIQUE_METADATA_PATH,
     SOURCE_PATH,
@@ -196,6 +128,9 @@ const BUNDLE_NATIVE_GENERATOR_INPUTS: &[&str] = &[
     SPEC_PATH,
     WITNESS_PATH,
 ];
+
+/// Repository inputs the generator reads from outside the bundle root.
+const REPOSITORY_GENERATOR_INPUTS: &[&str] = &[DICTIONARY_PATH, DICTIONARY_METADATA_PATH];
 
 const EXPECTED_WITNESSES: &str = concat!(
     "mi klama\n",
@@ -333,11 +268,6 @@ struct RegistrySource {
 #[serde(deny_unknown_fields)]
 struct RegistryProvenance {
     format_version: u32,
-    smusni_source_revision: String,
-    spec_sha256: String,
-    samples_sha256: String,
-    approved_plan_sha256: String,
-    lexical_policy_dossier_sha256: String,
     approval_record: String,
     supported_lexical_domain: Value,
     scope_policy: Vec<ScopePolicyProvenance>,
@@ -591,25 +521,18 @@ pub struct SlotRow {
     pub evidence_id: String,
 }
 
-#[invariant(!source_id.is_empty() && !source_kind.is_empty() && !immutable_revision.is_empty() && !canonical_locator.is_empty() && is_digest(&artifact_digest))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct SourceArtifactRow {
-    pub source_id: String,
-    pub source_kind: String,
-    pub immutable_revision: String,
-    pub canonical_locator: String,
-    pub artifact_digest: String,
-}
-
-#[invariant(!evidence_id.is_empty() && !source_id.is_empty() && !exact_locator.is_empty() && is_digest(&cited_content_digest) && !adjudication_note.is_empty())]
+/// One reviewed rationale for a registry row.
+///
+/// This is review context, not a hash-attested evidence graph: the locator
+/// names where a human reviewer can check the claim, and the note records what
+/// was adjudicated. Every other table's `evidence-id` is a foreign key into
+/// this one, so no row can cite a rationale that was never written down.
+#[invariant(!evidence_id.is_empty() && !exact_locator.is_empty() && !adjudication_note.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct EvidenceRow {
     pub evidence_id: String,
-    pub source_id: String,
     pub exact_locator: String,
-    pub cited_content_digest: String,
     pub adjudication_note: String,
 }
 
@@ -733,7 +656,7 @@ pub struct DispositionRow {
     pub evidence_id: String,
 }
 
-#[invariant(!name.is_empty() && type_parameters.iter().all(|parameter| is_type_parameter_name(parameter)) && type_parameters.iter().enumerate().all(|(index, parameter)| !type_parameters[..index].contains(parameter)) && !complete_signature_schema.is_empty() && !canonical_definition.is_empty() && is_digest(&definition_digest))]
+#[invariant(!name.is_empty() && type_parameters.iter().all(|parameter| is_type_parameter_name(parameter)) && type_parameters.iter().enumerate().all(|(index, parameter)| !type_parameters[..index].contains(parameter)) && !complete_signature_schema.is_empty() && !canonical_definition.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct PreludeRow {
@@ -742,71 +665,6 @@ pub struct PreludeRow {
     pub complete_signature_schema: String,
     pub canonical_definition: String,
     pub direct_dependencies: Vec<String>,
-    pub definition_digest: String,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SchemaId {
-    OpaqueBytes,
-    SourceArtifactRow,
-    EvidenceRow,
-    LexicalRow,
-    ScopePolicyRow,
-    PlaceDeletionEvidenceRow,
-    TagReductionRow,
-    RelationFormerReductionRow,
-    GeneratedRelationRow,
-    ScaleLiteralRow,
-    FallbackReasonRow,
-    DispositionRow,
-    PreludeRow,
-}
-
-impl SchemaId {
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::OpaqueBytes => "OpaqueBytes",
-            Self::SourceArtifactRow => "SourceArtifactRow",
-            Self::EvidenceRow => "EvidenceRow",
-            Self::LexicalRow => "LexicalRow",
-            Self::ScopePolicyRow => "ScopePolicyRow",
-            Self::PlaceDeletionEvidenceRow => "PlaceDeletionEvidenceRow",
-            Self::TagReductionRow => "TagReductionRow",
-            Self::RelationFormerReductionRow => "RelationFormerReductionRow",
-            Self::GeneratedRelationRow => "GeneratedRelationRow",
-            Self::ScaleLiteralRow => "ScaleLiteralRow",
-            Self::FallbackReasonRow => "FallbackReasonRow",
-            Self::DispositionRow => "DispositionRow",
-            Self::PreludeRow => "PreludeRow",
-        }
-    }
-}
-
-#[invariant(!relative_path.is_empty() && !schema_id.is_empty() && *row_count > 0 && is_digest(&digest))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-struct ArtifactRecord {
-    relative_path: String,
-    schema_id: String,
-    row_count: usize,
-    digest: String,
-}
-
-#[invariant(*format_version == 0 && *bundle_schema_version == 1 && is_digest(&spec_digest) && is_digest(&generator_id) && !generator_inputs.is_empty() && !source_artifacts.is_empty() && !generated_artifacts.is_empty() && is_digest(&bundle_digest))]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-struct Manifest {
-    format_version: u32,
-    bundle_schema_version: u32,
-    spec_digest: String,
-    generator_id: String,
-    generator_inputs: Vec<String>,
-    source_artifacts: Vec<ArtifactRecord>,
-    generated_artifacts: Vec<ArtifactRecord>,
-    bundle_digest: String,
 }
 
 #[invariant(true)]
@@ -821,7 +679,6 @@ struct DictionaryIdentity {
 #[derive(Debug, Clone)]
 pub struct BundleSnapshot {
     pub artifacts: BTreeMap<String, Vec<u8>>,
-    pub manifest: Vec<u8>,
     pub policy_rust: Vec<u8>,
 }
 
@@ -840,7 +697,6 @@ fn default_evidence_source() -> String {
 #[invariant(true)]
 #[derive(Debug)]
 struct Tables {
-    source_artifacts: Vec<SourceArtifactRow>,
     evidence: Vec<EvidenceRow>,
     lexical: Vec<LexicalRow>,
     scope_policies: Vec<ScopePolicyRow>,
@@ -863,11 +719,8 @@ pub fn run(
     dispositions: &[DispositionSeed],
     mode: BundleMode,
 ) -> Result<(), BundleError> {
-    validate_generator_input_layout()?;
-    validate_local_dependency_closure(&paths.repository_root, &repository_rerun_paths())?;
-    synchronize_generator_inputs(paths, mode)?;
-    let minted = mint_snapshot(&paths.root, dispositions)?;
-    verify_snapshot(&paths.root, &minted)?;
+    let minted = mint_snapshot(paths, dispositions)?;
+    verify_snapshot(paths, &minted)?;
     match mode {
         BundleMode::Generate => write_minted(&paths.root, &minted)?,
         BundleMode::Check => check_minted(&paths.root, &minted)?,
@@ -907,37 +760,25 @@ pub fn scratch_dir(purpose: &str) -> PathBuf {
 /// Every bundled input or generated artifact whose change must rerun the build
 /// verifier.
 #[requires(true)]
-#[ensures(ret.contains(&MANIFEST_PATH.to_owned()) && ret.contains(&SOURCE_PATH.to_owned()))]
+#[ensures(ret.contains(&SOURCE_PATH.to_owned()))]
 pub fn bundle_rerun_paths() -> Vec<String> {
-    let mut paths = generator_input_paths();
-    paths.push(MANIFEST_PATH.to_owned());
-    paths.extend(GENERATED_TABLES.iter().map(|(path, _)| (*path).to_owned()));
+    let mut paths = BUNDLE_GENERATOR_INPUTS
+        .iter()
+        .map(|path| (*path).to_owned())
+        .collect::<Vec<_>>();
+    paths.extend(GENERATED_TABLES.iter().map(|path| (*path).to_owned()));
     paths.sort_by(|left, right| scalar_cmp(left, right));
     paths.dedup();
     paths
 }
 
-/// Every repository source mirrored into the candidate bundle.
+/// Every repository input the generator reads from outside the bundle root.
 #[requires(true)]
-#[ensures(ret.len() == MIRRORED_GENERATOR_INPUTS.len())]
+#[ensures(ret.len() == REPOSITORY_GENERATOR_INPUTS.len())]
 pub fn repository_rerun_paths() -> Vec<String> {
-    MIRRORED_GENERATOR_INPUTS
+    REPOSITORY_GENERATOR_INPUTS
         .iter()
         .map(|source| (*source).to_owned())
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(ret.len() == MIRRORED_GENERATOR_INPUTS.len() + BUNDLE_NATIVE_GENERATOR_INPUTS.len())]
-fn generator_input_paths() -> Vec<String> {
-    MIRRORED_GENERATOR_INPUTS
-        .iter()
-        .map(|repository| bundled_generator_input_path(repository))
-        .chain(
-            BUNDLE_NATIVE_GENERATOR_INPUTS
-                .iter()
-                .map(|path| (*path).to_owned()),
-        )
         .collect()
 }
 
@@ -946,11 +787,11 @@ fn generator_input_paths() -> Vec<String> {
 #[requires(!dispositions.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|bundle| bundle.artifacts.len() == GENERATED_TABLES.len()) || ret.is_err())]
 pub fn mint_snapshot(
-    root: &Path,
+    paths: &BundlePaths,
     dispositions: &[DispositionSeed],
 ) -> Result<BundleSnapshot, BundleError> {
-    let source_bytes = read_relative(root, SOURCE_PATH)?;
-    mint_snapshot_from_registry_source(root, dispositions, &source_bytes)
+    let source_bytes = read_relative(&paths.root, SOURCE_PATH)?;
+    mint_snapshot_from_registry_source(paths, dispositions, &source_bytes)
 }
 
 /// Validate replacement registry-source bytes against all pinned external
@@ -959,20 +800,21 @@ pub fn mint_snapshot(
 #[requires(!dispositions.is_empty())]
 #[ensures(ret.is_ok() || ret.is_err())]
 pub fn validate_registry_source(
-    root: &Path,
+    paths: &BundlePaths,
     dispositions: &[DispositionSeed],
     source_bytes: &[u8],
 ) -> Result<(), BundleError> {
-    mint_snapshot_from_registry_source(root, dispositions, source_bytes).map(|_| ())
+    mint_snapshot_from_registry_source(paths, dispositions, source_bytes).map(|_| ())
 }
 
 #[requires(!dispositions.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|bundle| bundle.artifacts.len() == GENERATED_TABLES.len()) || ret.is_err())]
 fn mint_snapshot_from_registry_source(
-    root: &Path,
+    paths: &BundlePaths,
     dispositions: &[DispositionSeed],
     source_bytes: &[u8],
 ) -> Result<BundleSnapshot, BundleError> {
+    let root = paths.root.as_path();
     validate_disposition_coordinate_authority(dispositions)?;
     require_nfc_utf8(SOURCE_PATH, &source_bytes)?;
     let source_text = std::str::from_utf8(source_bytes)
@@ -993,48 +835,20 @@ fn mint_snapshot_from_registry_source(
 
     let spec = read_relative(root, SPEC_PATH)?;
     require_nfc_utf8(SPEC_PATH, &spec)?;
-    if sha256_hex(&spec) != SPEC_SHA256 {
-        return Err(BundleError::new(
-            BundleErrorKind::Digest,
-            "docs/smusni/spec.md differs from the frozen v0 digest",
-        ));
-    }
     let witnesses = read_relative(root, WITNESS_PATH)?;
     audit_witnesses(&witnesses)?;
     let oblique = read_relative(root, OBLIQUE_PATH)?;
     let oblique_roots = audit_oblique(&oblique)?;
     let oblique_metadata = read_relative(root, OBLIQUE_METADATA_PATH)?;
     audit_oblique_metadata(&oblique_metadata)?;
-    let dictionary = read_relative(root, DICTIONARY_PATH)?;
+    let dictionary = read_relative(&paths.repository_root, DICTIONARY_PATH)?;
     let dictionary_identities = audit_dictionary(&dictionary)?;
-    let dictionary_metadata = read_relative(root, DICTIONARY_METADATA_PATH)?;
+    let dictionary_metadata = read_relative(&paths.repository_root, DICTIONARY_METADATA_PATH)?;
     audit_dictionary_metadata(&dictionary_metadata)?;
 
-    let source_artifacts = build_source_artifact_rows(root, &dictionary, source_bytes)?;
-    let source_digest = source_artifacts
-        .iter()
-        .find(|row| row.source_id == "smusni-v0-registry-source")
-        .expect("source artifact builder supplies the registry source")
-        .artifact_digest
-        .clone();
-    let provenance_digest = source_artifacts
-        .iter()
-        .find(|row| row.source_id == "smusni-v0-registry-provenance")
-        .expect("source artifact builder supplies the provenance sidecar")
-        .artifact_digest
-        .clone();
-    let (lexical, mut evidence) = build_lexical_rows(
-        &source.lexical,
-        &oblique_roots,
-        &dictionary_identities,
-        &source_digest,
-    )?;
-    let scope_policies = build_scope_policy_rows(
-        &source.scope_policy,
-        &lexical,
-        &provenance_digest,
-        &mut evidence,
-    )?;
+    let (lexical, mut evidence) =
+        build_lexical_rows(&source.lexical, &oblique_roots, &dictionary_identities)?;
+    let scope_policies = build_scope_policy_rows(&source.scope_policy, &lexical, &mut evidence)?;
     let place_deletions =
         build_place_deletion_rows(&source.place_deletion, &lexical, &mut evidence)?;
     let prelude = build_prelude_rows(&source.prelude, &spec, &place_deletions, &lexical)?;
@@ -1047,7 +861,7 @@ fn mint_snapshot_from_registry_source(
     let scale_literals = build_scale_literal_rows(&source.scale_literal, &mut evidence)?;
     let (disposition_rows, fallback_reasons) = build_disposition_rows(dispositions)?;
     validate_minted_disposition_coordinates(dispositions, &disposition_rows)?;
-    add_common_evidence(&mut evidence, &source_artifacts)?;
+    add_common_evidence(&mut evidence)?;
     evidence.sort_by(|left, right| scalar_cmp(&left.evidence_id, &right.evidence_id));
     reject_duplicate(
         evidence.iter().map(|row| row.evidence_id.as_str()),
@@ -1055,7 +869,6 @@ fn mint_snapshot_from_registry_source(
     )?;
 
     let tables = Tables {
-        source_artifacts,
         evidence,
         lexical,
         scope_policies,
@@ -1071,14 +884,9 @@ fn mint_snapshot_from_registry_source(
     validate_tables(&tables, &spec)?;
     validate_source_summary_claims(&source, &tables)?;
     let artifacts = serialize_tables(&tables)?;
-    let source_manifest = build_source_manifest(root)?;
-    let generated_manifest = build_generated_manifest(&artifacts)?;
-    let manifest = build_manifest(source_manifest, generated_manifest)?;
-    let manifest_bytes = jcs_line(&manifest)?;
     let policy_rust = generate_policy_rust(&tables)?;
     Ok(BundleSnapshot {
         artifacts,
-        manifest: manifest_bytes,
         policy_rust,
     })
 }
@@ -1089,7 +897,6 @@ fn write_minted(root: &Path, minted: &BundleSnapshot) -> Result<(), BundleError>
     for (relative, bytes) in &minted.artifacts {
         write_relative(root, relative, bytes)?;
     }
-    write_relative(root, MANIFEST_PATH, &minted.manifest)?;
     Ok(())
 }
 
@@ -1105,13 +912,6 @@ fn check_minted(root: &Path, minted: &BundleSnapshot) -> Result<(), BundleError>
             ));
         }
     }
-    let actual_manifest = read_relative(root, MANIFEST_PATH)?;
-    if actual_manifest != minted.manifest {
-        return Err(BundleError::new(
-            BundleErrorKind::Drift,
-            "registry/manifest.json is stale",
-        ));
-    }
     Ok(())
 }
 
@@ -1119,7 +919,8 @@ fn check_minted(root: &Path, minted: &BundleSnapshot) -> Result<(), BundleError>
 /// test boundary: it does not trust generator construction or serde output.
 #[requires(snapshot.artifacts.len() == GENERATED_TABLES.len())]
 #[ensures(ret.is_ok() || ret.is_err())]
-pub fn verify_snapshot(root: &Path, snapshot: &BundleSnapshot) -> Result<(), BundleError> {
+pub fn verify_snapshot(paths: &BundlePaths, snapshot: &BundleSnapshot) -> Result<(), BundleError> {
+    let root = paths.root.as_path();
     let spec = read_relative(root, SPEC_PATH)?;
     let source_bytes = read_relative(root, SOURCE_PATH)?;
     require_nfc_utf8(SOURCE_PATH, &source_bytes)?;
@@ -1133,19 +934,15 @@ pub fn verify_snapshot(root: &Path, snapshot: &BundleSnapshot) -> Result<(), Bun
     })?;
     let expected_paths = GENERATED_TABLES
         .iter()
-        .map(|(path, _)| (*path).to_owned())
+        .map(|path| (*path).to_owned())
         .collect::<BTreeSet<_>>();
     if snapshot.artifacts.keys().cloned().collect::<BTreeSet<_>>() != expected_paths {
         return Err(BundleError::new(
-            BundleErrorKind::Manifest,
+            BundleErrorKind::Drift,
             "generated artifact set differs from the closed v0 tables",
         ));
     }
     let tables = Tables {
-        source_artifacts: parse_jsonl_artifact(
-            &snapshot.artifacts["registry/source-artifacts.jsonl"],
-            "registry/source-artifacts.jsonl",
-        )?,
         evidence: parse_jsonl_artifact(
             &snapshot.artifacts["registry/evidence.jsonl"],
             "registry/evidence.jsonl",
@@ -1211,25 +1008,6 @@ pub fn verify_snapshot(root: &Path, snapshot: &BundleSnapshot) -> Result<(), Bun
             "compiled policy artifact differs from the candidate table",
         ));
     }
-    let source_manifest = build_source_manifest(root)?;
-    let generated_manifest = build_generated_manifest(&snapshot.artifacts)?;
-    let expected_manifest = build_manifest(source_manifest, generated_manifest)?;
-    if jcs_line(&expected_manifest)? != snapshot.manifest {
-        return Err(BundleError::new(
-            BundleErrorKind::Manifest,
-            "manifest does not rederive from exact source and generated bytes",
-        ));
-    }
-    let parsed_manifest: Manifest =
-        serde_json::from_slice(&snapshot.manifest).map_err(|error| {
-            BundleError::new(BundleErrorKind::Parse, format!("parse manifest: {error}"))
-        })?;
-    if jcs_line(&parsed_manifest)? != snapshot.manifest {
-        return Err(BundleError::new(
-            BundleErrorKind::ByteDomain,
-            "manifest is not one NFC JCS object followed by LF",
-        ));
-    }
     Ok(())
 }
 
@@ -1277,720 +1055,6 @@ fn parse_jsonl_artifact<T: DeserializeOwned + Serialize>(
         ));
     }
     Ok(rows)
-}
-
-#[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn synchronize_generator_inputs(paths: &BundlePaths, mode: BundleMode) -> Result<(), BundleError> {
-    for repository in MIRRORED_GENERATOR_INPUTS {
-        let bundled = bundled_generator_input_path(repository);
-        let source = read_relative(&paths.repository_root, repository)?;
-        match mode {
-            BundleMode::Generate => write_relative(&paths.root, &bundled, &source)?,
-            BundleMode::Check => {
-                // Read the mirror either way, so a missing retained input still
-                // fails here rather than later.
-                let checked_in = read_relative(&paths.root, &bundled)?;
-                if checked_in != source {
-                    validate_packaging_rewrite(
-                        &paths.repository_root,
-                        repository,
-                        &checked_in,
-                        &source,
-                    )?;
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Prove that a candidate repository-input list contains the complete local
-/// path-dependency compilation closure. Mutation tests use this typed boundary
-/// to remove one influence without changing generator constants.
-#[requires(!repository_inputs.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-pub fn validate_local_dependency_closure(
-    repository_root: &Path,
-    repository_inputs: &[String],
-) -> Result<(), BundleError> {
-    let expected = discover_local_dependency_closure(repository_root)?;
-    let actual = repository_inputs
-        .iter()
-        .filter(|path| is_local_dependency_path(path))
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    if actual != expected {
-        let missing = expected.difference(&actual).cloned().collect::<Vec<_>>();
-        let extra = actual.difference(&expected).cloned().collect::<Vec<_>>();
-        return Err(BundleError::new(
-            BundleErrorKind::Manifest,
-            format!(
-                "local path-dependency generator closure differs; missing {missing:?}, extra {extra:?}"
-            ),
-        ));
-    }
-    Ok(())
-}
-
-/// Prove that no retained input is filed where `cargo package` would prune it.
-///
-/// Cargo skips any subdirectory containing a `Cargo.toml`, so one mirrored
-/// manifest under the retained tree removes the whole closure from every source
-/// distribution. The mirror suffix already makes that impossible by
-/// construction; this restates the law over the complete inventory so a future
-/// bundle-native input cannot reintroduce it.
-#[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn validate_generator_input_layout() -> Result<(), BundleError> {
-    for relative in generator_input_paths() {
-        if Path::new(&relative)
-            .file_name()
-            .is_some_and(|name| name == "Cargo.toml")
-        {
-            return Err(BundleError::new(
-                BundleErrorKind::Manifest,
-                format!(
-                    "retained generator input {relative} is named Cargo.toml, which makes \
-                     cargo prune its directory out of every source distribution"
-                ),
-            ));
-        }
-    }
-    Ok(())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|paths| !paths.is_empty()) || ret.is_err())]
-fn discover_local_dependency_closure(
-    repository_root: &Path,
-) -> Result<BTreeSet<String>, BundleError> {
-    const CRATE_ROOTS: &[&str] = &[
-        "crates/bityzba",
-        "crates/bityzba-contract-syntax",
-        "crates/bityzba-macros",
-    ];
-    let mut paths = BTreeSet::new();
-    for crate_root in CRATE_ROOTS {
-        let manifest = format!("{crate_root}/Cargo.toml");
-        if !repository_root.join(&manifest).is_file() {
-            return Err(BundleError::new(
-                BundleErrorKind::Manifest,
-                format!("local path dependency has no manifest: {manifest}"),
-            ));
-        }
-        paths.insert(manifest);
-        let build_script = format!("{crate_root}/build.rs");
-        if repository_root.join(&build_script).is_file() {
-            paths.insert(build_script);
-        }
-        collect_dependency_source_files(repository_root, &format!("{crate_root}/src"), &mut paths)?;
-    }
-    Ok(paths)
-}
-
-#[requires(!relative_directory.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn collect_dependency_source_files(
-    repository_root: &Path,
-    relative_directory: &str,
-    paths: &mut BTreeSet<String>,
-) -> Result<(), BundleError> {
-    let directory = repository_root.join(validate_relative_path(relative_directory)?);
-    let mut entries = fs::read_dir(&directory)
-        .map_err(|error| {
-            BundleError::new(
-                BundleErrorKind::Io,
-                format!(
-                    "read local dependency directory {}: {error}",
-                    directory.display()
-                ),
-            )
-        })?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| {
-            BundleError::new(
-                BundleErrorKind::Io,
-                format!("read local dependency entry: {error}"),
-            )
-        })?;
-    entries.sort_by_key(|entry| entry.file_name());
-    for entry in entries {
-        let file_type = entry.file_type().map_err(|error| {
-            BundleError::new(
-                BundleErrorKind::Io,
-                format!("inspect local dependency entry: {error}"),
-            )
-        })?;
-        let name = entry.file_name().into_string().map_err(|_| {
-            BundleError::new(
-                BundleErrorKind::ByteDomain,
-                "local dependency source path must be UTF-8",
-            )
-        })?;
-        let relative = format!("{relative_directory}/{name}");
-        if file_type.is_symlink() {
-            return Err(BundleError::new(
-                BundleErrorKind::Manifest,
-                format!("local dependency source closure forbids symlink {relative}"),
-            ));
-        }
-        if file_type.is_dir() {
-            collect_dependency_source_files(repository_root, &relative, paths)?;
-        } else if file_type.is_file() {
-            paths.insert(relative);
-        } else {
-            return Err(BundleError::new(
-                BundleErrorKind::Manifest,
-                format!("local dependency source closure has unsupported entry {relative}"),
-            ));
-        }
-    }
-    Ok(())
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_local_dependency_path(path: &str) -> bool {
-    [
-        "crates/bityzba/",
-        "crates/bityzba-contract-syntax/",
-        "crates/bityzba-macros/",
-    ]
-    .iter()
-    .any(|prefix| path.starts_with(prefix))
-}
-
-/// Where a mirrored repository source is retained inside the bundle.
-///
-/// The `.opaque` suffix is load-bearing, not cosmetic. `cargo package` treats
-/// any subdirectory that contains a `Cargo.toml` as a nested package and prunes
-/// that whole subtree, so a mirror filed under its natural manifest name
-/// silently removes the entire retained closure from every source distribution
-/// while leaving the working tree green. Suffixing every mirror keeps the
-/// retained tree inert to all build tooling by construction.
-#[requires(!repository_path.is_empty())]
-#[ensures(ret.starts_with(INPUT_PREFIX) && ret.ends_with(".opaque"))]
-pub fn bundled_generator_input_path(repository_path: &str) -> String {
-    format!("{INPUT_PREFIX}/{repository_path}.opaque")
-}
-
-/// Top-level workspace-root manifest sections that packaging removes.
-///
-/// They describe the root package and the full workspace build, neither of
-/// which exists inside a source distribution: `cargo package` drops the root
-/// package's own sections, and the artifact tool removes `[patch]` because its
-/// path targets are not packaged.
-const PACKAGED_ROOT_MANIFEST_REMOVED_SECTIONS: &[&str] = &[
-    "build-dependencies",
-    "dependencies",
-    "dev-dependencies",
-    "features",
-    "lints",
-    "package",
-    "patch",
-];
-
-/// Prove that a live file which is not byte-equal to its retained mirror is
-/// exactly the audited packaging rewrite of it.
-///
-/// Byte equality is the rule for every retained generator input. A source
-/// distribution is a *pruned workspace*, so exactly two files cannot satisfy it:
-/// the workspace-root manifest, which packaging rewrites structurally, and the
-/// lockfile, which has to describe the packaged workspace because consumers
-/// build it with `cargo --locked` and that refuses to update one. Measured
-/// against a maturin 1.14.1 archive, this workspace's 913-package lockfile makes
-/// `cargo fetch --locked` fail outright on the extracted tree, and the
-/// 99-package lockfile written for the packaged workspace is what succeeds.
-///
-/// Neither case is waived. Each is decided semantically against the retained
-/// mirror, so a distribution still cannot ship a manifest or a lockfile that
-/// says anything this repository did not. Every other input, including each
-/// packaged crate manifest that `cargo package` normalizes, is restored to its
-/// retained bytes by the artifact tool and compared exactly.
-#[requires(!repository_path.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn validate_packaging_rewrite(
-    distribution_root: &Path,
-    repository_path: &str,
-    retained: &[u8],
-    live: &[u8],
-) -> Result<(), BundleError> {
-    match repository_path {
-        "Cargo.lock" => validate_packaged_lockfile(retained, live),
-        "Cargo.toml" => validate_packaged_root_manifest(distribution_root, retained, live),
-        _ => Err(BundleError::new(
-            BundleErrorKind::Drift,
-            format!(
-                "bundled generator input is stale: {}",
-                bundled_generator_input_path(repository_path)
-            ),
-        )),
-    }
-}
-
-/// Prove that the packaged workspace-root manifest is the retained manifest
-/// after exactly the audited structural packaging transform.
-///
-/// The expected manifest is *derived* from the retained one rather than
-/// compared loosely against the live one: the removed sections are a closed
-/// list, `default-members` goes with the root package, and both the member list
-/// and the workspace path dependencies are filtered by what the distribution
-/// actually contains, keeping the retained order. Any remaining delta — a
-/// changed dependency requirement, an added member, an edited
-/// `[workspace.package]` field — is rejected.
-#[requires(!retained.is_empty() && !live.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-pub fn validate_packaged_root_manifest(
-    distribution_root: &Path,
-    retained: &[u8],
-    live: &[u8],
-) -> Result<(), BundleError> {
-    let mut expected = parse_manifest("retained root manifest", retained)?;
-    let actual = parse_manifest("packaged root manifest", live)?;
-    for section in PACKAGED_ROOT_MANIFEST_REMOVED_SECTIONS {
-        expected.remove(*section);
-    }
-    let workspace = expected
-        .get_mut("workspace")
-        .and_then(toml::Value::as_table_mut)
-        .ok_or_else(|| {
-            BundleError::new(
-                BundleErrorKind::Manifest,
-                "retained root manifest has no [workspace] table",
-            )
-        })?;
-    workspace.remove("default-members");
-    if let Some(members) = workspace.get_mut("members") {
-        let packaged = members
-            .as_array()
-            .ok_or_else(|| {
-                BundleError::new(
-                    BundleErrorKind::Manifest,
-                    "retained [workspace] members is not an array",
-                )
-            })?
-            .iter()
-            .filter(|member| match member.as_str() {
-                // The root package is removed above, so it can no longer be a
-                // member of the packaged workspace.
-                Some(".") => false,
-                // A non-string member is kept so the comparison below reports it
-                // rather than this filter silently dropping it.
-                Some(path) => is_packaged_crate(distribution_root, path),
-                None => true,
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        *members = toml::Value::Array(packaged);
-    }
-    if let Some(dependencies) = workspace
-        .get_mut("dependencies")
-        .and_then(toml::Value::as_table_mut)
-    {
-        *dependencies = std::mem::take(dependencies)
-            .into_iter()
-            .filter(
-                |(_, dependency)| match dependency.get("path").and_then(toml::Value::as_str) {
-                    Some(path) => is_packaged_crate(distribution_root, path),
-                    None => true,
-                },
-            )
-            .collect();
-    }
-    match first_manifest_difference(
-        "",
-        &toml::Value::Table(expected),
-        &toml::Value::Table(actual),
-    ) {
-        None => Ok(()),
-        Some(difference) => Err(BundleError::new(
-            BundleErrorKind::Manifest,
-            format!(
-                "packaged root manifest is not the audited packaging rewrite of its \
-                 retained mirror: {difference}"
-            ),
-        )),
-    }
-}
-
-#[requires(!relative.is_empty())]
-#[ensures(true)]
-fn is_packaged_crate(distribution_root: &Path, relative: &str) -> bool {
-    distribution_root
-        .join(relative)
-        .join("Cargo.toml")
-        .is_file()
-}
-
-/// The first place two manifests disagree, named by its dotted key path.
-#[requires(true)]
-#[ensures(true)]
-fn first_manifest_difference(
-    path: &str,
-    expected: &toml::Value,
-    actual: &toml::Value,
-) -> Option<String> {
-    match (expected, actual) {
-        (toml::Value::Table(expected), toml::Value::Table(actual)) => {
-            for key in expected
-                .keys()
-                .chain(actual.keys())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-            {
-                let child = if path.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{path}.{key}")
-                };
-                match (expected.get(key), actual.get(key)) {
-                    (Some(expected), Some(actual)) => {
-                        if let Some(difference) =
-                            first_manifest_difference(&child, expected, actual)
-                        {
-                            return Some(difference);
-                        }
-                    }
-                    (Some(_), None) => {
-                        return Some(format!("{child} is missing from the packaged manifest"));
-                    }
-                    (None, Some(_)) => {
-                        return Some(format!("{child} is only in the packaged manifest"));
-                    }
-                    (None, None) => {}
-                }
-            }
-            None
-        }
-        _ if expected == actual => None,
-        _ => Some(format!(
-            "{path} is {actual:?} in the packaged manifest, expected {expected:?}"
-        )),
-    }
-}
-
-/// One `[[package]]` entry exactly as the file spells it.
-///
-/// `deny_unknown_fields` is deliberate: a lockfile key this validator does not
-/// understand must be audited before a distribution can carry it. Every
-/// combination this decodes is valid raw syntax, so the meaning is imposed by
-/// [`parse_lockfile`], which reports each defect with its own error kind rather
-/// than failing the decode.
-#[invariant(true)]
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RawLockedPackage {
-    name: String,
-    version: String,
-    #[serde(default)]
-    source: Option<String>,
-    #[serde(default)]
-    checksum: Option<String>,
-    #[serde(default)]
-    dependencies: Vec<String>,
-}
-
-/// A `Cargo.lock` exactly as the file spells it.
-#[invariant(true)]
-#[derive(Debug, Clone, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RawLockfile {
-    version: u32,
-    #[serde(default)]
-    package: Vec<RawLockedPackage>,
-}
-
-/// One locked package, after [`parse_lockfile`] has given it a meaning.
-///
-/// The identity fields are populated, and a checksum attests bytes fetched from
-/// somewhere, so it cannot stand without the source it attests.
-#[invariant(!name.is_empty(), "a locked package is named")]
-#[invariant(!version.is_empty(), "a locked package has a version")]
-#[invariant(
-    checksum.is_none() || source.is_some(),
-    "cargo records a checksum only for a package fetched from a source"
-)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct LockedPackage {
-    name: String,
-    version: String,
-    source: Option<String>,
-    checksum: Option<String>,
-    dependencies: Vec<String>,
-}
-
-/// A lockfile whose packages are named, populated, and distinct.
-///
-/// Only formats that record their own version reach this type: cargo omitted the
-/// key entirely before version 3, so a lockfile here has always named the format
-/// its entries follow. Distinctness is the expensive half of the same idea —
-/// a repeated identity would decide silently which entry a dependency resolved
-/// against — and [`parse_lockfile`] reports it as a typed duplicate-key error
-/// before construction, so this states the guarantee rather than discovering it.
-#[invariant(
-    *version >= 3,
-    "a lockfile records the format its entries follow"
-)]
-#[invariant(!package.is_empty(), "a lockfile locks at least one package")]
-#[expensive_invariant(
-    package
-        .iter()
-        .map(LockedPackage::identity)
-        .collect::<BTreeSet<_>>()
-        .len()
-        == package.len(),
-    "a lockfile locks each package identity exactly once"
-)]
-#[derive(Debug, Clone)]
-struct Lockfile {
-    version: u32,
-    package: Vec<LockedPackage>,
-}
-
-impl LockedPackage {
-    /// The fully qualified identity cargo writes into a dependency string.
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    fn identity(&self) -> String {
-        match &self.source {
-            Some(source) => format!("{} {} ({source})", self.name, self.version),
-            None => format!("{} {}", self.name, self.version),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(ret == (self.identity() == other.identity()))]
-    fn is_same_package(&self, other: &Self) -> bool {
-        self.name == other.name && self.version == other.version && self.source == other.source
-    }
-}
-
-/// Prove that the packaged lockfile is a projection of the retained one.
-///
-/// Every package the distribution locks must be locked identically here — same
-/// name, version, source, and checksum — and every dependency edge it resolves
-/// must be an edge this repository also resolved. Completeness is not this
-/// check's job and is not claimed: a consumer builds the archive with
-/// `cargo --locked`, which fails unless the packaged lockfile covers the whole
-/// packaged workspace. Together those two properties say the distribution
-/// builds against exactly the dependency versions this repository resolved, and
-/// nothing else.
-#[requires(!retained.is_empty() && !live.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-pub fn validate_packaged_lockfile(retained: &[u8], live: &[u8]) -> Result<(), BundleError> {
-    let retained = parse_lockfile("retained lockfile", retained)?;
-    let live = parse_lockfile("packaged lockfile", live)?;
-    if retained.version != live.version {
-        return Err(BundleError::new(
-            BundleErrorKind::Manifest,
-            format!(
-                "packaged lockfile format version {} is not the retained {}",
-                live.version, retained.version
-            ),
-        ));
-    }
-    for package in &live.package {
-        let counterpart = retained
-            .package
-            .iter()
-            .find(|candidate| candidate.is_same_package(package))
-            .ok_or_else(|| {
-                BundleError::new(
-                    BundleErrorKind::ForeignKey,
-                    format!(
-                        "packaged lockfile locks {}, which the retained lockfile does not",
-                        package.identity()
-                    ),
-                )
-            })?;
-        if counterpart.checksum != package.checksum {
-            return Err(BundleError::new(
-                BundleErrorKind::Digest,
-                format!(
-                    "packaged lockfile gives {} checksum {:?}, the retained lockfile gives {:?}",
-                    package.identity(),
-                    package.checksum,
-                    counterpart.checksum
-                ),
-            ));
-        }
-        let retained_edges = counterpart
-            .dependencies
-            .iter()
-            .map(|specification| {
-                resolve_locked_dependency("retained lockfile", &retained.package, specification)
-                    .map(LockedPackage::identity)
-            })
-            .collect::<Result<BTreeSet<_>, _>>()?;
-        for specification in &package.dependencies {
-            let resolved =
-                resolve_locked_dependency("packaged lockfile", &live.package, specification)?
-                    .identity();
-            if !retained_edges.contains(&resolved) {
-                return Err(BundleError::new(
-                    BundleErrorKind::ForeignKey,
-                    format!(
-                        "packaged lockfile edge {} -> {resolved} is not an edge of the \
-                         retained lockfile",
-                        package.identity()
-                    ),
-                ));
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Resolve one `dependencies` entry against the lockfile that wrote it.
-///
-/// Cargo writes `name`, `name version`, or `name version (source)`, qualifying
-/// an entry with exactly as much as it needs to be unambiguous. The grammar is
-/// parsed strictly rather than by loose splitting: an unparenthesized or
-/// unbalanced source, a parenthesized version, or any trailing field is a
-/// malformed entry, not a field to ignore. An entry that then matches no
-/// package, or more than one, is itself a defect.
-#[requires(!label.is_empty() && !packages.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn resolve_locked_dependency<'a>(
-    label: &str,
-    packages: &'a [LockedPackage],
-    specification: &str,
-) -> Result<&'a LockedPackage, BundleError> {
-    let malformed = |reason: &str| {
-        BundleError::new(
-            BundleErrorKind::ByteDomain,
-            format!("{label} dependency {specification:?} is malformed: {reason}"),
-        )
-    };
-    let fields = specification.split_whitespace().collect::<Vec<_>>();
-    let [name, qualifiers @ ..] = fields.as_slice() else {
-        return Err(malformed("it names no package"));
-    };
-    let (version, source) = match qualifiers {
-        [] => (None, None),
-        [version] => (Some(*version), None),
-        [version, source] => (Some(*version), Some(*source)),
-        _ => return Err(malformed("it has more fields than `name version (source)`")),
-    };
-    if version.is_some_and(|version| version.starts_with('(')) {
-        return Err(malformed("its version is parenthesized"));
-    }
-    let source = match source {
-        None => None,
-        Some(source) => {
-            let inner = source
-                .strip_prefix('(')
-                .and_then(|source| source.strip_suffix(')'))
-                .ok_or_else(|| malformed("its source is not wrapped in one pair of parentheses"))?;
-            if inner.is_empty() || inner.contains(['(', ')']) {
-                return Err(malformed("its source is empty or nests parentheses"));
-            }
-            Some(inner)
-        }
-    };
-    let mut resolved = packages.iter().filter(|package| {
-        package.name == *name
-            && version.is_none_or(|version| package.version == version)
-            && source.is_none_or(|source| package.source.as_deref() == Some(source))
-    });
-    let first = resolved.next().ok_or_else(|| {
-        BundleError::new(
-            BundleErrorKind::ForeignKey,
-            format!("{label} dependency {specification:?} resolves to no locked package"),
-        )
-    })?;
-    if resolved.next().is_some() {
-        return Err(BundleError::new(
-            BundleErrorKind::ForeignKey,
-            format!("{label} dependency {specification:?} resolves to several locked packages"),
-        ));
-    }
-    Ok(first)
-}
-
-/// Decode a lockfile and give it a meaning, or say exactly what is wrong.
-///
-/// Each defect gets its own error kind, which is why the raw decode and the
-/// validated value are separate types: serde only knows the syntax, and a
-/// located [`BundleError`] is a better diagnostic than a failed decode.
-#[requires(!label.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn parse_lockfile(label: &str, bytes: &[u8]) -> Result<Lockfile, BundleError> {
-    let raw: RawLockfile = toml::from_str(&decode_utf8(label, bytes)?).map_err(|error| {
-        BundleError::new(BundleErrorKind::Parse, format!("parse {label}: {error}"))
-    })?;
-    if raw.package.is_empty() {
-        return Err(BundleError::new(
-            BundleErrorKind::ByteDomain,
-            format!("{label} locks no packages"),
-        ));
-    }
-    let mut packages = Vec::with_capacity(raw.package.len());
-    for package in raw.package {
-        if package.name.is_empty() || package.version.is_empty() {
-            return Err(BundleError::new(
-                BundleErrorKind::ByteDomain,
-                format!("{label} locks {package:?} without a name or a version"),
-            ));
-        }
-        packages.push(
-            try_new!(LockedPackage {
-                name: package.name,
-                version: package.version,
-                source: package.source,
-                checksum: package.checksum,
-                dependencies: package.dependencies,
-            })
-            .map_err(|error| {
-                BundleError::new(
-                    BundleErrorKind::ByteDomain,
-                    format!("{label} locks an unusable package: {error}"),
-                )
-            })?,
-        );
-    }
-    // A repeated identity would make dependency resolution ambiguous and would
-    // let one of the two entries carry a checksum nothing ever compares.
-    let mut identities = BTreeSet::new();
-    if let Some(package) = packages
-        .iter()
-        .find(|package| !identities.insert(package.identity()))
-    {
-        return Err(BundleError::new(
-            BundleErrorKind::DuplicatePrimaryKey,
-            format!("{label} locks {} more than once", package.identity()),
-        ));
-    }
-    try_new!(Lockfile {
-        version: raw.version,
-        package: packages,
-    })
-    .map_err(|error| {
-        BundleError::new(
-            BundleErrorKind::ByteDomain,
-            format!("{label} is not a usable lockfile: {error}"),
-        )
-    })
-}
-
-#[requires(!label.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn parse_manifest(label: &str, bytes: &[u8]) -> Result<toml::Table, BundleError> {
-    toml::from_str(&decode_utf8(label, bytes)?).map_err(|error| {
-        BundleError::new(BundleErrorKind::Parse, format!("parse {label}: {error}"))
-    })
-}
-
-#[requires(!label.is_empty())]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn decode_utf8(label: &str, bytes: &[u8]) -> Result<String, BundleError> {
-    String::from_utf8(bytes.to_vec()).map_err(|error| {
-        BundleError::new(
-            BundleErrorKind::ByteDomain,
-            format!("{label} is not UTF-8: {error}"),
-        )
-    })
 }
 
 #[requires(true)]
@@ -2128,11 +1192,6 @@ fn audit_registry_provenance(
         )
     })?;
     if provenance.format_version != 0
-        || provenance.smusni_source_revision != SMUSNI_SOURCE_REVISION
-        || provenance.spec_sha256 != SPEC_SHA256
-        || provenance.samples_sha256 != SAMPLES_SHA256
-        || provenance.approved_plan_sha256 != FINAL_PLAN_SHA256
-        || provenance.lexical_policy_dossier_sha256 != POLICY_DOSSIER_SHA256
         || provenance.approval_record.is_empty()
         || !provenance.supported_lexical_domain.is_object()
         || !provenance.future_rows.is_object()
@@ -2352,77 +1411,11 @@ fn audit_dictionary_metadata(bytes: &[u8]) -> Result<(), BundleError> {
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|rows| rows.len() == 6) || ret.is_err())]
-fn build_source_artifact_rows(
-    root: &Path,
-    dictionary: &[u8],
-    registry_source: &[u8],
-) -> Result<Vec<SourceArtifactRow>, BundleError> {
-    let inventory = read_relative(root, COMPLETENESS_INVENTORY_PATH)?;
-    let oblique = read_relative(root, OBLIQUE_PATH)?;
-    let spec = read_relative(root, SPEC_PATH)?;
-    let registry_provenance = read_relative(root, SOURCE_PROVENANCE_PATH)?;
-    let mut rows = vec![
-        new!(SourceArtifactRow {
-            source_id: "jbotci-semantic-surface".to_owned(),
-            source_kind: "versioned-rust-model-inventory".to_owned(),
-            immutable_revision: sha256_hex(&inventory),
-            canonical_locator: "jbotci:crates/jbotci-semantics/src/completeness/inventory.rs"
-                .to_owned(),
-            artifact_digest: sha256_hex(&inventory),
-        }),
-        new!(SourceArtifactRow {
-            source_id: "lensisku-en-2026-07-27".to_owned(),
-            source_kind: "versioned-semantic-dictionary".to_owned(),
-            immutable_revision: "2026-07-27T07:10:51.776063Z".to_owned(),
-            canonical_locator: "jbotci:crates/jbotci-dictionary-data/data/dictionary-en.json"
-                .to_owned(),
-            artifact_digest: sha256_hex(dictionary),
-        }),
-        new!(SourceArtifactRow {
-            source_id: "lojban-org-oblique-keywords-2005".to_owned(),
-            source_kind: "official-numbered-place-key-table".to_owned(),
-            immutable_revision: "Tue, 28 Jun 2005 04:50:44 GMT".to_owned(),
-            canonical_locator:
-                "https://www.lojban.org/static/publications/wordlists/oblique_keywords.txt"
-                    .to_owned(),
-            artifact_digest: sha256_hex(&oblique),
-        }),
-        new!(SourceArtifactRow {
-            source_id: "smusni-v0-spec".to_owned(),
-            source_kind: "versioned-design-candidate".to_owned(),
-            immutable_revision: SMUSNI_SOURCE_REVISION.to_owned(),
-            canonical_locator: "jbotci:docs/smusni/spec.md".to_owned(),
-            artifact_digest: sha256_hex(&spec),
-        }),
-        new!(SourceArtifactRow {
-            source_id: "smusni-v0-registry-provenance".to_owned(),
-            source_kind: "reviewed-v0-provenance-sidecar".to_owned(),
-            immutable_revision: sha256_hex(&registry_provenance),
-            canonical_locator: "jbotci:crates/jbotci-semantics/data/smusni-v0/sources/registry-source.provenance.toml"
-                .to_owned(),
-            artifact_digest: sha256_hex(&registry_provenance),
-        }),
-        new!(SourceArtifactRow {
-            source_id: "smusni-v0-registry-source".to_owned(),
-            source_kind: "curated-v0-registry-source".to_owned(),
-            immutable_revision: sha256_hex(&registry_source),
-            canonical_locator: "jbotci:crates/jbotci-semantics/data/smusni-v0/sources/registry-source.toml"
-                .to_owned(),
-            artifact_digest: sha256_hex(&registry_source),
-        }),
-    ];
-    rows.sort_by(|left, right| scalar_cmp(&left.source_id, &right.source_id));
-    Ok(rows)
-}
-
-#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|(rows, _)| rows.len() == sources.len()) || ret.is_err())]
 fn build_lexical_rows(
     sources: &[LexicalSource],
     oblique_roots: &BTreeMap<String, BTreeSet<u64>>,
     dictionary: &BTreeMap<String, DictionaryIdentity>,
-    registry_source_digest: &str,
 ) -> Result<(Vec<LexicalRow>, Vec<EvidenceRow>), BundleError> {
     if sources.is_empty() {
         return Err(BundleError::new(
@@ -2562,9 +1555,7 @@ fn build_lexical_rows(
         }));
         evidence.push(new!(EvidenceRow {
             evidence_id,
-            source_id: "smusni-v0-registry-source".to_owned(),
             exact_locator: locator,
-            cited_content_digest: registry_source_digest.to_owned(),
             adjudication_note: "Numbered identity/arity is source-backed; accepted types, close policies, and event licensing are explicit v0 curation and are never parsed from prose."
                 .to_owned(),
         }));
@@ -2577,7 +1568,6 @@ fn build_lexical_rows(
 fn build_scope_policy_rows(
     sources: &[ScopePolicySource],
     lexical: &[LexicalRow],
-    provenance_digest: &str,
     evidence: &mut Vec<EvidenceRow>,
 ) -> Result<Vec<ScopePolicyRow>, BundleError> {
     if sources.len() != SCOPE_POLICY_ROW_COUNT {
@@ -2619,12 +1609,10 @@ fn build_scope_policy_rows(
         );
         evidence.push(new!(EvidenceRow {
             evidence_id: evidence_id.clone(),
-            source_id: "smusni-v0-registry-provenance".to_owned(),
             exact_locator: format!(
                 "scope_policy normalized_root={} original_ordinal={}",
                 source.normalized_root, source.original_ordinal
             ),
-            cited_content_digest: provenance_digest.to_owned(),
             adjudication_note: format!(
                 "The reviewed v0 policy is {:?}; runtime value family is graph data, not policy identity.",
                 source.scope_policy
@@ -3719,7 +2707,6 @@ fn build_prelude_rows(
             name: source.name.clone(),
             type_parameters: source.type_parameters.clone(),
             complete_signature_schema,
-            definition_digest: sha256_hex(canonical_definition.as_bytes()),
             canonical_definition,
             direct_dependencies: declared,
         }));
@@ -4865,21 +3852,12 @@ fn build_disposition_rows(
     Ok((rows, reasons))
 }
 
-#[requires(source_artifacts.len() == 6)]
+#[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
-fn add_common_evidence(
-    evidence: &mut Vec<EvidenceRow>,
-    source_artifacts: &[SourceArtifactRow],
-) -> Result<(), BundleError> {
-    let model = source_artifacts
-        .iter()
-        .find(|row| row.source_id == "jbotci-semantic-surface")
-        .ok_or_else(|| BundleError::new(BundleErrorKind::ForeignKey, "model source absent"))?;
+fn add_common_evidence(evidence: &mut Vec<EvidenceRow>) -> Result<(), BundleError> {
     evidence.push(new!(EvidenceRow {
         evidence_id: "smusni.semantic-surface.inventory".to_owned(),
-        source_id: model.source_id.clone(),
         exact_locator: "render_field_inventory() complete generated-model projection".to_owned(),
-        cited_content_digest: model.artifact_digest.clone(),
         adjudication_note: "Disposition rows are generated from the existing exact inventory candidate; no second authored ledger exists."
             .to_owned(),
     }));
@@ -4891,41 +3869,6 @@ fn add_common_evidence(
 fn validate_tables(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
     validate_table_order(tables)?;
     validate_registry_contracts(tables, spec)?;
-    let source_ids = tables
-        .source_artifacts
-        .iter()
-        .map(|row| row.source_id.as_str())
-        .collect::<BTreeSet<_>>();
-    if source_ids.len() != tables.source_artifacts.len() {
-        return Err(BundleError::new(
-            BundleErrorKind::DuplicatePrimaryKey,
-            "duplicate SourceArtifactRow source-id",
-        ));
-    }
-    for row in &tables.evidence {
-        let Some(source) = tables
-            .source_artifacts
-            .iter()
-            .find(|source| source.source_id == row.source_id)
-        else {
-            return Err(BundleError::new(
-                BundleErrorKind::ForeignKey,
-                format!(
-                    "evidence {} has unknown source {}",
-                    row.evidence_id, row.source_id
-                ),
-            ));
-        };
-        if row.cited_content_digest != source.artifact_digest {
-            return Err(BundleError::new(
-                BundleErrorKind::Evidence,
-                format!(
-                    "evidence {} digest differs from source {}",
-                    row.evidence_id, row.source_id
-                ),
-            ));
-        }
-    }
     let evidence_ids = tables
         .evidence
         .iter()
@@ -4942,15 +3885,6 @@ fn validate_tables(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
         }
     };
     for row in &tables.lexical {
-        if !source_ids.contains(row.dictionary_source_id.as_str()) {
-            return Err(BundleError::new(
-                BundleErrorKind::ForeignKey,
-                format!(
-                    "lexical {} has unknown dictionary source",
-                    row.normalized_root
-                ),
-            ));
-        }
         for (index, slot) in row.ordered_numbered_slot_rows.iter().enumerate() {
             if !matches!(slot.label.as_data(), data!(SlotLabel::Numbered(value)) if *value == (index + 1) as u64)
             {
@@ -5124,14 +4058,6 @@ fn validate_tables(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
 fn validate_table_order(tables: &Tables) -> Result<(), BundleError> {
     require_sorted_unique(
         &tables
-            .source_artifacts
-            .iter()
-            .map(|row| row.source_id.as_str())
-            .collect::<Vec<_>>(),
-        "source artifact primary keys",
-    )?;
-    require_sorted_unique(
-        &tables
             .evidence
             .iter()
             .map(|row| row.evidence_id.as_str())
@@ -5243,8 +4169,7 @@ fn validate_table_order(tables: &Tables) -> Result<(), BundleError> {
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
-    if tables.source_artifacts.len() != 6
-        || tables.lexical.len() != 44
+    if tables.lexical.len() != 44
         || tables.scope_policies.len() != SCOPE_POLICY_ROW_COUNT
         || tables.place_deletions.len() != 7
         || tables.tag_reductions.len() != 6
@@ -5507,7 +4432,6 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
                 != row.complete_signature_schema
             || canonical_prelude_definition(&row.canonical_definition, &row.type_parameters)?
                 != row.canonical_definition
-            || sha256_hex(row.canonical_definition.as_bytes()) != row.definition_digest
             || prelude_dependencies(&row.canonical_definition, &prelude_names, &row.name)?
                 != row.direct_dependencies
         {
@@ -5613,10 +4537,6 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
 fn serialize_tables(tables: &Tables) -> Result<BTreeMap<String, Vec<u8>>, BundleError> {
     let mut artifacts = BTreeMap::new();
     artifacts.insert(
-        "registry/source-artifacts.jsonl".to_owned(),
-        jsonl(&tables.source_artifacts)?,
-    );
-    artifacts.insert(
         "registry/evidence.jsonl".to_owned(),
         jsonl(&tables.evidence)?,
     );
@@ -5679,128 +4599,6 @@ fn jsonl<T: Serialize>(rows: &[T]) -> Result<Vec<u8>, BundleError> {
         return Ok(output);
     }
     Ok(output)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|records| records.len() == MIRRORED_GENERATOR_INPUTS.len() + BUNDLE_NATIVE_GENERATOR_INPUTS.len()) || ret.is_err())]
-fn build_source_manifest(root: &Path) -> Result<Vec<ArtifactRecord>, BundleError> {
-    let expected_count = MIRRORED_GENERATOR_INPUTS.len() + BUNDLE_NATIVE_GENERATOR_INPUTS.len();
-    let mut paths = generator_input_paths();
-    paths.sort_by(|left, right| scalar_cmp(left, right));
-    paths.dedup();
-    if paths.len() != expected_count {
-        return Err(BundleError::new(
-            BundleErrorKind::Manifest,
-            "generator-input closure contains duplicate paths",
-        ));
-    }
-    paths
-        .into_iter()
-        .map(|relative| {
-            let bytes = read_relative(root, &relative)?;
-            Ok(new!(ArtifactRecord {
-                relative_path: relative,
-                schema_id: SchemaId::OpaqueBytes.as_str().to_owned(),
-                row_count: 1,
-                digest: sha256_hex(&bytes),
-            }))
-        })
-        .collect()
-}
-
-#[requires(artifacts.len() == GENERATED_TABLES.len())]
-#[ensures(ret.as_ref().is_ok_and(|records| records.len() == GENERATED_TABLES.len()) || ret.is_err())]
-fn build_generated_manifest(
-    artifacts: &BTreeMap<String, Vec<u8>>,
-) -> Result<Vec<ArtifactRecord>, BundleError> {
-    let schemas = GENERATED_TABLES
-        .iter()
-        .map(|(path, schema)| ((*path).to_owned(), *schema))
-        .collect::<BTreeMap<_, _>>();
-    artifacts
-        .iter()
-        .map(|(relative, bytes)| {
-            let schema = schemas.get(relative).ok_or_else(|| {
-                BundleError::new(
-                    BundleErrorKind::Manifest,
-                    format!("generated artifact has no closed schema id: {relative}"),
-                )
-            })?;
-            let row_count = if *schema == SchemaId::OpaqueBytes {
-                if bytes.is_empty() {
-                    return Err(BundleError::new(
-                        BundleErrorKind::ByteDomain,
-                        format!("generated opaque artifact is empty: {relative}"),
-                    ));
-                }
-                1
-            } else {
-                let count = bytes.iter().filter(|byte| **byte == b'\n').count();
-                if count == 0 || !bytes.ends_with(b"\n") {
-                    return Err(BundleError::new(
-                        BundleErrorKind::ByteDomain,
-                        format!("generated JSONL is not nonempty LF records: {relative}"),
-                    ));
-                }
-                count
-            };
-            Ok(new!(ArtifactRecord {
-                relative_path: relative.clone(),
-                schema_id: schema.as_str().to_owned(),
-                row_count,
-                digest: sha256_hex(bytes),
-            }))
-        })
-        .collect()
-}
-
-#[requires(!source.is_empty() && !generated.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|manifest| manifest.format_version == 0) || ret.is_err())]
-fn build_manifest(
-    source: Vec<ArtifactRecord>,
-    generated: Vec<ArtifactRecord>,
-) -> Result<Manifest, BundleError> {
-    require_artifact_order(&source, "source-artifacts")?;
-    require_artifact_order(&generated, "generated-artifacts")?;
-    let generator_inputs = source
-        .iter()
-        .map(|record| record.relative_path.clone())
-        .collect::<Vec<_>>();
-    let generator_pairs = source
-        .iter()
-        .map(|record| (record.relative_path.clone(), record.digest.clone()))
-        .collect::<Vec<_>>();
-    let generator_id = digest_pairs(&generator_pairs)?;
-    let mut bundle_pairs = generator_pairs;
-    bundle_pairs.extend(
-        generated
-            .iter()
-            .map(|record| (record.relative_path.clone(), record.digest.clone())),
-    );
-    bundle_pairs.sort_by(|left, right| scalar_cmp(&left.0, &right.0));
-    let bundle_digest = digest_pairs(&bundle_pairs)?;
-    Ok(new!(Manifest {
-        format_version: 0,
-        bundle_schema_version: 1,
-        spec_digest: SPEC_SHA256.to_owned(),
-        generator_id,
-        generator_inputs,
-        source_artifacts: source,
-        generated_artifacts: generated,
-        bundle_digest,
-    }))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|bytes| bytes.ends_with(b"\n")) || ret.is_err())]
-fn jcs_line<T: Serialize>(value: &T) -> Result<Vec<u8>, BundleError> {
-    let value = serde_json::to_value(value).map_err(|error| {
-        BundleError::new(BundleErrorKind::Parse, format!("serialize JCS: {error}"))
-    })?;
-    require_nfc_value(&value)?;
-    let mut bytes = canonical_json(&value)?.into_bytes();
-    bytes.push(b'\n');
-    Ok(bytes)
 }
 
 #[requires(true)]
@@ -7958,9 +6756,7 @@ fn row_labels(schema: &str) -> Result<BTreeSet<String>, BundleError> {
 fn spec_evidence(evidence_id: &str, locator: &str, note: &str) -> EvidenceRow {
     new!(EvidenceRow {
         evidence_id: evidence_id.to_owned(),
-        source_id: "smusni-v0-spec".to_owned(),
         exact_locator: locator.to_owned(),
-        cited_content_digest: SPEC_SHA256.to_owned(),
         adjudication_note: note.to_owned(),
     })
 }
@@ -8046,33 +6842,6 @@ fn require_nfc_utf8(path: &str, bytes: &[u8]) -> Result<(), BundleError> {
         return Err(BundleError::new(
             BundleErrorKind::ByteDomain,
             format!("{path} is not NFC"),
-        ));
-    }
-    Ok(())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|digest| is_digest(digest)) || ret.is_err())]
-fn digest_pairs(pairs: &[(String, String)]) -> Result<String, BundleError> {
-    let value = serde_json::to_value(pairs).map_err(|error| {
-        BundleError::new(
-            BundleErrorKind::Parse,
-            format!("serialize digest pairs: {error}"),
-        )
-    })?;
-    Ok(sha256_hex(canonical_json(&value)?.as_bytes()))
-}
-
-#[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
-fn require_artifact_order(records: &[ArtifactRecord], context: &str) -> Result<(), BundleError> {
-    if records
-        .windows(2)
-        .any(|pair| !scalar_cmp(&pair[0].relative_path, &pair[1].relative_path).is_lt())
-    {
-        return Err(BundleError::new(
-            BundleErrorKind::NonCanonicalOrder,
-            format!("{context} paths are not unique scalar-value order"),
         ));
     }
     Ok(())

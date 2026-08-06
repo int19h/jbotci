@@ -27,7 +27,6 @@ const WITNESSES: &str = include_str!("../data/smusni-v0/sources/must-compact-wit
 const REGISTRY_SOURCE: &str = include_str!("../data/smusni-v0/sources/registry-source.toml");
 const SPEC: &[u8] = include_bytes!("../../../docs/smusni/spec.md");
 const RETAINED_SPEC: &[u8] = include_bytes!("../data/smusni-v0/sources/smusni/spec.md");
-const SAMPLES: &[u8] = include_bytes!("../../../docs/smusni/samples.md");
 
 #[requires(true)]
 #[ensures(ret.ends_with("crates/jbotci-semantics"))]
@@ -70,13 +69,18 @@ fn jsonl_rows(path: &str) -> Vec<serde_json::Value> {
 }
 
 #[requires(true)]
-#[ensures(ret.artifacts.len() == 13)]
-fn snapshot() -> BundleSnapshot {
-    smusni_v0_bundle::mint_snapshot(
-        &manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT),
-        &dispositions(),
+#[ensures(ret.root.ends_with(smusni_v0_bundle::BUNDLE_ROOT))]
+fn bundle_paths() -> BundlePaths {
+    BundlePaths::for_manifest_dir(
+        &manifest_dir(),
+        smusni_v0_bundle::scratch_dir("bundle-tests").join("unused-policies.rs"),
     )
-    .expect("current inputs mint")
+}
+
+#[requires(true)]
+#[ensures(ret.artifacts.len() == 12)]
+fn snapshot() -> BundleSnapshot {
+    smusni_v0_bundle::mint_snapshot(&bundle_paths(), &dispositions()).expect("current inputs mint")
 }
 
 #[requires(snapshot.artifacts.contains_key(path))]
@@ -169,30 +173,22 @@ fn pinned_sources_and_candidate_witness_registry_are_exact() {
     assert_eq!(WITNESSES.lines().count(), 18);
     assert!(WITNESSES.ends_with('\n'));
     assert!(!REGISTRY_SOURCE.contains("canonical_definition"));
-    assert_eq!(
-        format!("{:x}", Sha256::digest(SPEC)),
-        "c2c0616b0b0d8991251f5145be4985a8191a68704cff3ae10f6f85caa34dbdc1"
-    );
-    assert_eq!(
-        format!("{:x}", Sha256::digest(SAMPLES)),
-        "ee4cfe6c00009f2ca0387efd0dfa6551b4e6db61e6ff9bebf891f0c0346aa50b"
-    );
-    // The bundle retains its own copy of the same external design artifact
-    // rather than mirroring the published document, so state their equality
-    // directly instead of leaving it implied by two separate digest pins.
+    // The specification is dual-homed: a source distribution carries no `docs/`
+    // tree, so the bundle keeps its own copy for prelude extraction. State the
+    // two copies' equality directly rather than pinning either one to a digest.
     assert_eq!(SPEC, RETAINED_SPEC);
 }
 
 /// Every byte this build compares must survive checkout unchanged.
 ///
-/// Git decides end-of-line conversion per path, so a retained mirror and the
-/// file it snapshots that disagree about the `text` attribute drift apart on a
-/// Windows checkout and nowhere else — which is exactly how the pinned
-/// dictionary mirror broke while every Linux job stayed green. The bundle's own
-/// retained sources are in the same position, because the build recomputes
-/// their digests. Deriving the inventory from the generator rather than from
-/// `.gitattributes` keeps the policy closed: a new generator input that nothing
-/// marks fails here.
+/// Git decides end-of-line conversion per path, so two copies of one document
+/// that disagree about the `text` attribute drift apart on a Windows checkout
+/// and nowhere else — which is exactly how the pinned dictionary snapshot broke
+/// while every Linux job stayed green. The bundle's own inputs are in the same
+/// position, because the build recomputes their digests and compares its
+/// generated tables byte for byte. Deriving the inventory from the generator
+/// rather than from `.gitattributes` keeps the policy closed: a new generator
+/// input that nothing marks fails here.
 #[test]
 #[requires(true)]
 #[ensures(true)]
@@ -210,7 +206,8 @@ fn every_compared_byte_is_checked_out_verbatim() {
         })
         .collect::<BTreeSet<_>>();
     paths.extend(smusni_v0_bundle::repository_rerun_paths());
-    assert!(paths.len() > 90, "inventory shrank unexpectedly");
+    paths.insert("docs/smusni/spec.md".to_owned());
+    assert!(paths.len() >= 21, "inventory shrank unexpectedly");
 
     let output = std::process::Command::new("git")
         .current_dir(&root)
@@ -235,221 +232,6 @@ fn every_compared_byte_is_checked_out_verbatim() {
         checked += 1;
     }
     assert_eq!(checked, paths.len());
-}
-
-/// A retained lockfile in the shape cargo writes: one workspace member, two
-/// registry packages, and edges from the member to `leaf` and from `trunk` to
-/// `leaf`. The member never depends on `trunk` directly.
-const RETAINED_LOCKFILE: &str = concat!(
-    "version = 4\n",
-    "\n",
-    "[[package]]\n",
-    "name = \"member\"\n",
-    "version = \"0.1.0\"\n",
-    "dependencies = [\n",
-    " \"leaf\",\n",
-    "]\n",
-    "\n",
-    "[[package]]\n",
-    "name = \"leaf\"\n",
-    "version = \"1.2.3\"\n",
-    "source = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-    "checksum = \"1111111111111111111111111111111111111111111111111111111111111111\"\n",
-    "\n",
-    "[[package]]\n",
-    "name = \"trunk\"\n",
-    "version = \"4.5.6\"\n",
-    "source = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-    "checksum = \"2222222222222222222222222222222222222222222222222222222222222222\"\n",
-    "dependencies = [\n",
-    " \"leaf\",\n",
-    "]\n",
-);
-
-/// The projection a source distribution carries: the same identities and edges
-/// for the packaged subset, with `trunk` pruned away.
-const PACKAGED_LOCKFILE: &str = concat!(
-    "version = 4\n",
-    "\n",
-    "[[package]]\n",
-    "name = \"member\"\n",
-    "version = \"0.1.0\"\n",
-    "dependencies = [\n",
-    " \"leaf\",\n",
-    "]\n",
-    "\n",
-    "[[package]]\n",
-    "name = \"leaf\"\n",
-    "version = \"1.2.3\"\n",
-    "source = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-    "checksum = \"1111111111111111111111111111111111111111111111111111111111111111\"\n",
-);
-
-/// A packaged lockfile is accepted only when every identity and every resolved
-/// edge it carries is one the retained lockfile also carries. The mutations are
-/// the four ways a distribution could otherwise build against something this
-/// repository never resolved.
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn packaged_lockfile_must_project_the_retained_lockfile() {
-    let retained = RETAINED_LOCKFILE.as_bytes();
-    smusni_v0_bundle::validate_packaged_lockfile(retained, PACKAGED_LOCKFILE.as_bytes())
-        .expect("the pruned projection is accepted");
-
-    let retargeted_version = PACKAGED_LOCKFILE.replace("1.2.3", "1.2.4");
-    let retargeted_checksum = PACKAGED_LOCKFILE.replace(&"1".repeat(64), &"3".repeat(64));
-    let retargeted_source = PACKAGED_LOCKFILE.replace("crates.io-index", "other-index");
-    // `member` never depends on `trunk` directly, so this edge is new even
-    // though both endpoints are locked identically.
-    let retargeted_edge = PACKAGED_LOCKFILE.replace(
-        " \"leaf\",\n]\n\n[[package]]\nname = \"leaf\"",
-        " \"leaf\",\n \"trunk\",\n]\n\n[[package]]\nname = \"leaf\"",
-    ) + concat!(
-        "\n[[package]]\n",
-        "name = \"trunk\"\n",
-        "version = \"4.5.6\"\n",
-        "source = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
-        "checksum = \"2222222222222222222222222222222222222222222222222222222222222222\"\n",
-    );
-    // The lockfile grammar itself: a repeated identity makes resolution
-    // ambiguous, and a dependency entry is `name`, `name version`, or
-    // `name version (source)` and nothing else.
-    let duplicate_identity =
-        format!("{PACKAGED_LOCKFILE}\n[[package]]\nname = \"member\"\nversion = \"0.1.0\"\n");
-    let trailing_field = PACKAGED_LOCKFILE.replace(
-        " \"leaf\",\n",
-        " \"leaf 1.2.3 (registry+https://github.com/rust-lang/crates.io-index) extra\",\n",
-    );
-    let unbalanced_source = PACKAGED_LOCKFILE.replace(
-        " \"leaf\",\n",
-        " \"leaf 1.2.3 registry+https://github.com/rust-lang/crates.io-index\",\n",
-    );
-    for (mutation, expected) in [
-        (&retargeted_version, BundleErrorKind::ForeignKey),
-        (&retargeted_checksum, BundleErrorKind::Digest),
-        (&retargeted_source, BundleErrorKind::ForeignKey),
-        (&retargeted_edge, BundleErrorKind::ForeignKey),
-        (&duplicate_identity, BundleErrorKind::DuplicatePrimaryKey),
-        (&trailing_field, BundleErrorKind::ByteDomain),
-        (&unbalanced_source, BundleErrorKind::ByteDomain),
-    ] {
-        assert_ne!(
-            mutation.as_str(),
-            PACKAGED_LOCKFILE,
-            "mutation changed nothing"
-        );
-        let error = smusni_v0_bundle::validate_packaged_lockfile(retained, mutation.as_bytes())
-            .expect_err("the mutated lockfile is rejected");
-        assert_eq!(error.kind, expected, "{}", error.message);
-    }
-
-    // The retained lockfile is held to the same grammar: a duplicate identity
-    // there would silently decide which entry a live edge resolved against.
-    let duplicate_retained = format!(
-        "{RETAINED_LOCKFILE}\n[[package]]\nname = \"leaf\"\nversion = \"1.2.3\"\n\
-         source = \"registry+https://github.com/rust-lang/crates.io-index\"\n\
-         checksum = \"1111111111111111111111111111111111111111111111111111111111111111\"\n"
-    );
-    let error = smusni_v0_bundle::validate_packaged_lockfile(
-        duplicate_retained.as_bytes(),
-        PACKAGED_LOCKFILE.as_bytes(),
-    )
-    .expect_err("a duplicated retained identity is rejected");
-    assert_eq!(
-        error.kind,
-        BundleErrorKind::DuplicatePrimaryKey,
-        "{}",
-        error.message
-    );
-}
-
-/// The packaged root manifest is derived from the retained one and compared
-/// exactly, so packaging may drop the root package's sections and the members
-/// and path dependencies the archive does not contain, and nothing else.
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn packaged_root_manifest_must_be_the_audited_packaging_rewrite() {
-    let distribution = repository_root();
-    let retained = concat!(
-        "[workspace]\n",
-        "members = [\".\", \"crates/bityzba\", \"crates/absent\"]\n",
-        "default-members = [\".\"]\n",
-        "resolver = \"3\"\n",
-        "\n",
-        "[workspace.package]\n",
-        "version = \"0.1.0\"\n",
-        "\n",
-        "[workspace.dependencies]\n",
-        "serde = \"1\"\n",
-        "bityzba = { path = \"crates/bityzba\" }\n",
-        "absent = { path = \"crates/absent\" }\n",
-        "\n",
-        "[package]\n",
-        "name = \"jbotci-workspace\"\n",
-        "\n",
-        "[features]\n",
-        "expensive_contracts = []\n",
-        "\n",
-        "[dependencies]\n",
-        "bityzba.workspace = true\n",
-        "\n",
-        "[dev-dependencies]\n",
-        "bityzba.workspace = true\n",
-        "\n",
-        "[build-dependencies]\n",
-        "bityzba.workspace = true\n",
-        "\n",
-        "[lints]\n",
-        "workspace = true\n",
-        "\n",
-        "[patch.crates-io]\n",
-        "absent = { path = \"crates/absent\" }\n",
-    );
-    let packaged = concat!(
-        "[workspace]\n",
-        "members = [\"crates/bityzba\"]\n",
-        "resolver = \"3\"\n",
-        "\n",
-        "[workspace.package]\n",
-        "version = \"0.1.0\"\n",
-        "\n",
-        "[workspace.dependencies]\n",
-        "serde = \"1\"\n",
-        "bityzba = { path = \"crates/bityzba\" }\n",
-    );
-    smusni_v0_bundle::validate_packaged_root_manifest(
-        &distribution,
-        retained.as_bytes(),
-        packaged.as_bytes(),
-    )
-    .expect("the audited packaging rewrite is accepted");
-
-    for mutation in [
-        // A requirement the repository never stated.
-        packaged.replace("serde = \"1\"", "serde = \"2\""),
-        // A workspace field the repository never stated.
-        packaged.replace("version = \"0.1.0\"", "version = \"9.9.9\""),
-        // A member the archive does not contain.
-        packaged.replace(
-            "members = [\"crates/bityzba\"]",
-            "members = [\"crates/bityzba\", \"crates/absent\"]",
-        ),
-        // A packaged member silently dropped.
-        packaged.replace("members = [\"crates/bityzba\"]", "members = []"),
-        // A root-package section packaging must have removed.
-        format!("{packaged}\n[package]\nname = \"jbotci-workspace\"\n"),
-    ] {
-        assert_ne!(mutation.as_str(), packaged, "mutation changed nothing");
-        let error = smusni_v0_bundle::validate_packaged_root_manifest(
-            &distribution,
-            retained.as_bytes(),
-            mutation.as_bytes(),
-        )
-        .expect_err("the mutated packaged manifest is rejected");
-        assert_eq!(error.kind, BundleErrorKind::Manifest, "{}", error.message);
-    }
 }
 
 /// The package that owns `relative`: the nearest ancestor directory holding a
@@ -533,7 +315,7 @@ fn every_build_time_generator_input_survives_cargo_packaging() {
         .map(|relative| format!("{bundle_root}/{relative}"))
         .chain(smusni_v0_bundle::repository_rerun_paths())
         .collect::<BTreeSet<_>>();
-    assert!(required.len() > 90, "inventory shrank unexpectedly");
+    assert!(required.len() >= 20, "inventory shrank unexpectedly");
 
     let mut by_package: std::collections::BTreeMap<String, Vec<String>> = Default::default();
     for relative in &required {
@@ -548,20 +330,10 @@ fn every_build_time_generator_input_survives_cargo_packaging() {
     }
 
     for (package_dir, paths) in by_package {
-        if package_dir.is_empty() {
-            // Cargo writes the manifest and lockfile into every package archive,
-            // and maturin writes the workspace manifest and lock into the sdist,
-            // so asking cargo about these two would be vacuous. Any *other*
-            // workspace-root input would genuinely reach no archive, so require
-            // the set to stay exactly those two.
-            assert_eq!(
-                paths,
-                vec!["Cargo.lock".to_owned(), "Cargo.toml".to_owned()],
-                "a workspace-root generator input other than the manifest and \
-                 lockfile cannot reach any package archive"
-            );
-            continue;
-        }
+        assert!(
+            !package_dir.is_empty(),
+            "a workspace-root generator input cannot reach any package archive: {paths:?}"
+        );
         let listed = cargo_package_list(&package_dir);
         let prefix = format!("{package_dir}/");
         for relative in paths {
@@ -575,30 +347,6 @@ fn every_build_time_generator_input_survives_cargo_packaging() {
             );
         }
     }
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn every_local_contract_dependency_influence_is_mirrored() {
-    let root = repository_root();
-    let inputs = smusni_v0_bundle::repository_rerun_paths();
-    smusni_v0_bundle::validate_local_dependency_closure(&root, &inputs)
-        .expect("complete local dependency closure");
-
-    let mut incomplete = inputs;
-    let missing = "crates/bityzba-macros/src/implementation/type_invariant.rs";
-    let index = incomplete
-        .iter()
-        .position(|path| path == missing)
-        .expect("type-invariant macro source is a generator influence");
-    incomplete.remove(index);
-    assert_eq!(
-        smusni_v0_bundle::validate_local_dependency_closure(&root, &incomplete)
-            .unwrap_err()
-            .kind,
-        BundleErrorKind::Manifest,
-    );
 }
 
 #[test]
@@ -628,49 +376,7 @@ fn checked_bundle_is_current_and_generation_is_reproducible() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn manifest_generator_inputs_are_physical_bundle_children() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
-    let canonical_root = fs::canonicalize(&root).unwrap();
-    let manifest: serde_json::Value =
-        serde_json::from_slice(&fs::read(root.join(smusni_v0_bundle::MANIFEST_PATH)).unwrap())
-            .unwrap();
-    let inputs = manifest["generator-inputs"].as_array().unwrap();
-    assert!(!inputs.is_empty());
-    for relative in inputs {
-        let relative = relative.as_str().unwrap();
-        let path = Path::new(relative);
-        assert!(!path.is_absolute());
-        assert!(
-            path.components()
-                .all(|component| matches!(component, std::path::Component::Normal(_)))
-        );
-        assert!(
-            fs::canonicalize(root.join(path))
-                .unwrap()
-                .starts_with(&canonical_root)
-        );
-    }
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
 fn generated_table_counts_and_candidate_policy_keys_are_closed() {
-    let manifest: serde_json::Value = serde_json::from_slice(
-        &fs::read(
-            manifest_dir()
-                .join(smusni_v0_bundle::BUNDLE_ROOT)
-                .join(smusni_v0_bundle::MANIFEST_PATH),
-        )
-        .unwrap(),
-    )
-    .unwrap();
-    assert_eq!(manifest["format-version"], 0);
-    assert_eq!(manifest["bundle-schema-version"], 1);
-    assert_eq!(
-        manifest["generated-artifacts"].as_array().unwrap().len(),
-        13
-    );
     let lexical = jsonl_rows("registry/lexical.jsonl");
     assert_eq!(lexical.len(), 44);
     assert!(lexical.iter().all(|row| {
@@ -681,7 +387,6 @@ fn generated_table_counts_and_candidate_policy_keys_are_closed() {
                     !slots.is_empty() && slots.iter().all(|slot| slot.get("close-policy").is_some())
                 })
     }));
-    assert_eq!(jsonl_rows("registry/source-artifacts.jsonl").len(), 6);
     assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 882);
     let fallback_reasons = jsonl_rows("registry/fallback-reasons.jsonl");
     assert_eq!(fallback_reasons.len(), 60);
@@ -796,8 +501,7 @@ fn prelude_rows_declare_the_exact_registry_type_parameter_domain() {
 #[requires(true)]
 #[ensures(true)]
 fn every_row_schema_rejects_a_missing_required_field() {
-    let paths = [
-        "registry/source-artifacts.jsonl",
+    let tables = [
         "registry/evidence.jsonl",
         "registry/lexical.jsonl",
         "registry/scope-policies.jsonl",
@@ -810,15 +514,15 @@ fn every_row_schema_rejects_a_missing_required_field() {
         "registry/dispositions.jsonl",
         "registry/prelude.jsonl",
     ];
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
-    for path in paths {
+    let paths = bundle_paths();
+    for path in tables {
         let mut mutated = snapshot();
         mutate_first_row(&mut mutated, path, |row| {
             let key = row.keys().next().cloned().expect("schema has fields");
             row.remove(&key);
         });
         assert!(
-            smusni_v0_bundle::verify_snapshot(&root, &mutated).is_err(),
+            smusni_v0_bundle::verify_snapshot(&paths, &mutated).is_err(),
             "{path} accepted a row missing one required schema field"
         );
     }
@@ -827,8 +531,8 @@ fn every_row_schema_rejects_a_missing_required_field() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn validator_rejects_byte_order_digest_and_manifest_mutations() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+fn validator_rejects_byte_and_order_mutations() {
+    let paths = bundle_paths();
 
     let mut crlf = snapshot();
     crlf.artifacts
@@ -836,7 +540,7 @@ fn validator_rejects_byte_order_digest_and_manifest_mutations() {
         .unwrap()
         .push(b'\r');
     assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&root, &crlf)
+        smusni_v0_bundle::verify_snapshot(&paths, &crlf)
             .unwrap_err()
             .kind,
         BundleErrorKind::ByteDomain
@@ -859,32 +563,10 @@ fn validator_rejects_byte_order_digest_and_manifest_mutations() {
         table.push(b'\n');
     }
     assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&root, &order)
+        smusni_v0_bundle::verify_snapshot(&paths, &order)
             .unwrap_err()
             .kind,
         BundleErrorKind::NonCanonicalOrder
-    );
-
-    let mut digest = snapshot();
-    let mut manifest: serde_json::Value = serde_json::from_slice(&digest.manifest).unwrap();
-    let bundle_digest = manifest["bundle-digest"].as_str().unwrap();
-    let replacement = format!(
-        "{}{}",
-        if bundle_digest.starts_with('0') {
-            '1'
-        } else {
-            '0'
-        },
-        &bundle_digest[1..],
-    );
-    manifest["bundle-digest"] = serde_json::Value::String(replacement);
-    digest.manifest = serde_json::to_vec(&manifest).unwrap();
-    digest.manifest.push(b'\n');
-    assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&root, &digest)
-            .unwrap_err()
-            .kind,
-        BundleErrorKind::Manifest
     );
 }
 
@@ -892,14 +574,14 @@ fn validator_rejects_byte_order_digest_and_manifest_mutations() {
 #[requires(true)]
 #[ensures(true)]
 fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
 
     let mut foreign = snapshot();
     mutate_first_row(&mut foreign, "registry/scope-policies.jsonl", |row| {
         row.insert("normalized-root".to_owned(), serde_json::json!("aaaaa"));
     });
     assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&root, &foreign)
+        smusni_v0_bundle::verify_snapshot(&paths, &foreign)
             .unwrap_err()
             .kind,
         BundleErrorKind::ForeignKey
@@ -913,7 +595,7 @@ fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
         );
     });
     assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&root, &evidence)
+        smusni_v0_bundle::verify_snapshot(&paths, &evidence)
             .unwrap_err()
             .kind,
         BundleErrorKind::Evidence
@@ -927,7 +609,7 @@ fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
         );
     });
     assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&root, &template)
+        smusni_v0_bundle::verify_snapshot(&paths, &template)
             .unwrap_err()
             .kind,
         BundleErrorKind::Template
@@ -940,7 +622,7 @@ fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
             serde_json::json!("unstable"),
         );
     });
-    assert!(smusni_v0_bundle::verify_snapshot(&root, &summary).is_err());
+    assert!(smusni_v0_bundle::verify_snapshot(&paths, &summary).is_err());
 
     let mut fallback_boundary = snapshot();
     mutate_first_row(
@@ -959,7 +641,7 @@ fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
         },
     );
     assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&root, &fallback_boundary)
+        smusni_v0_bundle::verify_snapshot(&paths, &fallback_boundary)
             .unwrap_err()
             .kind,
         BundleErrorKind::Type,
@@ -970,7 +652,7 @@ fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
 #[requires(true)]
 #[ensures(true)]
 fn validator_rejects_a_type_correct_prelude_that_diverges_from_frozen_spec() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
     let mut divergent = snapshot();
     mutate_first_row(&mut divergent, "registry/prelude.jsonl", |row| {
         assert_eq!(row["name"], ">");
@@ -978,16 +660,12 @@ fn validator_rejects_a_type_correct_prelude_that_diverges_from_frozen_spec() {
         let replacement = definition.replace("(< $b $a)", "(≤ $b $a)");
         assert_ne!(replacement, definition);
         row.insert(
-            "definition-digest".to_owned(),
-            serde_json::json!(format!("{:x}", Sha256::digest(replacement.as_bytes()))),
-        );
-        row.insert(
             "canonical-definition".to_owned(),
             serde_json::Value::String(replacement),
         );
     });
     assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&root, &divergent)
+        smusni_v0_bundle::verify_snapshot(&paths, &divergent)
             .unwrap_err()
             .kind,
         BundleErrorKind::Template,
@@ -998,7 +676,7 @@ fn validator_rejects_a_type_correct_prelude_that_diverges_from_frozen_spec() {
 #[requires(true)]
 #[ensures(true)]
 fn source_generator_rejects_closed_value_key_deletion_and_hole_mutations() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
     let seeds = dispositions();
     let cases = [
         replace_once(REGISTRY_SOURCE, "format_version = 0", "format_version = 1"),
@@ -1025,7 +703,7 @@ fn source_generator_rejects_closed_value_key_deletion_and_hole_mutations() {
     ];
     for mutated in cases {
         assert!(
-            smusni_v0_bundle::validate_registry_source(&root, &seeds, mutated.as_bytes()).is_err()
+            smusni_v0_bundle::validate_registry_source(&paths, &seeds, mutated.as_bytes()).is_err()
         );
     }
 
@@ -1035,7 +713,7 @@ fn source_generator_rejects_closed_value_key_deletion_and_hole_mutations() {
         "typed_expansion_template = \"(Joi (Hole \\\"host\\\" Content) (pilno :2 (Hole \\\"filler\\\" Content) :Eventuality (Hole \\\"event\\\" Eventuality)))\"",
     );
     assert_eq!(
-        smusni_v0_bundle::validate_registry_source(&root, &seeds, ill_typed_template.as_bytes(),)
+        smusni_v0_bundle::validate_registry_source(&paths, &seeds, ill_typed_template.as_bytes(),)
             .unwrap_err()
             .kind,
         BundleErrorKind::Type
@@ -1048,7 +726,7 @@ fn source_generator_rejects_closed_value_key_deletion_and_hole_mutations() {
     );
     assert_eq!(
         smusni_v0_bundle::validate_registry_source(
-            &root,
+            &paths,
             &seeds,
             ill_typed_prelude_signature.as_bytes(),
         )
@@ -1064,7 +742,7 @@ fn source_generator_rejects_closed_value_key_deletion_and_hole_mutations() {
     );
     assert_eq!(
         smusni_v0_bundle::validate_registry_source(
-            &root,
+            &paths,
             &seeds,
             ill_typed_relation_former.as_bytes(),
         )
@@ -1078,7 +756,7 @@ fn source_generator_rejects_closed_value_key_deletion_and_hole_mutations() {
 #[requires(true)]
 #[ensures(true)]
 fn source_generator_rejects_invalid_type_parameter_declarations_and_uses() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
     let seeds = dispositions();
     let at_least = concat!(
         "name = \"AtLeast\"\n",
@@ -1114,7 +792,7 @@ fn source_generator_rejects_invalid_type_parameter_declarations_and_uses() {
     ];
     for (index, mutated) in mutations.into_iter().enumerate() {
         assert!(
-            smusni_v0_bundle::validate_registry_source(&root, &seeds, mutated.as_bytes()).is_err(),
+            smusni_v0_bundle::validate_registry_source(&paths, &seeds, mutated.as_bytes()).is_err(),
             "type-parameter mutation {index} was accepted",
         );
     }
@@ -1124,7 +802,7 @@ fn source_generator_rejects_invalid_type_parameter_declarations_and_uses() {
 #[requires(true)]
 #[ensures(true)]
 fn source_generator_rederives_prelude_tag_and_relation_dynamic_summaries() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
     let seeds = dispositions();
     let mutations = [
         replace_once(
@@ -1145,7 +823,7 @@ fn source_generator_rederives_prelude_tag_and_relation_dynamic_summaries() {
     ];
     for (index, mutated) in mutations.into_iter().enumerate() {
         assert_eq!(
-            smusni_v0_bundle::validate_registry_source(&root, &seeds, mutated.as_bytes())
+            smusni_v0_bundle::validate_registry_source(&paths, &seeds, mutated.as_bytes())
                 .unwrap_err()
                 .kind,
             BundleErrorKind::Summary,
@@ -1158,7 +836,7 @@ fn source_generator_rederives_prelude_tag_and_relation_dynamic_summaries() {
 #[requires(true)]
 #[ensures(true)]
 fn source_generator_resolves_every_tag_hole_map_event_and_identity() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
     let seeds = dispositions();
     let mutations = [
         replace_once(REGISTRY_SOURCE, "tag-sumti->pilno-x2", "nonce->pilno-x2"),
@@ -1209,7 +887,7 @@ fn source_generator_resolves_every_tag_hole_map_event_and_identity() {
     ];
     for (index, mutated) in mutations.into_iter().enumerate() {
         assert!(
-            smusni_v0_bundle::validate_registry_source(&root, &seeds, mutated.as_bytes()).is_err(),
+            smusni_v0_bundle::validate_registry_source(&paths, &seeds, mutated.as_bytes()).is_err(),
             "tag correspondence mutation {index} was accepted",
         );
     }
@@ -1219,7 +897,7 @@ fn source_generator_resolves_every_tag_hole_map_event_and_identity() {
 #[requires(true)]
 #[ensures(true)]
 fn source_generator_requires_explicit_closure_and_checks_polymorphic_deictic_types() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
     let seeds = dispositions();
     let cases = [
         replace_once(
@@ -1265,7 +943,7 @@ fn source_generator_requires_explicit_closure_and_checks_polymorphic_deictic_typ
     ];
     for (index, mutated) in cases.into_iter().enumerate() {
         assert!(
-            smusni_v0_bundle::validate_registry_source(&root, &seeds, mutated.as_bytes()).is_err(),
+            smusni_v0_bundle::validate_registry_source(&paths, &seeds, mutated.as_bytes()).is_err(),
             "invalid explicit closure/type mutation {index} was accepted"
         );
     }
@@ -1275,7 +953,7 @@ fn source_generator_requires_explicit_closure_and_checks_polymorphic_deictic_typ
 #[requires(true)]
 #[ensures(true)]
 fn every_curated_policy_row_rejects_each_other_closed_policy() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
     let seeds = dispositions();
     let source =
         toml::from_str::<toml::Value>(REGISTRY_SOURCE).expect("registry source is valid TOML");
@@ -1297,7 +975,7 @@ fn every_curated_policy_row_rejects_each_other_closed_policy() {
                 toml::Value::String(replacement.to_owned());
             let bytes = toml::to_string(&mutated).unwrap();
             assert_eq!(
-                smusni_v0_bundle::validate_registry_source(&root, &seeds, bytes.as_bytes())
+                smusni_v0_bundle::validate_registry_source(&paths, &seeds, bytes.as_bytes())
                     .unwrap_err()
                     .kind,
                 BundleErrorKind::Evidence,
@@ -1311,7 +989,7 @@ fn every_curated_policy_row_rejects_each_other_closed_policy() {
 #[requires(true)]
 #[ensures(true)]
 fn every_fallback_seed_requires_one_complete_typed_boundary() {
-    let root = manifest_dir().join(smusni_v0_bundle::BUNDLE_ROOT);
+    let paths = bundle_paths();
     let mut seeds = dispositions();
     let fallback = seeds
         .iter_mut()
@@ -1319,7 +997,7 @@ fn every_fallback_seed_requires_one_complete_typed_boundary() {
         .expect("inventory has fallback dispositions");
     fallback.expected_type_schema = None;
     assert_eq!(
-        smusni_v0_bundle::mint_snapshot(&root, &seeds)
+        smusni_v0_bundle::mint_snapshot(&paths, &seeds)
             .unwrap_err()
             .kind,
         BundleErrorKind::Type,

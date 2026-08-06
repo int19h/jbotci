@@ -992,14 +992,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw TOML source DTO intentionally admits invalid identities, types, and arities for fail-closed mint validation",
     ),
     (
-        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RawLockedPackage",
-        "raw Cargo.lock package DTO intentionally admits an empty identity and a checksum without a source so lockfile parsing returns a typed rejection",
-    ),
-    (
-        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RawLockfile",
-        "raw Cargo.lock DTO is an unchecked staging aggregate whose packages become validated LockedPackage values before any projection comparison",
-    ),
-    (
         "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:PlaceDeletionSource",
         "raw TOML source DTO is validated against lexical rows, total surviving labels, and evidence before minting",
     ),
