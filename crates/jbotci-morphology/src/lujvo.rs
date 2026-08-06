@@ -54,11 +54,11 @@ impl RafsiShape {
     }
 }
 
-/// Every gismu is exactly five letters long (CLL 4.1).
+/// Every gismu is exactly five letters long (CLL 4.4).
 const GISMU_LETTER_COUNT: usize = 5;
 
 crate::define_string_enum_metadata! {
-    /// Shape of a full gismu: the only two spellings CLL 4.1 admits.
+    /// Shape of a full gismu: the only two spellings CLL 4.4 admits.
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     #[serde(rename_all = "kebab-case")]
     pub enum GismuShape {
@@ -102,7 +102,7 @@ impl std::fmt::Display for GismuShape {
 }
 
 crate::define_string_enum_metadata! {
-    /// Shape of a short rafsi, the three forms a gismu can claim (CLL 4.7).
+    /// Shape of a short rafsi, the three forms a gismu can claim (CLL 4.6).
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     #[serde(rename_all = "kebab-case")]
     pub enum ShortRafsiShape {
@@ -123,7 +123,7 @@ impl ShortRafsiShape {
     /// CCV rafsi may begin a lujvo and so must be able to begin a word
     /// (CLL 3.7). `Cvv` covers the `CV'V` form (`sa'i`) and the
     /// apostrophe-free form, which exists only for the four diphthongs `ai`,
-    /// `ei`, `oi`, and `au` (CLL 4.7) — a bare `sae` is not a rafsi.
+    /// `ei`, `oi`, and `au` (CLL 4.6) — a bare `sae` is not a rafsi.
     #[requires(true)]
     #[ensures(ret -> matches!(form.chars().count(), 3 | 4))]
     pub fn matches_form(self, form: &str) -> bool {
@@ -431,7 +431,7 @@ pub fn rafsi_shape(text: &str) -> RafsiShape {
     }
 }
 
-/// Return every short rafsi a gismu of this shape may claim under CLL 4.7.
+/// Return every short rafsi a gismu of this shape may claim under CLL 4.6.
 ///
 /// Purely phonotactic: whether a form is already assigned to another word is a
 /// dictionary question, answered by `jbotci_dictionary::Dictionary`.
@@ -510,7 +510,7 @@ fn push_short_rafsi(output: &mut Vec<ShortRafsiForm>, shape: ShortRafsiShape, fo
 }
 
 /// Push the apostrophe-free CVV rafsi, which exists only for the four
-/// diphthongs `ai`, `ei`, `oi`, and `au` (CLL 4.7).
+/// diphthongs `ai`, `ei`, `oi`, and `au` (CLL 4.6).
 #[requires(is_consonant(consonant))]
 #[requires(is_vowel(first_vowel) && is_vowel(second_vowel))]
 #[ensures(output.len() <= old(output.len()) + 1)]
@@ -839,7 +839,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn derives_every_cvccv_short_rafsi() {
-        // CLL 4.7: `sakli` yields both CVC forms, the CV'V form, the
+        // CLL 4.6: `sakli` yields both CVC forms, the CV'V form, the
         // apostrophe-free `ai` diphthong form, and both permissible CCV forms.
         assert_eq!(
             short_rafsi_spellings("sakli"),
