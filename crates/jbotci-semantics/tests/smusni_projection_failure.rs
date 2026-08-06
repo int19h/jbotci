@@ -11,7 +11,6 @@ use jbotci_dialect::DialectDefinition;
 use jbotci_morphology::{
     MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
-use jbotci_semantics::model::SemanticGraphData;
 use jbotci_semantics::{
     FailureClass, SemanticBuildOptions, SemanticGraph, SmusniProjectionFailed,
     build_generated_semantic_graph_with_dictionary_and_options, render_smusni,

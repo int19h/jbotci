@@ -408,30 +408,12 @@ pub(super) struct CompactElaboration {
 }
 
 impl CompactElaboration {
-    /// Whether any boundary declined, which promotes the whole document to the
-    /// graph-faithful representation.
+    /// Whether any boundary declined, which fails the projection as a whole:
+    /// a failed elaboration yields failure records, never a document.
     #[requires(true)]
     #[ensures(ret == !self.failures.is_empty())]
-    pub(super) fn requires_typed_graph(&self) -> bool {
+    pub(super) fn has_failures(&self) -> bool {
         !self.failures.is_empty()
-    }
-
-    /// Number of distinct objects whose compact projection was declined.
-    ///
-    /// This is deliberately not `failures.len()`: that is the failed-*edge*
-    /// count, and one object can decline at two different boundaries. The
-    /// channel is sorted by owner first, so distinct owners are the positions
-    /// where the owner changes.
-    #[requires(true)]
-    #[ensures(ret <= self.failures.len())]
-    #[ensures(ret > 0 || self.failures.is_empty())]
-    pub(super) fn failed_owners(&self) -> usize {
-        self.failures
-            .iter()
-            .zip(self.failures.iter().skip(1))
-            .filter(|(previous, next)| previous.owner != next.owner)
-            .count()
-            + usize::from(!self.failures.is_empty())
     }
 }
 
@@ -799,8 +781,8 @@ impl Elaborator<'_> {
         )
     }
 
-    /// Record one failed projection edge, which also requires the
-    /// graph-faithful document fallback.
+    /// Record one failed projection edge, which fails the projection as a
+    /// whole once elaboration completes.
     ///
     /// The edge is `(id, cause)`. Re-entering the same boundary from a
     /// declining wrapper's re-render is the same edge and adds nothing; a
@@ -3945,45 +3927,6 @@ mod tests {
                 CompactFallbackCause::NonAtomicRelation,
             ]),
         );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn distinct_failed_owners_are_counted_separately_from_failed_edges() {
-        // `SmusniRenderStats::object_fallbacks` reports objects and the reason
-        // aggregate reports edges, so the two must stay separable here: three
-        // edges over two owners are three records but two failed objects.
-        let log = CompactFallbackLog::default();
-        for failure in [
-            edge(1, CompactFallbackCause::ArgumentFields),
-            edge(1, CompactFallbackCause::NonAtomicRelation),
-            edge(2, CompactFallbackCause::ArgumentFields),
-        ] {
-            log.record(failure);
-        }
-        let elaboration = new!(CompactElaboration {
-            body: Datum::atom("This"),
-            compact_objects: 0,
-            failures: log.into_ordered(),
-        });
-        assert_eq!(elaboration.failures.len(), 3, "three distinct failed edges");
-        assert_eq!(elaboration.failed_owners(), 2, "over two distinct owners");
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn one_failed_edge_is_one_failed_owner() {
-        let log = CompactFallbackLog::default();
-        log.record(edge(1, CompactFallbackCause::SignFields));
-        let elaboration = new!(CompactElaboration {
-            body: Datum::atom("This"),
-            compact_objects: 0,
-            failures: log.into_ordered(),
-        });
-        assert_eq!(elaboration.failures.len(), 1);
-        assert_eq!(elaboration.failed_owners(), 1);
     }
 
     #[test]

@@ -235,7 +235,7 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniPro
     }
 
     let elaboration = elaborate_compact(graph, &plan);
-    if elaboration.requires_typed_graph() {
+    if elaboration.has_failures() {
         let failures = elaboration
             .failures
             .iter()

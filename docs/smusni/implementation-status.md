@@ -168,7 +168,7 @@ specification destination.
 
 ## Registry status
 
-The checked-in semantic-surface scanner, 882 authored dispositions, generated
+The checked-in semantic-surface scanner, 885 authored dispositions, generated
 runtime registry, and registry validation are retained from the interrupted CP2
 work because they are useful executable defect detectors. They are not
 described as immutable, exhaustive, or final: the current runnable slice still
