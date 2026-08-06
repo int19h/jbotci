@@ -261,11 +261,12 @@ impl ExternalRendererCommand {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum TersmuFormat {
-    /// Typed human-readable `smusni` S-expression notation (the default).
-    #[default]
+    /// Experimental typed human-readable `smusni` S-expression notation.
     Smusni,
     Json,
-    /// Canonical scoped SFN-XML rendering produced by the in-product renderer.
+    /// Canonical scoped SFN-XML rendering produced by the in-product renderer
+    /// (the default, matching the tersmu product and MCP surfaces; issue #752).
+    #[default]
     Xml,
     /// Pipe the JSON graph through a caller-configured renderer.
     External(ExternalRendererCommand),
@@ -404,9 +405,12 @@ system-prompt = "Speak only Lojban."
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn config_defaults_to_smusni() {
+    fn config_defaults_to_xml() {
+        // The gate renders candidate semantics as canonical scoped SFN-XML
+        // unless a run explicitly selects another notation (issue #752).
+        assert_eq!(TersmuFormat::default(), TersmuFormat::Xml);
         let config = RunConfig::from_toml(VALID_CONFIG).expect("valid config");
-        assert_eq!(config.tersmu_format, TersmuFormat::Smusni);
+        assert_eq!(config.tersmu_format, TersmuFormat::Xml);
         assert_eq!(config.listener_mode, ListenerMode::Informed);
         assert!(!config.allow_degraded_search);
         assert_eq!(config.meaning_review, MeaningReviewConfig::default());

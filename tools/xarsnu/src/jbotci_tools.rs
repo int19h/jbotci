@@ -407,18 +407,19 @@ impl std::error::Error for GateError {}
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ReferenceTools;
 
-/// xarsnu-local tersmu request. The production MCP and REST surfaces default to
-/// XML, while this reference-tool surface retains its established smusni
-/// default.
+/// xarsnu-local tersmu request. This reference-tool surface pins its own
+/// defaults and its own terser model-facing descriptions instead of inheriting
+/// the production request schema; both surfaces currently default to XML
+/// (issue #752).
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 struct XarsnuTersmuRequest {
     /// The Lojban text to interpret.
     text: String,
-    /// How to render the graph. Defaults to typed human-readable `smusni`
-    /// S-expressions on xarsnu. Use `xml` for canonical scoped SFN-XML or
-    /// `json` for the canonical interchange graph.
+    /// How to render the graph. Defaults to canonical scoped SFN-XML on xarsnu.
+    /// Use `smusni` for the experimental typed human-readable S-expression
+    /// document or `json` for the canonical interchange graph.
     #[serde(default = "xarsnu_tersmu_format_default")]
     format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
@@ -426,8 +427,8 @@ struct XarsnuTersmuRequest {
     #[serde(default)]
     dialect: Option<String>,
     /// Include structured dictionary word cards for content words. Cards are
-    /// inside the single smusni document, are on by default, and are suppressed
-    /// for JSON.
+    /// inside the single rendered document, are on by default, and are
+    /// suppressed for JSON.
     #[serde(default = "xarsnu_show_defs_default")]
     show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative story
@@ -455,9 +456,9 @@ impl From<XarsnuTersmuRequest> for ToolTersmuRequest {
 }
 
 #[requires(true)]
-#[ensures(ret == ToolTersmuFormat::Smusni)]
+#[ensures(ret == ToolTersmuFormat::Xml)]
 fn xarsnu_tersmu_format_default() -> ToolTersmuFormat {
-    ToolTersmuFormat::Smusni
+    ToolTersmuFormat::Xml
 }
 
 #[requires(true)]
@@ -865,8 +866,8 @@ mod tests {
         let format = &tersmu.function.parameters["properties"]["format"];
         assert_eq!(
             format["default"],
-            json!("smusni"),
-            "xarsnu's published schema must retain its surface-local default"
+            json!("xml"),
+            "xarsnu's published schema must keep its surface-local XML default"
         );
         assert!(
             format["description"]
@@ -879,25 +880,25 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn xarsnu_tersmu_defaults_to_smusni_and_preserves_explicit_xml() {
+    fn xarsnu_tersmu_defaults_to_xml_and_preserves_explicit_smusni() {
         let omitted = tool_call("tersmu", json!({ "text": "mi klama" }));
         let omitted_output = ReferenceTools::dispatch(&omitted).expect("omitted format");
-        let expected_smusni = run_tool_tersmu(ToolTersmuRequest {
+        let expected_xml = run_tool_tersmu(ToolTersmuRequest {
             text: "mi klama".to_owned(),
-            format: ToolTersmuFormat::Smusni,
+            format: ToolTersmuFormat::Xml,
             dialect: None,
             show_defs: true,
             story_time: false,
             indent: None,
         })
-        .expect("direct smusni");
-        assert_eq!(omitted_output, expected_smusni);
+        .expect("direct XML");
+        assert_eq!(omitted_output, expected_xml);
         assert_eq!(
             omitted_output.content_type.as_deref(),
-            Some("text/plain; charset=utf-8")
+            Some("application/xml; charset=utf-8")
         );
 
-        let explicit_xml = tool_call(
+        let explicit_xml_without_definitions = tool_call(
             "tersmu",
             json!({
                 "text": "mi klama",
@@ -905,22 +906,37 @@ mod tests {
                 "show-defs": false
             }),
         );
-        let xml_output = ReferenceTools::dispatch(&explicit_xml).expect("explicit XML");
-        let expected_xml = run_tool_tersmu(ToolTersmuRequest {
+        let bare_xml_output =
+            ReferenceTools::dispatch(&explicit_xml_without_definitions).expect("explicit XML");
+        // jbotci#719: the document opens with the KEY teaching comment.
+        assert!(bare_xml_output.stdout.starts_with(b"<!--\n"));
+
+        let explicit_smusni = tool_call(
+            "tersmu",
+            json!({
+                "text": "mi klama",
+                "format": "smusni",
+                "show-defs": false
+            }),
+        );
+        let smusni_output = ReferenceTools::dispatch(&explicit_smusni).expect("explicit smusni");
+        let expected_smusni = run_tool_tersmu(ToolTersmuRequest {
             text: "mi klama".to_owned(),
-            format: ToolTersmuFormat::Xml,
+            format: ToolTersmuFormat::Smusni,
             dialect: None,
             show_defs: false,
             story_time: false,
             indent: None,
         })
-        .expect("direct XML");
-        assert_eq!(xml_output, expected_xml);
-        // jbotci#719: the document opens with the KEY teaching comment.
-        assert!(xml_output.stdout.starts_with(b"<!--\n"));
+        .expect("direct smusni");
+        assert_eq!(smusni_output, expected_smusni);
+        assert_ne!(
+            smusni_output.stdout, bare_xml_output.stdout,
+            "an explicit smusni selection must not fall back to the XML default"
+        );
         assert_eq!(
-            xml_output.content_type.as_deref(),
-            Some("application/xml; charset=utf-8")
+            smusni_output.content_type.as_deref(),
+            Some("text/plain; charset=utf-8")
         );
     }
 
@@ -964,7 +980,7 @@ mod tests {
             indent: None,
         })
         .expect("direct smusni call");
-        assert_eq!(smusni, default, "smusni is now the default rendering");
+        assert_ne!(smusni, default, "smusni is no longer the default rendering");
         assert_ne!(smusni, json, "smusni is a distinct rendering from json");
         assert_eq!(smusni, direct_smusni.stdout);
 
@@ -983,6 +999,7 @@ mod tests {
         })
         .expect("direct XML call");
         assert_eq!(xml, direct_xml.stdout);
+        assert_eq!(xml, default, "xml is the gate's default rendering");
         assert_ne!(xml, json, "xml is a distinct rendering from json");
         assert_ne!(xml, smusni, "xml is a distinct rendering from smusni");
         // The gate always requests show-defs, whose definitions preamble
@@ -996,7 +1013,7 @@ mod tests {
         let invalid_dialect = "(definitely-not-a-jbotci-dialect)".to_owned();
         let direct_error = run_tool_tersmu(ToolTersmuRequest {
             text: "mi klama".to_owned(),
-            format: ToolTersmuFormat::Smusni,
+            format: ToolTersmuFormat::Xml,
             dialect: Some(invalid_dialect.clone()),
             show_defs: true,
             story_time: false,
@@ -1148,12 +1165,14 @@ mod tests {
         );
     }
 
+    /// The direct production call the gate's own default request must mirror
+    /// byte for byte, so its format tracks the gate default (issue #752).
     #[requires(!text.trim().is_empty())]
-    #[ensures(ret.text == text)]
+    #[ensures(ret.text == text && ret.format == ToolTersmuFormat::Xml)]
     fn tersmu_request(text: &str) -> ToolTersmuRequest {
         ToolTersmuRequest {
             text: text.to_owned(),
-            format: ToolTersmuFormat::Smusni,
+            format: ToolTersmuFormat::Xml,
             dialect: None,
             show_defs: true,
             story_time: false,
