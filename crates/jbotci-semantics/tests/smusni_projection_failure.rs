@@ -147,11 +147,32 @@ fn an_unlicensed_higher_order_crossing_is_a_tracked_spec_gap() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn a_root_that_denotes_no_act_is_an_invalid_graph() {
+fn an_ill_scoped_binder_is_an_invalid_graph() {
+    // A stacked question whose binders do not enclose their uses is not a
+    // missing route: the graph itself is ill-scoped, and nothing follows about
+    // whether smusni can express the corresponding distinction.
+    let graph = graph_of("pau xo ma mo xu");
+    let failed = failed_projection(&graph);
+    assert!(classes_of(&failed).contains(&FailureClass::InvalidGraph));
+    let ill_scoped = failed
+        .failures
+        .iter()
+        .find(|failure| failure.reason_id == "smusni.projection.binder-does-not-dominate-use")
+        .expect("the ill-scoped binder record is present");
+    assert_eq!(ill_scoped.failure_class, FailureClass::InvalidGraph);
+    // A scope failure names both ends of the edge it describes.
+    assert!(ill_scoped.owner.is_some());
+    assert!(ill_scoped.use_site.is_some());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_root_that_denotes_no_act_is_a_whole_graph_invalid_graph() {
     // The document body is a `Performable`. A graph rooted at a value has no
-    // body position at all, so this is the whole-graph invalid-graph route with
-    // no smaller owner — the class real Lojban input does not reach, because
-    // the builder always roots a text at an utterance or a sequence.
+    // body position at all, so this is the whole-graph route with no smaller
+    // owner. The production builder always roots a text at an utterance or a
+    // sequence, so this route is defensive and needs a constructed graph.
     let graph = graph_of("mi klama");
     let value_root = graph
         .objects

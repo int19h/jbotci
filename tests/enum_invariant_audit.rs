@@ -1060,8 +1060,36 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "static checker tuple elements are recursively validated StaticType values",
     ),
     (
-        "crates/jbotci-semantics/src/notation/registry.rs:RegisteredDisposition::TypedFallback",
-        "FallbackBoundary already validates the exact disposition/reason/type/owner join",
+        "crates/jbotci-semantics/src/notation/registry.rs:RegisteredFailureSite::TypedPosition",
+        "the typed position carries an already parsed v0 type and a closed minimum raw owner",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:RegisteredFailureSite::WholeGraph",
+        "the whole-graph site has no fields to constrain; its raw root is fixed by the registry join",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:Capture::Local",
+        "a local capture is an already validated LocalFallback with a registered reason and an ordered raw tree",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:Capture::WholeGraph",
+        "a whole-graph capture is an already validated TypedGraph with a registered reason and an ordered raw tree",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedFailureSite::TypedPosition",
+        "the generated site is the unchecked serialization shape; DispositionRegistry::try_from_generated is the single boundary that validates it",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedFailureSite::WholeGraph",
+        "the generated site is the unchecked serialization shape; DispositionRegistry::try_from_generated is the single boundary that validates it",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:RegisteredDisposition::Failure",
+        "FailureBoundary already validates the exact disposition/reason/site/class/owner join",
+    ),
+    (
+        "crates/jbotci-semantics/src/completeness/model.rs:ProjectionFailureSite::WholeGraph",
+        "the whole-graph site has no fields to constrain; its raw root is fixed by WHOLE_GRAPH_RAW_ROOT_TYPE",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallbackCause::UnrecognizedObjectFamily",
@@ -1128,14 +1156,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "every validated expression is a syntactically valid ordinary application argument",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:DocumentBody::Performable",
-        "the syntax layer accepts a validated expression while static Performable typing is enforced by elaboration",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:DocumentBody::TypedGraph",
-        "the TypedGraph payload already proves the complete whole-document fallback grammar",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LetBinding::Prelude",
         "PreludeBinding carries a registry-validated prelude name, type, and expression",
     ),
@@ -1152,47 +1172,47 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "PositiveInteger proves every numbered application marker is canonical, positive, and unbounded",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Atom",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::Atom",
         "NfcText validates the exact string payload of RawAtom",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::List",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::List",
         "every sequence of validated raw values is a valid RawList payload",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Null",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::Null",
         "the unit variant exactly represents RawNull",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Object",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::Object",
         "RawObject contains validated identity and text fields; cross-tree identity order is enforced by RawTree",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Ref",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::Ref",
         "ObjectId proves positivity; cross-tree reference order is enforced by RawTree",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Record",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::Record",
         "RawRecord carries independently validated NFC names, fields, and recursively valid raw values",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Variant",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::Variant",
         "RawVariant carries independently validated NFC enum identity, constructor, fields, and raw values",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Map",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::Map",
         "every sequence of validated RawMapEntry values is a valid RawMap payload",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::Scalar",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::Scalar",
         "both the model scalar type and its exact lexical value are independently NFC-normalized",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::String",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::String",
         "NfcText validates the exact string payload of RawString",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawValue::TypedAtom",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawValue::TypedAtom",
         "both model enum type and case are independently NFC-validated strings",
     ),
     (
@@ -1206,10 +1226,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Bind",
         "BindForm proves the canonical one-variable Bind production",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Fallback",
-        "LocalFallback proves the expected type, registered reason, and raw-tree grammar",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Expr::Integer",

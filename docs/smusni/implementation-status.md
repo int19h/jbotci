@@ -5,33 +5,68 @@ exhaustive version-0 implementation. Its design inputs are this directory's
 `spec.md` and `samples.md`, which are dual-homed with the smusni design
 repository. The samples are design specimens, not output expectations.
 
-**The specification is ahead of this implementation.** Issue #753 made an
-unproved projection a product error rather than a conforming raw document, and
-the specification now says so throughout. The renderer still returns a raw
-`TypedGraph` document on an unproved projection; making the API fallible and
-wiring the CLI, server, and MCP error surfaces is the second increment of that
-issue. Every divergence this creates is listed below. The reason-id namespace
-is already `smusni.projection.`, and the registry already calls its table
-`ProjectionFailureReasonRow`. Three further declared shapes are ahead of the
-registry and likewise belong to the second increment: the rows do not yet
-carry the `failure-class` field the section-14.2 schema declares (so the
-section-16.2 class breakdown cannot yet be reported); the
-`smusni.projection.graph.root-not-performable` and
-`smusni.projection.graph.unbound-variable` ids the specification requires do
-not exist as rows, and no row uses a `WholeGraph` failure site — a whole-graph
-capture is currently labelled with its first failed edge's reason; and the
-disposition ledger still records the retired `TypedFallback` value where the
-specification now requires the `Failure` marker with reason-row classes.
-Separately, the specification names `tu'a`, `co'e`, and `do'e` as tracked spec
-gaps (section 14.4); behaviorally they are part of the catch-all below, and no
-compact route may be attempted for them until the gap is closed.
+**Issue #753 is closed.** An unproved projection is a product error rather
+than a conforming raw document, in the implementation as well as in the
+specification. The renderer entrypoints return the section-16.1 result shape:
+a success carries one complete `(Smusni 0 ...)` document with its nonfatal
+diagnostics and statistics, and a failure carries a nonempty ordered list of
+registered projection errors with no document, no `Words` section, and no
+serialized graph. Every reason row carries a reviewed section-16.2
+`failure-class` and an explicit failure site; the two `WholeGraph` ids the
+specification requires exist and are emitted where the renderer detects their
+conditions; and the ledger records the section-14.2 `Failure` marker in place
+of the retired `TypedFallback` value.
+
+The specification remains ahead of this implementation in coverage, which is
+what the support matrix and the limitations list below describe. It names
+`tu'a`, `co'e`, and `do'e` as tracked spec gaps (section 14.4); behaviorally
+they are part of the catch-all below, and no compact route may be attempted
+for them until the gap is closed.
+
+## The failure surface
+
+A failed projection produces no document at all. Each failed edge is one
+record carrying a registered `smusni.projection.` reason id, the stable message
+its typed cause fixes, severity `error`, the section-16.2 class taken from that
+reason's registry row, typed owner and use-site evidence where the graph
+supplies them, and a source span resolved when the record is created by the
+section-16.2 attribution order: the owner's own span, else the use site's span,
+else the nearest source-bearing semantic ancestor, else the whole input with
+the identities carried as notes. The record says which of those four rules
+chose its span, so a host that owns the original text can present the
+whole-input case as the whole input rather than as an approximation of it.
+
+Two conditions have no smaller sound owner and use the registered `WholeGraph`
+site: a root that denotes a value rather than a performable act
+(`smusni.projection.graph.root-not-performable`), and a scope dependence naming
+a binder that owns no scope anywhere in the graph
+(`smusni.projection.graph.unbound-variable`). The second is a defensive route:
+no graph the production builder emits reaches it today.
+
+Nonfatal graph-attached diagnostics stay separate from projection errors. This
+implementation deliberately does **not** promote a graph-attached diagnostic of
+severity `error` into a projection failure: a graph carrying one still has a
+faithful projection when every edge projects.
+
+The host profiles present that one structured value and add nothing to it. The
+command line converts records into standard labelled diagnostics in a
+`semantic-projection` phase and writes them to stderr through the same
+source-aware renderer the parser phases use, over the original Lojban, with
+empty stdout and a nonzero exit; `--max-errors` truncates the printed records
+and prints how many were omitted. HTTP returns an `application/problem+json`
+server error carrying the stable `smusni-projection-failed` code, the requested
+format, the records, the total/returned/truncated counts, and the statistics;
+a malformed request keeps its ordinary client-error status. MCP returns the
+tool error result with a readable summary first and the same envelope
+serialized as one JSON text item. An explicit smusni request is never retried
+in another format.
 
 ## Runnable support matrix
 
 | Family | Current behavior | Boundary |
 |---|---|---|
 | Document packaging | One typed-grammar-parseable `(Smusni 0 ...)` datum with one trailing newline. The optional `Words` section carries one `(Word root definition)` card per content word that has a dictionary definition. A card whose word is not a bare lexical root — a defined zei-lujvo's multi-word surface such as `abu zei sance` — keeps that exact surface through the grammar's escaped spelling `|abu zei sance|`. Words with no dictionary definition have no card, because the grammar's card production has no place for a missing definition; the XML rendering states them as `KNOWN="false"` instead. | Spec sections 2.2 and 2.4 |
-| Diagnostics | Collected once as structured `SmusniDiagnostic` values and kept out of the datum. Every failed projection edge gets its own `Fallback` record with a stable reason code and a stable message fixed by its typed cause. Owner and use-site identities travel as evidence where the failure site has them; they are optional and a consumer must not require them. An edge's identity is typed rather than textual: `(owner, declining boundary)` in the elaborator and `(kind, binder, use site)` in the scope planner. Re-entering one edge — for instance when a declining wrapper re-renders a child — records nothing further, while a second distinct boundary on the same owner is a second record. `SmusniRenderStats::failed_projection_edges` and `fallback_reasons` both count failed edges; `SmusniRenderStats::object_fallbacks` counts graph objects and is a different measurement. Ordering is deterministic from the typed channels; the internal sort key is not a public tuple contract. **Deliberate deviation from the specification:** section 16 makes a projection failure a result with no document and requires the CLI profile to write labelled records to stderr. This implementation returns a raw document instead and prints nothing; both are increment 2 of issue #753. The provisional formatter strings are not printed anywhere. | Spec sections 2.4 and 16 |
+| Diagnostics | Nonfatal semantic diagnostics are collected once as structured `SmusniDiagnostic` values and kept out of the datum. Every failed projection edge is its own `SmusniProjectionFailure` record on the separate failure channel. An edge's identity is typed rather than textual: `(owner, declining boundary)` in the elaborator and `(kind, binder, use site)` in the scope planner. Re-entering one edge — for instance when a declining wrapper re-renders a child — records nothing further, while a second distinct boundary on the same owner is a second record. `SmusniRenderStats` retains exactly the three section-16.1 measurements: `failed_projection_edges`, the per-reason `failure_reasons` counts, and `failing_owners`. Ordering is deterministic from the typed channels; the internal sort key is not a public tuple contract. | Spec sections 2.4 and 16 |
 | Variable spelling | Generated variables are composed from typed identity components through closed token tables, never by rewriting an identity's display text. Every token begins lowercase, so no generated name enters the PascalCase namespace that section 2.1 reserves for primitives, prelude names, types, and literals. Structural object kinds carry a `…Node` stem and referent sorts do not, which keeps the two namespaces injective without using letter case as the separator. The short `$x`/`$e`/`$p`/`$q`/`$u`/`$s`/`$v` alpha-renaming of section 15 item 3 is not yet implemented. | Spec sections 2.1 and 15 (item 3) |
 | Predication | Named predicate terms, ordinary fills, `:n`, `:Eventuality`, numbered-only `DropPlace`, default closure omission, and explicit `Assert` are compact for their exact typed shapes. | Spec sections 4 and 5 |
 | Relation formers | The canonical flat binary tanru graph projects to the registered former `(Tanru modifier head)` applied to the tertau's own places. The recognizer requires an implicit-juxtaposition `And` connective at predicate locus with exactly two children, a named tertau predication that is otherwise plain, a `Composition` link predication with exactly two plain arguments and no side fields, a fixed constant unary property abstraction over an exact `ce'u` entity parameter as the seltau, a `modifier-head` constructed relation label, and every supporting object private to this projection. Any other relation-former shape falls back, and the tanru-*like* relation question below is a separate unsupported family. | Spec section 4.6 |
@@ -45,9 +80,9 @@ compact route may be attempted for them until the gap is closed.
 | Force | `Assert` and `Mention` are compact for their exact typed shapes. `Ask` is emitted only by the question projection below, so ask force over content that is not a typed question fails closed rather than applying `Ask` at the wrong type. Quote, parenthetical, subordinated, command, and vocative force fall back. | Spec sections 1.3 and 7.1 |
 | Questions | Exact direct polar questions render `Ask` plus `Polar`; exact entity argument questions and atomic `ti mo`-style relation questions render `OpenQ`, with the latter retaining a typed open predicate row and explicit `Close`. Tanru-like `ti mo zdani`, embedded, multi-slot, and richer questions fall back. No answer family is projected: section 12.2's `Answer`, `PolarAnswer`, `TupleAnswer`, `ContextualAnswer`, and `UnresolvedAnswer` have no compact route. | Spec section 12 |
 | Abstractions | Exact entity properties render as lambdas over the abstraction's own entity parameters, which may be more than one, and exact proposition crossings use `Reify` when their complete model shape is eligible. Event-valued and richer abstraction families fall back. | Spec section 11 |
-| Utterance entries | Retained entries use the fresh `UtteranceToken` binder and registered `SpeakerOf`, `AudienceOf`, `LocutionOf`, deictic, and `Realizes` facts. Unsupported force and asides fall back to the whole-graph internal capture (product projection errors from increment 2). | Spec section 7.2 |
-| Everything else | **Catch-all:** every specification family not named as compact above falls back to the whole-graph internal capture (a product projection error once increment 2 lands). In particular that covers indicators and displayed content (7.4), sign and quotation constructors (7.3, 13.3), set/group descriptions and referential connections (8.5), simultaneous termsets (9.5), witness export (9.4), respectively-distribution, quantities, and math beyond exact integer literals and binary kernel arithmetic (13.1, 13.2), and answers (12.2). No compact head is emitted for any of them. | Whole specification |
-| Failure surface | **Diverges from the specification.** An unproved projection should return no document. This slice still emits one whole-graph internal capture as the document, with graph-owned `%id` sharing and a registered `smusni.projection.` reason, and never emits a smaller local capture. Increment 2 of issue #753 replaces this with a fallible API. | `internal-raw.md` |
+| Utterance entries | Retained entries use the fresh `UtteranceToken` binder and registered `SpeakerOf`, `AudienceOf`, `LocutionOf`, deictic, and `Realizes` facts. Unsupported force and asides are projection errors. | Spec section 7.2 |
+| Everything else | **Catch-all:** every specification family not named as compact above is a projection error. In particular that covers indicators and displayed content (7.4), sign and quotation constructors (7.3, 13.3), set/group descriptions and referential connections (8.5), simultaneous termsets (9.5), witness export (9.4), respectively-distribution, quantities, and math beyond exact integer literals and binary kernel arithmetic (13.1, 13.2), and answers (12.2). No compact head is emitted for any of them. | Whole specification |
+| Failure attribution | Every failure is attributed to the smallest owner the planner or elaborator actually held, and its span is resolved at that moment. Attribution to the smallest owner whose *expected type* is also proved is still future work (see the limitations below). | Spec sections 14.4, 16.2 |
 
 ## What the current acceptance gate does and does not prove
 
@@ -56,6 +91,15 @@ gate validates the closed serialization grammar of specification section 2.2
 and the typed annotations those productions carry: document packaging, the
 lexical token grammars, binder and declaration shapes, and the declared type
 expressions that appear in the output.
+
+The acceptance parser is the compact public grammar and nothing else. The
+`Fallback`, `TypedGraph`, and `Raw*` productions of the internal debug codec
+are not part of it and are rejected by it; the codec lives in
+`notation::sexpr::internal_raw` with its own parser and its own tests, and
+`internal-raw.md` is its description. Both parsers can receive untrusted text,
+so both bound list nesting, document size, and integer digit length, and every
+atom built from data-derived text goes through the fallible constructor rather
+than the panicking one.
 
 It is not a typechecker. There is no whole-expression static check proving that
 every compact output is well-typed — that each application's operand type
@@ -110,10 +154,14 @@ specification destination.
 - Internal capture numeric scalar type names currently expose the serializer's
   normalized `i128`, `u128`, and `f64` carriers. Bind them to declared model
   scalar types (`internal-raw.md`).
-- Failure attribution: the current conservative implementation attributes every
-  unproved projection to the whole graph. Attribute to the smallest owner only
-  when the expected type and the minimum graph-owned owner are both proved
-  (sections 14.4 and 16.2).
+- Failure attribution: a record names the owner and use site the planner or
+  elaborator held. It does not additionally prove that the owner is the
+  smallest one whose expected v0 type is established, which is what sections
+  14.4 and 16.2 ask of a registered `TypedPosition` site.
+- Failure classes: every reason row carries a reviewed class, but the review is
+  a first pass over one reason id per condition. Where several distinct causes
+  share one registered id, the class states what that id's dominant runtime
+  cause is; splitting such an id is registry work rather than renderer work.
 
 ## Registry status
 
@@ -125,14 +173,14 @@ fails on many rows classified for later direct lowering, and the runtime
 application/signature registry requires further semantic review.
 No renderer behavior is licensed merely by the existence of an inventory row.
 
-**Diverges from the specification.** Section 14.4 splits a coordinate's
-normative semantic disposition from one implementation's coverage of it and
-removes `TypedFallback` from the semantic dispositions. The checked-in ledger
-still records `TypedFallback` as a sixth disposition value. Reclassifying 882
-rows is semantic work on the coverage taxonomy rather than the increment-1
-de-ceremony, so it is deferred; nothing in the current renderer depends on the
-distinction, because the reason ids and their owners are already exact.
-`sources/must-compact-witnesses.txt` is part of that retained material, and its
+The ledger records the five closed semantic dispositions of section 14.4 plus
+the non-semantic `Failure` marker of section 14.2, which closes nothing and
+counts toward nothing. Section 14.4 also splits a coordinate's normative
+semantic disposition from one implementation's coverage of it; that coverage
+value is not yet a separate recorded field, so a coordinate whose route this
+renderer lacks is still distinguished only through its reason row's
+`RouteUnavailable` class.
+`sources/must-compact-witnesses.txt` is part of the retained material, and its
 name overstates it: it is a structurally exercised witness corpus and a
 registry-audit input, not a claim that each of its lines renders compactly.
 
@@ -184,44 +232,52 @@ reproduces the aggregate corpus measurements below. They are **observations of
 what the current conservative slice does**, not expectations: no test asserts
 them, and they will move whenever a compact recognizer is added.
 
-| Slice | Inputs | Renders | Render panics | Notes |
-|---|---:|---:|---:|---|
-| `phaseb` | 48 | 48 | 0 | the frozen structural corpus; 16 compact documents, 32 unproved projections |
-| `cll` | 1,247 | 1,245 | 0 | 2 pre-render morphology failures; 204 compact documents, 1,041 unproved projections |
-| `focused` | 16 | 16 | 0 | 6 compact documents, 10 unproved projections |
-| `alice-lines` | 2,436 | 1,084 | 0 | the remaining inputs fail earlier parsing or building, mostly syntax |
-| `alice-whole` | 1 | 1 | 0 | one unproved projection over 49,172 objects |
+| Slice | Inputs | Documents | Projection failures | Render panics | Notes |
+|---|---:|---:|---:|---:|---|
+| `phaseb` | 48 | 16 | 32 | 0 | the frozen structural corpus |
+| `cll` | 1,247 | 204 | 1,041 | 0 | 2 pre-render morphology failures |
+| `focused` | 16 | 6 | 10 | 0 | |
+| `alice-lines` | 2,436 | 48 | 1,036 | 0 | the remaining 1,352 inputs fail earlier parsing or building, mostly syntax |
+| `alice-whole` | 1 | 0 | 1 | 0 | one failed projection over 49,172 objects |
 
 The whole-Alice run is the memory reference point: 7,523,428 KiB RSS after the
-graph build and a 9,523,660 KiB peak after rendering, so it needs a host with
-more than 10 GiB free. Those two figures vary by a few MiB between runs. The
-2 GiB between them is the internal whole-graph capture; increment 2 removes it
-by never serializing a graph on the failure path. It does not remove the 7.5 GiB
-graph-build baseline, which is separate work.
+graph build and a 7,861,288 KiB peak, so it needs a host with about 8 GiB free.
+Those figures vary by a few MiB between runs. The pre-#753 peak was
+9,523,660 KiB; the roughly 2 GiB difference was the internal whole-graph
+capture, and the failure path no longer serializes a graph at all. That leaves
+the 7.5 GiB graph-build baseline, which is separate work.
 
-The same sweep reports the object statistic and the per-edge diagnostic channel
-separately. `Objects not projected` is `SmusniRenderStats::object_fallbacks`;
-`failed edges` is `SmusniRenderStats::failed_projection_edges`, which is also the
-number of failure records and the sum of `fallback_reasons`. `Failing owners`
-counts the distinct owners those records name, and `multi-edge owners` counts the
-owners named by more than one record. Those three statistic names still carry
-the retired vocabulary; increment 2 renames them with the API. Like the table
-above, these are observations of the current slice rather than expectations.
+The same sweep reports the failed-edge channel and the owner channel
+separately. `Failed edges` is `SmusniRenderStats::failed_projection_edges`,
+which is also the number of failure records and the sum of `failure_reasons`.
+`Failing owners` is `SmusniRenderStats::failing_owners`, the distinct owners
+those records name, and `multi-edge owners` counts the owners named by more
+than one record. Like the table above, these are observations of the current
+slice rather than expectations.
 
-| Slice | Objects not projected | Failed edges | Failing owners | Multi-edge owners |
-|---|---:|---:|---:|---:|
-| `phaseb` | 277 | 91 | 88 | 3 |
-| `cll` | 12,583 | 2,806 | 2,643 | 113 |
-| `focused` | 29 | 30 | 29 | 1 |
-| `alice-lines` | 15,764 | 2,824 | 2,599 | 149 |
-| `alice-whole` | 49,172 | 376 | 122 | 55 |
+| Slice | Failed edges | Failing owners | Multi-edge owners |
+|---|---:|---:|---:|
+| `phaseb` | 91 | 88 | 3 |
+| `cll` | 2,806 | 2,643 | 113 |
+| `focused` | 30 | 29 | 1 |
+| `alice-lines` | 2,824 | 2,599 | 149 |
+| `alice-whole` | 376 | 122 | 55 |
 
-The two measurements differ because they count different things, which is why
-they are reported side by side rather than derived from one another. The
-per-edge identity in the code is justified by the typed law tests over the
-channel representations, not by these numbers.
+The edge and owner measurements differ because they count different things,
+which is why they are reported side by side rather than derived from one
+another. The per-edge identity in the code is justified by the typed law tests
+over the channel representations, not by these numbers.
+
+Of the four section-16.2 classes, three are reachable from real input today:
+`RouteUnavailable` for most families, `TrackedSpecGap` for the unlicensed
+higher-order crossing, and `InvalidGraph` for an ill-scoped binder (the frozen
+`question-multiple-domains` witness `pau xo ma mo xu`).
+`ImplementationInvariant` is not reachable, which is what it should mean, and
+`crates/jbotci-semantics/tests/smusni_projection_failure.rs` asserts that
+rather than leaving it to chance.
 
 The five CLL inputs that previously panicked while manufacturing a variable
-atom — `c11e12d2`, `c11e3d1`, `c11e3d3`, `c11e3d4`, and `c11e9d1` — now render.
-They are retained as structural regressions beside one witness per eventuality
-subtype, so the sweep's zero-panic result has a cheap test-suite counterpart.
+atom — `c11e12d2`, `c11e3d1`, `c11e3d3`, `c11e3d4`, and `c11e9d1` — no longer
+panic. They are retained as structural regressions beside one witness per
+eventuality subtype, so the sweep's zero-panic result has a cheap test-suite
+counterpart.

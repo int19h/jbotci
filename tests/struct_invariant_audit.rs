@@ -1108,11 +1108,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "LetBinding proves the closed let-name alternatives and the body is independently validated",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LocalFallback",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:LocalFallback",
         "the expected type, registered fallback reason, and identity-checked raw tree are independently validated",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ObjectId",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:ObjectId",
         "PositiveInteger provides canonical arbitrary-precision positivity for every fallback object identity",
     ),
     (
@@ -1120,27 +1120,27 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "PreludeName proves registry membership and every validated type/expression pair is a valid initializer",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawField",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawField",
         "every NFC field name and validated raw value form a valid raw field",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawObject",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawObject",
         "the identity, NFC type name, and raw fields are locally valid; RawTree proves global identity order",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawMapEntry",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawMapEntry",
         "every pair of recursively validated raw values is a valid typed raw-map entry",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawRecord",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawRecord",
         "every NFC model type name and sequence of recursively validated raw fields is a valid inline record",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawVariant",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawVariant",
         "every NFC enum/constructor identity and sequence of recursively validated raw fields is a valid inline variant",
     ),
     (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:TypedGraph",
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:TypedGraph",
         "the NFC model-root name and identity-checked RawTree are independently valid",
     ),
     (
@@ -1190,6 +1190,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ReferenceBinding",
         "graph-owned identity, parsed declared type, and rendered computation are independently valid before Bind wrapping",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/renderer.rs:SpanResolver",
+        "the resolver is a private derived index over one already validated graph, so every field combination it can build is valid",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ReferencePlan",
