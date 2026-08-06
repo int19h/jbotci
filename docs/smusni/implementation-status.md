@@ -12,10 +12,19 @@ the specification now says so throughout. The renderer still returns a raw
 wiring the CLI, server, and MCP error surfaces is the second increment of that
 issue. Every divergence this creates is listed below. The reason-id namespace
 is already `smusni.projection.`, and the registry already calls its table
-`ProjectionFailureReasonRow`. The row does not yet carry the `failure-class`
-field the specification's section 14.2 schema declares; adding it and
-reporting the section-16.2 class breakdown belongs to the same second
-increment.
+`ProjectionFailureReasonRow`. Three further declared shapes are ahead of the
+registry and likewise belong to the second increment: the rows do not yet
+carry the `failure-class` field the section-14.2 schema declares (so the
+section-16.2 class breakdown cannot yet be reported); the
+`smusni.projection.graph.root-not-performable` and
+`smusni.projection.graph.unbound-variable` ids the specification requires do
+not exist as rows, and no row uses a `WholeGraph` failure site — a whole-graph
+capture is currently labelled with its first failed edge's reason; and the
+disposition ledger still records the retired `TypedFallback` value where the
+specification now requires the `Failure` marker with reason-row classes.
+Separately, the specification names `tu'a`, `co'e`, and `do'e` as tracked spec
+gaps (section 14.4); behaviorally they are part of the catch-all below, and no
+compact route may be attempted for them until the gap is closed.
 
 ## Runnable support matrix
 
@@ -36,8 +45,8 @@ increment.
 | Force | `Assert` and `Mention` are compact for their exact typed shapes. `Ask` is emitted only by the question projection below, so ask force over content that is not a typed question fails closed rather than applying `Ask` at the wrong type. Quote, parenthetical, subordinated, command, and vocative force fall back. | Spec sections 1.3 and 7.1 |
 | Questions | Exact direct polar questions render `Ask` plus `Polar`; exact entity argument questions and atomic `ti mo`-style relation questions render `OpenQ`, with the latter retaining a typed open predicate row and explicit `Close`. Tanru-like `ti mo zdani`, embedded, multi-slot, and richer questions fall back. No answer family is projected: section 12.2's `Answer`, `PolarAnswer`, `TupleAnswer`, `ContextualAnswer`, and `UnresolvedAnswer` have no compact route. | Spec section 12 |
 | Abstractions | Exact entity properties render as lambdas over the abstraction's own entity parameters, which may be more than one, and exact proposition crossings use `Reify` when their complete model shape is eligible. Event-valued and richer abstraction families fall back. | Spec section 11 |
-| Utterance entries | Retained entries use the fresh `UtteranceToken` binder and registered `SpeakerOf`, `AudienceOf`, `LocutionOf`, deictic, and `Realizes` facts. Unsupported force and asides are product projection errors. | Spec section 7.2 |
-| Everything else | **Catch-all:** every specification family not named as compact above is a product projection error. In particular that covers indicators and displayed content (7.4), sign and quotation constructors (7.3, 13.3), set/group descriptions and referential connections (8.5), simultaneous termsets (9.5), witness export (9.4), respectively-distribution, quantities, and math beyond exact integer literals and binary kernel arithmetic (13.1, 13.2), and answers (12.2). No compact head is emitted for any of them. | Whole specification |
+| Utterance entries | Retained entries use the fresh `UtteranceToken` binder and registered `SpeakerOf`, `AudienceOf`, `LocutionOf`, deictic, and `Realizes` facts. Unsupported force and asides fall back to the whole-graph internal capture (product projection errors from increment 2). | Spec section 7.2 |
+| Everything else | **Catch-all:** every specification family not named as compact above falls back to the whole-graph internal capture (a product projection error once increment 2 lands). In particular that covers indicators and displayed content (7.4), sign and quotation constructors (7.3, 13.3), set/group descriptions and referential connections (8.5), simultaneous termsets (9.5), witness export (9.4), respectively-distribution, quantities, and math beyond exact integer literals and binary kernel arithmetic (13.1, 13.2), and answers (12.2). No compact head is emitted for any of them. | Whole specification |
 | Failure surface | **Diverges from the specification.** An unproved projection should return no document. This slice still emits one whole-graph internal capture as the document, with graph-owned `%id` sharing and a registered `smusni.projection.` reason, and never emits a smaller local capture. Increment 2 of issue #753 replaces this with a fallible API. | `internal-raw.md` |
 
 ## What the current acceptance gate does and does not prove

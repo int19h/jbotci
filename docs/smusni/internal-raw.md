@@ -121,7 +121,7 @@ consumer may rely on them.
 When the smallest failing owner has a known expected type, a capture prints as
 `(Fallback expected-type "reason-id" raw-value)`. The example below shows a
 complete payload-preserving capture for the registered
-`smusni.projection.math.power-unregistered` reason.
+`smusni.projection.math.power` reason.
 
 The first operand is ordinary unquoted type syntax from section 2.2 of the
 specification and records the smusni type position that failed. The reason id
@@ -227,7 +227,7 @@ They are debug output, not samples of the format.
 A local capture preserves its type, reason, fields, identity, and sharing:
 
 ```lisp
-(Fallback Number "smusni.projection.math.power-unregistered"
+(Fallback Number "smusni.projection.math.power"
   (Object %1 "MathExpression"
     (Field "kind"
       (RawVariant "MathExpressionNodeKind" "Operator"

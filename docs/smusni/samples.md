@@ -1458,7 +1458,7 @@ ordinary labelled diagnostic the rest of the toolchain prints, with stdout
 empty and a nonzero exit:
 
 ```text
-error[smusni.projection.math.power-unregistered]: no registered reduction for
+error[smusni.projection.math.power]: no registered reduction for
 this math operator
   --> <input>:1:4
   |

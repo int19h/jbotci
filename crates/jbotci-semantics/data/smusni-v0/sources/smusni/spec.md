@@ -3126,8 +3126,9 @@ rendering; it is not a runtime projection-failure reason. Failure of an
 algorithm which the implementation can make total, including planner
 nontermination or non-convergence, is likewise an implementation error rather
 than an `AlgorithmFailureSite`. An algorithm-failure owner has no semantic
-disposition: its `DispositionRow` contains exactly one unconditional failure
-leaf, and the failure's section-16.2 class comes from its
+disposition: its `DispositionRow` carries the non-semantic `Failure` marker
+with exactly one unconditional failure leaf, and the failure's section-16.2
+class comes from its
 `ProjectionFailureReasonRow` — an invalid-graph rejection (an unbound variable,
 a non-performable root) and an unavailable implementation route are both
 legitimate algorithm-failure sites, and the reason row says which one this is.
@@ -3271,8 +3272,14 @@ type arguments must typecheck. A partial lookup, unavailable template input,
 or unmet algorithm precondition therefore needs an explicit guarded failure
 leaf rather than an arbitrary algorithm failure.
 
-The six disposition kinds retain their meanings from section 14.4. Their
-decisions obey these additional invariants:
+A `DispositionRow.disposition` is either one of the five semantic dispositions
+of section 14.4 or the dedicated marker `Failure`. `Failure` is not a semantic
+disposition and never counts toward expressive completeness: it records that
+no route is taken at this owner. Every algorithm-failure owner uses it, and so
+does a semantic owner whose route is a tracked spec gap until that gap is
+closed; the section-16.2 class of each failure emitted under such a row comes
+from its reason row's `failure-class`. The decisions obey these additional
+invariants:
 
 - `DirectLowering`, `ProvenDesugaring`, `NotationDefault`,
   `ProvenanceSuppression`, and `DiagnosticCollection` contain at least one
@@ -3280,9 +3287,13 @@ decisions obey these additional invariants:
   so the same target contract may be reused by different disposition kinds.
   Positive rows may contain guarded failure leaves where the reduction has an
   explicit precondition.
-- an `ImplementationUnavailable` coverage row contains no target leaf. It
-  normally has one unconditional failure leaf; a decision tree is permitted
-  only to select between distinct exact failure sites.
+- a `Failure` disposition contains no target leaf. It normally has one
+  unconditional failure leaf; a decision tree is permitted only to select
+  between distinct exact failure sites.
+- implementation coverage is not part of this decision. A semantic owner whose
+  route this implementation lacks keeps its semantic disposition, records
+  `ImplementationUnavailable` coverage, and its runtime failures resolve
+  through reason rows classed `RouteUnavailable`.
 - every target leaf resolves to one `TargetContractRow`; every failure leaf
   resolves to one `ProjectionFailureReasonRow` whose structured owner equals
   the disposition owner; and target, fact, reason, and owner identifiers all
@@ -3522,7 +3533,9 @@ Every semantically valid reachable coordinate needs one of these five real
 routes before this format can claim the expressive completeness of section 1's
 goal 4. There is no sixth disposition for “an error is emitted instead”: a
 projection failure is a renderer result, not a semantic distinction expressed
-in smusni primitives, so it cannot close a conformance decision.
+in smusni primitives, so it cannot close a conformance decision. (The ledger
+spells the absence of a route with the non-semantic `Failure` marker defined
+in section 14.2; that marker closes nothing and counts toward nothing.)
 
 The closed implementation-coverage values are:
 
@@ -3874,7 +3887,8 @@ the contract, and a host adds presentation, never meaning.
   label, not replacements for one. A display limit MAY truncate the printed
   records only if it also prints how many were omitted;
 - **HTTP.** Failure is a server-side capability failure, not a malformed
-  request: the request was valid smusni and the server could not fulfill it.
+  request: the request validly asked for smusni and the server could not
+  fulfill it.
   Return a machine-readable problem document carrying a stable top-level code,
   the requested format, the diagnostic list, and the statistics. Malformed
   request or input keeps its ordinary client-error status;
