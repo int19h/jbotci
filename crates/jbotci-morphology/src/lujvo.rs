@@ -1,5 +1,6 @@
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
+use serde::{Deserialize, Serialize};
 
 pub use crate::segment::ConsonantPairClass;
 
@@ -51,6 +52,89 @@ impl RafsiShape {
             Self::Other => 0,
         }
     }
+}
+
+/// Every gismu is exactly five letters long (CLL 4.1).
+const GISMU_LETTER_COUNT: usize = 5;
+
+crate::define_string_enum_metadata! {
+    /// Shape of a full gismu: the only two spellings CLL 4.1 admits.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum GismuShape {
+        Ccvcv => ("CCVCV", "ccvcv"),
+        Cvccv => ("CVCCV", "cvccv"),
+    }
+}
+
+impl GismuShape {
+    /// Classify `word` as a gismu shape, or `None` when it is not a gismu.
+    #[requires(true)]
+    #[ensures(ret.is_some() == (word.chars().count() == GISMU_LETTER_COUNT
+        && matches!(rafsi_shape(word), RafsiShape::Ccvcv | RafsiShape::Cvccv)))]
+    pub fn classify(word: &str) -> Option<Self> {
+        // `rafsi_shape` stops at the first character it does not recognize, so
+        // it reports `sakli!` as CVCCV. A gismu is exactly five letters, and
+        // the length check pins the whole word to the classified shape.
+        if word.chars().count() != GISMU_LETTER_COUNT {
+            return None;
+        }
+        match rafsi_shape(word) {
+            RafsiShape::Ccvcv => Some(Self::Ccvcv),
+            RafsiShape::Cvccv => Some(Self::Cvccv),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        crate::StringEnumMetadata::canonical_name(self)
+    }
+}
+
+impl std::fmt::Display for GismuShape {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+crate::define_string_enum_metadata! {
+    /// Shape of a short rafsi, the three forms a gismu can claim (CLL 4.7).
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum ShortRafsiShape {
+        Cvc => ("CVC", "cvc"),
+        Ccv => ("CCV", "ccv"),
+        Cvv => ("CVV", "cvv"),
+    }
+}
+
+impl ShortRafsiShape {
+    /// Whether `form` spells a short rafsi of this shape.
+    ///
+    /// `Cvv` covers both the apostrophe-free diphthong form (`sai`) and the
+    /// `CV'V` form (`sa'i`), which [`rafsi_shape`] reports separately.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn matches_form(self, form: &str) -> bool {
+        match self {
+            Self::Cvc => rafsi_shape(form) == RafsiShape::Cvc,
+            Self::Ccv => rafsi_shape(form) == RafsiShape::Ccv,
+            Self::Cvv => matches!(rafsi_shape(form), RafsiShape::Cvv | RafsiShape::CvhV),
+        }
+    }
+}
+
+/// One short rafsi spelling together with the shape it realizes.
+#[invariant(shape.matches_form(form), "the spelling realizes the declared shape")]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ShortRafsiForm {
+    pub form: String,
+    pub shape: ShortRafsiShape,
 }
 
 #[invariant(true)]
@@ -308,6 +392,118 @@ pub fn rafsi_shape(text: &str) -> RafsiShape {
         (Some('C'), Some('C'), Some('V'), None, None, None) => RafsiShape::Ccv,
         (Some('C'), Some('V'), Some('V'), None, None, None) => RafsiShape::Cvv,
         _ => RafsiShape::Other,
+    }
+}
+
+/// Return every short rafsi a gismu of this shape may claim under CLL 4.7.
+///
+/// Purely phonotactic: whether a form is already assigned to another word is a
+/// dictionary question, answered by `jbotci_dictionary::Dictionary`.
+/// Input that is not a well-formed CVCCV or CCVCV gismu yields no forms.
+#[requires(true)]
+#[ensures(GismuShape::classify(gismu).is_none() -> ret.is_empty())]
+#[ensures(
+    ret.windows(2).all(|pair| pair[0].form < pair[1].form),
+    "forms are returned sorted by spelling with duplicates removed"
+)]
+pub fn possible_short_rafsi_forms(gismu: &str) -> Vec<ShortRafsiForm> {
+    let Some(shape) = GismuShape::classify(gismu) else {
+        return Vec::new();
+    };
+    let letters = gismu.chars().collect::<Vec<_>>();
+    let mut forms = Vec::new();
+    match shape {
+        GismuShape::Cvccv => {
+            push_short_rafsi(
+                &mut forms,
+                ShortRafsiShape::Cvc,
+                &[letters[0], letters[1], letters[2]],
+            );
+            push_short_rafsi(
+                &mut forms,
+                ShortRafsiShape::Cvc,
+                &[letters[0], letters[1], letters[3]],
+            );
+            push_short_rafsi(
+                &mut forms,
+                ShortRafsiShape::Cvv,
+                &[letters[0], letters[1], '\'', letters[4]],
+            );
+            push_cvv_without_apostrophe(&mut forms, letters[0], letters[1], letters[4]);
+            push_ccv_if_initial(&mut forms, letters[2], letters[3], letters[4]);
+            push_ccv_if_initial(&mut forms, letters[0], letters[2], letters[1]);
+        }
+        GismuShape::Ccvcv => {
+            push_short_rafsi(
+                &mut forms,
+                ShortRafsiShape::Cvc,
+                &[letters[0], letters[2], letters[3]],
+            );
+            push_short_rafsi(
+                &mut forms,
+                ShortRafsiShape::Cvc,
+                &[letters[1], letters[2], letters[3]],
+            );
+            push_short_rafsi(
+                &mut forms,
+                ShortRafsiShape::Cvv,
+                &[letters[0], letters[2], '\'', letters[4]],
+            );
+            push_cvv_without_apostrophe(&mut forms, letters[0], letters[2], letters[4]);
+            push_short_rafsi(
+                &mut forms,
+                ShortRafsiShape::Cvv,
+                &[letters[1], letters[2], '\'', letters[4]],
+            );
+            push_cvv_without_apostrophe(&mut forms, letters[1], letters[2], letters[4]);
+            push_ccv_if_initial(&mut forms, letters[0], letters[1], letters[2]);
+        }
+    }
+    forms.sort_by(|left, right| left.form.cmp(&right.form));
+    forms.dedup_by(|left, right| left.form == right.form);
+    forms
+}
+
+#[requires(shape.matches_form(&letters.iter().collect::<String>()))]
+#[ensures(output.len() == old(output.len()) + 1)]
+fn push_short_rafsi(output: &mut Vec<ShortRafsiForm>, shape: ShortRafsiShape, letters: &[char]) {
+    output.push(new!(ShortRafsiForm {
+        form: letters.iter().collect::<String>(),
+        shape: shape,
+    }));
+}
+
+/// Push the apostrophe-free CVV rafsi, which exists only for the four
+/// diphthongs `ai`, `ei`, `oi`, and `au` (CLL 4.7).
+#[requires(is_consonant(consonant))]
+#[requires(is_vowel(first_vowel) && is_vowel(second_vowel))]
+#[ensures(output.len() <= old(output.len()) + 1)]
+fn push_cvv_without_apostrophe(
+    output: &mut Vec<ShortRafsiForm>,
+    consonant: char,
+    first_vowel: char,
+    second_vowel: char,
+) {
+    if matches!(
+        (first_vowel, second_vowel),
+        ('a', 'i') | ('e', 'i') | ('o', 'i') | ('a', 'u')
+    ) {
+        push_short_rafsi(
+            output,
+            ShortRafsiShape::Cvv,
+            &[consonant, first_vowel, second_vowel],
+        );
+    }
+}
+
+/// Push a CCV rafsi only when its consonant pair is a permissible initial
+/// cluster, since a CCV rafsi may begin a lujvo.
+#[requires(is_consonant(first) && is_consonant(second))]
+#[requires(is_vowel(vowel))]
+#[ensures(output.len() <= old(output.len()) + 1)]
+fn push_ccv_if_initial(output: &mut Vec<ShortRafsiForm>, first: char, second: char, vowel: char) {
+    if consonant_pair_class(first, second) == Some(ConsonantPairClass::Initial) {
+        push_short_rafsi(output, ShortRafsiShape::Ccv, &[first, second, vowel]);
     }
 }
 
@@ -588,5 +784,108 @@ mod tests {
         assert!(!is_valid_lujvo_candidate_word("xlamkai"));
         assert!(!is_valid_lujvo_candidate_word("xlaglymlu"));
         assert!(!is_valid_lujvo_candidate_word("kerlyu'ukerlo"));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn short_rafsi_spellings(gismu: &str) -> Vec<String> {
+        possible_short_rafsi_forms(gismu)
+            .into_iter()
+            .map(|form| form.into_data().form)
+            .collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn derives_every_cvccv_short_rafsi() {
+        // CLL 4.7: `sakli` yields both CVC forms, the CV'V form, the
+        // apostrophe-free `ai` diphthong form, and both permissible CCV forms.
+        assert_eq!(
+            short_rafsi_spellings("sakli"),
+            vec!["kli", "sa'i", "sai", "sak", "sal", "ska"]
+        );
+        assert_eq!(
+            possible_short_rafsi_forms("sakli")
+                .into_iter()
+                .map(|form| form.shape)
+                .collect::<Vec<_>>(),
+            vec![
+                ShortRafsiShape::Ccv,
+                ShortRafsiShape::Cvv,
+                ShortRafsiShape::Cvv,
+                ShortRafsiShape::Cvc,
+                ShortRafsiShape::Cvc,
+                ShortRafsiShape::Ccv,
+            ]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn derives_every_ccvcv_short_rafsi() {
+        // Either initial consonant heads a CVC and a CV'V form, and the
+        // initial cluster itself heads one CCV form.
+        assert_eq!(
+            short_rafsi_spellings("bridi"),
+            vec!["bi'i", "bid", "bri", "ri'i", "rid"]
+        );
+        // `blaci` additionally yields apostrophe-free forms, since `ai` is one
+        // of the four diphthongs that need no apostrophe.
+        assert_eq!(
+            short_rafsi_spellings("blaci"),
+            vec!["ba'i", "bac", "bai", "bla", "la'i", "lac", "lai"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn skips_ccv_forms_with_impermissible_initial_clusters() {
+        // `banli` yields neither `nli` nor `bna`: `nl` and `bn` may not begin a
+        // Lojban word, so no lujvo could ever use those rafsi.
+        assert_eq!(
+            short_rafsi_spellings("banli"),
+            vec!["ba'i", "bai", "bal", "ban"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn non_gismu_shapes_derive_no_short_rafsi() {
+        for word in [
+            "",
+            "sakl",
+            "sakliu",
+            "coi",
+            "jetcybolxada",
+            "sákli",
+            "sa,kli",
+            // `rafsi_shape` alone would read this as CVCCV and stop at the
+            // space; a gismu is exactly five letters.
+            "toldu ",
+            "toldu!",
+            "not lojban at all",
+        ] {
+            assert!(
+                possible_short_rafsi_forms(word).is_empty(),
+                "{word} is not a gismu"
+            );
+            assert_eq!(GismuShape::classify(word), None, "{word} is not a gismu");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn classifies_both_gismu_shapes() {
+        assert_eq!(GismuShape::classify("sakli"), Some(GismuShape::Cvccv));
+        assert_eq!(GismuShape::classify("blaci"), Some(GismuShape::Ccvcv));
+        // Derivation is pure phonotactics: a well-shaped word that no
+        // dictionary lists still yields its short rafsi.
+        assert_eq!(GismuShape::classify("toldu"), Some(GismuShape::Cvccv));
+        assert_eq!(short_rafsi_spellings("toldu"), vec!["to'u", "tod", "tol"]);
     }
 }
