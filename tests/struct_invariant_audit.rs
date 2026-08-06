@@ -2488,6 +2488,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture text expectation wire table is validated immediately after deserialization",
     ),
     (
+        "crates/jbotci-semantics/src/model/scope.rs:SourceOrderKey",
+        "every source-order key orders loci within one region; no value is invalid",
+    ),
+    (
+        "crates/jbotci-semantics/src/model/scope_recorder.rs:ScopeRecorder",
+        "mutable builder state whose constraints are enforced when the scope tree is built",
+    ),
+    (
+        "crates/jbotci-semantics/src/model/scope_recorder.rs:ScopeRegionRecord",
+        "a region under construction is incomplete by design; ScopeRegion validates the finished value",
+    ),
+    (
+        "crates/jbotci-semantics/src/model/scope_recorder.rs:ScopeOccurrenceRecord",
+        "a recorded occurrence is validated when the model value is built, after region renumbering",
+    ),
+    (
+        "crates/jbotci-semantics/src/model/scope_recorder.rs:ScopeFinalization",
+        "the finalization pass borrows recorder state and holds no constraint of its own",
+    ),
+    (
         "xtask-common/src/fixtures/mod.rs:VlaseiOutputExpectation",
         "fixture expectation aggregate permits absent vlasei output formats",
     ),

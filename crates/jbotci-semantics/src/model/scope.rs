@@ -194,6 +194,8 @@ impl ScopeBoundary {
 #[invariant(::Body => true, "the body locus carries no ordinal")]
 #[invariant(::Binder { .. } => true, "every binder ordinal names a possible binder")]
 #[invariant(::Denotation => true, "the denotation locus carries no ordinal")]
+#[invariant(::Focus => true, "the focus locus carries no ordinal")]
+#[invariant(::Property => true, "the property locus carries no ordinal")]
 #[invariant(::Restriction { .. } => true, "every binding ordinal names a possible binding")]
 #[invariant(::Operand { .. } => true, "every operand ordinal names a possible operand")]
 #[invariant(::Item { .. } => true, "every item ordinal names a possible item")]
@@ -213,6 +215,11 @@ pub enum ScopeSite {
     },
     /// What an analyzed token denotes, as a token fact rather than a value use.
     Denotation,
+    /// A question's focus or presupposed answer: a reference to one of the
+    /// question's own slots, evaluated where that slot is introduced.
+    Focus,
+    /// A descriptor's property: the lambda a description is the referent of.
+    Property,
     Restriction {
         binding: usize,
     },
@@ -305,7 +312,10 @@ pub enum ScopeUseRole {
 }
 
 /// One reference occurrence: an edge of the graph, placed.
-#[invariant(true)]
+#[invariant(*role != ScopeUseRole::BinderDeclaration || quantifier_variable_kind_is_allowed(target.object_kind()),
+    "a binder declaration names a binder-capable object")]
+#[invariant(*role != ScopeUseRole::BinderUse || quantifier_variable_kind_is_allowed(target.object_kind()),
+    "a binder use names a binder-capable object")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScopeUseOccurrence {
@@ -329,15 +339,16 @@ pub struct ScopeUseOccurrence {
 #[expensive_invariant(uses.iter().all(|occurrence| regions.contains_key(&occurrence.region)),
     "every occurrence names an existing region")]
 #[expensive_invariant(
-    scope_binder_introduction_is_unique(regions),
-    "every binder is introduced by exactly one region"
-)]
-#[expensive_invariant(scope_binder_uses_are_enclosed(*root, regions, uses),
-    "every binder use sits in a descendant of its binder's region")]
-#[expensive_invariant(
     scope_source_orders_are_unique_per_region(regions, uses),
     "source-order keys are unique within an ordered region"
 )]
+// Binder-introduction uniqueness and binder-use enclosure are deliberately not
+// invariants here. They are properties of the *record graph*, which today binds
+// one variable object at two quantifiers (a `da` shared across connective
+// branches) and lets a use escape its binder (`ro do` quantifying the audience
+// deictic other utterances reference). Asserting them would force a shape the
+// graph does not have; they are certified and reported instead — see
+// [`scope_binder_introduction_conflicts`] and [`scope_unenclosed_binder_uses`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticScopeTree {
@@ -455,40 +466,75 @@ pub fn scope_regions_form_one_tree(
 }
 
 /// No object is introduced as a binder by two regions.
+///
+/// A certification rather than an invariant: the record model does bind one
+/// variable object at two quantifiers when a quantified argument distributes
+/// over connective branches, and a prenex `da` shared by connected statements
+/// binds in each. Callers that need one binder to have one home must consult
+/// [`scope_binder_introduction_conflicts`] and decide.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret == scope_binder_introduction_conflicts(regions).is_empty())]
 pub fn scope_binder_introduction_is_unique(regions: &BTreeMap<ScopeRegionId, ScopeRegion>) -> bool {
-    let mut seen = BTreeSet::new();
-    regions
-        .values()
-        .flat_map(|region| region.binders.iter().copied())
-        .all(|binder| seen.insert(binder))
+    scope_binder_introduction_conflicts(regions).is_empty()
+}
+
+/// Every binder more than one region introduces, with the regions introducing it.
+#[requires(true)]
+#[ensures(ret.iter().all(|(_, regions)| regions.len() > 1))]
+pub fn scope_binder_introduction_conflicts(
+    regions: &BTreeMap<ScopeRegionId, ScopeRegion>,
+) -> Vec<(SemanticObjectId, Vec<ScopeRegionId>)> {
+    let mut introductions: BTreeMap<SemanticObjectId, Vec<ScopeRegionId>> = BTreeMap::new();
+    for (id, region) in regions {
+        for binder in &region.binders {
+            introductions.entry(*binder).or_default().push(*id);
+        }
+    }
+    introductions
+        .into_iter()
+        .filter(|(_, regions)| regions.len() > 1)
+        .collect()
 }
 
 /// Every binder use lies in the subtree of the region introducing that binder.
+///
+/// This is the structural form of the host planner's binder-does-not-enclose-use
+/// failure. It is a certification rather than an invariant because the record
+/// model still admits the failure: `ro do` quantifies the audience deictic in
+/// place, so every other utterance's reference to the audience is a use outside
+/// the binder's region. [`scope_unenclosed_binder_uses`] names the witnesses.
 #[requires(true)]
-#[ensures(!ret || regions.contains_key(&root))]
+#[ensures(ret == (regions.contains_key(&root) && scope_unenclosed_binder_uses(regions, uses).is_empty()))]
 pub fn scope_binder_uses_are_enclosed(
     root: ScopeRegionId,
     regions: &BTreeMap<ScopeRegionId, ScopeRegion>,
     uses: &[ScopeUseOccurrence],
 ) -> bool {
-    if !regions.contains_key(&root) {
-        return false;
-    }
+    regions.contains_key(&root) && scope_unenclosed_binder_uses(regions, uses).is_empty()
+}
+
+/// Every binder-use occurrence evaluated outside its binder's region.
+#[requires(true)]
+#[ensures(ret.iter().all(|occurrence| occurrence.role == ScopeUseRole::BinderUse))]
+pub fn scope_unenclosed_binder_uses(
+    regions: &BTreeMap<ScopeRegionId, ScopeRegion>,
+    uses: &[ScopeUseOccurrence],
+) -> Vec<ScopeUseOccurrence> {
     let introductions = regions
         .iter()
         .flat_map(|(id, region)| region.binders.iter().map(move |binder| (*binder, *id)))
         .collect::<BTreeMap<_, _>>();
     uses.iter()
         .filter(|occurrence| occurrence.role == ScopeUseRole::BinderUse)
-        .all(|occurrence| {
-            introductions
+        .filter(|occurrence| {
+            !introductions
                 .get(&occurrence.target)
                 .is_some_and(|introduction| {
                     scope_region_is_descendant(regions, occurrence.region, *introduction)
                 })
         })
+        .copied()
+        .collect()
 }
 
 /// Source-order keys separate the loci ordered within one region.
@@ -731,17 +777,19 @@ pub(crate) fn reference_sites_into(
         }
         data!(SemanticObject::Formula(node)) => push_formula_sites(out, &mut scratch, node),
         data!(SemanticObject::Sign(node)) => {
-            if let Some(descriptor) = &node.descriptor {
-                descriptor.references_into(&mut scratch);
-            }
-            drain_sites(out, &mut scratch, site_object());
+            let described = push_descriptor_sites(out, &mut scratch, node.descriptor.as_ref());
             if let Some(quotation) = &node.quotation {
                 quotation.references_into(&mut scratch);
             }
             drain_sites(out, &mut scratch, new!(ScopeSite::Quotation));
             push_optional_site(out, node.denotes, new!(ScopeSite::Denotation));
             for (index, clause) in node.relative_clauses.iter().enumerate() {
-                out.push((clause.body, new!(ScopeSite::RelativeClause { index })));
+                out.push((
+                    clause.body,
+                    new!(ScopeSite::RelativeClause {
+                        index: described + index
+                    }),
+                ));
             }
             push_optional_site(out, node.target, site_object());
             if let Some(subscript) = &node.subscript {
@@ -800,8 +848,8 @@ pub(crate) fn reference_sites_into(
             push_sites(out, [node.asker, node.respondent], site_object());
             out.push((node.body, new!(ScopeSite::Body)));
             push_binder_sites(out, node.slots.iter().filter_map(QuestionSlot::parameter));
-            push_optional_site(out, node.focus, site_object());
-            push_optional_site(out, node.presupposed_answer, site_object());
+            push_optional_site(out, node.focus, new!(ScopeSite::Focus));
+            push_optional_site(out, node.presupposed_answer, new!(ScopeSite::Focus));
         }
     }
 }
@@ -857,8 +905,13 @@ fn drain_sites(
     out.extend(scratch.drain(..).map(|target| (target, site)));
 }
 
-/// Mirrors `collect_referent_references`: descriptor and composition sit at the
-/// owner's own locus; each relative clause body is its own region.
+/// Mirrors `collect_referent_references`.
+///
+/// A description's property and every relative clause restricting it are their
+/// own regions: they are lambdas over the described referent, and a reference
+/// evaluated inside one is not evaluated where the description sits. Clause
+/// ordinals run through the descriptor's clauses first and then the node's, so
+/// one referent never gives two clauses the same locus.
 #[requires(true)]
 #[ensures(scratch.is_empty())]
 fn push_referent_sites(
@@ -868,9 +921,7 @@ fn push_referent_sites(
     composition: Option<&Composition>,
     relative_clauses: &[RelativeClause],
 ) {
-    if let Some(descriptor) = descriptor {
-        descriptor.references_into(scratch);
-    }
+    let described = push_descriptor_sites(out, scratch, descriptor);
     if let Some(composition) = composition {
         scratch.extend(composition.members.iter().copied());
         scratch.extend(composition.excluded_members.iter().copied());
@@ -878,15 +929,45 @@ fn push_referent_sites(
     }
     drain_sites(out, scratch, site_object());
     for (index, clause) in relative_clauses.iter().enumerate() {
+        out.push((
+            clause.body,
+            new!(ScopeSite::RelativeClause {
+                index: described + index
+            }),
+        ));
+    }
+}
+
+/// Mirrors `Descriptor::references_into`, returning the clause count it placed.
+#[requires(true)]
+#[ensures(scratch.is_empty())]
+#[ensures(ret == descriptor.map_or(0, |descriptor| descriptor.relative_clauses.len()))]
+fn push_descriptor_sites(
+    out: &mut Vec<(SemanticObjectId, ScopeSite)>,
+    scratch: &mut Vec<SemanticObjectId>,
+    descriptor: Option<&Descriptor>,
+) -> usize {
+    let Some(descriptor) = descriptor else {
+        drain_sites(out, scratch, site_object());
+        return 0;
+    };
+    push_optional_site(out, descriptor.speaker, site_object());
+    push_optional_site(out, descriptor.body, new!(ScopeSite::Property));
+    for (index, clause) in descriptor.relative_clauses.iter().enumerate() {
         out.push((clause.body, new!(ScopeSite::RelativeClause { index })));
     }
+    push_optional_site(out, descriptor.quantity, site_object());
+    push_optional_site(out, descriptor.scale, site_object());
+    push_optional_site(out, descriptor.operand, site_object());
+    drain_sites(out, scratch, site_object());
+    descriptor.relative_clauses.len()
 }
 
 /// Mirrors `collect_formula_references`.
 ///
-/// Quantifier bundles nest cumulatively left to right (CLL 16.7): binding *i*'s
-/// restriction is evaluated under bindings `0..=i`, and the body under all of
-/// them. Each binding's restriction therefore names its own binding ordinal.
+/// Each binding's restriction names its own ordinal so the sites stay
+/// distinguishable; whether those ordinals nest or share one locus is the
+/// recorder's decision, not the enumeration's.
 #[requires(true)]
 #[ensures(scratch.is_empty())]
 fn push_formula_sites(

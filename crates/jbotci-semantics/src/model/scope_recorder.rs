@@ -386,13 +386,13 @@ impl ScopeRecorder {
             let slot = orders.entry(region).or_default();
             let source_order = SourceOrderKey::new(*slot);
             *slot += 1;
-            uses.push(ScopeUseOccurrence {
+            uses.push(new!(ScopeUseOccurrence {
                 owner: occurrence.owner,
                 target: occurrence.target,
-                role,
-                region,
-                source_order,
-            });
+                role: role,
+                region: region,
+                source_order: source_order,
+            }));
         }
 
         new!(SemanticScopeTree {
@@ -435,7 +435,10 @@ fn region_is_descendant(
 fn scope_site_is_scoped(site: ScopeSite) -> bool {
     matches!(
         site.as_data(),
-        data!(ScopeSite::Body) | data!(ScopeSite::Restriction { .. })
+        data!(ScopeSite::Body)
+            | data!(ScopeSite::Restriction { .. })
+            | data!(ScopeSite::Property)
+            | data!(ScopeSite::RelativeClause { .. })
     )
 }
 
@@ -667,24 +670,28 @@ impl ScopeFinalization<'_> {
                 }
             }
             data!(SemanticObject::Eventuality(node)) => {
+                let described = self.declare_descriptor_regions(id, home, node.descriptor.as_ref());
                 self.declare_abstraction_regions(
                     id,
                     home,
                     node.content.is_some(),
                     node.body.is_some(),
                     &node.parameters,
+                    described,
                     node.relative_clauses.len(),
                 );
             }
             data!(SemanticObject::Referent(node)) => {
                 // A referent has no `content` locus; its abstraction, when it
                 // has one, is reached through `abstracted` at its own locus.
+                let described = self.declare_descriptor_regions(id, home, node.descriptor.as_ref());
                 self.declare_abstraction_regions(
                     id,
                     home,
                     false,
                     node.body.is_some(),
                     &node.parameters,
+                    described,
                     node.relative_clauses.len(),
                 );
             }
@@ -706,6 +713,7 @@ impl ScopeFinalization<'_> {
             }
             data!(SemanticObject::Formula(node)) => self.declare_formula_regions(id, node, home),
             data!(SemanticObject::Sign(node)) => {
+                let described = self.declare_descriptor_regions(id, home, node.descriptor.as_ref());
                 if node.quotation.is_some() {
                     let boundary = if node.sign_kind == Some(SignKind::Quotation) {
                         new!(ScopeBoundary::Opaque)
@@ -725,7 +733,9 @@ impl ScopeFinalization<'_> {
                 for index in 0..node.relative_clauses.len() {
                     self.region_for(
                         id,
-                        new!(ScopeSite::RelativeClause { index }),
+                        new!(ScopeSite::RelativeClause {
+                            index: described + index,
+                        }),
                         home,
                         new!(ScopeBoundary::Multiplicity),
                     );
@@ -746,6 +756,7 @@ impl ScopeFinalization<'_> {
                 for index in 0..slots.len() {
                     self.alias_site(id, new!(ScopeSite::Binder { index }), region);
                 }
+                self.alias_site(id, new!(ScopeSite::Focus), region);
                 self.set_binders(region, slots);
             }
             _ => {}
@@ -764,6 +775,7 @@ impl ScopeFinalization<'_> {
         has_content: bool,
         has_body: bool,
         parameters: &[SemanticObjectId],
+        described_clauses: usize,
         relative_clauses: usize,
     ) {
         if has_content {
@@ -789,11 +801,46 @@ impl ScopeFinalization<'_> {
         for index in 0..relative_clauses {
             self.region_for(
                 id,
+                new!(ScopeSite::RelativeClause {
+                    index: described_clauses + index,
+                }),
+                home,
+                new!(ScopeBoundary::Multiplicity),
+            );
+        }
+    }
+
+    /// A description's own property and restricting clauses are lambda regions
+    /// over the referent being described. Returns how many clause ordinals the
+    /// descriptor consumed, so the node's own clauses continue the numbering.
+    #[requires(true)]
+    #[ensures(ret == descriptor.map_or(0, |descriptor| descriptor.relative_clauses.len()))]
+    fn declare_descriptor_regions(
+        &mut self,
+        id: SemanticObjectId,
+        home: usize,
+        descriptor: Option<&Descriptor>,
+    ) -> usize {
+        let Some(descriptor) = descriptor else {
+            return 0;
+        };
+        if descriptor.body.is_some() {
+            self.region_for(
+                id,
+                new!(ScopeSite::Property),
+                home,
+                new!(ScopeBoundary::Multiplicity),
+            );
+        }
+        for index in 0..descriptor.relative_clauses.len() {
+            self.region_for(
+                id,
                 new!(ScopeSite::RelativeClause { index }),
                 home,
                 new!(ScopeBoundary::Multiplicity),
             );
         }
+        descriptor.relative_clauses.len()
     }
 
     /// Formula-shaped regions.
@@ -828,34 +875,44 @@ impl ScopeFinalization<'_> {
                 self.set_binders(region, vec![node.variable]);
             }
             data!(FormulaNode::QuantifierBundle(node)) => {
-                let mut parent = home;
-                for (binding, entry) in node.bindings.iter().enumerate() {
-                    let region = self.region_for(
-                        id,
-                        new!(ScopeSite::Restriction { binding }),
-                        parent,
-                        new!(ScopeBoundary::Multiplicity),
-                    );
+                // A bundle is the explicitly coequal termset (`ce'e`, `nu'i`)
+                // and serializes `coequalScope: true`; ordinary left-to-right
+                // prenex scope is already cumulative because each prenex
+                // quantifier wraps the previous formula as its own
+                // `Quantified` node. Coequal bindings therefore share one
+                // locus rather than nesting.
+                let region = self.region_for(
+                    id,
+                    new!(ScopeSite::Body),
+                    home,
+                    new!(ScopeBoundary::Multiplicity),
+                );
+                for binding in 0..node.bindings.len() {
+                    self.alias_site(id, new!(ScopeSite::Restriction { binding }), region);
                     self.alias_site(id, new!(ScopeSite::Binder { index: binding }), region);
-                    self.set_binders(region, vec![entry.variable]);
-                    parent = region;
                 }
-                self.alias_site(id, new!(ScopeSite::Body), parent);
+                self.set_binders(
+                    region,
+                    node.bindings.iter().map(|entry| entry.variable).collect(),
+                );
             }
             data!(FormulaNode::RespectivelyDistribution(node)) => {
-                let mut parent = home;
-                for (binding, stream) in node.streams.iter().enumerate() {
-                    let region = self.region_for(
-                        id,
-                        new!(ScopeSite::Restriction { binding }),
-                        parent,
-                        new!(ScopeBoundary::Multiplicity),
-                    );
+                // Respectively-distribution streams advance in parallel, so
+                // their slots are coequal in the same sense.
+                let region = self.region_for(
+                    id,
+                    new!(ScopeSite::Body),
+                    home,
+                    new!(ScopeBoundary::Multiplicity),
+                );
+                for binding in 0..node.streams.len() {
+                    self.alias_site(id, new!(ScopeSite::Restriction { binding }), region);
                     self.alias_site(id, new!(ScopeSite::Binder { index: binding }), region);
-                    self.set_binders(region, vec![stream.slot]);
-                    parent = region;
                 }
-                self.alias_site(id, new!(ScopeSite::Body), parent);
+                self.set_binders(
+                    region,
+                    node.streams.iter().map(|stream| stream.slot).collect(),
+                );
             }
             _ => {}
         }

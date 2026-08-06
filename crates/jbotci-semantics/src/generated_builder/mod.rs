@@ -14747,4 +14747,447 @@ mod tests {
             Some("vo'a"),
         );
     }
+
+    // -----------------------------------------------------------------
+    // Structural scope (jbotci#761 step 2)
+    // -----------------------------------------------------------------
+
+    /// The region an object was introduced in.
+    #[requires(true)]
+    #[ensures(true)]
+    fn origin_of(graph: &SemanticGraph, object: SemanticObjectId) -> crate::model::ScopeRegion {
+        let origin = graph
+            .scope
+            .origin(object)
+            .unwrap_or_else(|| panic!("{object} has a recorded origin"));
+        graph
+            .scope
+            .region(origin)
+            .expect("a recorded origin names a region")
+            .clone()
+    }
+
+    /// The region one reference occurrence is evaluated in.
+    #[requires(true)]
+    #[ensures(true)]
+    fn use_region(
+        graph: &SemanticGraph,
+        owner: SemanticObjectId,
+        target: SemanticObjectId,
+    ) -> crate::model::ScopeRegionId {
+        graph
+            .scope
+            .uses
+            .iter()
+            .find(|occurrence| occurrence.owner == owner && occurrence.target == target)
+            .unwrap_or_else(|| panic!("{owner} -> {target} is a recorded occurrence"))
+            .region
+    }
+
+    /// The single object whose source text is `text`.
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn object_with_source(graph: &SemanticGraph, text: &str) -> SemanticObjectId {
+        let mut found = graph.objects.iter().filter(|(_, object)| {
+            object.source().and_then(|source| source.text.as_deref()) == Some(text)
+        });
+        let (id, _) = found
+            .next()
+            .unwrap_or_else(|| panic!("an object for {text:?}"));
+        *id
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn only_formula(
+        graph: &SemanticGraph,
+        matching: impl Fn(&FormulaNode) -> bool,
+    ) -> SemanticObjectId {
+        let mut found = graph
+            .objects
+            .iter()
+            .filter(|(_, object)| object.as_formula().is_some_and(&matching));
+        let (id, _) = found.next().expect("a formula of the requested shape");
+        assert!(found.next().is_none(), "the formula shape is unique");
+        *id
+    }
+
+    /// The occurrence table is exactly the graph's reference edges, in order.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn occurrences_are_exactly_the_reference_edges() {
+        for source in [
+            "lo prenu cu klama le zarci",
+            "ro da poi gerku ku'o cu klama",
+            "mi klama gi'e citka",
+            "mi djuno lo ka ce'u klama makau",
+            "lu mi klama li'u sei mi cusku",
+        ] {
+            let graph = semantic_graph_for(source);
+            assert!(
+                crate::model::semantic_scope_occurrences_match_references(
+                    &graph.scope,
+                    &graph.objects
+                ),
+                "{source}: occurrence table diverges from the reference edges"
+            );
+            assert!(
+                crate::model::semantic_scope_origins_are_total(
+                    graph.root,
+                    &graph.scope,
+                    &graph.objects
+                ),
+                "{source}: an object has no recorded introduction region"
+            );
+        }
+    }
+
+    /// A prenex quantifier introduces one multiplicity region, and both the
+    /// restriction and the body are evaluated inside it.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn prenex_quantifier_scopes_restriction_and_body() {
+        let graph = semantic_graph_for("ro da poi gerku ku'o cu klama");
+        let quantified = only_formula(&graph, |formula| {
+            matches!(formula.as_data(), data!(FormulaNode::Quantified(_)))
+        });
+        let data!(FormulaNode::Quantified(node)) = graph.objects[&quantified]
+            .as_formula()
+            .expect("quantified formula")
+            .as_data()
+        else {
+            unreachable!("selected a quantified formula")
+        };
+        let restriction = node.restriction.expect("poi restriction");
+        let body = node.body;
+        let variable = node.variable;
+
+        let region = use_region(&graph, quantified, body);
+        assert_eq!(use_region(&graph, quantified, restriction), region);
+        let recorded = graph.scope.region(region).expect("the binder region");
+        assert!(matches!(
+            recorded.boundary.as_data(),
+            data!(crate::model::ScopeBoundary::Multiplicity)
+        ));
+        assert_eq!(recorded.binders, vec![variable]);
+        assert_eq!(
+            graph.scope.binder_universe(region),
+            BTreeSet::from([variable])
+        );
+    }
+
+    /// A coequal termset shares one locus: `ce'e` is the CLL 16.7 exception to
+    /// left-to-right nesting, and the bundle node exists only for it — ordinary
+    /// prenex order already nests because each quantifier wraps the last.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn coequal_termset_bindings_share_one_region() {
+        let graph = semantic_graph_for("ci gerku ce'e re nanmu cu batci");
+        let bundle = only_formula(&graph, |formula| {
+            matches!(formula.as_data(), data!(FormulaNode::QuantifierBundle(_)))
+        });
+        let data!(FormulaNode::QuantifierBundle(node)) = graph.objects[&bundle]
+            .as_formula()
+            .expect("bundle formula")
+            .as_data()
+        else {
+            unreachable!("selected a bundle formula")
+        };
+        assert!(
+            node.bindings.len() >= 2,
+            "a termset binds more than one variable"
+        );
+        let variables = node
+            .bindings
+            .iter()
+            .map(|binding| binding.variable)
+            .collect::<Vec<_>>();
+        let region = use_region(&graph, bundle, node.body);
+        let recorded = graph.scope.region(region).expect("the coequal region");
+        assert_eq!(recorded.binders, variables);
+        for binding in &node.bindings {
+            if let Some(restriction) = binding.restriction {
+                assert_eq!(use_region(&graph, bundle, restriction), region);
+            }
+        }
+    }
+
+    /// Nested prenex quantifiers nest their regions, innermost last.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn successive_prenex_quantifiers_nest_left_to_right() {
+        let graph = semantic_graph_for("ro da ro de zo'u da prami de");
+        let mut quantified = graph
+            .objects
+            .iter()
+            .filter_map(|(id, object)| {
+                let formula = object.as_formula()?;
+                match formula.as_data() {
+                    data!(FormulaNode::Quantified(node)) => Some((*id, node.variable, node.body)),
+                    _ => None,
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(quantified.len(), 2, "two prenex quantifiers");
+        // The outer quantifier is the one whose body is the other formula; the
+        // builder allocates it last, so identifier order does not decide this.
+        if quantified[0].2 != quantified[1].0 {
+            quantified.swap(0, 1);
+        }
+        let (outer, outer_variable, outer_body) = quantified[0];
+        let (inner, inner_variable, inner_body) = quantified[1];
+        assert_eq!(
+            outer_body, inner,
+            "the outer quantifier wraps the inner one"
+        );
+
+        let outer_region = use_region(&graph, outer, outer_body);
+        let inner_region = use_region(&graph, inner, inner_body);
+        assert!(
+            graph.scope.is_descendant_of(inner_region, outer_region),
+            "the second binder's region nests inside the first"
+        );
+        assert_eq!(
+            graph.scope.binder_universe(inner_region),
+            BTreeSet::from([outer_variable, inner_variable])
+        );
+        assert_eq!(
+            graph.scope.binder_universe(outer_region),
+            BTreeSet::from([outer_variable])
+        );
+    }
+
+    /// Each operand of a connective is its own region, so two references one
+    /// owner holds are distinguishable.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connective_operands_are_separate_regions() {
+        let graph = semantic_graph_for("mi klama gi'e citka");
+        let connective = only_formula(&graph, |formula| {
+            matches!(formula.as_data(), data!(FormulaNode::Connective(_)))
+        });
+        let data!(FormulaNode::Connective(node)) = graph.objects[&connective]
+            .as_formula()
+            .expect("connective formula")
+            .as_data()
+        else {
+            unreachable!("selected a connective formula")
+        };
+        assert!(node.children.len() >= 2, "two operands");
+        let regions = node
+            .children
+            .iter()
+            .map(|child| use_region(&graph, connective, *child))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(regions.len(), node.children.len(), "one region per operand");
+        for region in &regions {
+            assert!(matches!(
+                graph
+                    .scope
+                    .region(*region)
+                    .expect("operand region")
+                    .boundary
+                    .as_data(),
+                data!(crate::model::ScopeBoundary::ConnectiveBranch)
+            ));
+        }
+    }
+
+    /// A relative clause body is its own property region, distinct from the
+    /// argument locus its head sits at.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn relative_clause_body_is_its_own_region() {
+        let graph = semantic_graph_for("mi viska lo prenu noi klama");
+        let (head, clause) = graph
+            .objects
+            .iter()
+            .find_map(|(id, object)| {
+                let referent = object.as_referent()?;
+                let clause = referent.relative_clauses.first().or_else(|| {
+                    referent
+                        .descriptor
+                        .as_ref()
+                        .and_then(|descriptor| descriptor.relative_clauses.first())
+                })?;
+                Some((*id, clause.body))
+            })
+            .expect("a referent with a relative clause");
+        let region = use_region(&graph, head, clause);
+        let recorded = graph.scope.region(region).expect("clause region");
+        assert!(matches!(
+            recorded.boundary.as_data(),
+            data!(crate::model::ScopeBoundary::Multiplicity)
+        ));
+        assert_eq!(
+            recorded.owner.object,
+            Some(head),
+            "the clause region is owned by the head it restricts"
+        );
+        assert!(
+            graph
+                .scope
+                .origin(clause)
+                .is_some_and(|origin| graph.scope.is_descendant_of(origin, region)),
+            "the clause formula is introduced inside its own region"
+        );
+    }
+
+    /// An abstraction's body is a lambda region over the parameters it declares.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abstraction_body_region_binds_its_parameters() {
+        let graph = semantic_graph_for("mi djuno lo ka ce'u klama");
+        let (abstraction, body, parameters) = graph
+            .objects
+            .iter()
+            .find_map(|(id, object)| {
+                let referent = object.as_referent()?;
+                let body = referent.body?;
+                (!referent.parameters.is_empty()).then(|| (*id, body, referent.parameters.clone()))
+            })
+            .expect("a property abstraction");
+        let region = use_region(&graph, abstraction, body);
+        let recorded = graph.scope.region(region).expect("lambda region");
+        assert_eq!(recorded.binders, parameters);
+        assert_eq!(
+            graph.scope.binder_universe(region),
+            parameters.iter().copied().collect::<BTreeSet<_>>()
+        );
+        for (index, parameter) in parameters.iter().enumerate() {
+            let _ = index;
+            assert_eq!(use_region(&graph, abstraction, *parameter), region);
+        }
+    }
+
+    /// Each performed act is its own segment, and a `.i` continuation does not
+    /// merge them.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn force_segments_separate_successive_utterances() {
+        let graph = semantic_graph_for("mi klama .i mi citka");
+        let segments = graph
+            .scope
+            .regions
+            .values()
+            .filter(|region| {
+                matches!(
+                    region.boundary.as_data(),
+                    data!(crate::model::ScopeBoundary::ForceSegment)
+                )
+            })
+            .count();
+        assert_eq!(segments, 2, "one force segment per performed act");
+
+        let utterances = graph
+            .objects
+            .iter()
+            .filter(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::Utterance)
+            .map(|(id, _)| *id)
+            .collect::<Vec<_>>();
+        assert_eq!(utterances.len(), 2);
+        let first = origin_of(&graph, utterances[0]);
+        let second = origin_of(&graph, utterances[1]);
+        assert_ne!(first.owner, second.owner, "each act has its own region");
+    }
+
+    /// A description's self-reference inside its own property is recorded as a
+    /// definition-internal occurrence, not as a use a host must cover.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn definition_internal_references_are_recorded_as_such() {
+        let graph = semantic_graph_for("mi djuno lo nu mi klama");
+        assert!(
+            graph
+                .scope
+                .uses
+                .iter()
+                .any(|occurrence| occurrence.role == crate::model::ScopeUseRole::DefinitionInternal),
+            "the abstraction's own event is referenced from inside its definition"
+        );
+    }
+
+    /// Quoted text is opaque: it is its own segment, and nothing it introduces
+    /// belongs to the quoting act.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quotation_is_an_opaque_segment() {
+        let graph = semantic_graph_for("mi cusku lu mi klama li'u");
+        assert!(
+            graph.scope.regions.values().any(|region| matches!(
+                region.boundary.as_data(),
+                data!(crate::model::ScopeBoundary::Opaque)
+            )),
+            "quoted text opens an opaque region"
+        );
+    }
+
+    /// A lexical argument locus records the key its scope policy resolves by.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn lexical_argument_regions_record_their_relation_and_place() {
+        let graph = semantic_graph_for("mi klama le zarci");
+        let region = graph
+            .scope
+            .regions
+            .values()
+            .find(|region| {
+                matches!(
+                    region.boundary.as_data(),
+                    data!(crate::model::ScopeBoundary::LexicalArgument { relation, .. })
+                        if relation == "klama"
+                )
+            })
+            .expect("a klama argument region");
+        let data!(crate::model::ScopeBoundary::LexicalArgument {
+            relation,
+            original_place,
+        }) = region.boundary.as_data()
+        else {
+            unreachable!("selected a lexical argument region")
+        };
+        assert_eq!(relation, "klama");
+        assert!(original_place.get() >= 1);
+        let data!(crate::model::ScopeSite::Argument { place }) = region.owner.site.as_data() else {
+            panic!("a lexical argument region is owned by an argument locus")
+        };
+        assert_eq!(place, original_place);
+    }
+
+    /// The only object the graph cannot place is one it does not contain: every
+    /// region, origin and occurrence names a live object.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recorded_scope_names_only_live_objects() {
+        let graph = semantic_graph_for("le nu mi klama cu se djuno mi");
+        for region in graph.scope.regions.values() {
+            if let Some(object) = region.owner.object {
+                assert!(graph.objects.contains_key(&object), "{object} was pruned");
+            }
+            for binder in &region.binders {
+                assert!(graph.objects.contains_key(binder), "{binder} was pruned");
+            }
+        }
+        for (object, region) in &graph.scope.object_origins {
+            assert!(graph.objects.contains_key(object));
+            assert!(graph.scope.regions.contains_key(region));
+        }
+        for occurrence in &graph.scope.uses {
+            assert!(graph.objects.contains_key(&occurrence.owner));
+            assert!(graph.objects.contains_key(&occurrence.target));
+            assert!(graph.scope.regions.contains_key(&occurrence.region));
+        }
+    }
 }
