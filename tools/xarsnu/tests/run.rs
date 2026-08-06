@@ -928,10 +928,7 @@ fn meaning_review_enabled_run_replaces_confirmation_and_records_review_events() 
     .expect("copy local scenario");
     let config_source = config_source("scenario.toml", "bob")
         .replace("max-turns = 5", "max-turns = 1")
-        .replace(
-            "[caps]",
-            "[meaning-review]\nenabled = true\n\n[caps]",
-        );
+        .replace("[caps]", "[meaning-review]\nenabled = true\n\n[caps]");
     let config_path = write_config(&directory, &config_source);
     let server = MockServer::start(vec![
         tool_response(
@@ -999,12 +996,17 @@ fn meaning_review_enabled_run_replaces_confirmation_and_records_review_events() 
     assert!(requested.1.renderer_incompatibilities.is_empty());
     let review_usage = records
         .iter()
-        .filter(|record| matches!(
-            record.event.as_data(),
-            ProtocolEventData::UsageRecorded { .. }
-        ))
+        .filter(|record| {
+            matches!(
+                record.event.as_data(),
+                ProtocolEventData::UsageRecorded { .. }
+            )
+        })
         .count();
-    assert_eq!(review_usage, 5, "reviewer calls are usage-recorded like participant calls");
+    assert_eq!(
+        review_usage, 5,
+        "reviewer calls are usage-recorded like participant calls"
+    );
 
     let report = report_file(&summary.transcript_path).expect("report renders");
     assert!(report.contains("- Meaning review: `enabled`"));
@@ -1030,7 +1032,8 @@ fn meaning_review_defaults_off_and_keeps_speaker_self_confirmation() {
         &scenario_path,
     )
     .expect("copy local scenario");
-    let config_source = config_source("scenario.toml", "bob").replace("max-turns = 5", "max-turns = 1");
+    let config_source =
+        config_source("scenario.toml", "bob").replace("max-turns = 5", "max-turns = 1");
     let config_path = write_config(&directory, &config_source);
     let server = MockServer::start(vec![
         tool_response(

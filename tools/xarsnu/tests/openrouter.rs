@@ -16,9 +16,9 @@ use xarsnu::{
     OpenRouterParticipant, OpenRouterReviewSession, OpenRouterReviewer, ParticipantConfig,
     ParticipantConversation, PromptCaching, ProtocolEvent, ProtocolRunner, ProviderToolChoice,
     ProviderUsageValidationError, ReasoningConfig, ReferenceToolDispatcher, RetryPolicy,
-    ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, RunHeader, ScenarioInstance, TersmuFormat,
-    ToolCall, ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage, VisibleMessage,
-    read_transcript,
+    ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, RunHeader, ScenarioInstance,
+    TersmuFormat, ToolCall, ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage,
+    VisibleMessage, read_transcript,
 };
 
 static NEXT_DUMP_DIRECTORY: AtomicU64 = AtomicU64::new(1);
@@ -837,7 +837,8 @@ system-prompt = "Observe."
     .expect("provider routing config parses");
     let server = MockServer::start(vec![tool_call_response("alpha", 0.01)]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 0);
-    let mut conversation = ParticipantConversation::new(&config.participants[0], CompletionTokenLimit::new(16_384));
+    let mut conversation =
+        ParticipantConversation::new(&config.participants[0], CompletionTokenLimit::new(16_384));
     conversation.push_user("Private task.".to_owned());
     let mut accounting = RunAccounting::new(1.0).expect("valid budget");
 
@@ -1740,7 +1741,10 @@ fn mixed_batch_with_empty_arguments_first_processes_the_valid_call_without_repro
     let malformed = conversation.take_pending_malformed_tool_calls();
     assert_eq!(malformed.len(), 1);
     assert_eq!(malformed[0].tool_name, "beta");
-    assert_eq!(malformed[0].arguments, "", "empty payload is recorded verbatim");
+    assert_eq!(
+        malformed[0].arguments, "",
+        "empty payload is recorded verbatim"
+    );
     assert!(malformed[0].message.contains("invalid call to tool `beta`"));
 
     let mut dispatcher = ExactDispatcher;
@@ -2373,13 +2377,16 @@ fn reviewer_session_persists_across_candidates_and_counts_usage() {
     // Issue #723: two candidates under the same intent go through ONE
     // continuing reviewer session, and every reviewer call is run-accounted.
     let server = MockServer::start(vec![
-        verdict_response(false, "na scope diverges: the rendering negates the bridi.", 0.0002),
+        verdict_response(
+            false,
+            "na scope diverges: the rendering negates the bridi.",
+            0.0002,
+        ),
         verdict_response(true, "All checks pass.", 0.0003),
     ]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
     let participant = review_participant("alice", "mock/model");
-    let mut session =
-        OpenRouterReviewSession::new(
+    let mut session = OpenRouterReviewSession::new(
         &participant,
         &enabled_review_config(),
         &client,
@@ -2421,8 +2428,7 @@ fn reviewer_session_persists_across_candidates_and_counts_usage() {
             .contains("adversarial meaning reviewer")
     );
     assert_eq!(
-        requests[0].body["tool_choice"],
-        "required",
+        requests[0].body["tool_choice"], "required",
         "the forced verdict reuses the capability-resolved tool choice"
     );
     let tools = requests[0].body["tools"].as_array().expect("tools");
@@ -2456,8 +2462,7 @@ fn reviewer_usage_counts_into_the_run_cost_budget() {
     let server = MockServer::start(vec![verdict_response(true, "All checks pass.", 0.01)]);
     let client = client(server.base_url.clone(), 0, Duration::from_millis(1), 1);
     let participant = review_participant("alice", "mock/model");
-    let mut session =
-        OpenRouterReviewSession::new(
+    let mut session = OpenRouterReviewSession::new(
         &participant,
         &enabled_review_config(),
         &client,
@@ -2510,7 +2515,9 @@ fn adversarial_review_reject_feedback_revise_approve_flow_posts() {
     ];
     let participants = configs
         .iter()
-        .map(|config| OpenRouterParticipant::new(config, &client, CompletionTokenLimit::new(16_384)))
+        .map(|config| {
+            OpenRouterParticipant::new(config, &client, CompletionTokenLimit::new(16_384))
+        })
         .collect::<Vec<_>>();
     let reviewer = OpenRouterReviewer::new(
         &configs,
@@ -2583,7 +2590,10 @@ fn adversarial_review_reject_feedback_revise_approve_flow_posts() {
     assert_eq!(requests.len(), 6);
     // The first review ran in a FRESH session (system + brief only) ...
     assert_eq!(
-        requests[2].body["messages"].as_array().expect("messages").len(),
+        requests[2].body["messages"]
+            .as_array()
+            .expect("messages")
+            .len(),
         2
     );
     // ... the rejection report returned to the COMPOSING session as the
@@ -2635,7 +2645,11 @@ fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
             0.0002,
         ),
         protocol_tool_response("submit_lojban", json!({ "text": "mi klama" }), 0.0001),
-        verdict_response(true, "The revised candidate is compact and precise.", 0.0001),
+        verdict_response(
+            true,
+            "The revised candidate is compact and precise.",
+            0.0001,
+        ),
         protocol_tool_response(
             "acknowledge",
             json!({ "final_understanding_en": "You go." }),
@@ -2649,7 +2663,9 @@ fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
     ];
     let participants = configs
         .iter()
-        .map(|config| OpenRouterParticipant::new(config, &client, CompletionTokenLimit::new(16_384)))
+        .map(|config| {
+            OpenRouterParticipant::new(config, &client, CompletionTokenLimit::new(16_384))
+        })
         .collect::<Vec<_>>();
     let reviewer = OpenRouterReviewer::new(
         &configs,
@@ -2776,8 +2792,12 @@ system-prompt = "Observe."
     // its completion request must carry the participant's effective limit.
     // Route through the factory so the stored default is exercised the same
     // way the live conductor exercises it.
-    let mut reviewer =
-        OpenRouterReviewer::new(&config.participants, enabled_review_config(), &client, default_limit);
+    let mut reviewer = OpenRouterReviewer::new(
+        &config.participants,
+        enabled_review_config(),
+        &client,
+        default_limit,
+    );
     let mut session = reviewer.begin_session("alice");
     let mut accounting = RunAccounting::new(1.0).expect("valid budget");
     let outcome = session
@@ -2954,25 +2974,35 @@ fn finish_reason_length_reaches_serialized_transcript_events() {
     let malformed_events = runner
         .events()
         .iter()
-        .filter(|event| matches!(
-            event.as_data(),
-            bityzba::data!(ProtocolEvent::ToolCallMalformed { .. })
-        ))
+        .filter(|event| {
+            matches!(
+                event.as_data(),
+                bityzba::data!(ProtocolEvent::ToolCallMalformed { .. })
+            )
+        })
         .collect::<Vec<_>>();
     assert_eq!(malformed_events.len(), 1);
     assert!(matches!(
         malformed_events[0].as_data(),
-        bityzba::data!(ProtocolEvent::ToolCallMalformed { truncated: true, .. })
+        bityzba::data!(ProtocolEvent::ToolCallMalformed {
+            truncated: true,
+            ..
+        })
     ));
 
     let records = read_transcript(&transcript_path).expect("transcript validates");
     assert_eq!(records.len(), runner.events().len());
     let truncated_usage = records
         .iter()
-        .filter(|record| matches!(
-            record.event.as_data(),
-            bityzba::data!(ProtocolEvent::UsageRecorded { truncated: true, .. })
-        ))
+        .filter(|record| {
+            matches!(
+                record.event.as_data(),
+                bityzba::data!(ProtocolEvent::UsageRecorded {
+                    truncated: true,
+                    ..
+                })
+            )
+        })
         .collect::<Vec<_>>();
     assert_eq!(
         truncated_usage.len(),
@@ -2995,7 +3025,10 @@ fn finish_reason_length_reaches_serialized_transcript_events() {
     assert!(
         records.iter().any(|record| matches!(
             record.event.as_data(),
-            bityzba::data!(ProtocolEvent::UsageRecorded { truncated: false, .. })
+            bityzba::data!(ProtocolEvent::UsageRecorded {
+                truncated: false,
+                ..
+            })
         )),
         "ordinary completions remain unmarked"
     );

@@ -209,21 +209,10 @@ fn render_tersmu(
         }
     };
     let mut stdout = String::new();
-    // `--show-defs` is per-format (#709): `xml` embeds a structured WORDS
-    // section inside the single SFN document; `smusni` keeps the readable
-    // text-card preamble; `json` rejects the flag up front.
-    if input.show_defs && input.format != TersmuFormat::Xml {
-        stdout.push_str(&render_content_word_dictionary_definitions_for_word_likes(
-            words.as_slice(),
-            color_policy.stdout,
-            glyphs,
-        ));
-    }
-    // The XML word-card list is built exactly when the document embeds a WORDS
-    // section. The declared-incompatibility analysis below must see the same
-    // card-presence decision as the render (jbotci#723).
-    let word_cards = if input.show_defs && input.format == TersmuFormat::Xml {
-        jbotci_semantics::notation::word_cards::build_xml_word_cards(
+    // Both human-readable formats keep structured cards inside their single
+    // parseable document; JSON remains the pure interchange graph.
+    let word_cards = if input.show_defs && input.format != TersmuFormat::Json {
+        jbotci_semantics::notation::word_cards::build_word_cards(
             jbotci_dictionary_data::english(),
             words.as_slice(),
         )
@@ -248,13 +237,12 @@ fn render_tersmu(
             },
         )?,
         TersmuFormat::Smusni => {
-            // `render_smusni` already terminates with a single newline; the
-            // shared `stdout.push('\n')` below would double it. Drop the
-            // renderer's own trailing newline so the delivered CLI/MCP surface
-            // is byte-identical to the oracle's single-newline output
-            // (round-1 review, Codex 3).
-            let mut rendered =
-                render_smusni(&graph, jbotci_semantics::SmusniConfig { provenance: false });
+            let rendered = jbotci_semantics::render_smusni_detailed(&graph, &word_cards);
+            // Renderer diagnostics remain structured beside the document until
+            // they can be converted to the standard source-aware CLI renderer.
+            // Printing their provisional Display text would create a second,
+            // location-free diagnostic presentation.
+            let mut rendered = rendered.into_data().text;
             if rendered.ends_with('\n') {
                 rendered.pop();
             }

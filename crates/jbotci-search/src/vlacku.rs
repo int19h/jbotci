@@ -2718,7 +2718,8 @@ mod tests {
         let entry = jbotci_dictionary_data::english()
             .lookup_word("klama")
             .expect("entry for klama");
-        let card = dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
+        let card =
+            dictionary_entry_card(jbotci_dictionary_data::english(), entry, Some(1.0), false);
 
         assert!(card.known);
     }

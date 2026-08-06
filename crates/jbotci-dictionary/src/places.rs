@@ -607,7 +607,9 @@ mod tests {
                     " (object/concept) with result ".to_owned()
                 )),
                 new!(DefinitionPlaceSegment::Place(3)),
-                new!(DefinitionPlaceSegment::Text(" (picture) in medium ".to_owned())),
+                new!(DefinitionPlaceSegment::Text(
+                    " (picture) in medium ".to_owned()
+                )),
                 new!(DefinitionPlaceSegment::Place(4)),
                 new!(DefinitionPlaceSegment::Text(".".to_owned())),
             ]
@@ -647,7 +649,9 @@ mod tests {
             definition_place_segments_for_definition_line(definition, &place_map),
             vec![
                 new!(DefinitionPlaceSegment::Place(1)),
-                new!(DefinitionPlaceSegment::Text(" is an elbow of body ".to_owned())),
+                new!(DefinitionPlaceSegment::Text(
+                    " is an elbow of body ".to_owned()
+                )),
                 new!(DefinitionPlaceSegment::Place(2)),
                 new!(DefinitionPlaceSegment::Text(".".to_owned())),
             ]
@@ -791,13 +795,14 @@ mod tests {
         );
         let place_map = DefinitionPlaceMap::from_definition(definition);
 
-        let definition_places = definition_place_segments_for_definition_line(definition, &place_map)
-            .into_iter()
-            .filter_map(|segment| match segment.into_data() {
-                data!(DefinitionPlaceSegment::Place(place)) => Some(place),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
+        let definition_places =
+            definition_place_segments_for_definition_line(definition, &place_map)
+                .into_iter()
+                .filter_map(|segment| match segment.into_data() {
+                    data!(DefinitionPlaceSegment::Place(place)) => Some(place),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
         assert_eq!(definition_places, vec![1, 2, 3, 4, 5]);
         assert_eq!(
             definition_place_segments_for_notes_line("$c_2$", &place_map),

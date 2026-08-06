@@ -39,15 +39,16 @@ use jbotci_syntax::generated_model::{
     GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IParagraphStatementConnectiveSyntax,
     IStatementConnectionSyntax, IStatementConnectionTailSyntax, IStatementConnectiveSyntax,
     InfixMeksoSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JekConnectiveSyntax,
-    JoiConnectiveSyntax, JoikConnectiveSyntax, LaheSumtiSyntax, LeadingIStatementSyntax,
-    LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax, LerfuStringMeksoSyntax,
-    LerfuStringSumtiSyntax, LetterStringContinuationSyntax, LetterStringSyntax, LetterTokensSyntax,
-    LinkargsSyntax, LinkedSumtiContinuationFragmentSyntax, LinkedSumtiFragmentSyntax,
-    LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, MeksoBaseSyntax,
-    MeksoFragmentSyntax, MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax,
-    MeksoSyntax, ModalForethoughtConnectiveSyntax, ModalTenseSyntax, MultipleNaFragmentSyntax,
-    NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax, NegatedSelbriSyntax,
-    NihoParagraphSyntax, NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NumberMeksoSyntax,
+    JoiConnectiveSyntax, JoikConnectiveSyntax, KeTermsetSyntax, LaheSumtiSyntax,
+    LeadingIStatementSyntax, LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax,
+    LerfuStringMeksoSyntax, LerfuStringSumtiSyntax, LetterStringContinuationSyntax,
+    LetterStringSyntax, LetterTokensSyntax, LinkargsSyntax, LinkedSumtiContinuationFragmentSyntax,
+    LinkedSumtiFragmentSyntax, LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax,
+    LinkedTanruUnitSyntax, MeksoBaseSyntax, MeksoFragmentSyntax, MeksoOperandSyntax,
+    MeksoOperatorSyntax, MeksoPrecedenceSyntax, MeksoSyntax, ModalForethoughtConnectiveSyntax,
+    ModalTenseSyntax, MultipleNaFragmentSyntax, NameSumtiSyntax,
+    NegatedForethoughtBridiConnectionSyntax, NegatedSelbriSyntax, NihoParagraphSyntax,
+    NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NuhiTermsetSyntax, NumberMeksoSyntax,
     NumberSumtiSyntax, NumberWordContinuationSyntax, NumberWordsSyntax,
     OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
     ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
@@ -100,30 +101,29 @@ use crate::model::{
     AnchorRelation, AnchorRelationData, ArgumentValue, ArgumentValueData, ArgumentValueKind,
     Aspect, AssignedName, AssignedNameData, CommandTarget, Composition, CompositionOperator,
     Connector, ConnectorLocus, ConnectorSource, ConnectorSourceData, DeicticProximity, Descriptor,
-    DescriptorDefiniteness, DescriptorKind,
-    DisplayedContentAssertionEffect, DisplayedContentFamily, DisplayedContentModifier,
-    DisplayedContentNode, DisplayedContentPolarity, DisplayedContentTargetFocus,
-    ElidedConnectionOperand, EventualityClass, EventualityNode, EventualityNodeData,
-    EventualitySort, ForethoughtRelationBranch, FormulaNode, FormulaNodeData, FormulaOperator,
-    FormulaTraversal, IndexicalKind, IntervalEndpointInclusion, IntervalModifier,
-    IntervalModifierData, LetteralUnit, LetteralUnitKind, MathExpressionNode,
-    MathExpressionNodeData, MathExpressionNodeKind, MathExpressionNodeKindData, MathLiteral,
-    MathLiteralKind, MathOperator, MathOperatorData, MixedRadixComponent, NonlogicalConnection,
-    ParagraphTransition, ParameterRole, PersonalMassMembership, PersonalParticipantMembership,
-    PlaceIndex, PlaceQuestionBinding, PlaceQuestionBindingData, PredicationMode, PredicationNode,
-    PredicationNodeData, PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode,
-    QuantityForm, QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode,
-    QuestionSlot, QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange,
-    ReciprocalExchangeData, Recurrence, RecurrenceConnection, RecurrenceConnectionKind,
-    RecurrenceKind, ReferentCategory, ReferentNode, RelationExpansion, RelationLabel,
-    RelationLabelData, RelativeClause, RelativeClauseKind, RespectivelyStream, ScalarNegation,
-    ScalarNegationKind, SelectionSource, SemanticGraph, SemanticObject, SemanticObjectData,
-    SemanticObjectId, SemanticSort, SequenceNode, SequenceRelation, SignKind, SignNode,
-    SourceByteSpan, SpaceInterval, SpatialMotion, SpatialMotionKind, Subscript, TaggedNegation,
-    TaggedNegationKind, TanruLink, TanruLinkData, TemporalPathAnchor, TemporalPathStep,
-    TemporalPathStepData, TimeInterval, TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode,
-    argument_object_kind_can_fill, diagnostic, displayed_content_target_kind_is_allowed,
-    source_from_spans,
+    DescriptorDefiniteness, DescriptorKind, DisplayedContentAssertionEffect,
+    DisplayedContentFamily, DisplayedContentModifier, DisplayedContentNode,
+    DisplayedContentPolarity, DisplayedContentTargetFocus, ElidedConnectionOperand,
+    EventualityClass, EventualityNode, EventualityNodeData, EventualitySort,
+    ForethoughtRelationBranch, FormulaNode, FormulaNodeData, FormulaOperator, FormulaTraversal,
+    IndexicalKind, IntervalEndpointInclusion, IntervalModifier, IntervalModifierData, LetteralUnit,
+    LetteralUnitKind, MathExpressionNode, MathExpressionNodeData, MathExpressionNodeKind,
+    MathExpressionNodeKindData, MathLiteral, MathLiteralKind, MathOperator, MathOperatorData,
+    MixedRadixComponent, NonlogicalConnection, ParagraphTransition, ParameterRole,
+    PersonalMassMembership, PersonalParticipantMembership, PlaceIndex, PlaceQuestionBinding,
+    PlaceQuestionBindingData, PredicationMode, PredicationNode, PredicationNodeData,
+    PredicationRelationData, QuantifierBinding, QuantifierBundleFormulaNode, QuantityForm,
+    QuantityScale, QuantityValue, QuestionKind, QuestionMode, QuestionNode, QuestionSlot,
+    QuestionSlotRole, Quotation, RafsiBinding, ReciprocalExchange, ReciprocalExchangeData,
+    Recurrence, RecurrenceConnection, RecurrenceConnectionKind, RecurrenceKind, ReferentCategory,
+    ReferentNode, RelationExpansion, RelationLabel, RelationLabelData, RelativeClause,
+    RelativeClauseKind, RespectivelyStream, ScalarNegation, ScalarNegationKind, SelectionSource,
+    SemanticGraph, SemanticObject, SemanticObjectData, SemanticObjectId, SemanticSort,
+    SequenceNode, SequenceRelation, SignKind, SignNode, SourceByteSpan, SpaceInterval,
+    SpatialMotion, SpatialMotionKind, Subscript, TaggedNegation, TaggedNegationKind, TanruLink,
+    TanruLinkData, TemporalPathAnchor, TemporalPathStep, TemporalPathStepData, TimeInterval,
+    TimeSpan, TimeSpanEndpoint, UtteranceForce, UtteranceNode, argument_object_kind_can_fill,
+    diagnostic, displayed_content_target_kind_is_allowed, source_from_spans,
 };
 
 mod connectives;
@@ -1472,12 +1472,58 @@ enum GeneratedArgumentQuantifierSource<'syntax> {
 
 #[invariant(::Negation { .. } => true)]
 #[invariant(::Quantifier(_) => true)]
+#[invariant(::QuantifierBundle { scopes, .. } => scopes.len() > 1)]
 #[derive(Debug, Clone)]
 enum GeneratedPrenexFormulaScope {
     Negation {
         source: Option<crate::model::SemanticSource>,
     },
     Quantifier(GeneratedPrenexQuantifierScope),
+    QuantifierBundle {
+        scopes: Vec<GeneratedPrenexQuantifierScope>,
+        source: Option<crate::model::SemanticSource>,
+    },
+}
+
+#[invariant(::StartGroup { .. } => true)]
+#[invariant(::EndGroup => true)]
+#[invariant(::Sumti { .. } => true)]
+#[invariant(::Negation { .. } => true)]
+#[derive(Debug, Clone)]
+enum GeneratedPrenexTermEvent<'tree> {
+    StartGroup {
+        source: Option<crate::model::SemanticSource>,
+    },
+    EndGroup,
+    Sumti {
+        syntax: GeneratedPrenexSumtiSyntax<'tree>,
+        is_topic: bool,
+    },
+    Negation {
+        source: Option<crate::model::SemanticSource>,
+    },
+}
+
+#[invariant(::Complete(_) => true)]
+#[invariant(::Bound(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedPrenexSumtiSyntax<'tree> {
+    Complete(&'tree SumtiSyntax),
+    Bound(&'tree SumtiBoundSyntax),
+}
+
+#[invariant(true)]
+struct GeneratedPrenexTermCollector<'builder, 'a, 'dict, 'tree> {
+    builder: &'builder GeneratedGraphBuilder<'a, 'dict, 'tree>,
+    events: Vec<GeneratedPrenexTermEvent<'tree>>,
+    error: Option<SemanticsError>,
+}
+
+#[invariant(true)]
+#[derive(Debug)]
+struct GeneratedPrenexFormulaScopeGroup {
+    scopes: Vec<GeneratedPrenexFormulaScope>,
+    source: Option<crate::model::SemanticSource>,
 }
 
 #[invariant(speaker.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -7423,13 +7469,19 @@ fn generated_time_relation_for_tense_modal(tense_modal: &TenseModalSyntax) -> Op
 fn generated_prenex_formula_scope_variables(
     scopes: &[GeneratedPrenexFormulaScope],
 ) -> HashSet<SemanticObjectId> {
-    scopes
-        .iter()
-        .filter_map(|scope| match scope {
-            GeneratedPrenexFormulaScope::Negation { .. } => None,
-            GeneratedPrenexFormulaScope::Quantifier(scope) => Some(scope.variable),
-        })
-        .collect()
+    let mut variables = HashSet::new();
+    for scope in scopes {
+        match scope.as_data() {
+            data!(GeneratedPrenexFormulaScope::Negation { .. }) => {}
+            data!(GeneratedPrenexFormulaScope::Quantifier(scope)) => {
+                variables.insert(scope.variable);
+            }
+            data!(GeneratedPrenexFormulaScope::QuantifierBundle { scopes, .. }) => {
+                variables.extend(scopes.iter().map(|scope| scope.variable));
+            }
+        }
+    }
+    variables
 }
 
 #[requires(true)]
@@ -7660,40 +7712,6 @@ fn generated_prenex_scope_binding_key(
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn generated_prenex_binding_sumti_for_term(
-    term: &TermSyntax,
-) -> Result<Option<&SumtiSyntax>, SemanticsError> {
-    let simple = generated_simple_term_for_assignment(term)?;
-    match simple {
-        SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => Ok(Some(sumti)),
-        SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => match term.sumti.as_ref() {
-            TaggedOrElidedSumtiSyntax::Sumti(sumti) => Ok(Some(sumti)),
-            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => Ok(None),
-        },
-        SimpleTermSyntax::TaggedSumtiTerm(term) => match term.sumti.as_ref() {
-            TaggedOrElidedSumtiSyntax::Sumti(sumti) => Ok(Some(sumti)),
-            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => Ok(None),
-        },
-        _ => Ok(None),
-    }
-}
-
-/// Only an untagged sumti is a topic. FA- and modal-tagged prenex terms retain
-/// their ordinary term functions and must not be reinterpreted as topics.
-#[requires(true)]
-#[ensures(true)]
-fn generated_prenex_topic_sumti_for_term(
-    term: &TermSyntax,
-) -> Result<Option<&SumtiSyntax>, SemanticsError> {
-    let simple = generated_simple_term_for_assignment(term)?;
-    match simple {
-        SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => Ok(Some(sumti)),
-        _ => Ok(None),
-    }
-}
-
-#[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
 fn generated_prenex_binding_key_for_sumti(sumti: &SumtiSyntax) -> Option<String> {
     generated_quantified_sumti_from_sumti(sumti).and_then(|quantified| {
@@ -7716,6 +7734,47 @@ fn generated_prenex_binding_pro_sumti_for_sumti(sumti: &SumtiSyntax) -> Option<&
                 .cmavo()
                 .is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di))
         })
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|pro_sumti| pro_sumti.0.value.cmavo().is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di))))]
+fn generated_prenex_binding_pro_sumti(
+    sumti: GeneratedPrenexSumtiSyntax<'_>,
+) -> Option<&ProSumtiSyntax> {
+    match sumti {
+        GeneratedPrenexSumtiSyntax::Complete(sumti) => {
+            generated_prenex_binding_pro_sumti_for_sumti(sumti)
+        }
+        GeneratedPrenexSumtiSyntax::Bound(sumti) => {
+            generated_prenex_binding_pro_sumti_for_sumti_bound(sumti)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|pro_sumti| pro_sumti.0.value.cmavo().is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di))))]
+fn generated_prenex_binding_pro_sumti_for_sumti_bound(
+    sumti: &SumtiBoundSyntax,
+) -> Option<&ProSumtiSyntax> {
+    if sumti.bound_tail.is_some() {
+        return None;
+    }
+    let SumtiForethoughtSyntax::SimpleSumti(simple) = sumti.leading_sumti.as_ref() else {
+        return None;
+    };
+    let pro_sumti = match simple.base_sumti.as_ref() {
+        SumtiAtomSyntax::QuantifiedSumti(quantified) => {
+            generated_pro_sumti_from_sumti_base(&quantified.inner_sumti)?
+        }
+        SumtiAtomSyntax::SumtiBase(SumtiBaseSyntax::ProSumti(pro_sumti)) => pro_sumti,
+        SumtiAtomSyntax::SumtiBase(_) => return None,
+    };
+    pro_sumti
+        .0
+        .value
+        .cmavo()
+        .is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di))
+        .then_some(pro_sumti)
 }
 
 #[requires(true)]
@@ -9225,6 +9284,224 @@ mod tests {
         assert!(formula_contains_predication(&graph, exists.body, comment));
     }
 
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_coequal_prenex_quantifier_bundle(source: &str) {
+        let graph = semantic_graph_for(source);
+        let content = graph.objects[&graph.root]
+            .as_utterance()
+            .and_then(|utterance| utterance.content)
+            .expect("the prenex statement has formula content");
+        let data!(FormulaNode::QuantifierBundle(bundle)) = graph.objects[&content]
+            .as_formula()
+            .expect("the prenex content is a formula")
+            .as_data()
+        else {
+            panic!("the grouped prenex must have one coequal quantifier bundle");
+        };
+        let [at_least, all] = bundle.bindings.as_slice() else {
+            panic!("the coequal bundle must retain both prenex bindings");
+        };
+        assert_eq!(at_least.operator, FormulaOperator::Cardinality);
+        assert_eq!(all.operator, FormulaOperator::Forall);
+
+        let at_least_quantity = graph.objects
+            [&at_least.quantity.expect("su'o retains its quantity")]
+            .as_quantity()
+            .expect("su'o has a typed quantity");
+        assert_eq!(at_least_quantity.form, QuantityForm::AtLeast);
+        let all_quantity = graph.objects[&all.quantity.expect("ro retains its quantity")]
+            .as_quantity()
+            .expect("ro has a typed quantity");
+        assert_eq!(all_quantity.form, QuantityForm::All);
+
+        let broda = named_predication_ids(&graph, "broda");
+        let brode = named_predication_ids(&graph, "brode");
+        let brodi = named_predication_ids(&graph, "brodi");
+        let ([broda], [brode], [brodi]) = (broda.as_slice(), brode.as_slice(), brodi.as_slice())
+        else {
+            panic!("the two restrictions and the matrix predication must each be retained once");
+        };
+        assert!(formula_contains_predication(
+            &graph,
+            at_least
+                .restriction
+                .expect("the da binding retains its broda restriction"),
+            *broda,
+        ));
+        assert!(formula_contains_predication(
+            &graph,
+            all.restriction
+                .expect("the de binding retains its brode restriction"),
+            *brode,
+        ));
+        assert_eq!(
+            graph.objects[broda]
+                .as_predication()
+                .expect("broda remains a predication")
+                .arguments[&argument_key(1)]
+                .value,
+            Some(at_least.variable),
+        );
+        assert_eq!(
+            graph.objects[brode]
+                .as_predication()
+                .expect("brode remains a predication")
+                .arguments[&argument_key(1)]
+                .value,
+            Some(all.variable),
+        );
+        let matrix = graph.objects[brodi]
+            .as_predication()
+            .expect("brodi remains a predication");
+        assert_eq!(
+            matrix.arguments[&argument_key(1)].value,
+            Some(at_least.variable),
+        );
+        assert_eq!(matrix.arguments[&argument_key(2)].value, Some(all.variable),);
+        assert!(formula_contains_predication(&graph, bundle.body, *brodi));
+        assert_eq!(
+            graph
+                .objects
+                .values()
+                .filter(|object| {
+                    object.as_formula().is_some_and(|formula| {
+                        matches!(formula.as_data(), data!(FormulaNode::QuantifierBundle(_)))
+                    })
+                })
+                .count(),
+            1,
+            "the two bindings are coequal, not individually nested",
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn both_prenex_termset_spellings_retain_one_complete_coequal_bundle() {
+        // CLL 16.7 defines CEhE and NUhI/NUhU as the two spellings of the same
+        // equal-scope termset relation. CLL 16.5 requires the explicit
+        // quantifiers and POI restrictions to survive prenex lowering.
+        for source in [
+            "su'o da poi broda ku'o ce'e ro de poi brode ku'o zo'u da brodi de",
+            "nu'i su'o da poi broda ku'o ro de poi brode ku'o nu'u zo'u da brodi de",
+        ] {
+            assert_coequal_prenex_quantifier_bundle(source);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn both_prenex_termset_spellings_retain_unused_declared_variables() {
+        for source in ["da ce'e de zo'u mi klama", "nu'i da de nu'u zo'u mi klama"] {
+            let graph = semantic_graph_for(source);
+            let content = graph.objects[&graph.root]
+                .as_utterance()
+                .and_then(|utterance| utterance.content)
+                .expect("the prenex statement has formula content");
+            let data!(FormulaNode::QuantifierBundle(bundle)) = graph.objects[&content]
+                .as_formula()
+                .expect("the prenex content is a formula")
+                .as_data()
+            else {
+                panic!("the grouped prenex must have one coequal quantifier bundle");
+            };
+            let [da, de] = bundle.bindings.as_slice() else {
+                panic!("both unused prenex declarations must remain in the bundle");
+            };
+            assert_eq!(da.operator, FormulaOperator::Exists);
+            assert_eq!(de.operator, FormulaOperator::Exists);
+            assert_eq!(
+                graph.objects[&da.variable]
+                    .descriptor()
+                    .expect("da retains its pro-sumti descriptor")
+                    .word,
+                "da",
+            );
+            assert_eq!(
+                graph.objects[&de.variable]
+                    .descriptor()
+                    .expect("de retains its pro-sumti descriptor")
+                    .word,
+                "de",
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn both_prenex_termset_spellings_reject_nonquantifier_scope_operators() {
+        let expected_message = "semantic interpretation is undefined for a prenex termset containing a non-quantifier scope operator";
+        let mut errors = Vec::new();
+        for source in [
+            "da ce'e na ku ce'e de zo'u da broda de",
+            "nu'i da na ku de nu'u zo'u da broda de",
+        ] {
+            let error = semantic_result_for(source)
+                .expect_err("a grouped NA KU scope has no established coequal interpretation");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(error.message, expected_message);
+            errors.push(error);
+        }
+        assert_eq!(errors[0], errors[1]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ungrouped_prenex_negation_retains_surface_scope_order() {
+        let graph = semantic_graph_for("da na ku de zo'u da broda de");
+        let content = graph.objects[&graph.root]
+            .as_utterance()
+            .and_then(|utterance| utterance.content)
+            .expect("the prenex statement has formula content");
+        let data!(FormulaNode::Quantified(da_scope)) = graph.objects[&content]
+            .as_formula()
+            .expect("the outer da scope is a formula")
+            .as_data()
+        else {
+            panic!("surface-first da must retain the outer scope");
+        };
+        assert_eq!(da_scope.operator, FormulaOperator::Exists);
+        let data!(FormulaNode::Connective(negation)) = graph.objects[&da_scope.body]
+            .as_formula()
+            .expect("NA KU contributes a formula scope")
+            .as_data()
+        else {
+            panic!("NA KU must remain between the two quantifier scopes");
+        };
+        assert_eq!(negation.operator, FormulaOperator::Not);
+        let [de_scope] = negation.children.as_slice() else {
+            panic!("prenex negation must retain its single inner formula");
+        };
+        let data!(FormulaNode::Quantified(de_scope)) = graph.objects[de_scope]
+            .as_formula()
+            .expect("the inner de scope is a formula")
+            .as_data()
+        else {
+            panic!("surface-last de must retain the inner scope");
+        };
+        assert_eq!(de_scope.operator, FormulaOperator::Exists);
+        let broda = named_predication_ids(&graph, "broda");
+        let [broda] = broda.as_slice() else {
+            panic!("the shared matrix predication must be retained once");
+        };
+        assert!(formula_contains_predication(&graph, de_scope.body, *broda));
+        let matrix = graph.objects[broda]
+            .as_predication()
+            .expect("broda remains a predication");
+        assert_eq!(
+            matrix.arguments[&argument_key(1)].value,
+            Some(da_scope.variable),
+        );
+        assert_eq!(
+            matrix.arguments[&argument_key(2)].value,
+            Some(de_scope.variable),
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -10620,7 +10897,8 @@ mod tests {
             connection
                 .connector
                 .as_ref()
-                .is_some_and(|connector| connector.source.as_surface_word() == Some("ji") && connector.parameter.is_some())
+                .is_some_and(|connector| connector.source.as_surface_word() == Some("ji")
+                    && connector.parameter.is_some())
         );
         assert_eq!(
             graph
@@ -14054,7 +14332,8 @@ mod tests {
             .filter_map(|object| match object.as_formula()?.as_data() {
                 data!(FormulaNode::Connective(connection))
                     if connection.connector.as_ref().is_some_and(|connector| {
-                        connector.source.as_surface_word() == Some("gi'e") && connector.locus == ConnectorLocus::PredicatePhrase
+                        connector.source.as_surface_word() == Some("gi'e")
+                            && connector.locus == ConnectorLocus::PredicatePhrase
                     }) =>
                 {
                     Some((object, connection))

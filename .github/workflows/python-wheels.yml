@@ -399,6 +399,12 @@ jobs:
           restore-keys: |
             jbotci-python-sdist-cargo-${{ runner.os }}-
 
+      - name: Test the source-distribution normalizer
+        working-directory: bindings/python
+        run: |
+          uv run --locked --project . --group dev \
+            python -m pytest -q tests/test_artifact_tool.py
+
       - name: Build source distributions twice
         working-directory: bindings/python
         run: |

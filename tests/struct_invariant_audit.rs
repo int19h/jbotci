@@ -968,6 +968,82 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a disposition map with no cross-field invariant; every entry-key to disposition mapping is valid",
     ),
     (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:BundlePaths",
+        "offline bundle and generated-Rust paths are caller-selected and every I/O failure is returned as a typed error",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:BundleSnapshot",
+        "raw snapshot bytes intentionally admit invalid mutations so the verifier can reject every byte, schema, and manifest failure class",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:DictionaryIdentity",
+        "private dictionary identity is emitted only by the pinned whole-file audit and checked against curated rows before use",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:DispositionSeed",
+        "raw mechanical ledger projection intentionally reaches the generator validation boundary before becoming a normative DispositionRow",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:GeneratedRelationSource",
+        "raw TOML source DTO intentionally admits invalid combinations so mint validation returns a typed rejection",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:LexicalSource",
+        "raw TOML source DTO intentionally admits invalid identities, types, and arities for fail-closed mint validation",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RawLockedPackage",
+        "raw Cargo.lock package DTO intentionally admits an empty identity and a checksum without a source so lockfile parsing returns a typed rejection",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RawLockfile",
+        "raw Cargo.lock DTO is an unchecked staging aggregate whose packages become validated LockedPackage values before any projection comparison",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:PlaceDeletionSource",
+        "raw TOML source DTO is validated against lexical rows, total surviving labels, and evidence before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:PreludeSource",
+        "raw TOML prelude DTO is parsed, typechecked, dependency-checked, and digest-checked before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RegistryProvenance",
+        "raw provenance-sidecar DTO intentionally admits drift so the exact authority audit can return a typed rejection",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RegistrySource",
+        "raw top-level TOML DTO is an unchecked staging aggregate whose complete tables are validated before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RelationFormerSource",
+        "raw TOML relation-former DTO is template-typechecked and checked for total provenance before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:ScaleLiteralSource",
+        "raw TOML scale DTO is checked for a closed type and nonempty source coverage before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:ScopePolicyProvenance",
+        "raw provenance row is compared field-for-field with the reviewed policy source before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:ScopePolicySource",
+        "raw TOML policy DTO is range-, foreign-key-, and reviewed-provenance-checked before minting",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticTypeRegistry",
+        "private checker maps are constructed only from validated lexical and prelude rows and never cross the mint boundary",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:Tables",
+        "private staged table aggregate intentionally exists before cross-table order, key, evidence, and semantic validation",
+    ),
+    (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:TagReductionSource",
+        "raw TOML tag DTO is Hole-validated, typechecked, and graph-identity-checked before minting",
+    ),
+    (
         "crates/jbotci-semantics/tests/support/schema_scan.rs:EnumDef",
         "test-only parsed enum record; any combination of rename/tagging/variants is a valid parse result",
     ),
@@ -1004,12 +1080,168 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic errors are produced by constructors that attach nonempty diagnostic messages",
     ),
     (
-        "crates/jbotci-semantics/src/notation/render.rs:Ctx",
-        "smusni render context is borrowed views (object map, id map) built together over one graph plus a bool toggle; every field combination is a valid context",
+        "crates/jbotci-semantics/examples/smusni_corpus_report.rs:CorpusReport",
+        "corpus measurements are mutable derived counters; measure and record_success enforce their transitions",
     ),
     (
-        "crates/jbotci-semantics/src/notation/render.rs:SmusniConfig",
-        "smusni render config is a single bool provenance toggle; every value is a valid configuration",
+        "crates/jbotci-semantics/codegen/smusni_v0_surface.rs:SerdeContainerOptions",
+        "private serde attribute scan state admits every independently optional tag/content observation",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedDispositionRow",
+        "unchecked generated constants are accepted only through DispositionRegistry::try_from_generated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedFallbackReasonRow",
+        "unchecked generated reason constants are joined and validated only by DispositionRegistry::try_from_generated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedLexicalPolicyRow",
+        "private generated lexical rows contain build-time-audited constants and closed enum values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Parser",
+        "private mutable parser state starts at byte zero and cursor-mutating methods contractually preserve UTF-8 boundaries",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:BindForm",
+        "ValueBinding fixes the name to a validated variable and both binding and body are independently valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:Declaration",
+        "every validated variable and type pair is a valid typed declaration",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LetForm",
+        "LetBinding proves the closed let-name alternatives and the body is independently validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LocalFallback",
+        "the expected type, registered fallback reason, and identity-checked raw tree are independently validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ObjectId",
+        "PositiveInteger provides canonical arbitrary-precision positivity for every fallback object identity",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:PreludeBinding",
+        "PreludeName proves registry membership and every validated type/expression pair is a valid initializer",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawField",
+        "every NFC field name and validated raw value form a valid raw field",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawObject",
+        "the identity, NFC type name, and raw fields are locally valid; RawTree proves global identity order",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawMapEntry",
+        "every pair of recursively validated raw values is a valid typed raw-map entry",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawRecord",
+        "every NFC model type name and sequence of recursively validated raw fields is a valid inline record",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:RawVariant",
+        "every NFC enum/constructor identity and sequence of recursively validated raw fields is a valid inline variant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:TypedGraph",
+        "the NFC model-root name and identity-checked RawTree are independently valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Document",
+        "every validated body and optional sequence of validated word cards is a valid packaging value",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ValueBinding",
+        "every validated variable declaration and initializer expression is a valid variable binding",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:WordCard",
+        "LexicalRoot and NfcText independently prove both word-card fields",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:FunctionSignature",
+        "every ordered validated parameter sequence and validated result form a valid function signature",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateSignature",
+        "every validated relation identity and canonical effective row form a valid predicate signature",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RowSlot",
+        "every positive or distinguished label paired with a validated accepted type is a valid row slot",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallback",
+        "one failed projection edge pairs any graph identity with any declining boundary; every combination names a real edge",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallbackLog",
+        "the ordered, deduplicated per-edge channel is a BTreeSet property rather than a state constraint, and every set of edges is a valid log",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ElaborationCounters",
+        "private mutable counter state is updated only by recognition and fallback helpers with transition postconditions",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:Elaborator",
+        "private read-only graph context owns mutable traversal registries whose lifecycle is enforced by rendering helper contracts",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:PredicateApplication",
+        "every typed head and ordered sequence of typed operands is a valid pending predicate application",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ReferenceBinding",
+        "graph-owned identity, parsed declared type, and rendered computation are independently valid before Bind wrapping",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ReferencePlan",
+        "private planner output is constructed only by plan_references; partial analyses are hidden and complete-only queries require compact eligibility",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ScopeFailure",
+        "a closed failure kind plus optional typed binder and use-site evidence admits every typed combination",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:MapBuilder",
+        "private Serde map callback state permits both the between-entry and pending-key phases, with sequencing enforced by method contracts",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:SequenceBuilder",
+        "every sequence of already validated structural values is a valid in-progress Serde sequence",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructBuilder",
+        "private mutable Serde struct state is populated from static derived type and field names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructVariantBuilder",
+        "private mutable Serde variant state is populated from static derived type, variant, and field names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralSerializer",
+        "stateless unit serializer has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleStructBuilder",
+        "private mutable Serde tuple-struct state is populated from a static derived type name and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleVariantBuilder",
+        "private mutable Serde tuple-variant state is populated from static derived type and variant names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyKey",
+        "every combination of normalized relation, nonzero place, and closed dynamic family is a valid lookup key",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:PreHostLexicalIr",
+        "every ordered sequence of independently validated pre-host candidates is valid",
     ),
     (
         "crates/jbotci-semantics/src/notation/xml.rs:RenderState",
@@ -1022,10 +1254,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/word_cards.rs:WordCardBuilder",
         "word-card assembly accumulator is deliberately mutable; the complete cards/built_ids discipline (registry is exactly the card-id set, card ids pairwise distinct) is enforced by cheap and expensive postconditions on every mutating method",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/writer.rs:Writer",
-        "notation Writer is a mutable line-accumulating builder, not a validated model type; its structural discipline is enforced by the RAII body closures, not a field invariant",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgument",
@@ -1066,6 +1294,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedLogicalSumtiConnection",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexFormulaScopeGroup",
+        "private prenex scope accumulator is validated when the balanced group stack is coequalized and finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexTermCollector",
+        "private mutable tree-walker state delegates syntax validity to borrowed nodes and validates balanced events when finalized",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPreparedArgumentFormulaScope",

@@ -208,7 +208,7 @@ fn initialize_result() -> Value {
             "title": SERVER_TITLE,
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format; `tersmu` defaults to canonical, self-describing SFN-XML. Request `smusni` for the alternative flat declaration notation or `json` for the canonical interchange graph."
+        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format; `tersmu` defaults to canonical, self-describing SFN-XML. Request `smusni` for the experimental human-readable typed S-expression notation or `json` for the canonical interchange graph."
     })
 }
 
@@ -314,7 +314,7 @@ fn mcp_tools() -> Vec<Value> {
              typed vocabulary; follow that key instead of the ordinary scoped vocabulary. The \
              complete document schema (XSD 1.0, with per-element reference documentation) is \
              queryable as the `jbotci:///tersmu/sfn-xml-v0.xsd` resource. Request \
-             `smusni` for the alternative flat declaration listing or `json` for the canonical interchange graph. \
+             `smusni` for the experimental human-readable typed S-expression notation or `json` for the canonical interchange graph. \
              For grammar use `gentufa`, for morphology use `vlasei`.",
             tool_request_schema::<ToolTersmuRequest>(),
         ),

@@ -1364,12 +1364,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source: ConnectorSource::surface_word(
-                        generated_modal_forethought_pair_source(
-                            &termset.gek,
-                            &termset.first_branch.gik,
-                        ),
-                    ),
+                    source: ConnectorSource::surface_word(generated_modal_forethought_pair_source(
+                        &termset.gek,
+                        &termset.first_branch.gik,
+                    ),),
                     locus: ConnectorLocus::TermSet,
                     truth_table: generated_modal_forethought_gik_connective_truth_table(
                         &termset.gek,
@@ -4603,12 +4601,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 operator,
                 children,
                 Some(new!(Connector {
-                    source: ConnectorSource::surface_word(
-                        generated_modal_forethought_pair_source(
-                            &connection.gek,
-                            &connection.first_branch.gik,
-                        ),
-                    ),
+                    source: ConnectorSource::surface_word(generated_modal_forethought_pair_source(
+                        &connection.gek,
+                        &connection.first_branch.gik,
+                    ),),
                     locus: ConnectorLocus::Clause,
                     truth_table: generated_modal_forethought_gik_connective_truth_table(
                         &connection.gek,

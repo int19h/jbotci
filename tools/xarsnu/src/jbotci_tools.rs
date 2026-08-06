@@ -121,7 +121,10 @@ impl GateOutcome {
     #[ensures(ret.is_some() == matches!(self.as_data(), bityzba::data!(GateOutcome::Success { .. })))]
     pub fn tersmu_rendering(&self) -> Option<&[u8]> {
         match self.as_data() {
-            bityzba::data!(GateOutcome::Success { tersmu_rendering, .. }) => Some(tersmu_rendering),
+            bityzba::data!(GateOutcome::Success {
+                tersmu_rendering,
+                ..
+            }) => Some(tersmu_rendering),
             _ => None,
         }
     }
@@ -413,17 +416,18 @@ pub struct ReferenceTools;
 struct XarsnuTersmuRequest {
     /// The Lojban text to interpret.
     text: String,
-    /// How to render the graph. Defaults to the model-facing `smusni`
-    /// declaration notation on xarsnu. Use `xml` for canonical scoped SFN-XML
-    /// or `json` for the canonical interchange graph.
+    /// How to render the graph. Defaults to typed human-readable `smusni`
+    /// S-expressions on xarsnu. Use `xml` for canonical scoped SFN-XML or
+    /// `json` for the canonical interchange graph.
     #[serde(default = "xarsnu_tersmu_format_default")]
     format: ToolTersmuFormat,
     /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
     /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them.
     #[serde(default)]
     dialect: Option<String>,
-    /// Prepend dictionary definitions for content words. Definitions are on by
-    /// default and are suppressed for JSON.
+    /// Include structured dictionary word cards for content words. Cards are
+    /// inside the single smusni document, are on by default, and are suppressed
+    /// for JSON.
     #[serde(default = "xarsnu_show_defs_default")]
     show_defs: bool,
     /// Carry tense forward across sentences as an advancing narrative story
@@ -985,8 +989,7 @@ mod tests {
         // precedes the XML document, so the canonical `<SFN` root follows the
         // definitions rather than opening the payload.
         assert!(
-            xml.windows(b"<SFN ".len())
-                .any(|window| window == b"<SFN "),
+            xml.windows(b"<SFN ".len()).any(|window| window == b"<SFN "),
             "xml gate must contain the canonical scoped SFN-XML rendering"
         );
 

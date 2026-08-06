@@ -875,28 +875,47 @@ fn parses_gentufa_formats_and_flags() {
 #[requires(true)]
 #[ensures(true)]
 fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
-    // Round-1 review (Codex 3): the delivered CLI surface must be
-    // oracle-identical — `render_smusni` already ends in one newline, and the
-    // command must not double it.
     let run = run_cli_capture(
         &["jbotci", "tersmu", "--format", "smusni", "mi klama"],
         false,
     );
     assert_eq!(run.status, CliStatus::Success);
-    assert!(
-        run.stdout.starts_with("SEMANTIC DOCUMENT document_1 {\n"),
-        "smusni CLI output should be the notation document, got: {:?}",
-        &run.stdout[..run.stdout.len().min(48)]
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("smusni CLI output satisfies the current typed grammar");
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("smusni CLI output is one datum");
+    assert_eq!(document.form_head(), Some("Smusni"));
+    assert_eq!(document.count_forms("Smusni"), 1);
+    assert!(run.stdout.ends_with('\n'));
+    assert!(!run.stdout.ends_with("\n\n"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_smusni_fallback_diagnostics_are_deferred_without_polluting_stdout() {
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--format",
+            "smusni",
+            "mi cusku lu mi prami do li'u",
+        ],
+        false,
     );
-    assert!(run.stdout.contains("ID PREFIXES: r=reference"));
-    // Exactly one trailing newline (the closing `}` then a single `\n`).
+    assert_eq!(run.status, CliStatus::Success);
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("fallback stdout remains a typed Smusni document");
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("fallback stdout is one datum");
+    assert_eq!(document.count_forms("TypedGraph"), 1);
+    for forbidden in ["WithWarnings", "Warnings", "Warning"] {
+        assert_eq!(document.count_forms(forbidden), 0);
+    }
     assert!(
-        run.stdout.ends_with("}\n"),
-        "must end with the closing brace and one newline"
-    );
-    assert!(
-        !run.stdout.ends_with("}\n\n"),
-        "must not double the renderer's trailing newline"
+        run.stderr.is_empty(),
+        "provisional smusni diagnostics must wait for the standard source-aware renderer",
     );
 }
 
@@ -907,8 +926,10 @@ fn tersmu_xml_cli_output_is_one_canonical_document() {
     let run = run_cli_capture(&["jbotci", "tersmu", "--format", "xml", "mi klama"], false);
     assert_eq!(run.status, CliStatus::Success);
     // jbotci#719: the document opens with the KEY teaching comment.
-    assert!(run.stdout.starts_with("<!--
-"));
+    assert!(run.stdout.starts_with(
+        "<!--
+"
+    ));
     assert!(
         run.stdout
             .contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">")
@@ -932,7 +953,7 @@ fn tersmu_show_defs_embeds_a_words_section_in_the_xml_document() {
         "xml",
         "--show-defs",
         "--color=never",
-        ".banan.",
+        "mi",
         "cu",
         "barda",
     ]);
@@ -1024,9 +1045,8 @@ fn tersmu_help_describes_the_smusni_default() {
     let help = error.to_string();
     for marker in [
         "default `smusni` format",
-        "flat, self-describing declaration listing",
-        "ID-prefix legend",
-        "NOT COMPUTED",
+        "human-readable typed S-expression document",
+        "mechanically complete typed fallbacks",
         "canonical interchange graph",
     ] {
         assert!(
@@ -1061,41 +1081,97 @@ fn tersmu_show_defs_rejects_json_cli_output() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_show_defs_prepends_definitions_before_the_smusni_document() {
-    let output = run_success_stdout(&[
-        "jbotci",
-        "tersmu",
-        "--show-defs",
-        "--format",
-        "smusni",
-        "--color=never",
-        ".banan.",
-        "cu",
-        "klama",
-    ]);
+fn tersmu_show_defs_embeds_word_cards_in_the_smusni_document() {
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--show-defs",
+            "--format",
+            "smusni",
+            "--color=never",
+            ".banan.",
+            "cu",
+            "klama",
+        ],
+        false,
+    );
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(
+        run.stderr.is_empty(),
+        "provisional smusni diagnostics must wait for the standard source-aware renderer",
+    );
 
-    // The content-word dictionary definitions are prepended ahead of the
-    // smusni semantic document that the default format renders.
-    let (definitions, document) = output
-        .split_once("SEMANTIC DOCUMENT ")
-        .expect("smusni document follows the prepended definitions");
-    assert!(
-        definitions.starts_with("1. klama | by: officialdata | gismu"),
-        "definitions must lead: {definitions:?}"
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("show-defs output satisfies the current typed grammar");
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("show-defs output is one smusni datum");
+    assert_eq!(document.form_head(), Some("Smusni"));
+    assert_eq!(document.count_forms("Smusni"), 1);
+    assert_eq!(document.count_forms("Words"), 1);
+    assert_eq!(document.count_forms("Word"), 1);
+}
+
+/// A defined zei-lujvo's dictionary surface is a multi-word run, which is a
+/// lexical root only in the grammar's escaped spelling. `--show-defs` must
+/// still carry its card rather than dropping the entry.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_show_defs_keeps_a_defined_zei_lujvo_card() {
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--show-defs",
+            "--format",
+            "smusni",
+            "--color=never",
+            "mi",
+            "klama",
+            "lo",
+            "abu",
+            "zei",
+            "sance",
+        ],
+        false,
     );
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stderr.is_empty());
+
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("show-defs output satisfies the current typed grammar");
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("show-defs output is one smusni datum");
+    assert_eq!(document.count_forms("Words"), 1);
+    assert_eq!(document.count_forms("Word"), 2);
+
+    let mut roots = Vec::new();
+    collect_word_card_roots(&document, &mut roots);
     assert!(
-        !definitions.contains("banan"),
-        "unattested cmevla must not get a synthetic definition: {definitions:?}"
+        roots.iter().any(|root| root == "|abu zei sance|"),
+        "the zei-lujvo card keeps its exact surface as an escaped lexical root; found {roots:?}",
     );
-    assert!(
-        !definitions.contains("cmavo:"),
-        "tersmu definitions must not define cmavo: {definitions:?}"
-    );
-    assert!(
-        document.contains("ID PREFIXES: r=reference"),
-        "the smusni document legend must follow the definitions"
-    );
-    assert!(document.contains("RELATION: klama"));
+}
+
+/// Collect every `(Word root definition)` card's root from a parsed document.
+#[requires(true)]
+#[ensures(true)]
+fn collect_word_card_roots(
+    datum: &jbotci_semantics::notation::sexpr::Datum,
+    out: &mut Vec<String>,
+) {
+    let Some(items) = datum.as_list() else {
+        return;
+    };
+    if datum.form_head() == Some("Word") {
+        if let Some(root) = items.get(1).and_then(|item| item.as_atom()) {
+            out.push(root.to_owned());
+        }
+    }
+    for item in items {
+        collect_word_card_roots(item, out);
+    }
 }
 
 #[test]
@@ -1105,10 +1181,15 @@ fn tersmu_outputs_smusni_by_default() {
     let run = run_cli_capture(&["jbotci", "tersmu", "mi", "klama"], false);
     assert_eq!(run.status, CliStatus::Success);
     assert!(run.stderr.is_empty());
-    assert!(run.stdout.starts_with("SEMANTIC DOCUMENT "));
+    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
+        .expect("default smusni satisfies the current typed grammar");
+    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
+        .expect("default smusni is one datum");
+    assert_eq!(document.form_head(), Some("Smusni"));
+    assert_eq!(document.count_forms("Smusni"), 1);
     assert!(!run.stdout.starts_with("<SFN "));
-    assert!(run.stdout.contains("ID PREFIXES: r=reference"));
-    assert!(run.stdout.contains("RELATION: klama"));
+    assert!(!run.stdout.contains("SEMANTIC DOCUMENT"));
+    assert!(!run.stdout.contains("ID PREFIXES"));
 }
 
 #[test]
@@ -4324,13 +4405,13 @@ fn vlacku_unknown_lujvo_renders_note_and_keeps_decomposition() {
 
     assert!(output.contains("  decomposition: "), "{output}");
     assert!(
-        output
-            .lines()
-            .any(|line| line == "    not in dictionary"),
+        output.lines().any(|line| line == "    not in dictionary"),
         "{output}"
     );
     let definitions_index = output.find("  definitions:").expect("definitions section");
-    let decomposition_index = output.find("  decomposition: ").expect("decomposition line");
+    let decomposition_index = output
+        .find("  decomposition: ")
+        .expect("decomposition line");
     assert!(
         decomposition_index < definitions_index,
         "decomposition line must stay before the definitions section: {output}"

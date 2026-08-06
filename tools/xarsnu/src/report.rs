@@ -1042,7 +1042,9 @@ pub(crate) fn render_report(records: &[TranscriptRecord]) -> String {
                 report.push('\n');
             }
             bityzba::data!(ProtocolEvent::ReviewVerdict {
-                speaker, approved, ..
+                speaker,
+                approved,
+                ..
             }) => {
                 writeln!(
                     report,

@@ -103,6 +103,11 @@ fn reviewer_regressions() -> Vec<ReviewerRegression> {
             "zo'epe mi pu xe .ei klama le spita fu le mi fetsi ca le cerni .ibabo mi klama .ei lo mikce .ibabo mi xe .ei klama lo bi'u mikce le ckule fu pa le mi panzi .ije xruti xe klama .ei .ibabo xe .ei klama le zdani le ckule fu le re panzi .ibabo xe .ei klama lo drata mikce le zdani fu pa le panzi .ibabo te gusta le vancysanmi .ibabo co'e li'o .i a'anai .oi",
             Some("NON-DERIVABLE-GENERATED-CONTENT"),
         ),
+        ("coi xo", Some("NON-COMPACT-FIELD-SHAPE")),
+        (
+            "li no ga'o bi'i ke'i pa",
+            Some("NON-COMPACT-FIELD-SHAPE"),
+        ),
     ]
     .into_iter()
     .map(|(text, typed_reason)| {
@@ -411,26 +416,37 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
     let fixture_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let fixtures = load_fixture_tree(&fixture_root).expect("repository fixtures must load");
     let fixture_count = fixtures.len();
-    let mut results: Vec<FixtureRenderResult> = fixtures
-        .par_iter()
-        .filter_map(|fixture| {
-            let test_case = &fixture.test_case;
-            let dialect = test_case
-                .dialect_definition()
-                .unwrap_or_else(|error| panic!("{} dialect: {error}", test_case.id));
-            let graph = graph_for_source_and_dialect(
-                &test_case.lojban,
-                &dialect,
-                &format!("<fixture:{}>", test_case.id),
-            )
-            .ok()?;
-            let reasons = assert_render_contract(&graph, &test_case.id);
-            Some(new!(FixtureRenderResult {
-                id: test_case.id.clone(),
-                reasons,
-            }))
-        })
-        .collect();
+    // Semantic construction and representation planning are recursively deep
+    // for some corpus fixtures. Match the repository's audited exhaustive-test
+    // policy in `fixture_suite`: 16 MiB per worker, applied explicitly to this
+    // parallel workload rather than relying on the process environment or the
+    // platform-default Rayon stack.
+    let pool = rayon::ThreadPoolBuilder::new()
+        .stack_size(16 * 1024 * 1024)
+        .build()
+        .expect("XML fixture worker pool should build");
+    let mut results: Vec<FixtureRenderResult> = pool.install(|| {
+        fixtures
+            .par_iter()
+            .filter_map(|fixture| {
+                let test_case = &fixture.test_case;
+                let dialect = test_case
+                    .dialect_definition()
+                    .unwrap_or_else(|error| panic!("{} dialect: {error}", test_case.id));
+                let graph = graph_for_source_and_dialect(
+                    &test_case.lojban,
+                    &dialect,
+                    &format!("<fixture:{}>", test_case.id),
+                )
+                .ok()?;
+                let reasons = assert_render_contract(&graph, &test_case.id);
+                Some(new!(FixtureRenderResult {
+                    id: test_case.id.clone(),
+                    reasons,
+                }))
+            })
+            .collect()
+    });
     results.sort_by(|left, right| left.id.cmp(&right.id));
     let semantic_graphs = results.len();
     let mut compact_graphs = 0usize;
@@ -456,6 +472,26 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
     );
     assert!(compact_graphs > 0, "compact form was not exercised");
     assert!(typed_graphs > 0, "typed graph form was not exercised");
+    // Require the graph-level and field-shape reasons this end-to-end corpus
+    // traversal can reach. The declaration-planner-only reasons are excluded
+    // because a preliminary field-shape incompatibility now correctly selects
+    // TYPED-GRAPH before declaration planning, so requiring them here would make
+    // coverage depend on planner order.
+    //
+    // Of those, UNREPRESENTABLE-CYCLE, PROTOTYPE-ID-WITHOUT-COMPACT-USE, and
+    // DEFINITION-SITE-DOES-NOT-DOMINATE-USE are covered by the bounded graph
+    // oracles in
+    // `notation::xml::tests::planning_preflight_covers_single_use_cycles_and_raw_only_id_uses`.
+    // REPEATED-SINGLE-USE-EMISSION is *not*: it is the acyclic residue of the
+    // very same planning branch that produces UNREPRESENTABLE-CYCLE (see
+    // `notation::xml`, where one `planning_repeated_single_use` entry becomes
+    // one or the other purely by whether its reference-graph node is cyclic).
+    // Reaching it needs a graph the compact renderer traverses through a node
+    // twice while the prototype reference count says once and no cycle exists;
+    // no corpus fixture and no constructed oracle graph has produced one, so
+    // this test does not claim coverage for it. Outside planning the same branch
+    // panics, so the reason exists as a fail-closed planning guard rather than
+    // as an observed classification.
     for required in [
         "BINDER-DOES-NOT-ENCLOSE-USE",
         "MULTIPLE-BINDER-OWNERS",
@@ -464,9 +500,7 @@ fn every_semantically_valid_repository_fixture_satisfies_the_xml_contract() {
         "NON-COMPACT-NAME-DESCRIPTOR",
         "NON-COMPACT-REFERENT",
         "NON-DERIVABLE-GENERATED-CONTENT",
-        "REPEATED-SINGLE-USE-EMISSION",
         "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER",
-        "UNREPRESENTABLE-CYCLE",
     ] {
         assert!(
             observed_reasons.contains(required),

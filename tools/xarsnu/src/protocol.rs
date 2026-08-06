@@ -469,7 +469,8 @@ impl ReviewBrief {
         let mut prompt = if follow_up {
             "The composer submitted a REVISED candidate under the SAME registered intent. Verify that every problem reported earlier in this session is actually fixed and that the revision introduced no new divergence.\n\n".to_owned()
         } else {
-            "Adversarially review this accepted candidate against the registered intent.\n\n".to_owned()
+            "Adversarially review this accepted candidate against the registered intent.\n\n"
+                .to_owned()
         };
         write!(
             prompt,
@@ -577,7 +578,10 @@ impl MeaningReviewer for NoReviewer {
 
 /// Live adversarial reviewer session over a fresh participant-model
 /// conversation (issue #723).
-#[invariant(true, "constructed from validated participant and review configuration")]
+#[invariant(
+    true,
+    "constructed from validated participant and review configuration"
+)]
 #[derive(Debug)]
 pub struct OpenRouterReviewSession<'client> {
     conversation: ParticipantConversation,
@@ -2198,7 +2202,10 @@ fn phase_instruction(
 }
 
 /// Reviewer factory plus the active same-intent session, when review is enabled.
-#[invariant(true, "the active session always belongs to its speaker's latest registered intent")]
+#[invariant(
+    true,
+    "the active session always belongs to its speaker's latest registered intent"
+)]
 #[derive(Debug)]
 struct ReviewState<R: MeaningReviewer> {
     factory: R,
@@ -3765,7 +3772,13 @@ impl<M: ProtocolModel, D: ToolDispatcher, R: MeaningReviewer> ProtocolRunner<M, 
             speaker: speaker.to_owned(),
             session,
         }));
-        record_drained_observations(&mut self.events, turn_number, speaker, observations, malformed);
+        record_drained_observations(
+            &mut self.events,
+            turn_number,
+            speaker,
+            observations,
+            malformed,
+        );
         let outcome = outcome.map_err(|error| {
             new!(ProtocolRunError::Model {
                 participant: speaker.to_owned(),
@@ -3819,8 +3832,8 @@ impl<M: ProtocolModel, D: ToolDispatcher, R: MeaningReviewer> ProtocolRunner<M, 
                             ),
                         }))
                     } else {
-                        let rendering = std::str::from_utf8(&candidate.tersmu_rendering)
-                            .map_err(|error| {
+                        let rendering =
+                            std::str::from_utf8(&candidate.tersmu_rendering).map_err(|error| {
                                 new!(ProtocolRunError::InvalidTersmuEncoding {
                                     message: error.to_string(),
                                 })

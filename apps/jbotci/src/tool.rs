@@ -1492,7 +1492,7 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
 }
 
 /// Output format for a model-facing `tersmu` semantic analysis. `xml` is the
-/// default, `smusni` is the flat declaration notation, and `json` is the
+/// default, `smusni` is the typed S-expression notation, and `json` is the
 /// canonical interchange graph.
 #[invariant(::Json => true)]
 #[invariant(::Smusni => true)]
@@ -1504,8 +1504,7 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
 pub enum ToolTersmuFormat {
     /// Canonical `lojban-semantics-json-1` flat id-graph.
     Json,
-    /// Model-facing `smusni` notation: a flat, self-describing declaration
-    /// listing of the same graph.
+    /// Experimental human-readable typed S-expression notation.
     Smusni,
     /// Canonical scoped SFN-XML rendering of the semantic graph.
     Xml,
@@ -1562,7 +1561,7 @@ pub struct ToolTersmuRequest {
     /// The Lojban text to interpret.
     pub text: String,
     /// How to render the graph. Defaults to canonical scoped SFN-XML. Use
-    /// `smusni` for the alternative flat, self-describing declaration listing
+    /// `smusni` for the alternative human-readable typed S-expression document
     /// or `json` for the canonical interchange graph. The XML output obeys the
     /// tersmu interpretation contract documented in the tool description.
     #[serde(default)]
@@ -1579,7 +1578,7 @@ pub struct ToolTersmuRequest {
     /// to `false` to save tokens. The shape is per-format: `xml` embeds a
     /// structured `WORDS` section inside the single SFN document (one `WORD`
     /// card per content word, with `ARG INDEX="n"` place markup inside `DEF`
-    /// and `NOTES`); `smusni` prepends readable text cards. The flag is
+    /// and `NOTES`); `smusni` embeds typed `(Word ...)` cards. The flag is
     /// suppressed for `json` so it remains one pure document.
     #[serde(default = "tool_show_defs_default")]
     pub show_defs: bool,
@@ -1867,7 +1866,10 @@ mod tests {
     #[ensures(ret.format == format && ret.show_defs == show_defs)]
     fn tersmu_request(format: ToolTersmuFormat, show_defs: bool) -> ToolTersmuRequest {
         ToolTersmuRequest {
-            text: ".banan. cu klama".to_owned(),
+            // Keep the shared happy-path witness within compact SFN-XML. The
+            // earlier sign-fragment input carries known fields outside the
+            // compact vocabulary and correctly selects TYPED-GRAPH (#744).
+            text: "mi klama".to_owned(),
             format,
             dialect: None,
             show_defs,
@@ -1957,6 +1959,45 @@ mod tests {
             .expect("compact analysis");
         assert!(compact.rendered.status.is_success());
         assert!(compact.compact_incompatibilities.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tersmu_xml_sign_text_selects_declared_typed_graph_fallback() {
+        let analysis = run_tool_tersmu_with_analysis(ToolTersmuRequest {
+            text: ".banan. cu klama".to_owned(),
+            format: ToolTersmuFormat::Xml,
+            dialect: None,
+            show_defs: false,
+            story_time: false,
+            indent: None,
+        })
+        .expect("sign witness analysis");
+        assert!(analysis.rendered.status.is_success());
+
+        let output = std::str::from_utf8(&analysis.rendered.stdout).expect("UTF-8 XML");
+        let document = roxmltree::Document::parse(output).expect("typed fallback XML parses");
+        assert_eq!(
+            document.root_element().attribute("FORM"),
+            Some("TYPED-GRAPH")
+        );
+
+        let sign_text_record = analysis
+            .compact_incompatibilities
+            .iter()
+            .find(|record| {
+                let declaration =
+                    roxmltree::Document::parse(record).expect("incompatibility declaration parses");
+                let element = declaration.root_element();
+                element.attribute("KIND") == Some("NON-COMPACT-FIELD-SHAPE")
+                    && element
+                        .attribute("OBJECT")
+                        .is_some_and(|object| object.starts_with("sign:"))
+                    && element.attribute("FIELD") == Some("text")
+            })
+            .expect("sign text must declare its compact field-shape incompatibility");
+        assert!(output.contains(sign_text_record));
     }
 
     // The `smusni` format renamed the earlier `lean3` working name with no
@@ -2076,21 +2117,22 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn tersmu_smusni_prepends_definitions() {
+    fn tersmu_smusni_embeds_structured_word_cards() {
         let grounded = run_tool_tersmu(tersmu_request(ToolTersmuFormat::Smusni, true))
             .expect("grounded smusni tersmu output");
         let ungrounded = run_tool_tersmu(tersmu_request(ToolTersmuFormat::Smusni, false))
             .expect("ungrounded smusni tersmu output");
         let grounded = grounded.stdout_text().expect("UTF-8 tersmu output");
         let ungrounded = ungrounded.stdout_text().expect("UTF-8 tersmu output");
-        let definitions = grounded
-            .strip_suffix(ungrounded)
-            .expect("show-defs only prepends definitions");
-
-        assert!(definitions.starts_with("1. klama | by: officialdata | gismu"));
-        assert!(!definitions.contains("banan"));
-        assert!(!definitions.contains("cmavo:"));
-        assert!(definitions.ends_with('\n'));
+        let grounded = jbotci_semantics::notation::sexpr::parse_document(grounded)
+            .expect("grounded smusni is one document");
+        let ungrounded = jbotci_semantics::notation::sexpr::parse_document(ungrounded)
+            .expect("ungrounded smusni is one document");
+        assert_eq!(grounded.form_head(), Some("Smusni"));
+        assert_eq!(ungrounded.form_head(), Some("Smusni"));
+        assert_eq!(grounded.count_forms("Words"), 1);
+        assert!(grounded.count_forms("Word") > 0);
+        assert_eq!(ungrounded.count_forms("Words"), 0);
     }
 
     #[test]

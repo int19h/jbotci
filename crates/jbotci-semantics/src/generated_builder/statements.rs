@@ -29,6 +29,240 @@ fn generated_fragment_semantics(
     new!(GeneratedFragmentSemantics { content, source })
 }
 
+impl<'builder, 'a, 'dict, 'tree> GeneratedPrenexTermCollector<'builder, 'a, 'dict, 'tree> {
+    #[requires(true)]
+    #[ensures(ret.error.is_none())]
+    fn new(builder: &'builder GeneratedGraphBuilder<'a, 'dict, 'tree>) -> Self {
+        Self {
+            builder,
+            events: Vec::new(),
+            error: None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() == old(self.error.is_none()))]
+    fn into_events(self) -> Result<Vec<GeneratedPrenexTermEvent<'tree>>, SemanticsError> {
+        match self.error {
+            Some(error) => Err(error),
+            None => Ok(self.events),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.events.len() == old(self.events.len()) + 1)]
+    fn start_group<N: TreeNode>(&mut self, node: &N) {
+        self.events.push(GeneratedPrenexTermEvent::StartGroup {
+            source: self.builder.source_for_node(node, "quantifier-bundle"),
+        });
+    }
+
+    #[requires(true)]
+    #[ensures(self.events.len() == old(self.events.len()) + 1)]
+    fn end_group(&mut self) {
+        self.events.push(GeneratedPrenexTermEvent::EndGroup);
+    }
+
+    /// A CEhE afterthought termset is represented inside a single `SumtiSyntax`,
+    /// unlike a NUhI termset whose children remain ordinary `TermSyntax` nodes.
+    /// Emit the same balanced group event stream for both syntax spellings.
+    #[requires(true)]
+    #[ensures(self.events.len() > old(self.events.len()))]
+    fn push_sumti(&mut self, sumti: &'tree SumtiSyntax, is_topic: bool) {
+        if let Some(termset) = generated_sumti_afterthought_for_termset(sumti) {
+            self.start_group(sumti);
+            self.events.push(GeneratedPrenexTermEvent::Sumti {
+                syntax: GeneratedPrenexSumtiSyntax::Bound(&termset.leading_sumti),
+                is_topic,
+            });
+            self.events
+                .extend(termset.continuations.iter().map(|continuation| {
+                    GeneratedPrenexTermEvent::Sumti {
+                        syntax: GeneratedPrenexSumtiSyntax::Bound(&continuation.sumti),
+                        is_topic,
+                    }
+                }));
+            self.end_group();
+        } else {
+            self.events.push(GeneratedPrenexTermEvent::Sumti {
+                syntax: GeneratedPrenexSumtiSyntax::Complete(sumti),
+                is_topic,
+            });
+        }
+    }
+}
+
+impl<'builder, 'a, 'dict, 'tree> TreeWalker<'tree>
+    for GeneratedPrenexTermCollector<'builder, 'a, 'dict, 'tree>
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_term(&mut self, node: &'tree TermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        match node {
+            TermSyntax::TermsetGroup(_) | TermSyntax::SimpleTerm(_) => {
+                jbotci_syntax::generated_model::walk::term(self, node);
+            }
+            TermSyntax::ConnectedTerm(connection) if connection.continuations.is_empty() => {
+                jbotci_syntax::generated_model::walk::term(self, node);
+            }
+            _ => {
+                self.error = Some(invalid_graph(
+                    "connected term reached simple assignment lowering".to_owned(),
+                ));
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_term_termset_group(&mut self, node: &'tree TermsetGroupSyntax) {
+        self.start_group(node);
+        jbotci_syntax::generated_model::walk::term_termset_group(self, node);
+        self.end_group();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term(&mut self, node: &'tree SimpleTermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        match node {
+            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+                self.push_sumti(sumti, true);
+            }
+            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.push_sumti(sumti, false);
+                }
+            }
+            SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.push_sumti(sumti, false);
+                }
+            }
+            SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
+                self.events.push(GeneratedPrenexTermEvent::Negation {
+                    source: self.builder.source_for_node(node, "prenex-negation"),
+                });
+            }
+            SimpleTermSyntax::NuhiTermset(_) | SimpleTermSyntax::KeTermset(_) => {
+                jbotci_syntax::generated_model::walk::simple_term(self, node);
+            }
+            _ => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term_nuhi_termset(&mut self, node: &'tree NuhiTermsetSyntax) {
+        self.start_group(node);
+        jbotci_syntax::generated_model::walk::simple_term_nuhi_termset(self, node);
+        self.end_group();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term_ke_termset(&mut self, node: &'tree KeTermsetSyntax) {
+        self.start_group(node);
+        jbotci_syntax::generated_model::walk::simple_term_ke_termset(self, node);
+        self.end_group();
+    }
+
+    /// Termset delimiters and connectives may carry free modifiers containing
+    /// unrelated nested terms. They are not members of the prenex termset, so
+    /// generated descent stops at that precise semantic boundary.
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_free_modifier(&mut self, _node: &'tree FreeModifierSyntax) {}
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|events| events.iter().filter(|event| matches!(event, GeneratedPrenexTermEvent::StartGroup { .. })).count() == events.iter().filter(|event| matches!(event, GeneratedPrenexTermEvent::EndGroup)).count()) || ret.is_err())]
+fn collect_generated_prenex_term_events<'a, 'dict, 'tree>(
+    builder: &GeneratedGraphBuilder<'a, 'dict, 'tree>,
+    terms: &'tree [TermSyntax],
+) -> Result<Vec<GeneratedPrenexTermEvent<'tree>>, SemanticsError> {
+    let mut collector = GeneratedPrenexTermCollector::new(builder);
+    for term in terms {
+        TreeWalkable::walk_with(term, &mut collector);
+    }
+    collector.into_events()
+}
+
+#[requires(true)]
+#[ensures(ret == scopes.iter().map(|scope| match scope.as_data() { data!(GeneratedPrenexFormulaScope::Quantifier(_)) => 1, data!(GeneratedPrenexFormulaScope::QuantifierBundle { scopes, .. }) => scopes.len(), data!(GeneratedPrenexFormulaScope::Negation { .. }) => 0 }).sum::<usize>())]
+fn generated_prenex_quantifier_scope_count(scopes: &[GeneratedPrenexFormulaScope]) -> usize {
+    scopes
+        .iter()
+        .map(|scope| match scope.as_data() {
+            data!(GeneratedPrenexFormulaScope::Quantifier(_)) => 1,
+            data!(GeneratedPrenexFormulaScope::QuantifierBundle { scopes, .. }) => scopes.len(),
+            data!(GeneratedPrenexFormulaScope::Negation { .. }) => 0,
+        })
+        .sum()
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|grouped| generated_prenex_quantifier_scope_count(grouped) == old(generated_prenex_quantifier_scope_count(&scopes))) || ret.is_err())]
+fn coequalize_generated_prenex_formula_scopes(
+    scopes: Vec<GeneratedPrenexFormulaScope>,
+    source: Option<crate::model::SemanticSource>,
+) -> Result<Vec<GeneratedPrenexFormulaScope>, SemanticsError> {
+    let mut quantifiers = Vec::new();
+    for scope in scopes {
+        match scope.into_data() {
+            data!(GeneratedPrenexFormulaScope::Quantifier(scope)) => {
+                quantifiers.push(scope);
+            }
+            data!(GeneratedPrenexFormulaScope::QuantifierBundle { scopes, .. }) => {
+                quantifiers.extend(scopes);
+            }
+            data!(GeneratedPrenexFormulaScope::Negation { .. }) => {
+                return Err(undefined_semantics(
+                    "a prenex termset containing a non-quantifier scope operator",
+                ));
+            }
+        }
+    }
+    Ok(if quantifiers.len() > 1 {
+        vec![new!(GeneratedPrenexFormulaScope::QuantifierBundle {
+            scopes: quantifiers,
+            source,
+        })]
+    } else {
+        quantifiers
+            .pop()
+            .map(|scope| new!(GeneratedPrenexFormulaScope::Quantifier(scope)))
+            .into_iter()
+            .collect()
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_prenex_relation_variable_syntax(
+    sumti: GeneratedPrenexSumtiSyntax<'_>,
+) -> Result<Option<GeneratedRelationParameterSyntax<'_>>, SemanticsError> {
+    match sumti {
+        GeneratedPrenexSumtiSyntax::Complete(sumti) => {
+            relation_variable_syntax_from_no_gadri_prenex_sumti(sumti)
+        }
+        GeneratedPrenexSumtiSyntax::Bound(sumti) => {
+            let Some(description) = no_gadri_description_from_sumti_bound(sumti)? else {
+                return Ok(None);
+            };
+            if description.relative_clauses.is_some() {
+                return Ok(None);
+            }
+            relation_variable_syntax_from_generated_selbri(&description.selbri)
+        }
+    }
+}
+
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
     #[ensures(ret.as_ref().is_ok_and(|id| *id == utterance_id) || ret.is_err())]
@@ -4099,18 +4333,73 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn generated_prenex_formula_scopes_for_terms<'syntax: 'tree>(
+    #[ensures(ret.as_ref().is_ok_and(|scopes| scopes.iter().all(|scope| !matches!(scope.as_data(), data!(GeneratedPrenexFormulaScope::QuantifierBundle { scopes, .. }) if scopes.len() < 2))) || ret.is_err())]
+    pub(super) fn generated_prenex_formula_scopes_for_terms(
         &mut self,
-        terms: &'syntax [TermSyntax],
+        terms: &'tree [TermSyntax],
     ) -> Result<Vec<GeneratedPrenexFormulaScope>, SemanticsError> {
-        let mut scopes = Vec::new();
-        for term in terms {
-            if let Some(scope) = self.generated_prenex_formula_scope_for_term(term)? {
-                scopes.push(scope);
+        let events = collect_generated_prenex_term_events(self, terms)?;
+        let mut groups = vec![GeneratedPrenexFormulaScopeGroup {
+            scopes: Vec::new(),
+            source: None,
+        }];
+        for event in events {
+            match event {
+                GeneratedPrenexTermEvent::StartGroup { source } => {
+                    groups.push(GeneratedPrenexFormulaScopeGroup {
+                        scopes: Vec::new(),
+                        source,
+                    });
+                }
+                GeneratedPrenexTermEvent::EndGroup => {
+                    if groups.len() == 1 {
+                        return Err(invalid_graph(
+                            "prenex term traversal closed an unopened termset".to_owned(),
+                        ));
+                    }
+                    let group = groups
+                        .pop()
+                        .expect("the root group remains below the group being closed");
+                    let grouped =
+                        coequalize_generated_prenex_formula_scopes(group.scopes, group.source)?;
+                    groups
+                        .last_mut()
+                        .expect("the root prenex scope group is always present")
+                        .scopes
+                        .extend(grouped);
+                }
+                GeneratedPrenexTermEvent::Sumti { syntax, .. } => {
+                    let scope = match syntax {
+                        GeneratedPrenexSumtiSyntax::Complete(sumti) => {
+                            self.generated_prenex_formula_scope_for_sumti(sumti)?
+                        }
+                        GeneratedPrenexSumtiSyntax::Bound(sumti) => {
+                            self.generated_prenex_formula_scope_for_sumti_bound(sumti)?
+                        }
+                    };
+                    if let Some(scope) = scope {
+                        groups
+                            .last_mut()
+                            .expect("the root prenex scope group is always present")
+                            .scopes
+                            .push(scope);
+                    }
+                }
+                GeneratedPrenexTermEvent::Negation { source } => {
+                    groups
+                        .last_mut()
+                        .expect("the root prenex scope group is always present")
+                        .scopes
+                        .push(new!(GeneratedPrenexFormulaScope::Negation { source }));
+                }
             }
         }
-        Ok(scopes)
+        let [root] = groups.as_mut_slice() else {
+            return Err(invalid_graph(
+                "prenex term traversal left an unclosed termset".to_owned(),
+            ));
+        };
+        Ok(std::mem::take(&mut root.scopes))
     }
 
     #[requires(true)]
@@ -4119,17 +4408,32 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         terms: &'tree [TermSyntax],
     ) -> Result<GeneratedPrenexContext, SemanticsError> {
+        let events = collect_generated_prenex_term_events(self, terms)?;
         let mut pushed = Vec::new();
         let mut topics = Vec::new();
-        for term in terms {
-            let Some(sumti) = generated_prenex_binding_sumti_for_term(term)? else {
+        for event in events {
+            let GeneratedPrenexTermEvent::Sumti {
+                syntax: sumti,
+                is_topic,
+            } = event
+            else {
                 continue;
             };
-            self.apply_generated_prenex_goi_assignments_for_sumti(sumti)?;
-            if let Some(pro_sumti) = generated_prenex_binding_pro_sumti_for_sumti(sumti) {
+            match sumti {
+                GeneratedPrenexSumtiSyntax::Complete(sumti) => {
+                    self.apply_generated_prenex_goi_assignments_for_sumti(sumti)?;
+                }
+                GeneratedPrenexSumtiSyntax::Bound(sumti) => {
+                    self.apply_generated_prenex_goi_assignments_for_sumti_bound(sumti)?;
+                }
+            }
+            if let Some(pro_sumti) = generated_prenex_binding_pro_sumti(sumti) {
                 let key = token_text(&pro_sumti.0.value);
                 let source = self.source_for_node(pro_sumti, "sumti");
-                let scope_key = self.source_key_for_node(sumti);
+                let scope_key = match sumti {
+                    GeneratedPrenexSumtiSyntax::Complete(sumti) => self.source_key_for_node(sumti),
+                    GeneratedPrenexSumtiSyntax::Bound(sumti) => self.source_key_for_node(sumti),
+                };
                 self.prenex_pro_sumti_bindings
                     .entry(key.clone())
                     .or_default()
@@ -4142,9 +4446,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 pushed.push(new!(GeneratedPrenexPushedBinding::ProSumti(key)));
                 continue;
             }
-            if let Some(relation_variable) =
-                relation_variable_syntax_from_no_gadri_prenex_sumti(sumti)?
-            {
+            if let Some(relation_variable) = generated_prenex_relation_variable_syntax(sumti)? {
                 let parameter = self
                     .build_relation_variable_parameter_for_generated_relation_parameter_syntax(
                         relation_variable,
@@ -4161,8 +4463,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 pushed.push(new!(GeneratedPrenexPushedBinding::RelationVariable(key)));
                 continue;
             }
-            if generated_prenex_topic_sumti_for_term(term)?.is_some() {
-                topics.push(self.build_sumti_referent(sumti)?);
+            if is_topic {
+                topics.push(match sumti {
+                    GeneratedPrenexSumtiSyntax::Complete(sumti) => {
+                        self.build_sumti_referent(sumti)?
+                    }
+                    GeneratedPrenexSumtiSyntax::Bound(sumti) => {
+                        self.build_sumti_bound_referent(sumti)?
+                    }
+                });
             }
         }
         Ok(new!(GeneratedPrenexContext {
@@ -4184,6 +4493,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(());
         }
         let _ = self.build_generated_goi_associated_referent(sumti)?;
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn apply_generated_prenex_goi_assignments_for_sumti_bound(
+        &mut self,
+        sumti: &'tree SumtiBoundSyntax,
+    ) -> Result<(), SemanticsError> {
+        let Some(relative_clauses) = generated_sumti_bound_relative_clause_list(sumti) else {
+            return Ok(());
+        };
+        if generated_goi_assignment_clause(relative_clauses).is_some() {
+            return Err(invalid_graph(
+                "GOI assignment in an afterthought prenex termset requires bound-sumti assignment lowering"
+                    .to_owned(),
+            ));
+        }
         Ok(())
     }
 
@@ -4217,47 +4544,30 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn generated_prenex_formula_scope_for_term<'syntax: 'tree>(
-        &mut self,
-        term: &'syntax TermSyntax,
-    ) -> Result<Option<GeneratedPrenexFormulaScope>, SemanticsError> {
-        let simple = generated_simple_term_for_assignment(term)?;
-        match simple {
-            SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
-                Ok(Some(GeneratedPrenexFormulaScope::Negation {
-                    source: self.source_for_node(term, "prenex-negation"),
-                }))
-            }
-            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
-                self.generated_prenex_formula_scope_for_sumti(sumti)
-            }
-            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => match term.sumti.as_ref() {
-                TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
-                    self.generated_prenex_formula_scope_for_sumti(sumti)
-                }
-                TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => Ok(None),
-            },
-            SimpleTermSyntax::TaggedSumtiTerm(term) => match term.sumti.as_ref() {
-                TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
-                    self.generated_prenex_formula_scope_for_sumti(sumti)
-                }
-                TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => Ok(None),
-            },
-            _ => Ok(None),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     pub(super) fn generated_prenex_formula_scope_for_sumti<'syntax: 'tree>(
         &mut self,
         sumti: &'syntax SumtiSyntax,
     ) -> Result<Option<GeneratedPrenexFormulaScope>, SemanticsError> {
         if let Some(scope) = self.build_generated_prenex_relation_variable_scope_for_sumti(sumti)? {
-            return Ok(Some(GeneratedPrenexFormulaScope::Quantifier(scope)));
+            return Ok(Some(new!(GeneratedPrenexFormulaScope::Quantifier(scope))));
         }
         self.build_generated_prenex_quantifier_scope_for_sumti(sumti)
-            .map(|scope| scope.map(GeneratedPrenexFormulaScope::Quantifier))
+            .map(|scope| scope.map(|scope| new!(GeneratedPrenexFormulaScope::Quantifier(scope))))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn generated_prenex_formula_scope_for_sumti_bound(
+        &mut self,
+        sumti: &'tree SumtiBoundSyntax,
+    ) -> Result<Option<GeneratedPrenexFormulaScope>, SemanticsError> {
+        if let Some(scope) =
+            self.build_generated_prenex_relation_variable_scope_for_sumti_bound(sumti)?
+        {
+            return Ok(Some(new!(GeneratedPrenexFormulaScope::Quantifier(scope))));
+        }
+        self.build_generated_prenex_quantifier_scope_for_sumti_bound(sumti)
+            .map(|scope| scope.map(|scope| new!(GeneratedPrenexFormulaScope::Quantifier(scope))))
     }
 
     #[requires(true)]
@@ -4267,6 +4577,37 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         sumti: &'tree SumtiSyntax,
     ) -> Result<Option<GeneratedPrenexQuantifierScope>, SemanticsError> {
         let Some(description) = no_gadri_description_from_sumti(sumti)? else {
+            return Ok(None);
+        };
+        if description.relative_clauses.is_some() {
+            return Ok(None);
+        }
+        let Some(relation_variable) =
+            relation_variable_syntax_from_generated_selbri(&description.selbri)?
+        else {
+            return Ok(None);
+        };
+        let (parameter, _) = self
+            .build_relation_variable_parameter_for_generated_relation_parameter_syntax(
+                relation_variable,
+            )?;
+        let quantity = self.build_quantity_for_quantifier(&description.quantifier)?;
+        Ok(Some(new!(GeneratedPrenexQuantifierScope {
+            operator: generated_quantifier_formula_operator(&description.quantifier),
+            variable: parameter,
+            quantity: Some(quantity),
+            source: self.source_for_node(description, "quantifier-scope"),
+            relative_clause_restrictions: Vec::new(),
+        })))
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|scope| scope.as_ref().is_none_or(|scope| scope.variable.object_kind() == crate::model::SemanticObjectKind::Parameter && scope.quantity.is_some_and(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))) || ret.is_err())]
+    pub(super) fn build_generated_prenex_relation_variable_scope_for_sumti_bound(
+        &mut self,
+        sumti: &'tree SumtiBoundSyntax,
+    ) -> Result<Option<GeneratedPrenexQuantifierScope>, SemanticsError> {
+        let Some(description) = no_gadri_description_from_sumti_bound(sumti)? else {
             return Ok(None);
         };
         if description.relative_clauses.is_some() {
@@ -4342,6 +4683,71 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         })))
     }
 
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|scope| scope.as_ref().is_none_or(|scope| scope.variable.object_kind() == crate::model::SemanticObjectKind::Referent && scope.quantity.is_none_or(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity))) || ret.is_err())]
+    pub(super) fn build_generated_prenex_quantifier_scope_for_sumti_bound(
+        &mut self,
+        sumti: &'tree SumtiBoundSyntax,
+    ) -> Result<Option<GeneratedPrenexQuantifierScope>, SemanticsError> {
+        let Some(pro_sumti) = generated_prenex_binding_pro_sumti_for_sumti_bound(sumti) else {
+            return Ok(None);
+        };
+        let quantified_sumti = generated_quantified_sumti_from_sumti_bound(sumti);
+        let (operator, quantity, source) = if let Some(quantified_sumti) = quantified_sumti {
+            (
+                generated_quantifier_formula_operator(&quantified_sumti.quantifier),
+                Some(self.build_quantity_for_quantifier(&quantified_sumti.quantifier)?),
+                self.source_for_node(quantified_sumti, "quantifier-scope"),
+            )
+        } else {
+            (
+                FormulaOperator::Exists,
+                None,
+                self.source_for_node(pro_sumti, "quantifier-scope"),
+            )
+        };
+        let variable = self
+            .build_scoped_prenex_da_series_variable_for_generated_sumti_bound(sumti, pro_sumti)?;
+        let relative_clause_restrictions =
+            if let Some(relative_clauses) = generated_sumti_bound_relative_clause_list(sumti) {
+                self.lower_generated_relative_clause_list(relative_clauses, variable)?
+                    .into_iter()
+                    .map(|clause| clause.body)
+                    .collect()
+            } else {
+                Vec::new()
+            };
+        Ok(Some(new!(GeneratedPrenexQuantifierScope {
+            operator,
+            variable,
+            quantity,
+            source,
+            relative_clause_restrictions,
+        })))
+    }
+
+    #[requires(pro_sumti.0.value.cmavo().is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di)))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
+    pub(super) fn build_scoped_prenex_da_series_variable_for_generated_sumti_bound(
+        &mut self,
+        sumti: &'tree SumtiBoundSyntax,
+        pro_sumti: &'tree ProSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if let Some(key) = self.source_key_for_node(sumti)
+            && let Some(id) = self.scoped_argument_variables.get(&key)
+        {
+            return Ok(*id);
+        }
+        let id = self.build_scoped_generated_pro_sumti_variable(
+            pro_sumti,
+            generated_sumti_bound_variable_sort(sumti),
+        )?;
+        if let Some(key) = self.source_key_for_node(sumti) {
+            self.scoped_argument_variables.insert(key, id);
+        }
+        Ok(id)
+    }
+
     #[requires(pro_sumti.0.value.cmavo().is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di)))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent) || ret.is_err())]
     pub(super) fn build_scoped_prenex_da_series_variable_for_generated_sumti(
@@ -4371,13 +4777,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula: SemanticObjectId,
         scope: GeneratedPrenexFormulaScope,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        match scope {
-            GeneratedPrenexFormulaScope::Negation { source } => {
+        match scope.into_data() {
+            data!(GeneratedPrenexFormulaScope::Negation { source }) => {
                 self.build_unary_formula(FormulaOperator::Not, formula, source)
             }
-            GeneratedPrenexFormulaScope::Quantifier(scope) => {
+            data!(GeneratedPrenexFormulaScope::Quantifier(scope)) => {
                 self.wrap_formula_with_generated_prenex_quantifier_scope(formula, scope)
             }
+            data!(GeneratedPrenexFormulaScope::QuantifierBundle { scopes, source }) => self
+                .wrap_formula_with_generated_prenex_quantifier_bundle_scope(
+                    formula, scopes, source,
+                ),
         }
     }
 
@@ -4406,6 +4816,41 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 scope.source,
                 Vec::new(),
             ),
+        )?;
+        Ok(scoped)
+    }
+
+    #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
+    #[requires(scopes.len() > 1)]
+    #[requires(scopes.iter().all(|scope| matches!(scope.variable.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter)))]
+    #[requires(scopes.iter().all(|scope| scope.quantity.is_none_or(|quantity| quantity.object_kind() == crate::model::SemanticObjectKind::Quantity)))]
+    #[requires(scopes.iter().all(|scope| scope.relative_clause_restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)))]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn wrap_formula_with_generated_prenex_quantifier_bundle_scope(
+        &mut self,
+        formula: SemanticObjectId,
+        scopes: Vec<GeneratedPrenexQuantifierScope>,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut bindings = Vec::with_capacity(scopes.len());
+        for scope in scopes {
+            let scope = scope.into_data();
+            let restriction =
+                self.combine_generated_restriction_formulas(scope.relative_clause_restrictions)?;
+            bindings.push(QuantifierBinding::new(
+                scope.operator,
+                scope.variable,
+                None,
+                None,
+                restriction,
+                scope.quantity,
+                scope.source,
+            ));
+        }
+        let scoped = self.next_formula_id();
+        self.insert(
+            scoped,
+            SemanticObject::quantifier_bundle_formula(bindings, formula, source, Vec::new()),
         )?;
         Ok(scoped)
     }

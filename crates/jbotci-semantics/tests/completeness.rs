@@ -19,7 +19,7 @@
 //! Graphs are re-derived by this build from the vendored `<doc>.lojban`.
 
 #[allow(unused_imports)]
-use bityzba::{ensures, requires};
+use bityzba::{data, ensures, requires};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
@@ -29,7 +29,7 @@ use jbotci_morphology::{
     MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
 };
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
-use jbotci_semantics::completeness::model::{EntryKind, SurfaceCategory};
+use jbotci_semantics::completeness::model::{DispositionData, EntryKind, SurfaceCategory};
 use jbotci_semantics::completeness::{
     baseline_contract_for, baseline_disposition, render_field_inventory, source_link_surfaces,
 };
@@ -248,7 +248,12 @@ fn drift_guard() {
     let inventory_pairs: BTreeSet<(String, String)> = render_field_inventory()
         .entries()
         .iter()
-        .filter(|entry| entry.kind == EntryKind::Field)
+        .filter(|entry| {
+            matches!(
+                entry.kind,
+                EntryKind::Discriminator | EntryKind::Field | EntryKind::VariantField
+            )
+        })
         .filter(|entry| {
             matches!(
                 entry.surface.category,
@@ -332,12 +337,12 @@ fn witness_verification() {
         // (1b) A variant witness must assert the variant's own discriminant value
         //      (not just that the field is of the enum type) — otherwise a variant
         //      could borrow a sibling's occurrence at the same field.
-        if entry.kind == EntryKind::Variant && expect.value() != entry.variant_of {
+        if entry.kind == EntryKind::EnumVariant && expect.value() != Some(entry.field) {
             failures.push(format!(
                 "Enum {}::{} — variant witness must expect discriminant {:?}, got {:?}",
                 entry.surface.name,
                 entry.field,
-                entry.variant_of,
+                entry.field,
                 expect.value()
             ));
             continue;
@@ -620,11 +625,26 @@ fn contract_disagreements_are_flagged() {
     assert!(faithful.disagreements(&baseline).is_empty());
 
     // A renderer that flips one entry's disposition is caught.
-    let target = inventory.entries()[0].key();
+    let target = inventory
+        .entries()
+        .iter()
+        .find(|entry| {
+            matches!(
+                baseline_disposition(entry).as_data(),
+                data!(Disposition::DirectLowering { .. })
+            )
+        })
+        .expect("inventory has a rendered entry")
+        .key();
     let mut deviating = CompletenessContract::new();
     for entry in inventory.entries() {
         let disposition = if entry.key() == target {
-            Disposition::not_computed_declared()
+            Disposition::typed_fallback(
+                "test-only disagreement",
+                "Content",
+                "SemanticObject",
+                "smusni.fallback.test",
+            )
         } else {
             baseline_disposition(entry)
         };

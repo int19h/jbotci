@@ -190,13 +190,12 @@ use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
     WordTypeFilter, dictionary_cards_for_word_likes, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_content_word_likes,
-    dictionary_matches_for_word_likes, format_vote_display, normalize_word_type_filter,
-    parse_word_type_filter, run_vlacku_requests,
+    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
+    normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_semantics::{
     SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
-    render_smusni, render_xml_with_word_cards,
+    render_xml_with_word_cards,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -256,7 +255,7 @@ pub enum Command {
     #[command(
         name = "tersmu",
         about = "Build and render a typed semantic graph",
-        long_about = "Build and render a typed semantic graph. The default `smusni` format is a flat, self-describing declaration listing: the document opens with its root, an ID-prefix legend (r=reference, p=predication, f=formula, u=utterance, ...) and a `NOT COMPUTED` block naming what was left underived, then lists every utterance, predication, formula, reference, and eventuality as an id-tagged `DECLARATION`. JSON is the canonical interchange graph (the same objects as a flat id-graph)."
+        long_about = "Build and render a typed semantic graph. The default `smusni` format is an experimental human-readable typed S-expression document with concise semantic forms and mechanically complete typed fallbacks. JSON is the canonical interchange graph."
     )]
     Tersmu(TersmuInput),
     #[command(name = "vlacku", visible_alias = "dict")]
@@ -369,11 +368,7 @@ pub enum TersmuFormat {
     /// Canonical `lojban-semantics-json-1` flat id-graph.
     #[value(alias = "djeisone")]
     Json,
-    /// Model-facing `smusni` notation: a flat, self-describing declaration
-    /// listing of the semantic graph (the default).
-    /// Provenance (source spans) renders off; the provenance opt-in is
-    /// library-only for now (`jbotci_semantics::render_smusni` with
-    /// `SmusniConfig { provenance: true }`), not exposed as a CLI/MCP flag.
+    /// Experimental human-readable typed S-expression notation (the default).
     Smusni,
     /// Canonical SFN-XML: a scoped, self-describing rendering of the same
     /// semantic graph with structured definitions and references.
@@ -763,7 +758,7 @@ pub struct TersmuInput {
     pub dialect: Option<String>,
     #[arg(
         long = "show-defs",
-        help = "Show dictionary definitions for content words (gismu, lujvo, fu'ivla, dictionary-backed cmevla); cmavo definitions are never included. `smusni` prepends readable text cards; `xml` embeds a structured WORDS section inside the document; not supported with `json`"
+        help = "Show dictionary definitions for content words (gismu, lujvo, fu'ivla, dictionary-backed cmevla); cmavo definitions are never included. `smusni` and `xml` embed structured word cards inside the single document; not supported with `json`"
     )]
     pub show_defs: bool,
     #[arg(long = "story-time")]

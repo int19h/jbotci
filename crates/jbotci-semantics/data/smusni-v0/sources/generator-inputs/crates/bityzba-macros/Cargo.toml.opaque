@@ -1,0 +1,29 @@
+[package]
+name = "bityzba-macros"
+description = "Proc-macro implementation for bityzba design-by-contract attributes."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license = "MPL-2.0"
+authors.workspace = true
+repository.workspace = true
+exclude = ["/tests/**", "/benches/**", "/examples/**"]
+
+[lib]
+proc-macro = true
+# Examples in this implementation crate document facade-level `bityzba::...`
+# usage, which cannot be doctested here without inverting the dependency graph.
+doctest = false
+
+[features]
+disable_contracts = []
+expensive_contracts = []
+
+[dependencies]
+bityzba-contract-syntax.workspace = true
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["extra-traits", "full", "visit", "visit-mut"] }
+
+[lints]
+workspace = true

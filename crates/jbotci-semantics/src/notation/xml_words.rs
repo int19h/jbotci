@@ -582,7 +582,7 @@ mod tests {
     use jbotci_morphology::segment_words_with_modifiers;
 
     use super::*;
-    use crate::notation::word_cards::build_xml_word_cards;
+    use crate::notation::word_cards::build_word_cards;
     use crate::notation::xml::serialize;
 
     #[requires(true)]
@@ -597,7 +597,7 @@ mod tests {
     fn cards_for(text: &str) -> Vec<WordCard> {
         let words = segment_words_with_modifiers(text)
             .unwrap_or_else(|error| panic!("test input `{text}` must segment: {error:?}"));
-        build_xml_word_cards(dictionary(), &words)
+        build_word_cards(dictionary(), &words)
     }
 
     /// Serialize the `<WORDS>` section for the cards of `text`.
@@ -637,7 +637,10 @@ mod tests {
     #[ensures(true)]
     fn unknown_gismu_card_is_bare_known_false() {
         let xml = words_xml_for("sfoto");
-        assert_eq!(xml, "<WORDS>\n  <WORD ID=\"sfoto\" KNOWN=\"false\"/>\n</WORDS>\n");
+        assert_eq!(
+            xml,
+            "<WORDS>\n  <WORD ID=\"sfoto\" KNOWN=\"false\"/>\n</WORDS>\n"
+        );
     }
 
     #[test]

@@ -75,12 +75,15 @@ fn waiver_reason(entry: &InventoryEntry) -> Option<&'static str> {
 /// preservation form is retained deliberately so the decomposition is never
 /// silently dropped.
 #[requires(true)]
-#[ensures(matches!(ret.as_data(), data!(Disposition::ExcludedWithReason(_)))
+#[ensures(matches!(ret.as_data(), data!(Disposition::ProvenanceSuppression { .. }))
     == waiver_reason(entry).is_some())]
-#[ensures(matches!(ret.as_data(), data!(Disposition::Renders))
+#[ensures(matches!(ret.as_data(), data!(Disposition::DirectLowering { .. }))
     == waiver_reason(entry).is_none())]
 pub fn xml_renderer_disposition(entry: &InventoryEntry) -> Disposition {
-    waiver_reason(entry).map_or_else(Disposition::renders, Disposition::excluded_with_reason)
+    waiver_reason(entry).map_or_else(
+        || Disposition::direct_lowering("xml:ordinary-semantic-surface"),
+        |reason| Disposition::provenance_suppression("xml:provenance-waiver", reason),
+    )
 }
 
 /// A complete disposition map for the ordinary SFN-XML profile.

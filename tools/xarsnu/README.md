@@ -95,7 +95,7 @@ formatting error — so token exhaustion is diagnosable without inspecting
 payloads.
 
 `tersmu-format` selects how the gate renders candidate semantics: `smusni`
-(the default, model-facing declaration notation), `json` (the canonical
+(the default, typed human-readable S-expression notation), `json` (the canonical
 interchange graph), `xml` (the canonical scoped SFN-XML rendering produced by
 the in-product renderer), or `tersmu-format = { external = ["renderer", ...] }`
 to pipe the JSON graph through a caller-configured command.
