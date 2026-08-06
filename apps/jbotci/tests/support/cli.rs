@@ -122,7 +122,10 @@ fn vlatai_json_reports_machine_readable_statuses() {
 #[requires(true)]
 #[ensures(true)]
 fn vlatai_lists_possible_short_rafsi_for_every_gismu_position() {
-    let run = run_cli_capture(&["jbotci", "vlatai", "sakli", "sakli zei bridi"], false);
+    let run = run_cli_capture(
+        &["jbotci", "vlatai", "sakli", "sa,kli", "sakli zei bridi"],
+        false,
+    );
 
     assert_eq!(run.status, CliStatus::Success);
     assert_in_order(
@@ -130,6 +133,10 @@ fn vlatai_lists_possible_short_rafsi_for_every_gismu_position() {
         &[
             "valsi: sakli\n",
             "category: gismu\n",
+            "possible rafsi: kli sa'i sai sak sal ska\n",
+            // Commas are syllable separators that canonical phoneme text drops,
+            // so a comma-bearing gismu derives exactly the same forms.
+            "valsi: sa,kli\n",
             "possible rafsi: kli sa'i sai sak sal ska\n",
             "valsi: sakli zei bridi\n",
             // The prefix mechanism carries the line into nested positions.

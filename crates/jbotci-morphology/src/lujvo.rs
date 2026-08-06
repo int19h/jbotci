@@ -113,17 +113,53 @@ crate::define_string_enum_metadata! {
 }
 
 impl ShortRafsiShape {
-    /// Whether `form` spells a short rafsi of this shape.
+    /// Whether `form` spells exactly one short rafsi of this shape.
     ///
-    /// `Cvv` covers both the apostrophe-free diphthong form (`sai`) and the
-    /// `CV'V` form (`sa'i`), which [`rafsi_shape`] reports separately.
+    /// This validates the whole string rather than classifying a prefix, so
+    /// trailing text is rejected: [`rafsi_shape`] stops at the first character
+    /// it does not recognize and would accept `sal!` as CVC.
+    ///
+    /// `Ccv` additionally requires a permissible *initial* cluster, because a
+    /// CCV rafsi may begin a lujvo and so must be able to begin a word
+    /// (CLL 3.7). `Cvv` covers the `CV'V` form (`sa'i`) and the
+    /// apostrophe-free form, which exists only for the four diphthongs `ai`,
+    /// `ei`, `oi`, and `au` (CLL 4.7) — a bare `sae` is not a rafsi.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret -> matches!(form.chars().count(), 3 | 4))]
     pub fn matches_form(self, form: &str) -> bool {
+        let mut letters = form.chars();
+        let (Some(first), Some(second), Some(third)) =
+            (letters.next(), letters.next(), letters.next())
+        else {
+            return false;
+        };
+        let fourth = letters.next();
+        if letters.next().is_some() {
+            return false;
+        }
         match self {
-            Self::Cvc => rafsi_shape(form) == RafsiShape::Cvc,
-            Self::Ccv => rafsi_shape(form) == RafsiShape::Ccv,
-            Self::Cvv => matches!(rafsi_shape(form), RafsiShape::Cvv | RafsiShape::CvhV),
+            // `consonant_pair_class` answers `Some` only for Lojban
+            // consonants, so an `Initial` pair also proves both letters are
+            // consonants.
+            Self::Ccv => {
+                fourth.is_none()
+                    && consonant_pair_class(first, second) == Some(ConsonantPairClass::Initial)
+                    && is_vowel(third)
+            }
+            Self::Cvc => {
+                fourth.is_none() && is_consonant(first) && is_vowel(second) && is_consonant(third)
+            }
+            Self::Cvv => {
+                is_consonant(first)
+                    && is_vowel(second)
+                    && match fourth {
+                        Some(fourth) => third == '\'' && is_vowel(fourth),
+                        None => matches!(
+                            (second, third),
+                            ('a', 'i') | ('e', 'i') | ('o', 'i') | ('a', 'u')
+                        ),
+                    }
+            }
         }
     }
 }
@@ -417,17 +453,17 @@ pub fn possible_short_rafsi_forms(gismu: &str) -> Vec<ShortRafsiForm> {
             push_short_rafsi(
                 &mut forms,
                 ShortRafsiShape::Cvc,
-                &[letters[0], letters[1], letters[2]],
+                String::from_iter([letters[0], letters[1], letters[2]]),
             );
             push_short_rafsi(
                 &mut forms,
                 ShortRafsiShape::Cvc,
-                &[letters[0], letters[1], letters[3]],
+                String::from_iter([letters[0], letters[1], letters[3]]),
             );
             push_short_rafsi(
                 &mut forms,
                 ShortRafsiShape::Cvv,
-                &[letters[0], letters[1], '\'', letters[4]],
+                String::from_iter([letters[0], letters[1], '\'', letters[4]]),
             );
             push_cvv_without_apostrophe(&mut forms, letters[0], letters[1], letters[4]);
             push_ccv_if_initial(&mut forms, letters[2], letters[3], letters[4]);
@@ -437,23 +473,23 @@ pub fn possible_short_rafsi_forms(gismu: &str) -> Vec<ShortRafsiForm> {
             push_short_rafsi(
                 &mut forms,
                 ShortRafsiShape::Cvc,
-                &[letters[0], letters[2], letters[3]],
+                String::from_iter([letters[0], letters[2], letters[3]]),
             );
             push_short_rafsi(
                 &mut forms,
                 ShortRafsiShape::Cvc,
-                &[letters[1], letters[2], letters[3]],
+                String::from_iter([letters[1], letters[2], letters[3]]),
             );
             push_short_rafsi(
                 &mut forms,
                 ShortRafsiShape::Cvv,
-                &[letters[0], letters[2], '\'', letters[4]],
+                String::from_iter([letters[0], letters[2], '\'', letters[4]]),
             );
             push_cvv_without_apostrophe(&mut forms, letters[0], letters[2], letters[4]);
             push_short_rafsi(
                 &mut forms,
                 ShortRafsiShape::Cvv,
-                &[letters[1], letters[2], '\'', letters[4]],
+                String::from_iter([letters[1], letters[2], '\'', letters[4]]),
             );
             push_cvv_without_apostrophe(&mut forms, letters[1], letters[2], letters[4]);
             push_ccv_if_initial(&mut forms, letters[0], letters[1], letters[2]);
@@ -464,11 +500,11 @@ pub fn possible_short_rafsi_forms(gismu: &str) -> Vec<ShortRafsiForm> {
     forms
 }
 
-#[requires(shape.matches_form(&letters.iter().collect::<String>()))]
+#[requires(shape.matches_form(&form))]
 #[ensures(output.len() == old(output.len()) + 1)]
-fn push_short_rafsi(output: &mut Vec<ShortRafsiForm>, shape: ShortRafsiShape, letters: &[char]) {
+fn push_short_rafsi(output: &mut Vec<ShortRafsiForm>, shape: ShortRafsiShape, form: String) {
     output.push(new!(ShortRafsiForm {
-        form: letters.iter().collect::<String>(),
+        form: form,
         shape: shape,
     }));
 }
@@ -491,7 +527,7 @@ fn push_cvv_without_apostrophe(
         push_short_rafsi(
             output,
             ShortRafsiShape::Cvv,
-            &[consonant, first_vowel, second_vowel],
+            String::from_iter([consonant, first_vowel, second_vowel]),
         );
     }
 }
@@ -503,7 +539,11 @@ fn push_cvv_without_apostrophe(
 #[ensures(output.len() <= old(output.len()) + 1)]
 fn push_ccv_if_initial(output: &mut Vec<ShortRafsiForm>, first: char, second: char, vowel: char) {
     if consonant_pair_class(first, second) == Some(ConsonantPairClass::Initial) {
-        push_short_rafsi(output, ShortRafsiShape::Ccv, &[first, second, vowel]);
+        push_short_rafsi(
+            output,
+            ShortRafsiShape::Ccv,
+            String::from_iter([first, second, vowel]),
+        );
     }
 }
 
@@ -875,6 +915,63 @@ mod tests {
             );
             assert_eq!(GismuShape::classify(word), None, "{word} is not a gismu");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn short_rafsi_shapes_validate_the_whole_spelling() {
+        for (shape, form) in [
+            (ShortRafsiShape::Cvc, "sal"),
+            (ShortRafsiShape::Ccv, "ska"),
+            (ShortRafsiShape::Cvv, "sa'i"),
+            (ShortRafsiShape::Cvv, "sai"),
+            (ShortRafsiShape::Cvv, "sei"),
+            (ShortRafsiShape::Cvv, "soi"),
+            (ShortRafsiShape::Cvv, "sau"),
+        ] {
+            assert!(shape.matches_form(form), "{shape:?} should accept {form}");
+        }
+
+        for (shape, form) in [
+            // Trailing text must be rejected: `rafsi_shape` alone stops at the
+            // first character it does not recognize.
+            (ShortRafsiShape::Cvc, "sal!"),
+            (ShortRafsiShape::Cvc, "sal!!!!"),
+            (ShortRafsiShape::Cvv, "sa'i "),
+            // Only ai, ei, oi, and au need no apostrophe.
+            (ShortRafsiShape::Cvv, "sae"),
+            (ShortRafsiShape::Cvv, "sia"),
+            // Wrong length.
+            (ShortRafsiShape::Cvc, "sa"),
+            (ShortRafsiShape::Cvc, "salk"),
+            (ShortRafsiShape::Ccv, ""),
+            // A CCV rafsi may begin a lujvo, so its cluster must be initial.
+            (ShortRafsiShape::Ccv, "nra"),
+            (ShortRafsiShape::Ccv, "bna"),
+            // Wrong letter classes for the declared shape.
+            (ShortRafsiShape::Cvc, "ska"),
+            (ShortRafsiShape::Ccv, "sal"),
+            (ShortRafsiShape::Cvv, "sal"),
+            (ShortRafsiShape::Cvc, "sái"),
+        ] {
+            assert!(!shape.matches_form(form), "{shape:?} should reject {form}");
+        }
+
+        assert!(
+            try_new!(ShortRafsiForm {
+                form: "sal!".to_owned(),
+                shape: ShortRafsiShape::Cvc,
+            })
+            .is_err()
+        );
+        assert!(
+            try_new!(ShortRafsiForm {
+                form: "sae".to_owned(),
+                shape: ShortRafsiShape::Cvv,
+            })
+            .is_err()
+        );
     }
 
     #[test]

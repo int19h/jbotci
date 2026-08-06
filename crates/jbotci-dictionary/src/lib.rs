@@ -1311,6 +1311,24 @@ mod tests {
             vec![("kliniko", WordType::Fuivla)]
         );
         assert!(dictionary.short_rafsi_candidates("coi").is_empty());
+
+        // The candidate invariant validates the whole spelling, so neither
+        // trailing text nor an illegal apostrophe-free CVV can be constructed.
+        for (form, shape) in [
+            ("sal!", ShortRafsiShape::Cvc),
+            ("sae", ShortRafsiShape::Cvv),
+            ("nra", ShortRafsiShape::Ccv),
+        ] {
+            assert!(
+                bityzba::try_new!(RafsiCandidate {
+                    form: form.to_owned(),
+                    shape: shape,
+                    availability: new!(RafsiAvailability::Free),
+                })
+                .is_err(),
+                "{form} is not a {shape:?} rafsi"
+            );
+        }
     }
 
     #[test]

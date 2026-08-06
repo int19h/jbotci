@@ -1530,8 +1530,21 @@ def test_short_rafsi_derivation_is_pure_phonotactics() -> None:
         assert morphology.possible_short_rafsi_forms(word) == ()
         assert morphology.GismuShape.classify(word) is None
 
-    with pytest.raises(InvalidInputError):
-        morphology.ShortRafsiForm("sal", morphology.ShortRafsiShape.CCV)
+    # The constructor validates the whole spelling, not just a prefix.
+    for form, shape in (
+        ("sal", morphology.ShortRafsiShape.CCV),
+        ("sal!", morphology.ShortRafsiShape.CVC),
+        ("sal!!!!", morphology.ShortRafsiShape.CVC),
+        ("sa", morphology.ShortRafsiShape.CVC),
+        ("salk", morphology.ShortRafsiShape.CVC),
+        # Only ai, ei, oi, and au need no apostrophe.
+        ("sae", morphology.ShortRafsiShape.CVV),
+        # A CCV rafsi may begin a lujvo, so its cluster must be initial.
+        ("nra", morphology.ShortRafsiShape.CCV),
+    ):
+        with pytest.raises(InvalidInputError):
+            morphology.ShortRafsiForm(form, shape)
+        assert not shape.matches_form(form)
 
 
 def test_empty_textual_lujvo_parts_return_none_without_panicking() -> None:

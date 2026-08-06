@@ -323,6 +323,10 @@ def test_short_rafsi_candidates_report_dictionary_claims() -> None:
         dictionary.TakenRafsiAvailability(
             dictionary.RafsiClaimKind.OFFICIAL, ()
         )
+    # Candidates only ever arrive from the validated Rust derivation, so there
+    # is no Python path that could construct an ill-formed one.
+    with pytest.raises(TypeError):
+        dictionary.RafsiCandidate()
 
 
 def test_selmaho_and_batch_gloss_queries_use_real_indexes() -> None:
