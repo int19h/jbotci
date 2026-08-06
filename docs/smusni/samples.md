@@ -1191,7 +1191,9 @@ Positive polar answer content says which answer was selected:
 ```
 
 An embedded `kau`-style answerhood commitment without a graph-recorded tuple
-uses an honest contextual profile:
+uses the bare contextual profile. Lojban marks no exhaustivity on `kau`, so
+none is spelled — the omitted operand is the canonical form of an answer whose
+exhaustivity is genuinely undetermined:
 
 ```lisp
 (Smusni 0
@@ -1200,10 +1202,13 @@ uses an honest contextual profile:
       (OpenQ
         (λ (($x (Referents Entity)))
           (cortu $x)))
-      (ContextualAnswer Exhaustive))))
+      ContextualAnswer)))
 ```
 
-It does not claim the selected `$x` is present in the graph.
+It does not claim the selected `$x` is present in the graph, and it does not
+claim either an exhaustive or a mention-some reading. A producer whose
+semantics really does commit to a reading spells it explicitly, for example
+`(ContextualAnswer Exhaustive)`.
 
 When the graph does contain the ordered answer values, the tuple and
 exhaustivity are explicit:

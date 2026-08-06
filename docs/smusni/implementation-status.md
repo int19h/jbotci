@@ -12,7 +12,10 @@ the specification now says so throughout. The renderer still returns a raw
 wiring the CLI, server, and MCP error surfaces is the second increment of that
 issue. Every divergence this creates is listed below. The reason-id namespace
 is already `smusni.projection.`, and the registry already calls its table
-`ProjectionFailureReasonRow`.
+`ProjectionFailureReasonRow`. The row does not yet carry the `failure-class`
+field the specification's section 14.2 schema declares; adding it and
+reporting the section-16.2 class breakdown belongs to the same second
+increment.
 
 ## Runnable support matrix
 

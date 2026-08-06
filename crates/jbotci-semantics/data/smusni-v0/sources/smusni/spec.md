@@ -10,7 +10,11 @@ The format has four goals:
 2. reduce grammar-shaped and record-shaped structures to a small compositional
    kernel;
 3. remain readable to people familiar with conventional S-expressions,
-   mathematical notation, and ordinary functional notation;
+   mathematical notation, and ordinary functional notation. This format is
+   human-centric: where one reading is clearly predominant, the concise
+   spelling expresses it implicitly and explicit operands are reserved for the
+   uncommon committed case — complete coverage never requires exhaustive
+   spelling;
 4. be expressively complete for the semantic distinctions tersmu represents for
    successfully analyzed Lojban: each distinction has a typed composition of
    kernel primitives, lexical predicates, and reviewed transparent reductions.
@@ -2270,8 +2274,9 @@ The closed selection forms are:
 
 ```text
 (PolarAnswer Yes|No|Unknown)
-(TupleAnswer (Tuple value...) Exhaustive|MentionSome|Unspecified)
-(ContextualAnswer Exhaustive|MentionSome|Unspecified)
+(TupleAnswer (Tuple value...) [Exhaustive|MentionSome])
+ContextualAnswer
+(ContextualAnswer Exhaustive|MentionSome)
 UnresolvedAnswer
 ```
 
@@ -2282,31 +2287,31 @@ permitted only when unresolved answerhood is itself a semantic value; an
 implementation which merely cannot prove the projection takes the section-16
 failure route instead.
 
-`Exhaustive`, `MentionSome`, and `Unspecified` are the three closed
-`AnswerExhaustivity` literals, and they are exactly as different as they look.
-`Exhaustive` and `MentionSome` each commit to a reading of how completely the
-answer resolves its question. `Unspecified` commits to the answer while
-recording that its exhaustivity is not determined; it is the truth conditions of
-the committed answer with the exhaustivity conjunct absent, not a weaker or
-disjunctive reading, and not a claim that the question is unanswered.
-`Unspecified` therefore remains distinct from `UnresolvedAnswer`, which says
-that unresolved answerhood is itself what the graph represents.
+The exhaustivity operand is optional, and its omission is the canonical
+spelling of the predominant case: an answer whose exhaustivity is genuinely
+undetermined by the represented semantics. An omitted operand commits to the
+answer with the exhaustivity conjunct simply absent from its truth conditions —
+not a weaker or disjunctive reading, not a defaulted value later resolvable
+from context, and not a claim that the question is unanswered. It therefore
+remains distinct from `UnresolvedAnswer`, which says that unresolved
+answerhood is itself what the graph represents.
 
-`Unspecified` is not a hedge for a producer that could have determined the
-reading. It is the correct spelling when the represented semantics genuinely
-contains no exhaustivity. Lojban supplies no surface exhaustivity marker for the
-indirect-question particle `kau`, focus-`kau` supplies the answer's value rather
-than its exhaustivity, and choosing from the embedding predicate would be a
-lexical heuristic this format forbids. `(ContextualAnswer Unspecified)` is
+Omission is not a hedge for a producer that could have determined the reading.
+It is the correct spelling when the represented semantics genuinely contains no
+exhaustivity. Lojban supplies no surface exhaustivity marker for the
+indirect-question particle `kau`, focus-`kau` supplies the answer's value
+rather than its exhaustivity, and choosing from the embedding predicate would
+be a lexical heuristic this format forbids. Bare `ContextualAnswer` is
 consequently the only answer selection tersmu emits for a bare `kau`, and
 `lo du'u ma kau se bilga` reaches an ordinary `Answer` rather than a projection
 failure.
 
-`Exhaustive` and `MentionSome` remain in the notation for expressive
-completeness. Smusni is a language rather than a transcript of one producer's
-output: a hand-written document, another producer, or a future Lojban marker or
-BPFK ruling can commit to either reading, and the format must be able to write
-what they mean.
+`Exhaustive` and `MentionSome` are the two closed `AnswerExhaustivity`
+literals, printed only for the uncommon committed case, and they remain in the
+notation for expressive completeness. Smusni is a language rather than a
+transcript of one producer's output: a hand-written document, another
+producer, or a future Lojban marker or BPFK ruling can commit to either
+reading, and the format must be able to write what they mean.
 
 The tuple type parameters of `ContextualAnswer` and `UnresolvedAnswer` are
 inferred from the `Query<A>` paired with them by `Answer`; these constructors
@@ -2487,10 +2492,14 @@ Polar     : Content -> Query<()>
 OpenQ     : Fn<(A1 ... An), Content> -> Query<(A1 ... An)>, n >= 1
 Answer    : Query<A> × AnswerSelection<A> -> Content
 PolarAnswer      : AnswerPolarity -> AnswerSelection<()>
-TupleAnswer      : Tuple<(A1 ... An)> × AnswerExhaustivity
+TupleAnswer      : Tuple<(A1 ... An)> × [AnswerExhaustivity]
                    -> AnswerSelection<(A1 ... An)>
-ContextualAnswer : AnswerExhaustivity -> AnswerSelection<(A1 ... An)>
+ContextualAnswer : [AnswerExhaustivity] -> AnswerSelection<(A1 ... An)>
 UnresolvedAnswer : AnswerSelection<(A1 ... An)>
+
+The bracketed `AnswerExhaustivity` operand is optional per section 12.2:
+omission is the canonical spelling of undetermined exhaustivity, not a
+defaulted value. Zero-operand `ContextualAnswer` prints as the bare atom.
 
 Set     : T* -> Set<T>
 SetOf   : PureProperty<T> -> Set<T>
@@ -2761,7 +2770,7 @@ Force              = Assertion | Question | Directive | Expressive
 SignKind           = Name | Sentence | Quotation | Word | Letteral
                      | MathExpression | Connective | Text | Structured | Opaque
 AnswerPolarity     = Yes | No | Unknown
-AnswerExhaustivity = Exhaustive | MentionSome | Unspecified
+AnswerExhaustivity = Exhaustive | MentionSome
 ScalarKind         = OtherThan | Opposite | Neutral
 LabelLevel         = Item | Division
 EndpointInclusion  = Open | Closed
@@ -3009,8 +3018,11 @@ ProjectionFailureSite =
     TypedPosition { expected-v0-type-schema, minimum-raw-owner-type }
   | WholeGraph { raw-root-type }
 
+FailureClass = InvalidGraph | RouteUnavailable | TrackedSpecGap
+             | ImplementationInvariant
+
 ProjectionFailureReasonRow =
-  reason-id, owner, failure-site, evidence-id
+  reason-id, owner, failure-site, failure-class, evidence-id
 
 ProjectionFactRow =
   fact-id, type-parameters, input-slots, evidence-id
@@ -3113,9 +3125,13 @@ An unknown semantic coordinate is registry or executable drift and fails before
 rendering; it is not a runtime projection-failure reason. Failure of an
 algorithm which the implementation can make total, including planner
 nontermination or non-convergence, is likewise an implementation error rather
-than an `AlgorithmFailureSite`. Every algorithm-failure owner is
-`ImplementationUnavailable` and has exactly one unconditional failure leaf. A
-recoverable alternative is a `ProjectionFactRow` decision on its semantic
+than an `AlgorithmFailureSite`. An algorithm-failure owner has no semantic
+disposition: its `DispositionRow` contains exactly one unconditional failure
+leaf, and the failure's section-16.2 class comes from its
+`ProjectionFailureReasonRow` — an invalid-graph rejection (an unbound variable,
+a non-performable root) and an unavailable implementation route are both
+legitimate algorithm-failure sites, and the reason row says which one this is.
+A recoverable alternative is a `ProjectionFactRow` decision on its semantic
 owner, not an algorithm-failure owner.
 
 `SemanticTypeRow.class` is `Product`, `Sum`, `ScalarCodeList`, `ScalarNewtype`,
@@ -3430,8 +3446,11 @@ Every emitted projection-failure reason id resolves through exactly one
 `ProjectionFailureReasonRow`. A `TypedPosition` row fixes the expected type
 schema and the smallest model owner at which the failure is sound; a
 `WholeGraph` row fixes the root as `SemanticGraph` and contains no expected
-smusni type. Two implementations therefore cannot use the same id for different
-failure sites or invent ad hoc diagnostic ids.
+smusni type. The row's `failure-class` fixes the section-16.2 classification of
+every failure emitted under that reason, so a report's class breakdown is
+registry data rather than a per-site judgment call. Two implementations
+therefore cannot use the same id for different failure sites, different
+classes, or invent ad hoc diagnostic ids.
 
 The lexical place maps in `samples.md` are pedagogical candidate applications
 of these schemas, not an undeclared second registry. Until the tables are
@@ -3657,6 +3676,20 @@ does not change merely because one guarded execution fails.
 Resemblance to `me`, `Denotes`, or an event place is not itself an exact
 reduction.
 
+`tu'a` sumti raising is a named **tracked spec gap**. Its source semantics
+deliberately withholds the particular abstraction: the raised operand stands
+in for some unspecified abstraction about it, and no existing crossing can
+express that without inventing content — an event abstraction requires the
+very property `tu'a` withholds, `Abstract` requires known `Content`, and a
+bare contextual computation loses the represented aboutness relation. Until
+the semantic model's own commitment for `tu'a` is settled and a faithful
+underspecified crossing is specified from it, every `tu'a` coordinate takes
+the section-16 failure route; a renderer MUST NOT approximate it with a
+plausible predicate, an invented abstraction kind, or a bare `Context`. The
+same holds for `co'e` and `do'e`, whose meanings are deliberately vague in the
+source language: vagueness that the model represents survives only through an
+exact represented reduction, never through a guessed one.
+
 Recording a coordinate as `ImplementationUnavailable` is acceptable for version
 0; silent omission or an open wildcard is not.
 
@@ -3811,7 +3844,14 @@ Each failure is classified, and the classification is part of the record:
   it. This is renderer backlog;
 - **tracked spec gap.** Version 0 specifies no route for the coordinate at all.
   This is language-design backlog, and section 14.4 forbids counting it toward
-  expressive completeness.
+  expressive completeness;
+- **implementation invariant failure.** The implementation itself broke — an
+  internal invariant, registry/executable drift, or a failure of an algorithm
+  the registry declares total. This is a defect to fix, never a semantic
+  result; it is reported honestly rather than laundered into one of the other
+  classes.
+
+These are the same four classes section 14.4 requires reports to separate.
 
 Failures aggregate rather than escalate: one graph may fail at several
 independent edges, and all of them are reported. Escalation to a larger owner
@@ -3879,9 +3919,9 @@ mean what it says.
   attribution rules;
 - reports its errors in an order that is deterministic for a given graph, with
   one record per failed edge and no wrapper duplicating a child's record;
-- is classified per record as an invalid semantic graph, an unavailable
-  implementation route, or a tracked spec gap, so that a corpus report can
-  separate renderer backlog from language backlog;
+- is classified per record into the four section-16.2 classes, so that a
+  corpus report can separate renderer backlog from language backlog and both
+  from invalid input and implementation defects;
 - reaches every host transport unchanged in meaning: a nonzero exit and empty
   stdout on the command line, a server-error problem document over HTTP, and a
   tool error result over MCP, each carrying the same structured records rather
@@ -3970,7 +4010,7 @@ mean what it says.
 - every semantically valid reachable coordinate has one of the five semantic
   dispositions of section 14.4, and coordinates recorded as tracked spec gaps
   are enumerated separately and never counted as expressive completeness;
-- failure counts, reason ids, and the four failure classes of section 14.4 are
+- failure counts, reason ids, and the four failure classes of section 16.2 are
   reported on representative CLL and corpus suites without imposing an
   experimental threshold.
 
@@ -4022,8 +4062,10 @@ compound and negated tags, arbitrary
 opaque references, direct and embedded questions, multi-variable questions,
 termsets, respectively, recursion, quotations and every sign kind, indicators,
 multiple utterances, and math/quantity structures. It must also include inputs
-which fail, covering each of section 16.2's three classifications, so the
+which fail, covering the first three of section 16.2's classifications, so the
 failure laws above are exercised on real graphs rather than only on fixtures.
+(An implementation invariant failure is by construction not reachable from a
+valid corpus input; it is exercised by focused negative fixtures instead.)
 
 The internal debug codec described in `internal-raw.md` has its own tests. They
 are explicitly not conformance tests: nothing they accept is a smusni document,
