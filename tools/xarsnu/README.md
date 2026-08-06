@@ -20,7 +20,7 @@ diagnostics in fenced blocks so the export shows exactly what the model received
 
 ```toml
 scenario = "schedule-negotiation-1.toml"
-tersmu-format = "smusni"
+tersmu-format = "xml"
 listener-mode = "informed"
 allow-degraded-search = false
 
@@ -94,10 +94,11 @@ captured arguments may then be a truncation artifact rather than a model
 formatting error — so token exhaustion is diagnosable without inspecting
 payloads.
 
-`tersmu-format` selects how the gate renders candidate semantics: `smusni`
-(the default, typed human-readable S-expression notation), `json` (the canonical
-interchange graph), `xml` (the canonical scoped SFN-XML rendering produced by
-the in-product renderer), or `tersmu-format = { external = ["renderer", ...] }`
+`tersmu-format` selects how the gate renders candidate semantics: `xml` (the
+default, the canonical scoped SFN-XML rendering produced by the in-product
+renderer, matching the tersmu product and MCP surfaces), `smusni` (the
+experimental typed human-readable S-expression notation), `json` (the canonical
+interchange graph), or `tersmu-format = { external = ["renderer", ...] }`
 to pipe the JSON graph through a caller-configured command.
 
 Scenario instances may set `answers-close-dialog = true|false`. It defaults to
