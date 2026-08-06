@@ -121,6 +121,40 @@ fn vlatai_json_reports_machine_readable_statuses() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn vlatai_lists_possible_short_rafsi_for_every_gismu_position() {
+    let run = run_cli_capture(&["jbotci", "vlatai", "sakli", "sakli zei bridi"], false);
+
+    assert_eq!(run.status, CliStatus::Success);
+    assert_in_order(
+        &run.stdout,
+        &[
+            "valsi: sakli\n",
+            "category: gismu\n",
+            "possible rafsi: kli sa'i sai sak sal ska\n",
+            "valsi: sakli zei bridi\n",
+            // The prefix mechanism carries the line into nested positions.
+            "left possible rafsi: kli sa'i sai sak sal ska\n",
+            "right possible rafsi: bi'i bid bri ri'i rid\n",
+        ],
+    );
+    // vlatai stays dictionary-free, so it never reports availability.
+    assert!(!run.stdout.contains("taken"));
+
+    let json_run = run_cli_capture(
+        &["jbotci", "vlatai", "--format", "json", "sakli", "coi"],
+        false,
+    );
+    let json: serde_json::Value = serde_json::from_str(&json_run.stdout).expect("valid JSON");
+    assert_eq!(
+        json[0]["classification"]["possible-rafsi"],
+        serde_json::json!(["kli", "sa'i", "sai", "sak", "sal", "ska"]),
+    );
+    assert!(json[1]["classification"]["possible-rafsi"].is_null());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn parses_benchmark_before_and_after_subcommand() {
     let before_cli = Cli::try_parse_from(["jbotci", "--benchmark", "3", "vlasei", "coi"])
         .expect("benchmark before subcommand");
