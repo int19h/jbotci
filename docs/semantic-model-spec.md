@@ -128,6 +128,98 @@ Sibling top-level `.i` utterances share that full frame.  Parsed quotations
 allocate a fresh speaker, audience, now, and here; inner `mi`/`do`, tense
 anchors, spatial anchors, and demonstratives use the quoted frame.
 
+## Structural Scope
+
+Alongside `objects`, the envelope carries `scope`: the structural scope the
+builder recorded while it walked the syntax.  The object graph says what refers
+to what; it never says *where* a reference is evaluated, and it cannot say where
+a shared object was introduced as opposed to where a traversal first reached it.
+`scope` records both.
+
+```json
+{
+  "version": "lojban-semantics-json-1",
+  "root": "utterance:5",
+  "objects": { "…": {} },
+  "scope": {
+    "root": "scope:1",
+    "regions": {
+      "scope:1": {
+        "owner": { "site": { "kind": "document" } },
+        "boundary": { "kind": "document" },
+        "sourceOrder": 0
+      },
+      "scope:2": {
+        "parent": "scope:1",
+        "owner": { "object": "utterance:5", "site": { "kind": "content" } },
+        "boundary": { "kind": "forceSegment" },
+        "sourceOrder": 1
+      },
+      "scope:3": {
+        "parent": "scope:2",
+        "owner": { "object": "predication:8", "site": { "kind": "argument", "place": "x1" } },
+        "boundary": {
+          "kind": "lexicalArgument",
+          "relation": "klama",
+          "originalPlace": "x1"
+        },
+        "sourceOrder": 2
+      }
+    },
+    "objectOrigins": { "entity:7": "scope:3" },
+    "uses": [
+      {
+        "owner": "predication:8",
+        "target": "entity:7",
+        "role": "value",
+        "region": "scope:3",
+        "sourceOrder": 0
+      }
+    ]
+  }
+}
+```
+
+`regions` is one rooted tree.  Every region names a `parent` except the
+synthetic document root, a typed `owner` locus — the object and the position
+inside it that introduces the region — a closed `boundary` kind, the `binders`
+it introduces, and a `sourceOrder` key.
+
+The boundary kinds are `document`, `discourse`, `forceSegment`,
+`sequentialContinuation`, `connectiveBranch`, `multiplicity` (a lambda or
+quantifier region), `question`, `lexicalArgument` (carrying the relation root
+and original numbered place its scope policy resolves by), `reification`,
+`contentCrossing`, `tokenFacts`, `opaque`, `closure`, and `nonlogicalJoin`.
+The last two are recorded *because* they are transparent for reference
+placement: transparency is stated by the boundary table rather than inferred.
+
+`objectOrigins` gives every object the region it is introduced in.  Where the
+walk and the structure disagree, the walk decides the segment — which performed
+act, which quotation, or the document — and the structure decides the position
+within it.
+
+`uses` has exactly one entry per semantic reference edge, in the same order the
+graph enumerates them, so two references one owner holds in different regions
+stay distinguishable.  `role` is `value`, `binderDeclaration`, `binderUse`, or
+`definitionInternal`; a definition-internal reference occurs inside its own
+target's definition and is not a use a definition must be hosted to cover.
+
+`sourceOrder` keys are unique within a region and order loci that are already
+placed there.  They never decide scope, and comparing them across regions is
+meaningless.
+
+Two properties hold on the region tree itself and two do not.  Every binder use
+*should* sit in a descendant of its binder's region, and every binder *should*
+be introduced once; the record model still produces graphs where neither holds
+(a quantified argument distributed over connective branches binds one variable
+object at two quantifiers; `ro do` quantifies the audience deictic in place, so
+other acts' references to the audience escape the binder).  Those are reported
+rather than asserted.
+
+`scope` is additive: the `version` string stays `lojban-semantics-json-1`,
+because the JSON is one-way output with no deserializer and consumers that do
+not read the field are unaffected.
+
 ## Common Fields
 
 Every object has a required `type`.  Other common fields are optional.

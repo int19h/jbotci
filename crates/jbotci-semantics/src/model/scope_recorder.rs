@@ -202,19 +202,9 @@ impl ScopeRecorder {
         objects: &BTreeMap<SemanticObjectId, SemanticObject>,
     ) -> SemanticScopeTree {
         self.compact_skeleton(objects);
-        let mut references = Vec::new();
-        let mut reference_counts: BTreeMap<SemanticObjectId, usize> = BTreeMap::new();
-        for object in objects.values() {
-            references.clear();
-            object.references_into(&mut references);
-            for reference in &references {
-                *reference_counts.entry(*reference).or_default() += 1;
-            }
-        }
         let mut pass = ScopeFinalization {
             recorder: &mut self,
             objects,
-            reference_counts,
             by_locus: BTreeMap::new(),
             home: BTreeMap::new(),
             visited: BTreeSet::new(),
@@ -447,7 +437,6 @@ fn scope_site_is_scoped(site: ScopeSite) -> bool {
 struct ScopeFinalization<'a> {
     recorder: &'a mut ScopeRecorder,
     objects: &'a BTreeMap<SemanticObjectId, SemanticObject>,
-    reference_counts: BTreeMap<SemanticObjectId, usize>,
     by_locus: BTreeMap<(SemanticObjectId, ScopeSite), usize>,
     home: BTreeMap<SemanticObjectId, usize>,
     visited: BTreeSet<SemanticObjectId>,
