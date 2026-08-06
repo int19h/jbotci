@@ -56,11 +56,11 @@ An actual place question uses computed `At` and no later plain operand:
 ```
 
 Two computed fills whose candidate domains overlap do not print as two `At`
-forms. The smallest content position falls back because answer substitution
-could assign both values to the same place. Its registered local reason is
-`smusni.projection.at.overlapping-candidates`; the fallback preserves the actual
-smallest reachable raw model owner rather than inventing a
-`ComputedPlaceAssignment` model type. Section 20 shows the complete raw syntax.
+forms. Projection fails at the smallest content position, because answer
+substitution could assign both values to the same place. Its registered reason
+is `smusni.projection.at.overlapping-candidates`, and the failure is attributed
+to the actual smallest reachable model owner rather than to an invented
+`ComputedPlaceAssignment` model type.
 
 `zi'o` removes a current numbered place. Surviving labels keep their visible
 numbers and plain traversal skips the hole:
@@ -108,7 +108,8 @@ it eta-expands:
 ```
 
 That last block is a fragment. A place expecting a labelled `PredTerm` rather
-than the displayed `Fn` cannot consume it and uses typed fallback.
+than the displayed `Fn` cannot consume it, and projection fails with a
+registered reason.
 
 Tanru and scalar relation formers remain relational values rather than
 grammar-shaped records. Their applications follow the effective row of the
@@ -214,9 +215,9 @@ This specimen represents the walking event itself as the motion and identifies
 the walker as its mover. Neither follows mechanically from lexical x1: a
 separate concurrent motion uses its own event plus `cabna` only when that row is
 verified, and a result-dependent reading likewise requires its represented
-result relation. Without the corresponding exact row, either reading uses typed
-fallback. Other `mo'i` directions retain and delete different lexical places,
-as specified by their reduction rows.
+result relation. Without the corresponding exact row, either reading makes
+projection fail with a registered reason. Other `mo'i` directions retain and
+delete different lexical places, as specified by their reduction rows.
 
 When a verified heading reduction represents no destination, origin, or route,
 it can project exactly the surviving mover place and relate the same motion to
@@ -259,12 +260,12 @@ contextual argument. Actuality is a separate predicate, not assertion force:
           (fasnu $e))))))
 ```
 
-An aspect whose boundary/checkpoint relation has not yet been verified remains
-local fallback rather than an English-gloss constructor or an approximate
-`cfari` predication. Its registered local reason is
-`smusni.projection.tag.coha.unverified-boundary`; its raw value is the actual
-reachable owner containing the inline aspect value, not a synthetic
-`EventContour` object.
+An aspect whose boundary/checkpoint relation has not yet been verified makes
+projection fail rather than producing an English-gloss constructor or an
+approximate `cfari` predication. Its registered reason is
+`smusni.projection.tag.coha.unverified-boundary`, and the failure is attributed
+to the actual reachable owner containing the inline aspect value, not to a
+synthetic `EventContour` object.
 
 A repeated tense is a path rather than two unrelated facets. This sample
 assumes one graph locus with a joint two-parameter existential; the nested-`∃`
@@ -313,12 +314,10 @@ outside `Do` with `Let` when inert or `Bind` when computed, and both repeated
 `purci` applications use the same variable.
 
 Version 0 does not pretend that a graph-owned noncurrent deictic ground is the
-current speech situation. Until that registered reduction exists, the smallest
-referential value falls back with reason
-`smusni.projection.deictic.noncurrent-ground`. The raw encoding uses a
-`RawRecord` for an inline deictic-reference value and an `Object`/`Ref` only for
-the real graph-owned ground referent; it never promotes either into an invented
-semantic-object type.
+current speech situation. Until that registered reduction exists, projection
+fails at the smallest referential value with reason
+`smusni.projection.deictic.noncurrent-ground`, attributed to the real
+graph-owned ground referent rather than to an invented semantic-object type.
 
 ## 5. Explicit `Close` for shared predicate terms
 
@@ -373,10 +372,10 @@ performance:
 The two applications substitute different x1 values; they do not mint new
 identities for klama's omitted destination, origin, route, or means sites.
 
-A nondefaultable higher-order gap cannot be silently closed. It uses local
-fallback with reason `smusni.projection.close.nondefaultable-place`, rooted in the
+A nondefaultable higher-order gap cannot be silently closed. Projection fails
+with reason `smusni.projection.close.nondefaultable-place`, attributed to the
 actual reachable semantic-model owner; `PredicateTerm` is notation IR and is
-not fabricated as a raw model object.
+never fabricated as a model object.
 
 An elided value whose graph scope may depend on `$p` cannot disappear into
 `Close`; its dependency set is explicit. This is a fragment inside the binder
@@ -460,7 +459,7 @@ must span both. This donkey-style normalization uses an explicit quantifier:
 This is not a same-type `Context` lookup. If the consequent instead contains a
 genuinely new contextual choice, it receives its own `Bind`; if coreference is
 required but the graph does not identify the antecedent, the affected
-conditional uses typed fallback.
+conditional is rejected with a registered invalid-graph reason.
 
 ## 7. `lo`, `le`, and `la` are compositional references
 
@@ -899,10 +898,11 @@ identity. A witness is available only after that same application succeeds:
 
 This is not equivalent to counting members of `$dogs` after the fact. The full
 quantifier function, scope function, and success identity remain explicit. A
-request before successful execution uses local `(Referents Entity)` fallback
-with reason `smusni.projection.witness.before-success`, preserving the actual
-reachable quantifier owner. `WitnessRequest` and `QuantifierApplication` are
-not raw model object types and therefore never appear in its raw value.
+request before successful execution is rejected at the `(Referents Entity)`
+position with reason `smusni.projection.witness.before-success`, attributed to
+the actual reachable quantifier owner. `WitnessRequest` and
+`QuantifierApplication` are not model object types and therefore never appear
+in the failure record.
 
 ## 12. Simultaneous termsets
 
@@ -948,9 +948,9 @@ change generalized-quantifier truth conditions. The biconditionals also make
 this stronger than arbitrary complete-product subset selection: if four dogs
 all like the same two people, the displayed `Exactly 3`/`Exactly 2` content is
 false. A graph which retains one coequal quantifier-bundle locus but lacks the
-verified coordinate-closed profile uses local `Content` fallback with reason
-`smusni.projection.termset.profile-unverified`, preserving that complete raw
-`Formula` object as in section 20. A graph already elaborated as an ordered
+verified coordinate-closed profile fails at the `Content` position with reason
+`smusni.projection.termset.profile-unverified`, attributed to that `Formula`
+object. A graph already elaborated as an ordered
 quantifier nest instead renders that ordinary nesting; the renderer does not
 guess that it was formerly simultaneous.
 
@@ -1005,8 +1005,8 @@ semantic scale fills the full-arity crossing:
 ```
 
 This last sample is normal output only when `DistanceScale` is a verified member
-of the version-0 scale table; otherwise the affected scale value uses typed
-fallback.
+of the version-0 scale table; otherwise projection fails with a registered
+reason.
 
 ## 14. First-class acts and utterance facts
 
@@ -1300,8 +1300,9 @@ own owner says otherwise:
       (klama $driver))))
 ```
 
-An `Opaque` lexical edge cannot be raised; a contradictory escaping owner is a
-typed local fallback rather than an assumed extensional reading.
+An `Opaque` lexical edge cannot be raised; a contradictory escaping owner is
+rejected with a registered invalid-graph reason rather than read as an assumed
+extensional reading.
 
 ## 17. Respectively, collections, and math
 
@@ -1341,8 +1342,8 @@ Set and interval operations use conventional mathematical notation:
     (Interval 0 1 Closed Open)))
 ```
 
-An unsupported questioned math operator remains typed fallback; it is not
-printed as an arbitrary PascalCase atom.
+An unsupported questioned math operator makes projection fail with a registered
+reason; it is never printed as an arbitrary PascalCase atom.
 
 ## 18. Signs and quotation
 
@@ -1435,84 +1436,40 @@ Mutually recursive inert functions use `LetRec`:
 ```
 
 The example demonstrates shape rather than a Lojban source sentence. Recursive
-bindings whose initializers are not inert lambdas are not legal `LetRec` and
-use fallback.
+bindings whose initializers are not inert lambdas are not legal `LetRec`;
+version 0 specifies no other route for them, so projection fails with a
+registered reason.
 
-## 20. Fallback and diagnostic separation
+## 20. Projection failure is not a document
 
-A local unsupported value preserves its type, reason, fields, identity, and
-sharing:
+There is no sample of a failed projection, because a failure produces no
+document to show. Section 16 of the specification defines the two results: a
+success is one complete `(Smusni 0 ...)` datum, and a failure is a nonempty
+ordered list of registered, source-aware projection errors with no datum at
+all.
 
-```lisp
-(Smusni 0
-  (Assert
-    (=
-      (Fallback Number "smusni.projection.math.power-unregistered"
-        (Object %1 "MathExpression"
-          (Field "kind"
-            (RawVariant "MathExpressionNodeKind" "Operator"
-              (Field "operator"
-                (RawVariant "MathOperator" "Power"))
-              (Field "operands"
-                (RawList
-                  (Object %2 "MathExpression"
-                    (Field "kind"
-                      (RawVariant "MathExpressionNodeKind" "Literal"
-                        (Field "literal"
-                          (RawRecord "MathLiteral"
-                            (Field "kind"
-                              (RawTypedAtom "MathLiteralKind" "Integer"))
-                            (Field "value"
-                              (RawVariant "MathLiteralValue" "Integer"
-                                (Field "value" (RawScalar "i64" "2"))))))
-                        (Field "denotes" (RawNull))))
-                    (Field "scalarNegation" (RawNull))
-                    (Field "subscript" (RawNull))
-                    (Field "common"
-                      (RawRecord "SemanticObjectCommon"
-                        (Field "source" (RawNull))
-                        (Field "diagnostics" (RawList)))))
-                  (Ref %2)))
-              (Field "operatorDenotes" (RawNull))
-              (Field "endpointInclusion" (RawNull))))
-          (Field "scalarNegation" (RawNull))
-          (Field "subscript" (RawNull))
-          (Field "common"
-            (RawRecord "SemanticObjectCommon"
-              (Field "source" (RawNull))
-              (Field "diagnostics" (RawList))))))
-      4)))
+What a host shows instead is a diagnostic. On the command line the shape is the
+ordinary labelled diagnostic the rest of the toolchain prints, with stdout
+empty and a nonzero exit:
+
+```text
+error[smusni.projection.math.power-unregistered]: no registered reduction for
+this math operator
+  --> <input>:1:4
+  |
+1 | li re te'a ci du li bi
+  |    ^^^^^^^^^ projection could not be proved for this expression
+  |
+  = note: the failing owner is a MathExpression
 ```
 
-If the renderer cannot establish a typed performable root, it preserves the
-whole graph structurally:
+The exact wording and layout are a host presentation. The stable parts are the
+reason id, the message, the severity, and the primary span; every transport
+carries those same structured records rather than re-parsing terminal text.
 
-```lisp
-(Smusni 0
-  (TypedGraph "SemanticGraph" "smusni.projection.graph.root-not-performable"
-    (Object %1 "SemanticGraph"
-      (Field "version" (RawString "lojban-semantics-json-1"))
-      (Field "root"
-        (Object %2 "Parameter"
-          (Field "sort" (RawVariant "SemanticSort" "Entity"))
-          (Field "role"
-            (RawTypedAtom "ParameterRole" "ArgumentQuestion"))
-          (Field "introducedBy" (RawString "ma"))
-          (Field "subscript" (RawNull))
-          (Field "common"
-            (RawRecord "SemanticObjectCommon"
-              (Field "source" (RawNull))
-              (Field "diagnostics" (RawList))))))
-      (Field "objects"
-        (RawMap
-          (Entry
-            (RawScalar "SemanticObjectId" "parameter:1")
-            (Ref %2)))))))
-```
-
-Neither document contains a `Warning` node. The corresponding stable diagnostic
-code and human message are written to stderr in the normal `gentufa` diagnostic
-format.
+Debug captures of a failing graph live in the non-normative
+[internal raw codec note](internal-raw.md). They are internal test and
+debugging output, not smusni documents, and no consumer ever receives one.
 
 ## 21. Word cards
 

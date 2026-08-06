@@ -11,12 +11,30 @@ The format has four goals:
    kernel;
 3. remain readable to people familiar with conventional S-expressions,
    mathematical notation, and ordinary functional notation;
-4. remain total while the semantic projection is incomplete, by using an
-   explicit typed structural fallback rather than guessing.
+4. be expressively complete for the semantic distinctions tersmu represents for
+   successfully analyzed Lojban: each distinction has a typed composition of
+   kernel primitives, lexical predicates, and reviewed transparent reductions.
+   A renderer MUST NOT guess or silently omit a distinction. If an
+   implementation cannot prove a faithful projection, it MUST return a
+   projection failure and MUST NOT emit a smusni document.
+
+Goals 1 and 4 are about the language; they are not claims about any particular
+renderer. Three consequences follow:
+
+- language expressiveness and implementation coverage are separate. A route may
+  be fully specified here and not yet implemented;
+- a failed implementation does not produce a conforming partial or raw
+  document. There is exactly one kind of successful result, and a failure is
+  not a document at all;
+- a malformed or internally inconsistent semantic graph may fail independently
+  of language expressiveness. Rejecting such a graph says nothing about whether
+  smusni can express the corresponding distinction.
 
 The keywords **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
 Examples are illustrative unless they are explicitly labelled as expansions.
 The companion [samples](samples.md) exercise the rules in this document.
+Section 16 defines the failure result; section 14.4 separates a coordinate's
+normative semantic disposition from one implementation's coverage of it.
 
 ## 1. Semantic commitments
 
@@ -124,9 +142,7 @@ The namespaces are visually disjoint:
 - conventional callable mathematical glyphs are registered primitives or
   transparent prelude functions: `∀`, `∧`, `≠`;
 - `$name` is a lexically bound variable;
-- `:2` and `:Eventuality` are literal place labels;
-- `%1`, `%2`, ... are fallback-object identities and occur only inside
-  structural fallback.
+- `:2` and `:Eventuality` are literal place labels.
 
 A bare symbol starts with a Unicode letter and continues with Unicode letters,
 digits, apostrophe, hyphen, underscore, or period. A lexical spelling that is
@@ -143,9 +159,10 @@ The complete callable-glyph set is:
 `λ` is a special-form marker rather than a callable atom. No other punctuation
 token is an atom. In particular, `/` is reserved for exact rational syntax.
 
-PascalCase spellings are closed by this version of the specification. Unknown
-semantic constructors do not become new PascalCase atoms; they use typed
-fallback.
+PascalCase spellings are closed by this version of the specification. An
+implementation MUST NOT mint an atom for an unknown or unavailable semantic
+constructor. Projection fails instead, with a registered reason, and no
+document is emitted.
 
 ### 2.2 Datum grammar
 
@@ -167,7 +184,7 @@ positive-integer ::= nonzero-digit digit*
 rational       ::= (/ integer positive-integer)
 application    ::= (datum argument+)
 argument       ::= datum | place-fill
-special-form   ::= lambda | let | bind | let-rec | utterance | sign | fallback
+special-form   ::= lambda | let | bind | let-rec | utterance | sign
 
 place-fill     ::= :positive-integer datum
                  | :Eventuality datum
@@ -183,7 +200,6 @@ let-rec        ::= (LetRec ((variable type datum)+) datum)
 
 utterance      ::= (Utterance ((variable UtteranceToken)) utterance-item+)
 sign           ::= (Sign ((variable (SignToken sign-kind))) sign-item+)
-fallback       ::= (Fallback type string raw)
 utterance-item ::= datum     ; statically Content
 sign-item      ::= datum     ; statically Content
 word-card      ::= (Word lexical-root string)
@@ -209,22 +225,6 @@ relation-former ::= (DropPlace relation-ref positive-integer)
                   | (Tanru relation-ref relation-ref)
                   | (Scalar scalar-kind relation-ref)
 performable    ::= datum     ; statically Act, Discourse, or TranscriptEntry
-                 | typed-graph
-typed-graph    ::= (TypedGraph string string raw)
-raw            ::= (Object object-id string raw-field*)
-                 | (Ref object-id)
-                 | (RawRecord string raw-field*)
-                 | (RawVariant string string raw-field*)
-                 | (RawList raw*)
-                 | (RawMap raw-entry*)
-                 | (RawTypedAtom string string)
-                 | (RawScalar string string)
-                 | (RawAtom string)
-                 | (RawString string)
-                 | (RawNull)
-raw-field      ::= (Field string raw)
-raw-entry      ::= (Entry raw raw)
-object-id      ::= %positive-integer
 force          ::= Assertion | Question | Directive | Expressive
                  | Mentioning | Address
 sign-kind      ::= Name | Sentence | Quotation | Word | Letteral
@@ -239,6 +239,10 @@ or more/one or more repetitions; they are not output characters.
 `lexical-root` are lexical categories constrained by this section and the
 closed registries in section 14. `digit` is an ASCII decimal digit and
 `nonzero-digit` is `1` through `9`.
+
+`performable` is an ordinary `datum` with the static requirement that its type
+is `Act`, `Discourse`, or `TranscriptEntry`. There is no untyped top-level
+alternative: a document body is always a typed value of the kernel language.
 
 `/` in the `rational` production is a reserved grammar marker, not the callable
 division glyph `÷`. The numerator may be negative; the denominator is positive,
@@ -274,9 +278,10 @@ recursive reference is delayed inside a lambda body. Predicate terms,
 `RefComp`s, acts, discourse, presuppositions, supplements, and other effectful
 initializers are forbidden. `LetRec` denotes the recursive environment that
 ties those function identities together. A consumer need not unroll or
-normalize it, and applying a recursively bound function may diverge. A graph
-whose recursive value bindings are not all functions in this form uses typed
-fallback.
+normalize it, and applying a recursively bound function may diverge. Version 0
+specifies no normal form for a recursive binding group whose initializers are
+not all inert lambdas; that is a tracked spec gap under section 14.4, and a
+graph which requires one makes projection fail with a registered reason.
 
 ### 2.3 Application
 
@@ -408,8 +413,9 @@ edges plus the finite `Natural`-to-`Cardinal` embedding stated below.
 `Referents` is covariant along them: if `A <: B`, then
 `Referents<A> <: Referents<B>`. No corresponding downcast is implicit. Finite
 `Natural` values have the canonical embedding into `Cardinal`. Other semantic
-sorts require a registered versioned addition or typed fallback; an unknown
-model sort is not printed as a new type atom.
+sorts require a registered versioned addition; until one exists, projection
+fails with a registered reason and an unknown model sort is never printed as a
+new type atom.
 
 Consequently an eventuality may fill a general entity place, but a general
 entity cannot fill an eventuality place. The subtype distinction remains
@@ -477,16 +483,14 @@ The refinement checker is structural and deterministic:
    instantiates the callee summary without minting new lexical closure sites;
 4. `Bind`, `Refer`, accommodation, `Presuppose`, `Supplement`, act performance,
    and an unregistered or opaque call prevent `PureProperty` unless their effect
-   has already been hoisted outside the candidate lambda;
-5. `LetRec` functions do not receive a purity refinement in version 0; and
-6. local `Fallback` inhabits its stated surface type but proves no purity or
-   stability refinement.
+   has already been hoisted outside the candidate lambda; and
+5. `LetRec` functions do not receive a purity refinement in version 0.
 
 “Stable result” means that one lexical site, one argument tuple, and one
 performance identify the same semantic value; it does not claim termination or
 global rigidity across performances or possible worlds. If the above analysis
-cannot establish the refinement, an extensional reduction requiring it uses
-typed fallback.
+cannot establish the refinement, an extensional reduction requiring it is
+unavailable and projection fails with a registered reason.
 
 ### 3.3 Explicit crossings
 
@@ -506,7 +510,9 @@ The following crossings are semantic operations, not harmless type coercions:
 
 `InterpretContent` and force-indexed `InterpretAct` are separate because a
 static result type cannot be recovered from an undifferentiated
-`Interpret : Sign -> Content|Act`. An unknown act force uses typed fallback.
+`Interpret : Sign -> Content|Act`. An act force which neither the graph nor the
+expected position determines makes projection fail with a registered reason
+rather than erasing the force.
 `Reify` and `QuestionOf` construct one graph-owned proposition/question object
 and therefore return a raw first-order value. Crossings whose graph result is a
 number-neutral contextual selection return `Referents<...>` instead; this is a
@@ -570,8 +576,9 @@ them. It is used only where a contextual value is semantically present.
 `Context` is not an anaphoric variable lookup by type. It does not mean “reuse
 some preceding `Referents<T>`,” and it has no index for choosing among
 same-typed values. A graph-resolved coreference prints the same bound variable;
-a genuinely underspecified contextual choice prints `Context`; and a graph
-that requires an identity but fails to supply one uses typed fallback.
+a genuinely underspecified contextual choice prints `Context`; and a graph that
+requires an identity but fails to supply one is rejected with a registered
+invalid-graph reason.
 
 The irreducible deictic constants are:
 
@@ -593,9 +600,10 @@ Deictic : Proximity × DeicticGround -> Referents<Entity>
 readable defaults `This`, `That`, and `Yonder` are transparent prelude values
 for the three applications to `CurrentGround`. The type reserves a graph-owned
 noncurrent ground as a possible second operand, but version 0 has no normal
-binder or constructor for one; every currently encountered noncurrent ground
-therefore uses typed fallback. Thus the convenient constant does not collapse
-source `ti`, `ta`, and `tu` or discard their ground.
+binder or constructor for one. That is a tracked spec gap under section 14.4:
+every currently encountered noncurrent ground makes projection fail with a
+registered reason. Thus the convenient constant does not collapse source `ti`,
+`ta`, and `tu` or discard their ground.
 
 ## 4. Predicate rows and place filling
 
@@ -652,7 +660,7 @@ occur in an explicit `C` only when the graph's question domain genuinely
 includes the distinguished event place. Every explicit set MUST exclude
 reserved or deleted places and every place that rejects `T`. Candidate sets for
 multiple computed fills MUST be pairwise disjoint; an overlapping or otherwise
-noninjective assignment uses local typed fallback.
+noninjective assignment is rejected with a registered invalid-graph reason.
 
 ### 4.3 `At`
 
@@ -684,7 +692,8 @@ slots. Answer substitution supplies the concrete relation and its remaining
 row before the deferred `Close` is checked; only answers whose resulting row
 is closeable inhabit the query. This is not a row-erased escape hatch:
 candidate relations and all represented slot constraints remain part of the
-query graph, and an incompatible answer uses typed fallback.
+query graph, and an incompatible answer is rejected with a registered
+invalid-graph reason.
 
 ### 4.4 `zi'o`
 
@@ -711,9 +720,9 @@ Positive evidence may be an explicit graph relation whose declared role set
 omits the lexical role, or a versioned reduction contract which defines a
 derived relation as lacking it. An explicit source `zi'o` supplies direct
 positive evidence for its own deletion. Every shipped generated deletion
-records that semantic absence and an evidence id in the immutable registry
-bundle. Surface elision, an absent model field, or failure to find a filler is
-never evidence.
+records that semantic absence and an evidence id in the checked-in registry.
+Surface elision, an absent model field, or failure to find a filler is never
+evidence.
 
 ### 4.5 Place conversion
 
@@ -732,7 +741,8 @@ eta-expanded as an ordered function. For a binary relation:
 The receiving place must expect the corresponding `Fn` type. A graph that
 requires an escaped converted `PredTerm` with labelled-place behavior, rather
 than an ordered function, cannot be represented by pretending the lambda is a
-predicate term and therefore uses typed fallback.
+predicate term. Version 0 specifies no other route for it; that is a tracked
+spec gap under section 14.4, and projection fails with a registered reason.
 
 ### 4.6 Relation formers
 
@@ -755,7 +765,8 @@ Scalar : ScalarKind × PredTerm<ρ> -> PredTerm<ρ>
 The model's `Affirmed` case is the identity transformation and is a
 `ProvenDesugaring`, so it does not print. A scalar operation with an
 independently represented scale or restricted argument-place scope requires a
-separately registered exact reduction; otherwise it uses typed fallback.
+separately registered exact reduction; until that row exists, projection fails
+with a registered reason.
 Displayed-content intensity and phase likewise lower through registered
 ordinary predicates or transparent prelude helpers, not generic `Degree` or
 `Phase` constructors.
@@ -798,8 +809,8 @@ local to that closure unless graph identity has caused it to be bound and
 shared explicitly.
 
 If any remaining place is not registered as defaultable, or event ownership is
-ambiguous, `Close` is not defined for that row and the affected value uses typed
-fallback. Saturation alone never licenses closure.
+ambiguous, `Close` is not defined for that row and projection fails with a
+registered reason. Saturation alone never licenses closure.
 
 ### 5.2 When `Close` may be omitted
 
@@ -894,7 +905,7 @@ The result of a branch join is therefore determined by graph identity and
 region equality, not by matching types or spellings. Any unregistered control
 form or unresolved join fails at the smallest typed owner. Together with the
 purity algorithm in section 3.2, the placement and handler rules in sections
-6.3 and 6.4, the witness-flow algorithm in section 9.4, and bundle validation
+6.3 and 6.4, the witness-flow algorithm in section 9.4, and registry validation
 in section 14.2, these rules are the complete version-0 checker algorithm; an
 implementation may choose different internal data structures but not different
 transfer behavior.
@@ -916,7 +927,7 @@ must already enclose both sites.
 | `(↔ a b)` | has classical biconditional truth conditions and is primitive rather than a duplicating rewrite; `a` and `b` each see the same input context, each printed occurrence is evaluated at most once per performance, and neither operand's ordinary introductions flow into the other or escape; a shared identity is bound outside and handled projective effects follow section 6.4 |
 | `(⊕ a b)` | alternatives share input; branch-local ordinary identities do not escape; handled projective effects follow section 6.4 |
 | `(∀ (λ (...) body))` | lambda variables and ordinary body introductions are local; handled projective effects follow section 6.4 |
-| `(∃ (λ (...) body))` | lambda variables and ordinary body introductions are local; handled projective effects follow section 6.4; version 0 has no plain-existential witness export, so later anaphora must use a graph-licensed `Refer`/generalized-quantifier route or typed fallback rather than using the variable out of scope |
+| `(∃ (λ (...) body))` | lambda variables and ordinary body introductions are local; handled projective effects follow section 6.4; version 0 has no plain-existential witness export, so later anaphora must use a graph-licensed `Refer`/generalized-quantifier route, and otherwise projection fails with a registered reason rather than using the variable out of scope |
 | generalized quantifier | variable is local; only its registered successful run handle can authorize `Witnesses` |
 | `(Presuppose trigger body)` | emit the projective `trigger` at its dependency-legal handler, resolve or accommodate it once there, then evaluate `body`; the trigger's successful context is visible in `body` and in the handler continuation, while any shared lexical identity is bound outside the whole form |
 | `(Supplement body side)` | evaluate `body` in situ and emit `side` once as an ordered supplement-family effect at its graph-owned legal handler; `side` is evaluated in the handler's context at its commitment point, ordered after the handler's at-issue content containing `body`; intervening shells contribute only what their own rows export, so `side` never sees body-local introductions across a `¬`, `∨`, `→`, `↔`, `⊕`, quantifier, or query shell; `side` is not an operand of a truth-functional or force operator around `body`, and exports only graph-declared shared identities; section 6.4 defines projection and commitment through the listed transparent shells |
@@ -976,9 +987,9 @@ variable's lexical scope, and the dependency appears in the printed binder or
 lambda; the renderer never freezes a “may depend” edge into a constant by
 omission. An explicitly local reference remains at its graph owner. `Context`
 stays at its represented evaluation site. If these rules and the graph do not
-determine one legal host, the smallest affected dynamic subgraph uses typed
-fallback. Source order orders effects at one already determined host; it never
-chooses semantic scope.
+determine one legal host, the smallest affected dynamic subgraph is rejected
+with a registered invalid-graph reason. Source order orders effects at one
+already determined host; it never chooses semantic scope.
 
 ### 6.4 Side-effect handlers
 
@@ -999,8 +1010,8 @@ supplement, or reference effect contained in that value. `Utterance` and `Sign`
 analyzer facts likewise do not become force handlers merely because their token
 is constructed. A projective effect whose search reaches a `Mention`,
 `Vocative`, utterance/sign analyzer-fact boundary, `Reify`, or `Opaque` boundary
-without finding a legal handler inside it has an absent handler and makes the
-smallest affected content use typed fallback.
+without finding a legal handler inside it has an absent handler, and the
+smallest affected content is rejected with a registered invalid-graph reason.
 
 `Presuppose` is explicitly projective rather than an ordinary left-to-right
 conjunction. Its trigger may be handled outside transparent `¬`, `∨`, `→`, `↔`,
@@ -1012,8 +1023,9 @@ branch/negation export rows above and is why `Every` retains its nonempty
 restrictor commitment under outer negation. A dependency boundary, force
 boundary, `Opaque` place, or reification blocks further projection. If branch
 filtering or competing possible handlers are represented but do not determine
-one exact placement, the smallest affected content uses typed fallback rather
-than applying a generic natural-language projection heuristic.
+one exact placement, the smallest affected content is rejected with a registered
+invalid-graph reason rather than applying a generic natural-language projection
+heuristic.
 
 `Supplement` is likewise projective, but carries a separate assertional
 supplement effect rather than a presupposition trigger. Its graph-owned anchor
@@ -1041,14 +1053,15 @@ Canonical output never retains a lower equivalent attachment merely because it
 matches source nesting. The printed placement must make the selected handler
 the nearest legal handler under these rules; a graph anchor naming a different
 handler is illegal because the output would not preserve it. An absent,
-illegal, or ambiguous supplement handler makes the smallest affected content
-use typed fallback. Nested effects generated while evaluating `side` retain
+illegal, or ambiguous supplement handler makes the smallest affected content a
+registered invalid-graph rejection. Nested effects generated while evaluating
+`side` retain
 their own families and handler rules, and do not become at-issue content by
 being inside a supplement.
 A supplement whose side depends on a variable or dynamic introduction that is
 not available in any legal version-0 handler cannot be hoisted out of that
-scope. Version 0 has no hidden dependent-supplement handler: the smallest
-affected content uses typed fallback.
+scope. Version 0 has no hidden dependent-supplement handler; that is a tracked
+spec gap under section 14.4, and projection fails with a registered reason.
 
 Reference resolution may have a legal `Discourse` host, including a graph-owned
 `Bind` spanning several acts in `Do`. The discourse handler runs that
@@ -1084,12 +1097,13 @@ mint more force constructors:
 | `Command` | `Command addressee content`; the addressee is the graph-resolved command target, or the utterance audience only when that equality is a declared notation default |
 | `Mention` | `Mention value` |
 | `Vocative` | `Vocative addressee` plus any separately represented content |
-| `Quote` | `Mention sign` when the graph supplies that sign identity; otherwise typed fallback |
+| `Quote` | `Mention sign` when the graph supplies that sign identity; otherwise projection fails with a registered reason |
 | `Parenthetical` | `Supplement host side` at the graph's aside owner; it has no standalone `Parenthetical` act |
 | `Subordinated` | inert content under its owning connective, query, abstraction, or act; it has no standalone `Subordinated` act |
 
 If a parenthetical or subordinated node lacks the owner needed by these
-reductions, the smallest such utterance uses typed fallback. `Express` is the
+reductions, the smallest such utterance is rejected with a registered
+invalid-graph reason. `Express` is the
 act constructor for separately represented displayed/expressive content; it is
 not an extra `UtteranceForce` spelling.
 
@@ -1204,14 +1218,15 @@ each relation row names and types all of its roles. For example, version-0
 `Referents<Entity> × T × T -> Content`: it has experiencer, contrasted target,
 and comparison target, so both latter operands may be first-class acts at the
 same monomorphic `T`, as in `samples.md` section 14. Different target types
-require a separately registered exact relation or typed fallback rather than
-unifying unrelated values. A different indicator may instead take an utterance
+require a separately registered exact relation; until that row exists,
+projection fails with a registered reason rather than unifying unrelated
+values. A different indicator may instead take an utterance
 token or another graph-owned anchor. Polarity, intensity, phase, and modifiers
 lower through registered relation formers or additional predicates.
 `TargetFocus` is recoverable from target identity/type and is a proven
 desugaring, not discarded provenance. If any remaining field has no
-compositional lowering, the smallest displayed-content value uses local
-fallback rather than retaining a generic indicator record.
+compositional lowering, projection fails with a registered reason rather than
+retaining a generic indicator record.
 
 The graph's assertion effect controls act construction:
 
@@ -1273,7 +1288,8 @@ metadata. It is never applied directly to `Referents<T>`. Infinite cardinality
 is a `Cardinal` value; arithmetic comparisons with a finite natural retain
 their standard mathematical meaning. A semantic model that supplies only an
 approximate, vague, mass, or otherwise non-cardinal quantity uses its registered
-quantity operator or typed fallback, not `Card` by analogy.
+quantity operator; until that row exists, projection fails with a registered
+reason. `Card` is never used by analogy.
 
 The basis is not determined by the broad sort `T` alone. A counting edge must
 supply a source-licensed pure basis property and, when counting within a fixed
@@ -1282,7 +1298,8 @@ within `$dogs` uses both `(gerku $x)` and `(Among $x $dogs)`; `Entity` by itself
 does not determine which entity subreferences count as dogs or count units.
 Calling that basis singular does not assert that every `Referents<T>`
 decomposes into metaphysical atoms under `Among`. If the graph cannot supply
-the property and membership evidence, the count uses typed fallback.
+the property and membership evidence, the count is rejected with a registered
+invalid-graph reason.
 
 The extensional laws used by version 0 are:
 
@@ -1294,8 +1311,8 @@ A = B         ↔ ∀x. x ∈ A ↔ x ∈ B
 They apply only to pure properties. Independent effects are hoisted once to
 an enclosing `Bind`, `Presuppose`, or `Supplement` before comprehension. An
 effect which depends on the bound element and cannot be hoisted without a
-semantic change makes that `SetOf` reduction unavailable and uses typed
-fallback.
+semantic change makes that `SetOf` reduction unavailable, and projection fails
+with a registered reason.
 
 Mass readings and plural logic can be built with explicit sets, subreference,
 group, part, collective, and distributive predicates. The format does not make
@@ -1392,8 +1409,9 @@ post-`ku` clause; it is not the inner `lo P poi Q` attachment. Surface
 `PA lo P ku poi Q` can support either a singular generalized-quantifier
 restriction analysis or a prior subreference-selection analysis in semantic
 profiles which distinguish them. The input graph MUST identify the selected
-analysis and handler. If it does not, the renderer uses local typed fallback;
-it never chooses from syntax, apparent distributivity, or lexical plausibility.
+analysis and handler. If it does not, the renderer rejects it with a registered
+invalid-graph reason; it never chooses from syntax, apparent distributivity, or
+lexical plausibility.
 
 A restrictive clause on an already assembled reference is not forced back
 into the reference's original property. If the input graph identifies the
@@ -1431,12 +1449,12 @@ subreference of `$base` is `Among $sub`; merely requiring `$sub` itself to
 satisfy `$Q` would not express maximality. Together with `$Q $sub` and
 `Among $sub $base`, antisymmetry of `Among` makes such a greatest
 subreference unique if it exists. The algebra does not guarantee that it
-exists. Failure to find one is ordinary reference-resolution failure, not
-typed fallback; typed fallback is reserved for failure to represent or verify
-the graph's chosen reduction. If the clause property is effectful
+exists. Failure to find one is ordinary reference-resolution failure, not a
+projection failure; projection failure is reserved for failure to represent or
+verify the graph's chosen reduction. If the clause property is effectful
 and its effects cannot be hoisted once while preserving this duplicated use,
-the maximal reduction is unavailable and the local boundary uses typed
-fallback. When `$Q` contains a closure site or another shared identity, it MUST
+the maximal reduction is unavailable and projection fails with a registered
+reason. When `$Q` contains a closure site or another shared identity, it MUST
 be bound once as a function and applied at both sites; inlining two copies would
 create distinct closure-site identities rather than duplicate one pure
 property. `Among` and a second `Refer` are therefore printed only when the
@@ -1481,7 +1499,7 @@ reference's source-licensed singular basis, expressed with `SetOf`, `Among`, and
 `Card`; it is not a `Counted` record. Plural operands require graph-supplied
 flat component/member or ordered-element structure. Without it, the renderer
 does not silently flatten one constructor but preserve opaque plural operands
-in another; it uses local typed fallback.
+in another; it rejects the graph with a registered invalid-graph reason.
 
 Because `Set<T>`, `Group<T>`, and `List<T>` are first-order object subtypes,
 their singleton or plural references can upcast to `Referents<Entity>` and fill
@@ -1506,7 +1524,8 @@ the containing property over members, for example:
 
 For an ordinary number-neutral operand, the antecedent uses `Among`. A crossing
 whose membership/ordering relation is absent or whose empty result cannot fill
-a nonempty `Referents<T>` place uses typed fallback.
+a nonempty `Referents<T>` place is rejected with a registered invalid-graph
+reason.
 The containing property must satisfy the same purity or one-time effect-hoisting
 requirements as any other property placed under extensional iteration; `lu'a`
 does not license duplicating a dynamic effect per member.
@@ -1563,8 +1582,8 @@ it does not duplicate that scope, but its restriction is pure because the
 import and conditional each use it. These are checker metaconstraints, not new
 printable type constructors. After refinement erasure the cardinal return type
 is still structurally `GQ<T>`; an application which fails its retained purity
-precondition uses typed fallback rather than evaluating the displayed `SetOf`
-expansion unsoundly.
+precondition makes projection fail with a registered reason rather than
+evaluating the displayed `SetOf` expansion unsoundly.
 
 For a restriction `$P` and nuclear scope `$Q`, their definitions are:
 
@@ -1599,8 +1618,8 @@ installs each instantiated function through the implicit prelude. The cardinal
 helpers require the combined `$P`/`$Q` property to satisfy the `PureProperty`
 constraint of `SetOf`. They also use the source/model's
 registered singular counting basis. If the required effects cannot be hoisted
-once, or the basis is absent, that transparent helper is unavailable and the
-affected quantifier uses typed fallback rather than duplicating effects.
+once, or the basis is absent, that transparent helper is unavailable and
+projection fails with a registered reason rather than duplicating effects.
 For `Every`, the same one-time hoisting rule applies to its duplicated
 restriction `$P`; its nuclear scope `$Q` may remain effectful because the
 definition does not duplicate one application. For the cardinal helpers it
@@ -1717,9 +1736,9 @@ request is also invalid unless successful execution guarantees a nonempty
 selection: for example `Some`, importing `Every`, positive `Exactly`/`AtLeast`,
 and `MoreThan` a natural may qualify, while `No`, `Exactly 0`, `AtMost 0`, and
 other zero-compatible applications do not. The graph must record the exported
-selection; truth conditions alone never invent one. An invalid source request
-uses local typed fallback rather than trying to construct an empty
-`Referents<T>`.
+selection; truth conditions alone never invent one. An invalid source request is
+rejected with a registered invalid-graph reason rather than making the renderer
+try to construct an empty `Referents<T>`.
 
 ### 9.5 Simultaneous termsets
 
@@ -1789,15 +1808,18 @@ obeys section 6.4 independently of the selected-set existential. Its trigger
 mentions `Pi` but not `Si`, so the supported schema hosts that trigger at the
 nearest dependency-legal force handler outside the selected-set binder. If a
 candidate trigger depends on `Si`, another selected coordinate, or branch-local
-data, this version-0 termset reduction is not licensed and uses typed fallback.
+data, this version-0 termset reduction is not licensed and projection fails with
+a registered reason.
 
 Downward-entailing, zero-compatible, non-cardinal, partial-product,
 complete-but-not-coordinate-closed, effectful, or otherwise unsupported
-profiles use local typed fallback. No participant witness escapes this
-existential in version 0; a graph which requires later anaphora to one of the
-`Si` uses fallback until a joint termset-witness operation is specified. If the
-graph has already collapsed equal scope into an ordered individual nest, the
-renderer does not attempt to reconstruct simultaneity heuristically.
+profiles make projection fail with a registered reason. No participant witness
+escapes this existential in version 0, so a graph which requires later anaphora
+to one of the `Si` also fails: version 0 specifies no joint termset-witness
+operation, and that is a tracked spec gap under section 14.4 rather than
+expressiveness this version has. If the graph has already collapsed equal scope
+into an ordered individual nest, the renderer does not attempt to reconstruct
+simultaneity heuristically.
 
 ## 10. Modals, nonlogical connections, and events
 
@@ -1878,7 +1900,8 @@ Those wrappers are required here because `Joi` is an ordinary
 When the source nonlogical connective denotes a different registered
 operation—interval, union, sequence, mixture, respective pairing, or another
 typed collection operator—the corresponding typed operator prints instead.
-Unknown nonlogical families use fallback.
+A nonlogical family with no registered typed operator makes projection fail
+with a registered reason.
 
 ### 10.3 Event places and facets
 
@@ -1908,7 +1931,8 @@ Event properties are ordinary predicate terms of the event:
 
 No generic event-property record prints. Each represented facet must lower to
 a registered lexical predicate or typed intrinsic with a declared event
-signature. An unknown facet uses local fallback rather than being dropped.
+signature. An unregistered facet makes projection fail with a registered reason rather
+than being dropped.
 
 ### 10.4 Tense, space, aspect, recurrence, and actuality
 
@@ -2037,16 +2061,16 @@ axial schema. Spatial distance constrains the same endpoint pair or route in
 the selected schema; `vi` and `vu` may use standard `jibni` and `darno`, while
 no exact baseline predicate for the intermediate `va` reading is assumed. If
 the graph and table do not determine the needed mover, event relation,
-endpoint, path, landmark, or frame links, only that transformed step uses typed
-fallback.
+endpoint, path, landmark, or frame links, that transformed step is the failing
+edge and projection fails with a registered reason.
 
 The heading-only reduction is licensed only by an explicit graph/reduction
 classification that destination, motion origin, and route roles are all
 semantically absent. The `$frame` in `farna` x3 is the direction relation's own
 origin/frame role; matching its type to `muvdu` x3 does not identify the two
 roles. If the graph does identify a motion origin, the reduction must retain
-and fill `muvdu` x3 instead of using this projection. The manifest evidence id
-for the three deletions is `smusni.motion-heading.no-endpoints-or-route`.
+and fill `muvdu` x3 instead of using this projection. The registered evidence
+id for the three deletions is `smusni.motion-heading.no-endpoints-or-route`.
 
 Repeated directions compose as paths. For example, `pu pu` introduces the
 intermediate reference needed for “before a time which is itself before the
@@ -2069,8 +2093,8 @@ recoverable merely by choosing a root such as `krasi`, `cfari`, or `fanmo`:
 argument direction, checkpoint identity, and the relation between a boundary
 and the host must all be present in the verified reduction. Until an individual
 row supplies that structure, `co'a`, `co'u`, natural endings, pauses,
-resumptions, anticipation, aftermath, and excessive continuation use local
-typed fallback. ROI and TAhE may require a set of distinct event tokens,
+resumptions, anticipation, aftermath, and excessive continuation make projection
+fail with a registered reason. ROI and TAhE may require a set of distinct event tokens,
 `SetOf`, `Card`, ordering, and a lowercase relation such as `rapli`, `krefu`,
 `dikni`, `cafne`, or `tcaci`. The BPFK-style `n roi` and `n re'u` expansions
 through `rapli` and `krefu` are admissible only with the tagged interval and
@@ -2094,8 +2118,8 @@ Anchor paths and intervals remain first-class when shared or independently
 modified. The renderer does not choose a nearby lexical word by English gloss,
 merge actuality with assertion, or replace a source logical connector within a
 compound tag by `Joi`. A table row is licensed only by an exact reduction;
-unsupported facets receive individual disposition entries and local typed
-fallback.
+an unsupported facet receives its own disposition entry and makes projection
+fail with a registered reason.
 
 The important exceptions are semantic rather than grammatical:
 
@@ -2110,8 +2134,8 @@ The important exceptions are semantic rather than grammatical:
   the host has a recoverable x1 and event property. `pu'i` and `nu'o` require
   more than adding or negating an unrelated `fasnu` predication: a reduction
   must identify the same capability and the corresponding demonstrated or
-  unrealized event. Version 0 therefore gives each local typed fallback until
-  that complete relation is registered.
+  unrealized event. Until that complete relation is registered, each makes
+  projection fail with a registered reason.
 - `ki` is source elaboration only and is eliminated before rendering by
   explicit reuse. A sticky tag's fully lowered relation
   path is applied again at every inheriting event; a later explicit tag extends
@@ -2189,7 +2213,8 @@ contextual-defaultable. Its omission is exact notation sugar for a local
 full-arity application. An explicit graph operand always prints. Each omitted
 operand introduces a distinct contextual computation unless graph identity says
 otherwise. Missing source information that is not semantically a contextual
-default uses fallback rather than this sugar.
+default is rejected with a registered invalid-graph reason rather than using
+this sugar.
 
 Thus `Measure content` is not a second overload or primitive. It elaborates as:
 
@@ -2217,7 +2242,8 @@ tense/modal, mathematical-operator, attitude, and quantity questions print
 normally only when the versioned registry supplies an exact higher-order or
 value type for every answer. There are no opaque `Connective`, `TenseModal`, or
 `MathOperator` sort atoms. A graph which records only one of those coarse model
-sorts uses typed fallback rather than making an uncheckable question variable.
+sorts is rejected with a registered invalid-graph reason rather than making an
+uncheckable question variable.
 
 A place question binds `PlaceOf<R,T>` when its finite compatible candidate row
 is derivable at the unique `At` host, or `PlaceOf<R,T,C>` when the graph narrows
@@ -2244,16 +2270,43 @@ The closed selection forms are:
 
 ```text
 (PolarAnswer Yes|No|Unknown)
-(TupleAnswer (Tuple value...) Exhaustive|MentionSome)
-(ContextualAnswer Exhaustive|MentionSome)
+(TupleAnswer (Tuple value...) Exhaustive|MentionSome|Unspecified)
+(ContextualAnswer Exhaustive|MentionSome|Unspecified)
 UnresolvedAnswer
 ```
 
 `ContextualAnswer` is the contextually true answer operator used when the
 semantics commits to answerhood but does not encode the selected value. It does
 not pretend the graph recorded a polarity or tuple. `UnresolvedAnswer` is
-permitted only when unresolved answerhood is itself a semantic value; a
-projection failure uses fallback instead.
+permitted only when unresolved answerhood is itself a semantic value; an
+implementation which merely cannot prove the projection takes the section-16
+failure route instead.
+
+`Exhaustive`, `MentionSome`, and `Unspecified` are the three closed
+`AnswerExhaustivity` literals, and they are exactly as different as they look.
+`Exhaustive` and `MentionSome` each commit to a reading of how completely the
+answer resolves its question. `Unspecified` commits to the answer while
+recording that its exhaustivity is not determined; it is the truth conditions of
+the committed answer with the exhaustivity conjunct absent, not a weaker or
+disjunctive reading, and not a claim that the question is unanswered.
+`Unspecified` therefore remains distinct from `UnresolvedAnswer`, which says
+that unresolved answerhood is itself what the graph represents.
+
+`Unspecified` is not a hedge for a producer that could have determined the
+reading. It is the correct spelling when the represented semantics genuinely
+contains no exhaustivity. Lojban supplies no surface exhaustivity marker for the
+indirect-question particle `kau`, focus-`kau` supplies the answer's value rather
+than its exhaustivity, and choosing from the embedding predicate would be a
+lexical heuristic this format forbids. `(ContextualAnswer Unspecified)` is
+consequently the only answer selection tersmu emits for a bare `kau`, and
+`lo du'u ma kau se bilga` reaches an ordinary `Answer` rather than a projection
+failure.
+
+`Exhaustive` and `MentionSome` remain in the notation for expressive
+completeness. Smusni is a language rather than a transcript of one producer's
+output: a hand-written document, another producer, or a future Lojban marker or
+BPFK ruling can commit to either reading, and the format must be able to write
+what they mean.
 
 The tuple type parameters of `ContextualAnswer` and `UnresolvedAnswer` are
 inferred from the `Query<A>` paired with them by `Answer`; these constructors
@@ -2289,13 +2342,14 @@ set after the implicit conversions of section 3.1; type inference chooses the
 unique least such target in the conversion preorder. `Natural` uses the order
 inherited from `Number`; `Cardinal` has its standard cardinal order, including
 infinite cardinal values. No order is inferred for any other type. A comparison
-or interval over another type uses the smallest typed fallback unless a later
-format version explicitly registers it.
+or interval over another type makes projection fail with a registered reason
+unless a later format version explicitly registers that order.
 
 `Open` and `Closed` are the two endpoint-inclusion literals. The first applies
 to the first endpoint and the second to the second endpoint. Centered,
 unordered, or otherwise differently structured intervals require an exact
-registered reduction or typed fallback; endpoint order is never guessed.
+registered reduction; until one exists, projection fails with a registered
+reason. Endpoint order is never guessed.
 
 The same `Tuple` head in a type expression is distinguished by the grammar's
 type position. The renderer always uses U+2212 `−` for subtraction; ASCII
@@ -2328,18 +2382,20 @@ ZipWith : Fn<(A1 ... An), Content>
           × List<A1> ... × List<An> -> Content
 ```
 
-All input lists must have the same finite length. A represented mismatch is a
-projection error and uses typed fallback; `ZipWith` neither truncates nor pads.
+All input lists must have the same finite length. A represented mismatch is
+rejected with a registered invalid-graph reason; `ZipWith` neither truncates nor
+pads.
 
 Arrays, powers, nondecimal bases, subscripts, operator denotation, and
 questioned operators print only through a registered typed math constructor.
-An unknown operator is not emitted as an unregistered atom; the smallest
-unknown math value uses fallback.
+An unknown operator is never emitted as an unregistered atom; the smallest
+unknown math value makes projection fail with a registered reason.
 
 The registered `ZipWith` form returns `Content`. A respective construction
 whose result is a non-content collection requires its own exact registered
-operator; until one exists it uses typed fallback rather than overloading this
-signature.
+operator. Version 0 registers none; that is a tracked spec gap under section
+14.4, and projection fails with a registered reason rather than overloading
+this signature.
 
 ### 13.2 Quantities
 
@@ -2349,9 +2405,9 @@ transparent-prelude reduction with the complete scale, comparison set, and
 property. Version 0 has no generic `Amount`, `Extent`, `Frequency`, `Portion`,
 or `Ordinal` constructor: those names would merely repackage the model record.
 
-Approximate, indefinite, comparative, and vague quantities therefore use the
-smallest typed fallback until such a reduction is registered. They MUST NOT be
-rounded into an exact `Number` or cardinal comparison.
+Approximate, indefinite, comparative, and vague quantities therefore make
+projection fail with a registered reason until such a reduction is registered.
+They MUST NOT be rounded into an exact `Number` or cardinal comparison.
 
 ### 13.3 Quotation and signs
 
@@ -2366,9 +2422,10 @@ Word, letteral, connective, math-expression, and text signs use a `Sign` token
 plus ordinary registered facts when those facts completely represent their
 structure. Version 0 does not introduce generic `WordSign`, `LetteralSign`, or
 similar record wrappers. A raw sign value of one of those kinds whose structure
-cannot be expressed by the four constructors above and token facts uses typed
-fallback. Opaque quotation preserves exact quoted text and does not claim an
-internal interpretation.
+cannot be expressed by the four constructors above and token facts has no
+version-0 route; that is a tracked spec gap under section 14.4, and projection
+fails with a registered reason. Opaque quotation preserves exact quoted text and
+does not claim an internal interpretation.
 
 ## 14. Registered normal forms
 
@@ -2393,7 +2450,6 @@ Polymorphic type variables are inferred from operands.
 | signs | `OpaqueQuote`, `StructuredQuote`, `NameSign`, `SentenceSign` |
 | discourse | `NewTopic`, `Resume`, `PriorDiscourse`, `FollowingDiscourse` |
 | utterance/sign/metadata facts | `Realizes`, `SpeakerOf`, `AudienceOf`, `LocutionOf`, `DeicticTimeOf`, `DeicticPlaceOf`, `TextOf`, `Denotes`, `Quotes`, `Utters`, `Label` |
-| fallback | `Fallback`, `TypedGraph`, `Object`, `Field`, `Entry`, `Ref`, `RawRecord`, `RawVariant`, `RawList`, `RawMap`, `RawAtom`, `RawTypedAtom`, `RawScalar`, `RawString`, `RawNull` |
 | packaging | `Smusni`, `Words`, `Word` |
 
 Every primitive not already given a more specific signature above has the
@@ -2465,7 +2521,7 @@ Label          : LabelLevel × Number × A -> Content
 ```
 
 `InterpretAct` has no force-erased result. If neither the graph nor the expected
-position determines `F`, interpretation uses typed fallback. `Quotable`
+position determines `F`, projection fails with a registered reason. `Quotable`
 abbreviates the closed overload set `Text`, `Sign<K>`,
 `SignToken<K>`, `TranscriptEntry`, and `Discourse`. `Utterable` abbreviates
 `Act<F>`, `TranscriptEntry`, `Sign<K>`, and `SignToken<K>`. These two names are
@@ -2481,7 +2537,8 @@ set. With zero dependencies the canonical surface form is the bare atom
 head share x1: any more specific argument link must come from the represented
 tanru reduction and its typed registry evidence. Arithmetic
 is exact and partial where ordinary mathematics is partial, such as division
-by zero; an invalid represented operation uses typed fallback. `Label` is an
+by zero; an invalid represented operation is rejected with a registered
+invalid-graph reason. `Label` is an
 ordinary analyzer fact about its target, not a wrapper which changes the
 target's value or force.
 
@@ -2496,13 +2553,12 @@ identity-preserving binding; rebinding cannot turn it into a performable
 computation. They are illegal as the top-level `Smusni` performable and as
 `Perform`, `Do`, `Joi`, `NewTopic`, or `Resume` operands. If the graph requires
 the referenced segment to be performed at that site, the smallest affected
-performable uses typed fallback instead of treating the reference as the
-segment's computation.
+performable is rejected with a registered invalid-graph reason instead of
+treating the reference as the segment's computation.
 
-`Fallback` and the raw constructors have exactly the grammar and typing rules
-in section 16 rather than ordinary polymorphic application. `Smusni`, `Words`,
-and `Word` have the packaging grammar in section 2.4. No primitive obtains an
-additional overload merely because an input-model field would fit it.
+`Smusni`, `Words`, and `Word` have the packaging grammar in section 2.4. No
+primitive obtains an additional overload merely because an input-model field
+would fit it.
 
 The derived prelude is a second closed registry. A monomorphic prelude value is
 semantically equivalent to nesting its listed `Let` binding outside the
@@ -2554,11 +2610,11 @@ Version 0 currently includes this definition:
 Deleting x3 and filling surviving x1, x2, and x4 produces a predicate term
 whose only remaining slot is its local event; the declared `Content` result
 inserts ordinary closure. The normative deletion evidence is the version-0
-`voi` reduction's explicit three-role contract; its manifest evidence id is
+`voi` reduction's explicit three-role contract; its registered evidence id is
 `smusni.voi.no-audience`. The implementation MUST verify both that contract and
-the `skicu` row used by this definition against the versioned bundle. A
-mismatch makes the prelude definition unavailable and uses typed fallback; it
-does not silently change the definition.
+the `skicu` row used by this definition against the checked-in registry. A
+mismatch makes the prelude definition unavailable and projection fails with a
+registered reason; it does not silently change the definition.
 
 The standard name-description helper is likewise reducible:
 
@@ -2582,7 +2638,7 @@ After x1, x2, and x3 are filled, expected `Content` insertion closes only the
 local event slot when the verified `cmene` row licenses one.
 The implementation MUST verify the `cmene` row and the speaker-relative `la`
 reduction together; neither English gloss nor operand count substitutes for
-that bundled evidence.
+that registered evidence.
 
 Innate capability is also a lexical composition. `InnatelyCapable` receives
 the actual bearer and a property which can reconstruct the tagged host for a
@@ -2639,7 +2695,7 @@ Deleting x4 is part of this helper's declared meaning, not a general rule that
 an omitted Lojban place means `zi'o`. A reduction with a represented route must
 use `muvdu` with x4 intact or a different transparent helper. Likewise this
 helper cannot be called until its mover and motion-event policy are known. Its
-manifest deletion evidence id is `smusni.motion-vector.no-route`; the
+registered deletion evidence id is `smusni.motion-vector.no-route`; the
 implementation MUST verify the `muvdu` row and this reduction contract
 together.
 
@@ -2659,7 +2715,7 @@ The possible-event `Bind` is inside `kakne` x2, whose verified scope-policy row
 MUST be `Intensional`; consequently the host property is part of the capability
 content and is not asserted as an actual event. Until both the `kakne` lexical
 row, the `jinzi` row, and that policy row are verified, this helper is
-unavailable and `ka'e` uses typed fallback. No `DropPlace kakne 3` is licensed
+unavailable and `ka'e` makes projection fail with a registered reason. No `DropPlace kakne 3` is licensed
 by mere absence of a source condition operand.
 
 The deictic defaults are inert value bindings:
@@ -2705,7 +2761,7 @@ Force              = Assertion | Question | Directive | Expressive
 SignKind           = Name | Sentence | Quotation | Word | Letteral
                      | MathExpression | Connective | Text | Structured | Opaque
 AnswerPolarity     = Yes | No | Unknown
-AnswerExhaustivity = Exhaustive | MentionSome
+AnswerExhaustivity = Exhaustive | MentionSome | Unspecified
 ScalarKind         = OtherThan | Opposite | Neutral
 LabelLevel         = Item | Division
 EndpointInclusion  = Open | Closed
@@ -2751,70 +2807,56 @@ requires a deletion-evidence row. The row identifies the exact owner and
 lexical ordinal and states why that semantic role is absent; it cannot cite
 surface omission as its reason.
 
-Format version `0` is minted only when one immutable registry bundle containing
-the semantic dictionary and all tables below is checked into the specification
-repository. Before that first mint, this document is a design and implementation
+Format version `0` is minted when the registry tables below are reviewed for
+semantic correctness, checked in, and this document stops calling itself a
+candidate. Before that mint, this document is a design and implementation
 candidate: its kernel and transparent definitions may be implemented, but no
-renderer output is yet conformant normal form. After the mint, two different
-bundles MUST NOT both claim format version `0`; changing any normative row
-or the checked-in `spec.md` requires a new format version.
+renderer output is yet conformant normal form.
 
-The canonical manifest records the format and bundle schema versions, the
-SHA-256 digest of the exact checked-in `spec.md` bytes, an immutable generator
-identity, and for every source or generated artifact its stable relative path,
-schema id, row count, and SHA-256 digest. `samples.md` is deliberately outside
-this digest because it is pedagogical rather than normative.
+Minting is a review decision, not a cryptographic ceremony. There is no
+manifest, no bundle digest, no generator identity derived from a digest
+closure, and no byte-mirrored copy of the generator's own sources. Code review
+is the semantic authorization for adding or changing a row, and ordinary git
+history is the version history. What the format versions is stated precisely:
 
-All SHA-256 values are lowercase hexadecimal. Every string is normalized to
-NFC before serialization, and every JSON value uses RFC 8785 JSON Canonicalization
-Scheme (JCS). The manifest is checked in as `registry/manifest.json`, serialized
-as one JCS object followed by LF. Its `source-artifacts` and
-`generated-artifacts` arrays are each sorted by NFC Unicode scalar-value
-`relative-path` order; every entry has exactly `relative-path`, `schema-id`,
-`row-count`, and `digest`. Its `generator-inputs` array contains source-artifact
-`relative-path` strings in the same order. `schema-id` is exactly the declared
-row-schema name for a table artifact, such as `LexicalRow` or
-`TagReductionRow`. Every non-table source artifact, including `spec.md`,
-generator sources, and lockfiles, uses `OpaqueBytes` and has `row-count` 1.
-These row-schema names plus `OpaqueBytes` are the closed `schema-id` vocabulary.
-An `OpaqueBytes` payload is the exact checked-in file byte sequence and is
-verified by its digest; `row-count` 1 is a manifest sentinel, not a claim that
-the file has row structure. The manifest's logical fields are `format-version`,
-`bundle-schema-version`, `spec-digest`, `generator-id`, `generator-inputs`,
-`source-artifacts`, `generated-artifacts`, and `bundle-digest`; JCS, rather than
-prose field order, determines their byte order.
+- the `0` in `(Smusni 0 ...)` versions the public grammar, the static typing,
+  the kernel semantics, and the stable meanings of the normal forms;
+- reviewed lexical and reduction coverage is checked-in data versioned by
+  ordinary git. It may grow within version `0` whenever a new row instantiates
+  an existing rule without changing that rule's meaning;
+- a backward-incompatible grammar, type, kernel, or normal-form semantic change
+  requires a new format version; and
+- a row correction is a reviewed change, not a new mint. If a correction changes
+  semantics an implementation previously emitted, it is recorded prominently in
+  release notes and its compatibility is decided by its actual consumer impact.
 
-The bundle digest is SHA-256 of the JCS encoding, without a trailing LF, of the
-array `[[relative-path, digest], ...]` containing every source and generated
-artifact in NFC Unicode scalar-value `relative-path` order. The manifest itself
-and its `bundle-digest` field are not inputs. `generator-id` is likewise the
-SHA-256 of the JCS path-and-digest array selected by `generator-inputs`. Every
-listed path MUST resolve to exactly one `source-artifacts` entry, duplicates are
-invalid, and the array MUST enumerate exactly `spec.md`, the resolved mirrored
-production semantic-model module closure, the scanner and generator source,
-and the build configuration, toolchain, and lockfile closure which can affect
-their output. Generated artifacts are excluded. `spec.md` is a generator input
-because the prelude signatures and canonical definitions are extracted from
-it. Thus a verifier rederives
-`generator-id` from the manifest and source-artifact digests; it is not a
-mutable tool name. Generated tables are JSON Lines: each row is one
-NFC-normalized JCS object followed by LF. Rows sort by their declared
-primary-key tuple: strings by Unicode scalar-value order, integers numerically,
-and composite keys left to right. Types, signatures, rows, and expansion
-templates embedded in a field use the canonical smusni spelling from this
-document. Consumers may compile these rows to another internal representation,
-but the checked-in bytes and manifest are the single normative source.
+The generated tables are ordinary deterministic build output:
+
+- both the authored source tables and the generated runtime tables are checked
+  in;
+- the generator has a deterministic order and a canonical serialization
+  adequate for clean diffs, and two clean runs produce byte-identical output;
+- `generate --check` fails when the checked-in output differs from a fresh run;
+  and
+- primary keys are unique, every referenced id resolves, closed enums match the
+  generated enums, templates parse and typecheck, expansion dependencies are
+  acyclic, and the semantic-coordinate scanner has exact coverage.
+
+Generated tables are JSON Lines: each row is one NFC-normalized object
+serialized by RFC 8785 JSON Canonicalization Scheme (JCS), followed by LF. Rows
+sort by their declared primary-key tuple: strings by Unicode scalar-value
+order, integers numerically, and composite keys left to right. Types,
+signatures, rows, and expansion templates embedded in a field use the canonical
+smusni spelling from this document. NFC and stable JSONL ordering are retained
+because they produce readable deterministic diffs, not because they form an
+evidence chain. Consumers may compile these rows to another internal
+representation.
 
 The normative generated artifacts have these logical schemas:
 
 ```text
-SourceArtifactRow =
-  source-id, source-kind, immutable-revision, canonical-locator,
-  artifact-digest
-
 EvidenceRow =
-  evidence-id, source-id, exact-locator, cited-content-digest,
-  adjudication-note
+  evidence-id, exact-locator, adjudication-note
 
 SlotRow =
   label, accepted-type-schema, close-policy, lexical-provenance,
@@ -2901,8 +2943,8 @@ CheckedExclusionRow =
   source-origin, exclusion-kind, exact-reason, evidence-id
 
 AlgorithmFailureSiteRow =
-  site-id, phase, algorithm-id, raw-owner-input-name,
-  allowed-boundary-kind, evidence-id
+  site-id, phase, algorithm-id, owner-input-name,
+  allowed-failure-site-kind, evidence-id
 
 DispositionOwner =
     Semantic { semantic-coordinate }
@@ -2963,12 +3005,12 @@ Decision =
     Outcome { Target target-use | Failure reason-id }
   | If { fact-use, then-decision, else-decision }
 
-FallbackBoundary =
-    Local { expected-v0-type-schema, minimum-raw-owner-type }
-  | WholeDocument { raw-root-type }
+ProjectionFailureSite =
+    TypedPosition { expected-v0-type-schema, minimum-raw-owner-type }
+  | WholeGraph { raw-root-type }
 
-FallbackReasonRow =
-  reason-id, owner, fallback-boundary, evidence-id
+ProjectionFailureReasonRow =
+  reason-id, owner, failure-site, evidence-id
 
 ProjectionFactRow =
   fact-id, type-parameters, input-slots, evidence-id
@@ -2995,11 +3037,11 @@ DispositionRow =
 
 PreludeRow =
   name, type-parameters, complete-signature-schema, canonical-definition,
-  direct-dependencies, definition-digest
+  direct-dependencies
 ```
 
 The primary keys for the top-level tables, in schema order and excluding the
-inline tagged and slot types above, are `source-id`, `evidence-id`,
+inline tagged and slot types above, are `evidence-id`,
 `normalized-root`, `(normalized-root, original-ordinal)`,
 `(expansion-owner, normalized-root, original-ordinal)`,
 `(source-family, source-member, applicability-guard)`,
@@ -3034,16 +3076,16 @@ inferred from definition prose. Every `LexicalRow` object contains the
 `optional-event-slot-row` key; its value is JSON `null` when the root has no
 event slot.
 
-Every `evidence-id` is a foreign key to exactly one `EvidenceRow`, whose source
-is in turn a `SourceArtifactRow`; a label alone is not evidence. The checked-in
-`spec.md` is itself a source artifact, so a reduction contract defined in this
-document can be cited by an `EvidenceRow`. Every fallback reason names the same
-closed disposition owner as the `DispositionRow` which selects it. A scale literal is
-a raw first-order value of `raw-value-type`; for example a raw `Scale` may use
-the ordinary singleton lift at an operand requiring `Referents<Scale>`.
-`source-kind` and `word-class` are bundle-curated provenance labels rather than
-closed format vocabularies; their exact checked-in values remain deterministic
-inputs to generation and validation.
+Every `evidence-id` is a foreign key to exactly one `EvidenceRow`. An
+`EvidenceRow` is reviewed rationale: a human-readable locator a reviewer can
+check and the note that records what was adjudicated. It is not a hash-attested
+evidence graph, and a bare label with no row is still not evidence. Every
+projection-failure reason names the same closed disposition owner as the
+`DispositionRow` which selects it. A scale literal is a raw first-order value of
+`raw-value-type`; for example a raw `Scale` may use the ordinary singleton lift
+at an operand requiring `Referents<Scale>`. `word-class` is a curated
+provenance label rather than a closed format vocabulary; its exact checked-in
+values remain deterministic inputs to generation and validation.
 
 `DispositionOwner` is a tagged value, not a free label plus a second kind
 field. A semantic owner contains the scanner's exact structured coordinate. An
@@ -3054,7 +3096,7 @@ namespaces are disjoint: algorithm failures are not fake model fields or
 `Semantic` before `AlgorithmFailure`, followed respectively by the coordinate
 fields in schema order or by `site-id`. The authored rows generate closed
 runtime enums; compiled enums are checked outputs rather than an independent
-authority. The bundle validates these independent equalities:
+authority. Validation checks these independent equalities:
 
 ```text
 scanned semantic coordinates
@@ -3067,13 +3109,14 @@ authored AlgorithmFailureSite rows
   == minted AlgorithmFailure disposition owners
 ```
 
-An unknown semantic coordinate is bundle or executable drift and fails before
-rendering; it is not a runtime fallback reason. Failure of an algorithm which
-the implementation can make total, including planner nontermination or
-non-convergence, is likewise an implementation error rather than an
-`AlgorithmFailureSite`. Every algorithm-failure owner is `TypedFallback` and
-has exactly one unconditional failure leaf. A recoverable alternative is a `ProjectionFactRow`
-decision on its semantic owner, not an algorithm-failure owner.
+An unknown semantic coordinate is registry or executable drift and fails before
+rendering; it is not a runtime projection-failure reason. Failure of an
+algorithm which the implementation can make total, including planner
+nontermination or non-convergence, is likewise an implementation error rather
+than an `AlgorithmFailureSite`. Every algorithm-failure owner is
+`ImplementationUnavailable` and has exactly one unconditional failure leaf. A
+recoverable alternative is a `ProjectionFactRow` decision on its semantic
+owner, not an algorithm-failure owner.
 
 `SemanticTypeRow.class` is `Product`, `Sum`, `ScalarCodeList`, `ScalarNewtype`,
 or `Alias`; a scalar code list contains only unit alternatives and an alias
@@ -3096,9 +3139,8 @@ coordinates; the flat origin and coordinate sets are mechanically derived as
 its two projections. The serialization shape and coordinate-origin mapping are
 shared by the scanner and serializer and MUST agree on every member and branch.
 `CheckedExclusionRow.exclusion-kind` and
-`AlgorithmFailureSiteRow.phase` and `allowed-boundary-kind` are
-closed generated domains. The generator source which defines those domains is
-a manifest input, but the authored rows determine their member set.
+`AlgorithmFailureSiteRow.phase` and `allowed-failure-site-kind` are
+closed generated domains. The authored rows determine their member set.
 
 Every `SemanticTypeRow` has exactly one `ProjectionDeclarationRow`, including
 ordinary derived products, sums, aliases, and scalar newtypes. Those ordinary
@@ -3135,8 +3177,9 @@ authored closed context-value identifier; and a constant is a parsed,
 typechecked v0 datum. Bindings are total by input name, with no duplicates or
 extra values. Type arguments instantiate every declared type parameter exactly
 once under the rigid monomorphic rules below. Occurrence paths also retain the
-actual ancestor chain used by local-fallback escalation, so an algorithm site
-cannot substitute a different occurrence of the same model type.
+actual ancestor chain used when a failure is attributed to a larger owner, so
+an algorithm site cannot substitute a different occurrence of the same model
+type.
 
 Every `ProjectionFactRow` declares one total, side-effect-free predicate over
 its typed input slots. Its `fact-id` generates the evaluator enum variant and
@@ -3157,19 +3200,21 @@ explicitly. An executor returns the closed result
 `Success { value } | Failure { site-id }`; the success value inhabits the
 declared `ProjectionResultDomain`, and the failure site must occur in that row's exact
 `failure-sites` set. Every `AlgorithmFailureSiteRow` names that same algorithm
-and one `RawOwner` input slot from which its raw fallback root is preserved.
-The site transfers control to its unique algorithm-failure disposition row,
-whose failure reason and boundary determine the emitted fallback. No executor
-may return an undeclared site, and every declared site must be returned by a
-focused fixture and have exactly one originating algorithm.
+and one `RawOwner` input slot, which identifies the smallest semantic owner the
+failure is attributed to. The site transfers control to its unique
+algorithm-failure disposition row, whose reason and failure site are what the
+structured failure channel of section 16 carries. A failure never produces a
+datum, so no executor may return an undeclared site, and every declared site
+must be returned by a focused fixture and have exactly one originating
+algorithm.
 
-The site's `raw-owner-input-name` must resolve to a `RawOwner` slot of that
-algorithm. Its `allowed-boundary-kind` must equal the tag of the unique joined
-`FallbackReasonRow`: for `Local`, the slot's raw type equals
-`minimum-raw-owner-type`; for `WholeDocument`, the slot type, reason root, and
-emitted raw root are all exactly `SemanticGraph`. Thus the executor supplies
-the actual occurrence selected by the registered boundary rather than merely a
-same-named model type.
+The site's `owner-input-name` must resolve to a `RawOwner` slot of that
+algorithm. Its `allowed-failure-site-kind` must equal the tag of the unique
+joined `ProjectionFailureReasonRow`: for `TypedPosition`, the slot's model type
+equals `minimum-raw-owner-type`; for `WholeGraph`, the slot type and reason
+root are both exactly `SemanticGraph`. Thus the executor attributes the failure
+to the actual occurrence selected by the registered site rather than merely to
+a same-named model type.
 
 An `AlgorithmResult` binding is the only producer of a `ProjectionIr` input.
 Algorithm dependencies form a finite acyclic graph after type instantiation;
@@ -3187,14 +3232,14 @@ fact bindings. This permits facts over typed prepared IR without hiding a
 failure or making fact evaluation effectful.
 
 Validation follows every transitive `AlgorithmUse` chain to every reachable
-target. A whole-document failure is terminal. A local failure's expected v0
-type must equal the unique nearest enclosing `SmusniDatum` replacement
-boundary, including the target result when preparation occurs through IR-only
-slots, and the site's actual raw occurrence must lie within that boundary's
-dependency closure. If one reusable algorithm/site can reach incompatible
-local result schemas, the registry must split the algorithm or site, or make
-the failure whole-document; it cannot inject one fixed `Fallback` into an
-incompatible caller.
+target. Every failure is terminal for the render. A `TypedPosition` failure's
+expected v0 type must equal the unique nearest enclosing `SmusniDatum`
+position, including the target result when preparation occurs through IR-only
+slots, and the site's actual occurrence must lie within that position's
+dependency closure. If one reusable algorithm or site can reach incompatible
+result schemas, the registry must split the algorithm or the site, or attribute
+the failure to the whole graph; one fixed site cannot be reused across
+incompatible callers.
 
 The complete instantiated lowering dependency graph is acyclic. It includes
 every `TargetUse`, `FactUse`, and `AlgorithmUse` binding and every
@@ -3219,13 +3264,13 @@ decisions obey these additional invariants:
   so the same target contract may be reused by different disposition kinds.
   Positive rows may contain guarded failure leaves where the reduction has an
   explicit precondition.
-- `TypedFallback` contains no target leaf. It normally has one unconditional
-  failure leaf; a decision tree is permitted only to select between distinct
-  exact failure boundaries.
+- an `ImplementationUnavailable` coverage row contains no target leaf. It
+  normally has one unconditional failure leaf; a decision tree is permitted
+  only to select between distinct exact failure sites.
 - every target leaf resolves to one `TargetContractRow`; every failure leaf
-  resolves to one `FallbackReasonRow` whose structured owner equals the
-  disposition owner; and target, fact, reason, and owner identifiers all use
-  generated closed types.
+  resolves to one `ProjectionFailureReasonRow` whose structured owner equals
+  the disposition owner; and target, fact, reason, and owner identifiers all
+  use generated closed types.
 - a `NotationDefault` target uses `CanonicalDefault`, a
   `ProvenanceSuppression` target uses `RecoveredAt` or `OmitNonsemantic`, and a
   `DiagnosticCollection` target uses `DiagnosticChannel`. Direct and proven
@@ -3280,25 +3325,24 @@ recovered semantic value.
 semantic authority proves has no semantic value; its `provenance-kind` is a
 closed generated identifier and its target result is `NoSurfaceDatum`.
 `DiagnosticChannel` names only the ordered diagnostic channel of section 16.1.
-The bundle rejects an unparsed target string, a family bucket, a contract which
+Validation rejects an unparsed target string, a family bucket, a contract which
 lists several possible operations, or a source coordinate merely repeated as
 its own target.
 
-`FallbackBoundary::Local` requires a parsed v0 expected type and one exact
-reachable raw model owner. For each failure leaf the validator computes the
-failed source dependency closure: every unavailable value, graph identity, and
-context input needed by that path. The declared raw owner must be the unique
-lowest reachable owner whose raw encoding preserves that closure; if there is
-no unique local owner the failure escalates to the nearest typed ancestor or
-the whole document. Merely finding the same expected type on a descendant is
-neither necessary nor sufficient. `FallbackBoundary::WholeDocument` requires
-`raw-root-type` to be exactly `SemanticGraph` and has no expected smusni type.
-This distinction prevents a whole-document `TypedGraph` from acquiring a fake
-`Performable` type merely to satisfy the registry schema. The generated runtime
-API preserves the same tagged distinction.
+`ProjectionFailureSite::TypedPosition` requires a parsed v0 expected type and
+one exact reachable model owner. For each failure leaf the validator computes
+the failed source dependency closure: every unavailable value, graph identity,
+and context input needed by that path. The declared owner must be the unique
+lowest reachable owner that contains that closure; if there is no unique local
+owner the failure is attributed to the nearest typed ancestor or to the whole
+graph. Merely finding the same expected type on a descendant is neither
+necessary nor sufficient. `ProjectionFailureSite::WholeGraph` requires
+`raw-root-type` to be exactly `SemanticGraph` and has no expected smusni type,
+because no smusni type was ever established for it. The generated runtime API
+preserves the same tagged distinction.
 
 Kernel primitive context/effect/stability behavior is fixed by sections 3, 6,
-and 14.1 and cannot be overridden by the bundle. A lexical predicate term is
+and 14.1 and cannot be overridden by the registry. A lexical predicate term is
 inert while assembled; its operands and eventual `Close` determine the dynamic
 summary. A transparent prelude summary is computed by expanding its
 `PreludeRow`, and a tag or relation-former summary is computed from its
@@ -3307,8 +3351,9 @@ relations are ordinary inert predicates: their `context-effect-summary` is
 exactly the JSON object `{"context":"identity","effects":[]}` and their
 `stability-summary` is exactly the JSON string
 `"site-stable-within-performance"`. A generated relation requiring any other
-control or effect behavior must instead be a kernel primitive, a transparent
-expansion, or typed fallback. Missing or contradictory summaries fail closed.
+control or effect behavior must instead be a kernel primitive or a transparent
+expansion; if it is neither, projection fails with a registered reason. Missing
+or contradictory summaries fail closed.
 This supplies the declarations consumed by the structural purity algorithm
 rather than leaving "registered pure" as an implementation choice.
 
@@ -3373,30 +3418,30 @@ recursively erases every such refinement for structural typechecking,
 independently proves its section-3.2 judgment at every application, and rejects
 a refinement not justified by the canonical definition's expanded use of the
 parameter. The result is NFC-normalized canonical registry spelling embedded
-as a JCS string.
-`definition-digest` is SHA-256 of the canonical definition's unescaped NFC
-UTF-8 bytes. The declared ordered `type-parameters`, signature, definition, and
-digest MUST all match the mechanically extracted definition exactly. An
+as a JCS string. The declared ordered `type-parameters`, signature, and
+definition MUST all match the mechanically extracted definition exactly; that
+rederivation is the check, and no separate digest of it is stored. An
 irreducibility reason is
 mandatory for every `GeneratedRelationRow`; if the same meaning has an exact
 lexical/compositional reduction, the generated relation is invalid and the
 reduction must be used instead.
 
-Every emitted fallback reason id resolves through exactly one
-`FallbackReasonRow`. A local row fixes the expected type schema and smallest
-raw model owner at which the failure is allowed; a whole-document row fixes the
-raw root as `SemanticGraph` and contains no expected smusni type. Two
-implementations therefore cannot use the same id for different fallback
-boundaries or invent ad hoc diagnostic ids.
+Every emitted projection-failure reason id resolves through exactly one
+`ProjectionFailureReasonRow`. A `TypedPosition` row fixes the expected type
+schema and the smallest model owner at which the failure is sound; a
+`WholeGraph` row fixes the root as `SemanticGraph` and contains no expected
+smusni type. Two implementations therefore cannot use the same id for different
+failure sites or invent ad hoc diagnostic ids.
 
 The lexical place maps in `samples.md` are pedagogical candidate applications
-of these schemas, not an undeclared second registry. Until the immutable
-manifest is checked in, a sample demonstrates notation shape only. Building
-the initial bundle is therefore the first implementation gate after this design
-candidate converges. Once minted, an implementation may emit a sample's normal
-form only after every row it uses has been verified from that bundle, and
-otherwise must use the specified smallest typed fallback. A dictionary conflict
-is resolved in favor of verified bundled data, never by preserving the sample.
+of these schemas, not an undeclared second registry. Until the tables are
+checked in and reviewed, a sample demonstrates notation shape only. Building
+the initial registry is therefore the first implementation gate after this
+design candidate converges. An implementation may emit a sample's normal form
+only after every row it uses has been verified from the checked-in tables, and
+otherwise projection fails with a registered reason. A dictionary conflict is
+resolved in favor of the verified checked-in data, never by preserving the
+sample.
 
 ### 14.3 Required desugarings and forbidden record shapes
 
@@ -3408,7 +3453,7 @@ is resolved in favor of verified bundled data, never by preserving the sample.
 | restrictive predication mode | reference property or quantifier restriction |
 | incidental predication mode | `Supplement` at the represented anchor |
 | displayed/performative mode | displayed-content relation and explicit act/performance structure |
-| definitional mode | registered logical/property definition when exact; otherwise typed fallback |
+| definitional mode | registered logical/property definition when exact; otherwise projection failure |
 | modal/tag record | modal predicate plus `Joi` |
 | place conversion | base-root remapping or eta-expanded `λ` |
 | relative-clause record | reference property, predicate, connector, `Supplement`, or graph-licensed subreference selection through `Among` and `Refer` |
@@ -3421,7 +3466,7 @@ is resolved in favor of verified bundled data, never by preserving the sample.
 | sign/quotation record | typed sign value or token facts |
 | sequence record | `Do` and actual discourse operators |
 | exact cardinal quantity | generalized-quantifier/set/cardinality reduction |
-| unsupported non-cardinal quantity | smallest typed fallback |
+| unsupported non-cardinal quantity | projection failure at the smallest failing owner |
 | warning nodes | separate diagnostic channel |
 
 The following do not occur in normal output:
@@ -3436,23 +3481,60 @@ Degree Phase Parenthetical Subordinated Quote
 Source `Every` import is carried by the `Every` generalized quantifier itself;
 there is no `Projective` literal or separate import node in version 0.
 
-### 14.4 Projection-completeness dispositions
+### 14.4 Semantic dispositions and implementation coverage
 
-Every semantic coordinate has exactly one disposition, using the same closed
-taxonomy as the generated implementation ledger. Every reachable semantic
-source origin has exactly the coverage declared by one checked projection
-rule; one source origin may project to several coordinates only when that rule
-lists the complete finite fan-out.
+Two independent facts are recorded about every semantic coordinate, and they
+must not be conflated. Its **semantic disposition** says which route this
+format specifies for it, and is normative. Its **implementation coverage** says
+whether one particular renderer has that route working, and is not. Every
+reachable semantic source origin has exactly the coverage declared by one
+checked projection rule; one source origin may project to several coordinates
+only when that rule lists the complete finite fan-out.
+
+The closed semantic dispositions are:
 
 1. `DirectLowering`: one normal-form value directly represents it;
 2. `ProvenDesugaring`: it is recoverable from an exact composition or identity;
 3. `NotationDefault`: it is recoverable from a declared canonical default;
 4. `ProvenanceSuppression`: it is nonsemantic provenance with a declared reason;
-5. `DiagnosticCollection`: it is emitted only through the diagnostic channel;
-6. `TypedFallback`: its smallest sound fallback boundary is recorded as local
-   or whole-document.
+5. `DiagnosticCollection`: it is emitted only through the diagnostic channel.
 
-The initial jbotci mint maintains an exhaustive generated disposition ledger.
+Every semantically valid reachable coordinate needs one of these five real
+routes before this format can claim the expressive completeness of section 1's
+goal 4. There is no sixth disposition for “an error is emitted instead”: a
+projection failure is a renderer result, not a semantic distinction expressed
+in smusni primitives, so it cannot close a conformance decision.
+
+The closed implementation-coverage values are:
+
+- `Implemented`: this renderer projects the coordinate by its declared
+  semantic route; or
+- `ImplementationUnavailable`: this renderer does not, and every graph reaching
+  the coordinate takes the section-16 failure route with a registered
+  `ProjectionFailureReasonRow`.
+
+Coverage is allowed to make a particular renderer incomplete and fallible. It is
+never a smusni normal form, and it never licenses emitting an opaque value of
+the expected type.
+
+Permanently invalid graph states are classified separately from a valid but
+not-yet-implemented route. An unbound variable, an impossible effect handler,
+and model/executable drift are not renderer backlog, and a corpus report which
+merges them with backlog cannot distinguish the two. Reported failures
+therefore separate:
+
+1. a specified route whose implementation is missing;
+2. a coordinate with no specified route at all — a **tracked spec gap**, which
+   is a language-design backlog item and does not count toward expressive
+   completeness;
+3. a semantically invalid graph or an impossible request; and
+4. an implementation invariant failure.
+
+Only category 1 is evidence that the design is complete and the work is
+mechanical.
+
+The initial jbotci registry maintains an exhaustive generated disposition
+ledger.
 Its semantic-coordinate scanner starts at the semantic model root module and
 recursively resolves the complete production Rust module closure, including
 inline, ordinary file, directory, and explicit-path modules. Known test,
@@ -3461,11 +3543,10 @@ and recorded as such. A configuration gate that can add, remove, or alter a
 production semantic declaration is unsupported unless every supported
 production configuration yields the same declared surface. An unresolved
 module or configuration-dependent production surface is an error. Every file
-in the resolved closure is a mirrored generator input; generated output is
-never a generator input. This Rust/source machinery is the conformance
-mechanism for the initial jbotci bundle, not a requirement on independent
-smusni consumers; after minting, the bundle's typed rows are the portable
-authority.
+in the resolved closure is a generator input; generated output is never a
+generator input. This Rust/source machinery is the conformance mechanism for
+the initial jbotci registry, not a requirement on independent smusni consumers;
+the checked-in typed rows are the portable authority.
 
 All local product, sum, alias, and newtype declarations transitively reachable
 from `SemanticGraph` are scanned irrespective of Rust visibility. Reachability
@@ -3571,13 +3652,13 @@ implicit: `me` sumti-to-predicate conversion, `jai` event/place conversion,
 `la'e` and `lu'e` reference/sign crossings, and relative-clause `ke'a` identity.
 `ke'a` is `ProvenDesugaring` to the property parameter bound for the relative
 clause. The other three use a verified typed reduction when the graph supplies
-one and otherwise reach an explicit failure leaf; their positive disposition
-does not change to `TypedFallback` merely because one guarded execution fails.
+one and otherwise reach an explicit failure leaf; their semantic disposition
+does not change merely because one guarded execution fails.
 Resemblance to `me`, `Denotes`, or an event place is not itself an exact
 reduction.
 
-Classification as fallback is acceptable for version 0; silent omission or an
-open wildcard is not.
+Recording a coordinate as `ImplementationUnavailable` is acceptable for version
+0; silent omission or an open wildcard is not.
 
 Representative required decisions are:
 
@@ -3585,16 +3666,16 @@ Representative required decisions are:
 |---|---|
 | `UtteranceForce::Assert` | `DirectLowering` to a typed `Assert Content -> (Act Assertion)` contract |
 | `PredicationMode::Incidental` | `ProvenDesugaring` to anchored `Supplement` placement |
-| `PredicationMode::Definitional` | if an exact registered definition is available, use it; otherwise local `Content` fallback owned by the predication |
+| `PredicationMode::Definitional` | if an exact registered definition is available, use it; otherwise projection fails at the `Content` position owned by the predication |
 | `ArgumentValueKind::Filled` | row-preserving predicate fill |
 | `ArgumentValueKind::Elided` | `NotationDefault` to the slot's registered `Close` computation |
-| `ArgumentValueKind::Deleted` | exact `DropPlace` under bundled deletion evidence |
-| `UtteranceForce::Quote` | if the sign identity is available, desugar to `Mention : Sign<K> -> (Act Mentioning)`; otherwise local `(Act Mentioning)` fallback owned by the utterance |
+| `ArgumentValueKind::Deleted` | exact `DropPlace` under registered deletion evidence |
+| `UtteranceForce::Quote` | if the sign identity is available, desugar to `Mention : Sign<K> -> (Act Mentioning)`; otherwise projection fails at the `(Act Mentioning)` position owned by the utterance |
 | `MathOperator::Add` | the closed `+ : Fn (Number Number) Number` kernel contract |
-| unsupported `MathOperator::Power` | local `Number` fallback whose minimum raw owner is `MathExpression` |
+| unsupported `MathOperator::Power` | `ImplementationUnavailable`; the failure site is the `Number` position whose smallest owner is `MathExpression` |
 | `ScopeDependence::Underspecified` | `(Context dependency...)` using the exact ordered binder identities |
-| `AlgorithmFailure::RootNotPerformable` | `TypedFallback` to `WholeDocument { SemanticGraph }` with reason `smusni.projection.graph.root-not-performable` |
-| `AlgorithmFailure::ContextUnboundVariable` | `TypedFallback` to `WholeDocument { SemanticGraph }` with reason `smusni.projection.graph.unbound-variable` |
+| `AlgorithmFailure::RootNotPerformable` | invalid graph; `WholeGraph { SemanticGraph }` failure site with reason `smusni.projection.graph.root-not-performable` |
+| `AlgorithmFailure::ContextUnboundVariable` | invalid graph; `WholeGraph { SemanticGraph }` failure site with reason `smusni.projection.graph.unbound-variable` |
 
 These are physical per-coordinate rows, not family rules. A field coordinate
 which selects among variants normally targets its typed assembly/dispatch
@@ -3620,7 +3701,8 @@ Canonical output is deterministic from the typed projection graph.
    placement rules in section 6.3. Unshared values inline only when their
    normal-form rule permits it.
 2. Strongly connected components of guarded inert functions print as one
-   `LetRec`; other semantic cycles use typed fallback. Eligible SCCs and
+   `LetRec`; any other semantic cycle makes projection fail with a registered
+   reason. Eligible SCCs and
    members use stable graph order with source span as the first key and stable
    object id as the second; absent spans sort after present spans by stable
    object id. Semantic operands are never sorted merely because an operator is
@@ -3641,8 +3723,8 @@ Canonical output is deterministic from the typed projection graph.
    reduction, not permission to reorder arbitrary equality operands.
 5. Associative operators flatten in graph order. They never reorder dynamic
    operands. Redundant one-item wrappers contract only where specified.
-6. Strings use JSON escaping, symbols and text are NFC, exact numbers use the
-   rules in section 2, and fallback fields preserve declared model-field order.
+6. Strings use JSON escaping, symbols and text are NFC, and exact numbers use
+   the rules in section 2.
 7. The pretty-printer uses two-space indentation and deterministic line
    breaking. Line width and the choice to break an otherwise short list are not
    version-0 semantic conformance requirements while the notation is
@@ -3653,141 +3735,167 @@ Canonical output is deterministic from the typed projection graph.
 
 Whitespace-insensitive parsers may accept any layout satisfying section 2.1.
 
-## 16. Diagnostics and typed fallback
+## 16. Result contract and projection failure
 
-### 16.1 Separate diagnostics
+### 16.1 The two results
 
-The renderer returns three products internally:
-
-```text
-stdout document, ordered diagnostics, projection statistics
-```
-
-The CLI writes only the `Smusni` datum to stdout and writes ordered diagnostics
-to stderr through its selected diagnostic renderer. Each failed projection
-edge contributes exactly one stable diagnostic code and one message; wrapper
-failures do not duplicate child diagnostics. Diagnostic ordering, codes, and
-messages are the format-independent contract; presentation is a host profile,
-not smusni syntax. The initial jbotci CLI profile uses the same standard stderr
-rendering as `gentufa`. Statistics are API data unless separately requested.
-
-### 16.2 Local fallback
-
-When an expected static type is known, the smallest failed subgraph prints as
-`(Fallback expected-type "reason-id" raw-value)`. Section 20 of `samples.md`
-shows a complete payload-preserving local example for the registered
-`smusni.projection.math.power-unregistered` route.
-
-`Fallback expected-type reason-id raw-value` inhabits only the stated expected
-type and is semantically opaque. The reason id is a stable ASCII string
-registered by the bundle's `FallbackReasonRow` table and begins with the closed
-namespace prefix `smusni.projection.`. It is not a warning node and does not
-replace the separately collected diagnostic.
-`expected-type` is ordinary unquoted type syntax from section 2.2. A failure
-which occurs while determining that very type has no sound local position and
-therefore escalates to the nearest owner with a known expected type or to
-whole-document fallback. The printed expected type and first raw value's model
-type MUST equal the selected local boundary's expected type and minimum raw
-owner respectively.
-
-The raw grammar is closed:
+Projection is fallible. A render either succeeds or fails, and the two results
+have disjoint shapes:
 
 ```text
-(Object %id "type-name" (Field "field-name" raw)*)
-(Ref %id)
-(RawRecord "type-name" (Field "field-name" raw)*)
-(RawVariant "enum-type" "constructor" (Field "payload-name" raw)*)
-(RawList raw*)
-(RawMap (Entry raw-key raw-value)*)
-(RawTypedAtom "scalar-code-enum-type" "case")
-(RawScalar "model-scalar-type" "lexical-value")
-(RawAtom "exact-atom")
-(RawString "text")
-(RawNull)
+Success = one complete (Smusni 0 ...) document
+        + ordered nonfatal diagnostics
+        + projection statistics
+Failure = no document
+        + a nonempty ordered list of registered projection diagnostics
+        + projection statistics
 ```
 
-Within each `Fallback` or `TypedGraph` raw root, every graph object identity is
-assigned one `%id` in first-encounter depth-first order. Its first encounter
-MUST be the corresponding `Object`; later sharing and cycle back-edges use
-`Ref`. A separate fallback root restarts at `%1`, and a `Ref` never crosses raw
-roots. `Object` is reserved for identity-bearing `SemanticGraph` and
-`SemanticObject` values and is the only constructor which introduces an object
-ID. `RawRecord` preserves an inline product or newtype with no graph identity.
-`RawVariant` preserves an algebraic-sum constructor: unit constructors have no
-payload fields, named payloads use stable semantic field names, and tuple
-payloads use their projection-declared stable names rather than Rust source
-indices. `RawTypedAtom` is reserved for a declared scalar-code enum and cannot
-carry a payload. `RawScalar` preserves a model scalar/newtype family plus its
-exact lexical representation. `RawMap` preserves typed keys and values as
-ordered entries instead of collapsing keys to strings; `RawList` preserves an
-ordered collection. Fields, variant payloads, and entries occur in the model or
-projection declaration's canonical order. `RawAtom` preserves one genuinely
-untyped atom spelling. `RawNull` occurs only for an absent optional value whose
-absence must be retained. Every owned nested value is representable by exactly
-one raw form. Model type, constructor, member, and atom names remain strings so
-they cannot escape into the normal PascalCase namespace.
+The normative points are:
 
-Raw traversal begins only after applying the ledger's nonsemantic routes.
-Every `DiagnosticCollection` coordinate is enqueued exactly once on the ordered
-diagnostic channel and replaced in the raw view by its declared canonical empty
-value; in particular, `SemanticObjectCommon.diagnostics` becomes `(RawList)`
-and stdout never contains a diagnostic code or message. An
-`OmitNonsemantic` provenance coordinate is likewise replaced by its declared
-canonical absent or empty raw value, and a `RecoveredAt` coordinate is emptied
-only after its value is retained at the declared target. This preprocessing is
-the explicit exception to structural raw preservation. After it, every
-remaining semantic value and every canonical empty placeholder is encoded
-exactly once, preserving the product shape without duplicating diagnostics or
-printing source-only provenance.
+- a successful result contains exactly one complete `(Smusni 0 ...)` datum. It
+  is well-typed under section 2.2 and the registered signatures, and it uses
+  only the compact normal forms this document specifies;
+- a projection failure contains no datum, no partial datum, no `Words` section,
+  and no serialized graph payload. There is nothing for a consumer to parse and
+  nothing for it to mistake for a document;
+- each failed projection edge produces exactly one registered record. Ordering
+  is deterministic for a given graph, and a failing wrapper does not duplicate
+  the records of its children;
+- every record carries a stable reason id from the closed
+  `smusni.projection.` namespace, a stable message fixed by its typed cause,
+  severity `error`, a primary source span, and typed owner and use-site
+  evidence when the graph supplies them;
+- diagnostics and statistics are host-neutral structured data. Terminal text is
+  a presentation of them, never their definition, and a host MUST NOT recover
+  structure by parsing rendered text back;
+- nonfatal semantic warnings stay separate from projection errors. On success
+  they accompany the document; on failure they may accompany the failure
+  envelope but never substitute for its nonempty error list. Whether a
+  graph-attached diagnostic of severity `error` independently prevents success
+  is a decision the implementation states explicitly; projection becoming
+  fallible does not silently promote every warning; and
+- warnings and errors MUST NOT appear inside the datum. Section 2.4 already
+  forbids it, and this section is their channel.
 
-For example, these fragments preserve a payload enum, a named payload with
-shared graph identities, and a typed-key map:
+Statistics are API data unless a host separately requests them. They retain the
+failed-edge count, the per-reason counts, and the number of distinct failing
+owners, because those are what corpus tooling measures.
 
-```lisp
-(RawVariant "MathOperator" "Named"
-  (Field "name" (RawString "custom-op")))
-(RawVariant "ScopeDependence" "Underspecified"
-  (Field "mayDependOn"
-    (RawList (Ref %2) (Ref %5))))
-(RawMap
-  (Entry (RawScalar "PlaceIndex" "x1") (Ref %7)))
-```
+### 16.2 Failure ownership and attribution
 
-### 16.3 Whole-document fallback
+A projection failure names the smallest semantic owner it can prove. The
+failing edge is identified by its typed identity, not by a rendered string, and
+the failure record carries its resolved source location at the moment the
+failure is created; late formatting never has to rediscover provenance.
 
-If no well-typed local expected position exists, the body is:
+Source attribution uses the first rule that applies:
 
-```lisp
-(TypedGraph "SemanticGraph" "smusni.projection.graph.unbound-variable" raw-root)
-```
+1. the primary span of the failed semantic edge or its owner;
+2. otherwise the span of the use site;
+3. otherwise the span of the nearest source-bearing semantic ancestor that the
+   planner or elaborator held when the failure was created;
+4. only for a genuinely source-free internal failure, the whole input span,
+   with the owner and use-site identities carried as notes rather than as a
+   substitute for a label.
 
-`TypedGraph raw-root-type reason-id raw-root` is valid only directly under
-`Smusni`. Its reason id resolves to a `WholeDocument` fallback row with the same
-raw root type, and the first raw value MUST be `Object %1` with that same type
-name. An unbound variable, ill-scoped witness, explicitly requested
-but invalid de-re owner, or impossible effect host uses this mechanism when no
-smaller typed position exists; there are no underspecified `Unbound` or
-`IllScoped` semantic values. An unknown model/disposition coordinate is bundle
-or executable drift and fails before rendering rather than becoming a semantic
-fallback.
+Each failure is classified, and the classification is part of the record:
 
-Fallback is part of version-0 totality but not a target semantic normal form.
-The quoted first operand after `TypedGraph` is intentionally a raw input-model
-root-type name, not normal smusni type syntax; unlike `Fallback`, no static
-smusni type was established. The separate quoted reason is still mandatory so
-diagnostics, statistics, and stdout identify the same registered failure.
+- **invalid semantic graph.** The graph is malformed, ambiguous where this
+  document requires an exact choice, or internally inconsistent — an unbound
+  variable, an ill-scoped witness request, an impossible effect handler, a
+  requested but illegal de-re owner. Such a graph is rejected. Nothing follows
+  about whether smusni can express the corresponding distinction;
+- **implementation route unavailable.** The coordinate has a normative semantic
+  disposition under section 14.4, and this implementation does not yet carry
+  it. This is renderer backlog;
+- **tracked spec gap.** Version 0 specifies no route for the coordinate at all.
+  This is language-design backlog, and section 14.4 forbids counting it toward
+  expressive completeness.
+
+Failures aggregate rather than escalate: one graph may fail at several
+independent edges, and all of them are reported. Escalation to a larger owner
+happens only when no unique smaller owner contains the failed dependency
+closure, exactly as section 14.2 requires of a registered failure site. The
+no-document invariant is absolute — there is no owner large enough that failing
+at it produces a document.
+
+### 16.3 Host profiles
+
+Hosts present the same structured result differently. Each profile is stated at
+outline level here; the shared structured diagnostic schema in section 16.1 is
+the contract, and a host adds presentation, never meaning.
+
+- **command line.** Success writes the document to stdout and any nonfatal
+  diagnostics to stderr. Failure writes nothing to stdout, writes the labelled
+  diagnostics to stderr through the same standard source-aware renderer the
+  rest of the toolchain uses, and exits nonzero. The rendered source is the
+  original Lojban; owner and use-site identities are secondary notes on a
+  label, not replacements for one. A display limit MAY truncate the printed
+  records only if it also prints how many were omitted;
+- **HTTP.** Failure is a server-side capability failure, not a malformed
+  request: the request was valid smusni and the server could not fulfill it.
+  Return a machine-readable problem document carrying a stable top-level code,
+  the requested format, the diagnostic list, and the statistics. Malformed
+  request or input keeps its ordinary client-error status;
+- **MCP.** Failure returns the tool's error result with a readable summary
+  first, and carries the same serializable envelope the HTTP profile uses.
+  Structured content is declared by a matching output schema or serialized as
+  one JSON text item; it is never a terminal transcript.
+
+A transport MAY impose a documented safety limit on how many records it
+returns, and then MUST report the total, the returned count, and that
+truncation occurred. The internal failure always holds every record in
+deterministic order.
+
+An explicit smusni request is never silently retried in another format. A
+caller that asked for smusni and received a failure asked a question that was
+answered honestly; answering it with XML instead would misreport what was
+produced.
 
 ## 17. Validation requirements
 
 Version-0 conformance requires structural and semantic validation, not golden
-output expectations:
+output expectations. The first two groups are the laws of the two results in
+section 16; the rest are the semantic checks that make a successful result
+mean what it says.
 
-- the checked-in registry manifest validates every artifact path, schema, row
-  count, evidence foreign key, disposition foreign key, digest, and bundle
-  digest, and rederives `generator-id` from the complete `generator-inputs`
-  closure; two clean generator runs produce byte-identical artifacts;
+**Every successful result:**
+
+- is one parseable, well-typed `(Smusni 0 ...)` datum, and uses only the
+  compact public grammar of section 2.2;
+- is byte-identical on repeated rendering under one formatter configuration;
+- binds every variable exactly once and uses it within its legal scope;
+- carries no diagnostic node in the document, and collects its nonfatal
+  diagnostics once in stable order.
+
+**Every failed result:**
+
+- contains no document, no partial document, no `Words` section, and no
+  serialized graph payload;
+- contains at least one projection error, and every one of them resolves to a
+  registered reason id in the `smusni.projection.` namespace with its stable
+  message, severity `error`, and a source span selected by the section-16.2
+  attribution rules;
+- reports its errors in an order that is deterministic for a given graph, with
+  one record per failed edge and no wrapper duplicating a child's record;
+- is classified per record as an invalid semantic graph, an unavailable
+  implementation route, or a tracked spec gap, so that a corpus report can
+  separate renderer backlog from language backlog;
+- reaches every host transport unchanged in meaning: a nonzero exit and empty
+  stdout on the command line, a server-error problem document over HTTP, and a
+  tool error result over MCP, each carrying the same structured records rather
+  than a reparsed transcript, and each reporting the total when it truncates
+  what it displays;
+- is never silently replaced by a result in another format.
+
+**Registry and semantic checks:**
+
+- the checked-in registry validates every primary key, foreign key, closed
+  enum, and template, and two clean generator runs produce byte-identical
+  artifacts which `generate --check` compares against the checked-in bytes;
 - every kernel summary agrees with sections 3, 6, and 14.1, every prelude row's
-  declared type parameters, signature, canonical definition, and digest match
+  declared type parameters, signature, and canonical definition match
   the mechanically extracted and registry-metaform-normalized definition in
   this document, every recursive `PureProperty` refinement is retained through
   partial application and binding and enforced at the eventual application,
@@ -3795,10 +3903,6 @@ output expectations:
   summary is rederived from its expansion or link contract, and every
   irreducible generated relation has one complete
   type/context/effect/stability row;
-- every result is one parseable, well-typed `(Smusni 0 ...)` datum;
-- repeated rendering under one formatter configuration is byte-identical;
-- every variable and fallback reference is bound exactly once and used within
-  its legal scope;
 - every shared identity is represented once by `Let`, `Bind`, `LetRec`, or a
   token binder;
 - every predicate fill resolves against the current row and every lexical
@@ -3826,7 +3930,7 @@ output expectations:
 - equal-scope termsets are never silently converted to ordered nesting;
 - every tense, space, aspect, recurrence, and actuality node either expands by
   its registered exact lexical/compositional reduction or has an explicit
-  fallback disposition;
+  coverage row saying which implementation route is unavailable;
 - every generated callable spelling is globally unambiguous in value position
   and resolves without consulting a nonprinting family or overload tag;
 - all query domains and answer selections typecheck;
@@ -3850,25 +3954,25 @@ output expectations:
   algorithm, raw-model-type, and algorithm-failure rows equal their generated
   closed runtime variants exactly;
 - every algorithm failure site belongs to exactly one declared algorithm,
-  names one compatible raw-owner input, is in that algorithm's exact failure
-  set, transfers only through its own failure-only disposition, and is exercised
-  by a focused negative fixture;
+  names one compatible owner input, is in that algorithm's exact failure
+  set, transfers only through its own failure-only coverage row, and is
+  exercised by a focused negative fixture;
 - every fact and target use supplies exactly the declared typed inputs and type
   arguments, every target path entails its own and its underlying algorithm's
   required facts, and fact, algorithm, target, reason, projection, exclusion,
   and disposition rows have neither unresolved references nor orphans;
 - the complete instantiated fact/target/algorithm/lowered-value dependency
-  graph is acyclic, and every transitive local algorithm failure has one
-  type-compatible enclosing smusni replacement boundary;
-- every local fallback reason resolves to one bundled expected-type and
-  smallest raw-owner boundary, while every whole-document reason resolves to a
-  boundary with no expected smusni type and raw root exactly `SemanticGraph`;
-- stdout contains no diagnostic node, and diagnostics are collected once in
-  stable order; raw fallback replaces diagnostic/provenance coordinates by
-  their declared canonical empty values and never serializes a diagnostic
-  message;
-- local and whole fallback counts and reason ids are reported on representative
-  CLL and corpus suites without imposing an experimental threshold.
+  graph is acyclic, and every transitive local algorithm failure resolves to
+  one type-compatible enclosing owner;
+- every `TypedPosition` reason resolves to one registered expected type and
+  smallest owner, while every `WholeGraph` reason resolves to a site with no
+  expected smusni type and root exactly `SemanticGraph`;
+- every semantically valid reachable coordinate has one of the five semantic
+  dispositions of section 14.4, and coordinates recorded as tracked spec gaps
+  are enumerated separately and never counted as expressive completeness;
+- failure counts, reason ids, and the four failure classes of section 14.4 are
+  reported on representative CLL and corpus suites without imposing an
+  experimental threshold.
 
 Focused registry mutations must independently reject:
 
@@ -3894,16 +3998,14 @@ Focused registry mutations must independently reject:
   or failure-site identifier; a fact-owner/input mismatch; a target
   input/result mismatch; an unmet target/algorithm requirement on any decision
   path; an algorithm returning an undeclared site; a site attached to the wrong
-  algorithm or raw-owner input; or a wrong structured reason-owner join;
-- an invalid local or whole-document boundary, raw root which disagrees with
-  that boundary, loss of a `RawVariant`, `RawRecord`, or `RawMap` payload, or
-  identity/sharing corruption;
+  algorithm or owner input; or a wrong structured reason-owner join;
+- an invalid `TypedPosition` or `WholeGraph` failure site, or a declared owner
+  which disagrees with that site;
 - a missing nested cardinal-GQ purity refinement, an unjustified refinement, a
   duplicate generated callable spelling in any family, or a collision with an
   existing value-position atom; and
 - a cycle through `RecoveredAt`, registry expansion, fact/target/algorithm
-  bindings, or lowered-value dependencies; generated-runtime drift; or
-  mirrored-source drift.
+  bindings, or lowered-value dependencies; or generated-runtime drift.
 
 Positive mutation fixtures also enumerate every current object branch,
 dispatch branch, tuple payload, custom projection declaration, exclusion,
@@ -3919,7 +4021,13 @@ compound and negated tags, arbitrary
 `fi'o`, abstractions with extra places, shared event facets, de-re/de-dicto and
 opaque references, direct and embedded questions, multi-variable questions,
 termsets, respectively, recursion, quotations and every sign kind, indicators,
-multiple utterances, math/quantity structures, and both local and whole fallback.
+multiple utterances, and math/quantity structures. It must also include inputs
+which fail, covering each of section 16.2's three classifications, so the
+failure laws above are exercised on real graphs rather than only on fixtures.
+
+The internal debug codec described in `internal-raw.md` has its own tests. They
+are explicitly not conformance tests: nothing they accept is a smusni document,
+and a consumer never sees their output.
 
 ## 18. Summary of the model
 
@@ -3939,3 +4047,10 @@ Everything else should be decomposed into those operations and ordinary
 predications when the decomposition preserves the semantic graph. A named
 record constructor is warranted only when eliminating it would lose a real
 type, scope, effect, identity, order, or interpretation distinction.
+
+Every valid semantic distinction has a route through those controls, the
+lexical predicates, and the reviewed transparent reductions. There is no
+opaque node to fall back on: an implementation that cannot prove a faithful
+projection returns a product projection error and emits no document, and a
+distinction with no route at all is a tracked spec gap to be closed rather than
+a shape the format quietly tolerates.
