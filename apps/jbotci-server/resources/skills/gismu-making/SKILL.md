@@ -117,8 +117,9 @@ candidates that have at least one unclaimed short rafsi).
   These are why a high-scoring blend may not be the winner.
 - **rafsi** — each candidate's short combining forms and whether each is `free`,
   `official-taken`, or `experimental-taken` (a taken form names the word that
-  claimed it). A gismu with no free short rafsi still works but is less convenient
-  to build compounds from.
+  claimed it, which may be a cmavo such as `ka` rather than a gismu). A gismu
+  with no free short rafsi still works but is less convenient to build compounds
+  from.
 
 ## Step 5 — Iterate
 

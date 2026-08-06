@@ -250,7 +250,9 @@ impl<'a> Dictionary<'a> {
     /// Return the word and type of every dictionary entry claiming `rafsi`.
     ///
     /// Borrowed counterpart of [`Dictionary::short_rafsi_candidates`]: it hands
-    /// back the entry text itself rather than owned copies.
+    /// back the entry text itself rather than owned copies. Unlike short-rafsi
+    /// availability this keeps every [`RafsiSource`], so a four- or five-letter
+    /// query also reports the gismu whose universal forms spell it.
     #[requires(true)]
     #[ensures(true)]
     pub fn rafsi_claimants<'lookup>(
@@ -265,7 +267,7 @@ impl<'a> Dictionary<'a> {
     ///
     /// The derivation itself is pure phonotactics
     /// ([`possible_short_rafsi_forms`]); this method adds what only the
-    /// dictionary knows, namely which gismu already hold each form.
+    /// dictionary knows, namely which words already hold each form.
     #[requires(true)]
     #[ensures(
         ret.windows(2).all(|pair| pair[0].form < pair[1].form),
@@ -288,18 +290,56 @@ impl<'a> Dictionary<'a> {
 
     /// Classify who, if anyone, has already claimed `rafsi`.
     ///
-    /// Only gismu claims matter: a short rafsi listed for a lujvo or fu'ivla
-    /// entry is a rafsi *of* some gismu, not a competing assignment.
+    /// Every entry that lists the form is a claimant, whatever its word type:
+    /// rafsi are assigned to cmavo as well as gismu (CLL 4.6; `kam` belongs to
+    /// the cmavo `ka`), and a form that some word already spells cannot be
+    /// handed to a new gismu no matter which word holds it. The claimant's word
+    /// type only decides the standing of the claim
+    /// ([`WordType::rafsi_claim_kind`]).
+    ///
+    /// Only [`RafsiSource::Listed`] matches count. The other sources are the
+    /// universal forms synthesized for every gismu-like entry, and those can
+    /// never spell a short rafsi: a short rafsi is three letters, or four with
+    /// an apostrophe third (CVV, `sa'i`), whereas the universal forms are the
+    /// apostrophe-free four- and five-letter gismu prefixes.
     #[requires(!rafsi.is_empty())]
-    #[ensures(true)]
+    #[ensures(
+        ret.is_free()
+            != self
+                .lookup_rafsi(rafsi)
+                .any(|matched| matched.source == RafsiSource::Listed),
+        "any listed claimant takes the form, whatever its word type"
+    )]
+    #[ensures(
+        (ret.claim_kind() == Some(RafsiClaimKind::Official))
+            == self.lookup_rafsi(rafsi).any(|matched| {
+                matched.source == RafsiSource::Listed
+                    && matched.entry.word_type.rafsi_claim_kind() == RafsiClaimKind::Official
+            }),
+        "an official claim outranks any experimental one"
+    )]
+    #[ensures(
+        ret.claimant_words().len()
+            == self
+                .lookup_rafsi(rafsi)
+                .filter(|matched| {
+                    matched.source == RafsiSource::Listed
+                        && Some(matched.entry.word_type.rafsi_claim_kind()) == ret.claim_kind()
+                })
+                .count(),
+        "the reported words are exactly the claimants of the winning standing"
+    )]
     fn rafsi_availability(&self, rafsi: &str) -> RafsiAvailability {
         let mut official = Vec::new();
         let mut experimental = Vec::new();
-        for (word, word_type) in self.rafsi_claimants(rafsi) {
-            match word_type {
-                WordType::Gismu => official.push(word.to_owned()),
-                WordType::ExperimentalGismu => experimental.push(word.to_owned()),
-                _ => {}
+        for matched in self
+            .lookup_rafsi(rafsi)
+            .filter(|matched| matched.source == RafsiSource::Listed)
+        {
+            let word = matched.entry.word.to_owned();
+            match matched.entry.word_type.rafsi_claim_kind() {
+                RafsiClaimKind::Official => official.push(word),
+                RafsiClaimKind::Experimental => experimental.push(word),
             }
         }
         if let Ok(words) = Vec1::try_from_vec(official) {
@@ -470,6 +510,53 @@ impl WordType {
         matches!(self, Self::Gismu | Self::ExperimentalGismu)
     }
 
+    /// Return the standing of a rafsi claim made by a word of this type.
+    ///
+    /// The match is deliberately exhaustive rather than defaulting: a new word
+    /// type must be classified consciously, because an unclassified claimant
+    /// would silently hand an already-spelled rafsi to a new gismu.
+    ///
+    /// The rule is uniform across the taxonomy — a claim is [`Experimental`]
+    /// exactly when the type itself is experimental or obsolete, and
+    /// [`Official`] otherwise — which the postcondition cross-checks against
+    /// the Lensisku type names.
+    ///
+    /// [`Experimental`]: RafsiClaimKind::Experimental
+    /// [`Official`]: RafsiClaimKind::Official
+    #[requires(true)]
+    #[ensures(
+        (ret == RafsiClaimKind::Experimental)
+            == (self.as_str().starts_with("experimental ") || self.as_str().starts_with("obsolete ")),
+        "only experimental and obsolete word types make merely experimental claims"
+    )]
+    pub fn rafsi_claim_kind(self) -> RafsiClaimKind {
+        match self {
+            // Standard brivla and cmavo: the dictionary records their rafsi as
+            // the official assignment for the form.
+            Self::Gismu
+            | Self::Lujvo
+            | Self::ZeiLujvo
+            | Self::Cmavo
+            | Self::CmavoCompound
+            | Self::Fuivla
+            | Self::Cmevla
+            // Letterals and phrases are not rafsi-bearing in practice, but a
+            // listed rafsi on one is still a standard-register assignment.
+            | Self::BuLetteral
+            | Self::Phrase => RafsiClaimKind::Official,
+            // Experimental words are proposals, so their rafsi claims are
+            // provisional and yield to any official claim on the same form.
+            Self::ExperimentalGismu | Self::ExperimentalCmavo => RafsiClaimKind::Experimental,
+            // Obsolete words were withdrawn from the standard register, so
+            // their claims are likewise provisional rather than binding — the
+            // form stays flagged, but an official claimant outranks them.
+            Self::ObsoleteZeiLujvo
+            | Self::ObsoleteCmavo
+            | Self::ObsoleteFuivla
+            | Self::ObsoleteCmevla => RafsiClaimKind::Experimental,
+        }
+    }
+
     /// Return whether this type is a lujvo-like class.
     #[requires(true)]
     #[ensures(matches!(self, Self::Lujvo | Self::ZeiLujvo | Self::ObsoleteZeiLujvo) == ret)]
@@ -631,10 +718,11 @@ pub struct RafsiMatch<'entry, 'dict> {
     pub source: RafsiSource,
 }
 
-/// Standing of the gismu that already claim a short rafsi.
+/// Standing of the words that already claim a short rafsi.
 ///
-/// Official gismu outrank experimental ones: a rafsi held by an official gismu
-/// is reported as officially taken even when experimental gismu claim it too.
+/// Official words outrank experimental and obsolete ones
+/// ([`WordType::rafsi_claim_kind`]): a rafsi held by an official word is
+/// reported as officially taken even when experimental words claim it too.
 #[invariant(::Official => true)]
 #[invariant(::Experimental => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -661,7 +749,7 @@ pub enum RafsiAvailability {
 }
 
 impl RafsiAvailability {
-    /// Whether no gismu has claimed this rafsi yet.
+    /// Whether no dictionary word has claimed this rafsi yet.
     #[requires(true)]
     #[ensures(ret == matches!(self.as_data(), data!(RafsiAvailability::Free)))]
     pub fn is_free(&self) -> bool {
@@ -678,7 +766,7 @@ impl RafsiAvailability {
         }
     }
 
-    /// Return the gismu that claim this rafsi, empty when it is free.
+    /// Return the words that claim this rafsi, empty when it is free.
     #[requires(true)]
     #[ensures(self.is_free() == ret.is_empty())]
     pub fn claimant_words(&self) -> &[String] {
@@ -1228,11 +1316,17 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn short_rafsi_candidates_report_gismu_claims_only() {
+    fn short_rafsi_candidates_report_claims_from_every_word_type() {
         static SAL: [Rafsi<'static>; 1] = [Rafsi("sal")];
         static SAK: [Rafsi<'static>; 1] = [Rafsi("sak")];
         static SKA: [Rafsi<'static>; 1] = [Rafsi("ska")];
         static KLI: [Rafsi<'static>; 1] = [Rafsi("kli")];
+        static SAI: [Rafsi<'static>; 1] = [Rafsi("sai")];
+        static SAhI: [Rafsi<'static>; 1] = [Rafsi("sa'i")];
+        static KAM: [Rafsi<'static>; 1] = [Rafsi("kam")];
+        // Synthetic assignments, but each mirrors a real dictionary shape: the
+        // cmavo `ka` really does hold `kam` (CLL 4.6), and fu'ivla, obsolete
+        // and experimental entries all appear in the rafsi index.
         let entries = &[
             test_entry("salci", WordType::Gismu, &SAL, None),
             test_entry("salpo", WordType::Gismu, &SAL, None),
@@ -1240,6 +1334,9 @@ mod tests {
             test_entry("skami", WordType::Gismu, &SKA, None),
             test_entry("skeci", WordType::ExperimentalGismu, &SKA, None),
             test_entry("kliniko", WordType::Fuivla, &KLI, None),
+            test_entry("sa'e", WordType::Cmavo, &SAI, None),
+            test_entry("xua'ai", WordType::ObsoleteCmavo, &SAhI, None),
+            test_entry("ka", WordType::Cmavo, &KAM, None),
         ];
         let indexes = build_owned_indexes(entries);
         let dictionary = Dictionary::from_static_slices(
@@ -1273,10 +1370,29 @@ mod tests {
         assert_eq!(
             described,
             vec![
-                // A fu'ivla listing `kli` is not a competing gismu claim.
-                ("kli", ShortRafsiShape::Ccv, None, vec![]),
-                ("sa'i", ShortRafsiShape::Cvv, None, vec![]),
-                ("sai", ShortRafsiShape::Cvv, None, vec![]),
+                // A fu'ivla holding `kli` spells the form just as a gismu
+                // would, so it is an ordinary official claim.
+                (
+                    "kli",
+                    ShortRafsiShape::Ccv,
+                    Some(RafsiClaimKind::Official),
+                    vec!["kliniko"],
+                ),
+                // An obsolete cmavo has left the standard register, so its
+                // claim only ever counts as experimental.
+                (
+                    "sa'i",
+                    ShortRafsiShape::Cvv,
+                    Some(RafsiClaimKind::Experimental),
+                    vec!["xua'ai"],
+                ),
+                // Cmavo carry rafsi too (CLL 4.6).
+                (
+                    "sai",
+                    ShortRafsiShape::Cvv,
+                    Some(RafsiClaimKind::Official),
+                    vec!["sa'e"],
+                ),
                 (
                     "sak",
                     ShortRafsiShape::Cvc,
@@ -1299,6 +1415,32 @@ mod tests {
             ]
         );
 
+        // The reported bug in miniature: only the cmavo `ka` holds any rafsi a
+        // hypothetical `kacma` could claim, and it makes `kam` unavailable.
+        let kacma = dictionary
+            .short_rafsi_candidates("kacma")
+            .into_iter()
+            .map(|candidate| {
+                let candidate = candidate.into_data();
+                (candidate.form, candidate.availability)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            kacma,
+            vec![
+                ("cma".to_owned(), new!(RafsiAvailability::Free)),
+                ("ka'a".to_owned(), new!(RafsiAvailability::Free)),
+                ("kac".to_owned(), new!(RafsiAvailability::Free)),
+                (
+                    "kam".to_owned(),
+                    new!(RafsiAvailability::Taken {
+                        kind: RafsiClaimKind::Official,
+                        words: vec1::vec1!["ka".to_owned()],
+                    }),
+                ),
+            ]
+        );
+
         assert_eq!(
             dictionary.rafsi_claimants("ska").collect::<Vec<_>>(),
             vec![
@@ -1309,6 +1451,17 @@ mod tests {
         assert_eq!(
             dictionary.rafsi_claimants("kli").collect::<Vec<_>>(),
             vec![("kliniko", WordType::Fuivla)]
+        );
+        // Universal forms share the rafsi index but cannot spell a short
+        // rafsi, so availability never has to filter them out on content.
+        assert_eq!(
+            dictionary.rafsi_claimants("salc").collect::<Vec<_>>(),
+            vec![("salci", WordType::Gismu)]
+        );
+        assert!(
+            possible_short_rafsi_forms("sakli")
+                .iter()
+                .all(|form| form.form != "salc")
         );
         assert!(dictionary.short_rafsi_candidates("coi").is_empty());
 
@@ -1329,6 +1482,49 @@ mod tests {
                 "{form} is not a {shape:?} rafsi"
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rafsi_claim_kind_covers_every_word_type() {
+        assert_eq!(
+            [
+                WordType::Gismu,
+                WordType::ExperimentalGismu,
+                WordType::Lujvo,
+                WordType::ZeiLujvo,
+                WordType::ObsoleteZeiLujvo,
+                WordType::Cmavo,
+                WordType::ExperimentalCmavo,
+                WordType::ObsoleteCmavo,
+                WordType::CmavoCompound,
+                WordType::Fuivla,
+                WordType::ObsoleteFuivla,
+                WordType::Cmevla,
+                WordType::ObsoleteCmevla,
+                WordType::BuLetteral,
+                WordType::Phrase,
+            ]
+            .map(WordType::rafsi_claim_kind),
+            [
+                RafsiClaimKind::Official,
+                RafsiClaimKind::Experimental,
+                RafsiClaimKind::Official,
+                RafsiClaimKind::Official,
+                RafsiClaimKind::Experimental,
+                RafsiClaimKind::Official,
+                RafsiClaimKind::Experimental,
+                RafsiClaimKind::Experimental,
+                RafsiClaimKind::Official,
+                RafsiClaimKind::Official,
+                RafsiClaimKind::Experimental,
+                RafsiClaimKind::Official,
+                RafsiClaimKind::Experimental,
+                RafsiClaimKind::Official,
+                RafsiClaimKind::Official,
+            ]
+        );
     }
 
     #[test]
