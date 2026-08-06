@@ -14,8 +14,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use bityzba::{data, ensures, invariant, new, requires, try_new};
 
 use super::registry::{
-    GENERATED_LEXICAL_POLICY_ENTITY_FALLBACK_REASON_ID,
-    GENERATED_LEXICAL_POLICY_EVENTUALITY_FALLBACK_REASON_ID, GENERATED_LEXICAL_POLICY_ROWS,
+    GENERATED_LEXICAL_POLICY_ENTITY_PROJECTION_FAILURE_REASON_ID,
+    GENERATED_LEXICAL_POLICY_EVENTUALITY_PROJECTION_FAILURE_REASON_ID,
+    GENERATED_LEXICAL_POLICY_ROWS,
 };
 #[allow(unused_imports)]
 use crate::model::{
@@ -104,12 +105,14 @@ pub(crate) enum DynamicValueFamily {
 
 impl DynamicValueFamily {
     #[requires(true)]
-    #[ensures(ret.starts_with("smusni.fallback.lexical-policy."))]
+    #[ensures(ret.starts_with("smusni.projection.lexical-policy."))]
     fn fallback_reason_id(self) -> &'static str {
         match self {
-            Self::RefCompReferentsEntity => GENERATED_LEXICAL_POLICY_ENTITY_FALLBACK_REASON_ID,
+            Self::RefCompReferentsEntity => {
+                GENERATED_LEXICAL_POLICY_ENTITY_PROJECTION_FAILURE_REASON_ID
+            }
             Self::RefCompReferentsEventuality => {
-                GENERATED_LEXICAL_POLICY_EVENTUALITY_FALLBACK_REASON_ID
+                GENERATED_LEXICAL_POLICY_EVENTUALITY_PROJECTION_FAILURE_REASON_ID
             }
         }
     }
@@ -867,7 +870,7 @@ mod tests {
         assert_eq!(diagnostic.key, candidate.key);
         assert_eq!(
             diagnostic.fallback_reason_id,
-            "smusni.fallback.lexical-policy.entity"
+            "smusni.projection.lexical-policy.entity"
         );
     }
 

@@ -388,10 +388,10 @@ fn generated_table_counts_and_candidate_policy_keys_are_closed() {
                 })
     }));
     assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 882);
-    let fallback_reasons = jsonl_rows("registry/fallback-reasons.jsonl");
-    assert_eq!(fallback_reasons.len(), 60);
+    let projection_failure_reasons = jsonl_rows("registry/projection-failure-reasons.jsonl");
+    assert_eq!(projection_failure_reasons.len(), 60);
     assert_eq!(
-        fallback_reasons
+        projection_failure_reasons
             .iter()
             .filter(|row| {
                 row["expected-type-schema"] == "Performable"
@@ -400,13 +400,13 @@ fn generated_table_counts_and_candidate_policy_keys_are_closed() {
             .count(),
         55,
     );
-    assert!(fallback_reasons.iter().any(|row| {
-        row["reason-id"] == "smusni.fallback.lexical-policy.entity"
+    assert!(projection_failure_reasons.iter().any(|row| {
+        row["reason-id"] == "smusni.projection.lexical-policy.entity"
             && row["expected-type-schema"] == "(Referents Entity)"
             && row["minimum-raw-owner-type"] == "Referent"
     }));
-    assert!(fallback_reasons.iter().any(|row| {
-        row["reason-id"] == "smusni.fallback.lexical-policy.eventuality"
+    assert!(projection_failure_reasons.iter().any(|row| {
+        row["reason-id"] == "smusni.projection.lexical-policy.eventuality"
             && row["expected-type-schema"] == "(Referents Eventuality)"
             && row["minimum-raw-owner-type"] == "Referent"
     }));
@@ -510,7 +510,7 @@ fn every_row_schema_rejects_a_missing_required_field() {
         "registry/relation-formers.jsonl",
         "registry/generated-relations.jsonl",
         "registry/scale-literals.jsonl",
-        "registry/fallback-reasons.jsonl",
+        "registry/projection-failure-reasons.jsonl",
         "registry/dispositions.jsonl",
         "registry/prelude.jsonl",
     ];
@@ -624,10 +624,10 @@ fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
     });
     assert!(smusni_v0_bundle::verify_snapshot(&paths, &summary).is_err());
 
-    let mut fallback_boundary = snapshot();
+    let mut projection_failure_boundary = snapshot();
     mutate_first_row(
-        &mut fallback_boundary,
-        "registry/fallback-reasons.jsonl",
+        &mut projection_failure_boundary,
+        "registry/projection-failure-reasons.jsonl",
         |row| {
             let replacement = if row["expected-type-schema"] == "Performable" {
                 "Content"
@@ -641,7 +641,7 @@ fn validator_rejects_foreign_key_evidence_template_and_summary_mutations() {
         },
     );
     assert_eq!(
-        smusni_v0_bundle::verify_snapshot(&paths, &fallback_boundary)
+        smusni_v0_bundle::verify_snapshot(&paths, &projection_failure_boundary)
             .unwrap_err()
             .kind,
         BundleErrorKind::Type,

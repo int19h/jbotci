@@ -58,7 +58,7 @@ An actual place question uses computed `At` and no later plain operand:
 Two computed fills whose candidate domains overlap do not print as two `At`
 forms. The smallest content position falls back because answer substitution
 could assign both values to the same place. Its registered local reason is
-`smusni.fallback.at.overlapping-candidates`; the fallback preserves the actual
+`smusni.projection.at.overlapping-candidates`; the fallback preserves the actual
 smallest reachable raw model owner rather than inventing a
 `ComputedPlaceAssignment` model type. Section 20 shows the complete raw syntax.
 
@@ -262,7 +262,7 @@ contextual argument. Actuality is a separate predicate, not assertion force:
 An aspect whose boundary/checkpoint relation has not yet been verified remains
 local fallback rather than an English-gloss constructor or an approximate
 `cfari` predication. Its registered local reason is
-`smusni.fallback.tag.coha.unverified-boundary`; its raw value is the actual
+`smusni.projection.tag.coha.unverified-boundary`; its raw value is the actual
 reachable owner containing the inline aspect value, not a synthetic
 `EventContour` object.
 
@@ -315,7 +315,7 @@ outside `Do` with `Let` when inert or `Bind` when computed, and both repeated
 Version 0 does not pretend that a graph-owned noncurrent deictic ground is the
 current speech situation. Until that registered reduction exists, the smallest
 referential value falls back with reason
-`smusni.fallback.deictic.noncurrent-ground`. The raw encoding uses a
+`smusni.projection.deictic.noncurrent-ground`. The raw encoding uses a
 `RawRecord` for an inline deictic-reference value and an `Object`/`Ref` only for
 the real graph-owned ground referent; it never promotes either into an invented
 semantic-object type.
@@ -374,7 +374,7 @@ The two applications substitute different x1 values; they do not mint new
 identities for klama's omitted destination, origin, route, or means sites.
 
 A nondefaultable higher-order gap cannot be silently closed. It uses local
-fallback with reason `smusni.fallback.close.nondefaultable-place`, rooted in the
+fallback with reason `smusni.projection.close.nondefaultable-place`, rooted in the
 actual reachable semantic-model owner; `PredicateTerm` is notation IR and is
 not fabricated as a raw model object.
 
@@ -900,7 +900,7 @@ identity. A witness is available only after that same application succeeds:
 This is not equivalent to counting members of `$dogs` after the fact. The full
 quantifier function, scope function, and success identity remain explicit. A
 request before successful execution uses local `(Referents Entity)` fallback
-with reason `smusni.fallback.witness.before-success`, preserving the actual
+with reason `smusni.projection.witness.before-success`, preserving the actual
 reachable quantifier owner. `WitnessRequest` and `QuantifierApplication` are
 not raw model object types and therefore never appear in its raw value.
 
@@ -949,7 +949,7 @@ this stronger than arbitrary complete-product subset selection: if four dogs
 all like the same two people, the displayed `Exactly 3`/`Exactly 2` content is
 false. A graph which retains one coequal quantifier-bundle locus but lacks the
 verified coordinate-closed profile uses local `Content` fallback with reason
-`smusni.fallback.termset.profile-unverified`, preserving that complete raw
+`smusni.projection.termset.profile-unverified`, preserving that complete raw
 `Formula` object as in section 20. A graph already elaborated as an ordered
 quantifier nest instead renders that ordinary nesting; the renderer does not
 guess that it was formerly simultaneous.
@@ -1447,7 +1447,7 @@ sharing:
 (Smusni 0
   (Assert
     (=
-      (Fallback Number "smusni.fallback.math.power-unregistered"
+      (Fallback Number "smusni.projection.math.power-unregistered"
         (Object %1 "MathExpression"
           (Field "kind"
             (RawVariant "MathExpressionNodeKind" "Operator"
@@ -1489,7 +1489,7 @@ whole graph structurally:
 
 ```lisp
 (Smusni 0
-  (TypedGraph "SemanticGraph" "smusni.fallback.graph.root-not-performable"
+  (TypedGraph "SemanticGraph" "smusni.projection.graph.root-not-performable"
     (Object %1 "SemanticGraph"
       (Field "version" (RawString "lojban-semantics-json-1"))
       (Field "root"

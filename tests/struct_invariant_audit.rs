@@ -1084,12 +1084,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unchecked generated constants are accepted only through DispositionRegistry::try_from_generated",
     ),
     (
-        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedFallbackReasonRow",
-        "unchecked generated reason constants are joined and validated only by DispositionRegistry::try_from_generated",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/registry.rs:GeneratedLexicalPolicyRow",
         "private generated lexical rows contain build-time-audited constants and closed enum values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedProjectionFailureReasonRow",
+        "unchecked generated reason constants are joined and validated only by DispositionRegistry::try_from_generated",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Parser",

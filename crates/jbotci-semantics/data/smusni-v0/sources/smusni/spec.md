@@ -3593,8 +3593,8 @@ Representative required decisions are:
 | `MathOperator::Add` | the closed `+ : Fn (Number Number) Number` kernel contract |
 | unsupported `MathOperator::Power` | local `Number` fallback whose minimum raw owner is `MathExpression` |
 | `ScopeDependence::Underspecified` | `(Context dependency...)` using the exact ordered binder identities |
-| `AlgorithmFailure::RootNotPerformable` | `TypedFallback` to `WholeDocument { SemanticGraph }` with reason `smusni.fallback.graph.root-not-performable` |
-| `AlgorithmFailure::ContextUnboundVariable` | `TypedFallback` to `WholeDocument { SemanticGraph }` with reason `smusni.fallback.graph.unbound-variable` |
+| `AlgorithmFailure::RootNotPerformable` | `TypedFallback` to `WholeDocument { SemanticGraph }` with reason `smusni.projection.graph.root-not-performable` |
+| `AlgorithmFailure::ContextUnboundVariable` | `TypedFallback` to `WholeDocument { SemanticGraph }` with reason `smusni.projection.graph.unbound-variable` |
 
 These are physical per-coordinate rows, not family rules. A field coordinate
 which selects among variants normally targets its typed assembly/dispatch
@@ -3676,12 +3676,12 @@ rendering as `gentufa`. Statistics are API data unless separately requested.
 When an expected static type is known, the smallest failed subgraph prints as
 `(Fallback expected-type "reason-id" raw-value)`. Section 20 of `samples.md`
 shows a complete payload-preserving local example for the registered
-`smusni.fallback.math.power-unregistered` route.
+`smusni.projection.math.power-unregistered` route.
 
 `Fallback expected-type reason-id raw-value` inhabits only the stated expected
 type and is semantically opaque. The reason id is a stable ASCII string
 registered by the bundle's `FallbackReasonRow` table and begins with the closed
-namespace prefix `smusni.fallback.`. It is not a warning node and does not
+namespace prefix `smusni.projection.`. It is not a warning node and does not
 replace the separately collected diagnostic.
 `expected-type` is ordinary unquoted type syntax from section 2.2. A failure
 which occurs while determining that very type has no sound local position and
@@ -3758,7 +3758,7 @@ shared graph identities, and a typed-key map:
 If no well-typed local expected position exists, the body is:
 
 ```lisp
-(TypedGraph "SemanticGraph" "smusni.fallback.graph.unbound-variable" raw-root)
+(TypedGraph "SemanticGraph" "smusni.projection.graph.unbound-variable" raw-root)
 ```
 
 `TypedGraph raw-root-type reason-id raw-root` is valid only directly under

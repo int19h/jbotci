@@ -177,57 +177,59 @@ pub(super) enum CompactFallbackCause {
 impl CompactFallbackCause {
     /// Exact registered reason used by the current conservative boundary.
     #[requires(true)]
-    #[ensures(ret.starts_with("smusni.fallback."))]
+    #[ensures(ret.starts_with("smusni.projection."))]
     pub(super) fn reason_id(self) -> &'static str {
         match self {
             Self::UnrecognizedObjectFamily(kind) => match kind {
                 SemanticObjectKind::DisplayedContent | SemanticObjectKind::Utterance => {
-                    "smusni.fallback.force-reduction-unrepresentable"
+                    "smusni.projection.force-reduction-unrepresentable"
                 }
-                SemanticObjectKind::Parameter => "smusni.fallback.higher-order-crossing-unlicensed",
+                SemanticObjectKind::Parameter => {
+                    "smusni.projection.higher-order-crossing-unlicensed"
+                }
                 SemanticObjectKind::RelationMetadata => {
-                    "smusni.fallback.lexical-signature-missing-or-stale"
+                    "smusni.projection.lexical-signature-missing-or-stale"
                 }
-                _ => "smusni.fallback.relation-reduction-unregistered-or-inexact",
+                _ => "smusni.projection.relation-reduction-unregistered-or-inexact",
             },
             Self::UtteranceWithoutContent
             | Self::ForceFieldsRequireRecord
-            | Self::SequenceFields => "smusni.fallback.force-reduction-unrepresentable",
+            | Self::SequenceFields => "smusni.projection.force-reduction-unrepresentable",
             Self::ConnectiveMetadata
             | Self::UnrecognizedConnective
             | Self::PredicationSideFields
             | Self::PredicationModeUnrepresentable
             | Self::NonAtomicRelation => {
-                "smusni.fallback.relation-reduction-unregistered-or-inexact"
+                "smusni.projection.relation-reduction-unregistered-or-inexact"
             }
             Self::QuantifierVariableFields | Self::QuantifierFields => {
-                "smusni.fallback.quantifier-effect-export-illegal"
+                "smusni.projection.quantifier-effect-export-illegal"
             }
-            Self::RespectivelySlotFields => "smusni.fallback.simultaneous-termset-unlicensed",
+            Self::RespectivelySlotFields => "smusni.projection.simultaneous-termset-unlicensed",
             Self::CompositionPredication | Self::CompositionFields => {
-                "smusni.fallback.relation-former-reduction-unavailable"
+                "smusni.projection.relation-former-reduction-unavailable"
             }
-            Self::ArgumentFields => "smusni.fallback.predicate-fill-type-or-arity-mismatch",
-            Self::AdjunctFields => "smusni.fallback.modal-tag-reduction-unregistered",
+            Self::ArgumentFields => "smusni.projection.predicate-fill-type-or-arity-mismatch",
+            Self::AdjunctFields => "smusni.projection.modal-tag-reduction-unregistered",
             Self::ConstantWithoutDependence | Self::ReferentFields => {
-                "smusni.fallback.reference-description-unrepresentable"
+                "smusni.projection.reference-description-unrepresentable"
             }
-            Self::UnboundGeneratedEvent => "smusni.fallback.generated-eventuality-unbound",
+            Self::UnboundGeneratedEvent => "smusni.projection.generated-eventuality-unbound",
             Self::UnrepresentableRecursiveValue => {
-                "smusni.fallback.unguarded-or-unrepresentable-scc"
+                "smusni.projection.unguarded-or-unrepresentable-scc"
             }
             Self::DefinitionTypeUnrepresentable => {
-                "smusni.fallback.higher-order-crossing-unlicensed"
+                "smusni.projection.higher-order-crossing-unlicensed"
             }
-            Self::EventualityFacets => "smusni.fallback.event-facet-reduction-unregistered",
+            Self::EventualityFacets => "smusni.projection.event-facet-reduction-unregistered",
             Self::QuestionSlotFields | Self::AskForceWithoutQuestion => {
-                "smusni.fallback.question-domain-or-answer-mismatch"
+                "smusni.projection.question-domain-or-answer-mismatch"
             }
-            Self::QuantityFields => "smusni.fallback.quantity-reduction-unregistered",
+            Self::QuantityFields => "smusni.projection.quantity-reduction-unregistered",
             Self::MathSideFields | Self::MathLiteralDenotes | Self::MathOperatorFields => {
-                "smusni.fallback.math-reduction-unregistered"
+                "smusni.projection.math-reduction-unregistered"
             }
-            Self::SignFields => "smusni.fallback.sign-identity-missing",
+            Self::SignFields => "smusni.projection.sign-identity-missing",
         }
     }
 
@@ -4035,7 +4037,7 @@ mod tests {
             "a shared reason must not erase which boundary declined",
         );
         for cause in shared_reason {
-            assert!(cause.reason_id().starts_with("smusni.fallback."));
+            assert!(cause.reason_id().starts_with("smusni.projection."));
             assert!(!cause.message().is_empty());
         }
     }

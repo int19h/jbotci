@@ -1756,13 +1756,13 @@ fn raw_identity_order_is_valid(root: &RawValue) -> bool {
     visit(root, &mut BTreeSet::new(), &mut BigUint::from(1u8))
 }
 
-/// Stable fallback ids are ASCII names in the closed `smusni.fallback`
-/// namespace.
+/// Stable projection-failure reason ids are ASCII names in the closed
+/// `smusni.projection` namespace.
 #[requires(true)]
 #[ensures(true)]
 fn is_fallback_reason(text: &str) -> bool {
-    text.starts_with("smusni.fallback.")
-        && text.len() > "smusni.fallback.".len()
+    text.starts_with("smusni.projection.")
+        && text.len() > "smusni.projection.".len()
         && text.bytes().all(|byte| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'-')
         })
@@ -2012,11 +2012,11 @@ mod tests {
         assert_eq!(object_id.to_datum(), Datum::atom(unbounded));
 
         assert!(parse_v0_document(
-            r#"(Smusni 0 (TypedGraph "SemanticGraph" "smusni.fallback.test" (Object %1 "SemanticGraph" (Field "self" (Ref %1)))))"#
+            r#"(Smusni 0 (TypedGraph "SemanticGraph" "smusni.projection.test" (Object %1 "SemanticGraph" (Field "self" (Ref %1)))))"#
         )
         .is_ok());
         assert!(
-            parse_v0_document(r#"(Smusni 0 (TypedGraph "SemanticGraph" "smusni.fallback.test" (Object %2 "SemanticGraph")))"#)
+            parse_v0_document(r#"(Smusni 0 (TypedGraph "SemanticGraph" "smusni.projection.test" (Object %2 "SemanticGraph")))"#)
                 .is_err()
         );
         assert!(
@@ -2026,11 +2026,11 @@ mod tests {
         for malformed in [
             r#"(Fallback Content "smusni." (RawNull))"#,
             r#"(Fallback Content "smusni.Bad" (RawNull))"#,
-            r#"(Fallback Content "smusni.fallback.test" (Ref %1))"#,
-            r#"(Fallback Content "smusni.fallback.test" (Object %1 "Root" (Field "x" (Object %1 "Again"))))"#,
-            r#"(Fallback Content "smusni.fallback.test" (UnknownRaw))"#,
-            r#"(Fallback Content "smusni.fallback.test" (RawNull extra))"#,
-            r#"(Fallback Content "smusni.fallback.test" "raw")"#,
+            r#"(Fallback Content "smusni.projection.test" (Ref %1))"#,
+            r#"(Fallback Content "smusni.projection.test" (Object %1 "Root" (Field "x" (Object %1 "Again"))))"#,
+            r#"(Fallback Content "smusni.projection.test" (UnknownRaw))"#,
+            r#"(Fallback Content "smusni.projection.test" (RawNull extra))"#,
+            r#"(Fallback Content "smusni.projection.test" "raw")"#,
         ] {
             assert!(
                 parse_v0_expression(malformed).is_err(),

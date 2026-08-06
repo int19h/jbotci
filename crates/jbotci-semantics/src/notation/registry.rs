@@ -121,19 +121,19 @@ impl TargetContract {
     }
 }
 
-/// A bundled fallback reason identity. Values can only come from the generated
-/// reason table.
-#[invariant(!text.is_empty() && text.starts_with("smusni.fallback."))]
+/// A bundled projection-failure reason identity. Values can only come from the
+/// generated reason table.
+#[invariant(!text.is_empty() && text.starts_with("smusni.projection."))]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct FallbackReasonId {
+pub(crate) struct ProjectionFailureReasonId {
     text: &'static str,
 }
 
-impl FallbackReasonId {
-    #[requires(!text.is_empty() && text.starts_with("smusni.fallback."))]
+impl ProjectionFailureReasonId {
+    #[requires(!text.is_empty() && text.starts_with("smusni.projection."))]
     #[ensures(ret.as_str() == text)]
     fn from_generated(text: &'static str) -> Self {
-        new!(FallbackReasonId { text })
+        new!(ProjectionFailureReasonId { text })
     }
 
     #[requires(true)]
@@ -174,7 +174,7 @@ impl MinimumRawOwner {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct FallbackBoundary {
     disposition_owner: DispositionCoordinate,
-    reason_id: FallbackReasonId,
+    reason_id: ProjectionFailureReasonId,
     expected_type: TypeExpr,
     minimum_raw_owner: MinimumRawOwner,
 }
@@ -188,7 +188,7 @@ impl FallbackBoundary {
 
     #[requires(true)]
     #[ensures(ret == &self.reason_id)]
-    pub(crate) fn reason_id(&self) -> &FallbackReasonId {
+    pub(crate) fn reason_id(&self) -> &ProjectionFailureReasonId {
         &self.reason_id
     }
 
@@ -285,7 +285,7 @@ impl DispositionRegistry {
     #[ensures(ret.as_ref().is_ok_and(|registry| registry.rows.len() == dispositions.len()) || ret.is_err())]
     fn try_from_generated(
         dispositions: &[GeneratedDispositionRow],
-        reasons: &[GeneratedFallbackReasonRow],
+        reasons: &[GeneratedProjectionFailureReasonRow],
     ) -> Result<Self, RegistryBuildError> {
         let mut reason_by_id = BTreeMap::new();
         for reason in reasons {
@@ -331,7 +331,7 @@ impl DispositionRegistry {
                 new!(RegisteredDisposition::TypedFallback {
                     boundary: new!(FallbackBoundary {
                         disposition_owner: coordinate,
-                        reason_id: FallbackReasonId::from_generated(reason_id),
+                        reason_id: ProjectionFailureReasonId::from_generated(reason_id),
                         expected_type,
                         minimum_raw_owner,
                     }),
@@ -397,7 +397,7 @@ pub(crate) fn disposition_registry() -> &'static DispositionRegistry {
     REGISTRY.get_or_init(|| {
         DispositionRegistry::try_from_generated(
             GENERATED_DISPOSITION_ROWS,
-            GENERATED_FALLBACK_REASON_ROWS,
+            GENERATED_PROJECTION_FAILURE_REASON_ROWS,
         )
         .expect("the generated smusni-v0 registry was validated before compilation")
     })
@@ -466,7 +466,7 @@ struct GeneratedDispositionRow {
 /// Private generated reason row used only for the validated join.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
-struct GeneratedFallbackReasonRow {
+struct GeneratedProjectionFailureReasonRow {
     reason_id: &'static str,
     expected_type_schema: &'static str,
     minimum_raw_owner_type: &'static str,
@@ -551,7 +551,7 @@ mod tests {
         let reason_id = GENERATED_DISPOSITION_ROWS[fallback_index]
             .fallback_reason_id
             .expect("fallback reason");
-        let reason_index = GENERATED_FALLBACK_REASON_ROWS
+        let reason_index = GENERATED_PROJECTION_FAILURE_REASON_ROWS
             .iter()
             .position(|row| row.reason_id == reason_id)
             .expect("joined reason");
@@ -559,11 +559,14 @@ mod tests {
         let mut dispositions = GENERATED_DISPOSITION_ROWS.to_vec();
         dispositions.push(dispositions[0]);
         assert_eq!(
-            DispositionRegistry::try_from_generated(&dispositions, GENERATED_FALLBACK_REASON_ROWS),
+            DispositionRegistry::try_from_generated(
+                &dispositions,
+                GENERATED_PROJECTION_FAILURE_REASON_ROWS
+            ),
             Err(RegistryBuildError::DuplicateCoordinate)
         );
 
-        let mut reasons = GENERATED_FALLBACK_REASON_ROWS.to_vec();
+        let mut reasons = GENERATED_PROJECTION_FAILURE_REASON_ROWS.to_vec();
         reasons.push(reasons[0]);
         assert_eq!(
             DispositionRegistry::try_from_generated(GENERATED_DISPOSITION_ROWS, &reasons),
@@ -571,34 +574,37 @@ mod tests {
         );
 
         let mut dispositions = GENERATED_DISPOSITION_ROWS.to_vec();
-        dispositions[fallback_index].fallback_reason_id = Some("smusni.fallback.absent");
+        dispositions[fallback_index].fallback_reason_id = Some("smusni.projection.absent");
         assert_eq!(
-            DispositionRegistry::try_from_generated(&dispositions, GENERATED_FALLBACK_REASON_ROWS),
+            DispositionRegistry::try_from_generated(
+                &dispositions,
+                GENERATED_PROJECTION_FAILURE_REASON_ROWS
+            ),
             Err(RegistryBuildError::MissingReason)
         );
 
-        let mut reasons = GENERATED_FALLBACK_REASON_ROWS.to_vec();
+        let mut reasons = GENERATED_PROJECTION_FAILURE_REASON_ROWS.to_vec();
         reasons[reason_index].disposition_owner = "Object:Wrong:Field:owner";
         assert_eq!(
             DispositionRegistry::try_from_generated(GENERATED_DISPOSITION_ROWS, &reasons),
             Err(RegistryBuildError::WrongReasonOwner)
         );
 
-        let mut reasons = GENERATED_FALLBACK_REASON_ROWS.to_vec();
+        let mut reasons = GENERATED_PROJECTION_FAILURE_REASON_ROWS.to_vec();
         reasons[reason_index].expected_type_schema = "(NotAType)";
         assert_eq!(
             DispositionRegistry::try_from_generated(GENERATED_DISPOSITION_ROWS, &reasons),
             Err(RegistryBuildError::InvalidExpectedType)
         );
 
-        let mut reasons = GENERATED_FALLBACK_REASON_ROWS.to_vec();
+        let mut reasons = GENERATED_PROJECTION_FAILURE_REASON_ROWS.to_vec();
         reasons[reason_index].minimum_raw_owner_type = "InventedOwner";
         assert_eq!(
             DispositionRegistry::try_from_generated(GENERATED_DISPOSITION_ROWS, &reasons),
             Err(RegistryBuildError::UnknownMinimumRawOwner)
         );
 
-        let mut reasons = GENERATED_FALLBACK_REASON_ROWS.to_vec();
+        let mut reasons = GENERATED_PROJECTION_FAILURE_REASON_ROWS.to_vec();
         reasons.remove(reason_index);
         assert_eq!(
             DispositionRegistry::try_from_generated(GENERATED_DISPOSITION_ROWS, &reasons),

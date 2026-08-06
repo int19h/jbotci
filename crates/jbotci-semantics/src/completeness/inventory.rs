@@ -1343,7 +1343,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "math subscripts require a registered typed constructor",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math.subscript",
+                "smusni.projection.math.subscript",
             ),
         ),
         entry(
@@ -1446,7 +1446,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "operator denotation requires a registered typed math constructor",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math.operator-denotation",
+                "smusni.projection.math.operator-denotation",
             ),
         ),
         entry(
@@ -6646,7 +6646,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "demonstrated capability has no complete registered event reduction",
                 "Content",
                 "Eventuality",
-                "smusni.fallback.actuality.demonstrated",
+                "smusni.projection.actuality.demonstrated",
             ),
         ),
         entry(
@@ -6661,7 +6661,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "unrealized capability has no complete registered event reduction",
                 "Content",
                 "Eventuality",
-                "smusni.fallback.actuality.potential",
+                "smusni.projection.actuality.potential",
             ),
         ),
         entry(
@@ -7516,7 +7516,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "source sumti has no exact typed higher-order crossing",
                 "(Referents Entity)",
                 "Referent",
-                "smusni.fallback.descriptor.unlowered-sumti",
+                "smusni.projection.descriptor.unlowered-sumti",
             ),
         ),
         entry(
@@ -8563,7 +8563,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "questioned operators require a registered typed math constructor",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math.questioned-operator",
+                "smusni.projection.math.questioned-operator",
             ),
         ),
         entry(
@@ -8734,7 +8734,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "version 0 has no registered typed array constructor for this source operator",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math.array",
+                "smusni.projection.math.array",
             ),
         ),
         entry(
@@ -8749,7 +8749,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "version 0 has no registered typed nondecimal-base reduction",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math.base",
+                "smusni.projection.math.base",
             ),
         ),
         entry(
@@ -8776,7 +8776,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "centered intervals require an exact registered reduction",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math.centered-interval",
+                "smusni.projection.math.centered-interval",
             ),
         ),
         entry(
@@ -8839,7 +8839,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "version 0 has no registered typed power constructor",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math.power",
+                "smusni.projection.math.power",
             ),
         ),
         entry(
@@ -8866,7 +8866,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "unordered intervals require an exact registered reduction",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math.unordered-interval",
+                "smusni.projection.math.unordered-interval",
             ),
         ),
         entry(
@@ -9241,7 +9241,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "version 0 has no exact approximate-quantity reduction",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.quantity.approximate",
+                "smusni.projection.quantity.approximate",
             ),
         ),
         entry(
@@ -9280,7 +9280,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "version 0 has no exact contextual-enough quantity reduction",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.quantity.enough",
+                "smusni.projection.quantity.enough",
             ),
         ),
         entry(
@@ -9343,7 +9343,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "version 0 has no exact vague too-few quantity reduction",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.quantity.too-few",
+                "smusni.projection.quantity.too-few",
             ),
         ),
         entry(
@@ -9358,7 +9358,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "version 0 has no exact vague too-many quantity reduction",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.quantity.too-many",
+                "smusni.projection.quantity.too-many",
             ),
         ),
         entry(
@@ -9793,7 +9793,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "constructed relation has no verified signature or registered reduction",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.relation.constructed",
+                "smusni.projection.relation.constructed",
             ),
         ),
         entry(
@@ -10911,7 +10911,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.abstraction-crossing-unlicensed",
+                "smusni.projection.abstraction-crossing-unlicensed",
             ),
         ),
         entry(
@@ -10926,7 +10926,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.binder-does-not-dominate-use",
+                "smusni.projection.binder-does-not-dominate-use",
             ),
         ),
         entry(
@@ -10941,7 +10941,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.computed-fill-domain-noninjective",
+                "smusni.projection.computed-fill-domain-noninjective",
             ),
         ),
         entry(
@@ -10956,7 +10956,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.conflicting-binder-owners",
+                "smusni.projection.conflicting-binder-owners",
             ),
         ),
         entry(
@@ -10971,7 +10971,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.de-re-owner-dependency-illegal",
+                "smusni.projection.de-re-owner-dependency-illegal",
             ),
         ),
         entry(
@@ -10986,7 +10986,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.de-re-owner-missing",
+                "smusni.projection.de-re-owner-missing",
             ),
         ),
         entry(
@@ -11001,7 +11001,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.de-re-owner-opaque",
+                "smusni.projection.de-re-owner-opaque",
             ),
         ),
         entry(
@@ -11016,7 +11016,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.de-re-owner-unrelated-or-nondominating",
+                "smusni.projection.de-re-owner-unrelated-or-nondominating",
             ),
         ),
         entry(
@@ -11031,7 +11031,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.de-re-owner-wrong-kind",
+                "smusni.projection.de-re-owner-wrong-kind",
             ),
         ),
         entry(
@@ -11046,7 +11046,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.declaration-planning-nonconvergence",
+                "smusni.projection.declaration-planning-nonconvergence",
             ),
         ),
         entry(
@@ -11061,7 +11061,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.definition-site-does-not-dominate-use",
+                "smusni.projection.definition-site-does-not-dominate-use",
             ),
         ),
         entry(
@@ -11076,7 +11076,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.dependent-supplement-unrepresentable",
+                "smusni.projection.dependent-supplement-unrepresentable",
             ),
         ),
         entry(
@@ -11091,7 +11091,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.dynamic-host-cycle",
+                "smusni.projection.dynamic-host-cycle",
             ),
         ),
         entry(
@@ -11106,7 +11106,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.dynamic-host-not-unique",
+                "smusni.projection.dynamic-host-not-unique",
             ),
         ),
         entry(
@@ -11121,7 +11121,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.effect-handler-missing-or-illegal",
+                "smusni.projection.effect-handler-missing-or-illegal",
             ),
         ),
         entry(
@@ -11136,7 +11136,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.event-facet-reduction-unregistered",
+                "smusni.projection.event-facet-reduction-unregistered",
             ),
         ),
         entry(
@@ -11151,7 +11151,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.event-owner-missing-or-nonunique",
+                "smusni.projection.event-owner-missing-or-nonunique",
             ),
         ),
         entry(
@@ -11166,7 +11166,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.force-handler-missing-or-illegal",
+                "smusni.projection.force-handler-missing-or-illegal",
             ),
         ),
         entry(
@@ -11181,7 +11181,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.force-reduction-unrepresentable",
+                "smusni.projection.force-reduction-unrepresentable",
             ),
         ),
         entry(
@@ -11196,7 +11196,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.generated-eventuality-unbound",
+                "smusni.projection.generated-eventuality-unbound",
             ),
         ),
         entry(
@@ -11211,7 +11211,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.higher-order-crossing-unlicensed",
+                "smusni.projection.higher-order-crossing-unlicensed",
             ),
         ),
         entry(
@@ -11226,7 +11226,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the exact lexical place has no verified entity-reference scope policy",
                 "(Referents Entity)",
                 "Referent",
-                "smusni.fallback.lexical-policy.entity",
+                "smusni.projection.lexical-policy.entity",
             ),
         ),
         entry(
@@ -11241,7 +11241,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the exact lexical place has no verified eventuality-reference scope policy",
                 "(Referents Eventuality)",
                 "Referent",
-                "smusni.fallback.lexical-policy.eventuality",
+                "smusni.projection.lexical-policy.eventuality",
             ),
         ),
         entry(
@@ -11256,7 +11256,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.lexical-relation-row-missing",
+                "smusni.projection.lexical-relation-row-missing",
             ),
         ),
         entry(
@@ -11271,7 +11271,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.lexical-signature-missing-or-stale",
+                "smusni.projection.lexical-signature-missing-or-stale",
             ),
         ),
         entry(
@@ -11286,7 +11286,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.math-reduction-unregistered",
+                "smusni.projection.math-reduction-unregistered",
             ),
         ),
         entry(
@@ -11301,7 +11301,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.modal-tag-reduction-unregistered",
+                "smusni.projection.modal-tag-reduction-unregistered",
             ),
         ),
         entry(
@@ -11316,7 +11316,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.place-deletion-evidence-missing",
+                "smusni.projection.place-deletion-evidence-missing",
             ),
         ),
         entry(
@@ -11331,7 +11331,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.predicate-closure-unlicensed",
+                "smusni.projection.predicate-closure-unlicensed",
             ),
         ),
         entry(
@@ -11346,7 +11346,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.predicate-fill-type-or-arity-mismatch",
+                "smusni.projection.predicate-fill-type-or-arity-mismatch",
             ),
         ),
         entry(
@@ -11361,7 +11361,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.prelude-reduction-unavailable",
+                "smusni.projection.prelude-reduction-unavailable",
             ),
         ),
         entry(
@@ -11376,7 +11376,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.quantifier-effect-export-illegal",
+                "smusni.projection.quantifier-effect-export-illegal",
             ),
         ),
         entry(
@@ -11391,7 +11391,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.quantity-reduction-unregistered",
+                "smusni.projection.quantity-reduction-unregistered",
             ),
         ),
         entry(
@@ -11406,7 +11406,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.question-domain-or-answer-mismatch",
+                "smusni.projection.question-domain-or-answer-mismatch",
             ),
         ),
         entry(
@@ -11421,7 +11421,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.reference-description-unrepresentable",
+                "smusni.projection.reference-description-unrepresentable",
             ),
         ),
         entry(
@@ -11436,7 +11436,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.relation-former-reduction-unavailable",
+                "smusni.projection.relation-former-reduction-unavailable",
             ),
         ),
         entry(
@@ -11451,7 +11451,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.relation-reduction-unregistered-or-inexact",
+                "smusni.projection.relation-reduction-unregistered-or-inexact",
             ),
         ),
         entry(
@@ -11466,7 +11466,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.scope-dependency-without-binder",
+                "smusni.projection.scope-dependency-without-binder",
             ),
         ),
         entry(
@@ -11481,7 +11481,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.sequence-reduction-unregistered",
+                "smusni.projection.sequence-reduction-unregistered",
             ),
         ),
         entry(
@@ -11496,7 +11496,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.sign-identity-missing",
+                "smusni.projection.sign-identity-missing",
             ),
         ),
         entry(
@@ -11511,7 +11511,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.simultaneous-termset-unlicensed",
+                "smusni.projection.simultaneous-termset-unlicensed",
             ),
         ),
         entry(
@@ -11526,7 +11526,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.structured-quotation-transcript-entry-missing",
+                "smusni.projection.structured-quotation-transcript-entry-missing",
             ),
         ),
         entry(
@@ -11541,7 +11541,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.unguarded-or-unrepresentable-scc",
+                "smusni.projection.unguarded-or-unrepresentable-scc",
             ),
         ),
         entry(
@@ -11556,7 +11556,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
-                "smusni.fallback.unknown-registry-coordinate",
+                "smusni.projection.unknown-registry-coordinate",
             ),
         ),
     ])

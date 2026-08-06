@@ -57,51 +57,51 @@ const SCOPE_POLICY_ROW_COUNT: usize = 8;
 const EXTENSIONAL_SCOPE_POLICY_COUNT: usize = 6;
 const INTENSIONAL_SCOPE_POLICY_COUNT: usize = 2;
 const DISPOSITION_ROW_COUNT: usize = 882;
-const FALLBACK_REASON_ROW_COUNT: usize = 60;
+const PROJECTION_FAILURE_REASON_ROW_COUNT: usize = 60;
 
 const REQUIRED_GRAPH_FAILURE_REASON_IDS: &[&str] = &[
-    "smusni.fallback.abstraction-crossing-unlicensed",
-    "smusni.fallback.binder-does-not-dominate-use",
-    "smusni.fallback.computed-fill-domain-noninjective",
-    "smusni.fallback.conflicting-binder-owners",
-    "smusni.fallback.de-re-owner-dependency-illegal",
-    "smusni.fallback.de-re-owner-missing",
-    "smusni.fallback.de-re-owner-opaque",
-    "smusni.fallback.de-re-owner-unrelated-or-nondominating",
-    "smusni.fallback.de-re-owner-wrong-kind",
-    "smusni.fallback.declaration-planning-nonconvergence",
-    "smusni.fallback.definition-site-does-not-dominate-use",
-    "smusni.fallback.dependent-supplement-unrepresentable",
-    "smusni.fallback.dynamic-host-cycle",
-    "smusni.fallback.dynamic-host-not-unique",
-    "smusni.fallback.effect-handler-missing-or-illegal",
-    "smusni.fallback.event-facet-reduction-unregistered",
-    "smusni.fallback.event-owner-missing-or-nonunique",
-    "smusni.fallback.force-handler-missing-or-illegal",
-    "smusni.fallback.force-reduction-unrepresentable",
-    "smusni.fallback.generated-eventuality-unbound",
-    "smusni.fallback.higher-order-crossing-unlicensed",
-    "smusni.fallback.lexical-relation-row-missing",
-    "smusni.fallback.lexical-signature-missing-or-stale",
-    "smusni.fallback.math-reduction-unregistered",
-    "smusni.fallback.modal-tag-reduction-unregistered",
-    "smusni.fallback.place-deletion-evidence-missing",
-    "smusni.fallback.predicate-closure-unlicensed",
-    "smusni.fallback.predicate-fill-type-or-arity-mismatch",
-    "smusni.fallback.prelude-reduction-unavailable",
-    "smusni.fallback.quantifier-effect-export-illegal",
-    "smusni.fallback.quantity-reduction-unregistered",
-    "smusni.fallback.question-domain-or-answer-mismatch",
-    "smusni.fallback.reference-description-unrepresentable",
-    "smusni.fallback.relation-former-reduction-unavailable",
-    "smusni.fallback.relation-reduction-unregistered-or-inexact",
-    "smusni.fallback.scope-dependency-without-binder",
-    "smusni.fallback.sequence-reduction-unregistered",
-    "smusni.fallback.sign-identity-missing",
-    "smusni.fallback.simultaneous-termset-unlicensed",
-    "smusni.fallback.structured-quotation-transcript-entry-missing",
-    "smusni.fallback.unguarded-or-unrepresentable-scc",
-    "smusni.fallback.unknown-registry-coordinate",
+    "smusni.projection.abstraction-crossing-unlicensed",
+    "smusni.projection.binder-does-not-dominate-use",
+    "smusni.projection.computed-fill-domain-noninjective",
+    "smusni.projection.conflicting-binder-owners",
+    "smusni.projection.de-re-owner-dependency-illegal",
+    "smusni.projection.de-re-owner-missing",
+    "smusni.projection.de-re-owner-opaque",
+    "smusni.projection.de-re-owner-unrelated-or-nondominating",
+    "smusni.projection.de-re-owner-wrong-kind",
+    "smusni.projection.declaration-planning-nonconvergence",
+    "smusni.projection.definition-site-does-not-dominate-use",
+    "smusni.projection.dependent-supplement-unrepresentable",
+    "smusni.projection.dynamic-host-cycle",
+    "smusni.projection.dynamic-host-not-unique",
+    "smusni.projection.effect-handler-missing-or-illegal",
+    "smusni.projection.event-facet-reduction-unregistered",
+    "smusni.projection.event-owner-missing-or-nonunique",
+    "smusni.projection.force-handler-missing-or-illegal",
+    "smusni.projection.force-reduction-unrepresentable",
+    "smusni.projection.generated-eventuality-unbound",
+    "smusni.projection.higher-order-crossing-unlicensed",
+    "smusni.projection.lexical-relation-row-missing",
+    "smusni.projection.lexical-signature-missing-or-stale",
+    "smusni.projection.math-reduction-unregistered",
+    "smusni.projection.modal-tag-reduction-unregistered",
+    "smusni.projection.place-deletion-evidence-missing",
+    "smusni.projection.predicate-closure-unlicensed",
+    "smusni.projection.predicate-fill-type-or-arity-mismatch",
+    "smusni.projection.prelude-reduction-unavailable",
+    "smusni.projection.quantifier-effect-export-illegal",
+    "smusni.projection.quantity-reduction-unregistered",
+    "smusni.projection.question-domain-or-answer-mismatch",
+    "smusni.projection.reference-description-unrepresentable",
+    "smusni.projection.relation-former-reduction-unavailable",
+    "smusni.projection.relation-reduction-unregistered-or-inexact",
+    "smusni.projection.scope-dependency-without-binder",
+    "smusni.projection.sequence-reduction-unregistered",
+    "smusni.projection.sign-identity-missing",
+    "smusni.projection.simultaneous-termset-unlicensed",
+    "smusni.projection.structured-quotation-transcript-entry-missing",
+    "smusni.projection.unguarded-or-unrepresentable-scc",
+    "smusni.projection.unknown-registry-coordinate",
 ];
 
 const GENERATED_TABLES: &[&str] = &[
@@ -113,7 +113,7 @@ const GENERATED_TABLES: &[&str] = &[
     "registry/relation-formers.jsonl",
     "registry/generated-relations.jsonl",
     "registry/scale-literals.jsonl",
-    "registry/fallback-reasons.jsonl",
+    "registry/projection-failure-reasons.jsonl",
     "registry/dispositions.jsonl",
     "registry/prelude.jsonl",
     "registry/runtime.rs",
@@ -638,7 +638,7 @@ pub struct ScaleLiteralRow {
 #[invariant(is_reason_id(&reason_id) && !expected_type_schema.is_empty() && !minimum_raw_owner_type.is_empty() && !disposition_owner.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct FallbackReasonRow {
+pub struct ProjectionFailureReasonRow {
     pub reason_id: String,
     pub expected_type_schema: String,
     pub minimum_raw_owner_type: String,
@@ -705,7 +705,7 @@ struct Tables {
     relation_formers: Vec<RelationFormerReductionRow>,
     generated_relations: Vec<GeneratedRelationRow>,
     scale_literals: Vec<ScaleLiteralRow>,
-    fallback_reasons: Vec<FallbackReasonRow>,
+    projection_failure_reasons: Vec<ProjectionFailureReasonRow>,
     dispositions: Vec<DispositionRow>,
     prelude: Vec<PreludeRow>,
 }
@@ -859,7 +859,7 @@ fn mint_snapshot_from_registry_source(
     let generated_relations =
         build_generated_relation_rows(&source.generated_relation, &mut evidence)?;
     let scale_literals = build_scale_literal_rows(&source.scale_literal, &mut evidence)?;
-    let (disposition_rows, fallback_reasons) = build_disposition_rows(dispositions)?;
+    let (disposition_rows, projection_failure_reasons) = build_disposition_rows(dispositions)?;
     validate_minted_disposition_coordinates(dispositions, &disposition_rows)?;
     add_common_evidence(&mut evidence)?;
     evidence.sort_by(|left, right| scalar_cmp(&left.evidence_id, &right.evidence_id));
@@ -877,7 +877,7 @@ fn mint_snapshot_from_registry_source(
         relation_formers,
         generated_relations,
         scale_literals,
-        fallback_reasons,
+        projection_failure_reasons,
         dispositions: disposition_rows,
         prelude,
     };
@@ -975,9 +975,9 @@ pub fn verify_snapshot(paths: &BundlePaths, snapshot: &BundleSnapshot) -> Result
             &snapshot.artifacts["registry/scale-literals.jsonl"],
             "registry/scale-literals.jsonl",
         )?,
-        fallback_reasons: parse_jsonl_artifact(
-            &snapshot.artifacts["registry/fallback-reasons.jsonl"],
-            "registry/fallback-reasons.jsonl",
+        projection_failure_reasons: parse_jsonl_artifact(
+            &snapshot.artifacts["registry/projection-failure-reasons.jsonl"],
+            "registry/projection-failure-reasons.jsonl",
         )?,
         dispositions: parse_jsonl_artifact(
             &snapshot.artifacts["registry/dispositions.jsonl"],
@@ -3726,7 +3726,7 @@ fn validate_minted_disposition_coordinates(
 #[ensures(ret.as_ref().is_ok_and(|(rows, reasons)| rows.len() == sources.len() && reasons.len() <= rows.len()) || ret.is_err())]
 fn build_disposition_rows(
     sources: &[DispositionSeed],
-) -> Result<(Vec<DispositionRow>, Vec<FallbackReasonRow>), BundleError> {
+) -> Result<(Vec<DispositionRow>, Vec<ProjectionFailureReasonRow>), BundleError> {
     let mut ordered = sources.to_vec();
     ordered.sort_by(|left, right| scalar_cmp(&left.owner, &right.owner));
     reject_duplicate(
@@ -3823,7 +3823,7 @@ fn build_disposition_rows(
                 BundleError::new(BundleErrorKind::ClosedValue, error.to_string())
             })?;
             let expected_type_schema = canonical_type_schema(expected_type_schema)?;
-            reasons.push(new!(FallbackReasonRow {
+            reasons.push(new!(ProjectionFailureReasonRow {
                 reason_id: reason_id.clone(),
                 expected_type_schema,
                 minimum_raw_owner_type: minimum_raw_owner_type.to_owned(),
@@ -3847,7 +3847,7 @@ fn build_disposition_rows(
     reasons.sort_by(|left, right| scalar_cmp(&left.reason_id, &right.reason_id));
     reject_duplicate(
         reasons.iter().map(|row| row.reason_id.as_str()),
-        "fallback reason-id",
+        "projection-failure reason-id",
     )?;
     Ok((rows, reasons))
 }
@@ -3960,7 +3960,7 @@ fn validate_tables(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
     for row in &tables.dispositions {
         require_evidence(&row.evidence_id, &row.disposition_owner)?;
         if row.disposition == "TypedFallback"
-            && !tables.fallback_reasons.iter().any(|reason| {
+            && !tables.projection_failure_reasons.iter().any(|reason| {
                 reason.reason_id == row.target_schema_or_fallback_reason
                     && reason.disposition_owner == row.disposition_owner
             })
@@ -3971,7 +3971,7 @@ fn validate_tables(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
             ));
         }
     }
-    for row in &tables.fallback_reasons {
+    for row in &tables.projection_failure_reasons {
         if !tables.dispositions.iter().any(|disposition| {
             disposition.disposition_owner == row.disposition_owner
                 && disposition.disposition == "TypedFallback"
@@ -4138,7 +4138,7 @@ fn validate_table_order(tables: &Tables) -> Result<(), BundleError> {
         ),
         (
             tables
-                .fallback_reasons
+                .projection_failure_reasons
                 .iter()
                 .map(|row| row.reason_id.as_str())
                 .collect::<Vec<_>>(),
@@ -4177,7 +4177,7 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
         || tables.generated_relations.len() != 1
         || tables.scale_literals.len() != 1
         || tables.dispositions.len() != DISPOSITION_ROW_COUNT
-        || tables.fallback_reasons.len() != FALLBACK_REASON_ROW_COUNT
+        || tables.projection_failure_reasons.len() != PROJECTION_FAILURE_REASON_ROW_COUNT
         || tables.prelude.len() != 20
     {
         return Err(BundleError::new(
@@ -4491,7 +4491,7 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
         }
     }
     let graph_failures = tables
-        .fallback_reasons
+        .projection_failure_reasons
         .iter()
         .filter(|row| row.minimum_raw_owner_type == "SemanticGraph")
         .map(|row| row.reason_id.as_str())
@@ -4506,7 +4506,7 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
             "one or more registered planning/elaboration failure ids disappeared",
         ));
     }
-    for row in &tables.fallback_reasons {
+    for row in &tables.projection_failure_reasons {
         canonical_type_schema(&row.expected_type_schema)?;
         let compatible = match row.minimum_raw_owner_type.as_str() {
             "SemanticGraph" => row.expected_type_schema == "Performable",
@@ -4566,8 +4566,8 @@ fn serialize_tables(tables: &Tables) -> Result<BTreeMap<String, Vec<u8>>, Bundle
         jsonl(&tables.scale_literals)?,
     );
     artifacts.insert(
-        "registry/fallback-reasons.jsonl".to_owned(),
-        jsonl(&tables.fallback_reasons)?,
+        "registry/projection-failure-reasons.jsonl".to_owned(),
+        jsonl(&tables.projection_failure_reasons)?,
     );
     artifacts.insert(
         "registry/dispositions.jsonl".to_owned(),
@@ -4643,16 +4643,16 @@ fn generate_policy_rust(tables: &Tables) -> Result<Vec<u8>, BundleError> {
     output.push_str("];\n");
     for (constant, reason_id) in [
         (
-            "GENERATED_LEXICAL_POLICY_ENTITY_FALLBACK_REASON_ID",
-            "smusni.fallback.lexical-policy.entity",
+            "GENERATED_LEXICAL_POLICY_ENTITY_PROJECTION_FAILURE_REASON_ID",
+            "smusni.projection.lexical-policy.entity",
         ),
         (
-            "GENERATED_LEXICAL_POLICY_EVENTUALITY_FALLBACK_REASON_ID",
-            "smusni.fallback.lexical-policy.eventuality",
+            "GENERATED_LEXICAL_POLICY_EVENTUALITY_PROJECTION_FAILURE_REASON_ID",
+            "smusni.projection.lexical-policy.eventuality",
         ),
     ] {
         let reason = tables
-            .fallback_reasons
+            .projection_failure_reasons
             .iter()
             .find(|row| row.reason_id == reason_id)
             .ok_or_else(|| {
@@ -4686,11 +4686,11 @@ fn generate_policy_rust(tables: &Tables) -> Result<Vec<u8>, BundleError> {
         ));
     }
     output.push_str(
-        "];\n\nconst GENERATED_FALLBACK_REASON_ROWS: &[GeneratedFallbackReasonRow] = &[\n",
+        "];\n\nconst GENERATED_PROJECTION_FAILURE_REASON_ROWS: &[GeneratedProjectionFailureReasonRow] = &[\n",
     );
-    for row in &tables.fallback_reasons {
+    for row in &tables.projection_failure_reasons {
         output.push_str(&format!(
-            "    GeneratedFallbackReasonRow {{ reason_id: {:?}, expected_type_schema: {:?}, minimum_raw_owner_type: {:?}, disposition_owner: {:?} }},\n",
+            "    GeneratedProjectionFailureReasonRow {{ reason_id: {:?}, expected_type_schema: {:?}, minimum_raw_owner_type: {:?}, disposition_owner: {:?} }},\n",
             row.reason_id,
             row.expected_type_schema,
             row.minimum_raw_owner_type,

@@ -643,7 +643,7 @@ fn contract_disagreements_are_flagged() {
                 "test-only disagreement",
                 "Content",
                 "SemanticObject",
-                "smusni.fallback.test",
+                "smusni.projection.test",
             )
         } else {
             baseline_disposition(entry)

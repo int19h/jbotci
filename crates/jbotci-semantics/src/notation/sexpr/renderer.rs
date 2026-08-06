@@ -65,7 +65,7 @@ pub struct SmusniRenderStats {
 /// failure is about a relationship between two objects rather than one object's
 /// own shape.
 #[invariant(::Semantic { message, .. } => !message.is_empty())]
-#[invariant(::Fallback { reason_id, message, .. } => reason_id.starts_with("smusni.fallback.") && !message.is_empty())]
+#[invariant(::Fallback { reason_id, message, .. } => reason_id.starts_with("smusni.projection.") && !message.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SmusniDiagnostic {
     Semantic {
