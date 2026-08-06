@@ -29,7 +29,8 @@ use jbotci_phonetic::{
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
 use rayon::prelude::*;
-use serde::Deserialize;
+use serde::de::{self, MapAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 use sha2::{Digest, Sha256};
 
 const VENDORED_DICTIONARY: &str = "data/dictionary-en.json";
@@ -68,6 +69,10 @@ struct DictionaryMetadata {
 #[serde(deny_unknown_fields)]
 struct ExtractedRafsiTable {
     provenance: ExtractedRafsiProvenance,
+    // Deserialized through a duplicate-rejecting visitor: collecting straight
+    // into a map would let a repeated JSON key silently discard one of the two
+    // assignments before any invariant or collision check could see it.
+    #[serde(deserialize_with = "deserialize_unique_rafsi_table")]
     rafsi: BTreeMap<String, Vec<String>>,
 }
 
@@ -76,8 +81,16 @@ struct ExtractedRafsiTable {
 /// The build never consumes these fields beyond checking that they are filled
 /// in; they exist so the vendored data documents its own origin.
 #[invariant(
-    !run_date.is_empty() && !method.is_empty() && !tooling.is_empty() && models.len() > 1,
-    "provenance must name the run date, method, tooling, and the models that voted"
+    !run_date.is_empty() && !method.is_empty() && !tooling.is_empty(),
+    "provenance must name the run date, method, and tooling"
+)]
+#[invariant(
+    models.len() > 1
+        && models
+            .iter()
+            .enumerate()
+            .all(|(index, model)| !model.is_empty() && !models[..index].contains(model)),
+    "a vote needs at least two voters, each named exactly once"
 )]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -86,6 +99,52 @@ struct ExtractedRafsiProvenance {
     models: Vec<String>,
     method: String,
     tooling: String,
+}
+
+/// Deserialize the word-to-rafsi table, rejecting repeated words.
+///
+/// `serde` collapses duplicate map keys silently, which would drop one of two
+/// conflicting assignments before the merge could complain about it. The
+/// vendored file is fail-closed data, so a repeated word is an error.
+#[requires(true)]
+#[ensures(true)]
+fn deserialize_unique_rafsi_table<'de, D>(
+    deserializer: D,
+) -> Result<BTreeMap<String, Vec<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserializer.deserialize_map(UniqueRafsiTableVisitor)
+}
+
+struct UniqueRafsiTableVisitor;
+
+impl<'de> Visitor<'de> for UniqueRafsiTableVisitor {
+    type Value = BTreeMap<String, Vec<String>>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a map of dictionary word to its extracted rafsi")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_map<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut table = BTreeMap::new();
+        while let Some((word, forms)) = access.next_entry::<String, Vec<String>>()? {
+            if let Some(previous) = table.insert(word.clone(), forms) {
+                return Err(de::Error::custom(format!(
+                    "extracted rafsi word `{word}` is listed more than once \
+                     (first listing: {previous:?})"
+                )));
+            }
+        }
+        Ok(table)
+    }
 }
 
 /// Who already holds a rafsi form while the extracted table is merged.
@@ -579,11 +638,14 @@ fn load_extracted_rafsi(path: &Path) -> Result<ExtractedRafsiTable, Box<dyn Erro
 #[ensures(
     ret.is_err()
         || table.rafsi.iter().all(|(word, forms)| {
-            dictionary.entries.iter().any(|entry| {
-                entry.word == *word && forms.iter().all(|form| entry.rafsi.contains(form))
-            })
+            dictionary.entries.iter().any(|entry| entry.word == *word)
+                && dictionary
+                    .entries
+                    .iter()
+                    .filter(|entry| entry.word == *word)
+                    .all(|entry| forms.iter().all(|form| entry.rafsi.contains(form)))
         }),
-    "a successful merge lands every accepted assignment on its dictionary entry"
+    "a successful merge lands every accepted assignment on every entry of its word"
 )]
 fn merge_extracted_rafsi(
     dictionary: &mut ImportedDictionary,
