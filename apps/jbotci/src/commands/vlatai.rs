@@ -524,7 +524,7 @@ fn plain_word_classification_json(
 /// rafsi to `vlacku`. Canonical phoneme text marks stress with acute accents,
 /// so it is folded back to plain gismu letters before derivation.
 #[requires(classification.category == WordKind::Gismu)]
-#[ensures(true)]
+#[ensures(ret.windows(2).all(|pair| pair[0] < pair[1]))]
 fn vlatai_possible_rafsi(classification: &PlainWordClassification) -> Vec<String> {
     possible_short_rafsi_forms(&fold_lojban_diacritics(&classification.phonemes))
         .into_iter()
