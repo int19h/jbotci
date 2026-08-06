@@ -12,13 +12,6 @@ use jbotci_morphology::{
     ConsonantPairClass, GlideMark, PhonemeRenderOptions, StressMark, WordKind,
     consonant_pair_class, is_consonant, is_vowel, segment_words_with_modifiers,
 };
-// Short-rafsi derivation is pure phonotactics and lives in the morphology
-// crate; availability against the dictionary lives in the dictionary crate.
-// They are re-exported because they appear in gimfi'i's request and output.
-pub use jbotci_dictionary::{
-    RafsiAvailability, RafsiAvailabilityData, RafsiCandidate, RafsiCandidateData, RafsiClaimKind,
-};
-pub use jbotci_morphology::{GismuShape, ShortRafsiShape};
 use jbotci_phonetic::{
     AlineNormalizer, AlineParameters, AlineScorer, AlineSimilarityScratch, IpaSegmentId,
     PreparedAlineSource, PreparedAlineTargetInventory, lojban_gismu_letter_to_ipa_segment,
@@ -30,6 +23,14 @@ use thiserror::Error;
 mod transliterate;
 
 pub use transliterate::transliterate_ipa_to_lojban;
+
+// Short-rafsi derivation is pure phonotactics and lives in the morphology
+// crate; availability against the dictionary lives in the dictionary crate.
+// They are re-exported because they appear in gimfi'i's request and output.
+pub use jbotci_dictionary::{
+    RafsiAvailability, RafsiAvailabilityData, RafsiCandidate, RafsiCandidateData, RafsiClaimKind,
+};
+pub use jbotci_morphology::{GismuShape, ShortRafsiShape};
 
 pub const GIMFIHI_DEFAULT_COUNT: usize = 20;
 pub const GIMFIHI_MAX_COUNT: usize = 512;
