@@ -1223,7 +1223,7 @@ fn field_datum(
     Datum::form(
         "Field",
         [
-            Datum::atom(pascal_case(name)),
+            data_atom(&pascal_case(name)),
             structural_datum(value, variables, provenance),
         ],
     )
@@ -1286,7 +1286,7 @@ fn structural_datum(
             }),
         ),
         data!(StructuralValue::Record { name, fields }) => {
-            let mut arguments = vec![Datum::atom(name)];
+            let mut arguments = vec![data_atom(name)];
             arguments.extend(fields.into_iter().filter_map(|(field, value)| {
                 if field_is_suppressed(field, Some(name), provenance) {
                     return None;
@@ -1294,7 +1294,7 @@ fn structural_datum(
                 Some(Datum::form(
                     "Field",
                     [
-                        Datum::atom(pascal_case(field)),
+                        data_atom(&pascal_case(field)),
                         structural_datum(value, variables, provenance),
                     ],
                 ))
@@ -1306,11 +1306,27 @@ fn structural_datum(
             variant,
             value,
         }) => {
-            let mut arguments = vec![Datum::atom(type_name), Datum::atom(pascal_case(variant))];
+            let mut arguments = vec![data_atom(type_name), data_atom(&pascal_case(variant))];
             arguments.extend(value.map(|value| structural_datum(*value, variables, provenance)));
             Datum::form("Variant", arguments)
         }
     }
+}
+
+/// Build one atom from data-derived text without panicking.
+///
+/// Every caller of this helper spells an atom from model data — a field name, a
+/// model type name, a variant name, or an identity — rather than from a
+/// compile-time constant, so the bare spelling can be lexically invalid. The
+/// escaped `|…|` spelling is tried next, and text that cannot be spelled as an
+/// atom at all becomes a `(Name "…")` form. The capture therefore stays total
+/// on hostile data instead of aborting the process.
+#[requires(true)]
+#[ensures(true)]
+fn data_atom(text: &str) -> Datum {
+    Datum::try_atom(text.to_owned())
+        .or_else(|_| Datum::try_atom(escape_symbol(text)))
+        .unwrap_or_else(|_| Datum::form("Name", [Datum::string(text)]))
 }
 
 /// Preserve the legacy Draft-9 `@` spelling without extending the v0 bare-atom
@@ -1319,7 +1335,10 @@ fn structural_datum(
 #[requires(!id.is_empty())]
 #[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with("|@") && atom.ends_with('|')))]
 fn reference_text_datum(id: &str) -> Datum {
-    Datum::atom(format!("|@{}|", id.replace(':', "_")))
+    // Escape through the one shared escaping path rather than assembling the
+    // delimiters here, so an identity containing `|` or `\` still spells one
+    // valid escaped atom.
+    data_atom(&format!("@{}", id.replace(':', "_")))
 }
 
 /// Convert a serde camelCase/snake-case field to its grammar field atom.

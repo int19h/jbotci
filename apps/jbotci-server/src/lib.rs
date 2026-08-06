@@ -2224,6 +2224,132 @@ mod tests {
         );
     }
 
+    /// A smusni projection failure is a server-side capability failure: the
+    /// request validly asked for smusni and this server could not fulfil it.
+    /// Both transports carry the same structured envelope (jbotci#753).
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn smusni_projection_failure_is_a_problem_document_over_http() {
+        const INPUT: &str = "su'o gerku cu bajra";
+
+        let app = router(test_config(test_static_dir()));
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/tersmu")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        serde_json::json!({ "text": INPUT, "format": "smusni" }).to_string(),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            response.headers().get(CONTENT_TYPE),
+            Some(&HeaderValue::from_static("application/problem+json"))
+        );
+        let problem = response_json(response).await;
+        assert_eq!(problem["code"], "smusni-projection-failed");
+        assert_eq!(problem["format"], "smusni");
+        assert_eq!(problem["status"], 500);
+        assert_eq!(problem["truncated"], false);
+        let total = problem["total"].as_u64().expect("a record total");
+        assert!(total > 0);
+        assert_eq!(problem["returned"], serde_json::json!(total));
+        let diagnostics = problem["diagnostics"]
+            .as_array()
+            .expect("the diagnostic list");
+        assert_eq!(diagnostics.len() as u64, total);
+        let first = &diagnostics[0];
+        assert!(
+            first["reasonId"]
+                .as_str()
+                .is_some_and(|reason| reason.starts_with("smusni.projection.")),
+            "{first}"
+        );
+        assert!(!first["message"].as_str().expect("a message").is_empty());
+        assert_eq!(first["severity"], "error");
+        assert!(matches!(
+            first["failureClass"].as_str(),
+            Some(
+                "InvalidGraph" | "RouteUnavailable" | "TrackedSpecGap" | "ImplementationInvariant"
+            )
+        ));
+        assert!(first["span"]["byteStart"].as_u64().is_some());
+        assert!(
+            problem["statistics"]["failedProjectionEdges"] == serde_json::json!(total),
+            "{problem}"
+        );
+        // A malformed request keeps its ordinary client-error status.
+        let malformed = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/tersmu")
+                    .header(CONTENT_TYPE, "application/json")
+                    .body(Body::from("{\"text\": 5}"))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(malformed.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn smusni_projection_failure_is_a_tool_error_over_mcp() {
+        let response = post_json(
+            router(test_config(test_static_dir())),
+            "/mcp",
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "tersmu-projection-failure",
+                "method": "tools/call",
+                "params": {
+                    "name": "tersmu",
+                    "arguments": { "text": "su'o gerku cu bajra", "format": "smusni" }
+                }
+            }),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let mcp_json = response_json(response).await;
+        let result = &mcp_json["result"];
+        assert_eq!(result["isError"], true);
+        // A readable summary first, then the same envelope the HTTP profile
+        // returns, serialized as one JSON text item — never a transcript.
+        let summary = result["content"][0]["text"]
+            .as_str()
+            .expect("a readable summary");
+        assert!(
+            summary.starts_with("smusni-projection-failed:"),
+            "{summary}"
+        );
+        let envelope: serde_json::Value = serde_json::from_str(
+            result["content"][1]["text"]
+                .as_str()
+                .expect("the serialized envelope"),
+        )
+        .expect("the second item is JSON");
+        assert_eq!(envelope["code"], "smusni-projection-failed");
+        assert_eq!(envelope["format"], "smusni");
+        assert!(envelope["diagnostics"].as_array().is_some_and(|records| {
+            !records.is_empty()
+                && records.iter().all(|record| {
+                    record["reasonId"]
+                        .as_str()
+                        .is_some_and(|reason| reason.starts_with("smusni.projection."))
+                })
+        }));
+    }
+
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]

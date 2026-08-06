@@ -926,6 +926,60 @@ fn tersmu_smusni_projection_failure_is_labelled_on_stderr_with_empty_stdout() {
     assert!(run.stderr.contains("failure class: "));
 }
 
+/// `--max-errors` is the command line's display limit on projection records.
+/// Section 16.3 allows truncating only when the omitted count is printed.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_smusni_projection_failure_honors_max_errors_and_reports_the_omission() {
+    let full = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--format",
+            "smusni",
+            "--color=never",
+            "su'o gerku cu bajra",
+        ],
+        false,
+    );
+    assert_eq!(full.status, CliStatus::Failure);
+    let total = full.stderr.matches("error[smusni.projection.").count();
+    assert!(
+        total > 1,
+        "this witness needs several records: {}",
+        full.stderr
+    );
+
+    let limited = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--format",
+            "smusni",
+            "--color=never",
+            "--max-errors",
+            "1",
+            "su'o gerku cu bajra",
+        ],
+        false,
+    );
+    assert_eq!(limited.status, CliStatus::Failure);
+    assert!(limited.stdout.is_empty());
+    assert_eq!(
+        limited.stderr.matches("error[smusni.projection.").count(),
+        1
+    );
+    assert!(
+        limited.stderr.contains(&format!(
+            "{} further projection error(s) not shown",
+            total - 1
+        )),
+        "the omitted count must be printed: {}",
+        limited.stderr
+    );
+}
+
 /// The same input still renders under an explicitly requested XML format: a
 /// smusni projection failure is never silently retried, and never spreads to a
 /// format that has its own representation.
