@@ -387,26 +387,59 @@ fn generated_table_counts_and_candidate_policy_keys_are_closed() {
                     !slots.is_empty() && slots.iter().all(|slot| slot.get("close-policy").is_some())
                 })
     }));
-    assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 882);
+    assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 884);
     let projection_failure_reasons = jsonl_rows("registry/projection-failure-reasons.jsonl");
-    assert_eq!(projection_failure_reasons.len(), 60);
+    assert_eq!(projection_failure_reasons.len(), 62);
     assert_eq!(
         projection_failure_reasons
             .iter()
             .filter(|row| {
-                row["expected-type-schema"] == "Performable"
+                row["failure-site"] == "TypedPosition"
+                    && row["expected-type-schema"] == "Performable"
                     && row["minimum-raw-owner-type"] == "SemanticGraph"
             })
             .count(),
         55,
     );
+    // Every row carries a reviewed section-16.2 class, and exactly the two ids
+    // section 14.4 names use the `WholeGraph` site with no expected type.
+    assert!(projection_failure_reasons.iter().all(|row| {
+        matches!(
+            row["failure-class"].as_str(),
+            Some(
+                "InvalidGraph" | "RouteUnavailable" | "TrackedSpecGap" | "ImplementationInvariant"
+            )
+        )
+    }));
+    let whole_graph = projection_failure_reasons
+        .iter()
+        .filter(|row| row["failure-site"] == "WholeGraph")
+        .collect::<Vec<_>>();
+    assert_eq!(
+        whole_graph
+            .iter()
+            .map(|row| row["reason-id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "smusni.projection.graph.root-not-performable",
+            "smusni.projection.graph.unbound-variable",
+        ]
+    );
+    assert!(whole_graph.iter().all(|row| {
+        row["raw-root-type"] == "SemanticGraph"
+            && row.get("expected-type-schema").is_none()
+            && row.get("minimum-raw-owner-type").is_none()
+            && row["failure-class"] == "InvalidGraph"
+    }));
     assert!(projection_failure_reasons.iter().any(|row| {
         row["reason-id"] == "smusni.projection.lexical-policy.entity"
+            && row["failure-site"] == "TypedPosition"
             && row["expected-type-schema"] == "(Referents Entity)"
             && row["minimum-raw-owner-type"] == "Referent"
     }));
     assert!(projection_failure_reasons.iter().any(|row| {
         row["reason-id"] == "smusni.projection.lexical-policy.eventuality"
+            && row["failure-site"] == "TypedPosition"
             && row["expected-type-schema"] == "(Referents Eventuality)"
             && row["minimum-raw-owner-type"] == "Referent"
     }));
@@ -988,14 +1021,16 @@ fn every_curated_policy_row_rejects_each_other_closed_policy() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn every_fallback_seed_requires_one_complete_typed_boundary() {
+fn every_failure_seed_requires_one_complete_typed_boundary() {
     let paths = bundle_paths();
     let mut seeds = dispositions();
-    let fallback = seeds
+    let failure = seeds
         .iter_mut()
-        .find(|seed| seed.disposition == "TypedFallback")
-        .expect("inventory has fallback dispositions");
-    fallback.expected_type_schema = None;
+        .find(|seed| {
+            seed.disposition == "Failure" && seed.failure_site.as_deref() == Some("TypedPosition")
+        })
+        .expect("inventory has typed-position failure dispositions");
+    failure.expected_type_schema = None;
     assert_eq!(
         smusni_v0_bundle::mint_snapshot(&paths, &seeds)
             .unwrap_err()

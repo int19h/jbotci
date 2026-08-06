@@ -6,7 +6,8 @@ use bityzba::{data, ensures, requires};
 use crate::smusni_v0_bundle::DispositionSeed;
 #[allow(unused_imports)]
 use crate::smusni_v0_completeness::model::{
-    Disposition, DispositionData, EntryKind, InventoryEntry, SurfaceCategory,
+    Disposition, DispositionData, EntryKind, InventoryEntry, ProjectionFailureSite,
+    ProjectionFailureSiteData, SurfaceCategory,
 };
 
 /// Project every authored inventory coordinate without a catch-all default.
@@ -41,9 +42,11 @@ fn disposition_seed(entry: &InventoryEntry) -> DispositionSeed {
         disposition,
         target_contract,
         detail,
-        fallback_reason_id,
+        failure_reason_id,
+        failure_site,
         expected_type_schema,
         minimum_raw_owner_type,
+        failure_class,
     ) = match entry.disposition.as_data() {
         data!(Disposition::DirectLowering { target_contract }) => (
             "DirectLowering",
@@ -52,10 +55,14 @@ fn disposition_seed(entry: &InventoryEntry) -> DispositionSeed {
             None,
             None,
             None,
+            None,
+            None,
         ),
         data!(Disposition::ProvenDesugaring { target_contract }) => (
             "ProvenDesugaring",
             Some(*target_contract),
+            None,
+            None,
             None,
             None,
             None,
@@ -71,6 +78,8 @@ fn disposition_seed(entry: &InventoryEntry) -> DispositionSeed {
             None,
             None,
             None,
+            None,
+            None,
         ),
         data!(Disposition::ProvenanceSuppression {
             target_contract,
@@ -82,6 +91,8 @@ fn disposition_seed(entry: &InventoryEntry) -> DispositionSeed {
             None,
             None,
             None,
+            None,
+            None,
         ),
         data!(Disposition::DiagnosticCollection { target_contract }) => (
             "DiagnosticCollection",
@@ -90,20 +101,37 @@ fn disposition_seed(entry: &InventoryEntry) -> DispositionSeed {
             None,
             None,
             None,
-        ),
-        data!(Disposition::TypedFallback {
-            reason,
-            expected_type_schema,
-            minimum_raw_owner_type,
-            reason_id,
-        }) => (
-            "TypedFallback",
             None,
-            Some(*reason),
-            Some(*reason_id),
-            Some(*expected_type_schema),
-            Some(*minimum_raw_owner_type),
+            None,
         ),
+        data!(Disposition::Failure {
+            reason,
+            site,
+            reason_id,
+            class,
+        }) => {
+            let (site_name, expected_type_schema, minimum_raw_owner_type) = match site.as_data() {
+                data!(ProjectionFailureSite::TypedPosition {
+                    expected_type_schema,
+                    minimum_raw_owner_type,
+                }) => (
+                    "TypedPosition",
+                    Some(*expected_type_schema),
+                    Some(*minimum_raw_owner_type),
+                ),
+                data!(ProjectionFailureSite::WholeGraph) => ("WholeGraph", None, None),
+            };
+            (
+                "Failure",
+                None,
+                Some(*reason),
+                Some(*reason_id),
+                Some(site_name),
+                expected_type_schema,
+                minimum_raw_owner_type,
+                Some(class.name()),
+            )
+        }
     };
     let member = entry.variant_of.map_or_else(
         || entry.field.to_owned(),
@@ -115,8 +143,10 @@ fn disposition_seed(entry: &InventoryEntry) -> DispositionSeed {
         disposition: disposition.to_owned(),
         target_contract: target_contract.map(str::to_owned),
         detail: detail.map(str::to_owned),
-        fallback_reason_id: fallback_reason_id.map(str::to_owned),
+        failure_reason_id: failure_reason_id.map(str::to_owned),
+        failure_site: failure_site.map(str::to_owned),
         expected_type_schema: expected_type_schema.map(str::to_owned),
         minimum_raw_owner_type: minimum_raw_owner_type.map(str::to_owned),
+        failure_class: failure_class.map(str::to_owned),
     }
 }

@@ -56,8 +56,8 @@ const WITNESS_COUNT: usize = 18;
 const SCOPE_POLICY_ROW_COUNT: usize = 8;
 const EXTENSIONAL_SCOPE_POLICY_COUNT: usize = 6;
 const INTENSIONAL_SCOPE_POLICY_COUNT: usize = 2;
-const DISPOSITION_ROW_COUNT: usize = 882;
-const PROJECTION_FAILURE_REASON_ROW_COUNT: usize = 60;
+const DISPOSITION_ROW_COUNT: usize = 884;
+const PROJECTION_FAILURE_REASON_ROW_COUNT: usize = 62;
 
 const REQUIRED_GRAPH_FAILURE_REASON_IDS: &[&str] = &[
     "smusni.projection.abstraction-crossing-unlicensed",
@@ -102,6 +102,14 @@ const REQUIRED_GRAPH_FAILURE_REASON_IDS: &[&str] = &[
     "smusni.projection.structured-quotation-transcript-entry-missing",
     "smusni.projection.unguarded-or-unrepresentable-scc",
     "smusni.projection.unknown-registry-coordinate",
+];
+
+/// The two reasons specification section 14.4 requires to carry a `WholeGraph`
+/// failure site: a root that denotes no performable act and a variable with no
+/// binder anywhere in the graph. Neither has a smaller sound owner.
+const REQUIRED_WHOLE_GRAPH_FAILURE_REASON_IDS: &[&str] = &[
+    "smusni.projection.graph.root-not-performable",
+    "smusni.projection.graph.unbound-variable",
 ];
 
 const GENERATED_TABLES: &[&str] = &[
@@ -242,9 +250,11 @@ pub struct DispositionSeed {
     pub disposition: String,
     pub target_contract: Option<String>,
     pub detail: Option<String>,
-    pub fallback_reason_id: Option<String>,
+    pub failure_reason_id: Option<String>,
+    pub failure_site: Option<String>,
     pub expected_type_schema: Option<String>,
     pub minimum_raw_owner_type: Option<String>,
+    pub failure_class: Option<String>,
 }
 
 #[invariant(true)]
@@ -635,13 +645,28 @@ pub struct ScaleLiteralRow {
     pub evidence_id: String,
 }
 
-#[invariant(is_reason_id(&reason_id) && !expected_type_schema.is_empty() && !minimum_raw_owner_type.is_empty() && !disposition_owner.is_empty())]
+/// One registered projection-failure reason.
+///
+/// The `failure-site` tag selects which of the two site shapes the row carries:
+/// a `TypedPosition` row fixes the expected smusni type and the smallest model
+/// owner at which the failure is sound, while a `WholeGraph` row has no
+/// established smusni type and fixes only the `SemanticGraph` raw root. The
+/// `failure-class` fixes the section-16.2 classification of every failure
+/// emitted under this reason, so a report's class breakdown is registry data.
+#[invariant(is_reason_id(&reason_id) && is_failure_class(&failure_class) && !disposition_owner.is_empty())]
+#[invariant(is_projection_failure_site(&failure_site, expected_type_schema.as_deref(), minimum_raw_owner_type.as_deref(), raw_root_type.as_deref()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct ProjectionFailureReasonRow {
     pub reason_id: String,
-    pub expected_type_schema: String,
-    pub minimum_raw_owner_type: String,
+    pub failure_site: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_type_schema: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub minimum_raw_owner_type: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub raw_root_type: Option<String>,
+    pub failure_class: String,
     pub disposition_owner: String,
 }
 
@@ -3744,7 +3769,7 @@ fn build_disposition_rows(
         }
         let requires_detail = matches!(
             source.disposition.as_str(),
-            "NotationDefault" | "ProvenanceSuppression" | "TypedFallback"
+            "NotationDefault" | "ProvenanceSuppression" | FAILURE_DISPOSITION
         );
         if source.detail.as_deref().is_some_and(str::is_empty)
             || source.detail.is_some() != requires_detail
@@ -3757,21 +3782,23 @@ fn build_disposition_rows(
                 ),
             ));
         }
-        if source.disposition != "TypedFallback"
-            && (source.fallback_reason_id.is_some()
+        if source.disposition != FAILURE_DISPOSITION
+            && (source.failure_reason_id.is_some()
+                || source.failure_site.is_some()
                 || source.expected_type_schema.is_some()
-                || source.minimum_raw_owner_type.is_some())
+                || source.minimum_raw_owner_type.is_some()
+                || source.failure_class.is_some())
         {
             return Err(BundleError::new(
                 BundleErrorKind::Type,
-                format!("non-fallback {} carries a fallback boundary", source.owner),
+                format!("non-failure {} carries a failure site", source.owner),
             ));
         }
-        if source.disposition == "TypedFallback" {
+        if source.disposition == FAILURE_DISPOSITION {
             if source.target_contract.is_some() {
                 return Err(BundleError::new(
                     BundleErrorKind::Type,
-                    format!("fallback {} carries a lowering target", source.owner),
+                    format!("failure {} carries a lowering target", source.owner),
                 ));
             }
         } else {
@@ -3796,37 +3823,82 @@ fn build_disposition_rows(
                 ));
             }
         }
-        let target = if source.disposition == "TypedFallback" {
-            let expected_type_schema = source.expected_type_schema.as_deref().ok_or_else(|| {
-                BundleError::new(
-                    BundleErrorKind::Type,
-                    format!("fallback {} has no expected type", source.owner),
-                )
-            })?;
-            let minimum_raw_owner_type = source
-                .minimum_raw_owner_type
-                .as_deref()
-                .filter(|owner| !owner.is_empty())
-                .ok_or_else(|| {
-                    BundleError::new(
-                        BundleErrorKind::Type,
-                        format!("fallback {} has no minimum raw owner", source.owner),
-                    )
-                })?;
-            let reason_id = source.fallback_reason_id.clone().ok_or_else(|| {
+        let target = if source.disposition == FAILURE_DISPOSITION {
+            let reason_id = source.failure_reason_id.clone().ok_or_else(|| {
                 BundleError::new(
                     BundleErrorKind::ForeignKey,
-                    format!("fallback {} has no reviewed reason id", source.owner),
+                    format!("failure {} has no reviewed reason id", source.owner),
                 )
             })?;
             FallbackReason::try_new(&reason_id).map_err(|error| {
                 BundleError::new(BundleErrorKind::ClosedValue, error.to_string())
             })?;
-            let expected_type_schema = canonical_type_schema(expected_type_schema)?;
+            let failure_class = source
+                .failure_class
+                .as_deref()
+                .filter(|class| is_failure_class(class))
+                .ok_or_else(|| {
+                    BundleError::new(
+                        BundleErrorKind::ClosedValue,
+                        format!("failure {} has no reviewed failure class", source.owner),
+                    )
+                })?
+                .to_owned();
+            let failure_site = source.failure_site.clone().unwrap_or_default();
+            let (expected_type_schema, minimum_raw_owner_type, raw_root_type) =
+                match failure_site.as_str() {
+                    "TypedPosition" => {
+                        let expected_type_schema =
+                            source.expected_type_schema.as_deref().ok_or_else(|| {
+                                BundleError::new(
+                                    BundleErrorKind::Type,
+                                    format!("failure {} has no expected type", source.owner),
+                                )
+                            })?;
+                        let minimum_raw_owner_type = source
+                            .minimum_raw_owner_type
+                            .as_deref()
+                            .filter(|owner| !owner.is_empty())
+                            .ok_or_else(|| {
+                                BundleError::new(
+                                    BundleErrorKind::Type,
+                                    format!("failure {} has no minimum raw owner", source.owner),
+                                )
+                            })?;
+                        (
+                            Some(canonical_type_schema(expected_type_schema)?),
+                            Some(minimum_raw_owner_type.to_owned()),
+                            None,
+                        )
+                    }
+                    "WholeGraph" => {
+                        if source.expected_type_schema.is_some()
+                            || source.minimum_raw_owner_type.is_some()
+                        {
+                            return Err(BundleError::new(
+                                BundleErrorKind::Type,
+                                format!(
+                                    "whole-graph failure {} declares a typed position",
+                                    source.owner
+                                ),
+                            ));
+                        }
+                        (None, None, Some(WHOLE_GRAPH_RAW_ROOT_TYPE.to_owned()))
+                    }
+                    _ => {
+                        return Err(BundleError::new(
+                            BundleErrorKind::ClosedValue,
+                            format!("failure {} has no registered failure site", source.owner),
+                        ));
+                    }
+                };
             reasons.push(new!(ProjectionFailureReasonRow {
                 reason_id: reason_id.clone(),
+                failure_site,
                 expected_type_schema,
-                minimum_raw_owner_type: minimum_raw_owner_type.to_owned(),
+                minimum_raw_owner_type,
+                raw_root_type,
+                failure_class,
                 disposition_owner: source.owner.clone(),
             }));
             reason_id
@@ -3959,7 +4031,7 @@ fn validate_tables(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
     }
     for row in &tables.dispositions {
         require_evidence(&row.evidence_id, &row.disposition_owner)?;
-        if row.disposition == "TypedFallback"
+        if row.disposition == FAILURE_DISPOSITION
             && !tables.projection_failure_reasons.iter().any(|reason| {
                 reason.reason_id == row.target_schema_or_fallback_reason
                     && reason.disposition_owner == row.disposition_owner
@@ -3967,25 +4039,27 @@ fn validate_tables(tables: &Tables, spec: &[u8]) -> Result<(), BundleError> {
         {
             return Err(BundleError::new(
                 BundleErrorKind::ForeignKey,
-                format!("{} has no exact fallback-reason row", row.disposition_owner),
+                format!("{} has no exact failure-reason row", row.disposition_owner),
             ));
         }
     }
     for row in &tables.projection_failure_reasons {
         if !tables.dispositions.iter().any(|disposition| {
             disposition.disposition_owner == row.disposition_owner
-                && disposition.disposition == "TypedFallback"
+                && disposition.disposition == FAILURE_DISPOSITION
                 && disposition.target_schema_or_fallback_reason == row.reason_id
         }) {
             return Err(BundleError::new(
                 BundleErrorKind::ForeignKey,
                 format!(
-                    "fallback {} does not join its exact TypedFallback owner",
+                    "failure {} does not join its exact Failure owner",
                     row.reason_id
                 ),
             ));
         }
-        canonical_type_schema(&row.expected_type_schema)?;
+        if let Some(expected_type_schema) = &row.expected_type_schema {
+            canonical_type_schema(expected_type_schema)?;
+        }
     }
     let mut referenced_evidence = BTreeSet::new();
     for row in &tables.lexical {
@@ -4493,7 +4567,7 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
     let graph_failures = tables
         .projection_failure_reasons
         .iter()
-        .filter(|row| row.minimum_raw_owner_type == "SemanticGraph")
+        .filter(|row| row.minimum_raw_owner_type.as_deref() == Some("SemanticGraph"))
         .map(|row| row.reason_id.as_str())
         .collect::<BTreeSet<_>>();
     let required_graph_failures = REQUIRED_GRAPH_FAILURE_REASON_IDS
@@ -4506,24 +4580,50 @@ fn validate_registry_contracts(tables: &Tables, spec: &[u8]) -> Result<(), Bundl
             "one or more registered planning/elaboration failure ids disappeared",
         ));
     }
+    let whole_graph_failures = tables
+        .projection_failure_reasons
+        .iter()
+        .filter(|row| row.failure_site == "WholeGraph")
+        .map(|row| row.reason_id.as_str())
+        .collect::<BTreeSet<_>>();
+    for reason_id in REQUIRED_WHOLE_GRAPH_FAILURE_REASON_IDS {
+        if !whole_graph_failures.contains(reason_id) {
+            return Err(BundleError::new(
+                BundleErrorKind::ForeignKey,
+                format!("{reason_id} has no WholeGraph failure-site row"),
+            ));
+        }
+    }
     for row in &tables.projection_failure_reasons {
-        canonical_type_schema(&row.expected_type_schema)?;
-        let compatible = match row.minimum_raw_owner_type.as_str() {
-            "SemanticGraph" => row.expected_type_schema == "Performable",
-            "Referent" => matches!(
-                row.expected_type_schema.as_str(),
+        if !is_failure_class(&row.failure_class) {
+            return Err(BundleError::new(
+                BundleErrorKind::ClosedValue,
+                format!("failure {} has an unregistered class", row.reason_id),
+            ));
+        }
+        let Some(expected_type_schema) = row.expected_type_schema.as_deref() else {
+            // A `WholeGraph` row establishes no smusni type, so the
+            // owner/expected-type compatibility table below does not apply. Its
+            // shape is already fixed by the row invariant.
+            continue;
+        };
+        canonical_type_schema(expected_type_schema)?;
+        let compatible = match row.minimum_raw_owner_type.as_deref() {
+            Some("SemanticGraph") => expected_type_schema == "Performable",
+            Some("Referent") => matches!(
+                expected_type_schema,
                 "(Referents Entity)" | "(Referents Eventuality)"
             ),
-            "Eventuality" => row.expected_type_schema == "Content",
-            "Quantity" => row.expected_type_schema == "Quantity",
-            "MathExpression" => row.expected_type_schema == "MathExpression",
+            Some("Eventuality") => expected_type_schema == "Content",
+            Some("Quantity") => expected_type_schema == "Quantity",
+            Some("MathExpression") => expected_type_schema == "MathExpression",
             _ => false,
         };
         if !compatible {
             return Err(BundleError::new(
                 BundleErrorKind::Type,
                 format!(
-                    "fallback {} has an unknown or incompatible minimum raw owner boundary",
+                    "failure {} has an unknown or incompatible minimum raw owner boundary",
                     row.reason_id
                 ),
             ));
@@ -4669,12 +4769,12 @@ fn generate_policy_rust(tables: &Tables) -> Result<Vec<u8>, BundleError> {
     output.push_str("\nconst GENERATED_DISPOSITION_ROWS: &[GeneratedDispositionRow] = &[\n");
     for row in &tables.dispositions {
         let coordinate = parse_compiled_disposition_coordinate(&row.disposition_owner)?;
-        let target = (row.disposition != "TypedFallback")
+        let target = (row.disposition != FAILURE_DISPOSITION)
             .then_some(row.target_schema_or_fallback_reason.as_str());
-        let fallback = (row.disposition == "TypedFallback")
+        let failure = (row.disposition == FAILURE_DISPOSITION)
             .then_some(row.target_schema_or_fallback_reason.as_str());
         output.push_str(&format!(
-            "    GeneratedDispositionRow {{ category: CoordinateCategory::{}, surface: {:?}, kind: CoordinateKind::{}, member: {:?}, qualifier: {:?}, disposition: DispositionKind::{}, target_contract: {:?}, fallback_reason_id: {:?} }},\n",
+            "    GeneratedDispositionRow {{ category: CoordinateCategory::{}, surface: {:?}, kind: CoordinateKind::{}, member: {:?}, qualifier: {:?}, disposition: DispositionKind::{}, target_contract: {:?}, failure_reason_id: {:?} }},\n",
             coordinate.category,
             coordinate.surface,
             coordinate.kind,
@@ -4682,18 +4782,28 @@ fn generate_policy_rust(tables: &Tables) -> Result<Vec<u8>, BundleError> {
             coordinate.qualifier,
             row.disposition,
             target,
-            fallback,
+            failure,
         ));
     }
     output.push_str(
         "];\n\nconst GENERATED_PROJECTION_FAILURE_REASON_ROWS: &[GeneratedProjectionFailureReasonRow] = &[\n",
     );
     for row in &tables.projection_failure_reasons {
+        let site = match row.failure_site.as_str() {
+            "TypedPosition" => format!(
+                "GeneratedFailureSite::TypedPosition {{ expected_type_schema: {:?}, minimum_raw_owner_type: {:?} }}",
+                row.expected_type_schema.as_deref().unwrap_or_default(),
+                row.minimum_raw_owner_type.as_deref().unwrap_or_default(),
+            ),
+            _ => format!(
+                "GeneratedFailureSite::WholeGraph {{ raw_root_type: {:?} }}",
+                row.raw_root_type.as_deref().unwrap_or_default(),
+            ),
+        };
         output.push_str(&format!(
-            "    GeneratedProjectionFailureReasonRow {{ reason_id: {:?}, expected_type_schema: {:?}, minimum_raw_owner_type: {:?}, disposition_owner: {:?} }},\n",
+            "    GeneratedProjectionFailureReasonRow {{ reason_id: {:?}, site: {site}, failure_class: FailureClass::{}, disposition_owner: {:?} }},\n",
             row.reason_id,
-            row.expected_type_schema,
-            row.minimum_raw_owner_type,
+            row.failure_class,
             row.disposition_owner,
         ));
     }
@@ -6956,6 +7066,8 @@ fn is_reason_id(text: &str) -> bool {
         })
 }
 
+/// The five closed semantic dispositions plus the non-semantic `Failure`
+/// marker of specification section 14.2.
 #[requires(true)]
 #[ensures(true)]
 fn is_disposition(text: &str) -> bool {
@@ -6966,8 +7078,47 @@ fn is_disposition(text: &str) -> bool {
             | "NotationDefault"
             | "ProvenanceSuppression"
             | "DiagnosticCollection"
-            | "TypedFallback"
+            | FAILURE_DISPOSITION
     )
+}
+
+/// The section-14.2 marker recording that no route is taken at an owner.
+const FAILURE_DISPOSITION: &str = "Failure";
+
+/// The whole-graph failure site's only raw root type.
+const WHOLE_GRAPH_RAW_ROOT_TYPE: &str = "SemanticGraph";
+
+#[requires(true)]
+#[ensures(true)]
+fn is_failure_class(text: &str) -> bool {
+    matches!(
+        text,
+        "InvalidGraph" | "RouteUnavailable" | "TrackedSpecGap" | "ImplementationInvariant"
+    )
+}
+
+/// Exactly one of the two site shapes, with no slot of the other shape set.
+#[requires(true)]
+#[ensures(true)]
+fn is_projection_failure_site(
+    failure_site: &str,
+    expected_type_schema: Option<&str>,
+    minimum_raw_owner_type: Option<&str>,
+    raw_root_type: Option<&str>,
+) -> bool {
+    match failure_site {
+        "TypedPosition" => {
+            expected_type_schema.is_some_and(|value| !value.is_empty())
+                && minimum_raw_owner_type.is_some_and(|value| !value.is_empty())
+                && raw_root_type.is_none()
+        }
+        "WholeGraph" => {
+            expected_type_schema.is_none()
+                && minimum_raw_owner_type.is_none()
+                && raw_root_type == Some(WHOLE_GRAPH_RAW_ROOT_TYPE)
+        }
+        _ => false,
+    }
 }
 
 #[requires(true)]

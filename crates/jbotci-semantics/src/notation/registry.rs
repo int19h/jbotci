@@ -16,6 +16,7 @@ use bityzba::{data, ensures, invariant, new, requires};
 use super::sexpr::datum::parse_document;
 use super::sexpr::type_system::TypeExpr;
 use super::typed_ir::{DynamicValueFamily, ScopePolicy};
+use crate::completeness::model::{FailureClass, WHOLE_GRAPH_RAW_ROOT_TYPE};
 
 /// Closed semantic-surface owner category.
 #[invariant(true)]
@@ -96,10 +97,10 @@ pub(crate) enum DispositionKind {
     NotationDefault,
     ProvenanceSuppression,
     DiagnosticCollection,
-    TypedFallback,
+    Failure,
 }
 
-/// A generated nonfallback target contract. There is deliberately no public
+/// A generated route target contract. There is deliberately no public
 /// free-string constructor.
 #[invariant(!text.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -169,17 +170,35 @@ impl MinimumRawOwner {
     }
 }
 
-/// The exact validated disposition/reason join for one fallback.
-#[invariant(disposition_owner.owner().starts_with("Object:") || disposition_owner.owner().starts_with("ValueStruct:") || disposition_owner.owner().starts_with("Enum:") || disposition_owner.owner().starts_with("Document:"))]
+/// Where a registered failure is attributed in the raw model.
+///
+/// A `TypedPosition` site carries the parsed expected v0 type and the smallest
+/// model owner. A `WholeGraph` site establishes no smusni type at all, so it
+/// carries neither; its raw root is always `SemanticGraph`.
+// A trivial marker invariant: each shape's own fields already carry everything
+// this type asserts, so it keeps plain construction and matching.
+#[invariant(::TypedPosition { .. } => true)]
+#[invariant(::WholeGraph => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct FallbackBoundary {
-    disposition_owner: DispositionCoordinate,
-    reason_id: ProjectionFailureReasonId,
-    expected_type: TypeExpr,
-    minimum_raw_owner: MinimumRawOwner,
+pub(crate) enum RegisteredFailureSite {
+    TypedPosition {
+        expected_type: TypeExpr,
+        minimum_raw_owner: MinimumRawOwner,
+    },
+    WholeGraph,
 }
 
-impl FallbackBoundary {
+/// The exact validated disposition/reason join for one failure route.
+#[invariant(disposition_owner.owner().starts_with("Object:") || disposition_owner.owner().starts_with("ValueStruct:") || disposition_owner.owner().starts_with("Enum:") || disposition_owner.owner().starts_with("Document:"))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct FailureBoundary {
+    disposition_owner: DispositionCoordinate,
+    reason_id: ProjectionFailureReasonId,
+    site: RegisteredFailureSite,
+    class: FailureClass,
+}
+
+impl FailureBoundary {
     #[requires(true)]
     #[ensures(ret == &self.disposition_owner)]
     pub(crate) fn disposition_owner(&self) -> &DispositionCoordinate {
@@ -193,30 +212,50 @@ impl FallbackBoundary {
     }
 
     #[requires(true)]
-    #[ensures(ret == &self.expected_type)]
-    pub(crate) fn expected_type(&self) -> &TypeExpr {
-        &self.expected_type
+    #[ensures(ret == &self.site)]
+    pub(crate) fn site(&self) -> &RegisteredFailureSite {
+        &self.site
     }
 
     #[requires(true)]
-    #[ensures(ret == self.minimum_raw_owner)]
-    pub(crate) fn minimum_raw_owner(&self) -> MinimumRawOwner {
-        self.minimum_raw_owner
+    #[ensures(ret == self.class)]
+    pub(crate) fn class(&self) -> FailureClass {
+        self.class
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.site, RegisteredFailureSite::TypedPosition { .. }))]
+    pub(crate) fn expected_type(&self) -> Option<&TypeExpr> {
+        match &self.site {
+            RegisteredFailureSite::TypedPosition { expected_type, .. } => Some(expected_type),
+            RegisteredFailureSite::WholeGraph => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self.site, RegisteredFailureSite::TypedPosition { .. }))]
+    pub(crate) fn minimum_raw_owner(&self) -> Option<MinimumRawOwner> {
+        match &self.site {
+            RegisteredFailureSite::TypedPosition {
+                minimum_raw_owner, ..
+            } => Some(*minimum_raw_owner),
+            RegisteredFailureSite::WholeGraph => None,
+        }
     }
 }
 
 /// One fully joined runtime registry row.
-#[invariant(::NonFallback { kind, .. } => *kind != DispositionKind::TypedFallback)]
-#[invariant(::TypedFallback { .. } => true)]
+#[invariant(::Route { kind, .. } => *kind != DispositionKind::Failure)]
+#[invariant(::Failure { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RegisteredDisposition {
-    NonFallback {
+    Route {
         coordinate: DispositionCoordinate,
         kind: DispositionKind,
         target_contract: TargetContract,
     },
-    TypedFallback {
-        boundary: FallbackBoundary,
+    Failure {
+        boundary: FailureBoundary,
     },
 }
 
@@ -225,31 +264,29 @@ impl RegisteredDisposition {
     #[ensures(true)]
     pub(crate) fn coordinate(&self) -> &DispositionCoordinate {
         match self.as_data() {
-            data!(RegisteredDisposition::NonFallback { coordinate, .. }) => coordinate,
-            data!(RegisteredDisposition::TypedFallback { boundary }) => {
-                boundary.disposition_owner()
-            }
+            data!(RegisteredDisposition::Route { coordinate, .. }) => coordinate,
+            data!(RegisteredDisposition::Failure { boundary }) => boundary.disposition_owner(),
         }
     }
 
     #[requires(true)]
-    #[ensures(ret.is_some() == matches!(self.as_data(), data!(RegisteredDisposition::NonFallback { .. })))]
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(RegisteredDisposition::Route { .. })))]
     pub(crate) fn target_contract(&self) -> Option<&TargetContract> {
         match self.as_data() {
-            data!(RegisteredDisposition::NonFallback {
+            data!(RegisteredDisposition::Route {
                 target_contract,
                 ..
             }) => Some(target_contract),
-            data!(RegisteredDisposition::TypedFallback { .. }) => None,
+            data!(RegisteredDisposition::Failure { .. }) => None,
         }
     }
 
     #[requires(true)]
-    #[ensures(ret.is_some() == matches!(self.as_data(), data!(RegisteredDisposition::TypedFallback { .. })))]
-    pub(crate) fn fallback_boundary(&self) -> Option<&FallbackBoundary> {
+    #[ensures(ret.is_some() == matches!(self.as_data(), data!(RegisteredDisposition::Failure { .. })))]
+    pub(crate) fn failure_boundary(&self) -> Option<&FailureBoundary> {
         match self.as_data() {
-            data!(RegisteredDisposition::NonFallback { .. }) => None,
-            data!(RegisteredDisposition::TypedFallback { boundary }) => Some(boundary),
+            data!(RegisteredDisposition::Route { .. }) => None,
+            data!(RegisteredDisposition::Failure { boundary }) => Some(boundary),
         }
     }
 }
@@ -307,9 +344,9 @@ impl DispositionRegistry {
             if !seen_coordinates.insert(coordinate.clone()) {
                 return Err(RegistryBuildError::DuplicateCoordinate);
             }
-            let registered = if row.disposition == DispositionKind::TypedFallback {
+            let registered = if row.disposition == DispositionKind::Failure {
                 let reason_id = row
-                    .fallback_reason_id
+                    .failure_reason_id
                     .ok_or(RegistryBuildError::MissingReason)?;
                 if row.target_contract.is_some() {
                     return Err(RegistryBuildError::InvalidDispositionShape);
@@ -320,31 +357,48 @@ impl DispositionRegistry {
                 if reason.disposition_owner != coordinate.owner() {
                     return Err(RegistryBuildError::WrongReasonOwner);
                 }
-                let expected_type = parse_document(reason.expected_type_schema)
-                    .ok()
-                    .and_then(|datum| TypeExpr::parse(&datum).ok())
-                    .ok_or(RegistryBuildError::InvalidExpectedType)?;
-                let minimum_raw_owner =
-                    MinimumRawOwner::parse_generated(reason.minimum_raw_owner_type)
-                        .ok_or(RegistryBuildError::UnknownMinimumRawOwner)?;
+                let site = match reason.site {
+                    GeneratedFailureSite::TypedPosition {
+                        expected_type_schema,
+                        minimum_raw_owner_type,
+                    } => {
+                        let expected_type = parse_document(expected_type_schema)
+                            .ok()
+                            .and_then(|datum| TypeExpr::parse(&datum).ok())
+                            .ok_or(RegistryBuildError::InvalidExpectedType)?;
+                        let minimum_raw_owner =
+                            MinimumRawOwner::parse_generated(minimum_raw_owner_type)
+                                .ok_or(RegistryBuildError::UnknownMinimumRawOwner)?;
+                        RegisteredFailureSite::TypedPosition {
+                            expected_type,
+                            minimum_raw_owner,
+                        }
+                    }
+                    GeneratedFailureSite::WholeGraph { raw_root_type } => {
+                        if raw_root_type != WHOLE_GRAPH_RAW_ROOT_TYPE {
+                            return Err(RegistryBuildError::UnknownMinimumRawOwner);
+                        }
+                        RegisteredFailureSite::WholeGraph
+                    }
+                };
                 used_reasons.insert(reason_id);
-                new!(RegisteredDisposition::TypedFallback {
-                    boundary: new!(FallbackBoundary {
+                new!(RegisteredDisposition::Failure {
+                    boundary: new!(FailureBoundary {
                         disposition_owner: coordinate,
                         reason_id: ProjectionFailureReasonId::from_generated(reason_id),
-                        expected_type,
-                        minimum_raw_owner,
+                        site,
+                        class: reason.failure_class,
                     }),
                 })
             } else {
-                if row.fallback_reason_id.is_some() {
+                if row.failure_reason_id.is_some() {
                     return Err(RegistryBuildError::InvalidDispositionShape);
                 }
                 let target_contract = row
                     .target_contract
                     .filter(|target| !target.is_empty())
                     .ok_or(RegistryBuildError::InvalidDispositionShape)?;
-                new!(RegisteredDisposition::NonFallback {
+                new!(RegisteredDisposition::Route {
                     coordinate,
                     kind: row.disposition,
                     target_contract: TargetContract::from_generated(target_contract),
@@ -400,6 +454,41 @@ pub(crate) fn disposition_registry() -> &'static DispositionRegistry {
             GENERATED_PROJECTION_FAILURE_REASON_ROWS,
         )
         .expect("the generated smusni-v0 registry was validated before compilation")
+    })
+}
+
+/// The registered section-16.2 class of one emitted projection failure.
+///
+/// The class is registry data, never a per-site judgment: a renderer that
+/// emits `reason_id` reports exactly the class its reason row declares. An
+/// unregistered id is executable/registry drift, which is itself the
+/// `ImplementationInvariant` class rather than a silent default.
+#[requires(!reason_id.is_empty())]
+#[ensures(true)]
+pub(crate) fn registered_failure_class(reason_id: &str) -> FailureClass {
+    GENERATED_PROJECTION_FAILURE_REASON_ROWS
+        .iter()
+        .find(|row| row.reason_id == reason_id)
+        .map_or(FailureClass::ImplementationInvariant, |row| {
+            row.failure_class
+        })
+}
+
+/// Whether the generated reason table registers this id at all.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reason_id_is_registered(reason_id: &str) -> bool {
+    GENERATED_PROJECTION_FAILURE_REASON_ROWS
+        .iter()
+        .any(|row| row.reason_id == reason_id)
+}
+
+/// Whether the registered site of this reason is the whole graph.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reason_id_is_whole_graph(reason_id: &str) -> bool {
+    GENERATED_PROJECTION_FAILURE_REASON_ROWS.iter().any(|row| {
+        row.reason_id == reason_id && matches!(row.site, GeneratedFailureSite::WholeGraph { .. })
     })
 }
 
@@ -460,7 +549,21 @@ struct GeneratedDispositionRow {
     qualifier: Option<&'static str>,
     disposition: DispositionKind,
     target_contract: Option<&'static str>,
-    fallback_reason_id: Option<&'static str>,
+    failure_reason_id: Option<&'static str>,
+}
+
+/// Private generated failure-site tag used only for the validated join.
+#[invariant(::TypedPosition { .. } => true)]
+#[invariant(::WholeGraph { .. } => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedFailureSite {
+    TypedPosition {
+        expected_type_schema: &'static str,
+        minimum_raw_owner_type: &'static str,
+    },
+    WholeGraph {
+        raw_root_type: &'static str,
+    },
 }
 
 /// Private generated reason row used only for the validated join.
@@ -468,8 +571,8 @@ struct GeneratedDispositionRow {
 #[derive(Debug, Clone, Copy)]
 struct GeneratedProjectionFailureReasonRow {
     reason_id: &'static str,
-    expected_type_schema: &'static str,
-    minimum_raw_owner_type: &'static str,
+    site: GeneratedFailureSite,
+    failure_class: FailureClass,
     disposition_owner: &'static str,
 }
 
@@ -485,13 +588,13 @@ mod tests {
     fn generated_registry_round_trips_every_disposition_and_boundary() {
         let registry = disposition_registry();
         assert_eq!(registry.iter().len(), GENERATED_DISPOSITION_ROWS.len());
-        assert_eq!(registry.iter().len(), 882);
+        assert_eq!(registry.iter().len(), 884);
         assert_eq!(
             registry
                 .iter()
-                .filter(|row| row.fallback_boundary().is_some())
+                .filter(|row| row.failure_boundary().is_some())
                 .count(),
-            60
+            62
         );
         for row in registry.iter() {
             let coordinate = row.coordinate();
@@ -507,7 +610,7 @@ mod tests {
             assert_eq!(looked_up, row);
             assert_ne!(
                 row.target_contract().is_some(),
-                row.fallback_boundary().is_some()
+                row.failure_boundary().is_some()
             );
         }
     }
@@ -544,13 +647,26 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn generated_join_rejects_every_malformed_boundary_class() {
-        let fallback_index = GENERATED_DISPOSITION_ROWS
+        let failure_index = GENERATED_DISPOSITION_ROWS
             .iter()
-            .position(|row| row.disposition == DispositionKind::TypedFallback)
-            .expect("generated fallback");
-        let reason_id = GENERATED_DISPOSITION_ROWS[fallback_index]
-            .fallback_reason_id
-            .expect("fallback reason");
+            .position(|row| {
+                row.disposition == DispositionKind::Failure
+                    && row.failure_reason_id.is_some_and(|reason_id| {
+                        GENERATED_PROJECTION_FAILURE_REASON_ROWS
+                            .iter()
+                            .any(|reason| {
+                                reason.reason_id == reason_id
+                                    && matches!(
+                                        reason.site,
+                                        GeneratedFailureSite::TypedPosition { .. }
+                                    )
+                            })
+                    })
+            })
+            .expect("generated typed-position failure");
+        let reason_id = GENERATED_DISPOSITION_ROWS[failure_index]
+            .failure_reason_id
+            .expect("failure reason");
         let reason_index = GENERATED_PROJECTION_FAILURE_REASON_ROWS
             .iter()
             .position(|row| row.reason_id == reason_id)
@@ -574,7 +690,7 @@ mod tests {
         );
 
         let mut dispositions = GENERATED_DISPOSITION_ROWS.to_vec();
-        dispositions[fallback_index].fallback_reason_id = Some("smusni.projection.absent");
+        dispositions[failure_index].failure_reason_id = Some("smusni.projection.absent");
         assert_eq!(
             DispositionRegistry::try_from_generated(
                 &dispositions,
@@ -591,14 +707,20 @@ mod tests {
         );
 
         let mut reasons = GENERATED_PROJECTION_FAILURE_REASON_ROWS.to_vec();
-        reasons[reason_index].expected_type_schema = "(NotAType)";
+        reasons[reason_index].site = GeneratedFailureSite::TypedPosition {
+            expected_type_schema: "(NotAType)",
+            minimum_raw_owner_type: "SemanticGraph",
+        };
         assert_eq!(
             DispositionRegistry::try_from_generated(GENERATED_DISPOSITION_ROWS, &reasons),
             Err(RegistryBuildError::InvalidExpectedType)
         );
 
         let mut reasons = GENERATED_PROJECTION_FAILURE_REASON_ROWS.to_vec();
-        reasons[reason_index].minimum_raw_owner_type = "InventedOwner";
+        reasons[reason_index].site = GeneratedFailureSite::TypedPosition {
+            expected_type_schema: "Performable",
+            minimum_raw_owner_type: "InventedOwner",
+        };
         assert_eq!(
             DispositionRegistry::try_from_generated(GENERATED_DISPOSITION_ROWS, &reasons),
             Err(RegistryBuildError::UnknownMinimumRawOwner)
