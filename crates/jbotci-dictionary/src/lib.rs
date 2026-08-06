@@ -298,10 +298,14 @@ impl<'a> Dictionary<'a> {
     /// ([`WordType::rafsi_claim_kind`]).
     ///
     /// Only [`RafsiSource::Listed`] matches count. The other sources are the
-    /// universal forms synthesized for every gismu-like entry, and those can
-    /// never spell a short rafsi: a short rafsi is three letters, or four with
-    /// an apostrophe third (CVV, `sa'i`), whereas the universal forms are the
-    /// apostrophe-free four- and five-letter gismu prefixes.
+    /// universal forms synthesized for every gismu-like entry, and for
+    /// well-formed gismu those cannot spell a short rafsi: a short rafsi is
+    /// three letters, or four with an apostrophe third (CVV, `sa'i`), whereas
+    /// the universal forms of a CVCCV or CCVCV gismu are its apostrophe-free
+    /// four- and five-letter prefixes. Nothing forces a gismu-typed entry to
+    /// be spelled that way, though — [`Dictionary::validate`] does not check
+    /// word spelling against word type — so the filter is a real guard rather
+    /// than a formality.
     #[requires(!rafsi.is_empty())]
     #[ensures(
         ret.is_free()
@@ -319,15 +323,15 @@ impl<'a> Dictionary<'a> {
         "an official claim outranks any experimental one"
     )]
     #[ensures(
-        ret.claimant_words().len()
-            == self
-                .lookup_rafsi(rafsi)
+        ret.claimant_words().iter().map(String::as_str).eq(
+            self.lookup_rafsi(rafsi)
                 .filter(|matched| {
                     matched.source == RafsiSource::Listed
                         && Some(matched.entry.word_type.rafsi_claim_kind()) == ret.claim_kind()
                 })
-                .count(),
-        "the reported words are exactly the claimants of the winning standing"
+                .map(|matched| matched.entry.word)
+        ),
+        "the reported words are the claimants of the winning standing, in index order"
     )]
     fn rafsi_availability(&self, rafsi: &str) -> RafsiAvailability {
         let mut official = Vec::new();
