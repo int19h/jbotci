@@ -2,10 +2,11 @@
 //!
 //! Step 2 of the typed-kernel increment lands the scope structure before any
 //! consumer exists, precisely so that certifying it against the derivations the
-//! graph already carries is cheap to act on. Three properties hold everywhere
-//! and are model invariants; two do not, and this file pins exactly where they
-//! fail so the divergence is a reviewed number rather than a surprise for the
-//! host planner.
+//! graph already carries is cheap to act on. The structural properties hold
+//! everywhere and are model invariants; binder-introduction uniqueness and
+//! binder-use enclosure do not, because the record graph itself violates them,
+//! and this file pins exactly where so the divergence is a reviewed number
+//! rather than a surprise for the host planner.
 
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
