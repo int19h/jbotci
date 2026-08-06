@@ -918,3 +918,305 @@ mod tests {
         );
     }
 }
+
+/// Closed answer-polarity literals.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AnswerPolarity {
+    Yes,
+    No,
+    Unknown,
+}
+
+impl AnswerPolarity {
+    /// Parse a closed polarity literal.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(text, "Yes" | "No" | "Unknown"))]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "Yes" => Some(Self::Yes),
+            "No" => Some(Self::No),
+            "Unknown" => Some(Self::Unknown),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Yes => "Yes",
+            Self::No => "No",
+            Self::Unknown => "Unknown",
+        }
+    }
+}
+
+/// Closed answer-exhaustivity literals.
+///
+/// Omitting the operand is the canonical spelling of genuinely undetermined
+/// exhaustivity (section 12.2), so this enum has no third "unknown" member.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AnswerExhaustivity {
+    Exhaustive,
+    MentionSome,
+}
+
+impl AnswerExhaustivity {
+    /// Parse a closed exhaustivity literal.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(text, "Exhaustive" | "MentionSome"))]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "Exhaustive" => Some(Self::Exhaustive),
+            "MentionSome" => Some(Self::MentionSome),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Exhaustive => "Exhaustive",
+            Self::MentionSome => "MentionSome",
+        }
+    }
+}
+
+/// Closed label-level literals.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum LabelLevel {
+    Item,
+    Division,
+}
+
+impl LabelLevel {
+    /// Parse a closed label-level literal.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(text, "Item" | "Division"))]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "Item" => Some(Self::Item),
+            "Division" => Some(Self::Division),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Item => "Item",
+            Self::Division => "Division",
+        }
+    }
+}
+
+/// Closed endpoint-inclusion literals.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum EndpointInclusion {
+    Open,
+    Closed,
+}
+
+impl EndpointInclusion {
+    /// Parse a closed endpoint-inclusion literal.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(text, "Open" | "Closed"))]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "Open" => Some(Self::Open),
+            "Closed" => Some(Self::Closed),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Open => "Open",
+            Self::Closed => "Closed",
+        }
+    }
+}
+
+/// Closed deictic-proximity literals.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Proximity {
+    Proximal,
+    Medial,
+    Distal,
+}
+
+impl Proximity {
+    /// Parse a closed proximity literal.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(text, "Proximal" | "Medial" | "Distal"))]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "Proximal" => Some(Self::Proximal),
+            "Medial" => Some(Self::Medial),
+            "Distal" => Some(Self::Distal),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Proximal => "Proximal",
+            Self::Medial => "Medial",
+            Self::Distal => "Distal",
+        }
+    }
+}
+
+/// Closed lexical scope-policy literals.
+///
+/// Section 6.3 makes these a property of the semantic place; missing or
+/// contradictory policy metadata fails closed rather than being guessed.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum LexicalScopePolicy {
+    Extensional,
+    Intensional,
+    Opaque,
+}
+
+impl LexicalScopePolicy {
+    /// Parse a closed scope-policy literal.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(text, "Extensional" | "Intensional" | "Opaque"))]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "Extensional" => Some(Self::Extensional),
+            "Intensional" => Some(Self::Intensional),
+            "Opaque" => Some(Self::Opaque),
+            _ => None,
+        }
+    }
+
+    /// Return the canonical spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Extensional => "Extensional",
+            Self::Intensional => "Intensional",
+            Self::Opaque => "Opaque",
+        }
+    }
+}
+
+/// NFC text carried by a `Text` literal.
+#[invariant(text.nfc().eq(text.chars()))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TextLiteral {
+    text: String,
+}
+
+impl TextLiteral {
+    /// Normalize caller text for kernel construction.
+    #[requires(true)]
+    #[ensures(ret.as_str().nfc().eq(ret.as_str().chars()))]
+    pub fn new(text: impl AsRef<str>) -> Self {
+        new!(TextLiteral {
+            text: text.as_ref().nfc().collect(),
+        })
+    }
+
+    /// Borrow the normalized text.
+    #[requires(true)]
+    #[ensures(ret.nfc().eq(ret.chars()))]
+    pub fn as_str(&self) -> &str {
+        &self.text
+    }
+}
+
+/// A member of the versioned generated scale table.
+///
+/// The table itself lives above the kernel with the rest of the generated
+/// registries, so the kernel enforces the spelling namespace — a scale literal
+/// is a PascalCase atom, never a minted lowercase root — and the registry layer
+/// enforces membership.
+#[invariant(is_pascal_case_symbol(&text))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ScaleName {
+    text: String,
+}
+
+impl ScaleName {
+    /// Parse a scale-literal spelling.
+    #[requires(true)]
+    #[ensures(ret.is_ok() == is_pascal_case_symbol(text))]
+    pub fn try_new(text: &str) -> Result<Self, TypeParseError> {
+        if !is_pascal_case_symbol(text) {
+            return Err(TypeParseError::new("a scale literal is a PascalCase atom"));
+        }
+        Ok(new!(ScaleName {
+            text: text.to_owned(),
+        }))
+    }
+
+    /// Borrow the canonical spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(&self) -> &str {
+        &self.text
+    }
+}
+
+/// A relation from a versioned generated table, such as an indicator relation.
+///
+/// Generated relation tables are closed by the registry layer, not by the
+/// kernel; what the kernel enforces is that such a relation is applied only
+/// through a declared signature carried at the application site.
+#[invariant(is_pascal_case_symbol(&text))]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RegisteredName {
+    text: String,
+}
+
+impl RegisteredName {
+    /// Parse a generated relation spelling.
+    #[requires(true)]
+    #[ensures(ret.is_ok() == is_pascal_case_symbol(text))]
+    pub fn try_new(text: &str) -> Result<Self, TypeParseError> {
+        if !is_pascal_case_symbol(text) {
+            return Err(TypeParseError::new(
+                "a generated relation name is a PascalCase atom",
+            ));
+        }
+        Ok(new!(RegisteredName {
+            text: text.to_owned(),
+        }))
+    }
+
+    /// Borrow the canonical spelling.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn as_str(&self) -> &str {
+        &self.text
+    }
+}
+
+/// Validate a PascalCase registered spelling.
+#[requires(true)]
+#[ensures(ret -> is_symbol_name(text))]
+pub(crate) fn is_pascal_case_symbol(text: &str) -> bool {
+    text.nfc().eq(text.chars())
+        && is_symbol_name(text)
+        && text.chars().next().is_some_and(char::is_uppercase)
+}

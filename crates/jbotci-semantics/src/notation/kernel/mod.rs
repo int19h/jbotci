@@ -9,5 +9,25 @@
 //! over the same value.
 
 pub mod apply;
+pub mod binder;
+pub mod content;
+pub mod document;
+pub mod error;
+pub mod intrinsic;
 pub mod lexicon;
+pub mod performable;
+pub mod predicate;
 pub mod types;
+pub mod value;
+
+pub use binder::{
+    Bind, BinderSet, Category, Declaration, Lambda, Let, LetRec, RecursiveDeclaration,
+    TypedParameter, free_binders_of,
+};
+pub use content::{AnswerSelection, BinaryOp, Content, JunctionOp, QuantifierOp, Query};
+pub use document::KernelDocument;
+pub use error::KernelTypeError;
+pub use intrinsic::Intrinsic;
+pub use performable::{Act, Discourse, Performable, TranscriptEntry};
+pub use predicate::{PlaceFill, PredTerm};
+pub use value::{CollectionKind, FnValue, Literal, Operand, RefComp, Value};

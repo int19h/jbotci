@@ -146,6 +146,24 @@ impl PredicateApplicationResult {
     pub fn computed_domains(&self) -> &[Vec<PlaceLabel>] {
         &self.computed_domains
     }
+
+    /// Report whether an unknown numbered tail survives the application.
+    #[requires(true)]
+    #[ensures(ret == self.open_numbered_tail)]
+    pub fn has_open_numbered_tail(&self) -> bool {
+        self.open_numbered_tail
+    }
+
+    /// Return the statically surviving row of the applied term.
+    ///
+    /// Computed domains stay reserved rather than consumed, so their candidate
+    /// slots remain in this row: answer substitution is what decides which one
+    /// a computed fill took.
+    #[requires(true)]
+    #[ensures(ret.slots().len() == self.remaining_slots.len())]
+    pub fn remaining_row(&self) -> Row {
+        Row::new(self.remaining_slots.clone(), self.open_numbered_tail)
+    }
 }
 /// An ordered function signature.
 #[invariant(true)]
@@ -161,6 +179,30 @@ impl FunctionSignature {
     #[ensures(ret.parameters.len() == old(parameters.len()) && ret.result == old(result.clone()))]
     pub fn new(parameters: Vec<TypeExpr>, result: TypeExpr) -> Self {
         Self { parameters, result }
+    }
+
+    /// Borrow the ordered parameter types.
+    #[requires(true)]
+    #[ensures(ret.len() == self.parameters.len())]
+    pub fn parameters(&self) -> &[TypeExpr] {
+        &self.parameters
+    }
+
+    /// Borrow the declared result type.
+    #[requires(true)]
+    #[ensures(ret == &self.result)]
+    pub fn result(&self) -> &TypeExpr {
+        &self.result
+    }
+
+    /// Return the `Fn` type this signature denotes.
+    #[requires(true)]
+    #[ensures(matches!(ret, TypeExpr::Function { .. }))]
+    pub fn function_type(&self) -> TypeExpr {
+        TypeExpr::Function {
+            parameters: self.parameters.clone(),
+            result: Box::new(self.result.clone()),
+        }
     }
 
     /// Unify every argument against the complete signature.
@@ -193,7 +235,7 @@ impl ApplicationTypeError {
     /// Construct a nonempty application failure.
     #[requires(true)]
     #[ensures(!ret.message.is_empty())]
-    fn new(message: impl Into<String>) -> Self {
+    pub(super) fn new(message: impl Into<String>) -> Self {
         let message = message.into();
         assert!(!message.is_empty(), "application errors require a message");
         new!(ApplicationTypeError { message })

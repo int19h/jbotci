@@ -7,6 +7,7 @@ mod identity;
 /// a compatibility surface; see `docs/smusni/internal-raw.md`.
 #[doc(hidden)]
 pub mod internal_raw;
+pub mod kernel_printer;
 pub mod planner;
 pub mod renderer;
 pub mod structural;

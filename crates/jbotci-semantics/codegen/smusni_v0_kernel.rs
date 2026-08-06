@@ -5,6 +5,9 @@
 //! sources resolves the same way in the build script as it does in the crate.
 
 #![allow(dead_code)]
+// The build script compiles only the syntax and type surfaces it mints from, so
+// the kernel's own convenience re-exports are unused here.
+#![allow(unused_imports)]
 
 #[path = "../src/notation/kernel/mod.rs"]
 pub mod kernel;
