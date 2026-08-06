@@ -564,9 +564,10 @@ pub fn scope_source_orders_are_unique_per_region(
     })
 }
 
+/// Whether `region` is `ancestor` or lies below it in the region tree.
 #[requires(true)]
 #[ensures(!ret || regions.contains_key(&region))]
-fn scope_region_is_descendant(
+pub(crate) fn scope_region_is_descendant(
     regions: &BTreeMap<ScopeRegionId, ScopeRegion>,
     region: ScopeRegionId,
     ancestor: ScopeRegionId,

@@ -1077,8 +1077,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         item
     }
 
-    #[requires(true)]
-    #[ensures(true)]
+    /// Lower one text root into `utterance_id`, inside the caller's region.
+    #[requires(utterance_id.object_kind() == crate::model::SemanticObjectKind::Utterance)]
+    #[ensures(ret.as_ref().is_ok_and(|id| *id == utterance_id) || ret.is_err())]
     fn build_utterance_for_generated_text_root_content(
         &mut self,
         root: GeneratedTextRoot<'tree>,

@@ -11,11 +11,14 @@
 //! formula (see `wrap_formula_with_generated_implicit_existential_ordered`), so
 //! a push/pop around quantifier construction is not available. The regions those
 //! constructs introduce are therefore declared by [`ScopeRecorder::finalize`],
-//! one pass the recorder itself runs over the finished objects, which refines
-//! the walk-recorded skeleton downwards: an object's home may move deeper into
-//! the structure the walk already placed it in, and never sideways or outwards.
-//! Regions the walk did record are reused by their owner locus rather than
-//! duplicated.
+//! one pass the recorder itself runs over the finished objects. Regions the walk
+//! did record are reused by their owner locus rather than duplicated.
+//!
+//! Authority is split at the segment: the walk decides which performed act,
+//! quotation, or document a value belongs to, because no traversal of a shared
+//! DAG can recover that; the structure decides the position within that segment,
+//! because inside one act the builder's stamp predates the construct that
+//! encloses it.
 
 use super::*;
 
@@ -344,9 +347,13 @@ impl ScopeRecorder {
             .iter()
             .filter_map(|(id, region)| {
                 let object = region.owner.object?;
+                // What an object is *defined by*: a reference to the object
+                // from inside one of these is a bound candidate, not a use a
+                // definition would have to be hosted to cover.
                 matches!(
                     region.owner.site.as_data(),
                     data!(ScopeSite::Body)
+                        | data!(ScopeSite::Property)
                         | data!(ScopeSite::Content)
                         | data!(ScopeSite::RelativeClause { .. })
                 )
@@ -367,7 +374,8 @@ impl ScopeRecorder {
             } else if binder_regions.contains_key(&occurrence.target) {
                 ScopeUseRole::BinderUse
             } else if definition_regions.iter().any(|(definition, defined)| {
-                *defined == occurrence.target && region_is_descendant(&regions, region, *definition)
+                *defined == occurrence.target
+                    && scope_region_is_descendant(&regions, region, *definition)
             }) {
                 ScopeUseRole::DefinitionInternal
             } else {
@@ -392,31 +400,6 @@ impl ScopeRecorder {
             uses,
         })
     }
-}
-
-#[requires(true)]
-#[ensures(!ret || regions.contains_key(&region))]
-fn region_is_descendant(
-    regions: &BTreeMap<ScopeRegionId, ScopeRegion>,
-    region: ScopeRegionId,
-    ancestor: ScopeRegionId,
-) -> bool {
-    let mut current = Some(region);
-    let mut steps = 0;
-    while let Some(next) = current {
-        if next == ancestor {
-            return regions.contains_key(&region);
-        }
-        let Some(node) = regions.get(&next) else {
-            return false;
-        };
-        current = node.parent;
-        steps += 1;
-        if steps > regions.len() {
-            return false;
-        }
-    }
-    false
 }
 
 /// Whether a locus is evaluated under the binders its owner introduces.
@@ -498,8 +481,6 @@ impl ScopeFinalization<'_> {
         }
     }
 
-    /// The introduction region.
-    ///
     /// The introduction region.
     ///
     /// The two records disagree in exactly one interesting way. The walk knows
