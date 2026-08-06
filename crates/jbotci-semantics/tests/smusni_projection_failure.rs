@@ -128,17 +128,55 @@ fn an_unregistered_relation_reduction_is_renderer_backlog() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn an_unlicensed_higher_order_crossing_is_a_tracked_spec_gap() {
-    // A defined zei-lujvo description crosses an order version 0 does not
-    // license at all, which is language-design backlog rather than renderer
-    // backlog, and section 14.4 forbids counting it toward completeness.
+fn an_unlicensed_higher_order_crossing_is_renderer_backlog() {
+    // A defined zei-lujvo description reaches the higher-order crossing
+    // boundary. That reason's population is dominated by section-11 designed
+    // crossings — an ordinary `lo ka ce'u ...` property reaches it too — so the
+    // reason is renderer backlog, not a claim that version 0 cannot express the
+    // construction. If the zei-description subcase later proves genuinely
+    // unrouted it earns its own reason id under section 14.2's split rule.
     let graph = graph_of("lo abu zei sance cu barda");
     let failed = failed_projection(&graph);
-    assert!(classes_of(&failed).contains(&FailureClass::TrackedSpecGap));
+    let crossing = failed
+        .failures
+        .iter()
+        .find(|failure| failure.reason_id == "smusni.projection.higher-order-crossing-unlicensed")
+        .unwrap_or_else(|| panic!("{:?}", failed.failures));
+    assert_eq!(crossing.failure_class, FailureClass::RouteUnavailable);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn an_unspecified_abstraction_about_a_raised_operand_is_a_tracked_spec_gap() {
+    // `tu'a` is the construction section 14.4 names a tracked spec gap: the
+    // source withholds which abstraction about the operand is meant, and no
+    // version 0 crossing can carry that without inventing content. This is
+    // language-design backlog, and section 14.4 forbids counting it toward
+    // completeness or approximating it with a plausible predicate.
+    let graph = graph_of("mi djica tu'a do");
+    let failed = failed_projection(&graph);
+    let raised = failed
+        .failures
+        .iter()
+        .find(|failure| failure.reason_id == "smusni.projection.abstraction-about-unspecified")
+        .unwrap_or_else(|| panic!("{:?}", failed.failures));
+    assert_eq!(raised.failure_class, FailureClass::TrackedSpecGap);
+    // The record points at the raising sumti itself rather than at the whole
+    // input, and names the raised referent as its failing owner.
+    assert!(raised.owner.is_some(), "the record names its failing owner");
+    assert_eq!(
+        &"mi djica tu'a do"[raised.span.byte_start..raised.span.byte_end],
+        "tu'a do"
+    );
+    // An ordinary event-facet decline is a different boundary with a different
+    // reason, so splitting `tu'a` out did not widen the tracked gap.
     assert!(
-        failed.failures.iter().any(
-            |failure| failure.reason_id == "smusni.projection.higher-order-crossing-unlicensed"
-        ),
+        failed
+            .failures
+            .iter()
+            .all(|failure| failure.reason_id
+                != "smusni.projection.event-facet-reduction-unregistered"),
         "{:?}",
         failed.failures
     );
@@ -201,6 +239,7 @@ fn implementation_invariant_failures_are_not_corpus_reachable() {
     for text in [
         "su'o gerku cu bajra",
         "lo abu zei sance cu barda",
+        "mi djica tu'a do",
         "mi cusku lu mi prami do li'u",
         "ro da poi gerku cu bajra",
         "coi do",

@@ -19,9 +19,12 @@ of the retired `TypedFallback` value.
 
 The specification remains ahead of this implementation in coverage, which is
 what the support matrix and the limitations list below describe. It names
-`tu'a`, `co'e`, and `do'e` as tracked spec gaps (section 14.4); behaviorally
-they are part of the catch-all below, and no compact route may be attempted
-for them until the gap is closed.
+`tu'a`, `co'e`, and `do'e` as tracked spec gaps (section 14.4), and no compact
+route may be attempted for them until the gap is closed. `tu'a` has its own
+`TrackedSpecGap` reason, `smusni.projection.abstraction-about-unspecified`, so
+its records are not confused with the renderer backlog it used to share a
+reason with; `co'e` and `do'e` are still behaviorally part of the catch-all
+below.
 
 ## The failure surface
 
@@ -269,8 +272,8 @@ another. The per-edge identity in the code is justified by the typed law tests
 over the channel representations, not by these numbers.
 
 Of the four section-16.2 classes, three are reachable from real input today:
-`RouteUnavailable` for most families, `TrackedSpecGap` for the unlicensed
-higher-order crossing, and `InvalidGraph` for an ill-scoped binder (the frozen
+`RouteUnavailable` for most families, `TrackedSpecGap` for `tu'a` sumti raising
+(`mi djica tu'a do`), and `InvalidGraph` for an ill-scoped binder (the frozen
 `question-multiple-domains` witness `pau xo ma mo xu`).
 `ImplementationInvariant` is not reachable, which is what it should mean, and
 `crates/jbotci-semantics/tests/smusni_projection_failure.rs` asserts that

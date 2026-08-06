@@ -758,6 +758,7 @@ fn derived_fact_coordinates() -> BTreeSet<SemanticCoordinate> {
         "simultaneous-termset-unlicensed",
         "modal-tag-reduction-unregistered",
         "event-facet-reduction-unregistered",
+        "abstraction-about-unspecified",
         "abstraction-crossing-unlicensed",
         "quantity-reduction-unregistered",
         "math-reduction-unregistered",

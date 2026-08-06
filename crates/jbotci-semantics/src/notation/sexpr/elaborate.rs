@@ -165,6 +165,7 @@ pub(super) enum CompactFallbackCause {
     UnrepresentableRecursiveValue,
     DefinitionTypeUnrepresentable,
     EventualityFacets,
+    AbstractionAboutUnspecified,
     QuestionSlotFields,
     AskForceWithoutQuestion,
     MathSideFields,
@@ -222,6 +223,7 @@ impl CompactFallbackCause {
                 "smusni.projection.higher-order-crossing-unlicensed"
             }
             Self::EventualityFacets => "smusni.projection.event-facet-reduction-unregistered",
+            Self::AbstractionAboutUnspecified => "smusni.projection.abstraction-about-unspecified",
             Self::QuestionSlotFields | Self::AskForceWithoutQuestion => {
                 "smusni.projection.question-domain-or-answer-mismatch"
             }
@@ -303,6 +305,11 @@ impl CompactFallbackCause {
                 "the shared definition's type crosses an unlicensed higher order"
             }
             Self::EventualityFacets => "these event facets have no registered compact reduction",
+            Self::AbstractionAboutUnspecified => {
+                "`tu'a` withholds which abstraction about the operand is meant, and version 0 \
+                 specifies no faithful underspecified crossing for it (tracked spec gap, \
+                 specification section 14.4)"
+            }
             Self::QuestionSlotFields => {
                 "the question's domain or answer slot does not match a compact form"
             }
@@ -2038,7 +2045,22 @@ impl Elaborator<'_> {
                 )
             };
         }
-        self.fallback_object(id, bound, active, CompactFallbackCause::EventualityFacets)
+        // `tu'a` is the one construction specification section 14.4 names a
+        // tracked spec gap: its descriptor deliberately withholds *which*
+        // abstraction about the operand is meant, and version 0 specifies no
+        // faithful underspecified crossing to carry that. Its decline is
+        // therefore language-design backlog, not the renderer backlog the
+        // ordinary event-facet boundary reports, so it takes its own reason.
+        let cause = if node
+            .descriptor
+            .as_ref()
+            .is_some_and(|descriptor| descriptor.kind == DescriptorKind::AbstractionAbout)
+        {
+            CompactFallbackCause::AbstractionAboutUnspecified
+        } else {
+            CompactFallbackCause::EventualityFacets
+        };
+        self.fallback_object(id, bound, active, cause)
     }
 
     /// Render complete typed questions; use `Ask λ` only under its exact default.

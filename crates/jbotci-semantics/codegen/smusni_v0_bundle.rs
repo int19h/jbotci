@@ -56,10 +56,11 @@ const WITNESS_COUNT: usize = 18;
 const SCOPE_POLICY_ROW_COUNT: usize = 8;
 const EXTENSIONAL_SCOPE_POLICY_COUNT: usize = 6;
 const INTENSIONAL_SCOPE_POLICY_COUNT: usize = 2;
-const DISPOSITION_ROW_COUNT: usize = 884;
-const PROJECTION_FAILURE_REASON_ROW_COUNT: usize = 62;
+const DISPOSITION_ROW_COUNT: usize = 885;
+const PROJECTION_FAILURE_REASON_ROW_COUNT: usize = 63;
 
 const REQUIRED_GRAPH_FAILURE_REASON_IDS: &[&str] = &[
+    "smusni.projection.abstraction-about-unspecified",
     "smusni.projection.abstraction-crossing-unlicensed",
     "smusni.projection.binder-does-not-dominate-use",
     "smusni.projection.computed-fill-domain-noninjective",
