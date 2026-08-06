@@ -755,6 +755,128 @@ fn a_lambda_at_a_polymorphic_position_prints_its_close() {
     );
 }
 
+/// Build the one-place property `(λ ((name (Referents Entity))) (root name))`.
+///
+/// Each caller needs its own parameter spelling: a document introduces every
+/// name exactly once, so two properties in one document cannot share one.
+#[requires(!root.is_empty() && name.starts_with('$'))]
+#[ensures(true)]
+fn one_place_property(root: &str, name: &str) -> FnValue {
+    let body = Content::close(
+        PredTerm::applied(
+            lexical(root, 1),
+            vec![PlaceFill::plain(Operand::Value(Value::bound(
+                variable(name),
+                referents(entity()),
+            )))],
+        )
+        .expect("filling x1 is well typed"),
+    )
+    .expect("the remaining row is closeable");
+    FnValue::lambda(
+        Lambda::new(
+            vec![TypedParameter::new(variable(name), referents(entity()))],
+            Operand::Content(body),
+        )
+        .expect("a one-parameter lambda is well formed"),
+    )
+}
+
+/// Collapse the renderer's line breaks and indentation to single spaces.
+///
+/// The canonical forms quoted below are the specification's one-line spellings;
+/// what these tests are about is which crossings print, not where the renderer
+/// wraps.
+#[requires(true)]
+#[ensures(!ret.contains('\n'))]
+fn collapsed(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Assert the section 9.4 application `((Exactly 3 restriction) scope)`.
+///
+/// The restriction is an operand of the registered `Exactly` node; the nuclear
+/// scope is an argument of the `Apply` node over the generalized quantifier it
+/// returns. Those are the two construction shapes a property occupies in one
+/// and the same quantifier application.
+#[requires(true)]
+#[ensures(true)]
+fn quantified_assertion(restriction: FnValue, scope: FnValue) -> KernelDocument {
+    let quantifier = FnValue::intrinsic(
+        Intrinsic::Exactly,
+        vec![
+            Operand::Value(Value::literal(Literal::integer(3))),
+            Operand::Function(restriction),
+        ],
+    )
+    .expect("Exactly takes a count and a restriction property");
+    let application = Content::apply(quantifier, vec![Operand::Function(scope)])
+        .expect("a generalized quantifier applies to a nuclear scope");
+    KernelDocument::new(Performable::Act(Act::assert(application)))
+        .expect("the document is closed and well scoped")
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_quantifier_restriction_prints_the_canonical_property_of_section_9_4() {
+    // Section 14.1 declares `Exactly`'s restriction operand a `PureProperty<T>`,
+    // so section 5.2's omit-exactly-when rule licenses dropping the `Close` in
+    // its body, and section 9.4's canonical document prints the property as
+    // `(Exactly 3 (λ (($x ...)) (gerku $x)))`. This is asserted against the
+    // printed text rather than through the round-trip oracle, which cannot see
+    // this class at all: the acceptance grammar is untyped, so the spelling with
+    // the explicit `Close` is just as much a fixed point of parse-then-print as
+    // the canonical one, and reprint stability holds for both.
+    let document = quantified_assertion(
+        one_place_property("gerku", "$x"),
+        one_place_property("bajra", "$y"),
+    );
+    let text = round_trip(&document);
+    assert!(
+        collapsed(&text).contains("(Exactly 3 (λ (($x (Referents Entity))) (gerku $x)))"),
+        "a declared property operand prints section 9.4's canonical form:\n{text}"
+    );
+    assert!(
+        !text.contains("Close"),
+        "every position in this application declares Content:\n{text}"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn both_construction_shapes_of_one_application_print_alike() {
+    // The kernel has no partial application of a registered callable, so the two
+    // shapes a property takes in one section 9.4 application are the `Intrinsic`
+    // node's restriction operand and the `Apply` node's nuclear-scope argument.
+    // Only the second used to carry a declared type, so the same property
+    // printed differently depending on which shape a route built it into.
+    // Swapping the two properties must not change how either one prints.
+    let dog = "(λ (($x (Referents Entity))) (gerku $x))";
+    let runner = "(λ (($y (Referents Entity))) (bajra $y))";
+    let restricted = collapsed(&print_kernel_document(
+        &quantified_assertion(
+            one_place_property("gerku", "$x"),
+            one_place_property("bajra", "$y"),
+        ),
+        &[],
+    ));
+    let swapped = collapsed(&print_kernel_document(
+        &quantified_assertion(
+            one_place_property("bajra", "$y"),
+            one_place_property("gerku", "$x"),
+        ),
+        &[],
+    ));
+    for text in [&restricted, &swapped] {
+        assert!(
+            text.contains(dog) && text.contains(runner),
+            "both shapes print the same property text:\n{text}"
+        );
+    }
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]

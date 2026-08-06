@@ -635,6 +635,301 @@ impl Intrinsic {
         }
     }
 
+    /// Project the operand types section 14.1 declares for one instantiation.
+    ///
+    /// This is the projection view of the table [`Intrinsic::instantiate`]
+    /// checks, and the two MUST be edited together: `instantiate` decides
+    /// whether an application is legal, this reports what the specification
+    /// declared each accepted operand to be. They are kept adjacent, arm for arm
+    /// and in the same order, so that pairing obligation stays visible. This
+    /// method decides nothing and rejects nothing; an instantiation
+    /// `instantiate` would refuse simply projects `None` wherever no declaration
+    /// can be read off it.
+    ///
+    /// An entry is `Some` exactly where section 14.1 fixes that operand's type,
+    /// either outright or as a schema whose variables this instantiation
+    /// resolves. It is `None` where the declaration leaves the operand free: a
+    /// bare schema variable (`Singleton`'s `T`, `=`'s `T`, `Denotes`' denoted
+    /// value, `Label`'s target, a comparison's ordered `T`) or one of the closed
+    /// overload sets (`Quotable`, `Utterable`, sign-or-token, set-or-list, the
+    /// two `×` readings).
+    ///
+    /// A projected type is an *expectation*: a printer may drop a crossing the
+    /// reader reinstates from it. A schema variable is therefore resolved only
+    /// from surface that survives such an elision — another operand, or a
+    /// property lambda's typed parameter list, which always prints in full. The
+    /// element type of a `∈`, `∪`, `∩`, or `×` set operand is readable only from
+    /// that same collection, which is the one surface the expectation would let
+    /// a printer strip, so those entries stay `None` even though the operand
+    /// must be a set.
+    #[requires(true)]
+    #[ensures(ret.len() == argument_types.len())]
+    pub fn declared_operand_types(self, argument_types: &[TypeExpr]) -> Vec<Option<TypeExpr>> {
+        let arity = argument_types.len();
+        match self {
+            // `Singleton : T -> Referents<T>` constrains nothing.
+            Self::Singleton => free(arity),
+            Self::Reify => fit(vec![Some(atom(TypeAtom::Content))], arity),
+            Self::QuestionOf => fit(
+                vec![same_shape(argument_types.first(), |value| {
+                    matches!(value, TypeExpr::Query(_))
+                })],
+                arity,
+            ),
+            // A sign-or-token overload set.
+            Self::InterpretContent => free(arity),
+            Self::Among | Self::Combine => {
+                let common = match argument_types {
+                    [left, right]
+                        if matches!(left, TypeExpr::Referents(_))
+                            && matches!(right, TypeExpr::Referents(_)) =>
+                    {
+                        common_type(left, right)
+                    }
+                    _ => None,
+                };
+                fit(vec![common.clone(), common], arity)
+            }
+            Self::Deictic => fit(
+                vec![
+                    Some(atom(TypeAtom::Proximity)),
+                    Some(atom(TypeAtom::DeicticGround)),
+                ],
+                arity,
+            ),
+            Self::Speaker
+            | Self::Audience
+            | Self::This
+            | Self::That
+            | Self::Yonder
+            | Self::Now
+            | Self::Here
+            | Self::CurrentGround => free(arity),
+            Self::Measure => fit(
+                vec![
+                    Some(atom(TypeAtom::Content)),
+                    Some(referents(atom(TypeAtom::Scale))),
+                ],
+                arity,
+            ),
+            Self::TruthValue => fit(
+                vec![
+                    Some(atom(TypeAtom::Content)),
+                    Some(referents(atom(TypeAtom::Epistemology))),
+                ],
+                arity,
+            ),
+            Self::ExperienceOf => fit(
+                vec![
+                    Some(atom(TypeAtom::Content)),
+                    Some(referents(atom(TypeAtom::Entity))),
+                ],
+                arity,
+            ),
+            Self::ProcessOf | Self::ActivityOf => fit(
+                vec![
+                    Some(atom(TypeAtom::Content)),
+                    Some(referents(atom(TypeAtom::Eventuality))),
+                ],
+                arity,
+            ),
+            Self::Concept => fit(
+                vec![
+                    Some(atom(TypeAtom::Content)),
+                    Some(referents(atom(TypeAtom::Entity))),
+                ],
+                arity,
+            ),
+            // The subject is any reference; its referent type is the operand's
+            // own and no crossing is keyed on it.
+            Self::Abstract => fit(
+                vec![
+                    Some(atom(TypeAtom::Content)),
+                    same_shape(argument_types.get(1), |value| {
+                        matches!(value, TypeExpr::Referents(_))
+                    }),
+                ],
+                arity,
+            ),
+            Self::OpaqueQuote | Self::NameSign => fit(vec![Some(atom(TypeAtom::Text))], arity),
+            Self::SentenceSign => fit(vec![Some(atom(TypeAtom::Content))], arity),
+            // A transcript-entry-or-discourse overload set.
+            Self::StructuredQuote => free(arity),
+            Self::SetOf => fit(vec![declared_property(argument_types.first())], arity),
+            // A set-or-list overload set.
+            Self::Card => free(arity),
+            Self::Interval => fit(
+                vec![
+                    None,
+                    None,
+                    Some(atom(TypeAtom::EndpointInclusion)),
+                    Some(atom(TypeAtom::EndpointInclusion)),
+                ],
+                arity,
+            ),
+            Self::ZipWith => {
+                let Some((relation, lists)) = argument_types.split_first() else {
+                    return free(arity);
+                };
+                let TypeExpr::Function { parameters, result } = relation else {
+                    return free(arity);
+                };
+                if result.as_ref() != &atom(TypeAtom::Content)
+                    || parameters.len() != lists.len()
+                    || lists.is_empty()
+                {
+                    return free(arity);
+                }
+                // The relation declares `Content`; each list's element type is
+                // the matching declared parameter, which the relation prints.
+                let mut projected = vec![Some(relation.clone())];
+                projected.extend(
+                    parameters
+                        .iter()
+                        .map(|parameter| Some(TypeExpr::List(Box::new(parameter.clone())))),
+                );
+                fit(projected, arity)
+            }
+            // Equality declares a bare `T`.
+            Self::Equal | Self::NotEqual => free(arity),
+            // Comparison declares a bare `T` constrained to the ordered family,
+            // which is not one type.
+            Self::Less | Self::LessOrEqual | Self::Greater | Self::GreaterOrEqual => free(arity),
+            Self::Add | Self::Subtract | Self::Divide => fit(
+                vec![Some(atom(TypeAtom::Number)), Some(atom(TypeAtom::Number))],
+                arity,
+            ),
+            Self::Multiply => {
+                if matches!(argument_types, [TypeExpr::Set(_), TypeExpr::Set(_)]) {
+                    // The cartesian-product reading; both element types are the
+                    // operands' own.
+                    return free(arity);
+                }
+                fit(
+                    vec![Some(atom(TypeAtom::Number)), Some(atom(TypeAtom::Number))],
+                    arity,
+                )
+            }
+            // `∈ : T × Set<T>` fixes `T` from the set operand itself.
+            Self::ElementOf => free(arity),
+            // Both operands are sets of one common element type, which only
+            // those same two collections show.
+            Self::Union | Self::Intersection => free(arity),
+            Self::Realizes => fit(
+                vec![
+                    Some(atom(TypeAtom::UtteranceToken)),
+                    same_shape(argument_types.get(1), |value| {
+                        matches!(value, TypeExpr::Act(_))
+                    }),
+                ],
+                arity,
+            ),
+            Self::SpeakerOf | Self::AudienceOf => fit(
+                vec![
+                    Some(atom(TypeAtom::UtteranceToken)),
+                    Some(referents(atom(TypeAtom::Entity))),
+                ],
+                arity,
+            ),
+            Self::LocutionOf => fit(
+                vec![
+                    Some(atom(TypeAtom::UtteranceToken)),
+                    Some(referents(atom(TypeAtom::Locution))),
+                ],
+                arity,
+            ),
+            Self::DeicticTimeOf => fit(
+                vec![
+                    Some(atom(TypeAtom::UtteranceToken)),
+                    Some(referents(atom(TypeAtom::Eventuality))),
+                ],
+                arity,
+            ),
+            Self::DeicticPlaceOf => fit(
+                vec![
+                    Some(atom(TypeAtom::UtteranceToken)),
+                    Some(referents(atom(TypeAtom::Location))),
+                ],
+                arity,
+            ),
+            // An utterance-token-or-sign-token overload set, then `Text`.
+            Self::TextOf => fit(vec![None, Some(atom(TypeAtom::Text))], arity),
+            // The denoted value is any type; the quoted one is a `Quotable`.
+            Self::Denotes | Self::Quotes => fit(
+                vec![
+                    same_shape(argument_types.first(), |value| {
+                        matches!(value, TypeExpr::SignToken(_))
+                    }),
+                    None,
+                ],
+                arity,
+            ),
+            // The uttered value is an `Utterable`.
+            Self::Utters => fit(vec![Some(referents(atom(TypeAtom::Entity))), None], arity),
+            // `Label`'s target is any type.
+            Self::Label => fit(
+                vec![
+                    Some(atom(TypeAtom::LabelLevel)),
+                    Some(atom(TypeAtom::Number)),
+                    None,
+                ],
+                arity,
+            ),
+            Self::Some | Self::No | Self::Every => {
+                fit(vec![declared_property(argument_types.first())], arity)
+            }
+            Self::Exactly | Self::AtLeast | Self::AtMost | Self::MoreThan | Self::FewerThan => fit(
+                vec![
+                    Some(atom(TypeAtom::Natural)),
+                    declared_property(argument_types.get(1)),
+                ],
+                arity,
+            ),
+            Self::DescribedAs => fit(
+                vec![
+                    Some(referents(atom(TypeAtom::Entity))),
+                    Some(referents(atom(TypeAtom::Entity))),
+                    Some(property_of(referents(atom(TypeAtom::Entity)))),
+                ],
+                arity,
+            ),
+            Self::Named => fit(
+                vec![
+                    Some(atom(TypeAtom::Text)),
+                    Some(referents(atom(TypeAtom::Entity))),
+                ],
+                arity,
+            ),
+            Self::InnatelyCapable => fit(
+                vec![
+                    Some(referents(atom(TypeAtom::Entity))),
+                    Some(TypeExpr::Function {
+                        parameters: vec![
+                            referents(atom(TypeAtom::Entity)),
+                            referents(atom(TypeAtom::Eventuality)),
+                        ],
+                        result: Box::new(atom(TypeAtom::Content)),
+                    }),
+                ],
+                arity,
+            ),
+            Self::MotionVector => fit(
+                vec![
+                    Some(referents(atom(TypeAtom::Eventuality))),
+                    Some(referents(atom(TypeAtom::Entity))),
+                    Some(TypeExpr::Function {
+                        parameters: vec![
+                            referents(atom(TypeAtom::Entity)),
+                            referents(atom(TypeAtom::Entity)),
+                        ],
+                        result: Box::new(atom(TypeAtom::Content)),
+                    }),
+                ],
+                arity,
+            ),
+        }
+    }
+
     /// Every registered ordinary callable, in table order.
     pub const ALL: [Self; 66] = [
         Self::Singleton,
@@ -728,6 +1023,47 @@ pub(super) fn property_of(parameter: TypeExpr) -> TypeExpr {
         parameters: vec![parameter],
         result: Box::new(atom(TypeAtom::Content)),
     }
+}
+
+/// Declare nothing about any operand of an application of this arity.
+#[requires(true)]
+#[ensures(ret.len() == arity && ret.iter().all(Option::is_none))]
+fn free(arity: usize) -> Vec<Option<TypeExpr>> {
+    vec![None; arity]
+}
+
+/// Force a projection to name exactly one entry per supplied operand.
+///
+/// A projection is written for the arity its registered signature declares; an
+/// application of another arity is one `Intrinsic::instantiate` rejects, and the
+/// surplus or missing operands simply declare nothing.
+#[requires(true)]
+#[ensures(ret.len() == arity)]
+fn fit(mut projected: Vec<Option<TypeExpr>>, arity: usize) -> Vec<Option<TypeExpr>> {
+    projected.resize(arity, None);
+    projected
+}
+
+/// Project a schema operand whose type constructor section 14.1 fixes but whose
+/// parameter this instantiation reads off the accepted operand itself.
+///
+/// This is sound only because no crossing is keyed on that parameter: the
+/// printer's elisions read the outermost constructor, which the signature fixed.
+#[requires(true)]
+#[ensures(ret.is_some() == actual.is_some_and(shape))]
+fn same_shape(actual: Option<&TypeExpr>, shape: fn(&TypeExpr) -> bool) -> Option<TypeExpr> {
+    actual.filter(|value| shape(value)).cloned()
+}
+
+/// Project a declared `Property<T>` operand, resolving `T` from the operand.
+///
+/// A property is written as a lambda whose typed parameter list always prints,
+/// so a reader recovers `T` even from a surface with every licensed crossing
+/// elided; the `Content` result is the signature's own and never varies.
+#[requires(true)]
+#[ensures(ret.is_some() == actual.is_some_and(|value| content_property_element(value).is_some()))]
+fn declared_property(actual: Option<&TypeExpr>) -> Option<TypeExpr> {
+    content_property_element(actual?).map(property_of)
 }
 
 /// Require an exact argument count and borrow the arguments as an array.

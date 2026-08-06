@@ -628,11 +628,13 @@ fn function_datum(value: &FnValue, expected: Expected<'_>, uses: &DocumentUses) 
 /// Return what the enclosing position requires of a lambda's body.
 ///
 /// Only a declared function type licenses an elision inside a lambda body: a
-/// `Let` or `LetRec` initializer prints its declared `Fn` type, and a registered
-/// operand or row slot declares one. A `Lambda<Operand>` at a polymorphic
-/// position — a `Mention`, `Denotes`, or `Label` operand, or an application head
-/// — declares nothing, and section 2.2 then reads that surface as a lambda
-/// returning a `PredTerm`, so a `Content` body must print its `Close`. Deriving
+/// `Let` or `LetRec` initializer prints its declared `Fn` type, a row slot and
+/// an application parameter carry theirs, and a registered operand carries the
+/// one section 14.1 declares, projected by `Intrinsic::declared_operand_types`.
+/// A `Lambda<Operand>` at a polymorphic position — a `Mention` operand, a
+/// `Denotes` denoted value, a `Label` target, or an application head — declares
+/// nothing, and section 2.2 then reads that surface as a lambda returning a
+/// `PredTerm`, so a `Content` body must print its `Close`. Deriving
 /// the expectation from the lambda's own inferred result would make every
 /// position look declared, and the round-trip oracle cannot see the difference:
 /// the over-elided text is a fixed point of parse-then-print.
@@ -705,31 +707,41 @@ fn intrinsic_datum(intrinsic: Intrinsic, arguments: &[Operand], uses: &DocumentU
     if arguments.is_empty() {
         return Datum::atom(intrinsic.as_str());
     }
+    let argument_types = arguments
+        .iter()
+        .map(Category::value_type)
+        .collect::<Vec<_>>();
+    let declared = intrinsic.declared_operand_types(&argument_types);
     Datum::form(
         intrinsic.as_str(),
         arguments
             .iter()
-            .map(|argument| call_operand_datum(argument, uses)),
+            .zip(&declared)
+            .map(|(argument, declared)| call_operand_datum(argument, declared.as_ref(), uses)),
     )
 }
 
-/// Serialize one operand of a registered call.
+/// Serialize one operand of a registered call at its declared type.
 ///
-/// The registry table in `Intrinsic::instantiate` is written as a checker
-/// rather than a projection, so declared operand types are not recoverable from
-/// it. What *is* recoverable is the one fact the singleton-lift elision needs:
-/// an operand of reference type type-checked against a declared operand, and
-/// the kernel's operand rule admits only upcasts, so that declared operand is
-/// itself a reference type and section 3.3 licenses omitting the lift. No other
-/// elision is claimed here.
+/// `Intrinsic::declared_operand_types` projects section 14.1's registry, so a
+/// registered operand licenses exactly the elisions its declaration licenses:
+/// a `Content` operand omits `Close`, a `Referents<T>` operand omits the
+/// singleton lift, and a declared `Property<T>` — every quantifier restriction,
+/// `SetOf` comprehension, and prelude property operand — carries `Content` into
+/// its lambda body. An operand the registry leaves free declares nothing, and
+/// every crossing there stays explicit.
 #[requires(true)]
 #[ensures(true)]
-fn call_operand_datum(argument: &Operand, uses: &DocumentUses) -> Datum {
-    let value_type = argument.value_type();
-    if matches!(value_type, TypeExpr::Referents(_)) {
-        return operand_datum(argument, Expected::Type(&value_type), uses);
-    }
-    operand_datum(argument, Expected::Unknown, uses)
+fn call_operand_datum(
+    argument: &Operand,
+    declared: Option<&TypeExpr>,
+    uses: &DocumentUses,
+) -> Datum {
+    operand_datum(
+        argument,
+        declared.map_or(Expected::Unknown, Expected::Type),
+        uses,
+    )
 }
 
 /// Serialize an ordinary application without imposing left association.
