@@ -309,6 +309,25 @@ def test_short_rafsi_candidates_report_dictionary_claims() -> None:
         dictionary.RafsiClaimKind.OFFICIAL, ("sakli",)
     )
 
+    # Cmavo hold rafsi too, so `kam` is not available to an invented `kacma`.
+    kacma = dictionary.short_rafsi_candidates("kacma")
+    assert tuple(
+        (candidate.form, candidate.availability) for candidate in kacma
+    ) == tuple(
+        (
+            form,
+            dictionary.TakenRafsiAvailability(
+                dictionary.RafsiClaimKind.OFFICIAL, (holder,)
+            ),
+        )
+        for form, holder in (
+            ("cma", "cmalu"),
+            ("ka'a", "katna"),
+            ("kac", "kancu"),
+            ("kam", "ka"),
+        )
+    )
+
     assert dictionary.short_rafsi_candidates("coi") == ()
     assert any(
         candidate.availability == dictionary.FreeRafsiAvailability()
@@ -318,6 +337,7 @@ def test_short_rafsi_candidates_report_dictionary_claims() -> None:
     assert dictionary.rafsi_claimants("sal") == (
         ("sakli", dictionary.WordType.GISMU),
     )
+    assert dictionary.rafsi_claimants("kam") == (("ka", dictionary.WordType.CMAVO),)
     assert dictionary.rafsi_claimants("zzz") == ()
     with pytest.raises(TypeError):
         dictionary.TakenRafsiAvailability(
@@ -381,8 +401,17 @@ def test_word_type_predicates_delegate_through_exact_native_enum_conversion() ->
     assert dictionary.WordType.ZEI_LUJVO.is_lujvo_like()
     assert dictionary.WordType.OBSOLETE_ZEI_LUJVO.is_lujvo_like()
     assert not dictionary.WordType.GISMU.is_lujvo_like()
+    # Only experimental and obsolete types make provisional rafsi claims.
+    for word_type in dictionary.WordType:
+        assert word_type.rafsi_claim_kind() is (
+            dictionary.RafsiClaimKind.EXPERIMENTAL
+            if word_type.startswith(("experimental ", "obsolete "))
+            else dictionary.RafsiClaimKind.OFFICIAL
+        )
     with pytest.raises(TypeError):
         native._dictionary_word_type_is_gismu_like("gismu")  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        native._dictionary_word_type_rafsi_claim_kind("gismu")  # type: ignore[arg-type]
 
 
 def test_sound_records_expose_exact_ipa_and_typed_segments_without_search() -> None:

@@ -110,6 +110,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_dictionary_universal_gismu_rafsi_forms",
     "_dictionary_word_type_is_gismu_like",
     "_dictionary_word_type_is_lujvo_like",
+    "_dictionary_word_type_rafsi_claim_kind",
     "_dictionary_english",
     "_dictionary_english_metadata",
 ];
@@ -1967,7 +1968,7 @@ impl PythonStringEnum for RafsiClaimKind {
     }
 
     fn python_doc() -> &'static str {
-        "Standing of the gismu that already claim a short rafsi."
+        "Standing of the words that already claim a short rafsi."
     }
 
     fn variants() -> &'static [Self] {
@@ -2020,7 +2021,7 @@ impl PyFreeRafsiAvailability {
     }
 }
 
-/// Availability alternative for a short rafsi that gismu already claim.
+/// Availability alternative for a short rafsi that some word already claims.
 #[invariant(
     true,
     "PyO3 requires the declared class shape; the checked constructor and validated Rust storage keep the claimant list non-empty"
@@ -3268,6 +3269,16 @@ fn py_word_type_is_lujvo_like(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyRes
     Ok(extract_string_enum::<WordType>(&module, value)?.is_lujvo_like())
 }
 
+/// Classify a word type's rafsi claims after registered-enum extraction.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction(name = "_word_type_rafsi_claim_kind")]
+fn py_word_type_rafsi_claim_kind(py: Python<'_>, value: &Bound<'_, PyAny>) -> PyResult<Py<PyAny>> {
+    let module = native_module(py)?;
+    let kind = extract_string_enum::<WordType>(&module, value)?.rafsi_claim_kind();
+    Ok(string_enum_member(&module, kind)?.unbind())
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn register_types(module: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -3348,6 +3359,8 @@ fn register_functions(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_private_object(module, "_dictionary_word_type_is_gismu_like", gismu_like)?;
     let lujvo_like = wrap_pyfunction!(py_word_type_is_lujvo_like, module)?;
     register_private_object(module, "_dictionary_word_type_is_lujvo_like", lujvo_like)?;
+    let claim_kind = wrap_pyfunction!(py_word_type_rafsi_claim_kind, module)?;
+    register_private_object(module, "_dictionary_word_type_rafsi_claim_kind", claim_kind)?;
     Ok(())
 }
 
