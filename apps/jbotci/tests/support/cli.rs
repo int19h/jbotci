@@ -893,30 +893,59 @@ fn tersmu_smusni_cli_output_has_a_single_trailing_newline() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_smusni_fallback_diagnostics_are_deferred_without_polluting_stdout() {
+fn tersmu_smusni_projection_failure_is_labelled_on_stderr_with_empty_stdout() {
+    // jbotci#753: a quotation has no compact route, so the smusni request is a
+    // product error. The command-line profile writes nothing to stdout, writes
+    // the labelled records to stderr through the standard source-aware
+    // renderer, and exits nonzero.
     let run = run_cli_capture(
         &[
             "jbotci",
             "tersmu",
             "--format",
             "smusni",
+            "--color=never",
             "mi cusku lu mi prami do li'u",
         ],
         false,
     );
-    assert_eq!(run.status, CliStatus::Success);
-    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
-        .expect("fallback stdout remains a typed Smusni document");
-    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
-        .expect("fallback stdout is one datum");
-    assert_eq!(document.count_forms("TypedGraph"), 1);
-    for forbidden in ["WithWarnings", "Warnings", "Warning"] {
-        assert_eq!(document.count_forms(forbidden), 0);
-    }
+    assert_eq!(run.status, CliStatus::Failure);
     assert!(
-        run.stderr.is_empty(),
-        "provisional smusni diagnostics must wait for the standard source-aware renderer",
+        run.stdout.is_empty(),
+        "stdout must stay empty: {:?}",
+        run.stdout
     );
+    assert!(
+        run.stderr
+            .contains("error[smusni.projection.sign-identity-missing]"),
+        "the registered reason must be the diagnostic code: {}",
+        run.stderr
+    );
+    // The rendered source is the original Lojban, labelled in place.
+    assert!(run.stderr.contains("mi cusku lu mi prami do li'u"));
+    assert!(run.stderr.contains("failure class: "));
+}
+
+/// The same input still renders under an explicitly requested XML format: a
+/// smusni projection failure is never silently retried, and never spreads to a
+/// format that has its own representation.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn tersmu_xml_still_renders_an_input_whose_smusni_projection_fails() {
+    let run = run_cli_capture(
+        &[
+            "jbotci",
+            "tersmu",
+            "--format",
+            "xml",
+            "--color=never",
+            "su\'o gerku cu bajra",
+        ],
+        false,
+    );
+    assert_eq!(run.status, CliStatus::Success);
+    assert!(run.stdout.contains("<SFN"));
 }
 
 #[test]
@@ -1090,9 +1119,10 @@ fn tersmu_show_defs_embeds_word_cards_in_the_smusni_document() {
             "--format",
             "smusni",
             "--color=never",
-            ".banan.",
-            "cu",
+            "mi",
             "klama",
+            "lo",
+            "zarci",
         ],
         false,
     );
@@ -1109,16 +1139,19 @@ fn tersmu_show_defs_embeds_word_cards_in_the_smusni_document() {
     assert_eq!(document.form_head(), Some("Smusni"));
     assert_eq!(document.count_forms("Smusni"), 1);
     assert_eq!(document.count_forms("Words"), 1);
-    assert_eq!(document.count_forms("Word"), 1);
+    assert_eq!(document.count_forms("Word"), 2);
 }
 
-/// A defined zei-lujvo's dictionary surface is a multi-word run, which is a
-/// lexical root only in the grammar's escaped spelling. `--show-defs` must
-/// still carry its card rather than dropping the entry.
+/// A defined zei-lujvo's dictionary surface is a multi-word run. Its smusni
+/// card production spells it as an escaped lexical root, which
+/// `crates/jbotci-semantics/tests/smusni_structural.rs` pins on the card data
+/// itself; no zei-lujvo input currently reaches a compact projection, so what
+/// the command line can show is that the request fails honestly rather than
+/// dropping the entry from a partial document.
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn tersmu_show_defs_keeps_a_defined_zei_lujvo_card() {
+fn tersmu_show_defs_zei_lujvo_projection_fails_without_a_partial_document() {
     let run = run_cli_capture(
         &[
             "jbotci",
@@ -1136,42 +1169,12 @@ fn tersmu_show_defs_keeps_a_defined_zei_lujvo_card() {
         ],
         false,
     );
-    assert_eq!(run.status, CliStatus::Success);
-    assert!(run.stderr.is_empty());
-
-    jbotci_semantics::notation::sexpr::parse_v0_document(&run.stdout)
-        .expect("show-defs output satisfies the current typed grammar");
-    let document = jbotci_semantics::notation::sexpr::parse_document(&run.stdout)
-        .expect("show-defs output is one smusni datum");
-    assert_eq!(document.count_forms("Words"), 1);
-    assert_eq!(document.count_forms("Word"), 2);
-
-    let mut roots = Vec::new();
-    collect_word_card_roots(&document, &mut roots);
+    assert_eq!(run.status, CliStatus::Failure);
     assert!(
-        roots.iter().any(|root| root == "|abu zei sance|"),
-        "the zei-lujvo card keeps its exact surface as an escaped lexical root; found {roots:?}",
+        run.stdout.is_empty(),
+        "a failed projection writes no Words section"
     );
-}
-
-/// Collect every `(Word root definition)` card's root from a parsed document.
-#[requires(true)]
-#[ensures(true)]
-fn collect_word_card_roots(
-    datum: &jbotci_semantics::notation::sexpr::Datum,
-    out: &mut Vec<String>,
-) {
-    let Some(items) = datum.as_list() else {
-        return;
-    };
-    if datum.form_head() == Some("Word") {
-        if let Some(root) = items.get(1).and_then(|item| item.as_atom()) {
-            out.push(root.to_owned());
-        }
-    }
-    for item in items {
-        collect_word_card_roots(item, out);
-    }
+    assert!(run.stderr.contains("error[smusni.projection."));
 }
 
 #[test]

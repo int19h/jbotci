@@ -119,6 +119,11 @@ pub struct ToolRenderedOutput {
     pub stdout: Vec<u8>,
     pub stderr: String,
     pub content_type: Option<String>,
+    /// The structured smusni projection-failure envelope, present exactly when
+    /// a requested smusni projection failed (jbotci#753). Transports carry
+    /// this value through; specification section 16.1 forbids recovering the
+    /// same structure by parsing `stderr` back.
+    pub projection_failure: Option<ProjectionFailureEnvelope>,
 }
 
 impl ToolRenderedOutput {
@@ -129,12 +134,14 @@ impl ToolRenderedOutput {
         stdout: Vec<u8>,
         stderr: String,
         content_type: Option<&'static str>,
+        projection_failure: Option<ProjectionFailureEnvelope>,
     ) -> Self {
         Self {
             status: status.into(),
             stdout,
             stderr,
             content_type: content_type.map(str::to_owned),
+            projection_failure,
         }
     }
 
@@ -1753,8 +1760,7 @@ fn tool_gimfihi_source_to_input(
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
-    let content_type = request.format.content_type(request.show_defs);
-    run_tool_command(Command::from(request), Some(content_type))
+    Ok(run_tool_tersmu_rendering(request, false)?.0)
 }
 
 /// Gate-oriented tersmu result (jbotci#723): the rendering plus the declared
@@ -1775,13 +1781,29 @@ pub struct ToolTersmuAnalysis {
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 pub fn run_tool_tersmu_with_analysis(request: ToolTersmuRequest) -> Result<ToolTersmuAnalysis> {
+    let (rendered, compact_incompatibilities) = run_tool_tersmu_rendering(request, true)?;
+    Ok(new!(ToolTersmuAnalysis {
+        rendered,
+        compact_incompatibilities,
+    }))
+}
+
+/// Run the tersmu command once for a tool transport, keeping both structured
+/// channels. The projection-failure envelope is truncated to the documented
+/// transport record limit, which records the total and the omission.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_tool_tersmu_rendering(
+    request: ToolTersmuRequest,
+    collect_incompatibilities: bool,
+) -> Result<(ToolRenderedOutput, Vec<String>)> {
     let content_type = request.format.content_type(request.show_defs);
     let Command::Tersmu(input) = Command::from(request) else {
         unreachable!("ToolTersmuRequest always converts to Command::Tersmu")
     };
     let mut stdout = Vec::new();
     let mut stderr = Vec::new();
-    let (status, compact_incompatibilities) = commands::run_tersmu_with_incompatibilities(
+    let (status, compact_incompatibilities, projection_failure) = commands::run_tersmu_for_tool(
         input,
         &mut stdout,
         &mut stderr,
@@ -1790,13 +1812,22 @@ pub fn run_tool_tersmu_with_analysis(request: ToolTersmuRequest) -> Result<ToolT
         cli_glyph_style(false),
         DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
         None,
+        collect_incompatibilities,
     )?;
     let stderr =
         String::from_utf8(stderr).context("jbotci tool diagnostics were not valid UTF-8")?;
-    Ok(new!(ToolTersmuAnalysis {
-        rendered: ToolRenderedOutput::new(status, stdout, stderr, Some(content_type)),
+    let projection_failure = projection_failure
+        .map(|envelope| envelope.limited(Some(crate::projection::TRANSPORT_RECORD_LIMIT)));
+    Ok((
+        ToolRenderedOutput::new(
+            status,
+            stdout,
+            stderr,
+            Some(content_type),
+            projection_failure,
+        ),
         compact_incompatibilities,
-    }))
+    ))
 }
 
 #[requires(true)]
@@ -1835,6 +1866,7 @@ fn run_tool_command_with_context(
         stdout,
         stderr,
         content_type,
+        None,
     ))
 }
 
@@ -1903,7 +1935,23 @@ mod tests {
                 indent: None,
             })
             .expect("witness analysis");
-            assert!(analysis.rendered.status.is_success());
+            // The incompatibility channel is computed from the graph, so it
+            // survives a smusni projection failure unchanged (jbotci#753). XML
+            // still renders; smusni reports the structured failure instead.
+            match format {
+                ToolTersmuFormat::Smusni => {
+                    assert!(!analysis.rendered.status.is_success());
+                    let envelope = analysis
+                        .rendered
+                        .projection_failure
+                        .as_ref()
+                        .expect("a failed smusni projection carries its envelope");
+                    assert_eq!(envelope.code, "smusni-projection-failed");
+                    assert_eq!(envelope.format, "smusni");
+                    assert!(analysis.rendered.stdout.is_empty());
+                }
+                _ => assert!(analysis.rendered.status.is_success()),
+            }
             let records = &analysis.compact_incompatibilities;
             assert_eq!(
                 records.len(),

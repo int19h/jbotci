@@ -26,13 +26,16 @@ pub(crate) fn run_tersmu<WOut: Write, WErr: Write>(
     Ok(rendered.status)
 }
 
-/// The tool-facing tersmu path (jbotci#723): identical rendering, plus the
-/// declared compact-representation incompatibility records of the candidate's
-/// semantic graph, each in its exact `<INCOMPATIBILITY .../>` declaration
-/// form. Records exist only for candidates that reach a semantic graph.
+/// The tool-facing tersmu path: identical rendering, plus the two structured
+/// channels a transport needs. `collect_incompatibilities` adds the declared
+/// compact-representation incompatibility records of the candidate's semantic
+/// graph (jbotci#723), each in its exact `<INCOMPATIBILITY .../>` declaration
+/// form; records exist only for candidates that reach a semantic graph. The
+/// projection-failure envelope is present exactly when a requested smusni
+/// projection failed (jbotci#753).
 #[requires(diagnostic_terminal_width > 0)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-pub(crate) fn run_tersmu_with_incompatibilities<WOut: Write, WErr: Write>(
+pub(crate) fn run_tersmu_for_tool<WOut: Write, WErr: Write>(
     input: TersmuInput,
     stdout: &mut WOut,
     stderr: &mut WErr,
@@ -41,7 +44,8 @@ pub(crate) fn run_tersmu_with_incompatibilities<WOut: Write, WErr: Write>(
     glyphs: GlyphStyle,
     diagnostic_terminal_width: usize,
     stdin_text: Option<&str>,
-) -> Result<(CliStatus, Vec<String>)> {
+    collect_incompatibilities: bool,
+) -> Result<(CliStatus, Vec<String>, Option<ProjectionFailureEnvelope>)> {
     let rendered = render_tersmu(
         input,
         color_policy,
@@ -49,16 +53,17 @@ pub(crate) fn run_tersmu_with_incompatibilities<WOut: Write, WErr: Write>(
         glyphs,
         diagnostic_terminal_width,
         stdin_text,
-        true,
+        collect_incompatibilities,
     )?;
     stderr.write_all(rendered.stderr.as_bytes())?;
     stdout.write_all(&rendered.stdout)?;
     let data!(TersmuRendered {
         status,
         compact_incompatibilities,
+        projection_failure,
         ..
     }) = rendered.into_data();
-    Ok((status, compact_incompatibilities))
+    Ok((status, compact_incompatibilities, projection_failure))
 }
 
 #[requires(diagnostic_terminal_width > 0)]
@@ -123,6 +128,7 @@ fn render_tersmu(
             stdout: Vec::new(),
             stderr,
             compact_incompatibilities: Vec::new(),
+            projection_failure: None,
         }));
     }
     let words = morphology.words;
@@ -168,6 +174,7 @@ fn render_tersmu(
                     stdout: Vec::new(),
                     stderr,
                     compact_incompatibilities: Vec::new(),
+                    projection_failure: None,
                 }));
             }
         };
@@ -205,6 +212,7 @@ fn render_tersmu(
                 stdout: Vec::new(),
                 stderr,
                 compact_incompatibilities: Vec::new(),
+                projection_failure: None,
             }));
         }
     };
@@ -237,12 +245,49 @@ fn render_tersmu(
             },
         )?,
         TersmuFormat::Smusni => {
-            let rendered = jbotci_semantics::render_smusni_detailed(&graph, &word_cards);
-            // Renderer diagnostics remain structured beside the document until
-            // they can be converted to the standard source-aware CLI renderer.
-            // Printing their provisional Display text would create a second,
-            // location-free diagnostic presentation.
-            let mut rendered = rendered.into_data().text;
+            // A projection failure is a product error: nothing reaches stdout,
+            // the records are written to stderr through the same source-aware
+            // renderer the parser phases use, and the exit status is nonzero.
+            // An explicit smusni request is never retried in another format.
+            let projection = jbotci_semantics::render_smusni_with_word_cards(&graph, &word_cards);
+            let mut rendered = match projection {
+                Ok(render) => render.into_data().text,
+                Err(failed) => {
+                    let envelope = projection_failure_envelope(&failed, TersmuFormat::Smusni);
+                    // `--max-errors` is the command line's documented display
+                    // limit. Truncating is allowed only when the omitted count
+                    // is printed, so both happen together here.
+                    let displayed = envelope
+                        .clone()
+                        .limited(input.max_errors.map(NonZeroUsize::get));
+                    stderr.push_str(&render_source_diagnostics(
+                        &source_label,
+                        &text,
+                        &projection_failure_diagnostics(
+                            &displayed,
+                            Some(SourceId(source_label.clone())),
+                            &text,
+                        ),
+                        color_policy.stderr,
+                        diagnostic_detail,
+                        glyphs,
+                        diagnostic_terminal_width,
+                    )?);
+                    if displayed.truncated {
+                        stderr.push_str(&format!(
+                            "{} further projection error(s) not shown\n",
+                            displayed.omitted()
+                        ));
+                    }
+                    return Ok(new!(TersmuRendered {
+                        status: CliStatus::Failure,
+                        stdout: Vec::new(),
+                        stderr,
+                        compact_incompatibilities,
+                        projection_failure: Some(envelope),
+                    }));
+                }
+            };
             if rendered.ends_with('\n') {
                 rendered.pop();
             }
@@ -270,5 +315,6 @@ fn render_tersmu(
         stdout: stdout.into_bytes(),
         stderr,
         compact_incompatibilities,
+        projection_failure: None,
     }))
 }

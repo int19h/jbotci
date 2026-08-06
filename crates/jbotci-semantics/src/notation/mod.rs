@@ -19,7 +19,8 @@ pub(crate) mod xml_words;
 use bityzba::{ensures, invariant, requires};
 
 pub use sexpr::{
-    DocumentMode, SmusniDiagnostic, SmusniDiagnosticData, SmusniRender, SmusniRenderStats,
+    FailureSpanSource, SmusniDiagnostic, SmusniProjection, SmusniProjectionFailed,
+    SmusniProjectionFailure, SmusniRender, SmusniRenderStats,
 };
 pub use xml::{
     CompactIncompatibility, XML_DECLARED_WAIVERS, XmlOmission, XmlRender, XmlSurface,
@@ -31,40 +32,39 @@ use self::word_cards::WordCard;
 use crate::model::SemanticGraph;
 
 /// A notation profile. The experimental smusni notation has one ordinary
-/// profile; source provenance remains available through typed-graph fallback.
+/// profile.
 #[invariant(::Smusni => true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NotationProfile {
     Smusni,
 }
 
-/// Render a graph under the selected human-readable notation profile.
+/// Project a graph under the selected human-readable notation profile.
 #[requires(graph.objects.contains_key(&graph.root))]
-#[ensures(ret.ends_with('\n') && !ret.ends_with("\n\n"))]
-pub fn render_notation(graph: &SemanticGraph, profile: NotationProfile) -> String {
+#[ensures(ret.as_ref().is_ok_and(|render| render.text.ends_with('\n')) || ret.is_err())]
+pub fn render_notation(graph: &SemanticGraph, profile: NotationProfile) -> SmusniProjection {
     match profile {
         NotationProfile::Smusni => render_smusni(graph),
     }
 }
 
-/// Render one experimental typed S-expression document.
+/// Project one experimental typed S-expression document.
 #[requires(graph.objects.contains_key(&graph.root))]
-#[ensures(ret.ends_with('\n') && !ret.ends_with("\n\n"))]
-pub fn render_smusni(graph: &SemanticGraph) -> String {
-    render_smusni_detailed(graph, &[]).into_data().text
+#[ensures(ret.as_ref().is_ok_and(|render| render.text.ends_with('\n')) || ret.is_err())]
+pub fn render_smusni(graph: &SemanticGraph) -> SmusniProjection {
+    render_smusni_with_word_cards(graph, &[])
 }
 
-/// Render one typed S-expression document with structured word cards.
+/// Project one typed S-expression document with structured word cards.
+///
+/// The cards reach the document only on the success path, so a failed
+/// projection never carries a `Words` section.
 #[requires(graph.objects.contains_key(&graph.root))]
-#[ensures(ret.ends_with('\n') && !ret.ends_with("\n\n"))]
-pub fn render_smusni_with_word_cards(graph: &SemanticGraph, cards: &[WordCard]) -> String {
-    render_smusni_detailed(graph, cards).into_data().text
-}
-
-/// Render a document and retain non-golden measurements for corpus auditing.
-#[requires(graph.objects.contains_key(&graph.root))]
-#[ensures(ret.text.ends_with('\n') && !ret.text.ends_with("\n\n"))]
-pub fn render_smusni_detailed(graph: &SemanticGraph, cards: &[WordCard]) -> SmusniRender {
+#[ensures(ret.as_ref().is_ok_and(|render| render.text.ends_with('\n')) || ret.is_err())]
+pub fn render_smusni_with_word_cards(
+    graph: &SemanticGraph,
+    cards: &[WordCard],
+) -> SmusniProjection {
     let card_data = cards
         .iter()
         .filter_map(sexpr::word_card_datum)

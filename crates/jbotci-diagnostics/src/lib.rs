@@ -47,9 +47,13 @@ define_string_enum! {
 define_string_enum! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     #[serde(rename_all = "kebab-case")]
+    // `SemanticProjection` is the phase after a graph exists: the input parsed
+    // and built a semantic graph, and the requested projection could not
+    // represent it.
     pub enum DiagnosticPhase {
         Morphology => "morphology",
         Syntax => "syntax",
+        SemanticProjection => "semantic-projection",
     }
 }
 

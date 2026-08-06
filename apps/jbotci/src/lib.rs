@@ -8,12 +8,16 @@ mod cli;
 mod commands;
 mod lsp;
 mod output;
+pub mod projection;
 mod tool;
 
 pub use cli::main_entry;
 use cli::run_cli_command_with_tool_context;
 use commands::*;
 use output::*;
+use projection::{
+    ProjectionFailureEnvelope, projection_failure_diagnostics, projection_failure_envelope,
+};
 pub use tool::*;
 
 #[doc(hidden)]
@@ -373,6 +377,19 @@ pub enum TersmuFormat {
     /// Canonical SFN-XML: a scoped, self-describing rendering of the same
     /// semantic graph with structured definitions and references.
     Xml,
+}
+
+impl TersmuFormat {
+    /// The stable wire spelling a caller uses to request this format.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub fn wire_name(self) -> &'static str {
+        match self {
+            Self::Json => "json",
+            Self::Smusni => "smusni",
+            Self::Xml => "xml",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -861,6 +878,10 @@ struct TersmuRendered {
     /// `<INCOMPATIBILITY .../>` declaration form. Empty unless the caller
     /// requested collection.
     compact_incompatibilities: Vec<String>,
+    /// The structured smusni projection-failure envelope, present exactly when
+    /// a requested smusni projection failed. The transport layers carry this
+    /// value rather than reparsing the rendered stderr text.
+    projection_failure: Option<ProjectionFailureEnvelope>,
 }
 
 impl GentufaInput {

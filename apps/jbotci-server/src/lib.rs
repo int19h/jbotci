@@ -565,6 +565,12 @@ async fn gimfihi(Json(request): Json<ToolGimfihiRequest>) -> Response<Body> {
 #[ensures(true)]
 async fn tersmu(Json(request): Json<ToolTersmuRequest>) -> Response<Body> {
     match tokio::task::spawn_blocking(move || run_tool_tersmu(request)).await {
+        // A projection failure is a server-side capability failure: the request
+        // validly asked for smusni and this server could not fulfil it, so it
+        // gets a server-error problem document rather than a client error.
+        Ok(Ok(output)) if output.projection_failure.is_some() => {
+            projection_failure_response(output)
+        }
         Ok(Ok(output)) => rest_tool_output(output),
         Ok(Err(error)) => plain_response(StatusCode::BAD_REQUEST, &error.to_string()),
         Err(error) => plain_response(
@@ -572,6 +578,44 @@ async fn tersmu(Json(request): Json<ToolTersmuRequest>) -> Response<Body> {
             &format!("tersmu task failed: {error}"),
         ),
     }
+}
+
+/// Return the section-16.3 problem document for one failed smusni projection.
+///
+/// The body is the same structured envelope the MCP profile serializes, with
+/// the RFC 9457 members a problem document needs. Nothing here reparses the
+/// rendered diagnostics.
+#[requires(output.projection_failure.is_some())]
+#[ensures(ret.status() == StatusCode::INTERNAL_SERVER_ERROR)]
+fn projection_failure_response(output: ToolRenderedOutput) -> Response<Body> {
+    let envelope = output
+        .projection_failure
+        .as_ref()
+        .expect("the caller checked that a projection failure is present");
+    let mut document = serde_json::to_value(envelope).unwrap_or_else(|_| serde_json::json!({}));
+    if let Some(members) = document.as_object_mut() {
+        members.insert("type".to_owned(), serde_json::json!("about:blank"));
+        members.insert(
+            "title".to_owned(),
+            serde_json::json!("smusni projection failed for this input"),
+        );
+        members.insert(
+            "status".to_owned(),
+            serde_json::json!(StatusCode::INTERNAL_SERVER_ERROR.as_u16()),
+        );
+        members.insert(
+            "detail".to_owned(),
+            serde_json::json!(format!(
+                "{} registered projection error(s); no document was produced",
+                envelope.total
+            )),
+        );
+    }
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .header(CONTENT_TYPE, "application/problem+json")
+        .body(Body::from(document.to_string()))
+        .expect("problem document response builder is valid")
 }
 
 #[requires(true)]

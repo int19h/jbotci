@@ -21,6 +21,11 @@ use crate::model::{
 pub enum ScopeFailureKind {
     MultipleBinderOwners,
     BinderDoesNotEncloseUse,
+    /// A recorded scope dependence names a binder that owns no scope anywhere
+    /// in the graph. That is an unbound variable, not a placement question, so
+    /// it takes the registered whole-graph reason rather than the
+    /// binder-placement one.
+    ScopeDependencyBinderUnowned,
     ScopeDependencyWithoutEnclosingBinder,
     UnrepresentableCycle,
     DefinitionSiteDoesNotDominateUse,
@@ -35,6 +40,7 @@ impl ScopeFailureKind {
         match self {
             Self::MultipleBinderOwners => "multiple-binder-owners",
             Self::BinderDoesNotEncloseUse => "binder-does-not-enclose-use",
+            Self::ScopeDependencyBinderUnowned => "scope-dependency-binder-unowned",
             Self::ScopeDependencyWithoutEnclosingBinder => {
                 "scope-dependency-without-enclosing-binder"
             }
@@ -51,6 +57,7 @@ impl ScopeFailureKind {
         match self {
             Self::MultipleBinderOwners => "smusni.projection.conflicting-binder-owners",
             Self::BinderDoesNotEncloseUse => "smusni.projection.binder-does-not-dominate-use",
+            Self::ScopeDependencyBinderUnowned => "smusni.projection.graph.unbound-variable",
             Self::ScopeDependencyWithoutEnclosingBinder => {
                 "smusni.projection.scope-dependency-without-binder"
             }
@@ -75,6 +82,9 @@ impl ScopeFailureKind {
         match self {
             Self::MultipleBinderOwners => "this binder is owned by more than one graph scope",
             Self::BinderDoesNotEncloseUse => "the binder's scope does not enclose this use",
+            Self::ScopeDependencyBinderUnowned => {
+                "this variable has no binder anywhere in the graph"
+            }
             Self::ScopeDependencyWithoutEnclosingBinder => {
                 "a recorded scope dependence names a binder that does not enclose the constant"
             }
@@ -312,8 +322,10 @@ pub(super) fn plan_references(graph: &SemanticGraph) -> ReferencePlan {
     for (constant, universe) in universes {
         for binder in universe {
             let Some(owner) = binder_owners.get(&binder).copied() else {
+                // No scope owns this binder at all, so the dependence names a
+                // variable the graph never binds.
                 failures.push(ScopeFailure {
-                    kind: ScopeFailureKind::ScopeDependencyWithoutEnclosingBinder,
+                    kind: ScopeFailureKind::ScopeDependencyBinderUnowned,
                     binder: Some(binder),
                     use_site: Some(constant),
                 });

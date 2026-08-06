@@ -1480,6 +1480,7 @@ fn diagnostic_to_lsp<'snapshot>(
         source: Some(match diagnostic.phase {
             DiagnosticPhase::Morphology => "jbotci/morphology".to_owned(),
             DiagnosticPhase::Syntax => "jbotci/syntax".to_owned(),
+            DiagnosticPhase::SemanticProjection => "jbotci/semantic-projection".to_owned(),
         }),
         message: plain_diagnostic_message(diagnostic),
         related_information: (!related_information.is_empty()).then_some(related_information),

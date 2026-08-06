@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 use crate::smusni_v0_kernel::datum::{Datum, parse_document, print_document};
-use crate::smusni_v0_kernel::syntax::{FallbackReason, parse_v0_expression};
+use crate::smusni_v0_kernel::syntax::{ProjectionReasonId, parse_v0_expression};
 use crate::smusni_v0_kernel::type_system::{
     PlaceLabel, PositiveInteger, Row, SignKind, TypeAtom, TypeExpr,
 };
@@ -3830,7 +3830,7 @@ fn build_disposition_rows(
                     format!("failure {} has no reviewed reason id", source.owner),
                 )
             })?;
-            FallbackReason::try_new(&reason_id).map_err(|error| {
+            ProjectionReasonId::try_new(&reason_id).map_err(|error| {
                 BundleError::new(BundleErrorKind::ClosedValue, error.to_string())
             })?;
             let failure_class = source
