@@ -7,11 +7,12 @@ pub mod places;
 
 use std::collections::BTreeMap;
 
-use bityzba::{invariant, requires};
-use jbotci_morphology::fold_lojban_diacritic;
+use bityzba::{data, invariant, new, requires};
+use jbotci_morphology::{ShortRafsiShape, fold_lojban_diacritic, possible_short_rafsi_forms};
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use vec1::Vec1;
 
 /// Complete borrowed dictionary plus lookup indexes.
 #[derive(Debug, Clone, Copy)]
@@ -244,6 +245,76 @@ impl<'a> Dictionary<'a> {
             entry: self.entry_at(target.entry_index),
             source: target.source,
         })
+    }
+
+    /// Return the word and type of every dictionary entry claiming `rafsi`.
+    ///
+    /// Borrowed counterpart of [`Dictionary::short_rafsi_candidates`]: it hands
+    /// back the entry text itself rather than owned copies.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn rafsi_claimants<'lookup>(
+        &'lookup self,
+        rafsi: &str,
+    ) -> impl Iterator<Item = (&'a str, WordType)> + 'lookup {
+        self.lookup_rafsi(rafsi)
+            .map(|matched| (matched.entry.word, matched.entry.word_type))
+    }
+
+    /// Return every short rafsi `gismu` could claim, with its availability.
+    ///
+    /// The derivation itself is pure phonotactics
+    /// ([`possible_short_rafsi_forms`]); this method adds what only the
+    /// dictionary knows, namely which gismu already hold each form.
+    #[requires(true)]
+    #[ensures(
+        ret.windows(2).all(|pair| pair[0].form < pair[1].form),
+        "candidates inherit the sorted, duplicate-free derivation order"
+    )]
+    pub fn short_rafsi_candidates(&self, gismu: &str) -> Vec<RafsiCandidate> {
+        possible_short_rafsi_forms(gismu)
+            .into_iter()
+            .map(|form| {
+                let availability = self.rafsi_availability(&form.form);
+                let form = form.into_data();
+                new!(RafsiCandidate {
+                    form: form.form,
+                    shape: form.shape,
+                    availability: availability,
+                })
+            })
+            .collect()
+    }
+
+    /// Classify who, if anyone, has already claimed `rafsi`.
+    ///
+    /// Only gismu claims matter: a short rafsi listed for a lujvo or fu'ivla
+    /// entry is a rafsi *of* some gismu, not a competing assignment.
+    #[requires(!rafsi.is_empty())]
+    #[ensures(true)]
+    fn rafsi_availability(&self, rafsi: &str) -> RafsiAvailability {
+        let mut official = Vec::new();
+        let mut experimental = Vec::new();
+        for (word, word_type) in self.rafsi_claimants(rafsi) {
+            match word_type {
+                WordType::Gismu => official.push(word.to_owned()),
+                WordType::ExperimentalGismu => experimental.push(word.to_owned()),
+                _ => {}
+            }
+        }
+        if let Ok(words) = Vec1::try_from_vec(official) {
+            return new!(RafsiAvailability::Taken {
+                kind: RafsiClaimKind::Official,
+                words: words,
+            });
+        }
+        match Vec1::try_from_vec(experimental) {
+            Ok(words) => new!(RafsiAvailability::Taken {
+                kind: RafsiClaimKind::Experimental,
+                words: words,
+            }),
+            Err(_) => new!(RafsiAvailability::Free),
+        }
     }
 
     /// Return all entries whose raw selma'o string matches exactly.
@@ -558,6 +629,74 @@ pub enum RafsiSource {
 pub struct RafsiMatch<'entry, 'dict> {
     pub entry: &'entry DictionaryEntry<'dict>,
     pub source: RafsiSource,
+}
+
+/// Standing of the gismu that already claim a short rafsi.
+///
+/// Official gismu outrank experimental ones: a rafsi held by an official gismu
+/// is reported as officially taken even when experimental gismu claim it too.
+#[invariant(::Official => true)]
+#[invariant(::Experimental => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RafsiClaimKind {
+    Official,
+    Experimental,
+}
+
+/// Whether a short rafsi is still available, and to whom it belongs otherwise.
+///
+/// The claimant list lives inside `Taken` so that a free rafsi cannot carry
+/// claimants and a taken one cannot lack them.
+#[invariant(::Free => true)]
+#[invariant(::Taken { words, .. } => words.iter().all(|word| !word.is_empty()))]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RafsiAvailability {
+    Free,
+    Taken {
+        kind: RafsiClaimKind,
+        words: Vec1<String>,
+    },
+}
+
+impl RafsiAvailability {
+    /// Whether no gismu has claimed this rafsi yet.
+    #[requires(true)]
+    #[ensures(ret == matches!(self.as_data(), data!(RafsiAvailability::Free)))]
+    pub fn is_free(&self) -> bool {
+        matches!(self.as_data(), data!(RafsiAvailability::Free))
+    }
+
+    /// Return the standing of the claim, or `None` while the rafsi is free.
+    #[requires(true)]
+    #[ensures(ret.is_none() == self.is_free())]
+    pub fn claim_kind(&self) -> Option<RafsiClaimKind> {
+        match self.as_data() {
+            data!(RafsiAvailability::Free) => None,
+            data!(RafsiAvailability::Taken { kind, .. }) => Some(*kind),
+        }
+    }
+
+    /// Return the gismu that claim this rafsi, empty when it is free.
+    #[requires(true)]
+    #[ensures(self.is_free() == ret.is_empty())]
+    pub fn claimant_words(&self) -> &[String] {
+        match self.as_data() {
+            data!(RafsiAvailability::Free) => &[],
+            data!(RafsiAvailability::Taken { words, .. }) => words,
+        }
+    }
+}
+
+/// One short rafsi a gismu could claim, with its dictionary standing.
+#[invariant(shape.matches_form(form), "the spelling realizes the declared shape")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct RafsiCandidate {
+    pub form: String,
+    pub shape: ShortRafsiShape,
+    pub availability: RafsiAvailability,
 }
 
 /// Owned indexes used by importers and validation.
@@ -1084,6 +1223,94 @@ mod tests {
             universal_gismu_rafsi_forms("broda"),
             vec![("broda".to_owned(), RafsiSource::UniversalLong)]
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn short_rafsi_candidates_report_gismu_claims_only() {
+        static SAL: [Rafsi<'static>; 1] = [Rafsi("sal")];
+        static SAK: [Rafsi<'static>; 1] = [Rafsi("sak")];
+        static SKA: [Rafsi<'static>; 1] = [Rafsi("ska")];
+        static KLI: [Rafsi<'static>; 1] = [Rafsi("kli")];
+        let entries = &[
+            test_entry("salci", WordType::Gismu, &SAL, None),
+            test_entry("salpo", WordType::Gismu, &SAL, None),
+            test_entry("sakta", WordType::ExperimentalGismu, &SAK, None),
+            test_entry("skami", WordType::Gismu, &SKA, None),
+            test_entry("skeci", WordType::ExperimentalGismu, &SKA, None),
+            test_entry("kliniko", WordType::Fuivla, &KLI, None),
+        ];
+        let indexes = build_owned_indexes(entries);
+        let dictionary = Dictionary::from_static_slices(
+            entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_selmaho_index(&indexes.selmaho_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+        );
+        assert!(dictionary.validate().is_ok());
+
+        let candidates = dictionary.short_rafsi_candidates("sakli");
+        let described = candidates
+            .iter()
+            .map(|candidate| {
+                (
+                    candidate.form.as_str(),
+                    candidate.shape,
+                    candidate.availability.claim_kind(),
+                    candidate
+                        .availability
+                        .claimant_words()
+                        .iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            described,
+            vec![
+                // A fu'ivla listing `kli` is not a competing gismu claim.
+                ("kli", ShortRafsiShape::Ccv, None, vec![]),
+                ("sa'i", ShortRafsiShape::Cvv, None, vec![]),
+                ("sai", ShortRafsiShape::Cvv, None, vec![]),
+                (
+                    "sak",
+                    ShortRafsiShape::Cvc,
+                    Some(RafsiClaimKind::Experimental),
+                    vec!["sakta"],
+                ),
+                (
+                    "sal",
+                    ShortRafsiShape::Cvc,
+                    Some(RafsiClaimKind::Official),
+                    vec!["salci", "salpo"],
+                ),
+                // `skeci` also claims `ska`, but an official claim outranks it.
+                (
+                    "ska",
+                    ShortRafsiShape::Ccv,
+                    Some(RafsiClaimKind::Official),
+                    vec!["skami"],
+                ),
+            ]
+        );
+
+        assert_eq!(
+            dictionary.rafsi_claimants("ska").collect::<Vec<_>>(),
+            vec![
+                ("skami", WordType::Gismu),
+                ("skeci", WordType::ExperimentalGismu)
+            ]
+        );
+        assert_eq!(
+            dictionary.rafsi_claimants("kli").collect::<Vec<_>>(),
+            vec![("kliniko", WordType::Fuivla)]
+        );
+        assert!(dictionary.short_rafsi_candidates("coi").is_empty());
     }
 
     #[test]
