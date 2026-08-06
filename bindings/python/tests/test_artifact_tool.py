@@ -16,7 +16,6 @@ from pathlib import Path
 import pytest
 
 from tools.python_artifacts import (
-    GENERATOR_INPUT_PREFIX,
     SDIST_OMITTED_PATCH,
     SDIST_OMITTED_WORKSPACE_DEPENDENCIES,
     normalize_sdist,
@@ -54,12 +53,6 @@ version = "0.0.0"
 edition = "2021"
 """
 
-# What `cargo package` makes of `DEPENDENCY_MANIFEST`: the same manifest plus
-# the `readme` key it detects from the crate directory.
-CARGO_NORMALIZED_DEPENDENCY_MANIFEST = DEPENDENCY_MANIFEST.replace(
-    b'edition = "2021"\n', b'edition = "2021"\nreadme = "README.md"\n'
-)
-
 
 def workspace_manifest(members: str) -> bytes:
     """Build a root manifest carrying every reference normalization removes."""
@@ -96,8 +89,6 @@ def write_sdist(path: Path, members: dict[str, bytes]) -> None:
 
 def packaged_workspace(
     members: str = '"member", "dependency"',
-    *,
-    packaged_dependency_manifest: bytes = DEPENDENCY_MANIFEST,
 ) -> dict[str, bytes]:
     """Return the members of a synthetic raw source distribution."""
     return {
@@ -105,11 +96,8 @@ def packaged_workspace(
         "Cargo.lock": STALE_WORKSPACE_LOCK,
         "member/Cargo.toml": MEMBER_MANIFEST,
         "member/src/lib.rs": b"",
-        "dependency/Cargo.toml": packaged_dependency_manifest,
+        "dependency/Cargo.toml": DEPENDENCY_MANIFEST,
         "dependency/src/lib.rs": b"",
-        f"{GENERATOR_INPUT_PREFIX}/dependency/Cargo.toml.opaque": (
-            DEPENDENCY_MANIFEST
-        ),
     }
 
 
@@ -178,35 +166,6 @@ def test_normalization_writes_the_canonical_packaged_lockfile(
         stdout=subprocess.DEVNULL,
         check=True,
     )
-
-
-def test_normalization_restores_cargo_normalized_crate_manifests(
-    tmp_path: Path,
-) -> None:
-    """Undo the `readme` key so retained mirrors stay byte-comparable."""
-    root = normalized_workspace(
-        tmp_path,
-        packaged_workspace(
-            packaged_dependency_manifest=CARGO_NORMALIZED_DEPENDENCY_MANIFEST
-        ),
-    )
-    assert (root / "dependency" / "Cargo.toml").read_bytes() == (
-        DEPENDENCY_MANIFEST
-    )
-
-
-def test_normalization_fails_closed_on_an_unaudited_manifest_rewrite(
-    tmp_path: Path,
-) -> None:
-    """Reject a packaged manifest that packaging did more than annotate."""
-    rewritten = CARGO_NORMALIZED_DEPENDENCY_MANIFEST.replace(
-        b'version = "0.0.0"', b'version = "9.9.9"'
-    )
-    with pytest.raises(AssertionError):
-        normalized_workspace(
-            tmp_path,
-            packaged_workspace(packaged_dependency_manifest=rewritten),
-        )
 
 
 def test_normalization_fails_closed_on_an_unloadable_workspace(

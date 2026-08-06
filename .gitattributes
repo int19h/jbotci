@@ -1,18 +1,13 @@
 /vendor/lensisku/dictionary-*.json -text
 
-# The smusni-v0 bundle retains byte-exact mirrors of every source its generator
-# compiled against, and `crates/jbotci-semantics/build.rs` compares each mirror
-# against its live counterpart on every build. Git decides end-of-line
-# conversion per path, so a mirror and the file it snapshots that disagree about
-# the `text` attribute drift apart on a Windows checkout and nowhere else. Check
-# both sides of every such path out verbatim instead, along with the bundle's
-# own retained sources, whose digests the same build recomputes.
+# The smusni-v0 bundle keeps its own copy of the dual-homed specification and
+# recomputes digests over the vendored dictionary snapshot, and
+# `crates/jbotci-semantics/build.rs` compares those bytes on every build. Git
+# decides end-of-line conversion per path, so two copies of one document that
+# disagree about the `text` attribute drift apart on a Windows checkout and
+# nowhere else. Check every compared path out verbatim instead.
 # `crates/jbotci-semantics/tests/smusni_v0_bundle.rs` keeps this closed over the
-# generator's own inventory rather than over these patterns.
-/Cargo.lock -text
-/Cargo.toml -text
-/crates/bityzba/** -text
-/crates/bityzba-contract-syntax/** -text
-/crates/bityzba-macros/** -text
+# generator's own input inventory rather than over these patterns.
 /crates/jbotci-dictionary-data/data/** -text
 /crates/jbotci-semantics/** -text
+/docs/smusni/** -text

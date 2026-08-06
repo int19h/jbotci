@@ -49,6 +49,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             paths.repository_root.join(relative).display()
         );
     }
+    // `build.rs` includes these through `#[path]`, and cargo tracks only the
+    // script itself, so each generator module needs its own rerun trigger.
+    for module in [
+        "codegen/smusni_v0_bundle.rs",
+        "codegen/smusni_v0_completeness.rs",
+        "codegen/smusni_v0_dispositions.rs",
+        "codegen/smusni_v0_kernel.rs",
+        "codegen/smusni_v0_surface.rs",
+    ] {
+        println!("cargo:rerun-if-changed={module}");
+    }
     println!("cargo:rerun-if-env-changed=JBOTCI_SMUSNI_V0_BUNDLE_MODE");
     Ok(())
 }

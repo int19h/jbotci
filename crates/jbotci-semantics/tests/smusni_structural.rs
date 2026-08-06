@@ -623,7 +623,7 @@ fn unsupported_utterance_forces_use_typed_fallback_not_retired_forms() {
         rendered
             .stats
             .fallback_reasons
-            .get("smusni.fallback.question-domain-or-answer-mismatch"),
+            .get("smusni.projection.question-domain-or-answer-mismatch"),
         Some(&1),
     );
 }
@@ -1608,7 +1608,7 @@ fn fallback_channel_is_evidenced_and_reproducible_on_the_corpus() {
         let rendered = render_smusni_detailed(&input.graph, &[]);
         let records = fallback_records(&rendered);
         for (reason_id, message, owner, use_site) in &records {
-            assert!(reason_id.starts_with("smusni.fallback."));
+            assert!(reason_id.starts_with("smusni.projection."));
             assert!(!message.is_empty());
             for identity in [owner, use_site].into_iter().flatten() {
                 assert!(
@@ -1643,7 +1643,7 @@ fn scope_failures_carry_binder_and_use_evidence() {
     let records = fallback_records(&rendered);
     let definition_site = records
         .iter()
-        .filter(|(reason_id, ..)| reason_id.starts_with("smusni.fallback.definition-site"))
+        .filter(|(reason_id, ..)| reason_id.starts_with("smusni.projection.definition-site"))
         .collect::<Vec<_>>();
     assert!(
         !definition_site.is_empty(),

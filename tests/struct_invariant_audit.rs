@@ -992,14 +992,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw TOML source DTO intentionally admits invalid identities, types, and arities for fail-closed mint validation",
     ),
     (
-        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RawLockedPackage",
-        "raw Cargo.lock package DTO intentionally admits an empty identity and a checksum without a source so lockfile parsing returns a typed rejection",
-    ),
-    (
-        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:RawLockfile",
-        "raw Cargo.lock DTO is an unchecked staging aggregate whose packages become validated LockedPackage values before any projection comparison",
-    ),
-    (
         "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:PlaceDeletionSource",
         "raw TOML source DTO is validated against lexical rows, total surviving labels, and evidence before minting",
     ),
@@ -1092,12 +1084,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unchecked generated constants are accepted only through DispositionRegistry::try_from_generated",
     ),
     (
-        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedFallbackReasonRow",
-        "unchecked generated reason constants are joined and validated only by DispositionRegistry::try_from_generated",
-    ),
-    (
         "crates/jbotci-semantics/src/notation/registry.rs:GeneratedLexicalPolicyRow",
         "private generated lexical rows contain build-time-audited constants and closed enum values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedProjectionFailureReasonRow",
+        "unchecked generated reason constants are joined and validated only by DispositionRegistry::try_from_generated",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Parser",

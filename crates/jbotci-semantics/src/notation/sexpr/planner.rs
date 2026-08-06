@@ -46,20 +46,20 @@ impl ScopeFailureKind {
 
     /// Stable registered whole-document fallback reason for this failure.
     #[requires(true)]
-    #[ensures(ret.starts_with("smusni.fallback."))]
+    #[ensures(ret.starts_with("smusni.projection."))]
     pub(super) fn reason_id(self) -> &'static str {
         match self {
-            Self::MultipleBinderOwners => "smusni.fallback.conflicting-binder-owners",
-            Self::BinderDoesNotEncloseUse => "smusni.fallback.binder-does-not-dominate-use",
+            Self::MultipleBinderOwners => "smusni.projection.conflicting-binder-owners",
+            Self::BinderDoesNotEncloseUse => "smusni.projection.binder-does-not-dominate-use",
             Self::ScopeDependencyWithoutEnclosingBinder => {
-                "smusni.fallback.scope-dependency-without-binder"
+                "smusni.projection.scope-dependency-without-binder"
             }
-            Self::UnrepresentableCycle => "smusni.fallback.unguarded-or-unrepresentable-scc",
+            Self::UnrepresentableCycle => "smusni.projection.unguarded-or-unrepresentable-scc",
             Self::DefinitionSiteDoesNotDominateUse => {
-                "smusni.fallback.definition-site-does-not-dominate-use"
+                "smusni.projection.definition-site-does-not-dominate-use"
             }
             Self::DeclarationPlanningDidNotConverge => {
-                "smusni.fallback.declaration-planning-nonconvergence"
+                "smusni.projection.declaration-planning-nonconvergence"
             }
         }
     }
