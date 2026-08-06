@@ -572,6 +572,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "validation error wrapper carries the sound index position and structural diagnostic",
     ),
     (
+        "crates/jbotci-dictionary/src/lib.rs:RafsiAvailability::Free",
+        "a free short rafsi has no claimants to constrain; the Taken alternative carries and validates the claimant list",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:RafsiClaimKind::Experimental",
+        "rafsi claim standing is a closed selector over official and experimental gismu claims",
+    ),
+    (
+        "crates/jbotci-dictionary/src/lib.rs:RafsiClaimKind::Official",
+        "rafsi claim standing is a closed selector over official and experimental gismu claims",
+    ),
+    (
         "crates/jbotci-embeddings/src/lib.rs:EmbeddingError::Backend",
         "embedding error variant carries only an already formatted backend diagnostic message",
     ),

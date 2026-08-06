@@ -32,6 +32,13 @@ ENUM_METHODS: dict[tuple[str, str], tuple[str, ...]] = {
     ("dialect", "DialectFeature"): (
         "    def atom_name(self) -> str: ...",
     ),
+    ("morphology", "GismuShape"): (
+        "    @staticmethod",
+        "    def classify(word: str) -> _morphology_GismuShape | None: ...",
+    ),
+    ("morphology", "ShortRafsiShape"): (
+        "    def matches_form(self, form: str) -> bool: ...",
+    ),
 }
 
 

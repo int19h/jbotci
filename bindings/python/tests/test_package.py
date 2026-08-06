@@ -14,8 +14,8 @@ import sys
 import tomllib
 from collections import Counter
 from pathlib import Path
-from types import ModuleType
-from typing import get_type_hints
+from types import ModuleType, UnionType
+from typing import Union, get_args, get_origin, get_type_hints
 
 import pytest
 
@@ -133,6 +133,7 @@ MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
     "_morphology_LujvoRafsiBuildPart": ("text",),
     "_morphology_LujvoBrivlaCoreBuildPart": ("text",),
     "_morphology_LujvoCandidate": ("word", "parts", "score"),
+    "_morphology_ShortRafsiForm": ("form", "shape"),
 }
 
 NON_MORPHOLOGY_MATCH_ARGS: dict[str, tuple[str, ...]] = {
@@ -437,6 +438,18 @@ MORPHOLOGY_FUNCTION_TYPES: dict[
     "_morphology_rafsi_shape_score": (
         (("shape", "_morphology_RafsiShape"),),
         "int",
+    ),
+    "_morphology_possible_short_rafsi_forms": (
+        (("gismu", "str"),),
+        "tuple[_morphology_ShortRafsiForm, ...]",
+    ),
+    "_morphology_gismu_shape_classify": (
+        (("word", "str"),),
+        "_morphology_GismuShape | None",
+    ),
+    "_morphology_short_rafsi_shape_matches_form": (
+        (("shape", "_morphology_ShortRafsiShape"), ("form", "str")),
+        "bool",
     ),
     "_morphology_is_vowel": ((("value", "str"),), "bool"),
     "_morphology_is_consonant": ((("value", "str"),), "bool"),
@@ -1007,6 +1020,13 @@ def _generated_enum_runtime_type_name(annotation: object) -> str:
         return "int"
     if annotation is str:
         return "str"
+    if get_origin(annotation) in {UnionType, Union}:
+        arguments = get_args(annotation)
+        assert len(arguments) == 2 and type(None) in arguments, annotation
+        member = next(
+            argument for argument in arguments if argument is not type(None)
+        )
+        return f"{_generated_enum_runtime_type_name(member)} | None"
     native_names = [
         name for name in native.__all__ if getattr(native, name) is annotation
     ]
@@ -1361,7 +1381,7 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         for name, declaration in classes.items()
         if name.startswith("_morphology_")
     }
-    assert len(declarations) == 53
+    assert len(declarations) == 54
     declared_match_args = {
         name
         for name, declaration in declarations.items()
@@ -1484,7 +1504,7 @@ def test_morphology_stub_class_members_signatures_and_match_args_match_runtime()
         if isinstance(declaration, ast.FunctionDef)
         and declaration.name.startswith("_morphology_")
     }
-    assert len(functions) == 58
+    assert len(functions) == 61
     assert set(functions) == set(MORPHOLOGY_FUNCTION_TYPES)
     for name, function_declaration in functions.items():
         assert _stub_function_type_shape(

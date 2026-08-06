@@ -41,7 +41,7 @@ mod tests {
     use bityzba::requires;
     use jbotci_dictionary::{
         DictionaryLujvoEntry, DictionaryLujvoSegment, DictionaryLujvoSegmentKind,
-        DictionarySoundEntry, RafsiSource,
+        DictionarySoundEntry, RafsiClaimKind, RafsiSource,
     };
 
     use super::*;
@@ -64,6 +64,46 @@ mod tests {
         assert_eq!(
             english_metadata().lensisku_created_at,
             "2026-07-27T07:10:51.776063Z"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn short_rafsi_candidates_resolve_against_the_embedded_dictionary() {
+        let dictionary = english();
+        // Every short rafsi `sakli` could claim is already assigned: `sal` to
+        // `sakli` itself, and the rest to unrelated official gismu.
+        assert_eq!(
+            dictionary
+                .short_rafsi_candidates("sakli")
+                .iter()
+                .map(|candidate| (
+                    candidate.form.as_str(),
+                    candidate.availability.claim_kind(),
+                    candidate.availability.claimant_words().to_vec(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("kli", "klina"),
+                ("sa'i", "sanli"),
+                ("sai", "sanmi"),
+                ("sak", "sakci"),
+                ("sal", "sakli"),
+                ("ska", "skari"),
+            ]
+            .map(|(form, holder)| (
+                form,
+                Some(RafsiClaimKind::Official),
+                vec![holder.to_owned()]
+            ))
+        );
+        assert!(
+            dictionary
+                .short_rafsi_candidates("nanpe")
+                .iter()
+                .any(|candidate| candidate.availability.is_free()),
+            "the invented gismu nanpe still has free short rafsi"
         );
     }
 

@@ -69,6 +69,44 @@ class _dictionary_RafsiSource(StrEnum):
     UNIVERSAL_LONG = "universal-long"
 
 @final
+class _dictionary_RafsiClaimKind(StrEnum):
+    OFFICIAL = "official"
+    EXPERIMENTAL = "experimental"
+
+@final
+class _dictionary_FreeRafsiAvailability:
+    def __new__(cls) -> _dictionary_FreeRafsiAvailability: ...
+    def __eq__(self, value: object, /) -> bool: ...
+    def __repr__(self) -> str: ...
+
+@final
+class _dictionary_TakenRafsiAvailability:
+    __match_args__: tuple[str, str]
+    def __new__(
+        cls, kind: _dictionary_RafsiClaimKind, words: Sequence[str]
+    ) -> _dictionary_TakenRafsiAvailability: ...
+    @property
+    def kind(self) -> _dictionary_RafsiClaimKind: ...
+    @property
+    def words(self) -> tuple[str, ...]: ...
+    def __eq__(self, value: object, /) -> bool: ...
+    def __repr__(self) -> str: ...
+
+@final
+class _dictionary_RafsiCandidate:
+    __match_args__: tuple[str, str, str]
+    @property
+    def form(self) -> str: ...
+    @property
+    def shape(self) -> _morphology_ShortRafsiShape: ...
+    @property
+    def availability(
+        self,
+    ) -> _dictionary_FreeRafsiAvailability | _dictionary_TakenRafsiAvailability: ...
+    def __eq__(self, value: object, /) -> bool: ...
+    def __repr__(self) -> str: ...
+
+@final
 class _dictionary_DictionaryLujvoSegmentKind(StrEnum):
     RAFSI = "rafsi"
     HYPHEN = "hyphen"
@@ -445,6 +483,12 @@ class _dictionary_Dictionary:
         self, prefix: str
     ) -> tuple[_dictionary_DictionaryEntry, ...]: ...
     def lookup_rafsi(self, query: str) -> tuple[_dictionary_RafsiMatch, ...]: ...
+    def rafsi_claimants(
+        self, rafsi: str
+    ) -> tuple[tuple[str, _dictionary_WordType], ...]: ...
+    def short_rafsi_candidates(
+        self, gismu: str
+    ) -> tuple[_dictionary_RafsiCandidate, ...]: ...
     def entries_by_selmaho(
         self, selmaho: str
     ) -> tuple[_dictionary_DictionaryEntry, ...]: ...
@@ -708,6 +752,20 @@ class _morphology_RafsiShape(StrEnum):
     CCV = 'ccv'
     CVV = 'cvv'
     OTHER = 'other'
+
+@final
+class _morphology_GismuShape(StrEnum):
+    CCVCV = 'ccvcv'
+    CVCCV = 'cvccv'
+    @staticmethod
+    def classify(word: str) -> _morphology_GismuShape | None: ...
+
+@final
+class _morphology_ShortRafsiShape(StrEnum):
+    CVC = 'cvc'
+    CCV = 'ccv'
+    CVV = 'cvv'
+    def matches_form(self, form: str) -> bool: ...
 
 @final
 class _morphology_ConsonantPairClass(StrEnum):
@@ -3336,6 +3394,26 @@ class _morphology_LujvoCandidate:
     def score(self) -> int: ...
     def __eq__(self, value: object, /) -> bool: ...
 
+@final
+class _morphology_ShortRafsiForm:
+    __match_args__: tuple[str, str]
+    def __new__(
+        cls, form: str, shape: _morphology_ShortRafsiShape
+    ) -> _morphology_ShortRafsiForm: ...
+    @property
+    def form(self) -> str: ...
+    @property
+    def shape(self) -> _morphology_ShortRafsiShape: ...
+    def __eq__(self, value: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+
+def _morphology_possible_short_rafsi_forms(
+    gismu: str,
+) -> tuple[_morphology_ShortRafsiForm, ...]: ...
+def _morphology_gismu_shape_classify(word: str) -> _morphology_GismuShape | None: ...
+def _morphology_short_rafsi_shape_matches_form(
+    shape: _morphology_ShortRafsiShape, form: str
+) -> bool: ...
 def _morphology_segment_attempt(
     source: str,
     *,

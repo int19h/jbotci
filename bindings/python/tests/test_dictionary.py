@@ -16,6 +16,7 @@ import pytest
 
 import jbotci._native as native
 import jbotci.dictionary as dictionary
+import jbotci.morphology as morphology
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_DICTIONARY_EXPORTS = (
@@ -33,6 +34,7 @@ EXPECTED_DICTIONARY_EXPORTS = (
     "DictionaryValidationDetail",
     "DictionaryValidationError",
     "EntryIndex",
+    "FreeRafsiAvailability",
     "InvalidEntryValidationDetail",
     "InvalidLujvoIndexEntryValidationDetail",
     "InvalidSoundIndexEntryValidationDetail",
@@ -43,12 +45,16 @@ EXPECTED_DICTIONARY_EXPORTS = (
     "PronunciationTargetId",
     "PronunciationTargetSequenceView",
     "Rafsi",
+    "RafsiAvailability",
+    "RafsiCandidate",
+    "RafsiClaimKind",
     "RafsiIndexMismatchValidationDetail",
     "RafsiMatch",
     "RafsiSource",
     "RawSelmaho",
     "Score",
     "SelmahoIndexMismatchValidationDetail",
+    "TakenRafsiAvailability",
     "WordIndexMismatchValidationDetail",
     "WordType",
     "english",
@@ -56,6 +62,8 @@ EXPECTED_DICTIONARY_EXPORTS = (
     "first_gloss_keywords_for_words",
     "normalize_lookup_query",
     "normalize_pattern_lookup_key",
+    "rafsi_claimants",
+    "short_rafsi_candidates",
     "universal_gismu_rafsi_forms",
 )
 
@@ -134,6 +142,7 @@ def test_import_keeps_entry_sequence_lazy_and_has_no_tracked_entry_wrappers() ->
     code = """
 import gc
 import jbotci.dictionary as dictionary
+import jbotci.morphology as morphology
 assert not any(isinstance(value, dictionary.DictionaryEntry) for value in gc.get_objects())
 assert not isinstance(dictionary.english.entries, tuple)
 """
@@ -273,6 +282,51 @@ def test_rafsi_queries_preserve_provenance_and_helpers_are_typed() -> None:
     assert dictionary.universal_gismu_rafsi_forms("broda") == (
         (dictionary.Rafsi("broda"), dictionary.RafsiSource.UNIVERSAL_LONG),
     )
+
+
+def test_short_rafsi_candidates_report_dictionary_claims() -> None:
+    candidates = dictionary.short_rafsi_candidates("sakli")
+    assert tuple(candidate.form for candidate in candidates) == (
+        "kli",
+        "sa'i",
+        "sai",
+        "sak",
+        "sal",
+        "ska",
+    )
+    assert candidates == dictionary.english.short_rafsi_candidates("sakli")
+    assert candidates[0].shape is morphology.ShortRafsiShape.CCV
+
+    # Every rafsi `sakli` could claim is already held, `sal` by `sakli` itself.
+    for candidate in candidates:
+        match candidate.availability:
+            case dictionary.TakenRafsiAvailability(kind, words):
+                assert kind is dictionary.RafsiClaimKind.OFFICIAL
+                assert words
+            case _:  # pragma: no cover - structural match must succeed
+                pytest.fail(f"{candidate.form} should be taken")
+    assert candidates[4].availability == dictionary.TakenRafsiAvailability(
+        dictionary.RafsiClaimKind.OFFICIAL, ("sakli",)
+    )
+
+    assert dictionary.short_rafsi_candidates("coi") == ()
+    assert any(
+        candidate.availability == dictionary.FreeRafsiAvailability()
+        for candidate in dictionary.short_rafsi_candidates("nanpe")
+    )
+
+    assert dictionary.rafsi_claimants("sal") == (
+        ("sakli", dictionary.WordType.GISMU),
+    )
+    assert dictionary.rafsi_claimants("zzz") == ()
+    with pytest.raises(TypeError):
+        dictionary.TakenRafsiAvailability(
+            dictionary.RafsiClaimKind.OFFICIAL, ()
+        )
+    # Candidates only ever arrive from the validated Rust derivation, so there
+    # is no Python path that could construct an ill-formed one.
+    with pytest.raises(TypeError):
+        dictionary.RafsiCandidate()
 
 
 def test_selmaho_and_batch_gloss_queries_use_real_indexes() -> None:

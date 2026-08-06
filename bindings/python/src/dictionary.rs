@@ -15,10 +15,12 @@ use bityzba::try_new;
 use bityzba::{contract_trait, data, invariant, new, requires};
 use jbotci_dictionary::{
     DefinitionId, Dictionary, DictionaryEntry, DictionaryLujvoSegmentKind,
-    DictionaryValidationError, EntryIndex, Keyword, RafsiSource, Score, WordType,
-    normalize_lookup_query, normalize_pattern_lookup_key, universal_gismu_rafsi_forms,
+    DictionaryValidationError, EntryIndex, Keyword, RafsiAvailability, RafsiAvailabilityData,
+    RafsiCandidate, RafsiClaimKind, RafsiSource, Score, WordType, normalize_lookup_query,
+    normalize_pattern_lookup_key, universal_gismu_rafsi_forms,
 };
 use jbotci_dictionary_data::{DictionarySnapshotMetadata, english, english_metadata};
+use jbotci_morphology::ShortRafsiShape;
 use jbotci_phonetic::{IpaSegmentId, PronunciationTargetId, ipa_segment_symbol};
 use pyo3::exceptions::{PyIndexError, PyTypeError};
 use pyo3::prelude::*;
@@ -82,6 +84,10 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_dictionary_EntryIndex",
     "_dictionary_RafsiSource",
     "_dictionary_RafsiMatch",
+    "_dictionary_RafsiClaimKind",
+    "_dictionary_FreeRafsiAvailability",
+    "_dictionary_TakenRafsiAvailability",
+    "_dictionary_RafsiCandidate",
     "_dictionary_DictionarySoundEntry",
     "_dictionary_IpaTokenSequenceView",
     "_dictionary_IpaSegmentId",
@@ -1304,6 +1310,38 @@ impl PyDictionary {
         Ok(sequence_to_tuple(py, matches)?.unbind())
     }
 
+    /// Return the word and type of every entry claiming a rafsi.
+    #[requires(true)]
+    #[ensures(true)]
+    fn rafsi_claimants(&self, py: Python<'_>, rafsi: &str) -> PyResult<Py<PyTuple>> {
+        let module = native_module(py)?;
+        let claimants = self
+            .owner
+            .dictionary()
+            .rafsi_claimants(rafsi)
+            .map(|(word, word_type)| {
+                let word = PyString::new(py, word).into_any().unbind();
+                let word_type = string_enum_member(&module, word_type)?.unbind();
+                Ok(sequence_to_tuple(py, [word, word_type])?.unbind())
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+        Ok(sequence_to_tuple(py, claimants)?.unbind())
+    }
+
+    /// Return every short rafsi a gismu could claim, with its availability.
+    #[requires(true)]
+    #[ensures(true)]
+    fn short_rafsi_candidates(&self, py: Python<'_>, gismu: &str) -> PyResult<Py<PyTuple>> {
+        let candidates = self
+            .owner
+            .dictionary()
+            .short_rafsi_candidates(gismu)
+            .into_iter()
+            .map(|candidate| Py::new(py, PyRafsiCandidate::from_rust(candidate)))
+            .collect::<PyResult<Vec<_>>>()?;
+        Ok(sequence_to_tuple(py, candidates)?.unbind())
+    }
+
     /// Return every entry with exactly the requested raw selma'o.
     #[requires(true)]
     #[ensures(true)]
@@ -1911,6 +1949,231 @@ impl PyRafsiMatch {
         Arc::ptr_eq(&self.entry.owner, &other.entry.owner)
             && self.entry.position == other.entry.position
             && self.source == other.source
+    }
+}
+
+#[contract_trait]
+impl PythonStringEnum for RafsiClaimKind {
+    fn native_export_name() -> &'static str {
+        "_dictionary_RafsiClaimKind"
+    }
+
+    fn python_type_name() -> &'static str {
+        "RafsiClaimKind"
+    }
+
+    fn python_module_name() -> &'static str {
+        PUBLIC_MODULE
+    }
+
+    fn python_doc() -> &'static str {
+        "Standing of the gismu that already claim a short rafsi."
+    }
+
+    fn variants() -> &'static [Self] {
+        const VARIANTS: &[RafsiClaimKind] =
+            &[RafsiClaimKind::Official, RafsiClaimKind::Experimental];
+        VARIANTS
+    }
+
+    fn python_member_name(self) -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed(match self {
+            Self::Official => "OFFICIAL",
+            Self::Experimental => "EXPERIMENTAL",
+        })
+    }
+
+    fn python_value(self) -> &'static str {
+        match self {
+            Self::Official => "official",
+            Self::Experimental => "experimental",
+        }
+    }
+}
+
+/// Availability alternative for a short rafsi that no gismu has claimed.
+#[invariant(true, "the free alternative carries no state")]
+#[pyclass(
+    name = "FreeRafsiAvailability",
+    frozen,
+    eq,
+    module = "jbotci.dictionary",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct PyFreeRafsiAvailability;
+
+#[pymethods]
+impl PyFreeRafsiAvailability {
+    /// Construct the free availability alternative.
+    #[requires(true)]
+    #[ensures(true)]
+    #[new]
+    fn new() -> Self {
+        PyFreeRafsiAvailability
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn __repr__(&self) -> String {
+        format!("{PUBLIC_MODULE}.FreeRafsiAvailability()")
+    }
+}
+
+/// Availability alternative for a short rafsi that gismu already claim.
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; the checked constructor and validated Rust storage keep the claimant list non-empty"
+)]
+#[pyclass(
+    name = "TakenRafsiAvailability",
+    frozen,
+    eq,
+    module = "jbotci.dictionary",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PyTakenRafsiAvailability {
+    kind: RafsiClaimKind,
+    words: Vec<String>,
+}
+
+#[pymethods]
+impl PyTakenRafsiAvailability {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("kind", "words");
+    /// Construct a taken availability alternative with its claimants.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(py: Python<'_>, kind: &Bound<'_, PyAny>, words: Vec<String>) -> PyResult<Self> {
+        let module = native_module(py)?;
+        let kind = extract_string_enum::<RafsiClaimKind>(&module, kind)?;
+        if words.is_empty() || words.iter().any(|word| word.is_empty()) {
+            return Err(PyTypeError::new_err(
+                "a taken rafsi must name at least one non-empty claimant word",
+            ));
+        }
+        Ok(PyTakenRafsiAvailability { kind, words })
+    }
+
+    /// Return whether the claim is official or experimental.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[getter]
+    fn kind(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let module = native_module(py)?;
+        string_enum_member(&module, self.kind).map(Bound::unbind)
+    }
+
+    /// Return the gismu that hold this rafsi.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[getter]
+    fn words(&self, py: Python<'_>) -> PyResult<Py<PyTuple>> {
+        sequence_to_tuple(py, self.words.iter().cloned()).map(Bound::unbind)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        let words = self
+            .words
+            .iter()
+            .map(|word| string_repr(py, word))
+            .collect::<PyResult<Vec<_>>>()?;
+        Ok(format!(
+            "{PUBLIC_MODULE}.TakenRafsiAvailability(kind={PUBLIC_MODULE}.RafsiClaimKind.{}, words=({},))",
+            self.kind.python_member_name(),
+            words.join(", "),
+        ))
+    }
+}
+
+/// One short rafsi a gismu could claim, with its dictionary standing.
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; values are projected from validated Rust RafsiCandidate storage"
+)]
+#[pyclass(
+    name = "RafsiCandidate",
+    frozen,
+    eq,
+    module = "jbotci.dictionary",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PyRafsiCandidate {
+    form: String,
+    shape: ShortRafsiShape,
+    availability: RafsiAvailability,
+}
+
+impl PyRafsiCandidate {
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_rust(candidate: RafsiCandidate) -> Self {
+        let candidate = candidate.into_data();
+        PyRafsiCandidate {
+            form: candidate.form,
+            shape: candidate.shape,
+            availability: candidate.availability,
+        }
+    }
+}
+
+#[pymethods]
+impl PyRafsiCandidate {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) =
+        ("form", "shape", "availability");
+
+    /// Return the rafsi spelling.
+    #[requires(true)]
+    #[ensures(ret == self.form.as_str())]
+    #[getter]
+    fn form(&self) -> &str {
+        &self.form
+    }
+
+    /// Return the short rafsi shape this spelling realizes.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[getter]
+    fn shape(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let module = native_module(py)?;
+        string_enum_member(&module, self.shape).map(Bound::unbind)
+    }
+
+    /// Return whether the rafsi is free, or who already claims it.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[getter]
+    fn availability(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        match self.availability.as_data() {
+            data!(RafsiAvailability::Free) => Ok(Py::new(py, PyFreeRafsiAvailability)?.into_any()),
+            data!(RafsiAvailability::Taken { kind, words }) => Ok(Py::new(
+                py,
+                PyTakenRafsiAvailability {
+                    kind: *kind,
+                    words: words.iter().cloned().collect::<Vec<_>>(),
+                },
+            )?
+            .into_any()),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "{PUBLIC_MODULE}.RafsiCandidate(form={}, shape={PUBLIC_MODULE}.ShortRafsiShape.{}, availability={})",
+            string_repr(py, &self.form)?,
+            self.shape.python_member_name(),
+            self.availability(py)?.bind(py).repr()?,
+        ))
     }
 }
 
@@ -3019,6 +3282,9 @@ fn register_types(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PyDictionaryUser>(module, "_dictionary_DictionaryUser")?;
     register_type::<PyEntryIndex>(module, "_dictionary_EntryIndex")?;
     register_type::<PyRafsiMatch>(module, "_dictionary_RafsiMatch")?;
+    register_type::<PyFreeRafsiAvailability>(module, "_dictionary_FreeRafsiAvailability")?;
+    register_type::<PyTakenRafsiAvailability>(module, "_dictionary_TakenRafsiAvailability")?;
+    register_type::<PyRafsiCandidate>(module, "_dictionary_RafsiCandidate")?;
     register_type::<PyDictionarySoundEntry>(module, "_dictionary_DictionarySoundEntry")?;
     register_type::<PyIpaTokenSequenceView>(module, "_dictionary_IpaTokenSequenceView")?;
     register_type::<PyIpaSegmentId>(module, "_dictionary_IpaSegmentId")?;
@@ -3107,6 +3373,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_string_enum::<WordType>(module)?;
     register_string_enum::<RafsiSource>(module)?;
     register_string_enum::<DictionaryLujvoSegmentKind>(module)?;
+    register_string_enum::<RafsiClaimKind>(module)?;
     register_functions(module)?;
     register_values(module)?;
     Ok(())

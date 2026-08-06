@@ -234,6 +234,20 @@ class _morphology_RafsiShape(StrEnum):
     OTHER = 'other'
 
 @final
+class _morphology_GismuShape(StrEnum):
+    CCVCV = 'ccvcv'
+    CVCCV = 'cvccv'
+    @staticmethod
+    def classify(word: str) -> _morphology_GismuShape | None: ...
+
+@final
+class _morphology_ShortRafsiShape(StrEnum):
+    CVC = 'cvc'
+    CCV = 'ccv'
+    CVV = 'cvv'
+    def matches_form(self, form: str) -> bool: ...
+
+@final
 class _morphology_ConsonantPairClass(StrEnum):
     FORBIDDEN = 'forbidden'
     PERMISSIBLE = 'permissible'

@@ -264,6 +264,8 @@ jbotci_dictionary::Dictionary::lookup_words	method	fn lookup_words < 'lookup > (
 jbotci_dictionary::Dictionary::lujvo_decomposition_for_entry_index	method	fn lujvo_decomposition_for_entry_index (& self , index : EntryIndex ,) -> Option < & 'a DictionaryLujvoEntry < 'a > >	direct	jbotci.dictionary.Dictionary.lujvo_decomposition_for_entry_index		
 jbotci_dictionary::Dictionary::lujvo_index	method	fn lujvo_index (& self) -> & 'a [DictionaryLujvoEntry < 'a >]	direct	jbotci.dictionary.Dictionary.lujvo_index		
 jbotci_dictionary::Dictionary::pattern_index	method	fn pattern_index (& self) -> & 'a [DictionaryPatternEntry < 'a >]	direct	jbotci.dictionary.Dictionary.pattern_index		
+jbotci_dictionary::Dictionary::rafsi_claimants	method	fn rafsi_claimants < 'lookup > (& 'lookup self , rafsi : & str ,) -> impl Iterator < Item = (& 'a str , WordType) > + 'lookup	direct	jbotci.dictionary.Dictionary.rafsi_claimants		
+jbotci_dictionary::Dictionary::short_rafsi_candidates	method	fn short_rafsi_candidates (& self , gismu : & str) -> Vec < RafsiCandidate >	direct	jbotci.dictionary.Dictionary.short_rafsi_candidates		
 jbotci_dictionary::Dictionary::sound_index	method	fn sound_index (& self) -> & 'a [DictionarySoundEntry < 'a >]	direct	jbotci.dictionary.Dictionary.sound_index		
 jbotci_dictionary::Dictionary::validate	method	fn validate (& self) -> Result < () , DictionaryValidationError >	direct	jbotci.dictionary.Dictionary.validate		
 jbotci_dictionary::DictionaryEntry	struct	< 'a >	direct	jbotci.dictionary.DictionaryEntry		
@@ -343,6 +345,21 @@ jbotci_dictionary::OwnedWordIndexEntry::key	field	String	rust-only		serializatio
 jbotci_dictionary::OwnedWordIndexEntry::targets	field	Vec < EntryIndex >	rust-only		serialization-import	Owned index-builder intermediate used to generate static dictionary data; Python queries the validated Dictionary indexes directly.
 jbotci_dictionary::Rafsi	struct	< 'a >	direct	jbotci.dictionary.Rafsi		
 jbotci_dictionary::Rafsi::0	field	& 'a str	subsumed	jbotci.dictionary.Rafsi		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiAvailability	enum	()	direct	jbotci.dictionary.RafsiAvailability		
+jbotci_dictionary::RafsiAvailability::Free	variant	()	subsumed	jbotci.dictionary.RafsiAvailability		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiAvailability::Taken	variant	{ kind : RafsiClaimKind , words : Vec1 < String > , }	subsumed	jbotci.dictionary.RafsiAvailability		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiAvailability::Taken::kind	field	RafsiClaimKind	subsumed	jbotci.dictionary.RafsiAvailability		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiAvailability::Taken::words	field	Vec1 < String >	subsumed	jbotci.dictionary.RafsiAvailability		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiAvailability::claim_kind	method	fn claim_kind (& self) -> Option < RafsiClaimKind >	subsumed	jbotci.dictionary.RafsiAvailability		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiAvailability::claimant_words	method	fn claimant_words (& self) -> & [String]	subsumed	jbotci.dictionary.RafsiAvailability		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiAvailability::is_free	method	fn is_free (& self) -> bool	subsumed	jbotci.dictionary.RafsiAvailability		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiCandidate	struct	()	direct	jbotci.dictionary.RafsiCandidate		
+jbotci_dictionary::RafsiCandidate::availability	field	RafsiAvailability	direct	jbotci.dictionary.RafsiCandidate.availability		
+jbotci_dictionary::RafsiCandidate::form	field	String	direct	jbotci.dictionary.RafsiCandidate.form		
+jbotci_dictionary::RafsiCandidate::shape	field	ShortRafsiShape	direct	jbotci.dictionary.RafsiCandidate.shape		
+jbotci_dictionary::RafsiClaimKind	enum	()	direct	jbotci.dictionary.RafsiClaimKind		
+jbotci_dictionary::RafsiClaimKind::Experimental	variant	()	subsumed	jbotci.dictionary.RafsiClaimKind		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary::RafsiClaimKind::Official	variant	()	subsumed	jbotci.dictionary.RafsiClaimKind		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
 jbotci_dictionary::RafsiIndexEntry	struct	< 'a >	rust-only		ownership-lifetime	Borrowed static-index row; Python exposes the corresponding typed Dictionary lookup operation and immutable results.
 jbotci_dictionary::RafsiIndexEntry::key	field	& 'a str	rust-only		ownership-lifetime	Borrowed static-index row; Python exposes the corresponding typed Dictionary lookup operation and immutable results.
 jbotci_dictionary::RafsiIndexEntry::targets	field	& 'a [RafsiIndexTarget]	rust-only		ownership-lifetime	Borrowed static-index row; Python exposes the corresponding typed Dictionary lookup operation and immutable results.
@@ -933,6 +950,11 @@ jbotci_morphology::is_permissive_ignorable_character	function	fn is_permissive_i
 jbotci_morphology::is_valid_phoneme	function	fn is_valid_phoneme (value : char) -> bool	direct	jbotci.morphology.is_valid_phoneme		
 jbotci_morphology::is_word_forming_character	function	fn is_word_forming_character (value : char) -> bool	direct	jbotci.morphology.is_word_forming_character		
 jbotci_morphology::is_word_forming_character_with_options	function	fn is_word_forming_character_with_options (value : char , options : & MorphologyOptions) -> bool	subsumed	jbotci.morphology.is_word_forming_character		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_morphology::lujvo::GismuShape	enum	macro-generated fieldless enum	direct	jbotci.morphology.GismuShape		
+jbotci_morphology::lujvo::GismuShape::Ccvcv	variant	unit	subsumed	jbotci.morphology.GismuShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_morphology::lujvo::GismuShape::Cvccv	variant	unit	subsumed	jbotci.morphology.GismuShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_morphology::lujvo::GismuShape::as_str	method	fn as_str (self) -> & 'static str	subsumed	jbotci.morphology.GismuShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_morphology::lujvo::GismuShape::classify	method	fn classify (word : & str) -> Option < Self >	direct	jbotci.morphology.GismuShape.classify		
 jbotci_morphology::lujvo::LujvoBuildMode	enum	macro-generated fieldless enum	direct	jbotci.morphology.LujvoBuildMode		
 jbotci_morphology::lujvo::LujvoBuildMode::Cmevla	variant	unit	subsumed	jbotci.morphology.LujvoBuildMode		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
 jbotci_morphology::lujvo::LujvoBuildMode::Lujvo	variant	unit	subsumed	jbotci.morphology.LujvoBuildMode		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
@@ -957,6 +979,14 @@ jbotci_morphology::lujvo::RafsiShape::CvhV	variant	unit	subsumed	jbotci.morpholo
 jbotci_morphology::lujvo::RafsiShape::Cvv	variant	unit	subsumed	jbotci.morphology.RafsiShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
 jbotci_morphology::lujvo::RafsiShape::Other	variant	unit	subsumed	jbotci.morphology.RafsiShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
 jbotci_morphology::lujvo::RafsiShape::score	method	const fn score (self) -> i32	subsumed	jbotci.morphology.RafsiShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_morphology::lujvo::ShortRafsiForm	struct	()	direct	jbotci.morphology.ShortRafsiForm		
+jbotci_morphology::lujvo::ShortRafsiForm::form	field	String	direct	jbotci.morphology.ShortRafsiForm.form		
+jbotci_morphology::lujvo::ShortRafsiForm::shape	field	ShortRafsiShape	direct	jbotci.morphology.ShortRafsiForm.shape		
+jbotci_morphology::lujvo::ShortRafsiShape	enum	macro-generated fieldless enum	direct	jbotci.morphology.ShortRafsiShape		
+jbotci_morphology::lujvo::ShortRafsiShape::Ccv	variant	unit	subsumed	jbotci.morphology.ShortRafsiShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_morphology::lujvo::ShortRafsiShape::Cvc	variant	unit	subsumed	jbotci.morphology.ShortRafsiShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_morphology::lujvo::ShortRafsiShape::Cvv	variant	unit	subsumed	jbotci.morphology.ShortRafsiShape		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_morphology::lujvo::ShortRafsiShape::matches_form	method	fn matches_form (self , form : & str) -> bool	direct	jbotci.morphology.ShortRafsiShape.matches_form		
 jbotci_morphology::lujvo::bond_rafsis	function	fn bond_rafsis (rafsis : & [String]) -> Option < Vec < String > >	direct	jbotci.morphology.bond_rafsis		
 jbotci_morphology::lujvo::choose_best_lujvo_candidate	function	fn choose_best_lujvo_candidate (mode : LujvoBuildMode , choices : & [Vec < String >] ,) -> Option < LujvoCandidate >	direct	jbotci.morphology.choose_best_lujvo_candidate		
 jbotci_morphology::lujvo::choose_best_lujvo_candidate_from_parts	function	fn choose_best_lujvo_candidate_from_parts (mode : LujvoBuildMode , choices : & [Vec < LujvoBuildPart >] ,) -> Option < LujvoCandidate >	direct	jbotci.morphology.choose_best_lujvo_candidate_from_parts		
@@ -970,6 +1000,7 @@ jbotci_morphology::lujvo::is_consonant	function	fn is_consonant (value : char) -
 jbotci_morphology::lujvo::is_valid_lujvo_candidate_word	function	fn is_valid_lujvo_candidate_word (word_text : & str) -> bool	direct	jbotci.morphology.is_valid_lujvo_candidate_word		
 jbotci_morphology::lujvo::is_vowel	function	fn is_vowel (value : char) -> bool	direct	jbotci.morphology.is_vowel		
 jbotci_morphology::lujvo::permissible_consonant_pair	function	fn permissible_consonant_pair (first : char , second : char) -> bool	direct	jbotci.morphology.permissible_consonant_pair		
+jbotci_morphology::lujvo::possible_short_rafsi_forms	function	fn possible_short_rafsi_forms (gismu : & str) -> Vec < ShortRafsiForm >	direct	jbotci.morphology.possible_short_rafsi_forms		
 jbotci_morphology::lujvo::rafsi_shape	function	fn rafsi_shape (text : & str) -> RafsiShape	direct	jbotci.morphology.rafsi_shape		
 jbotci_morphology::lujvo::syllables_pattern	function	fn syllables_pattern (text : & str) -> Option < String >	direct	jbotci.morphology.syllables_pattern		
 jbotci_morphology::map_verbatim_span	function	fn map_verbatim_span < F > (verbatim : Verbatim , map_span : & F) -> Result < Verbatim , String > where F : Fn (SourceSpan) -> Result < SourceSpan , String > ,	rust-only		generic-trait	Generic Rust closure-based ownership transformation; Python source spans are immutable and rebuilt through typed constructors.

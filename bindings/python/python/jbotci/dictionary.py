@@ -17,6 +17,7 @@ from ._native import (
     _dictionary_DictionarySoundEntry as DictionarySoundEntry,
     _dictionary_DictionaryUser as DictionaryUser,
     _dictionary_EntryIndex as EntryIndex,
+    _dictionary_FreeRafsiAvailability as FreeRafsiAvailability,
     _dictionary_InvalidEntryValidationDetail as InvalidEntryValidationDetail,
     _dictionary_InvalidLujvoIndexEntryValidationDetail as InvalidLujvoIndexEntryValidationDetail,
     _dictionary_InvalidSoundIndexEntryValidationDetail as InvalidSoundIndexEntryValidationDetail,
@@ -27,12 +28,15 @@ from ._native import (
     _dictionary_PronunciationTargetId as PronunciationTargetId,
     _dictionary_PronunciationTargetSequenceView as PronunciationTargetSequenceView,
     _dictionary_Rafsi as Rafsi,
+    _dictionary_RafsiCandidate as RafsiCandidate,
+    _dictionary_RafsiClaimKind as RafsiClaimKind,
     _dictionary_RafsiIndexMismatchValidationDetail as RafsiIndexMismatchValidationDetail,
     _dictionary_RafsiMatch as RafsiMatch,
     _dictionary_RafsiSource as RafsiSource,
     _dictionary_RawSelmaho as RawSelmaho,
     _dictionary_Score as Score,
     _dictionary_SelmahoIndexMismatchValidationDetail as SelmahoIndexMismatchValidationDetail,
+    _dictionary_TakenRafsiAvailability as TakenRafsiAvailability,
     _dictionary_WordIndexMismatchValidationDetail as WordIndexMismatchValidationDetail,
     _dictionary_WordType as WordType,
     _dictionary_english,
@@ -44,6 +48,8 @@ from ._native import (
     _dictionary_word_type_is_lujvo_like,
 )
 from ._native import JbotciError
+
+RafsiAvailability: TypeAlias = FreeRafsiAvailability | TakenRafsiAvailability
 
 DictionaryValidationDetail: TypeAlias = (
     InvalidEntryValidationDetail
@@ -102,6 +108,16 @@ def universal_gismu_rafsi_forms(
     return _dictionary_universal_gismu_rafsi_forms(word)
 
 
+def short_rafsi_candidates(gismu: str) -> tuple[RafsiCandidate, ...]:
+    """Return every short rafsi a gismu could claim, with its availability."""
+    return english.short_rafsi_candidates(gismu)
+
+
+def rafsi_claimants(rafsi: str) -> tuple[tuple[str, WordType], ...]:
+    """Return the word and type of every entry claiming a rafsi."""
+    return english.rafsi_claimants(rafsi)
+
+
 def first_gloss_keywords_for_words(
     words: Sequence[str],
 ) -> tuple[str | None, ...]:
@@ -124,6 +140,7 @@ __all__: tuple[str, ...] = (
     "DictionaryValidationDetail",
     "DictionaryValidationError",
     "EntryIndex",
+    "FreeRafsiAvailability",
     "InvalidEntryValidationDetail",
     "InvalidLujvoIndexEntryValidationDetail",
     "InvalidSoundIndexEntryValidationDetail",
@@ -134,12 +151,16 @@ __all__: tuple[str, ...] = (
     "PronunciationTargetId",
     "PronunciationTargetSequenceView",
     "Rafsi",
+    "RafsiAvailability",
+    "RafsiCandidate",
+    "RafsiClaimKind",
     "RafsiIndexMismatchValidationDetail",
     "RafsiMatch",
     "RafsiSource",
     "RawSelmaho",
     "Score",
     "SelmahoIndexMismatchValidationDetail",
+    "TakenRafsiAvailability",
     "WordIndexMismatchValidationDetail",
     "WordType",
     "english",
@@ -147,5 +168,7 @@ __all__: tuple[str, ...] = (
     "first_gloss_keywords_for_words",
     "normalize_lookup_query",
     "normalize_pattern_lookup_key",
+    "rafsi_claimants",
+    "short_rafsi_candidates",
     "universal_gismu_rafsi_forms",
 )

@@ -29,6 +29,8 @@ ZoiDelimiterDetailKind = _rust._morphology_ZoiDelimiterDetailKind
 PhonotacticDetailKind = _rust._morphology_PhonotacticDetailKind
 LujvoBuildMode = _rust._morphology_LujvoBuildMode
 RafsiShape = _rust._morphology_RafsiShape
+GismuShape = _rust._morphology_GismuShape
+ShortRafsiShape = _rust._morphology_ShortRafsiShape
 ConsonantPairClass = _rust._morphology_ConsonantPairClass
 LeadingPauseVowelMode = _rust._morphology_LeadingPauseVowelMode
 LeadingPauseContext = _rust._morphology_LeadingPauseContext
@@ -92,6 +94,7 @@ ValsiAnalysis = _rust._morphology_ValsiAnalysis
 LujvoRafsiBuildPart = _rust._morphology_LujvoRafsiBuildPart
 LujvoBrivlaCoreBuildPart = _rust._morphology_LujvoBrivlaCoreBuildPart
 LujvoCandidate = _rust._morphology_LujvoCandidate
+ShortRafsiForm = _rust._morphology_ShortRafsiForm
 
 MORPHOLOGY_TRACE_FILTERS: Final[tuple[str, ...]] = (
     _rust._morphology_MORPHOLOGY_TRACE_FILTERS
@@ -483,6 +486,9 @@ syllables_pattern = _public_native(
     "syllables_pattern", _rust._morphology_syllables_pattern
 )
 rafsi_shape = _public_native("rafsi_shape", _rust._morphology_rafsi_shape)
+possible_short_rafsi_forms = _public_native(
+    "possible_short_rafsi_forms", _rust._morphology_possible_short_rafsi_forms
+)
 rafsi_shape_score = _public_native(
     "rafsi_shape_score", _rust._morphology_rafsi_shape_score
 )
@@ -547,6 +553,23 @@ choose_best_lujvo_candidate_from_parts = _public_native(
     _rust._morphology_choose_best_lujvo_candidate_from_parts,
 )
 
+
+def _gismu_shape_classify(word: str) -> GismuShape | None:
+    """Return the gismu shape of a word, or None when it is not a gismu."""
+    return _rust._morphology_gismu_shape_classify(word)
+
+
+def _short_rafsi_shape_matches_form(self: ShortRafsiShape, form: str) -> bool:
+    """Return whether a spelling realizes this short rafsi shape."""
+    return _rust._morphology_short_rafsi_shape_matches_form(self, form)
+
+
+# Functional `StrEnum` construction is what lets Rust register the exact class
+# per interpreter. Attach the Rust operations after construction; their
+# implementations delegate through exact native enum extraction to Rust.
+setattr(GismuShape, "classify", staticmethod(_gismu_shape_classify))
+setattr(ShortRafsiShape, "matches_form", _short_rafsi_shape_matches_form)
+
 __all__: tuple[str, ...] = (
     "MORPHOLOGY_TRACE_FILTERS", "PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS",
     "WordKind", "ValsiAnalysisStatus", "ValsiClassificationKind",
@@ -554,7 +577,8 @@ __all__: tuple[str, ...] = (
     "StressMark", "GlideMark", "MorphologyErrorKind", "MorphologyWarningKind",
     "MorphologyContextKind", "LujvoParseExpectation", "ExpectedWordDetailKind",
     "ZoiDelimiterDetailKind", "PhonotacticDetailKind", "LujvoBuildMode",
-    "RafsiShape", "ConsonantPairClass", "LeadingPauseVowelMode",
+    "RafsiShape", "GismuShape", "ShortRafsiShape", "ShortRafsiForm",
+    "ConsonantPairClass", "LeadingPauseVowelMode",
     "LeadingPauseContext", "Cmavo", "Selmaho", "PhonemeRenderOptions",
     "Phonemes", "WordKey", "MorphologyOptions", "CompiledDialectDefinition",
     "InvalidDialectWord", "DialectCompilationError",
@@ -589,7 +613,8 @@ __all__: tuple[str, ...] = (
     "parse_cmevla_lujvo_parts", "parse_cmevla_lujvo_part_candidates",
     "bond_rafsis", "is_valid_lujvo_candidate_word", "ensure_cmevla_word",
     "ends_with_consonant", "ends_with_vowel", "is_bonding_hyphen",
-    "syllables_pattern", "rafsi_shape", "rafsi_shape_score", "is_vowel",
+    "syllables_pattern", "rafsi_shape", "rafsi_shape_score",
+    "possible_short_rafsi_forms", "is_vowel",
     "is_consonant", "is_cmevla", "consonant_pair_class",
     "permissible_consonant_pair",
     "consonant_pair_is_permissible", "consonant_pair_is_initial",

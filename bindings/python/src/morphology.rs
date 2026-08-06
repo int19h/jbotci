@@ -9,18 +9,18 @@ use jbotci_diagnostics::source_span_from_char_offsets;
 use jbotci_morphology::{
     Cmavo, CompiledDialectDefinition, CompiledDialectEntry, CompiledDialectEntryData,
     CompiledDialectWord, ConsonantPairClass, DialectCompilationError, DialectCompilationErrorData,
-    ExpectedWordDetailKind, GlideMark, LeadingPauseContext, LeadingPauseVowelMode, LujvoBuildMode,
-    LujvoBuildPart, LujvoBuildPartData, LujvoCandidate, LujvoParseExpectation, LujvoPart,
-    MORPHOLOGY_TRACE_FILTERS, MorphologyContext, MorphologyContextData, MorphologyContextKind,
-    MorphologyError as RustMorphologyError, MorphologyErrorDetail, MorphologyErrorDetailData,
-    MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt, MorphologyWarning,
-    MorphologyWarningKind, PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS, PhonemeRenderOptions,
-    Phonemes, PhonotacticDetailKind, PlainWordClassification, RafsiShape,
-    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho, StressMark,
-    StringEnumMetadata, ValsiAnalysis, ValsiAnalysisResult, ValsiAnalysisStatus,
-    ValsiClassification, ValsiClassificationData, ValsiClassificationKind, ValsiFuhivlaStage,
-    ValsiLujvoPart, ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word, WordKey, WordKind,
-    WordLike, WordLikeData, ZoiDelimiterDetailKind,
+    ExpectedWordDetailKind, GismuShape, GlideMark, LeadingPauseContext, LeadingPauseVowelMode,
+    LujvoBuildMode, LujvoBuildPart, LujvoBuildPartData, LujvoCandidate, LujvoParseExpectation,
+    LujvoPart, MORPHOLOGY_TRACE_FILTERS, MorphologyContext, MorphologyContextData,
+    MorphologyContextKind, MorphologyError as RustMorphologyError, MorphologyErrorDetail,
+    MorphologyErrorDetailData, MorphologyErrorKind, MorphologyOptions, MorphologySegmentAttempt,
+    MorphologyWarning, MorphologyWarningKind, PERMISSIVE_IGNORABLE_RESERVED_CHARACTERS,
+    PhonemeRenderOptions, Phonemes, PhonotacticDetailKind, PlainWordClassification, RafsiShape,
+    RecoveredMorphologySegmentAttempt, RecoveredMorphologySegmentation, Selmaho, ShortRafsiForm,
+    ShortRafsiShape, StressMark, StringEnumMetadata, ValsiAnalysis, ValsiAnalysisResult,
+    ValsiAnalysisStatus, ValsiClassification, ValsiClassificationData, ValsiClassificationKind,
+    ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind, ValsiLujvoRafsiKind, Verbatim, Word,
+    WordKey, WordKind, WordLike, WordLikeData, ZoiDelimiterDetailKind,
 };
 use jbotci_syntax::{Token, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreePath;
@@ -62,6 +62,8 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_morphology_PhonotacticDetailKind",
     "_morphology_LujvoBuildMode",
     "_morphology_RafsiShape",
+    "_morphology_GismuShape",
+    "_morphology_ShortRafsiShape",
     "_morphology_ConsonantPairClass",
     "_morphology_LeadingPauseVowelMode",
     "_morphology_LeadingPauseContext",
@@ -178,6 +180,10 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_morphology_LujvoCandidate",
     "_morphology_choose_best_lujvo_candidate",
     "_morphology_choose_best_lujvo_candidate_from_parts",
+    "_morphology_ShortRafsiForm",
+    "_morphology_possible_short_rafsi_forms",
+    "_morphology_gismu_shape_classify",
+    "_morphology_short_rafsi_shape_matches_form",
 ];
 
 macro_rules! impl_python_string_enum {
@@ -284,6 +290,12 @@ impl_python_string_enum!(
     "LujvoBuildMode"
 );
 impl_python_string_enum!(RafsiShape, "_morphology_RafsiShape", "RafsiShape");
+impl_python_string_enum!(GismuShape, "_morphology_GismuShape", "GismuShape");
+impl_python_string_enum!(
+    ShortRafsiShape,
+    "_morphology_ShortRafsiShape",
+    "ShortRafsiShape"
+);
 impl_python_string_enum!(
     ConsonantPairClass,
     "_morphology_ConsonantPairClass",
@@ -7511,6 +7523,112 @@ impl PyLujvoCandidate {
     }
 }
 
+/// One short rafsi spelling with the shape it realizes.
+#[invariant(
+    true,
+    "PyO3 requires the declared class shape; checked constructors and validated Rust storage enforce projection constraints"
+)]
+#[pyclass(
+    name = "ShortRafsiForm",
+    frozen,
+    eq,
+    module = "jbotci.morphology",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PyShortRafsiForm {
+    value: ShortRafsiForm,
+}
+
+impl PyShortRafsiForm {
+    #[requires(true)]
+    #[expensive_ensures(ret.value == old(value.clone()))]
+    fn from_rust(value: ShortRafsiForm) -> Self {
+        PyShortRafsiForm { value }
+    }
+}
+
+#[pymethods]
+impl PyShortRafsiForm {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str) = ("form", "shape");
+    /// Construct a short rafsi form whose spelling realizes its shape.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[new]
+    fn new(py: Python<'_>, form: String, shape: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let shape = enum_from_python::<ShortRafsiShape>(py, shape)?;
+        if !shape.matches_form(&form) {
+            return Err(InvalidInputError::new_err(
+                "short rafsi spelling does not realize the requested shape",
+            ));
+        }
+        Ok(Self::from_rust(new!(ShortRafsiForm { form, shape })))
+    }
+    /// Return the rafsi spelling.
+    #[requires(true)]
+    #[ensures(ret == self.value.form.as_str())]
+    #[getter]
+    fn form(&self) -> &str {
+        &self.value.form
+    }
+    /// Return the shape this spelling realizes.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[getter]
+    fn shape(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.value.shape)
+    }
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "{PUBLIC_MODULE}.ShortRafsiForm(form={}, shape={PUBLIC_MODULE}.ShortRafsiShape.{})",
+            string_repr(py, &self.value.form)?,
+            self.value.shape.python_member_name(),
+        ))
+    }
+}
+
+/// Derive every short rafsi a gismu could claim, sorted by spelling.
+#[requires(true)]
+#[ensures(true)]
+#[pyfunction]
+#[pyo3(name = "_morphology_possible_short_rafsi_forms")]
+fn possible_short_rafsi_forms(py: Python<'_>, gismu: &str) -> PyResult<Py<pyo3::types::PyTuple>> {
+    let forms = py
+        .detach(|| jbotci_morphology::possible_short_rafsi_forms(gismu))
+        .into_iter()
+        .map(PyShortRafsiForm::from_rust)
+        .collect::<Vec<_>>();
+    crate::support::sequence_to_tuple(py, forms).map(Bound::unbind)
+}
+
+/// Classify a word as a gismu shape, or `None` when it is not a gismu.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_gismu_shape_classify")]
+fn gismu_shape_classify(py: Python<'_>, word: &str) -> PyResult<Option<Py<PyAny>>> {
+    GismuShape::classify(word)
+        .map(|shape| enum_to_python(py, shape))
+        .transpose()
+}
+
+/// Test whether a spelling realizes a short rafsi shape.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+#[pyfunction]
+#[pyo3(name = "_morphology_short_rafsi_shape_matches_form")]
+fn short_rafsi_shape_matches_form(
+    py: Python<'_>,
+    shape: &Bound<'_, PyAny>,
+    form: &str,
+) -> PyResult<bool> {
+    Ok(enum_from_python::<ShortRafsiShape>(py, shape)?.matches_form(form))
+}
+
 /// Choose the best scored lujvo candidate from textual rafsi choices.
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
@@ -7587,6 +7705,8 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_string_enum::<PhonotacticDetailKind>(module)?;
     register_string_enum::<LujvoBuildMode>(module)?;
     register_string_enum::<RafsiShape>(module)?;
+    register_string_enum::<GismuShape>(module)?;
+    register_string_enum::<ShortRafsiShape>(module)?;
     register_string_enum::<ConsonantPairClass>(module)?;
     register_string_enum::<LeadingPauseVowelMode>(module)?;
     register_string_enum::<LeadingPauseContext>(module)?;
@@ -7673,6 +7793,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PyLujvoRafsiBuildPart>(module, "_morphology_LujvoRafsiBuildPart")?;
     register_type::<PyLujvoBrivlaCoreBuildPart>(module, "_morphology_LujvoBrivlaCoreBuildPart")?;
     register_type::<PyLujvoCandidate>(module, "_morphology_LujvoCandidate")?;
+    register_type::<PyShortRafsiForm>(module, "_morphology_ShortRafsiForm")?;
 
     register_function!(module, "_morphology_segment_attempt", segment_attempt);
     register_function!(
@@ -7785,6 +7906,21 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_function!(module, "_morphology_syllables_pattern", syllables_pattern);
     register_function!(module, "_morphology_rafsi_shape", rafsi_shape);
     register_function!(module, "_morphology_rafsi_shape_score", rafsi_shape_score);
+    register_function!(
+        module,
+        "_morphology_possible_short_rafsi_forms",
+        possible_short_rafsi_forms
+    );
+    register_function!(
+        module,
+        "_morphology_gismu_shape_classify",
+        gismu_shape_classify
+    );
+    register_function!(
+        module,
+        "_morphology_short_rafsi_shape_matches_form",
+        short_rafsi_shape_matches_form
+    );
     register_function!(module, "_morphology_is_vowel", is_vowel);
     register_function!(module, "_morphology_is_consonant", is_consonant);
     register_function!(module, "_morphology_is_cmevla", is_cmevla);

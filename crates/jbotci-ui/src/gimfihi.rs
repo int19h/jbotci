@@ -1319,27 +1319,21 @@ pub(super) fn render_gimfihi_rafsi_pill(
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
-    match rafsi.availability {
-        RafsiAvailability::Free => {
+    match rafsi.availability.as_data() {
+        data!(RafsiAvailability::Free) => {
             rsx! {
                 span { class: "chip rafsi-chip gimfihi-rafsi-pill is-free",
                     { render_page_find_text(page_find, &rafsi.form) }
                 }
             }
         }
-        RafsiAvailability::OfficialTaken | RafsiAvailability::ExperimentalTaken => {
-            let tone_class = match rafsi.availability {
-                RafsiAvailability::OfficialTaken => "is-official-taken",
-                RafsiAvailability::ExperimentalTaken => "is-experimental-taken",
-                RafsiAvailability::Free => "is-free",
-            };
-            let sources = if rafsi.taken_by.is_empty() {
-                vec![String::new()]
-            } else {
-                rafsi.taken_by.clone()
+        data!(RafsiAvailability::Taken { kind, words }) => {
+            let tone_class = match kind {
+                RafsiClaimKind::Official => "is-official-taken",
+                RafsiClaimKind::Experimental => "is-experimental-taken",
             };
             rsx! {
-                for source in sources.iter() {
+                for source in words.iter() {
                     span { class: "rafsi-split-pill gimfihi-rafsi-pill {tone_class}",
                         span { class: "rafsi-split-left",
                             { render_page_find_text(page_find, &rafsi.form) }
@@ -1352,7 +1346,7 @@ pub(super) fn render_gimfihi_rafsi_pill(
     }
 }
 
-#[requires(true)]
+#[requires(!source.is_empty())]
 #[ensures(true)]
 pub(super) fn render_gimfihi_taken_rafsi_source(
     source: &str,
@@ -1360,9 +1354,6 @@ pub(super) fn render_gimfihi_taken_rafsi_source(
     script: GentufaScript,
     page_find: &PageFindContext,
 ) -> Element {
-    let Some(source) = (!source.is_empty()).then_some(source) else {
-        return rsx! { span { class: "rafsi-split-right" } };
-    };
     render_gimfihi_dictionary_word_link_with_host(
         "rafsi-split-right dictionary-tooltip-host",
         Some(source),

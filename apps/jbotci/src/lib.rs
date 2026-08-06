@@ -159,8 +159,8 @@ use jbotci_gentufa::{
 use jbotci_gimfihi::{
     CollisionKind, CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
     GIMFIHI_MIN_WEIGHT, GimfihiCandidate, GimfihiOutput, GimfihiRequest, GimfihiScorer,
-    GimfihiSourceInput, GismuCollision, RafsiAvailability, compose_gismu, default_shapes,
-    parse_preset, parse_shape, parse_source_spec,
+    GimfihiSourceInput, GismuCollision, RafsiAvailability, RafsiAvailabilityData, RafsiClaimKind,
+    compose_gismu, default_shapes, parse_preset, parse_shape, parse_source_spec,
 };
 use jbotci_jvozba::{
     JvozbaBuildResult, JvozbaInput as JvozbaSourceInput, JvozbaMode, JvozbaSegmentKind,
@@ -171,6 +171,7 @@ use jbotci_morphology::{
     PlainWordClassification, ValsiAnalysis, ValsiAnalysisStatus, ValsiClassification,
     ValsiClassificationKind, ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind,
     ValsiLujvoRafsiKind, WordKind, WordLike, analyze_valsi_with_options_and_source_id,
+    fold_lojban_diacritics, possible_short_rafsi_forms,
     segment_words_with_modifiers_recovered_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
