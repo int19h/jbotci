@@ -290,18 +290,91 @@ impl RenderFieldInventory {
     }
 }
 
-/// Smusni-v0's closed semantic treatment of an inventoried item.
+/// The section-16.2 classification a projection failure carries.
 ///
-/// The variants deliberately distinguish semantic projection from notation
-/// layout and provenance. `TypedFallback` is a faithful, counted disposition,
-/// not permission to omit the field. Reasons make every non-compact treatment
-/// reviewable at the inventory row that selects it.
+/// The class is registry data: it is authored once on the coordinate that
+/// selects the failure route and reaches every emitted record through that
+/// coordinate's `ProjectionFailureReasonRow`, so a corpus report separates
+/// renderer backlog from language backlog and both from invalid input and
+/// implementation defects without a per-site judgment call.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum FailureClass {
+    /// The graph is malformed, ambiguous where an exact choice is required, or
+    /// internally inconsistent. Nothing follows about smusni's expressiveness.
+    InvalidGraph,
+    /// The coordinate has a normative semantic disposition and this renderer
+    /// does not yet carry it. This is renderer backlog.
+    RouteUnavailable,
+    /// Version 0 specifies no route for the coordinate at all. This is
+    /// language-design backlog and counts toward nothing.
+    TrackedSpecGap,
+    /// The implementation itself broke: an internal invariant, registry or
+    /// executable drift, or a failure of an algorithm declared total.
+    ImplementationInvariant,
+}
+
+impl FailureClass {
+    pub const ALL: &'static [Self] = &[
+        Self::InvalidGraph,
+        Self::RouteUnavailable,
+        Self::TrackedSpecGap,
+        Self::ImplementationInvariant,
+    ];
+
+    /// The closed registry spelling of this class.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::InvalidGraph => "InvalidGraph",
+            Self::RouteUnavailable => "RouteUnavailable",
+            Self::TrackedSpecGap => "TrackedSpecGap",
+            Self::ImplementationInvariant => "ImplementationInvariant",
+        }
+    }
+
+    /// Parse a registry spelling back into the closed value.
+    #[requires(true)]
+    #[ensures(ret.is_some_and(|class| class.name() == text) || ret.is_none())]
+    pub fn from_name(text: &str) -> Option<Self> {
+        Self::ALL.iter().copied().find(|class| class.name() == text)
+    }
+}
+
+/// Where a registered projection failure is attributed in the raw model.
+///
+/// A `TypedPosition` site fixes the expected smusni type and the smallest model
+/// owner at which the failure is sound. A `WholeGraph` site has no established
+/// smusni type; its raw root is always `SemanticGraph`.
+#[invariant(::TypedPosition { expected_type_schema, minimum_raw_owner_type } => !expected_type_schema.is_empty() && !minimum_raw_owner_type.is_empty())]
+#[invariant(::WholeGraph => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProjectionFailureSite {
+    TypedPosition {
+        expected_type_schema: &'static str,
+        minimum_raw_owner_type: &'static str,
+    },
+    WholeGraph,
+}
+
+/// The raw root type every `WholeGraph` failure site names.
+pub const WHOLE_GRAPH_RAW_ROOT_TYPE: &str = "SemanticGraph";
+
+/// Smusni-v0's closed treatment of an inventoried item.
+///
+/// The first five variants are the closed semantic dispositions of
+/// specification section 14.4 and deliberately distinguish semantic projection
+/// from notation layout and provenance. `Failure` is not a semantic
+/// disposition: it is the section-14.2 marker recording that no route is taken
+/// at this owner, and it closes nothing. Reasons make every non-compact
+/// treatment reviewable at the inventory row that selects it.
 #[invariant(::DirectLowering { target_contract } => !target_contract.is_empty())]
 #[invariant(::ProvenDesugaring { target_contract } => !target_contract.is_empty())]
 #[invariant(::NotationDefault { target_contract, reason } => !target_contract.is_empty() && !reason.is_empty())]
 #[invariant(::ProvenanceSuppression { target_contract, reason } => !target_contract.is_empty() && !reason.is_empty())]
 #[invariant(::DiagnosticCollection { target_contract } => !target_contract.is_empty())]
-#[invariant(::TypedFallback { reason, expected_type_schema, minimum_raw_owner_type, reason_id } => !reason.is_empty() && !expected_type_schema.is_empty() && !minimum_raw_owner_type.is_empty() && !reason_id.is_empty())]
+#[invariant(::Failure { reason, reason_id, .. } => !reason.is_empty() && !reason_id.is_empty())]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Disposition {
     DirectLowering {
@@ -321,11 +394,11 @@ pub enum Disposition {
     DiagnosticCollection {
         target_contract: &'static str,
     },
-    TypedFallback {
+    Failure {
         reason: &'static str,
-        expected_type_schema: &'static str,
-        minimum_raw_owner_type: &'static str,
+        site: ProjectionFailureSite,
         reason_id: &'static str,
+        class: FailureClass,
     },
 }
 
@@ -366,19 +439,40 @@ impl Disposition {
         new!(Disposition::DiagnosticCollection { target_contract })
     }
 
+    /// A failure route attributed to the smallest typed model owner.
     #[requires(!reason.is_empty() && !expected_type_schema.is_empty() && !minimum_raw_owner_type.is_empty() && !reason_id.is_empty())]
-    #[ensures(matches!(ret.as_data(), data!(Disposition::TypedFallback { reason_id: id, .. }) if *id == reason_id))]
-    pub fn typed_fallback(
+    #[ensures(matches!(ret.as_data(), data!(Disposition::Failure { reason_id: id, .. }) if *id == reason_id))]
+    pub fn typed_failure(
         reason: &'static str,
         expected_type_schema: &'static str,
         minimum_raw_owner_type: &'static str,
         reason_id: &'static str,
+        class: FailureClass,
     ) -> Self {
-        new!(Disposition::TypedFallback {
+        new!(Disposition::Failure {
             reason,
-            expected_type_schema,
-            minimum_raw_owner_type,
+            site: new!(ProjectionFailureSite::TypedPosition {
+                expected_type_schema,
+                minimum_raw_owner_type,
+            }),
             reason_id,
+            class,
+        })
+    }
+
+    /// A failure route with no sound smaller typed position than the graph.
+    #[requires(!reason.is_empty() && !reason_id.is_empty())]
+    #[ensures(matches!(ret.as_data(), data!(Disposition::Failure { reason_id: id, .. }) if *id == reason_id))]
+    pub fn whole_graph_failure(
+        reason: &'static str,
+        reason_id: &'static str,
+        class: FailureClass,
+    ) -> Self {
+        new!(Disposition::Failure {
+            reason,
+            site: new!(ProjectionFailureSite::WholeGraph),
+            reason_id,
+            class,
         })
     }
 }

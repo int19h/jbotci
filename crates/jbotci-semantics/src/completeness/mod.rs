@@ -23,8 +23,9 @@ pub use disposition::{
 };
 pub use inventory::render_field_inventory;
 pub use model::{
-    CompletenessContract, ContractAudit, Disposition, EntryKey, EntryKind, InventoryEntry,
-    Presence, RenderFieldInventory, Surface, SurfaceCategory, Witness, WitnessExpect,
+    CompletenessContract, ContractAudit, Disposition, EntryKey, EntryKind, FailureClass,
+    InventoryEntry, Presence, ProjectionFailureSite, RenderFieldInventory, Surface,
+    SurfaceCategory, WHOLE_GRAPH_RAW_ROOT_TYPE, Witness, WitnessExpect,
 };
 
 #[cfg(test)]
@@ -138,10 +139,10 @@ mod tests {
                 data!(Disposition::NotationDefault { .. }) => counts[2] += 1,
                 data!(Disposition::ProvenanceSuppression { .. }) => counts[3] += 1,
                 data!(Disposition::DiagnosticCollection { .. }) => counts[4] += 1,
-                data!(Disposition::TypedFallback { .. }) => counts[5] += 1,
+                data!(Disposition::Failure { .. }) => counts[5] += 1,
             }
         }
-        assert_eq!(counts, [627, 112, 4, 61, 18, 60]);
+        assert_eq!(counts, [627, 112, 4, 61, 18, 63]);
         assert_eq!(counts.iter().sum::<usize>(), inventory.len());
     }
 

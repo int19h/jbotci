@@ -740,6 +740,10 @@ fn derived_fact_coordinates() -> BTreeSet<SemanticCoordinate> {
         "definition-site-does-not-dominate-use",
         "declaration-planning-nonconvergence",
         "generated-eventuality-unbound",
+        // The two whole-graph failure facts of specification section 14.4.
+        // Neither has a smaller sound owner, so both use a `WholeGraph` site.
+        "graph-root-not-performable",
+        "graph-unbound-variable",
         "event-owner-missing-or-nonunique",
         "lexical-signature-missing-or-stale",
         "relation-reduction-unregistered-or-inexact",
@@ -754,6 +758,7 @@ fn derived_fact_coordinates() -> BTreeSet<SemanticCoordinate> {
         "simultaneous-termset-unlicensed",
         "modal-tag-reduction-unregistered",
         "event-facet-reduction-unregistered",
+        "abstraction-about-unspecified",
         "abstraction-crossing-unlicensed",
         "quantity-reduction-unregistered",
         "math-reduction-unregistered",

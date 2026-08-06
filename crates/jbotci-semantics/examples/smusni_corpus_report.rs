@@ -16,8 +16,8 @@ use jbotci_morphology::{
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::model::SemanticObjectId;
 use jbotci_semantics::{
-    DocumentMode, SemanticBuildOptions, SemanticGraph, SmusniDiagnosticData, SmusniRender,
-    build_generated_semantic_graph_with_dictionary_and_options, render_smusni_detailed,
+    SemanticBuildOptions, SemanticGraph, SmusniProjectionFailed, SmusniRender,
+    build_generated_semantic_graph_with_dictionary_and_options, render_smusni,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
@@ -41,69 +41,65 @@ struct CorpusReport {
     build_failures: BTreeMap<&'static str, usize>,
     build_panics: usize,
     render_panics: usize,
+    /// Inputs that produced one complete document.
     compact_documents: usize,
-    object_fallback_documents: usize,
-    typed_graph_documents: usize,
+    /// Inputs whose projection failed and therefore produced no document.
+    failed_projections: usize,
     compact_objects: usize,
-    /// The renderer's object statistic: distinct declined objects, or the whole
-    /// object count when scope planning rejected compact rendering.
-    object_fallbacks: usize,
-    /// The renderer's edge statistic. Reporting both is what makes the per-edge
-    /// channel observable in a corpus: an owner that declines at two different
-    /// boundaries contributes two edges and one owner.
+    /// The renderer's edge statistic. Reporting edges and owners separately is
+    /// what makes the per-edge channel observable in a corpus: an owner that
+    /// declines at two different boundaries contributes two edges and one
+    /// owner.
     failed_projection_edges: usize,
     /// Distinct owners named by those edges.
     failing_owners: usize,
     multi_edge_owners: usize,
     semantic_diagnostics: usize,
-    fallback_reasons: BTreeMap<&'static str, usize>,
+    failure_reasons: BTreeMap<String, usize>,
 }
 
-/// Count failed projection edges per named owner in one rendered document.
+/// Count failed projection edges per named owner in one failed projection.
 ///
 /// Owner evidence is optional, so a record that carries none simply does not
 /// contribute to this observation.
 #[requires(true)]
 #[ensures(ret.values().all(|total| *total > 0))]
-fn edges_per_owner(rendered: &SmusniRender) -> BTreeMap<SemanticObjectId, usize> {
+fn edges_per_owner(failed: &SmusniProjectionFailed) -> BTreeMap<SemanticObjectId, usize> {
     let mut owners = BTreeMap::<SemanticObjectId, usize>::new();
-    for diagnostic in &rendered.diagnostics {
-        if let data!(SmusniDiagnostic::Fallback { owner, .. }) = diagnostic.as_data()
-            && let Some(owner) = owner
-        {
-            *owners.entry(*owner).or_default() += 1;
+    for failure in &failed.failures {
+        if let Some(owner) = failure.owner {
+            *owners.entry(owner).or_default() += 1;
         }
     }
     owners
 }
 
 impl CorpusReport {
-    /// Record one successful rendering and its renderer-provided measurements.
+    /// Record one complete document.
     #[requires(true)]
-    #[ensures(self.successes == old(self.successes) + 1)]
-    fn record_success(&mut self, rendered: &SmusniRender) {
-        let stats = &rendered.stats;
-        let owners = edges_per_owner(rendered);
+    #[ensures(self.compact_documents == old(self.compact_documents) + 1)]
+    fn record_document(&mut self, rendered: &SmusniRender) {
+        self.successes += 1;
+        self.compact_documents += 1;
+        self.compact_objects += rendered.stats.compact_objects;
+        self.semantic_diagnostics += rendered.stats.semantic_diagnostic_count;
+    }
+
+    /// Record one projection failure and its per-edge measurements.
+    #[requires(!failed.failures.is_empty())]
+    #[ensures(self.failed_projections == old(self.failed_projections) + 1)]
+    fn record_failure(&mut self, failed: &SmusniProjectionFailed) {
+        let owners = edges_per_owner(failed);
         self.failing_owners += owners.len();
         self.multi_edge_owners += owners.values().filter(|total| **total > 1).count();
-        self.successes += 1;
-        match stats.mode {
-            DocumentMode::Compact if stats.object_fallbacks == 0 => {
-                self.compact_documents += 1;
-            }
-            DocumentMode::Compact => {
-                self.object_fallback_documents += 1;
-            }
-            DocumentMode::TypedGraph => {
-                self.typed_graph_documents += 1;
-            }
-        }
-        self.compact_objects += stats.compact_objects;
-        self.object_fallbacks += stats.object_fallbacks;
-        self.failed_projection_edges += stats.failed_projection_edges;
-        self.semantic_diagnostics += stats.semantic_diagnostic_count;
-        for (reason, count) in &stats.fallback_reasons {
-            *self.fallback_reasons.entry(reason).or_default() += count;
+        self.failed_projections += 1;
+        self.failed_projection_edges += failed.stats.failed_projection_edges;
+        self.semantic_diagnostics += failed.stats.semantic_diagnostic_count;
+        for (reason, count) in &failed.stats.failure_reasons {
+            *self
+                .failure_reasons
+                .entry((*reason).to_owned())
+                .or_default() += count;
         }
     }
 
@@ -112,17 +108,15 @@ impl CorpusReport {
     #[ensures(true)]
     fn print(&self, corpus: &str) {
         println!(
-            "SUMMARY\t{corpus}\tinputs={}\tsuccesses={}\tbuild_failures={}\tbuild_panics={}\trender_panics={}\tcompact_documents={}\tobject_fallback_documents={}\ttyped_graph_documents={}\tcompact_objects={}\tobject_fallbacks={}\tfailed_projection_edges={}\tfailing_owners={}\tmulti_edge_owners={}\tsemantic_diagnostics={}",
+            "SUMMARY\t{corpus}\tinputs={}\tsuccesses={}\tbuild_failures={}\tbuild_panics={}\trender_panics={}\tcompact_documents={}\tfailed_projections={}\tcompact_objects={}\tfailed_projection_edges={}\tfailing_owners={}\tmulti_edge_owners={}\tsemantic_diagnostics={}",
             self.inputs,
             self.successes,
             self.build_failures.values().sum::<usize>(),
             self.build_panics,
             self.render_panics,
             self.compact_documents,
-            self.object_fallback_documents,
-            self.typed_graph_documents,
+            self.failed_projections,
             self.compact_objects,
-            self.object_fallbacks,
             self.failed_projection_edges,
             self.failing_owners,
             self.multi_edge_owners,
@@ -131,8 +125,8 @@ impl CorpusReport {
         for (stage, count) in &self.build_failures {
             println!("BUILD_FAILURE\t{corpus}\t{stage}\t{count}");
         }
-        for (reason, count) in &self.fallback_reasons {
-            println!("FALLBACK_REASON\t{corpus}\t{reason}\t{count}");
+        for (reason, count) in &self.failure_reasons {
+            println!("PROJECTION_FAILURE_REASON\t{corpus}\t{reason}\t{count}");
         }
     }
 }
@@ -206,16 +200,19 @@ fn measure(inputs: &[CorpusInput]) -> CorpusReport {
                 process_status_kib("VmHWM:").unwrap_or(0),
             );
         }
-        match catch_unwind(AssertUnwindSafe(|| render_smusni_detailed(&graph, &[]))) {
-            Ok(rendered) => {
+        match catch_unwind(AssertUnwindSafe(|| render_smusni(&graph))) {
+            Ok(projection) => {
                 if input.name == "alice-whole" {
                     eprintln!(
-                        "ALICE_WHOLE\trendered\trss_kib={}\tpeak_kib={}",
+                        "ALICE_WHOLE\tprojected\trss_kib={}\tpeak_kib={}",
                         process_status_kib("VmRSS:").unwrap_or(0),
                         process_status_kib("VmHWM:").unwrap_or(0),
                     );
                 }
-                report.record_success(&rendered);
+                match projection {
+                    Ok(rendered) => report.record_document(&rendered),
+                    Err(failed) => report.record_failure(&failed),
+                }
             }
             Err(_) => report.render_panics += 1,
         }

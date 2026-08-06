@@ -13,7 +13,7 @@ use bityzba::{ensures, invariant, new, requires};
 use num_bigint::BigUint;
 use unicode_normalization::UnicodeNormalization;
 
-use super::datum::{Datum, is_symbol_name};
+use super::datum::{Datum, MAX_INTEGER_DIGITS, is_symbol_name};
 
 /// A version-0 primitive type atom.
 #[invariant(true)]
@@ -1540,7 +1540,10 @@ fn domains_are_pairwise_disjoint(domains: &[Vec<PlaceLabel>]) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn is_positive_integer_text(text: &str) -> bool {
-    !text.is_empty() && !text.starts_with('0') && text.bytes().all(|byte| byte.is_ascii_digit())
+    !text.is_empty()
+        && text.len() <= MAX_INTEGER_DIGITS
+        && !text.starts_with('0')
+        && text.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 /// Validate lowercase or escaped lowercase relation spelling.

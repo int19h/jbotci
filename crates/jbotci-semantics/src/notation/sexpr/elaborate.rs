@@ -165,6 +165,7 @@ pub(super) enum CompactFallbackCause {
     UnrepresentableRecursiveValue,
     DefinitionTypeUnrepresentable,
     EventualityFacets,
+    AbstractionAboutUnspecified,
     QuestionSlotFields,
     AskForceWithoutQuestion,
     MathSideFields,
@@ -222,6 +223,7 @@ impl CompactFallbackCause {
                 "smusni.projection.higher-order-crossing-unlicensed"
             }
             Self::EventualityFacets => "smusni.projection.event-facet-reduction-unregistered",
+            Self::AbstractionAboutUnspecified => "smusni.projection.abstraction-about-unspecified",
             Self::QuestionSlotFields | Self::AskForceWithoutQuestion => {
                 "smusni.projection.question-domain-or-answer-mismatch"
             }
@@ -249,7 +251,7 @@ impl CompactFallbackCause {
                     "no compact force reduction is registered for this object family"
                 }
                 SemanticObjectKind::Parameter => {
-                    "a bare parameter object crosses a higher order that version 0 does not license"
+                    "this renderer does not yet project the higher-order crossing this parameter value requires"
                 }
                 SemanticObjectKind::RelationMetadata => {
                     "the lexical signature for this relation is missing or stale"
@@ -300,9 +302,14 @@ impl CompactFallbackCause {
                 "this recursive value is unguarded or lexically unrepresentable"
             }
             Self::DefinitionTypeUnrepresentable => {
-                "the shared definition's type crosses an unlicensed higher order"
+                "this renderer does not yet project a shared definition at this higher-order type"
             }
             Self::EventualityFacets => "these event facets have no registered compact reduction",
+            Self::AbstractionAboutUnspecified => {
+                "`tu'a` withholds which abstraction about the operand is meant, and version 0 \
+                 specifies no faithful underspecified crossing for it (tracked spec gap, \
+                 specification section 14.4)"
+            }
             Self::QuestionSlotFields => {
                 "the question's domain or answer slot does not match a compact form"
             }
@@ -401,30 +408,12 @@ pub(super) struct CompactElaboration {
 }
 
 impl CompactElaboration {
-    /// Whether any boundary declined, which promotes the whole document to the
-    /// graph-faithful representation.
+    /// Whether any boundary declined, which fails the projection as a whole:
+    /// a failed elaboration yields failure records, never a document.
     #[requires(true)]
     #[ensures(ret == !self.failures.is_empty())]
-    pub(super) fn requires_typed_graph(&self) -> bool {
+    pub(super) fn has_failures(&self) -> bool {
         !self.failures.is_empty()
-    }
-
-    /// Number of distinct objects whose compact projection was declined.
-    ///
-    /// This is deliberately not `failures.len()`: that is the failed-*edge*
-    /// count, and one object can decline at two different boundaries. The
-    /// channel is sorted by owner first, so distinct owners are the positions
-    /// where the owner changes.
-    #[requires(true)]
-    #[ensures(ret <= self.failures.len())]
-    #[ensures(ret > 0 || self.failures.is_empty())]
-    pub(super) fn failed_owners(&self) -> usize {
-        self.failures
-            .iter()
-            .zip(self.failures.iter().skip(1))
-            .filter(|(previous, next)| previous.owner != next.owner)
-            .count()
-            + usize::from(!self.failures.is_empty())
     }
 }
 
@@ -792,8 +781,8 @@ impl Elaborator<'_> {
         )
     }
 
-    /// Record one failed projection edge, which also requires the
-    /// graph-faithful document fallback.
+    /// Record one failed projection edge, which fails the projection as a
+    /// whole once elaboration completes.
     ///
     /// The edge is `(id, cause)`. Re-entering the same boundary from a
     /// declining wrapper's re-render is the same edge and adds nothing; a
@@ -2038,7 +2027,22 @@ impl Elaborator<'_> {
                 )
             };
         }
-        self.fallback_object(id, bound, active, CompactFallbackCause::EventualityFacets)
+        // `tu'a` is the one construction specification section 14.4 names a
+        // tracked spec gap: its descriptor deliberately withholds *which*
+        // abstraction about the operand is meant, and version 0 specifies no
+        // faithful underspecified crossing to carry that. Its decline is
+        // therefore language-design backlog, not the renderer backlog the
+        // ordinary event-facet boundary reports, so it takes its own reason.
+        let cause = if node
+            .descriptor
+            .as_ref()
+            .is_some_and(|descriptor| descriptor.kind == DescriptorKind::AbstractionAbout)
+        {
+            CompactFallbackCause::AbstractionAboutUnspecified
+        } else {
+            CompactFallbackCause::EventualityFacets
+        };
+        self.fallback_object(id, bound, active, cause)
     }
 
     /// Render complete typed questions; use `Ask λ` only under its exact default.
@@ -3923,45 +3927,6 @@ mod tests {
                 CompactFallbackCause::NonAtomicRelation,
             ]),
         );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn distinct_failed_owners_are_counted_separately_from_failed_edges() {
-        // `SmusniRenderStats::object_fallbacks` reports objects and the reason
-        // aggregate reports edges, so the two must stay separable here: three
-        // edges over two owners are three records but two failed objects.
-        let log = CompactFallbackLog::default();
-        for failure in [
-            edge(1, CompactFallbackCause::ArgumentFields),
-            edge(1, CompactFallbackCause::NonAtomicRelation),
-            edge(2, CompactFallbackCause::ArgumentFields),
-        ] {
-            log.record(failure);
-        }
-        let elaboration = new!(CompactElaboration {
-            body: Datum::atom("This"),
-            compact_objects: 0,
-            failures: log.into_ordered(),
-        });
-        assert_eq!(elaboration.failures.len(), 3, "three distinct failed edges");
-        assert_eq!(elaboration.failed_owners(), 2, "over two distinct owners");
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn one_failed_edge_is_one_failed_owner() {
-        let log = CompactFallbackLog::default();
-        log.record(edge(1, CompactFallbackCause::SignFields));
-        let elaboration = new!(CompactElaboration {
-            body: Datum::atom("This"),
-            compact_objects: 0,
-            failures: log.into_ordered(),
-        });
-        assert_eq!(elaboration.failures.len(), 1);
-        assert_eq!(elaboration.failed_owners(), 1);
     }
 
     #[test]

@@ -80,9 +80,31 @@ fn is_canonical_integer(text: &str) -> bool {
     }
     let digits = text.strip_prefix('-').unwrap_or(text);
     !digits.is_empty()
+        && digits.len() <= MAX_INTEGER_DIGITS
         && !digits.starts_with('0')
         && digits.bytes().all(|byte| byte.is_ascii_digit())
 }
+
+/// The largest integer literal this grammar accepts, in decimal digits.
+///
+/// Integers are arbitrary-precision, so an untrusted document could otherwise
+/// spend unbounded time and memory on one token. Version 0's real literals are
+/// place indices, cardinalities, and small numbers; four thousand digits is far
+/// beyond any of them and still bounds the work.
+pub const MAX_INTEGER_DIGITS: usize = 4_096;
+
+/// The largest document this parser accepts, in bytes.
+///
+/// The parser is only ever handed one document, and a host that receives
+/// untrusted text needs a bound before allocation rather than after.
+pub const MAX_DOCUMENT_BYTES: usize = 16 * 1024 * 1024;
+
+/// The deepest list nesting this parser accepts.
+///
+/// `parse_list` recurses per nesting level, so an untrusted `((((…` would
+/// otherwise overflow the stack instead of returning an error. Real documents
+/// nest tens of levels; this bound is an order of magnitude above that.
+pub const MAX_PARSE_DEPTH: usize = 256;
 
 /// An atom that is safe to print without quoting.
 #[invariant(!text.is_empty())]
@@ -152,6 +174,17 @@ impl Datum {
     pub fn atom(text: impl Into<String>) -> Self {
         let text = text.into();
         Self::Atom(Atom::try_new(text).expect("renderer atom constants must be lexically valid"))
+    }
+
+    /// Construct an atom from data-derived text without panicking.
+    ///
+    /// [`Datum::atom`] is for compile-time-constant spellings, where a failure
+    /// really is a programming error. Every caller whose text comes from model
+    /// data, a dictionary, or untrusted input uses this instead.
+    #[requires(true)]
+    #[ensures(ret.is_ok() == Atom::try_new(old(text.clone())).is_ok())]
+    pub fn try_atom(text: String) -> Result<Self, InvalidAtom> {
+        Atom::try_new(text).map(Self::Atom)
     }
 
     /// Construct an NFC string datum.
@@ -329,7 +362,7 @@ impl std::error::Error for ParseError {}
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 pub fn parse_document(input: &str) -> Result<Datum, ParseError> {
-    let mut parser = Parser { input, offset: 0 };
+    let mut parser = Parser::new(input)?;
     parser.skip_whitespace();
     let datum = parser.parse_datum()?;
     parser.skip_whitespace();
@@ -343,7 +376,7 @@ pub fn parse_document(input: &str) -> Result<Datum, ParseError> {
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 pub fn parse_datums(input: &str) -> Result<Vec<Datum>, ParseError> {
-    let mut parser = Parser { input, offset: 0 };
+    let mut parser = Parser::new(input)?;
     let mut datums = Vec::new();
     loop {
         parser.skip_whitespace();
@@ -360,6 +393,26 @@ pub fn parse_datums(input: &str) -> Result<Vec<Datum>, ParseError> {
 struct Parser<'a> {
     input: &'a str,
     offset: usize,
+    depth: usize,
+}
+
+impl<'a> Parser<'a> {
+    /// Start a parse, bounding the document before any allocation.
+    #[requires(true)]
+    #[ensures(ret.is_ok() == (input.len() <= MAX_DOCUMENT_BYTES))]
+    fn new(input: &'a str) -> Result<Self, ParseError> {
+        if input.len() > MAX_DOCUMENT_BYTES {
+            return Err(new!(ParseError {
+                byte_offset: MAX_DOCUMENT_BYTES,
+                message: format!("document exceeds the {MAX_DOCUMENT_BYTES}-byte parse limit"),
+            }));
+        }
+        Ok(Parser {
+            input,
+            offset: 0,
+            depth: 0,
+        })
+    }
 }
 
 impl Parser<'_> {
@@ -382,6 +435,10 @@ impl Parser<'_> {
     #[requires(self.offset <= self.input.len() && self.input.is_char_boundary(self.offset) && self.remaining().starts_with('('))]
     #[ensures(ret.is_ok() || ret.is_err())]
     fn parse_list(&mut self) -> Result<Datum, ParseError> {
+        if self.depth == MAX_PARSE_DEPTH {
+            return Err(self.error("list nesting exceeds the parse depth limit"));
+        }
+        self.depth += 1;
         self.offset += 1;
         let mut values = Vec::new();
         loop {
@@ -391,6 +448,7 @@ impl Parser<'_> {
             };
             if character == ')' {
                 self.offset += 1;
+                self.depth -= 1;
                 return Ok(Datum::List(values));
             }
             values.push(self.parse_datum()?);

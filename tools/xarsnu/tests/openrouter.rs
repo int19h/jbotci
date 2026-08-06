@@ -11,12 +11,12 @@ use bityzba::{contract_trait, ensures, invariant, new, requires};
 use serde_json::{Value, json};
 use xarsnu::protocol::{ProtocolEventData, ProtocolRunOutcomeData, ReviewOutcomeData};
 use xarsnu::{
-    AbortKind, CapsConfig, CompletionTokenLimit, ListenerMode, MeaningReview, MeaningReviewConfig,
-    MeaningReviewer, OpenRouterClient, OpenRouterClientConfig, OpenRouterError,
-    OpenRouterParticipant, OpenRouterReviewSession, OpenRouterReviewer, ParticipantConfig,
-    ParticipantConversation, PromptCaching, ProtocolEvent, ProtocolRunner, ProviderToolChoice,
-    ProviderUsageValidationError, ReasoningConfig, ReferenceToolDispatcher, RetryPolicy,
-    ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, RunHeader, ScenarioInstance,
+    AbortKind, CapsConfig, CompletionTokenLimit, DiagnosticCategory, ListenerMode, MeaningReview,
+    MeaningReviewConfig, MeaningReviewer, OpenRouterClient, OpenRouterClientConfig,
+    OpenRouterError, OpenRouterParticipant, OpenRouterReviewSession, OpenRouterReviewer,
+    ParticipantConfig, ParticipantConversation, PromptCaching, ProtocolEvent, ProtocolRunner,
+    ProviderToolChoice, ProviderUsageValidationError, ReasoningConfig, ReferenceToolDispatcher,
+    RetryPolicy, ReviewBrief, ReviewOutcome, RunAccounting, RunConfig, RunHeader, ScenarioInstance,
     TersmuFormat, ToolCall, ToolChoice, ToolDefinition, ToolDispatchError, ToolDispatcher, Usage,
     VisibleMessage, read_transcript,
 };
@@ -2617,9 +2617,13 @@ fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
     // Issue #721/#723 handoff, end to end over mocked transport: the witness
     // class from the frontier debate produces REAL declared records at the
     // gate; they are auto-quoted into the reviewer brief on the wire and
-    // preserved losslessly in the review-requested transcript event.
+    // preserved losslessly in the review-requested transcript event. The
+    // records are the XML compact renderer's `<INCOMPATIBILITY .../>`
+    // declarations, so the flow runs the production-default XML format; the
+    // same witness under the smusni format is a gate rejection (issue #753)
+    // and is covered separately below.
     let witness = "lo nenri be lo menli be'o poi no da ka'e zgana ke'a";
-    let gate = xarsnu::gate_lojban(witness.to_owned(), Some(TersmuFormat::Smusni), None)
+    let gate = xarsnu::gate_lojban(witness.to_owned(), Some(TersmuFormat::Xml), None)
         .expect("witness gates successfully");
     let declared = gate
         .renderer_incompatibilities()
@@ -2685,7 +2689,7 @@ fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
             reference_nudge_after: 6,
         }),
         ListenerMode::Informed,
-        TersmuFormat::Smusni,
+        TersmuFormat::Xml,
         ReferenceToolDispatcher,
         reviewer,
     )
@@ -2726,6 +2730,34 @@ fn renderer_incompatibility_records_reach_the_reviewer_and_the_transcript() {
             "reviewer brief must quote {record}"
         );
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_smusni_projection_failure_at_the_gate_is_a_classified_rejection() {
+    // Issue #753: under the smusni format the incompatibility witness has no
+    // projection, and the gate reports that as an ordinary structured
+    // rejection — real production diagnostics with the registered reason id,
+    // no rendering, no silent retry in another format, and no incompatibility
+    // records (those belong to accepted candidates).
+    let witness = "lo nenri be lo menli be'o poi no da ka'e zgana ke'a";
+    let gate = xarsnu::gate_lojban(witness.to_owned(), Some(TersmuFormat::Smusni), None)
+        .expect("the gate itself runs");
+    assert!(!gate.is_success());
+    assert_eq!(gate.tersmu_rendering(), None);
+    assert_eq!(gate.renderer_incompatibilities(), None);
+    // Morphology and syntax pass, so the classification is the non-parser
+    // phase, which carries no recovered partial parse.
+    assert_eq!(gate.diagnostic_category(), Some(DiagnosticCategory::Other));
+    assert_eq!(gate.partial_parse_rendering(), None);
+    let diagnostics = gate
+        .diagnostics_rendering()
+        .expect("a rejection carries the production diagnostics");
+    assert!(
+        diagnostics.contains("error[smusni.projection."),
+        "{diagnostics}"
+    );
 }
 
 #[test]

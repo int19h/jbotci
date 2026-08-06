@@ -7,6 +7,7 @@ use axum::http::header::CONTENT_TYPE;
 use axum::http::{Response, StatusCode};
 use base64::Engine;
 use bityzba::{invariant, requires};
+use jbotci_cli::projection::ProjectionFailureEnvelope;
 use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolGentufaRequest, ToolGimfihiRequest,
     ToolJvozbaRequest, ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest,
@@ -466,6 +467,13 @@ fn tool_output_result(output: ToolRenderedOutput) -> Value {
         output.status,
         ToolStatus::Failure | ToolStatus::InvalidInput
     ) {
+        // A smusni projection failure carries the same structured envelope the
+        // HTTP profile returns: a concise readable summary first, then the
+        // envelope as one JSON text item. Nothing here reparses the rendered
+        // diagnostics (specification section 16.3).
+        if let Some(envelope) = &output.projection_failure {
+            return projection_failure_error_result(envelope);
+        }
         return tool_error_result(tool_error_text(&output));
     }
     let mut content = Vec::new();
@@ -520,6 +528,34 @@ fn tool_error_text(output: &ToolRenderedOutput) -> String {
         return text;
     }
     format!("tool failed with status {:?}", output.status)
+}
+
+/// The MCP presentation of one structured projection failure.
+#[requires(true)]
+#[ensures(ret["isError"] == true)]
+fn projection_failure_error_result(envelope: &ProjectionFailureEnvelope) -> Value {
+    let mut summary = format!(
+        "{}: the {} projection of this input failed with {} registered projection error(s)",
+        envelope.code, envelope.format, envelope.total
+    );
+    if envelope.truncated {
+        summary.push_str(&format!("; {} of them are carried here", envelope.returned));
+    }
+    if let Some(first) = envelope.diagnostics.first() {
+        summary.push_str(&format!(
+            "\nfirst error {}: {}",
+            first.reason_id, first.message
+        ));
+    }
+    let serialized = serde_json::to_string_pretty(envelope)
+        .unwrap_or_else(|error| format!("{{\"serializationError\":{error:?}}}"));
+    json!({
+        "content": [
+            { "type": "text", "text": summary },
+            { "type": "text", "text": serialized }
+        ],
+        "isError": true
+    })
 }
 
 #[requires(true)]
@@ -593,6 +629,7 @@ mod tests {
             stdout: "([mi ‼ku‼] [.i do])\n".as_bytes().to_vec(),
             stderr: "error[syntax.unexpected-cmavo]: unexpected cmavo\n".to_owned(),
             content_type: Some("text/plain; charset=utf-8".to_owned()),
+            projection_failure: None,
         };
 
         let result = tool_output_result(output);

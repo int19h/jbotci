@@ -3,6 +3,10 @@
 pub mod datum;
 pub mod elaborate;
 mod identity;
+/// The jbotci-internal raw debug codec. Not smusni, not a public API, and not
+/// a compatibility surface; see `docs/smusni/internal-raw.md`.
+#[doc(hidden)]
+pub mod internal_raw;
 pub mod planner;
 pub mod renderer;
 pub mod structural;
@@ -11,8 +15,8 @@ pub mod type_system;
 
 pub use datum::{Datum, ParseError, parse_document};
 pub use renderer::{
-    DocumentMode, SmusniDiagnostic, SmusniDiagnosticData, SmusniRender, SmusniRenderStats,
-    render_document,
+    FailureSpanSource, SmusniDiagnostic, SmusniProjection, SmusniProjectionFailed,
+    SmusniProjectionFailure, SmusniRender, SmusniRenderStats, render_document,
 };
 pub use structural::word_card_datum;
 pub use syntax::{

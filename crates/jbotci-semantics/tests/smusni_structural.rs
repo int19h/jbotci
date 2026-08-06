@@ -22,13 +22,14 @@ use jbotci_semantics::model::{
     ScopeDependence, ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId,
     Subscript, UtteranceForce,
 };
+use jbotci_semantics::notation::sexpr::internal_raw::whole_graph_capture;
 use jbotci_semantics::notation::sexpr::type_system::Variable;
 use jbotci_semantics::notation::sexpr::{Datum, parse_document, parse_v0_document};
 use jbotci_semantics::notation::word_cards::build_word_cards;
 use jbotci_semantics::{
-    SemanticBuildOptions, SemanticGraph, SmusniDiagnosticData,
+    FailureClass, SemanticBuildOptions, SemanticGraph, SmusniProjectionFailed, SmusniRender,
     build_generated_semantic_graph_with_dictionary_and_options, render_smusni,
-    render_smusni_detailed, render_smusni_with_word_cards,
+    render_smusni_with_word_cards,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
@@ -377,30 +378,23 @@ fn contains_field(datum: &Datum, name: &str) -> bool {
         || items.iter().any(|item| contains_field(item, name))
 }
 
-/// Collect string data after parser round-trip for escaping integration checks.
-#[requires(true)]
-#[ensures(true)]
-fn collect_strings<'a>(datum: &'a Datum, out: &mut Vec<&'a str>) {
-    match datum {
-        Datum::String(value) => out.push(value),
-        Datum::List(items) => {
-            for item in items {
-                collect_strings(item, out);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Require a compact family when the graph passed compact-scope planning, or a
-/// complete whole-document fallback when the live builder graph is scope-invalid.
+/// Require a compact family when the graph projects, or a registered
+/// projection failure when the live builder graph is not projectable.
 #[requires(!head.is_empty())]
 #[ensures(true)]
-fn assert_compact_family_or_typed_graph(datum: &Datum, head: &str, witness: &str) {
-    assert!(
-        count_forms(datum, head) > 0 || count_forms(datum, "TypedGraph") == 1,
-        "{witness} must render {head} or a complete TypedGraph"
-    );
+fn assert_compact_family_or_projection_failure(graph: &SemanticGraph, head: &str, witness: &str) {
+    match render_smusni(graph) {
+        Ok(rendered) => {
+            let datum = validate_render(graph, &rendered.text);
+            assert!(
+                count_forms(&datum, head) > 0,
+                "{witness} projected a document without {head}"
+            );
+        }
+        Err(_) => {
+            project_failure(graph);
+        }
+    }
 }
 
 /// Run every graph-independent structural check for one render.
@@ -420,16 +414,116 @@ fn validate_render(graph: &SemanticGraph, text: &str) -> Datum {
     datum
 }
 
+/// Project one graph and require the complete document result.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.text.ends_with('\n'))]
+fn project_document(graph: &SemanticGraph) -> SmusniRender {
+    match render_smusni(graph) {
+        Ok(rendered) => rendered,
+        Err(failed) => panic!(
+            "expected one complete document; the projection failed with {:?}",
+            failed
+                .failures
+                .iter()
+                .map(|failure| failure.reason_id)
+                .collect::<Vec<_>>()
+        ),
+    }
+}
+
+/// The document text of a graph that must project.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.ends_with('\n'))]
+fn document_text(graph: &SemanticGraph) -> String {
+    project_document(graph).into_data().text
+}
+
+/// Project one graph and require the failed result, checking every
+/// specification section-17 law of a failed result on the way through.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(!ret.failures.is_empty())]
+fn project_failure(graph: &SemanticGraph) -> SmusniProjectionFailed {
+    let Err(failed) = render_smusni(graph) else {
+        panic!("expected a projection failure; the graph produced a document");
+    };
+    assert!(
+        !failed.failures.is_empty(),
+        "a failed result reports at least one error"
+    );
+    for failure in &failed.failures {
+        assert!(
+            failure.reason_id.starts_with("smusni.projection."),
+            "unregistered reason {}",
+            failure.reason_id
+        );
+        assert!(!failure.message.is_empty());
+        assert!(failure.span.byte_start <= failure.span.byte_end);
+        assert!(FailureClass::ALL.contains(&failure.failure_class));
+        assert_eq!(
+            failure.severity(),
+            jbotci_semantics::model::DiagnosticSeverity::Error
+        );
+    }
+    assert_eq!(failed.stats.failed_projection_edges, failed.failures.len());
+    assert_eq!(
+        failed.stats.failure_reasons.values().sum::<usize>(),
+        failed.failures.len()
+    );
+    // Deterministic for a given graph: the same graph fails identically.
+    let Err(again) = render_smusni(graph) else {
+        panic!("a failing projection must not become a document on a second run");
+    };
+    assert_eq!(
+        again.failures, failed.failures,
+        "failure order is deterministic"
+    );
+    failed
+}
+
+/// The internal debug capture of a graph whose projection failed.
+///
+/// The capture is **not** smusni: it is the unstable codec of
+/// `docs/smusni/internal-raw.md`, used here as the losslessness oracle that a
+/// mutated model field is still represented somewhere. The projection itself
+/// produces no document, which `project_failure` checks first.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.1.form_head() == Some("TypedGraph"))]
+fn failing_capture(graph: &SemanticGraph) -> (SmusniProjectionFailed, Datum) {
+    let failed = project_failure(graph);
+    let reason = failed.failures[0].reason_id;
+    let capture = whole_graph_capture(graph, reason);
+    (failed, capture)
+}
+
+/// The registered reason ids of one failed projection, in channel order.
+#[requires(true)]
+#[ensures(ret.len() == failed.failures.len())]
+fn failure_reason_ids(failed: &SmusniProjectionFailed) -> Vec<&'static str> {
+    failed
+        .failures
+        .iter()
+        .map(|failure| failure.reason_id)
+        .collect()
+}
+
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn frozen_corpus_is_total_deterministic_and_structurally_valid() {
     for doc in CORPUS_DOCS {
         let input = corpus_input(doc);
-        let first = render_smusni(&input.graph);
-        let second = render_smusni(&input.graph);
-        assert_eq!(first, second, "nondeterministic document {doc}");
-        validate_render(&input.graph, &first);
+        match render_smusni(&input.graph) {
+            Ok(first) => {
+                let second = project_document(&input.graph);
+                assert_eq!(first.text, second.text, "nondeterministic document {doc}");
+                validate_render(&input.graph, &first.text);
+            }
+            Err(_) => {
+                // A corpus input that does not project is a product error with
+                // no document at all; the law check is in `project_failure`.
+                project_failure(&input.graph);
+            }
+        }
     }
 }
 
@@ -466,6 +560,7 @@ fn focused_semantic_families_are_exercised_without_output_goldens() {
         ("tanru", "ti blanu zdani"),
     ];
     let mut observed_heads = BTreeSet::new();
+    let mut observed_failures = BTreeSet::new();
     for (name, text) in cases {
         let input = build_input(text, name);
         match name {
@@ -503,33 +598,57 @@ fn focused_semantic_families_are_exercised_without_output_goldens() {
             ),
             _ => {}
         }
-        let rendered = render_smusni(&input.graph);
-        let datum = validate_render(&input.graph, &rendered);
+        // Families with no compact route are product projection errors, so they
+        // are checked against the failure channel rather than a document.
+        match name {
+            "relation-question" => {
+                assert_compact_family_or_projection_failure(&input.graph, "Ask", name);
+                continue;
+            }
+            "math" | "displayed" | "abstraction" => {
+                assert_compact_family_or_projection_failure(&input.graph, "Assert", name);
+                continue;
+            }
+            "quotation"
+            | "hostile-quotation"
+            | "termset"
+            | "respectively-distribution"
+            | "respectively-values" => {
+                // No quotation or termset family has a compact route, so these
+                // are product projection errors with no document to inspect.
+                observed_failures.insert(name);
+                project_failure(&input.graph);
+                continue;
+            }
+            _ => {}
+        }
+        // Every other family is checked as it actually behaves: a document is
+        // validated structurally, and a projection failure is checked against
+        // the section-17 laws of a failed result. The four required families
+        // below are the ones this milestone claims a compact route for.
+        let rendered = match render_smusni(&input.graph) {
+            Ok(rendered) => rendered,
+            Err(_) => {
+                assert!(
+                    !matches!(
+                        name,
+                        "deleted-place" | "paragraph" | "relative-clause" | "tanru"
+                    ),
+                    "{name} claims a compact route but did not project"
+                );
+                observed_failures.insert(name);
+                project_failure(&input.graph);
+                continue;
+            }
+        };
+        let datum = validate_render(&input.graph, &rendered.text);
         match name {
             "deleted-place" => assert_eq!(count_forms(&datum, "DropPlace"), 1),
             "paragraph" => assert_eq!(count_forms(&datum, "NewTopic"), 1),
-            "relation-question" => assert_compact_family_or_typed_graph(&datum, "Ask", name),
-            "quotation" => assert_eq!(count_forms(&datum, "TypedGraph"), 1),
-            "hostile-quotation" => {
-                let mut strings = Vec::new();
-                collect_strings(&datum, &mut strings);
-                assert!(strings.iter().any(|value| {
-                    value.contains('"')
-                        && value.contains('\\')
-                        && value.contains('(')
-                        && value.contains(';')
-                }));
-            }
             "relative-clause" => {
                 assert_eq!(count_forms(&datum, "Bind"), 1);
                 assert_eq!(count_forms(&datum, "Refer"), 1);
                 assert_eq!(count_forms(&datum, "∧"), 1);
-            }
-            "termset" | "respectively-distribution" | "respectively-values" => {
-                assert_eq!(count_forms(&datum, "TypedGraph"), 1)
-            }
-            "math" | "displayed" | "abstraction" => {
-                assert_compact_family_or_typed_graph(&datum, "Assert", name)
             }
             "tanru" => assert_eq!(count_forms(&datum, "Tanru"), 1),
             _ => {}
@@ -568,19 +687,22 @@ fn focused_semantic_families_are_exercised_without_output_goldens() {
             "Refer",
             "→",
             "Tanru",
-            "TypedGraph",
         ] {
             if count_forms(&datum, head) > 0 {
                 observed_heads.insert(head);
             }
         }
     }
-    for required in ["DropPlace", "NewTopic", "Bind", "Refer", "TypedGraph"] {
+    for required in ["DropPlace", "NewTopic", "Bind", "Refer"] {
         assert!(
             observed_heads.contains(required),
             "missing structural family {required}"
         );
     }
+    assert!(
+        observed_failures.contains("quotation"),
+        "the quotation witness must reach the projection-failure channel"
+    );
 }
 
 #[test]
@@ -601,11 +723,13 @@ fn unsupported_utterance_forces_use_typed_fallback_not_retired_forms() {
         let mut object = input.graph.objects[&utterance].clone();
         object.update_utterance(|node| node.with_data(data! { force: force }));
         let graph = replace_object(input.graph.clone(), utterance, object);
-        let datum = validate_render(&graph, &render_smusni(&graph));
-        assert_eq!(count_forms(&datum, "TypedGraph"), 1);
-        for retired in ["Quote", "Parenthetical", "Subordinated"] {
-            assert_eq!(count_forms(&datum, retired), 0);
-        }
+        let failed = project_failure(&graph);
+        assert!(
+            failure_reason_ids(&failed)
+                .contains(&"smusni.projection.force-reduction-unrepresentable"),
+            "unsupported force {force:?} must use the registered force reason: {:?}",
+            failure_reason_ids(&failed)
+        );
     }
 
     // `Ask : Query<A> -> Act<Question>`, so ask force over content that is not
@@ -615,14 +739,11 @@ fn unsupported_utterance_forces_use_typed_fallback_not_retired_forms() {
     let mut object = input.graph.objects[&utterance].clone();
     object.update_utterance(|node| node.with_data(data! { force: UtteranceForce::Ask }));
     let graph = replace_object(input.graph.clone(), utterance, object);
-    let rendered = render_smusni_detailed(&graph, &[]);
-    let datum = validate_render(&graph, &rendered.text);
-    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
-    assert_eq!(count_forms(&datum, "Ask"), 0);
+    let failed = project_failure(&graph);
     assert_eq!(
-        rendered
+        failed
             .stats
-            .fallback_reasons
+            .failure_reasons
             .get("smusni.projection.question-domain-or-answer-mismatch"),
         Some(&1),
     );
@@ -633,9 +754,8 @@ fn unsupported_utterance_forces_use_typed_fallback_not_retired_forms() {
 #[ensures(true)]
 fn speaker_description_is_one_nonveridical_reference_computation() {
     let input = build_input("le mlatu cu gerku", "speaker-description");
-    let datum = validate_render(&input.graph, &render_smusni(&input.graph));
+    let datum = validate_render(&input.graph, &document_text(&input.graph));
 
-    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
     assert_eq!(count_forms(&datum, "Bind"), 1);
     assert_eq!(count_forms(&datum, "Refer"), 1);
     assert_eq!(count_forms(&datum, "skicu"), 1);
@@ -664,9 +784,8 @@ fn speaker_description_is_one_nonveridical_reference_computation() {
 #[ensures(true)]
 fn description_property_retains_filled_conventional_places() {
     let input = build_input("lo penbi be mi cu barda", "description-filled-place");
-    let datum = validate_render(&input.graph, &render_smusni(&input.graph));
+    let datum = validate_render(&input.graph, &document_text(&input.graph));
 
-    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
     assert_eq!(count_forms(&datum, "Bind"), 1);
     assert_eq!(count_forms(&datum, "Refer"), 1);
     let mut properties = Vec::new();
@@ -681,8 +800,7 @@ fn description_property_retains_filled_conventional_places() {
         "lo penbi be lo cukta cu barda",
         "description-nested-reference",
     );
-    let nested = validate_render(&nested.graph, &render_smusni(&nested.graph));
-    assert_eq!(count_forms(&nested, "TypedGraph"), 1);
+    project_failure(&nested.graph);
 }
 
 #[test]
@@ -690,9 +808,8 @@ fn description_property_retains_filled_conventional_places() {
 #[ensures(true)]
 fn atomic_relation_question_uses_a_typed_open_predicate_row() {
     let input = build_input("ti mo", "atomic-relation-question");
-    let rendered = render_smusni_detailed(&input.graph, &[]);
-    assert_eq!(rendered.stats.mode, jbotci_semantics::DocumentMode::Compact);
-    assert!(rendered.stats.fallback_reasons.is_empty());
+    let rendered = project_document(&input.graph);
+    assert!(rendered.stats.failure_reasons.is_empty());
     let datum = validate_render(&input.graph, &rendered.text);
 
     assert_eq!(count_forms(&datum, "Ask"), 1);
@@ -700,11 +817,9 @@ fn atomic_relation_question_uses_a_typed_open_predicate_row() {
     assert_eq!(count_forms(&datum, "PredTerm"), 1);
     assert_eq!(count_forms(&datum, "Row"), 1);
     assert_eq!(count_forms(&datum, "Close"), 1);
-    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
 
     let tanru = build_input("ti mo zdani", "relation-question-tanru");
-    let tanru = validate_render(&tanru.graph, &render_smusni(&tanru.graph));
-    assert_eq!(count_forms(&tanru, "TypedGraph"), 1);
+    project_failure(&tanru.graph);
 }
 
 /// The canonical flat tanru graph is one of the compact families this milestone
@@ -716,11 +831,9 @@ fn atomic_relation_question_uses_a_typed_open_predicate_row() {
 #[ensures(true)]
 fn canonical_flat_tanru_projects_the_registered_relation_former() {
     let input = build_input("ti blanu zdani", "canonical-flat-tanru");
-    let rendered = render_smusni_detailed(&input.graph, &[]);
-    assert_eq!(rendered.stats.mode, jbotci_semantics::DocumentMode::Compact);
-    assert!(rendered.stats.fallback_reasons.is_empty());
+    let rendered = project_document(&input.graph);
+    assert!(rendered.stats.failure_reasons.is_empty());
     let datum = validate_render(&input.graph, &rendered.text);
-    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
 
     let mut formers = Vec::new();
     collect_forms(&datum, "Tanru", &mut formers);
@@ -761,11 +874,9 @@ fn canonical_flat_tanru_projects_the_registered_relation_former() {
 #[ensures(true)]
 fn fixed_name_description_projects_one_named_reference_computation() {
     let input = build_input("la .alis. cu bajra", "fixed-name-description");
-    let rendered = render_smusni_detailed(&input.graph, &[]);
-    assert_eq!(rendered.stats.mode, jbotci_semantics::DocumentMode::Compact);
-    assert!(rendered.stats.fallback_reasons.is_empty());
+    let rendered = project_document(&input.graph);
+    assert!(rendered.stats.failure_reasons.is_empty());
     let datum = validate_render(&input.graph, &rendered.text);
-    assert_eq!(count_forms(&datum, "TypedGraph"), 0);
     assert_eq!(count_forms(&datum, "Bind"), 1);
     assert_eq!(count_forms(&datum, "Refer"), 1);
 
@@ -803,14 +914,7 @@ fn fixed_name_description_projects_one_named_reference_computation() {
     // `la` over a selbri body is a different descriptor: it has no name field,
     // so no compact constructor is recognized and the document stays typed.
     let body = build_input("la gerku cu bajra", "name-description-selbri-body");
-    let body_rendered = render_smusni_detailed(&body.graph, &[]);
-    assert_eq!(
-        body_rendered.stats.mode,
-        jbotci_semantics::DocumentMode::TypedGraph
-    );
-    let body_datum = validate_render(&body.graph, &body_rendered.text);
-    assert_eq!(count_forms(&body_datum, "TypedGraph"), 1);
-    assert_eq!(count_forms(&body_datum, "Named"), 0);
+    project_failure(&body.graph);
 }
 
 #[test]
@@ -857,14 +961,8 @@ fn fixed_context_uses_the_bare_primitive_atom() {
         node.with_data(data! { arguments: arguments })
     });
     let graph = replace_object(graph, predication, object);
-    let rendered = render_smusni_detailed(&graph, &[]);
+    let rendered = project_document(&graph);
     let datum = validate_render(&graph, &rendered.text);
-    assert_eq!(
-        count_forms(&datum, "TypedGraph"),
-        0,
-        "unexpected context fallback: {:?}",
-        rendered.stats.fallback_reasons,
-    );
     assert_eq!(count_atoms(&datum, "Fixed"), 0);
     assert_eq!(count_forms(&datum, "MayDependOn"), 0);
     assert_eq!(count_forms(&datum, "Context"), 0);
@@ -881,22 +979,10 @@ fn generic_composition_and_nonexact_quantities_do_not_borrow_callable_heads() {
             .as_referent()
             .is_some_and(|node| node.composition.is_some())
     }));
-    let composition = validate_render(&composition.graph, &render_smusni(&composition.graph));
-    assert_eq!(count_forms(&composition, "TypedGraph"), 1);
-    for head in [
-        "Joint",
-        "Mass",
-        "SequenceValue",
-        "RespectivelyValue",
-        "Union",
-        "Intersection",
-        "CrossProduct",
-        "UnorderedInterval",
-        "OrderedInterval",
-        "CenteredInterval",
-    ] {
-        assert_eq!(count_forms(&composition, head), 0);
-    }
+    // No generic-composition route exists, so this is a projection error; the
+    // point of the test is that no callable head is borrowed, and a failed
+    // projection emits no head at all.
+    project_failure(&composition.graph);
 
     let input = build_input("ci mlatu cu jbena", "nonexact-quantity");
     let quantity = input
@@ -908,20 +994,14 @@ fn generic_composition_and_nonexact_quantities_do_not_borrow_callable_heads() {
     let mut object = input.graph.objects[&quantity].clone();
     object.update_quantity(|node| node.with_data(data! { form: QuantityForm::AtLeast }));
     let graph = replace_object(input.graph.clone(), quantity, object);
-    let quantity = validate_render(&graph, &render_smusni(&graph));
-    assert_eq!(count_forms(&quantity, "TypedGraph"), 1);
-    for head in [
-        "AtLeast",
-        "AtMost",
-        "MoreThan",
-        "LessThan",
-        "Approximate",
-        "Enough",
-        "TooMany",
-        "TooFew",
-    ] {
-        assert_eq!(count_forms(&quantity, head), 0);
-    }
+    let failed = project_failure(&graph);
+    assert!(
+        failure_reason_ids(&failed)
+            .iter()
+            .any(|reason| reason.starts_with("smusni.projection.quantity")),
+        "a nonexact quantity fails under a registered quantity reason: {:?}",
+        failure_reason_ids(&failed)
+    );
 }
 
 #[test]
@@ -957,7 +1037,7 @@ fn modal_place_labels_match_the_actual_graph_maps() {
             !expected.is_empty(),
             "modal witness must have an adjunct map"
         );
-        let datum = validate_render(&input.graph, &render_smusni(&input.graph));
+        let datum = validate_render(&input.graph, &document_text(&input.graph));
         assert_eq!(count_forms(&datum, "Modal"), 0);
         assert_eq!(count_forms(&datum, "Joi"), 1);
         assert_eq!(count_forms(&datum, "At"), 0);
@@ -978,7 +1058,7 @@ fn modal_place_labels_match_the_actual_graph_maps() {
 #[ensures(true)]
 fn generated_event_facet_families_have_structural_witnesses() {
     let tense = build_input("mi pu klama lo zarci", "facet-time");
-    let tense = validate_render(&tense.graph, &render_smusni(&tense.graph));
+    let tense = validate_render(&tense.graph, &document_text(&tense.graph));
     assert_eq!(count_forms(&tense, "Joi"), 1);
     assert_eq!(count_forms(&tense, "purci"), 1);
     assert_eq!(count_forms(&tense, "Before"), 0);
@@ -1041,8 +1121,7 @@ fn generated_event_facet_families_have_structural_witnesses() {
     for (name, update, field) in cases {
         let input = build_input("mi klama", name);
         let graph = mutate_generated_event(input.graph.clone(), update);
-        let datum = validate_render(&graph, &render_smusni(&graph));
-        assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+        let (_failed, datum) = failing_capture(&graph);
         assert!(
             contains_field(&datum, field),
             "missing {field} field for {name}"
@@ -1066,7 +1145,7 @@ fn optional_semantic_side_fields_force_representation_or_typed_graph() {
         node.with_data(data! { introduced_by: Some("mutated".to_owned()) })
     });
     let graph = replace_object(input.graph.clone(), predication, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "IntroducedBy"));
 
     let input = build_input("ci mlatu cu jbena", "quantity-scale");
@@ -1079,8 +1158,7 @@ fn optional_semantic_side_fields_force_representation_or_typed_graph() {
     let mut object = input.graph.objects[&quantity].clone();
     object.update_quantity(|node| node.with_data(data! { scale: QuantityScale::Fraction }));
     let graph = replace_object(input.graph.clone(), quantity, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
-    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "Scale"));
 
     let input = build_input("li pa su'i re du li ci", "math-denotes");
@@ -1129,7 +1207,7 @@ fn optional_semantic_side_fields_force_representation_or_typed_graph() {
         })
     });
     let graph = replace_object(input.graph.clone(), math, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "Denotes"));
 
     let input = build_input("ti mo zdani", "question-role");
@@ -1150,8 +1228,7 @@ fn optional_semantic_side_fields_force_representation_or_typed_graph() {
         })
     });
     let graph = replace_object(input.graph.clone(), question, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
-    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    project_failure(&graph);
 
     let input = build_input("ti mo zdani", "parameter-subscript");
     let parameter = input
@@ -1184,8 +1261,7 @@ fn optional_semantic_side_fields_force_representation_or_typed_graph() {
         })
     });
     let graph = replace_object(graph, parameter, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
-    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "Subscript"));
 }
 
@@ -1194,7 +1270,7 @@ fn optional_semantic_side_fields_force_representation_or_typed_graph() {
 #[ensures(true)]
 fn binder_and_projection_recognizers_require_complete_typed_shapes() {
     let input = build_input("ro mlatu cu jbena", "quantifier-domain-import");
-    let ordinary = validate_render(&input.graph, &render_smusni(&input.graph));
+    let ordinary = validate_render(&input.graph, &document_text(&input.graph));
     assert_eq!(count_forms(&ordinary, "Every"), 1);
     assert_eq!(count_forms(&ordinary, "Import"), 0);
     let variable = input
@@ -1219,8 +1295,7 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
         })
     });
     let graph = replace_object(input.graph.clone(), variable, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
-    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "Category"));
 
     let input = build_input("ti mo zdani", "question-parameter-fields");
@@ -1238,8 +1313,7 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
     let mut object = input.graph.objects[&parameter].clone();
     object.update_parameter(|node| node.with_data(data! { introduced_by: "mutated".to_owned() }));
     let graph = replace_object(input.graph.clone(), parameter, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
-    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "IntroducedBy"));
 
     // Question parameters have a graph-level role invariant, so exercise role
@@ -1261,7 +1335,7 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
     object
         .update_parameter(|node| node.with_data(data! { role: ParameterRole::RelativeClauseHead }));
     let graph = replace_object(input.graph.clone(), parameter, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "Role"));
 
     let input = build_input(
@@ -1282,8 +1356,7 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
     let mut object = input.graph.objects[&parameter].clone();
     object.update_parameter(|node| node.with_data(data! { introduced_by: "mutated".to_owned() }));
     let graph = replace_object(input.graph.clone(), parameter, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
-    assert_eq!(count_forms(&datum, "TypedGraph"), 1);
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "IntroducedBy"));
 
     let input = build_input(
@@ -1311,7 +1384,7 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
         node.with_data(data! { composition: Some(composition) })
     });
     let graph = replace_object(input.graph.clone(), composition, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "Collective"));
 
     let input = build_input("lo mlatu cu jbena", "description-fields");
@@ -1340,7 +1413,7 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
         node.with_data(data! { descriptor: Some(descriptor) })
     });
     let graph = replace_object(input.graph.clone(), description, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "Name"));
 
     let input = build_input("mi pu klama", "eventuality-indexicals");
@@ -1363,7 +1436,7 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
         let mut object = input.graph.objects[&now].clone();
         object.update_eventuality(|node| node.with_data(data! { indexical: Some(kind) }));
         let graph = replace_object(input.graph.clone(), now, object);
-        let datum = validate_render(&graph, &render_smusni(&graph));
+        let (_failed, datum) = failing_capture(&graph);
         assert!(contains_field(&datum, "Indexical"));
     }
 
@@ -1382,7 +1455,7 @@ fn binder_and_projection_recognizers_require_complete_typed_shapes() {
     let mut object = input.graph.objects[&speaker].clone();
     object.update_referent(|node| node.with_data(data! { indexical: Some(IndexicalKind::Now) }));
     let graph = replace_object(input.graph.clone(), speaker, object);
-    let datum = validate_render(&graph, &render_smusni(&graph));
+    let (_failed, datum) = failing_capture(&graph);
     assert!(contains_field(&datum, "Indexical"));
 }
 
@@ -1393,7 +1466,10 @@ fn word_cards_are_inside_the_single_smusni_document() {
     let input = build_input("mi klama lo zarci", "word-cards");
     let cards = build_word_cards(jbotci_dictionary_data::english(), &input.words);
     assert!(!cards.is_empty());
-    let rendered = render_smusni_with_word_cards(&input.graph, &cards);
+    let rendered = render_smusni_with_word_cards(&input.graph, &cards)
+        .expect("the word-card witness projects")
+        .into_data()
+        .text;
     let datum = validate_render(&input.graph, &rendered);
     assert_eq!(count_forms(&datum, "Words"), 1);
     assert_eq!(count_forms(&datum, "Word"), cards.len());
@@ -1405,23 +1481,26 @@ fn word_cards_are_inside_the_single_smusni_document() {
     // dropped from the reference section the XML rendering still carries.
     let zei = build_input("mi klama lo abu zei sance", "word-cards-zei-lujvo");
     let zei_cards = build_word_cards(jbotci_dictionary_data::english(), &zei.words);
+    // The card's escaped surface is a property of the card production, so it is
+    // checked on the card data itself: this witness's own graph has no compact
+    // projection, and a failed projection carries no `Words` section at all.
     assert!(
         zei_cards
             .iter()
             .any(|card| card.word == "abu zei sance" && card.definition.is_some()),
         "witness must produce a defined zei-lujvo card",
     );
-    let defined = zei_cards
+    let emitted = zei_cards
         .iter()
-        .filter(|card| card.definition.is_some())
-        .count();
-    let datum = validate_render(
-        &zei.graph,
-        &render_smusni_with_word_cards(&zei.graph, &zei_cards),
+        .filter_map(jbotci_semantics::notation::sexpr::word_card_datum)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        emitted.len(),
+        zei_cards
+            .iter()
+            .filter(|card| card.definition.is_some())
+            .count()
     );
-    assert_eq!(count_forms(&datum, "Word"), defined);
-    let mut emitted = Vec::new();
-    collect_forms(&datum, "Word", &mut emitted);
     assert!(
         emitted.iter().any(|card| {
             card.as_list()
@@ -1431,6 +1510,7 @@ fn word_cards_are_inside_the_single_smusni_document() {
         }),
         "the zei-lujvo card must keep its exact surface as an escaped lexical root",
     );
+    project_failure(&zei.graph);
 }
 
 #[test]
@@ -1439,32 +1519,41 @@ fn word_cards_are_inside_the_single_smusni_document() {
 fn render_stats_and_diagnostic_projection_are_complete() {
     for doc in CORPUS_DOCS {
         let input = corpus_input(doc);
-        let rendered = render_smusni_detailed(&input.graph, &[]);
-        validate_render(&input.graph, &rendered.text);
         let expected_semantic = input
             .graph
             .objects
             .values()
             .map(|object| object.diagnostics().len())
             .sum::<usize>();
-        assert_eq!(rendered.stats.semantic_diagnostic_count, expected_semantic);
-        // The aggregate reason counts are exactly a summary of the per-edge
-        // records, never a substitute for them.
-        assert_eq!(
-            rendered.diagnostics.len(),
-            expected_semantic + rendered.stats.fallback_reasons.values().sum::<usize>(),
-        );
-        assert_eq!(
-            fallback_records(&rendered).len(),
-            rendered.stats.failed_projection_edges,
-            "{doc}: the edge statistic must count the per-edge records",
-        );
-        assert_eq!(
-            rendered.stats.failed_projection_edges,
-            rendered.stats.fallback_reasons.values().sum::<usize>(),
-            "{doc}: the reason aggregate must account for every failed edge",
-        );
-        assert!(rendered.stats.compact_objects + rendered.stats.object_fallbacks > 0);
+        match render_smusni(&input.graph) {
+            Ok(rendered) => {
+                validate_render(&input.graph, &rendered.text);
+                assert_eq!(rendered.stats.semantic_diagnostic_count, expected_semantic);
+                // Nonfatal semantic diagnostics travel alone on the success
+                // path; there is no failure record to summarize.
+                assert_eq!(rendered.diagnostics.len(), expected_semantic);
+                assert_eq!(rendered.stats.failed_projection_edges, 0);
+                assert!(rendered.stats.failure_reasons.is_empty());
+                assert!(rendered.stats.compact_objects > 0);
+            }
+            Err(failed) => {
+                assert_eq!(failed.stats.semantic_diagnostic_count, expected_semantic);
+                assert_eq!(failed.diagnostics.len(), expected_semantic);
+                // The aggregate reason counts are exactly a summary of the
+                // per-edge records, never a substitute for them.
+                assert_eq!(
+                    failed.failures.len(),
+                    failed.stats.failed_projection_edges,
+                    "{doc}: the edge statistic must count the per-edge records",
+                );
+                assert_eq!(
+                    failed.stats.failed_projection_edges,
+                    failed.stats.failure_reasons.values().sum::<usize>(),
+                    "{doc}: the reason aggregate must account for every failed edge",
+                );
+                assert_eq!(failed.stats.compact_objects, 0);
+            }
+        }
     }
 }
 
@@ -1538,7 +1627,12 @@ fn every_eventuality_subtype_renders_a_valid_variable_grammar() {
             "{text:?} was expected to mint an {sort:?} eventuality",
         );
         // Rendering used to panic while manufacturing `$eventuality/<subtype>`.
-        let datum = validate_render(&input.graph, &render_smusni(&input.graph));
+        // Whether the subtype projects or fails, no invalid atom may be
+        // spelled; on the failure path the internal capture holds the atoms.
+        let datum = match render_smusni(&input.graph) {
+            Ok(rendered) => validate_render(&input.graph, &rendered.text),
+            Err(_) => failing_capture(&input.graph).1,
+        };
         for name in variable_atoms(&datum) {
             Variable::try_new(&name)
                 .unwrap_or_else(|error| panic!("{text:?} spelled {name:?}: {error}"));
@@ -1552,38 +1646,41 @@ fn every_eventuality_subtype_renders_a_valid_variable_grammar() {
 fn named_cll_regressions_render_without_manufacturing_invalid_atoms() {
     for (name, text) in CLL_VARIABLE_SPELLING_REGRESSIONS {
         let input = build_input(text, name);
-        let rendered = render_smusni_detailed(&input.graph, &[]);
-        let datum = validate_render(&input.graph, &rendered.text);
+        // These five inputs previously panicked while manufacturing a variable
+        // atom. Whether they project or fail, no invalid atom may be spelled;
+        // on the failure path the internal capture is where any atom lives.
+        let datum = match render_smusni(&input.graph) {
+            Ok(rendered) => validate_render(&input.graph, &rendered.text),
+            Err(_) => failing_capture(&input.graph).1,
+        };
         for variable in variable_atoms(&datum) {
             Variable::try_new(&variable)
                 .unwrap_or_else(|error| panic!("{name} spelled {variable:?}: {error}"));
         }
-        assert!(rendered.stats.compact_objects + rendered.stats.object_fallbacks > 0);
     }
 }
 
-/// Borrow every per-edge fallback record in renderer order.
+/// Borrow every per-edge failure record in channel order.
 #[requires(true)]
-#[ensures(ret.len() <= rendered.diagnostics.len())]
-fn fallback_records(
-    rendered: &jbotci_semantics::SmusniRender,
+#[ensures(ret.len() == failed.failures.len())]
+fn failure_records(
+    failed: &SmusniProjectionFailed,
 ) -> Vec<(
     &'static str,
     &'static str,
     Option<SemanticObjectId>,
     Option<SemanticObjectId>,
 )> {
-    rendered
-        .diagnostics
+    failed
+        .failures
         .iter()
-        .filter_map(|diagnostic| match diagnostic.as_data() {
-            data!(SmusniDiagnostic::Fallback {
-                reason_id,
-                message,
-                owner,
-                use_site,
-            }) => Some((*reason_id, *message, *owner, *use_site)),
-            data!(SmusniDiagnostic::Semantic { .. }) => None,
+        .map(|failure| {
+            (
+                failure.reason_id,
+                failure.message,
+                failure.owner,
+                failure.use_site,
+            )
         })
         .collect()
 }
@@ -1591,7 +1688,7 @@ fn fallback_records(
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn fallback_channel_is_evidenced_and_reproducible_on_the_corpus() {
+fn failure_channel_is_evidenced_and_reproducible_on_the_corpus() {
     // This is a well-formedness sweep, not the cardinality proof: on a corpus
     // it can only observe the channel the renderer produced. The laws that
     // distinguish one re-entered edge from two genuinely distinct edges are
@@ -1605,8 +1702,10 @@ fn fallback_channel_is_evidenced_and_reproducible_on_the_corpus() {
     // only as render-to-render equality.
     for doc in CORPUS_DOCS {
         let input = corpus_input(doc);
-        let rendered = render_smusni_detailed(&input.graph, &[]);
-        let records = fallback_records(&rendered);
+        let Err(failed) = render_smusni(&input.graph) else {
+            continue;
+        };
+        let records = failure_records(&failed);
         for (reason_id, message, owner, use_site) in &records {
             assert!(reason_id.starts_with("smusni.projection."));
             assert!(!message.is_empty());
@@ -1622,12 +1721,9 @@ fn fallback_channel_is_evidenced_and_reproducible_on_the_corpus() {
         for (reason_id, ..) in &records {
             *counted.entry(*reason_id).or_insert(0usize) += 1;
         }
-        assert_eq!(counted, rendered.stats.fallback_reasons, "{doc}");
-        // Rendering the same graph twice must yield the identical channel.
-        assert_eq!(
-            records,
-            fallback_records(&render_smusni_detailed(&input.graph, &[]))
-        );
+        assert_eq!(counted, failed.stats.failure_reasons, "{doc}");
+        // Projecting the same graph twice must yield the identical channel.
+        assert_eq!(records, failure_records(&project_failure(&input.graph)));
     }
 }
 
@@ -1638,9 +1734,8 @@ fn scope_failures_carry_binder_and_use_evidence() {
     // Definition placement, not a local recognizer, is what declines here, so
     // the record comes from the planner channel.
     let input = build_input("ro da poi gerku cu bajra", "scope-evidence");
-    let rendered = render_smusni_detailed(&input.graph, &[]);
-    validate_render(&input.graph, &rendered.text);
-    let records = fallback_records(&rendered);
+    let failed = project_failure(&input.graph);
+    let records = failure_records(&failed);
     let definition_site = records
         .iter()
         .filter(|(reason_id, ..)| reason_id.starts_with("smusni.projection.definition-site"))

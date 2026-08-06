@@ -8,7 +8,7 @@
 use bityzba::{ensures, new, requires};
 
 use super::model::{
-    Disposition, EntryKind, InventoryEntry, Presence, RenderFieldInventory, Surface,
+    Disposition, EntryKind, FailureClass, InventoryEntry, Presence, RenderFieldInventory, Surface,
     SurfaceCategory, Witness, WitnessData, WitnessExpect, WitnessExpectData,
 };
 
@@ -1339,11 +1339,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Optional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "math subscripts require a registered typed constructor",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math.subscript",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -1442,11 +1443,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             Some("MathExpressionNodeKind::Operator"),
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "operator denotation requires a registered typed math constructor",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math.operator-denotation",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -6642,11 +6644,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "demonstrated capability has no complete registered event reduction",
                 "Content",
                 "Eventuality",
                 "smusni.projection.actuality.demonstrated",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -6657,11 +6660,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "unrealized capability has no complete registered event reduction",
                 "Content",
                 "Eventuality",
                 "smusni.projection.actuality.potential",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -7512,11 +7516,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "source sumti has no exact typed higher-order crossing",
                 "(Referents Entity)",
                 "Referent",
                 "smusni.projection.descriptor.unlowered-sumti",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -8559,11 +8564,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "questioned operators require a registered typed math constructor",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math.questioned-operator",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -8730,11 +8736,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "version 0 has no registered typed array constructor for this source operator",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math.array",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -8745,11 +8752,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "version 0 has no registered typed nondecimal-base reduction",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math.base",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -8772,11 +8780,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "centered intervals require an exact registered reduction",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math.centered-interval",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -8835,11 +8844,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "version 0 has no registered typed power constructor",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math.power",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -8862,11 +8872,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "unordered intervals require an exact registered reduction",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math.unordered-interval",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -9237,11 +9248,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "version 0 has no exact approximate-quantity reduction",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.quantity.approximate",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -9276,11 +9288,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "version 0 has no exact contextual-enough quantity reduction",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.quantity.enough",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -9339,11 +9352,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "version 0 has no exact vague too-few quantity reduction",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.quantity.too-few",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -9354,11 +9368,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "version 0 has no exact vague too-many quantity reduction",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.quantity.too-many",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -9789,11 +9804,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::VariantConditional,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "constructed relation has no verified signature or registered reduction",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.relation.constructed",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -10903,15 +10919,32 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             SurfaceCategory::Document,
             "semantic-graph",
             EntryKind::DerivedFact,
+            "abstraction-about-unspecified",
+            None,
+            Presence::Derived,
+            new!(Witness::NoCorpusWitness),
+            Disposition::typed_failure(
+                "specification section 14.4 names `tu'a` sumti raising a tracked spec gap: the source deliberately withholds which abstraction about the operand is meant, and version 0 specifies no faithful underspecified crossing to carry that, so this is language-design backlog rather than a route this renderer has yet to build",
+                "Performable",
+                "SemanticGraph",
+                "smusni.projection.abstraction-about-unspecified",
+                FailureClass::TrackedSpecGap,
+            ),
+        ),
+        entry(
+            SurfaceCategory::Document,
+            "semantic-graph",
+            EntryKind::DerivedFact,
             "abstraction-crossing-unlicensed",
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.abstraction-crossing-unlicensed",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -10922,11 +10955,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.binder-does-not-dominate-use",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -10937,11 +10971,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.computed-fill-domain-noninjective",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -10952,11 +10987,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.conflicting-binder-owners",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -10967,11 +11003,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.de-re-owner-dependency-illegal",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -10982,11 +11019,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.de-re-owner-missing",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -10997,11 +11035,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.de-re-owner-opaque",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11012,11 +11051,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.de-re-owner-unrelated-or-nondominating",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11027,11 +11067,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.de-re-owner-wrong-kind",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11042,11 +11083,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.declaration-planning-nonconvergence",
+                FailureClass::ImplementationInvariant,
             ),
         ),
         entry(
@@ -11057,11 +11099,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.definition-site-does-not-dominate-use",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11072,11 +11115,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.dependent-supplement-unrepresentable",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11087,11 +11131,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.dynamic-host-cycle",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11102,11 +11147,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.dynamic-host-not-unique",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11117,11 +11163,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.effect-handler-missing-or-illegal",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11132,11 +11179,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.event-facet-reduction-unregistered",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11147,11 +11195,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.event-owner-missing-or-nonunique",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11162,11 +11211,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.force-handler-missing-or-illegal",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11177,11 +11227,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.force-reduction-unrepresentable",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11192,11 +11243,40 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.generated-eventuality-unbound",
+                FailureClass::RouteUnavailable,
+            ),
+        ),
+        entry(
+            SurfaceCategory::Document,
+            "semantic-graph",
+            EntryKind::DerivedFact,
+            "graph-root-not-performable",
+            None,
+            Presence::Derived,
+            new!(Witness::NoCorpusWitness),
+            Disposition::whole_graph_failure(
+                "the graph root does not denote a performable act, so the document body position has no smaller owner and no established smusni type",
+                "smusni.projection.graph.root-not-performable",
+                FailureClass::InvalidGraph,
+            ),
+        ),
+        entry(
+            SurfaceCategory::Document,
+            "semantic-graph",
+            EntryKind::DerivedFact,
+            "graph-unbound-variable",
+            None,
+            Presence::Derived,
+            new!(Witness::NoCorpusWitness),
+            Disposition::whole_graph_failure(
+                "a variable is used with no binder owning it anywhere in the graph, so the failure belongs to the graph rather than to any typed position inside it",
+                "smusni.projection.graph.unbound-variable",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11207,11 +11287,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.higher-order-crossing-unlicensed",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11222,11 +11303,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the exact lexical place has no verified entity-reference scope policy",
                 "(Referents Entity)",
                 "Referent",
                 "smusni.projection.lexical-policy.entity",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11237,11 +11319,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the exact lexical place has no verified eventuality-reference scope policy",
                 "(Referents Eventuality)",
                 "Referent",
                 "smusni.projection.lexical-policy.eventuality",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11252,11 +11335,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.lexical-relation-row-missing",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11267,11 +11351,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.lexical-signature-missing-or-stale",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11282,11 +11367,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.math-reduction-unregistered",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11297,11 +11383,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.modal-tag-reduction-unregistered",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11312,11 +11399,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.place-deletion-evidence-missing",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11327,11 +11415,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.predicate-closure-unlicensed",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11342,11 +11431,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.predicate-fill-type-or-arity-mismatch",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11357,11 +11447,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.prelude-reduction-unavailable",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11372,11 +11463,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.quantifier-effect-export-illegal",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11387,11 +11479,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.quantity-reduction-unregistered",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11402,11 +11495,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.question-domain-or-answer-mismatch",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11417,11 +11511,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.reference-description-unrepresentable",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11432,11 +11527,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.relation-former-reduction-unavailable",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11447,11 +11543,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.relation-reduction-unregistered-or-inexact",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11462,11 +11559,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.scope-dependency-without-binder",
+                FailureClass::InvalidGraph,
             ),
         ),
         entry(
@@ -11477,11 +11575,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.sequence-reduction-unregistered",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11492,11 +11591,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.sign-identity-missing",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11507,11 +11607,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.simultaneous-termset-unlicensed",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11522,11 +11623,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.structured-quotation-transcript-entry-missing",
+                FailureClass::RouteUnavailable,
             ),
         ),
         entry(
@@ -11537,11 +11639,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.unguarded-or-unrepresentable-scc",
+                FailureClass::TrackedSpecGap,
             ),
         ),
         entry(
@@ -11552,11 +11655,12 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             None,
             Presence::Derived,
             new!(Witness::NoCorpusWitness),
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "the planner or elaborator cannot prove a smaller well-typed boundary for this exact graph failure",
                 "Performable",
                 "SemanticGraph",
                 "smusni.projection.unknown-registry-coordinate",
+                FailureClass::ImplementationInvariant,
             ),
         ),
     ])

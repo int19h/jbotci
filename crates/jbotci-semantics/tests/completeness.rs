@@ -615,7 +615,7 @@ fn provenance_is_type_based() {
 #[requires(true)]
 #[ensures(true)]
 fn contract_disagreements_are_flagged() {
-    use jbotci_semantics::completeness::{CompletenessContract, Disposition};
+    use jbotci_semantics::completeness::{CompletenessContract, Disposition, FailureClass};
 
     let inventory = render_field_inventory();
     let baseline = baseline_contract_for(&inventory);
@@ -639,11 +639,12 @@ fn contract_disagreements_are_flagged() {
     let mut deviating = CompletenessContract::new();
     for entry in inventory.entries() {
         let disposition = if entry.key() == target {
-            Disposition::typed_fallback(
+            Disposition::typed_failure(
                 "test-only disagreement",
                 "Content",
                 "SemanticObject",
                 "smusni.projection.test",
+                FailureClass::RouteUnavailable,
             )
         } else {
             baseline_disposition(entry)
