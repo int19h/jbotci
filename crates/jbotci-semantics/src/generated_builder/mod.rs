@@ -187,6 +187,9 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     options: SemanticBuildOptions<'a>,
     dictionary: &'dict Dictionary<'dict>,
     objects: BTreeMap<SemanticObjectId, SemanticObject>,
+    /// Records the region every object is introduced in while the walk still
+    /// knows it; see `crate::model::scope`.
+    scope: crate::model::ScopeRecorder,
     next_index: usize,
     relative_head_stack: Vec<SemanticObjectId>,
     current_utterance: Option<SemanticObjectId>,
@@ -1659,6 +1662,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             options,
             dictionary,
             objects: BTreeMap::new(),
+            scope: crate::model::ScopeRecorder::new(),
             next_index: 5,
             relative_head_stack: Vec::new(),
             current_utterance: None,
@@ -1720,6 +1724,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(self.objects.contains_key(&SemanticObjectId::now()))]
     #[ensures(self.objects.contains_key(&SemanticObjectId::here()))]
     fn insert_deictics(&mut self) {
+        for deictic in [
+            SemanticObjectId::speaker(),
+            SemanticObjectId::addressee(),
+            SemanticObjectId::now(),
+            SemanticObjectId::here(),
+        ] {
+            self.scope.record_origin(deictic);
+        }
         self.objects.insert(
             SemanticObjectId::speaker(),
             SemanticObject::referent(
@@ -2367,6 +2379,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.finalize_generated_eventuality_for_predication_mode(eventuality, Some(mode))?;
             }
         }
+        self.scope.record_origin(id);
         if self.objects.insert(id, object).is_some() {
             return Err(SemanticsError {
                 kind: SemanticsErrorKind::DuplicateObject,

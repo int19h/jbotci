@@ -4697,6 +4697,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.current_quote_depth = self.current_quote_depth.checked_add(1).ok_or_else(|| {
             invalid_graph("generated quotation nesting depth overflowed".to_owned())
         })?;
+        // Quoted text is mentioned, not performed: it is its own opaque region,
+        // and nothing it introduces belongs to the quoting utterance.
+        let region = self.scope.enter(new!(crate::model::ScopeBoundary::Opaque));
         let result = (|| {
             let mut marker_asides =
                 self.build_generated_vocative_asides_from_slice(marker_free_modifiers)?;
@@ -4737,6 +4740,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .transpose()
             }
         })();
+        self.scope.leave(region);
+        if let Ok(Some(root)) = &result {
+            self.scope.attach_owner(
+                region,
+                crate::model::ScopeOwner::locus(*root, new!(crate::model::ScopeSite::Content)),
+            );
+        }
         self.set_current_deictic_roles(previous_roles);
         self.current_utterance = previous_current_utterance;
         self.previous_utterance = previous_previous_utterance;
@@ -9702,6 +9712,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let kind = abstraction_kind_for_cmavo(branch.nu.value.cmavo());
         let sort = abstraction_output_sort(kind);
         let first_body_object_index = self.next_index;
+        // The property's parameters bind over its body, so the body is a
+        // multiplicity region and everything built inside it is introduced
+        // there rather than in the enclosing act.
+        let region = self
+            .scope
+            .enter(new!(crate::model::ScopeBoundary::Multiplicity));
         self.abstraction_parameter_stack.push(Vec::new());
         self.indirect_question_stack.push(Vec::new());
         let body = match self
@@ -9711,6 +9727,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Err(error) => {
                 let _ = self.abstraction_parameter_stack.pop();
                 let _ = self.indirect_question_stack.pop();
+                self.scope.leave(region);
                 return Err(error);
             }
         };
@@ -9743,6 +9760,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.set_formula_predication_mode(body, abstraction_body_mode(kind));
         let embedded_questions =
             self.build_generated_embedded_indirect_questions(body, indirect_questions)?;
+        // The abstraction object itself is introduced by the enclosing act, not
+        // inside the region its own parameters bind.
+        self.scope.leave(region);
 
         if let Some(class) = abstraction_eventuality_class(kind) {
             let owned_body_eventuality = body_eventuality.filter(|eventuality| {
@@ -9782,6 +9802,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 source,
             );
             self.insert(id, object)?;
+            self.scope.attach_owner(
+                region,
+                crate::model::ScopeOwner::locus(id, new!(crate::model::ScopeSite::Body)),
+            );
             return Ok(id);
         }
 
@@ -9789,6 +9813,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut object = SemanticObject::abstraction(kind, body, parameters, source, Vec::new());
         object.set_abstraction_embedded_questions(embedded_questions);
         self.insert(id, object)?;
+        self.scope.attach_owner(
+            region,
+            crate::model::ScopeOwner::locus(id, new!(crate::model::ScopeSite::Body)),
+        );
         Ok(id)
     }
 

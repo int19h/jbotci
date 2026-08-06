@@ -685,7 +685,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         {
             return Err(invalid_graph(error));
         }
-        SemanticGraph::new(root, self.objects).map_err(|message| SemanticsError {
+        SemanticGraph::new(root, self.objects, self.scope).map_err(|message| SemanticsError {
             kind: SemanticsErrorKind::InvalidGraph,
             message: format!("semantic graph invariant failed: {message}"),
         })
@@ -1055,6 +1055,35 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         utterance_id: SemanticObjectId,
         root: GeneratedTextRoot<'tree>,
         truth_question: bool,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        // One performed act is one scope region: everything this utterance
+        // introduces belongs to it, and a value shared with a later utterance
+        // keeps this introduction site rather than acquiring the reader's.
+        let region = self
+            .scope
+            .enter(new!(crate::model::ScopeBoundary::ForceSegment));
+        let item = self.build_utterance_for_generated_text_root_content(
+            root,
+            truth_question,
+            utterance_id,
+        );
+        self.scope.leave(region);
+        if let Ok(item) = &item {
+            self.scope.attach_owner(
+                region,
+                crate::model::ScopeOwner::locus(*item, new!(crate::model::ScopeSite::Content)),
+            );
+        }
+        item
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn build_utterance_for_generated_text_root_content(
+        &mut self,
+        root: GeneratedTextRoot<'tree>,
+        truth_question: bool,
+        utterance_id: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match root {
             GeneratedTextRoot::Bridi(bridi) => self
