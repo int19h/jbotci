@@ -251,7 +251,7 @@ impl CompactFallbackCause {
                     "no compact force reduction is registered for this object family"
                 }
                 SemanticObjectKind::Parameter => {
-                    "a bare parameter object crosses a higher order that version 0 does not license"
+                    "this renderer does not yet project the higher-order crossing this parameter value requires"
                 }
                 SemanticObjectKind::RelationMetadata => {
                     "the lexical signature for this relation is missing or stale"
@@ -302,7 +302,7 @@ impl CompactFallbackCause {
                 "this recursive value is unguarded or lexically unrepresentable"
             }
             Self::DefinitionTypeUnrepresentable => {
-                "the shared definition's type crosses an unlicensed higher order"
+                "this renderer does not yet project a shared definition at this higher-order type"
             }
             Self::EventualityFacets => "these event facets have no registered compact reduction",
             Self::AbstractionAboutUnspecified => {
