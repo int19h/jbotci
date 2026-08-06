@@ -538,6 +538,98 @@ fn a_simple_transcript_entry_contracts_on_the_performance_spine() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn a_referenced_utterance_token_keeps_its_boundary() {
+    // Section 2.4 contracts an entry only when its token is unreferenced across
+    // the whole document, which is not a property of the entry alone. Here the
+    // entry's sole fact is the `Realizes` fact, so only the document-wide
+    // condition can refuse the contraction: the act names the token a second
+    // time.
+    let token = variable("$u");
+    let mentioned = Act::mention(Operand::Value(Value::bound(
+        token.clone(),
+        TypeExpr::Atom(TypeAtom::UtteranceToken),
+    )));
+    let document = KernelDocument::new(Performable::Entry(
+        TranscriptEntry::utterance(
+            token.clone(),
+            vec![
+                Content::intrinsic(
+                    Intrinsic::Realizes,
+                    vec![
+                        Operand::Value(Value::bound(
+                            token.clone(),
+                            TypeExpr::Atom(TypeAtom::UtteranceToken),
+                        )),
+                        Operand::Act(mentioned),
+                    ],
+                )
+                .expect("Realizes relates a token to an act"),
+            ],
+        )
+        .expect("an utterance boundary carries facts"),
+    ))
+    .expect("the document is closed and well scoped");
+    let text = round_trip(&document);
+    assert!(
+        text.contains("(Utterance"),
+        "a still-referenced token keeps its boundary:\n{text}"
+    );
+
+    // A reference from a *second* entry is the case the rule is written for,
+    // and it is stronger than "does not contract": the token's binder scope is
+    // its own entry's facts, so such a reference escapes as a free binder and
+    // no document containing it exists at all.
+    let other = variable("$v");
+    let realizes = |tok: &Variable| {
+        Content::intrinsic(
+            Intrinsic::Realizes,
+            vec![
+                Operand::Value(Value::bound(
+                    tok.clone(),
+                    TypeExpr::Atom(TypeAtom::UtteranceToken),
+                )),
+                Operand::Act(simple_assertion()),
+            ],
+        )
+        .expect("Realizes relates a token to an act")
+    };
+    let second = TranscriptEntry::utterance(
+        other.clone(),
+        vec![
+            realizes(&other),
+            Content::intrinsic(
+                Intrinsic::SpeakerOf,
+                vec![
+                    Operand::Value(Value::bound(
+                        token.clone(),
+                        TypeExpr::Atom(TypeAtom::UtteranceToken),
+                    )),
+                    Operand::Value(speaker()),
+                ],
+            )
+            .expect("SpeakerOf relates a token to its speaker"),
+        ],
+    )
+    .expect("an utterance boundary carries facts");
+    assert!(
+        KernelDocument::new(Performable::Discourse(
+            Discourse::sequence(vec![
+                Performable::Entry(
+                    TranscriptEntry::utterance(token.clone(), vec![realizes(&token)])
+                        .expect("an utterance boundary carries facts"),
+                ),
+                Performable::Entry(second),
+            ])
+            .expect("a discourse sequence has at least two items"),
+        ))
+        .is_err(),
+        "a token named by a second entry escapes its binder"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn operand_positions_require_an_explicit_singleton_lift() {
     // The kernel's operand rule admits identity, a declared upcast, and the
     // finite `Natural`-to-`Cardinal` embedding, but never the section 3.1
@@ -586,6 +678,80 @@ fn operand_positions_require_an_explicit_singleton_lift() {
         )
         .is_ok(),
         "the same argument with an explicit Singleton must apply"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_lambda_at_a_polymorphic_position_prints_its_close() {
+    // Section 2.2 elides `Close` inside a lambda body only where the enclosing
+    // position declares the function type. `Mention` is polymorphic, so nothing
+    // declares a `Content` result here and the surface would otherwise read as a
+    // lambda returning a `PredTerm`. This is asserted against the printed text
+    // because the round-trip oracle cannot see the drift: the over-elided text
+    // is a fixed point of parse-then-print, so reprint stability still holds
+    // while the meaning changes.
+    let body = Content::close(
+        PredTerm::applied(
+            lexical("gerku", 1),
+            vec![PlaceFill::plain(Operand::Value(Value::bound(
+                variable("$x"),
+                referents(entity()),
+            )))],
+        )
+        .expect("filling gerku x1 is well typed"),
+    )
+    .expect("the remaining row is closeable");
+    let lambda = FnValue::lambda(
+        Lambda::new(
+            vec![TypedParameter::new(variable("$x"), referents(entity()))],
+            Operand::Content(body.clone()),
+        )
+        .expect("a one-parameter lambda is well formed"),
+    );
+    let mentioned = KernelDocument::new(Performable::Act(Act::mention(Operand::Function(lambda))))
+        .expect("the document is closed and well scoped");
+    let text = print_kernel_document(&mentioned, &[]);
+    assert!(
+        text.contains("(Close") && text.contains("(gerku $x)"),
+        "a Content body at a polymorphic lambda position keeps its Close:\n{text}"
+    );
+
+    // The same lambda under a `Let` whose declared `Fn` type is printed does
+    // license the elision.
+    let signature = FunctionSignature::new(vec![referents(entity())], content_type());
+    let declared = KernelDocument::new(Performable::Act(Act::mention(Operand::Content(
+        Content::let_form(
+            Let::new(
+                vec![
+                    Declaration::new(
+                        variable("$p"),
+                        signature.function_type(),
+                        Operand::Function(FnValue::lambda(
+                            Lambda::new(
+                                vec![TypedParameter::new(variable("$x"), referents(entity()))],
+                                Operand::Content(body),
+                            )
+                            .expect("a one-parameter lambda is well formed"),
+                        )),
+                    )
+                    .expect("the initializer inhabits its declared type"),
+                ],
+                Content::apply(
+                    FnValue::bound(variable("$p"), signature),
+                    vec![Operand::Value(speaker())],
+                )
+                .expect("the call matches its signature"),
+            )
+            .expect("a Let block is nonempty"),
+        ),
+    ))))
+    .expect("the document is closed and well scoped");
+    let text = print_kernel_document(&declared, &[]);
+    assert!(
+        !text.contains("Close"),
+        "a declared Fn type licenses the elision in the initializer:\n{text}"
     );
 }
 

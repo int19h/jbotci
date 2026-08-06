@@ -73,6 +73,17 @@ pub struct ScopeFacts {
 }
 
 impl ScopeFacts {
+    /// Borrow every recorded use in document order.
+    ///
+    /// The printer reads this to decide section 2.4's document-wide contraction
+    /// condition, which is a property of the whole document rather than of the
+    /// entry being printed.
+    #[requires(true)]
+    #[ensures(ret.len() == self.uses.len())]
+    pub fn uses(&self) -> &[(Variable, TypeExpr)] {
+        &self.uses
+    }
+
     /// Record one binder introduction and its declared type.
     #[requires(true)]
     #[ensures(true)]
@@ -170,6 +181,15 @@ scope_walk!(
     Value,
 );
 
+/// Collect every binder introduction and use in one document body.
+#[requires(true)]
+#[ensures(true)]
+pub fn document_scope_facts(body: &Performable) -> ScopeFacts {
+    let mut facts = ScopeFacts::default();
+    body.collect_scope_facts(&mut facts);
+    facts
+}
+
 /// Verify that binder names are identities across a whole document.
 ///
 /// Two properties are checked: no name is introduced twice anywhere, so a use
@@ -188,8 +208,7 @@ scope_walk!(
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 pub fn document_scope_audit(body: &Performable) -> Result<(), KernelTypeError> {
-    let mut facts = ScopeFacts::default();
-    body.collect_scope_facts(&mut facts);
+    let facts = document_scope_facts(body);
     let mut declared = BTreeMap::new();
     for (variable, declared_type) in &facts.introductions {
         if declared

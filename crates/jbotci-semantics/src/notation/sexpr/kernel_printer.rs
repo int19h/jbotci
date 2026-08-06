@@ -11,6 +11,8 @@
 //! any kernel signature, and it is not in this module's public one either:
 //! [`print_kernel_document`] takes a typed document and returns text.
 
+use std::collections::BTreeMap;
+
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
 use num_bigint::BigInt;
@@ -20,13 +22,13 @@ use super::super::kernel::binder::{Bind, Category, Lambda, Let, LetRec, free_bin
 use super::super::kernel::content::{
     AnswerSelection, AnswerSelectionData, Content, ContentData, Query,
 };
-use super::super::kernel::document::KernelDocument;
+use super::super::kernel::document::{KernelDocument, document_scope_facts};
 use super::super::kernel::intrinsic::Intrinsic;
 use super::super::kernel::performable::{
     Act, ActData, Discourse, DiscourseData, Performable, TranscriptEntry, TranscriptEntryData,
 };
 use super::super::kernel::predicate::{PlaceFill, PlaceFillData, PredTerm, PredTermData};
-use super::super::kernel::types::{TypeAtom, TypeExpr};
+use super::super::kernel::types::{TypeAtom, TypeExpr, Variable};
 use super::super::kernel::value::{
     FnValue, FnValueData, Literal, LiteralData, Operand, RefComp, RefCompData, Value, ValueData,
 };
@@ -48,11 +50,34 @@ pub fn print_kernel_document(document: &KernelDocument, words: &[Datum]) -> Stri
 #[requires(true)]
 #[ensures(ret.form_head() == Some("Smusni"))]
 pub fn kernel_document_datum(document: &KernelDocument, words: &[Datum]) -> Datum {
-    let mut values = vec![Datum::unsigned(0), performable_datum(document.body())];
+    let uses = document_uses(document);
+    let mut values = vec![
+        Datum::unsigned(0),
+        performable_datum(document.body(), &uses),
+    ];
     if !words.is_empty() {
         values.push(Datum::form("Words", words.iter().cloned()));
     }
     Datum::form("Smusni", values)
+}
+
+/// How many times the whole document uses each binder name.
+///
+/// Section 2.4's utterance contraction is not a property of the entry being
+/// printed: it holds only when the token is unreferenced across the document.
+/// The census is taken once at the root and carried down to every position an
+/// entry can occupy.
+type DocumentUses = BTreeMap<Variable, usize>;
+
+/// Count every recorded binder use in one document.
+#[requires(true)]
+#[ensures(true)]
+fn document_uses(document: &KernelDocument) -> DocumentUses {
+    let mut counts = DocumentUses::new();
+    for (variable, _) in document_scope_facts(document.body()).uses() {
+        *counts.entry(variable.clone()).or_insert(0) += 1;
+    }
+    counts
 }
 
 /// What the surrounding position requires of the value being printed.
@@ -101,29 +126,35 @@ impl Expected<'_> {
 /// Serialize a performable body.
 #[requires(true)]
 #[ensures(true)]
-fn performable_datum(value: &Performable) -> Datum {
+fn performable_datum(value: &Performable, uses: &DocumentUses) -> Datum {
     match value {
-        Performable::Act(act) => act_datum(act),
-        Performable::Discourse(discourse) => discourse_datum(discourse),
+        Performable::Act(act) => act_datum(act, uses),
+        Performable::Discourse(discourse) => discourse_datum(discourse, uses),
         // Section 7.2: only on the implicit performance spine may a simple
         // entry contract to the act it realizes.
-        Performable::Entry(entry) => {
-            contracted_entry(entry).map_or_else(|| entry_datum(entry), |act| act_datum(act))
+        Performable::Entry(entry) => contracted_entry(entry, uses)
+            .map_or_else(|| entry_datum(entry, uses), |act| act_datum(act, uses)),
+        Performable::Let(form) => let_datum(form, uses, |body| performable_datum(body, uses)),
+        Performable::Bind(form) => bind_datum(form, uses, |body| performable_datum(body, uses)),
+        Performable::LetRec(form) => {
+            let_rec_datum(form, uses, |body| performable_datum(body, uses))
         }
-        Performable::Let(form) => let_datum(form, performable_datum),
-        Performable::Bind(form) => bind_datum(form, performable_datum),
-        Performable::LetRec(form) => let_rec_datum(form, performable_datum),
     }
 }
 
 /// Return the single realized act of a contractible transcript entry.
 ///
 /// Section 2.4 permits the contraction only when the entry's sole
-/// identity-dependent fact is one `Realizes` fact and every other fact is
-/// omitted, so that the document convention supplies the defaults.
+/// identity-dependent fact is one `Realizes` fact, every other fact is omitted
+/// so that the document convention supplies the defaults, and the token is
+/// unreferenced. Unreferenced is a document-wide condition, so the census must
+/// show the `Realizes` subject the contraction consumes as the token's only use
+/// anywhere. The act is additionally checked for free occurrences, which covers
+/// the one position the census cannot see: a `Context` dependency list stores no
+/// type and therefore records no use.
 #[requires(true)]
 #[ensures(true)]
-fn contracted_entry(entry: &TranscriptEntry) -> Option<&Act> {
+fn contracted_entry<'a>(entry: &'a TranscriptEntry, uses: &DocumentUses) -> Option<&'a Act> {
     let data!(TranscriptEntry::Utterance { token, facts }) = entry.as_data() else {
         return None;
     };
@@ -148,36 +179,39 @@ fn contracted_entry(entry: &TranscriptEntry) -> Option<&Act> {
     };
     // The token must not survive anywhere else, or the contraction would drop
     // an identity the document still refers to.
-    (variable == token && !free_binders_of(act).contains(token)).then_some(act)
+    (variable == token && uses.get(token) == Some(&1) && !free_binders_of(act).contains(token))
+        .then_some(act)
 }
 
 /// Serialize an act.
 #[requires(true)]
 #[ensures(true)]
-fn act_datum(value: &Act) -> Datum {
+fn act_datum(value: &Act, uses: &DocumentUses) -> Datum {
     match value.as_data() {
         data!(Act::Assert(content)) => {
-            Datum::form("Assert", [content_datum(content, content_expected())])
+            Datum::form("Assert", [content_datum(content, content_expected(), uses)])
         }
-        data!(Act::Ask(query)) => Datum::form("Ask", [query_datum(query)]),
+        data!(Act::Ask(query)) => Datum::form("Ask", [query_datum(query, uses)]),
         data!(Act::Command { addressee, content }) => Datum::form(
             "Command",
             [
-                value_datum(addressee, Expected::Unknown),
-                content_datum(content, content_expected()),
+                value_datum(addressee, Expected::Unknown, uses),
+                content_datum(content, content_expected(), uses),
             ],
         ),
-        data!(Act::Express(content)) => {
-            Datum::form("Express", [content_datum(content, content_expected())])
-        }
+        data!(Act::Express(content)) => Datum::form(
+            "Express",
+            [content_datum(content, content_expected(), uses)],
+        ),
         data!(Act::Mention(operand)) => {
-            Datum::form("Mention", [operand_datum(operand, Expected::Unknown)])
+            Datum::form("Mention", [operand_datum(operand, Expected::Unknown, uses)])
         }
-        data!(Act::Vocative(addressee)) => {
-            Datum::form("Vocative", [value_datum(addressee, Expected::Unknown)])
-        }
+        data!(Act::Vocative(addressee)) => Datum::form(
+            "Vocative",
+            [value_datum(addressee, Expected::Unknown, uses)],
+        ),
         data!(Act::Interpret { sign, .. }) => {
-            Datum::form("InterpretAct", [value_datum(sign, Expected::Unknown)])
+            Datum::form("InterpretAct", [value_datum(sign, Expected::Unknown, uses)])
         }
         data!(Act::Bound { variable, .. }) => variable_to_datum(variable),
     }
@@ -186,18 +220,27 @@ fn act_datum(value: &Act) -> Datum {
 /// Serialize a discourse computation.
 #[requires(true)]
 #[ensures(true)]
-fn discourse_datum(value: &Discourse) -> Datum {
+fn discourse_datum(value: &Discourse, uses: &DocumentUses) -> Datum {
     match value.as_data() {
-        data!(Discourse::Perform(act)) => Datum::form("Perform", [act_datum(act)]),
+        data!(Discourse::Perform(act)) => Datum::form("Perform", [act_datum(act, uses)]),
         data!(Discourse::PerformUtterance(entry)) => {
-            Datum::form("PerformUtterance", [entry_datum(entry)])
+            Datum::form("PerformUtterance", [entry_datum(entry, uses)])
         }
         // Section 7.1: an `Act` or `TranscriptEntry` operand of `Do` is on the
         // implicit performance spine and must not be wrapped.
-        data!(Discourse::Do(items)) => Datum::form("Do", items.iter().map(performable_datum)),
-        data!(Discourse::Joi(operands)) => Datum::form("Joi", operands.iter().map(discourse_datum)),
-        data!(Discourse::NewTopic(inner)) => Datum::form("NewTopic", [discourse_datum(inner)]),
-        data!(Discourse::Resume(inner)) => Datum::form("Resume", [discourse_datum(inner)]),
+        data!(Discourse::Do(items)) => {
+            Datum::form("Do", items.iter().map(|item| performable_datum(item, uses)))
+        }
+        data!(Discourse::Joi(operands)) => Datum::form(
+            "Joi",
+            operands
+                .iter()
+                .map(|operand| discourse_datum(operand, uses)),
+        ),
+        data!(Discourse::NewTopic(inner)) => {
+            Datum::form("NewTopic", [discourse_datum(inner, uses)])
+        }
+        data!(Discourse::Resume(inner)) => Datum::form("Resume", [discourse_datum(inner, uses)]),
         data!(Discourse::Prior) => Datum::atom("PriorDiscourse"),
         data!(Discourse::Following) => Datum::atom("FollowingDiscourse"),
         data!(Discourse::Bound(variable)) => variable_to_datum(variable),
@@ -207,7 +250,7 @@ fn discourse_datum(value: &Discourse) -> Datum {
 /// Serialize a transcript entry.
 #[requires(true)]
 #[ensures(true)]
-fn entry_datum(value: &TranscriptEntry) -> Datum {
+fn entry_datum(value: &TranscriptEntry, uses: &DocumentUses) -> Datum {
     match value.as_data() {
         data!(TranscriptEntry::Utterance { token, facts }) => {
             let mut values = vec![Datum::list([Datum::list([
@@ -217,7 +260,7 @@ fn entry_datum(value: &TranscriptEntry) -> Datum {
             values.extend(
                 facts
                     .iter()
-                    .map(|fact| content_datum(fact, content_expected())),
+                    .map(|fact| content_datum(fact, content_expected(), uses)),
             );
             Datum::form("Utterance", values)
         }
@@ -228,21 +271,25 @@ fn entry_datum(value: &TranscriptEntry) -> Datum {
 /// Serialize content, applying the section 5.2 `Close` elision.
 #[requires(true)]
 #[ensures(true)]
-fn content_datum(value: &Content, expected: Expected<'_>) -> Datum {
+fn content_datum(value: &Content, expected: Expected<'_>, uses: &DocumentUses) -> Datum {
     if let data!(Content::Close(predicate)) = value.as_data()
         && expected.requires_content()
         && close_is_elidable(predicate)
     {
-        return predicate_datum(predicate);
+        return predicate_datum(predicate, uses);
     }
     match value.as_data() {
-        data!(Content::Close(predicate)) => Datum::form("Close", [predicate_datum(predicate)]),
-        data!(Content::Not(inner)) => Datum::form("¬", [content_datum(inner, content_expected())]),
+        data!(Content::Close(predicate)) => {
+            Datum::form("Close", [predicate_datum(predicate, uses)])
+        }
+        data!(Content::Not(inner)) => {
+            Datum::form("¬", [content_datum(inner, content_expected(), uses)])
+        }
         data!(Content::Junction { operator, operands }) => Datum::form(
             operator.as_str(),
             operands
                 .iter()
-                .map(|operand| content_datum(operand, content_expected())),
+                .map(|operand| content_datum(operand, content_expected(), uses)),
         ),
         data!(Content::Binary {
             operator,
@@ -251,42 +298,55 @@ fn content_datum(value: &Content, expected: Expected<'_>) -> Datum {
         }) => Datum::form(
             operator.as_str(),
             [
-                content_datum(left, content_expected()),
-                content_datum(right, content_expected()),
+                content_datum(left, content_expected(), uses),
+                content_datum(right, content_expected(), uses),
             ],
         ),
+        // The lambda of a quantifier is a `Property<T>`, so the position itself
+        // declares a `Content` body.
         data!(Content::Quantified { operator, lambda }) => Datum::form(
             operator.as_str(),
-            [lambda_datum(lambda, |body, expected| {
-                content_datum(body, expected)
-            })],
+            [lambda_datum(
+                lambda,
+                content_expected(),
+                |body, expected| content_datum(body, expected, uses),
+            )],
         ),
         data!(Content::Presuppose { trigger, body }) => Datum::form(
             "Presuppose",
             [
-                content_datum(trigger, content_expected()),
-                content_datum(body, content_expected()),
+                content_datum(trigger, content_expected(), uses),
+                content_datum(body, content_expected(), uses),
             ],
         ),
         data!(Content::Supplement { body, side }) => Datum::form(
             "Supplement",
             [
-                content_datum(body, content_expected()),
-                content_datum(side, content_expected()),
+                content_datum(body, content_expected(), uses),
+                content_datum(side, content_expected(), uses),
             ],
         ),
         data!(Content::Answer { query, selection }) => Datum::form(
             "Answer",
-            [query_datum(query), answer_selection_datum(selection)],
+            [
+                query_datum(query, uses),
+                answer_selection_datum(selection, uses),
+            ],
         ),
         data!(Content::Intrinsic {
             intrinsic,
             arguments,
-        }) => intrinsic_datum(*intrinsic, arguments),
-        data!(Content::Apply { head, arguments }) => application_datum(head, arguments),
-        data!(Content::Let(form)) => let_datum(form, |body| content_datum(body, expected)),
-        data!(Content::Bind(form)) => bind_datum(form, |body| content_datum(body, expected)),
-        data!(Content::LetRec(form)) => let_rec_datum(form, |body| content_datum(body, expected)),
+        }) => intrinsic_datum(*intrinsic, arguments, uses),
+        data!(Content::Apply { head, arguments }) => application_datum(head, arguments, uses),
+        data!(Content::Let(form)) => {
+            let_datum(form, uses, |body| content_datum(body, expected, uses))
+        }
+        data!(Content::Bind(form)) => {
+            bind_datum(form, uses, |body| content_datum(body, expected, uses))
+        }
+        data!(Content::LetRec(form)) => {
+            let_rec_datum(form, uses, |body| content_datum(body, expected, uses))
+        }
         data!(Content::Bound(variable)) => variable_to_datum(variable),
     }
 }
@@ -305,14 +365,20 @@ fn close_is_elidable(predicate: &PredTerm) -> bool {
 /// Serialize a query value.
 #[requires(true)]
 #[ensures(true)]
-fn query_datum(value: &Query) -> Datum {
+fn query_datum(value: &Query, uses: &DocumentUses) -> Datum {
     match value {
-        Query::Polar(content) => Datum::form("Polar", [content_datum(content, content_expected())]),
+        Query::Polar(content) => {
+            Datum::form("Polar", [content_datum(content, content_expected(), uses)])
+        }
+        // An open question binds a `Property<T>`, which declares a `Content`
+        // body just as a quantifier's lambda does.
         Query::Open(lambda) => Datum::form(
             "OpenQ",
-            [lambda_datum(lambda, |body, expected| {
-                content_datum(body, expected)
-            })],
+            [lambda_datum(
+                lambda,
+                content_expected(),
+                |body, expected| content_datum(body, expected, uses),
+            )],
         ),
         Query::Bound { variable, .. } => variable_to_datum(variable),
     }
@@ -321,7 +387,7 @@ fn query_datum(value: &Query) -> Datum {
 /// Serialize an answer selection.
 #[requires(true)]
 #[ensures(true)]
-fn answer_selection_datum(value: &AnswerSelection) -> Datum {
+fn answer_selection_datum(value: &AnswerSelection, uses: &DocumentUses) -> Datum {
     match value.as_data() {
         data!(AnswerSelection::Polar(polarity)) => {
             Datum::form("PolarAnswer", [Datum::atom(polarity.as_str())])
@@ -334,7 +400,7 @@ fn answer_selection_datum(value: &AnswerSelection) -> Datum {
                 "Tuple",
                 values
                     .iter()
-                    .map(|value| value_datum(value, Expected::Unknown)),
+                    .map(|value| value_datum(value, Expected::Unknown, uses)),
             )];
             if let Some(exhaustivity) = exhaustivity {
                 items.push(Datum::atom(exhaustivity.as_str()));
@@ -353,38 +419,46 @@ fn answer_selection_datum(value: &AnswerSelection) -> Datum {
 /// Serialize a predicate term.
 #[requires(true)]
 #[ensures(true)]
-fn predicate_datum(value: &PredTerm) -> Datum {
+fn predicate_datum(value: &PredTerm, uses: &DocumentUses) -> Datum {
     match value.as_data() {
         data!(PredTerm::Relation(signature)) => relation_ref_to_datum(signature.relation()),
         data!(PredTerm::Applied { head, fills, .. }) => {
             let signature = head.signature();
-            let mut values = vec![predicate_datum(head)];
+            let mut values = vec![predicate_datum(head, uses)];
             for fill in fills {
-                values.extend(fill_datums(fill, &signature));
+                values.extend(fill_datums(fill, &signature, uses));
             }
             Datum::list(values)
         }
         data!(PredTerm::Bound { variable, .. }) => variable_to_datum(variable),
-        data!(PredTerm::Let(form)) => let_datum(form, predicate_datum),
-        data!(PredTerm::Bind(form)) => bind_datum(form, predicate_datum),
-        data!(PredTerm::LetRec(form)) => let_rec_datum(form, predicate_datum),
+        data!(PredTerm::Let(form)) => let_datum(form, uses, |body| predicate_datum(body, uses)),
+        data!(PredTerm::Bind(form)) => bind_datum(form, uses, |body| predicate_datum(body, uses)),
+        data!(PredTerm::LetRec(form)) => {
+            let_rec_datum(form, uses, |body| predicate_datum(body, uses))
+        }
     }
 }
 
 /// Serialize one place fill, which may occupy two datum positions.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn fill_datums(fill: &PlaceFill, signature: &PredicateSignature) -> Vec<Datum> {
+fn fill_datums(
+    fill: &PlaceFill,
+    signature: &PredicateSignature,
+    uses: &DocumentUses,
+) -> Vec<Datum> {
     match fill.as_data() {
         data!(PlaceFill::Plain(value)) => vec![operand_datum(
             value,
             slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
+            uses,
         )],
         data!(PlaceFill::Numbered { place, value }) => vec![
             Datum::atom(format!(":{place}")),
             operand_datum(
                 value,
                 slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
+                uses,
             ),
         ],
         data!(PlaceFill::Eventuality(value)) => vec![
@@ -392,13 +466,14 @@ fn fill_datums(fill: &PlaceFill, signature: &PredicateSignature) -> Vec<Datum> {
             operand_datum(
                 value,
                 slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
+                uses,
             ),
         ],
         data!(PlaceFill::Computed { place, value, .. }) => vec![Datum::form(
             "At",
             [
-                value_datum(place, Expected::Unknown),
-                operand_datum(value, Expected::Unknown),
+                value_datum(place, Expected::Unknown, uses),
+                operand_datum(value, Expected::Unknown, uses),
             ],
         )],
     }
@@ -432,23 +507,23 @@ fn slot_expectation<'a>(
 /// Serialize any operand, applying the singleton-lift elision.
 #[requires(true)]
 #[ensures(true)]
-fn operand_datum(value: &Operand, expected: Expected<'_>) -> Datum {
+fn operand_datum(value: &Operand, expected: Expected<'_>, uses: &DocumentUses) -> Datum {
     match value {
-        Operand::Value(inner) => value_datum(inner, expected),
-        Operand::Content(inner) => content_datum(inner, expected),
-        Operand::Predicate(inner) => predicate_datum(inner),
-        Operand::Function(inner) => function_datum(inner),
-        Operand::Query(inner) => query_datum(inner),
-        Operand::Act(inner) => act_datum(inner),
-        Operand::Discourse(inner) => discourse_datum(inner),
-        Operand::Entry(inner) => entry_datum(inner),
+        Operand::Value(inner) => value_datum(inner, expected, uses),
+        Operand::Content(inner) => content_datum(inner, expected, uses),
+        Operand::Predicate(inner) => predicate_datum(inner, uses),
+        Operand::Function(inner) => function_datum(inner, expected, uses),
+        Operand::Query(inner) => query_datum(inner, uses),
+        Operand::Act(inner) => act_datum(inner, uses),
+        Operand::Discourse(inner) => discourse_datum(inner, uses),
+        Operand::Entry(inner) => entry_datum(inner, uses),
     }
 }
 
 /// Serialize a first-order value.
 #[requires(true)]
 #[ensures(true)]
-fn value_datum(value: &Value, expected: Expected<'_>) -> Datum {
+fn value_datum(value: &Value, expected: Expected<'_>, uses: &DocumentUses) -> Datum {
     // Section 3.3: a singleton lift is elidable exactly at a statically known
     // `Referents<T>` operand.
     if let data!(Value::Intrinsic {
@@ -460,7 +535,7 @@ fn value_datum(value: &Value, expected: Expected<'_>) -> Datum {
         && expected.requires_referents()
         && let [lifted] = arguments.as_slice()
     {
-        return operand_datum(lifted, Expected::Unknown);
+        return operand_datum(lifted, Expected::Unknown, uses);
     }
     match value.as_data() {
         data!(Value::Literal(literal)) => literal_datum(literal),
@@ -478,7 +553,7 @@ fn value_datum(value: &Value, expected: Expected<'_>) -> Datum {
             values.extend(
                 items
                     .iter()
-                    .map(|item| value_datum(item, Expected::Type(element_type))),
+                    .map(|item| value_datum(item, Expected::Type(element_type), uses)),
             );
             Datum::form(kind.as_str(), values)
         }
@@ -486,7 +561,7 @@ fn value_datum(value: &Value, expected: Expected<'_>) -> Datum {
             "Tuple",
             elements
                 .iter()
-                .map(|element| value_datum(element, Expected::Unknown)),
+                .map(|element| value_datum(element, Expected::Unknown, uses)),
         ),
         data!(Value::Sign { token, kind, facts }) => {
             let mut values = vec![Datum::list([Datum::list([
@@ -496,7 +571,7 @@ fn value_datum(value: &Value, expected: Expected<'_>) -> Datum {
             values.extend(
                 facts
                     .iter()
-                    .map(|fact| content_datum(fact, content_expected())),
+                    .map(|fact| content_datum(fact, content_expected(), uses)),
             );
             Datum::form("Sign", values)
         }
@@ -504,56 +579,96 @@ fn value_datum(value: &Value, expected: Expected<'_>) -> Datum {
             intrinsic,
             arguments,
             ..
-        }) => intrinsic_datum(*intrinsic, arguments),
+        }) => intrinsic_datum(*intrinsic, arguments, uses),
         data!(Value::Apply {
             head,
             arguments,
             ..
-        }) => application_datum(head, arguments),
-        data!(Value::Let(form)) => let_datum(form, |body| value_datum(body, expected)),
-        data!(Value::Bind(form)) => bind_datum(form, |body| value_datum(body, expected)),
-        data!(Value::LetRec(form)) => let_rec_datum(form, |body| value_datum(body, expected)),
+        }) => application_datum(head, arguments, uses),
+        data!(Value::Let(form)) => let_datum(form, uses, |body| value_datum(body, expected, uses)),
+        data!(Value::Bind(form)) => {
+            bind_datum(form, uses, |body| value_datum(body, expected, uses))
+        }
+        data!(Value::LetRec(form)) => {
+            let_rec_datum(form, uses, |body| value_datum(body, expected, uses))
+        }
         data!(Value::Bound { variable, .. }) => variable_to_datum(variable),
     }
 }
 
-/// Serialize a callable value.
+/// Serialize a callable value at a position expecting `expected`.
 #[requires(true)]
 #[ensures(true)]
-fn function_datum(value: &FnValue) -> Datum {
+fn function_datum(value: &FnValue, expected: Expected<'_>, uses: &DocumentUses) -> Datum {
     match value.as_data() {
         data!(FnValue::Lambda(lambda)) => {
-            lambda_datum(lambda, |body, expected| operand_datum(body, expected))
+            lambda_datum(lambda, lambda_body_expected(expected), |body, expected| {
+                operand_datum(body, expected, uses)
+            })
         }
         data!(FnValue::Intrinsic {
             intrinsic,
             arguments,
             ..
-        }) => intrinsic_datum(*intrinsic, arguments),
+        }) => intrinsic_datum(*intrinsic, arguments, uses),
         data!(FnValue::Registered { name, .. }) => Datum::atom(name.as_str()),
         data!(FnValue::Bound { variable, .. }) => variable_to_datum(variable),
-        data!(FnValue::Let(form)) => let_datum(form, function_datum),
-        data!(FnValue::Bind(form)) => bind_datum(form, function_datum),
-        data!(FnValue::LetRec(form)) => let_rec_datum(form, function_datum),
+        data!(FnValue::Let(form)) => {
+            let_datum(form, uses, |body| function_datum(body, expected, uses))
+        }
+        data!(FnValue::Bind(form)) => {
+            bind_datum(form, uses, |body| function_datum(body, expected, uses))
+        }
+        data!(FnValue::LetRec(form)) => {
+            let_rec_datum(form, uses, |body| function_datum(body, expected, uses))
+        }
+    }
+}
+
+/// Return what the enclosing position requires of a lambda's body.
+///
+/// Only a declared function type licenses an elision inside a lambda body: a
+/// `Let` or `LetRec` initializer prints its declared `Fn` type, and a registered
+/// operand or row slot declares one. A `Lambda<Operand>` at a polymorphic
+/// position — a `Mention`, `Denotes`, or `Label` operand, or an application head
+/// — declares nothing, and section 2.2 then reads that surface as a lambda
+/// returning a `PredTerm`, so a `Content` body must print its `Close`. Deriving
+/// the expectation from the lambda's own inferred result would make every
+/// position look declared, and the round-trip oracle cannot see the difference:
+/// the over-elided text is a fixed point of parse-then-print.
+#[requires(true)]
+#[ensures(true)]
+fn lambda_body_expected(expected: Expected<'_>) -> Expected<'_> {
+    match expected {
+        Expected::Type(TypeExpr::Function { result, .. }) => Expected::Type(result),
+        // Section 3.2: `GQ<T>` means exactly `Fn<(Property<T>), Content>`.
+        Expected::Type(TypeExpr::GeneralizedQuantifier(_)) => content_expected(),
+        _ => Expected::Unknown,
     }
 }
 
 /// Serialize a reference computation.
 #[requires(true)]
 #[ensures(true)]
-fn reference_computation_datum(value: &RefComp) -> Datum {
+fn reference_computation_datum(value: &RefComp, uses: &DocumentUses) -> Datum {
     match value.as_data() {
+        // Every description property is a declared `Property<Referents<T>>`, so
+        // these positions license the `Close` elision in the body.
         data!(RefComp::Refer { property }) => Datum::form(
             "Refer",
-            [lambda_datum(property, |body, expected| {
-                content_datum(body, expected)
-            })],
+            [lambda_datum(
+                property,
+                content_expected(),
+                |body, expected| content_datum(body, expected, uses),
+            )],
         ),
         data!(RefComp::Typical { property }) => Datum::form(
             "Typical",
-            [lambda_datum(property, |body, expected| {
-                content_datum(body, expected)
-            })],
+            [lambda_datum(
+                property,
+                content_expected(),
+                |body, expected| content_datum(body, expected, uses),
+            )],
         ),
         data!(RefComp::Stereotypical {
             describer,
@@ -561,8 +676,10 @@ fn reference_computation_datum(value: &RefComp) -> Datum {
         }) => Datum::form(
             "Stereotypical",
             [
-                value_datum(describer, Expected::Unknown),
-                lambda_datum(property, |body, expected| content_datum(body, expected)),
+                value_datum(describer, Expected::Unknown, uses),
+                lambda_datum(property, content_expected(), |body, expected| {
+                    content_datum(body, expected, uses)
+                }),
             ],
         ),
         // Section 14.1: with zero dependencies the canonical form is the bare
@@ -584,11 +701,16 @@ fn reference_computation_datum(value: &RefComp) -> Datum {
 /// empty application.
 #[requires(true)]
 #[ensures(true)]
-fn intrinsic_datum(intrinsic: Intrinsic, arguments: &[Operand]) -> Datum {
+fn intrinsic_datum(intrinsic: Intrinsic, arguments: &[Operand], uses: &DocumentUses) -> Datum {
     if arguments.is_empty() {
         return Datum::atom(intrinsic.as_str());
     }
-    Datum::form(intrinsic.as_str(), arguments.iter().map(call_operand_datum))
+    Datum::form(
+        intrinsic.as_str(),
+        arguments
+            .iter()
+            .map(|argument| call_operand_datum(argument, uses)),
+    )
 }
 
 /// Serialize one operand of a registered call.
@@ -602,40 +724,48 @@ fn intrinsic_datum(intrinsic: Intrinsic, arguments: &[Operand]) -> Datum {
 /// elision is claimed here.
 #[requires(true)]
 #[ensures(true)]
-fn call_operand_datum(argument: &Operand) -> Datum {
+fn call_operand_datum(argument: &Operand, uses: &DocumentUses) -> Datum {
     let value_type = argument.value_type();
     if matches!(value_type, TypeExpr::Referents(_)) {
-        return operand_datum(argument, Expected::Type(&value_type));
+        return operand_datum(argument, Expected::Type(&value_type), uses);
     }
-    operand_datum(argument, Expected::Unknown)
+    operand_datum(argument, Expected::Unknown, uses)
 }
 
 /// Serialize an ordinary application without imposing left association.
+///
+/// The head position declares nothing about the head itself — the operand types
+/// below come from the head's own signature, which a lambda head prints in full,
+/// but its result type is never on the surface.
 #[requires(true)]
 #[ensures(true)]
-fn application_datum(head: &FnValue, arguments: &[Operand]) -> Datum {
+fn application_datum(head: &FnValue, arguments: &[Operand], uses: &DocumentUses) -> Datum {
     let declared = head
         .signature()
         .map(|signature| signature.parameters().to_vec())
         .unwrap_or_default();
-    let mut values = vec![function_datum(head)];
+    let mut values = vec![function_datum(head, Expected::Unknown, uses)];
     values.extend(arguments.iter().enumerate().map(|(index, argument)| {
         operand_datum(
             argument,
             declared
                 .get(index)
                 .map_or(Expected::Unknown, Expected::Type),
+            uses,
         )
     }));
     Datum::list(values)
 }
 
 /// Serialize a lambda with its complete ordered typed parameter list.
+///
+/// `body_expected` is what the *enclosing* position requires of the body, never
+/// what the lambda's own result type happens to be; see [`lambda_body_expected`].
 #[requires(true)]
 #[ensures(ret.form_head() == Some("λ"))]
-fn lambda_datum<C: Category, F>(lambda: &Lambda<C>, body: F) -> Datum
+fn lambda_datum<C: Category, F>(lambda: &Lambda<C>, body_expected: Expected<'_>, body: F) -> Datum
 where
-    F: Fn(&C, Expected<'_>) -> Datum,
+    F: FnOnce(&C, Expected<'_>) -> Datum,
 {
     Datum::form(
         "λ",
@@ -646,7 +776,7 @@ where
                     type_to_datum(parameter.declared_type()),
                 ])
             })),
-            body(lambda.body(), Expected::Type(lambda.result_type())),
+            body(lambda.body(), body_expected),
         ],
     )
 }
@@ -654,7 +784,7 @@ where
 /// Serialize a declaration block as nested one-declaration `Let` forms.
 #[requires(true)]
 #[ensures(ret.form_head() == Some("Let"))]
-fn let_datum<C: Category, F>(form: &Let<C>, body: F) -> Datum
+fn let_datum<C: Category, F>(form: &Let<C>, uses: &DocumentUses, body: F) -> Datum
 where
     F: FnOnce(&C) -> Datum,
 {
@@ -669,6 +799,7 @@ where
                     operand_datum(
                         declaration.initializer(),
                         Expected::Type(declaration.declared_type()),
+                        uses,
                     ),
                 ])]),
                 datum,
@@ -681,7 +812,7 @@ where
 /// Serialize a dynamic binder.
 #[requires(true)]
 #[ensures(ret.form_head() == Some("Bind"))]
-fn bind_datum<C: Category, F>(form: &Bind<C>, body: F) -> Datum
+fn bind_datum<C: Category, F>(form: &Bind<C>, uses: &DocumentUses, body: F) -> Datum
 where
     F: FnOnce(&C) -> Datum,
 {
@@ -691,7 +822,7 @@ where
             Datum::list([Datum::list([
                 variable_to_datum(form.variable()),
                 type_to_datum(form.declared_type()),
-                reference_computation_datum(form.computation()),
+                reference_computation_datum(form.computation(), uses),
             ])]),
             body(form.body()),
         ],
@@ -701,7 +832,7 @@ where
 /// Serialize a recursive binding group.
 #[requires(true)]
 #[ensures(ret.form_head() == Some("LetRec"))]
-fn let_rec_datum<C: Category, F>(form: &LetRec<C>, body: F) -> Datum
+fn let_rec_datum<C: Category, F>(form: &LetRec<C>, uses: &DocumentUses, body: F) -> Datum
 where
     F: FnOnce(&C) -> Datum,
 {
@@ -712,7 +843,13 @@ where
                 Datum::list([
                     variable_to_datum(declaration.variable()),
                     type_to_datum(declaration.declared_type()),
-                    function_datum(declaration.initializer()),
+                    // The declared type is printed right here, so it licenses
+                    // whatever elision the initializer's body allows.
+                    function_datum(
+                        declaration.initializer(),
+                        Expected::Type(declaration.declared_type()),
+                        uses,
+                    ),
                 ])
             })),
             body(form.body()),
