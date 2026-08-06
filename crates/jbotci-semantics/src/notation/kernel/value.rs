@@ -229,11 +229,10 @@ impl Value {
         element_type: TypeExpr,
         items: Vec<Value>,
     ) -> Result<Self, KernelTypeError> {
-        if let Some(item) = items
+        if !items
             .iter()
-            .find(|item| !kernel_accepts(&item.value_type(), &element_type))
+            .all(|item| kernel_accepts(&item.value_type(), &element_type))
         {
-            let _ = item;
             return Err(KernelTypeError::new(
                 "a collection item does not inhabit the declared element type",
             ));

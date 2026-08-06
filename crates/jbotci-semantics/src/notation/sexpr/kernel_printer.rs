@@ -18,7 +18,7 @@ use num_bigint::BigInt;
 use super::super::kernel::apply::PredicateSignature;
 use super::super::kernel::binder::{Bind, Category, Lambda, Let, LetRec, free_binders_of};
 use super::super::kernel::content::{
-    AnswerSelection, AnswerSelectionData, Content, ContentData, Query, QueryData,
+    AnswerSelection, AnswerSelectionData, Content, ContentData, Query,
 };
 use super::super::kernel::document::KernelDocument;
 use super::super::kernel::intrinsic::Intrinsic;
@@ -306,17 +306,15 @@ fn close_is_elidable(predicate: &PredTerm) -> bool {
 #[requires(true)]
 #[ensures(true)]
 fn query_datum(value: &Query) -> Datum {
-    match value.as_data() {
-        data!(Query::Polar(content)) => {
-            Datum::form("Polar", [content_datum(content, content_expected())])
-        }
-        data!(Query::Open(lambda)) => Datum::form(
+    match value {
+        Query::Polar(content) => Datum::form("Polar", [content_datum(content, content_expected())]),
+        Query::Open(lambda) => Datum::form(
             "OpenQ",
             [lambda_datum(lambda, |body, expected| {
                 content_datum(body, expected)
             })],
         ),
-        data!(Query::Bound { variable, .. }) => variable_to_datum(variable),
+        Query::Bound { variable, .. } => variable_to_datum(variable),
     }
 }
 

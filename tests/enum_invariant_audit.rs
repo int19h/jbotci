@@ -1828,6 +1828,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the connective's operand categories are fixed by the field types and it constrains nothing further",
     ),
     (
+        "crates/jbotci-semantics/src/notation/kernel/content.rs:Query::Bound",
+        "a bound reference carries the type its binder declared; the document scope audit proves that agreement",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/kernel/content.rs:Query::Open",
         "the query's payload is already validated by its own type",
     ),

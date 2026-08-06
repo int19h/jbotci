@@ -412,7 +412,7 @@ impl Category for Content {
 /// A polar or open question value.
 #[invariant(::Polar(_) => true)]
 #[invariant(::Open(_) => true)]
-#[invariant(::Bound { parameters, .. } => !parameters.is_empty() || parameters.is_empty())]
+#[invariant(::Bound { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Query {
     Polar(Content),
@@ -426,40 +426,40 @@ pub enum Query {
 impl Query {
     /// Ask a graph truth-slot question.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(matches!(ret, Self::Polar(_)))]
     pub fn polar(content: Content) -> Self {
-        new!(Query::Polar(content))
+        Self::Polar(content)
     }
 
     /// Bind a nonempty answer domain.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(matches!(ret, Self::Open(_)))]
     pub fn open(lambda: Lambda<Content>) -> Self {
-        new!(Query::Open(lambda))
+        Self::Open(lambda)
     }
 
     /// Reference a bound query.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(matches!(ret, Self::Bound { .. }))]
     pub fn bound(variable: Variable, parameters: Vec<TypeExpr>) -> Self {
-        new!(Query::Bound {
+        Self::Bound {
             variable,
             parameters,
-        })
+        }
     }
 
     /// Return the ordered answer-tuple types this query binds.
     #[requires(true)]
     #[ensures(true)]
     pub fn parameters(&self) -> Vec<TypeExpr> {
-        match self.as_data() {
-            data!(Query::Polar(_)) => Vec::new(),
-            data!(Query::Open(lambda)) => lambda
+        match self {
+            Self::Polar(_) => Vec::new(),
+            Self::Open(lambda) => lambda
                 .parameters()
                 .iter()
                 .map(|parameter| parameter.declared_type().clone())
                 .collect(),
-            data!(Query::Bound { parameters, .. }) => parameters.clone(),
+            Self::Bound { parameters, .. } => parameters.clone(),
         }
     }
 
@@ -467,13 +467,13 @@ impl Query {
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
-        match self.as_data() {
-            data!(Query::Polar(content)) => content.collect_scope_facts(facts),
-            data!(Query::Open(lambda)) => facts.record_lambda(lambda),
-            data!(Query::Bound {
+        match self {
+            Self::Polar(content) => content.collect_scope_facts(facts),
+            Self::Open(lambda) => facts.record_lambda(lambda),
+            Self::Bound {
                 variable,
                 parameters,
-            }) => facts.record_use(variable, TypeExpr::Query(parameters.clone())),
+            } => facts.record_use(variable, TypeExpr::Query(parameters.clone())),
         }
     }
 }
@@ -485,12 +485,12 @@ impl Category for Query {
     }
 
     fn append_free_binders_to(&self, binders: &mut BinderSet) {
-        match self.as_data() {
-            data!(Query::Polar(content)) => content.append_free_binders_to(binders),
-            data!(Query::Open(lambda)) => {
+        match self {
+            Self::Polar(content) => content.append_free_binders_to(binders),
+            Self::Open(lambda) => {
                 binders.extend(lambda.free_binders().iter().cloned());
             }
-            data!(Query::Bound { variable, .. }) => {
+            Self::Bound { variable, .. } => {
                 binders.insert(variable.clone());
             }
         }
