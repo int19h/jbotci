@@ -1501,6 +1501,39 @@ def test_lujvo_parts_and_domain_helpers_are_typed() -> None:
         morphology.is_vowel("aa")
 
 
+def test_short_rafsi_derivation_is_pure_phonotactics() -> None:
+    forms = morphology.possible_short_rafsi_forms("sakli")
+    assert tuple((form.form, form.shape) for form in forms) == (
+        ("kli", morphology.ShortRafsiShape.CCV),
+        ("sa'i", morphology.ShortRafsiShape.CVV),
+        ("sai", morphology.ShortRafsiShape.CVV),
+        ("sak", morphology.ShortRafsiShape.CVC),
+        ("sal", morphology.ShortRafsiShape.CVC),
+        ("ska", morphology.ShortRafsiShape.CCV),
+    )
+    match forms[0]:
+        case morphology.ShortRafsiForm(form, shape):
+            assert (form, shape) == ("kli", morphology.ShortRafsiShape.CCV)
+        case _:  # pragma: no cover - structural match must succeed
+            pytest.fail("short rafsi forms support structural matching")
+    assert forms[0] == morphology.ShortRafsiForm(
+        "kli", morphology.ShortRafsiShape.CCV
+    )
+
+    assert morphology.GismuShape.classify("sakli") is morphology.GismuShape.CVCCV
+    assert morphology.GismuShape.classify("bridi") is morphology.GismuShape.CCVCV
+    assert morphology.ShortRafsiShape.CVV.matches_form("sa'i")
+    assert not morphology.ShortRafsiShape.CVC.matches_form("sa'i")
+
+    # A public derivation must not reject or panic on arbitrary text.
+    for word in ("", "toldu ", "coi", "not lojban at all"):
+        assert morphology.possible_short_rafsi_forms(word) == ()
+        assert morphology.GismuShape.classify(word) is None
+
+    with pytest.raises(InvalidInputError):
+        morphology.ShortRafsiForm("sal", morphology.ShortRafsiShape.CCV)
+
+
 def test_empty_textual_lujvo_parts_return_none_without_panicking() -> None:
     assert morphology.bond_rafsis(["", "jbo"]) is None
     assert (

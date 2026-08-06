@@ -789,6 +789,15 @@ def typed_every_morphology_free_function(
     assert_type(morphology.syllables_pattern("klama"), str | None)
     assert_type(morphology.rafsi_shape("jbo"), morphology.RafsiShape)
     assert_type(morphology.rafsi_shape_score(rafsi_shape), int)
+    assert_type(
+        morphology.possible_short_rafsi_forms("sakli"),
+        tuple[morphology.ShortRafsiForm, ...],
+    )
+    short_rafsi_form = morphology.ShortRafsiForm("sal", morphology.ShortRafsiShape.CVC)
+    assert_type(short_rafsi_form.form, str)
+    assert_type(short_rafsi_form.shape, morphology.ShortRafsiShape)
+    assert_type(morphology.GismuShape.classify("sakli"), morphology.GismuShape | None)
+    assert_type(morphology.ShortRafsiShape.CVC.matches_form("sal"), bool)
     assert_type(morphology.is_vowel("a"), bool)
     assert_type(morphology.is_consonant("b"), bool)
     assert_type(morphology.is_cmevla("alis"), bool)
