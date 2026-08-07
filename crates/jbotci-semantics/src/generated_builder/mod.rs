@@ -229,6 +229,12 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     pending_sumti_candidates: Vec<GeneratedPendingSumtiCandidate<'syntax>>,
     recent_sumti_referents: Vec<GeneratedRecentSumtiReferent>,
     assigned_referents: BTreeMap<String, SemanticObjectId>,
+    // `goi` clauses a quantified argument's own binder has already claimed, by
+    // clause source span. `ro lo prenu goi ko'a` parses its relative clauses
+    // onto the description tail, so without this the description would take the
+    // name back when it is built — after the whole bridi, and therefore after
+    // every `ko'a` the quantifier scopes over.
+    quantifier_owned_goi_assignments: BTreeSet<(usize, usize)>,
     math_variable_referents: BTreeMap<String, SemanticObjectId>,
     assigned_pro_bridi_bindings: BTreeMap<String, GeneratedAssignedProBridiBinding<'syntax>>,
     pending_asides: Vec<SemanticObjectId>,
@@ -1701,6 +1707,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             pending_sumti_candidates: Vec::new(),
             recent_sumti_referents: Vec::new(),
             assigned_referents: BTreeMap::new(),
+            quantifier_owned_goi_assignments: BTreeSet::new(),
             math_variable_referents: BTreeMap::new(),
             assigned_pro_bridi_bindings: BTreeMap::new(),
             pending_asides: Vec::new(),
@@ -5952,6 +5959,67 @@ fn generated_goi_assignment_clause(
             generated_goi_assignment_clause_atom(atom)
         })
     })
+}
+
+/// The `goi` assignment the sumti opening a quantifier binder owns.
+///
+/// `ro lo prenu goi ko'a` is one sumti whose argument value is the bound
+/// candidate, so a `ko'a` inside that quantifier's scope denotes the candidate
+/// rather than the description the candidate is selected from. Finding the
+/// clause has to go through the quantifier source's own syntax: the grammar
+/// attaches the relative clauses of `[quantifier] LE selbri [relative-clauses]`
+/// to the description tail, not to the enclosing sumti, so the enclosing
+/// sumti's own clause list is empty in exactly the configuration that matters.
+#[requires(true)]
+#[ensures(ret.is_none_or(|clause| clause.association_marker.value.cmavo() == Some(Cmavo::Goi)))]
+fn generated_argument_quantifier_goi_assignment_clause<'syntax>(
+    sumti: &'syntax SumtiSyntax,
+    source: GeneratedArgumentQuantifierSource<'syntax>,
+) -> Option<&'syntax SumtiAssociationRelativeClauseSyntax> {
+    if let Some(relative_clauses) = generated_sumti_relative_clause_list(sumti)
+        && let Some(clause) = generated_goi_assignment_clause(relative_clauses)
+    {
+        return Some(clause);
+    }
+    match source {
+        GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description) => {
+            generated_description_tail_goi_assignment_clause(&description.tail)
+        }
+        GeneratedArgumentQuantifierSource::QuantifiedSumti(quantified) => {
+            match quantified.inner_sumti.as_ref() {
+                SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
+                    generated_description_tail_goi_assignment_clause(&description.tail)
+                }
+                SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
+                    generated_description_tail_goi_assignment_clause(&description.tail)
+                }
+                _ => None,
+            }
+        }
+        // A gadri-less description carries its clauses on the sumti itself, so
+        // the list above already covered it.
+        GeneratedArgumentQuantifierSource::NoGadriDescription(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|clause| clause.association_marker.value.cmavo() == Some(Cmavo::Goi)))]
+fn generated_description_tail_goi_assignment_clause(
+    tail: &DescriptionTailSyntax,
+) -> Option<&SumtiAssociationRelativeClauseSyntax> {
+    if let Some(relative_clauses) = tail.leading_tail_elements.relative_clauses.as_ref()
+        && let Some(clause) = generated_goi_assignment_clause(relative_clauses)
+    {
+        return Some(clause);
+    }
+    let relative_clauses = match tail.tail.as_ref() {
+        DescriptionTailBodySyntax::RelationDescriptionTail(tail) => tail.relative_clauses.as_ref(),
+        DescriptionTailBodySyntax::QuantifierRelationDescriptionTail(tail) => {
+            tail.relative_clauses.as_ref()
+        }
+        DescriptionTailBodySyntax::QuantifierSumtiDescriptionTail(_) => None,
+    }?;
+    generated_goi_assignment_clause(relative_clauses)
 }
 
 #[requires(true)]
@@ -10491,6 +10559,75 @@ mod tests {
                 .get(&event_binding_owner(&graph, event))
                 .and_then(SemanticObject::formula_operator),
             Some(FormulaOperator::Atom)
+        );
+    }
+
+    /// `goi` on a quantified sumti names the candidate the quantifier binds, so
+    /// a `ko'a` the quantifier scopes over is that candidate rather than an
+    /// unresolved pro-sumti constant.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_under_a_quantifier_resolves_to_the_bound_candidate() {
+        let graph = semantic_graph_for("ro lo prenu goi ko'a cu prami ko'a");
+        let prami = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "prami")
+                    .then_some(predication)
+            })
+            .expect("prami predication exists");
+        let x1 = prami.arguments[&argument_key(1)]
+            .value
+            .expect("prami x1 is filled");
+        let x2 = prami.arguments[&argument_key(2)]
+            .value
+            .expect("prami x2 is filled");
+        assert_eq!(x1, x2);
+        let variable = graph.objects.get(&x1).expect("candidate exists");
+        assert_eq!(
+            variable.referent_category(),
+            Some(ReferentCategory::Variable)
+        );
+        assert_eq!(
+            variable
+                .assigned_names()
+                .iter()
+                .map(|name| name.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ko'a"]
+        );
+        // The description the candidate is selected from does not also carry
+        // the name: the quantifier's binder owns the assignment.
+        assert!(
+            graph
+                .objects
+                .iter()
+                .all(|(id, object)| { *id == x1 || object.assigned_names().is_empty() })
+        );
+    }
+
+    /// Same-scope `goi` without a quantifier is unchanged: the description
+    /// itself is the assignment target.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_without_a_quantifier_still_names_the_description() {
+        let graph = semantic_graph_for("lo prenu goi ko'a cu prami ko'a");
+        let named = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| (!object.assigned_names().is_empty()).then_some(id))
+            .expect("goi assigns a name");
+        let object = graph.objects.get(&named).expect("named referent exists");
+        assert_eq!(object.referent_category(), Some(ReferentCategory::Constant));
+        assert!(
+            object
+                .as_referent()
+                .and_then(|referent| referent.descriptor.as_ref())
+                .is_some_and(|descriptor| descriptor.word == "lo")
         );
     }
 

@@ -2990,6 +2990,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             (None, None, Vec::new(), Vec::new(), Vec::new())
         };
+        self.claim_generated_quantifier_goi_assignment(sumti, scope_source, referent)?;
         let mut argument = if generated_sumti_is_elided(sumti) {
             ArgumentValue::elided(
                 referent,
@@ -4017,12 +4018,55 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         relative_clauses: &'tree RelativeClauseListSyntax,
     ) -> Result<(), SemanticsError> {
         if let Some(clause) = generated_goi_assignment_clause(relative_clauses)
+            && !self.generated_goi_assignment_is_quantifier_owned(clause)
             && let Some(assigned_name) =
                 self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
         {
             self.assign_generated_name_to_argument_object(referent, assigned_name)?;
         }
         Ok(())
+    }
+
+    /// Bind a quantified argument's `goi` assignment to the candidate it binds.
+    ///
+    /// The claim happens as the binder is created — before the rest of the
+    /// bridi is built — because a `ko'a` the quantifier scopes over has to
+    /// resolve to the candidate rather than fall through to an unresolved
+    /// pro-sumti constant. The clause's own source span records the claim so
+    /// the description the candidate is selected from, which the grammar hands
+    /// the very same clause and which is built only once the whole bridi is
+    /// finished, does not take the name back.
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    pub(super) fn claim_generated_quantifier_goi_assignment<'syntax: 'tree>(
+        &mut self,
+        sumti: &'syntax SumtiSyntax,
+        source: GeneratedArgumentQuantifierSource<'syntax>,
+        variable: SemanticObjectId,
+    ) -> Result<(), SemanticsError> {
+        let Some(clause) = generated_argument_quantifier_goi_assignment_clause(sumti, source)
+        else {
+            return Ok(());
+        };
+        let Some(assigned_name) =
+            self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
+        else {
+            return Ok(());
+        };
+        if let Some(key) = self.source_key_for_node(clause) {
+            self.quantifier_owned_goi_assignments.insert(key);
+        }
+        self.assign_generated_name_to_argument_object(variable, assigned_name)
+    }
+
+    #[requires(clause.association_marker.value.cmavo() == Some(Cmavo::Goi))]
+    #[ensures(true)]
+    pub(super) fn generated_goi_assignment_is_quantifier_owned(
+        &self,
+        clause: &SumtiAssociationRelativeClauseSyntax,
+    ) -> bool {
+        self.source_key_for_node(clause)
+            .is_some_and(|key| self.quantifier_owned_goi_assignments.contains(&key))
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
