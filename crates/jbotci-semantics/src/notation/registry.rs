@@ -14,9 +14,9 @@ use std::sync::OnceLock;
 use bityzba::{data, ensures, invariant, new, requires};
 
 use super::kernel::types::TypeExpr;
+use super::lexical_edge::{DynamicValueFamily, ScopePolicy};
 use super::sexpr::datum::parse_document;
 use super::sexpr::type_syntax::parse_type;
-use super::typed_ir::{DynamicValueFamily, ScopePolicy};
 use crate::completeness::model::{FailureClass, WHOLE_GRAPH_RAW_ROOT_TYPE};
 
 /// Closed semantic-surface owner category.

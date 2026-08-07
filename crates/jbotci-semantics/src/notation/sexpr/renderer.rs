@@ -13,10 +13,11 @@ use std::fmt;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 
-use super::datum::{Datum, print_document};
+use super::datum::Datum;
 use super::elaborate::{
     CompactElaborationData, CompactFallback, elaborate_compact, prescan_projections,
 };
+use super::kernel_printer::print_kernel_document;
 use super::planner::{ScopeFailure, ScopeFailureKind, index_graph_usage, plan_references};
 use crate::completeness::model::FailureClass;
 use crate::model::{
@@ -253,15 +254,15 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniPro
     }
 
     let data!(CompactElaboration {
-        body,
+        document,
         compact_objects,
         ..
     }) = elaboration.into_data();
-    let mut children = vec![Datum::unsigned(0), body];
-    if !word_cards.is_empty() {
-        children.push(Datum::form("Words", word_cards.iter().cloned()));
-    }
-    let text = print_document(&Datum::form("Smusni", children));
+    let document = document.expect("an elaboration with no failures closed one document");
+    // Word cards are reference data about the input's words, not semantic
+    // content, so the kernel deliberately does not carry them; section 2.4's
+    // `Words` section is assembled beside the typed body by the printer.
+    let text = print_kernel_document(&document, word_cards);
     let stats = new!(SmusniRenderStats {
         compact_objects: compact_objects,
         failed_projection_edges: 0,

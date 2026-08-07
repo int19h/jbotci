@@ -983,17 +983,6 @@ fn a_reference_computation_is_reachable_only_through_bind() {
 #[requires(true)]
 #[ensures(true)]
 fn close_is_undefined_for_a_row_it_cannot_close() {
-    // An unknown numbered tail is not closeable: its surviving places are not
-    // yet known.
-    let open_row = Row::new(
-        vec![RowSlot::new(PlaceLabel::numbered(1), referents(entity()))],
-        true,
-    );
-    assert!(
-        Content::close(PredTerm::bound(variable("$mo"), open_row)).is_err(),
-        "closed a row with an unknown tail"
-    );
-
     // A surviving higher-order place receives no invented default.
     let function_row = Row::new(
         vec![RowSlot::new(
@@ -1008,6 +997,120 @@ fn close_is_undefined_for_a_row_it_cannot_close() {
     assert!(
         Content::close(PredTerm::bound(variable("$p"), function_row)).is_err(),
         "closed a row with a surviving function place"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn an_open_relation_question_defers_its_close_and_never_elides_it() {
+    // Section 4.3 states the `mo`-like relation question the other way round
+    // from every other row: the query binds a term whose total row is not yet
+    // known, and "answer substitution supplies the concrete relation and its
+    // remaining row before the deferred `Close` is checked". So an unknown
+    // numbered tail defers this check rather than failing it.
+    let open_row = Row::new(
+        vec![
+            RowSlot::new(PlaceLabel::numbered(1), referents(entity())),
+            RowSlot::new(
+                PlaceLabel::Eventuality,
+                referents(TypeExpr::Atom(TypeAtom::Eventuality)),
+            ),
+        ],
+        true,
+    );
+    let applied = PredTerm::applied(
+        PredTerm::bound(variable("$mo"), open_row.clone()),
+        vec![PlaceFill::plain(Operand::Value(
+            Value::intrinsic(Intrinsic::This, Vec::new()).expect("This is a registered constant"),
+        ))],
+    )
+    .expect("filling the known x1 of an open row is well typed");
+    let question = Query::open(
+        Lambda::new(
+            vec![TypedParameter::new(
+                variable("$mo"),
+                TypeExpr::Predicate(open_row),
+            )],
+            Content::close(applied).expect("an open tail defers its Close"),
+        )
+        .expect("a one-parameter lambda is well formed"),
+    );
+    let document = KernelDocument::new(Performable::Act(Act::ask(question)))
+        .expect("the document is closed and well scoped");
+    let text = round_trip(&document);
+
+    // Section 5.2 licenses omitting `Close` only when the effective row is
+    // statically known, so the deferred one must survive onto the surface even
+    // though the term is an application rather than a bare `$mo`.
+    assert!(
+        collapsed(&text).contains("(Close ($mo This))"),
+        "a deferred Close is not elidable:\n{text}"
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn sibling_scopes_may_spell_one_identity_the_same_way() {
+    // Specification samples section 9 writes a quantifier's restriction and its
+    // nuclear scope as two lambdas over the same `$x`, and the elaborator names
+    // binders after graph identities, so the same identity legitimately binds in
+    // disjoint sibling scopes. Only a binder introduced *inside* a live binder
+    // of the same name makes that name ambiguous.
+    let document = quantified_assertion(
+        one_place_property("gerku", "$x"),
+        one_place_property("bajra", "$x"),
+    );
+    let text = round_trip(&document);
+    assert!(
+        collapsed(&text)
+            .contains("((Exactly 3 (λ (($x (Referents Entity))) (gerku $x))) (λ (($x (Referents Entity))) (bajra $x)))"),
+        "sibling lambdas may share one binder spelling:\n{text}"
+    );
+
+    // A `Bind`'s computation is evaluated outside the binder it introduces, so
+    // the description property's own parameter is a sibling of that binder and
+    // may carry the same identity.
+    let property = Lambda::new(
+        vec![TypedParameter::new(variable("$cat"), referents(entity()))],
+        Content::close(
+            PredTerm::applied(
+                lexical("mlatu", 1),
+                vec![PlaceFill::plain(Operand::Value(Value::bound(
+                    variable("$cat"),
+                    referents(entity()),
+                )))],
+            )
+            .expect("filling mlatu x1 is well typed"),
+        )
+        .expect("the remaining row is closeable"),
+    )
+    .expect("a one-parameter lambda is well formed");
+    let hosted = Performable::Bind(
+        Bind::new(
+            variable("$cat"),
+            referents(entity()),
+            RefComp::refer(property).expect("a description property selects a reference"),
+            Performable::Act(Act::assert(
+                Content::close(
+                    PredTerm::applied(
+                        lexical("blabi", 1),
+                        vec![PlaceFill::plain(Operand::Value(Value::bound(
+                            variable("$cat"),
+                            referents(entity()),
+                        )))],
+                    )
+                    .expect("filling blabi x1 is well typed"),
+                )
+                .expect("the remaining row is closeable"),
+            )),
+        )
+        .expect("the computation produces the declared reference type"),
+    );
+    assert!(
+        KernelDocument::new(hosted).is_ok(),
+        "a Bind and its own description property may share one binder spelling"
     );
 }
 

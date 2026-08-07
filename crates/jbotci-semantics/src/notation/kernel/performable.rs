@@ -10,7 +10,7 @@ use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 
 use super::binder::{Bind, BinderSet, Category, Let, LetRec};
 use super::content::{Content, Query};
-use super::document::ScopeFacts;
+use super::document::ScopeAudit;
 use super::error::KernelTypeError;
 use super::intrinsic::{atom, kernel_accepts, referents};
 use super::types::{Force, TypeAtom, TypeExpr, Variable};
@@ -138,24 +138,24 @@ impl Act {
         }
     }
 
-    /// Record this act's binder introductions and uses.
+    /// Check this act's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self.as_data() {
             data!(Act::Assert(content)) | data!(Act::Express(content)) => {
-                content.collect_scope_facts(facts);
+                content.walk_scope(audit);
             }
-            data!(Act::Ask(query)) => query.collect_scope_facts(facts),
+            data!(Act::Ask(query)) => query.walk_scope(audit),
             data!(Act::Command { addressee, content }) => {
-                addressee.collect_scope_facts(facts);
-                content.collect_scope_facts(facts);
+                addressee.walk_scope(audit);
+                content.walk_scope(audit);
             }
-            data!(Act::Mention(operand)) => operand.collect_scope_facts(facts),
-            data!(Act::Vocative(addressee)) => addressee.collect_scope_facts(facts),
-            data!(Act::Interpret { sign, .. }) => sign.collect_scope_facts(facts),
+            data!(Act::Mention(operand)) => operand.walk_scope(audit),
+            data!(Act::Vocative(addressee)) => addressee.walk_scope(audit),
+            data!(Act::Interpret { sign, .. }) => sign.walk_scope(audit),
             data!(Act::Bound { variable, force }) => {
-                facts.record_use(variable, TypeExpr::Act(*force));
+                audit.record_use(variable, &TypeExpr::Act(*force));
             }
         }
     }
@@ -322,29 +322,29 @@ impl Discourse {
         )
     }
 
-    /// Record this value's binder introductions and uses.
+    /// Check this value's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self.as_data() {
-            data!(Discourse::Perform(act)) => act.collect_scope_facts(facts),
-            data!(Discourse::PerformUtterance(entry)) => entry.collect_scope_facts(facts),
+            data!(Discourse::Perform(act)) => act.walk_scope(audit),
+            data!(Discourse::PerformUtterance(entry)) => entry.walk_scope(audit),
             data!(Discourse::Do(items)) => {
                 for item in items {
-                    item.collect_scope_facts(facts);
+                    item.walk_scope(audit);
                 }
             }
             data!(Discourse::Joi(operands)) => {
                 for operand in operands {
-                    operand.collect_scope_facts(facts);
+                    operand.walk_scope(audit);
                 }
             }
             data!(Discourse::NewTopic(inner)) | data!(Discourse::Resume(inner)) => {
-                inner.collect_scope_facts(facts);
+                inner.walk_scope(audit);
             }
             data!(Discourse::Prior) | data!(Discourse::Following) => {}
             data!(Discourse::Bound(variable)) => {
-                facts.record_use(variable, atom(TypeAtom::Discourse));
+                audit.record_use(variable, &atom(TypeAtom::Discourse));
             }
         }
     }
@@ -414,19 +414,20 @@ impl TranscriptEntry {
         new!(TranscriptEntry::Bound(variable))
     }
 
-    /// Record this value's binder introductions and uses.
+    /// Check this value's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, entries: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self.as_data() {
             data!(TranscriptEntry::Utterance { token, facts }) => {
-                entries.record_introduction(token, atom(TypeAtom::UtteranceToken));
-                for fact in facts {
-                    fact.collect_scope_facts(entries);
-                }
+                audit.scoped_token(token, atom(TypeAtom::UtteranceToken), |audit| {
+                    for fact in facts {
+                        fact.walk_scope(audit);
+                    }
+                });
             }
             data!(TranscriptEntry::Bound(variable)) => {
-                entries.record_use(variable, atom(TypeAtom::TranscriptEntry));
+                audit.record_use(variable, &atom(TypeAtom::TranscriptEntry));
             }
         }
     }
@@ -487,17 +488,17 @@ impl Performable {
         }
     }
 
-    /// Record this value's binder introductions and uses.
+    /// Check this value's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self {
-            Self::Act(act) => act.collect_scope_facts(facts),
-            Self::Discourse(discourse) => discourse.collect_scope_facts(facts),
-            Self::Entry(entry) => entry.collect_scope_facts(facts),
-            Self::Let(form) => facts.record_let(form),
-            Self::Bind(form) => facts.record_bind(form),
-            Self::LetRec(form) => facts.record_let_rec(form),
+            Self::Act(act) => act.walk_scope(audit),
+            Self::Discourse(discourse) => discourse.walk_scope(audit),
+            Self::Entry(entry) => entry.walk_scope(audit),
+            Self::Let(form) => audit.walk_let(form, |audit, body| body.walk_scope(audit)),
+            Self::Bind(form) => audit.walk_bind(form, |audit, body| body.walk_scope(audit)),
+            Self::LetRec(form) => audit.walk_let_rec(form, |audit, body| body.walk_scope(audit)),
         }
     }
 }

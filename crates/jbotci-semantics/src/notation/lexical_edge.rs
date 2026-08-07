@@ -1,11 +1,31 @@
-//! Minimum smusni-v0 typed IR foundation for lexical dynamic edges.
+//! The kernel's lexical-edge front-end.
 //!
-//! This module intentionally stops before host selection. It discovers the
-//! graph-owned computation positioned at an original lexical place, resolves
-//! the exact curated `(relation, place)` key, and constructs an edge
-//! only after successful validation. Raw S-expression datums never enter this
-//! layer.
+//! It sits beside the kernel rather than inside it for one hard reason: the
+//! build script compiles `kernel/` on its own to mint the very lexical policy
+//! table this module reads, so a `kernel::lexical_edge` would be circular — and
+//! `kernel/` is otherwise model-free, while this front-end is by definition a
+//! reader of the record graph.
+//!
+//! This module intentionally stops before host selection: it discovers the
+//! graph-owned computation positioned at an original lexical place, resolves the
+//! curated `(relation, original place)` key its scope policy is registered
+//! under, and constructs an edge only after successful validation. Choosing
+//! where the resulting `Bind` goes is the host planner's job.
+//!
+//! Everything here is stated in the coordinates the builder recorded rather
+//! than in ones a recognizer reconstructs. A predication argument's policy key
+//! is read off the `LexicalArgument` boundary of the region that argument place
+//! owns; a reference occurring inside its own target's definition is excluded by
+//! the occurrence table's recorded `DefinitionInternal` role, which is what
+//! retired this module's definition-subgraph recognizer; and an explicit de-re
+//! host is a region of the scope forest, not an object whose kind happens to
+//! look act-like. Raw S-expression datums never enter this layer.
 
+// Nothing in the route migration consumes this front-end yet: turning a
+// verified edge into a placed `Bind` is the host-planning work of the next
+// increment, and until that lands the whole module is exercised only by its own
+// tests. The allowance is therefore still module-wide; it comes off place by
+// place as the `Bind` routes wire each piece in.
 #![cfg_attr(not(test), allow(dead_code))]
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -21,8 +41,9 @@ use super::registry::{
 #[allow(unused_imports)]
 use crate::model::{
     ArgumentValue, DescriptorKind, PlaceIndex, PredicationRelation, PredicationRelationData,
-    ReferentCategory, SemanticGraph, SemanticObject, SemanticObjectId, SemanticObjectKind,
-    SemanticSort,
+    ReferentCategory, ScopeBoundary, ScopeBoundaryData, ScopeRegionId, ScopeSite, ScopeSiteData,
+    ScopeUseRole, SemanticGraph, SemanticObject, SemanticObjectId, SemanticObjectKind,
+    SemanticScopeTree, SemanticSort,
 };
 
 #[invariant(!text.is_empty() && text.bytes().all(|byte| byte.is_ascii_lowercase()))]
@@ -193,33 +214,54 @@ impl VerifiedLexicalPolicy {
     }
 }
 
-#[invariant(matches!(object.object_kind(), SemanticObjectKind::Utterance | SemanticObjectKind::Sequence | SemanticObjectKind::Formula | SemanticObjectKind::Question))]
+/// A region the graph names as the explicit host of a de-re reading.
+///
+/// Whether a computation may escape its lexical place is a question about
+/// *where* it would land, so this names a region of the recorded scope forest
+/// rather than an object. Which boundaries can hold a raised computation is
+/// fixed by section 6.3: an escaping reference stops at a performed act, a
+/// reification, or an opaque barrier, so exactly those three boundaries are the
+/// ones a graph may name as an explicit host. A transparent boundary is not a
+/// host at all — raising would simply continue through it.
+///
+/// Every region id is a legal field value on its own; what makes a value of this
+/// type a host is that [`DeReHostRegion::try_new`] is the only way to obtain one.
+#[invariant(
+    true,
+    "the fallible constructor is the only way in, and it checks the boundary"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct GraphRefHostId {
-    object: SemanticObjectId,
+pub(crate) struct DeReHostRegion {
+    region: ScopeRegionId,
 }
 
-impl GraphRefHostId {
+impl DeReHostRegion {
     #[requires(true)]
-    #[ensures(ret.is_ok() == matches!(object.object_kind(), SemanticObjectKind::Utterance | SemanticObjectKind::Sequence | SemanticObjectKind::Formula | SemanticObjectKind::Question))]
-    pub(crate) fn try_new(object: SemanticObjectId) -> Result<Self, GraphRefHostError> {
+    #[ensures(ret.as_ref().is_ok_and(|host| host.region == region) || ret.is_err())]
+    pub(crate) fn try_new(
+        scope: &SemanticScopeTree,
+        region: ScopeRegionId,
+    ) -> Result<Self, DeReHostError> {
+        let Some(node) = scope.region(region) else {
+            return Err(DeReHostError::UnrecordedRegion);
+        };
         if !matches!(
-            object.object_kind(),
-            SemanticObjectKind::Utterance
-                | SemanticObjectKind::Sequence
-                | SemanticObjectKind::Formula
-                | SemanticObjectKind::Question
+            node.boundary.as_data(),
+            data!(ScopeBoundary::ForceSegment)
+                | data!(ScopeBoundary::Reification)
+                | data!(ScopeBoundary::Opaque)
         ) {
-            return Err(GraphRefHostError::UnsupportedObjectKind);
+            return Err(DeReHostError::UnsupportedBoundary);
         }
-        Ok(new!(GraphRefHostId { object }))
+        Ok(DeReHostRegion { region })
     }
 }
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum GraphRefHostError {
-    UnsupportedObjectKind,
+pub(crate) enum DeReHostError {
+    UnrecordedRegion,
+    UnsupportedBoundary,
 }
 
 #[invariant(*policy != ScopePolicy::Opaque || de_re_owner.is_none())]
@@ -230,7 +272,7 @@ pub(crate) struct LexicalDynamicEdge {
     family: DynamicValueFamily,
     attested_arity: AttestedArity,
     policy: ScopePolicy,
-    de_re_owner: Option<GraphRefHostId>,
+    de_re_owner: Option<DeReHostRegion>,
 }
 
 impl LexicalDynamicEdge {
@@ -238,7 +280,7 @@ impl LexicalDynamicEdge {
     #[ensures(ret.as_ref().is_ok_and(|edge| edge.key == old(verified.key.clone()) && edge.family == old(verified.accepted_family) && edge.policy == old(verified.policy)) || ret.is_err())]
     fn from_verified(
         verified: VerifiedLexicalPolicy,
-        de_re_owner: Option<GraphRefHostId>,
+        de_re_owner: Option<DeReHostRegion>,
     ) -> Result<Self, LexicalEdgeOwnerFailure> {
         if verified.policy == ScopePolicy::Opaque && de_re_owner.is_some() {
             return Err(LexicalEdgeOwnerFailure::OpaqueCannotEscape);
@@ -295,17 +337,52 @@ pub(crate) enum LexicalEdgeFallbackReason {
     },
 }
 
-#[invariant(::Predication { predication } => predication.object_kind() == SemanticObjectKind::Predication)]
-#[invariant(::Adjunct { predication, .. } => predication.object_kind() == SemanticObjectKind::Predication)]
+/// Where one candidate edge was written, in recorded scope coordinates.
+///
+/// `region` is the region the reference is evaluated in, which is what a host
+/// decision is made against. A predication argument owns a `LexicalArgument`
+/// region of its own, so its region is the exact place the policy key came
+/// from; an adjunct place has no recorded region yet, so it reports the
+/// predication's home region and says so through `adjunct_index`. Closing that
+/// gap needs the recorder to declare adjunct argument regions, which is not
+/// this increment's change.
+#[invariant(predication.object_kind() == SemanticObjectKind::Predication)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) enum LexicalEdgeSite {
-    Predication {
-        predication: SemanticObjectId,
-    },
-    Adjunct {
-        predication: SemanticObjectId,
-        adjunct_index: usize,
-    },
+pub(crate) struct LexicalEdgeSite {
+    predication: SemanticObjectId,
+    region: ScopeRegionId,
+    adjunct_index: Option<usize>,
+}
+
+impl LexicalEdgeSite {
+    /// Name one predication argument place by the region that place owns.
+    #[requires(predication.object_kind() == SemanticObjectKind::Predication)]
+    #[ensures(ret.predication == predication && ret.region == region && ret.adjunct_index.is_none())]
+    fn argument(predication: SemanticObjectId, region: ScopeRegionId) -> Self {
+        new!(LexicalEdgeSite {
+            predication,
+            region,
+            adjunct_index: None,
+        })
+    }
+
+    /// Name one adjunct place, which has no recorded region of its own.
+    #[requires(predication.object_kind() == SemanticObjectKind::Predication)]
+    #[ensures(ret.predication == predication && ret.adjunct_index == Some(adjunct_index))]
+    fn adjunct(predication: SemanticObjectId, region: ScopeRegionId, adjunct_index: usize) -> Self {
+        new!(LexicalEdgeSite {
+            predication,
+            region,
+            adjunct_index: Some(adjunct_index),
+        })
+    }
+
+    /// The region a host decision for this edge is made against.
+    #[requires(true)]
+    #[ensures(ret == self.region)]
+    pub(crate) fn region(&self) -> ScopeRegionId {
+        self.region
+    }
 }
 
 #[invariant(value.object_kind() == SemanticObjectKind::Referent)]
@@ -443,7 +520,7 @@ fn rows_have_unique_keys(rows: &[VerifiedLexicalPolicy]) -> bool {
 fn attempt_lexical_dynamic_edge(
     registry: &LexicalPolicyRegistry,
     candidate: &LexicalEdgeCandidate,
-    de_re_owner: Option<GraphRefHostId>,
+    de_re_owner: Option<DeReHostRegion>,
 ) -> LexicalEdgeAttempt {
     let verified = match registry.lookup(&candidate.key, candidate.observed_arity, candidate.family)
     {
@@ -507,6 +584,17 @@ pub(crate) struct PreHostLexicalIr {
 }
 
 impl PreHostLexicalIr {
+    /// Collect every owning lexical edge of one graph.
+    ///
+    /// Two recorded coordinates do the work a recognizer used to do. A
+    /// predication argument place owns a `LexicalArgument` region whose boundary
+    /// carries the `(relation, original place)` key, so the key is read rather
+    /// than rebuilt from the relation spelling; and an edge the builder recorded
+    /// as `DefinitionInternal` is a bound candidate inside its own target's
+    /// definition rather than an owning use, so it is skipped without any
+    /// definition-subgraph walk. Adjunct places have no recorded region yet, so
+    /// their key still comes from the adjunct's own relation and place map and
+    /// their site reports the predication's home region.
     #[requires(graph.objects.contains_key(&graph.root))]
     #[ensures(true)]
     pub(crate) fn collect(graph: &SemanticGraph) -> Self {
@@ -515,45 +603,60 @@ impl PreHostLexicalIr {
             .iter()
             .filter_map(|(id, object)| dynamic_value_family(object).map(|family| (*id, family)))
             .collect();
-        let definition_subgraphs: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> =
-            dynamic_values
-                .keys()
-                .map(|id| (*id, definition_subgraph(graph, *id)))
-                .collect();
+        let definition_internal = definition_internal_edges(graph);
+        let argument_regions = lexical_argument_regions(graph);
         let mut owning_edges = Vec::new();
         for (predication_id, object) in &graph.objects {
             let Some(predication) = object.as_predication() else {
                 continue;
             };
-            let data!(PredicationRelation::Named { relation }) = predication.relation.as_data()
-            else {
+            let data!(PredicationRelation::Named { .. }) = predication.relation.as_data() else {
                 continue;
             };
-            collect_argument_edges(
-                *predication_id,
-                new!(LexicalEdgeSite::Predication {
-                    predication: *predication_id,
-                }),
-                relation,
-                &predication.arguments,
-                &dynamic_values,
-                &definition_subgraphs,
-                &mut owning_edges,
-            );
+            let Some(home) = graph.scope.origin(*predication_id) else {
+                continue;
+            };
+            let Some(observed_arity) = contiguous_argument_arity(&predication.arguments) else {
+                continue;
+            };
+            for (place, argument) in &predication.arguments {
+                let Some(value) = argument.value else {
+                    continue;
+                };
+                let Some(family) = dynamic_values.get(&value).copied() else {
+                    continue;
+                };
+                if definition_internal.contains(&(*predication_id, value)) {
+                    continue;
+                }
+                // The region's own boundary is the recorded key. A place with no
+                // region, or one whose boundary is not the lexical-argument
+                // boundary, has no verified policy key and fails closed.
+                let Some((region, key)) = argument_regions.get(&(*predication_id, *place)) else {
+                    continue;
+                };
+                if key.original_place() != place.get() {
+                    continue;
+                }
+                owning_edges.push(LexicalEdgeCandidate::new(
+                    LexicalEdgeSite::argument(*predication_id, *region),
+                    value,
+                    key.clone(),
+                    family,
+                    observed_arity,
+                ));
+            }
             for (adjunct_index, adjunct) in predication.adjuncts.iter().enumerate() {
                 let Some(relation) = adjunct.relation.as_deref() else {
                     continue;
                 };
-                collect_argument_edges(
+                collect_adjunct_edges(
                     *predication_id,
-                    new!(LexicalEdgeSite::Adjunct {
-                        predication: *predication_id,
-                        adjunct_index,
-                    }),
+                    LexicalEdgeSite::adjunct(*predication_id, home, adjunct_index),
                     relation,
                     &adjunct.arguments,
                     &dynamic_values,
-                    &definition_subgraphs,
+                    &definition_internal,
                     &mut owning_edges,
                 );
             }
@@ -568,16 +671,67 @@ impl PreHostLexicalIr {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Index the `(predication, place)` regions whose boundary carries a verified
+/// lexical policy key.
+#[requires(true)]
+#[ensures(true)]
+#[allow(clippy::type_complexity)]
+fn lexical_argument_regions(
+    graph: &SemanticGraph,
+) -> BTreeMap<(SemanticObjectId, PlaceIndex), (ScopeRegionId, LexicalPolicyKey)> {
+    let mut regions = BTreeMap::new();
+    for (id, region) in &graph.scope.regions {
+        let data!(ScopeBoundary::LexicalArgument {
+            relation,
+            original_place,
+        }) = region.boundary.as_data()
+        else {
+            continue;
+        };
+        let (Some(owner), data!(ScopeSite::Argument { place })) =
+            (region.owner.object, region.owner.site.as_data())
+        else {
+            continue;
+        };
+        let Ok(relation) = NormalizedLexicalRelationId::from_canonical(relation) else {
+            continue;
+        };
+        let key = LexicalPolicyKey::new(relation, OriginalPlace::new(original_place.get()));
+        regions.insert((owner, *place), (*id, key));
+    }
+    regions
+}
+
+/// The `(owner, target)` edges the builder recorded as definition-internal.
+///
+/// This is what retired the definition-subgraph recognizer: a description's
+/// self-reference inside its own defining property is recorded as such by the
+/// only component that holds the syntax tree, so no consumer has to re-derive
+/// it from graph shape.
+#[requires(true)]
+#[ensures(true)]
+fn definition_internal_edges(
+    graph: &SemanticGraph,
+) -> BTreeSet<(SemanticObjectId, SemanticObjectId)> {
+    graph
+        .scope
+        .uses
+        .iter()
+        .filter(|occurrence| occurrence.role == ScopeUseRole::DefinitionInternal)
+        .map(|occurrence| (occurrence.owner, occurrence.target))
+        .collect()
+}
+
+/// Collect the candidate edges of one adjunct's own place map.
 #[requires(predication_id.object_kind() == SemanticObjectKind::Predication)]
 #[ensures(out.len() >= old(out.len()))]
-fn collect_argument_edges(
+fn collect_adjunct_edges(
     predication_id: SemanticObjectId,
     site: LexicalEdgeSite,
     relation: &str,
     arguments: &BTreeMap<PlaceIndex, ArgumentValue>,
     dynamic_values: &BTreeMap<SemanticObjectId, DynamicValueFamily>,
-    definition_subgraphs: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
+    definition_internal: &BTreeSet<(SemanticObjectId, SemanticObjectId)>,
     out: &mut Vec<LexicalEdgeCandidate>,
 ) {
     let Ok(relation) = NormalizedLexicalRelationId::from_canonical(relation) else {
@@ -593,10 +747,7 @@ fn collect_argument_edges(
         let Some(family) = dynamic_values.get(&value).copied() else {
             continue;
         };
-        if definition_subgraphs
-            .get(&value)
-            .is_some_and(|subgraph| subgraph.contains(&predication_id))
-        {
+        if definition_internal.contains(&(predication_id, value)) {
             continue;
         }
         let key = LexicalPolicyKey::new(relation.clone(), OriginalPlace::new(place.get()));
@@ -645,57 +796,6 @@ fn dynamic_value_family(object: &SemanticObject) -> Option<DynamicValueFamily> {
     .then_some(DynamicValueFamily::RefCompReferentsEventuality)
 }
 
-#[requires(dynamic_value.object_kind() == SemanticObjectKind::Referent)]
-#[ensures(true)]
-fn definition_subgraph(
-    graph: &SemanticGraph,
-    dynamic_value: SemanticObjectId,
-) -> BTreeSet<SemanticObjectId> {
-    let Some(object) = graph.objects.get(&dynamic_value) else {
-        return BTreeSet::new();
-    };
-    let mut pending = definition_roots(object);
-    let mut visited = BTreeSet::new();
-    while let Some(id) = pending.pop() {
-        if !visited.insert(id) {
-            continue;
-        }
-        if let Some(object) = graph.objects.get(&id) {
-            object.references_into(&mut pending);
-        }
-    }
-    visited
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn definition_roots(object: &SemanticObject) -> Vec<SemanticObjectId> {
-    // A description's body and relative clauses are property definitions. Any
-    // occurrence of the described object reached from these roots is the
-    // definition-bound value (`ke'a` in witness 12, and the already-bound
-    // speaker-description base in witness 11), never a fresh `RefComp` edge.
-    let mut roots = Vec::new();
-    if let Some(descriptor) = object.descriptor() {
-        roots.extend(descriptor.body);
-        roots.extend(descriptor.relative_clauses.iter().map(|clause| clause.body));
-    }
-    if let Some(referent) = object.as_referent() {
-        roots.extend(referent.relative_clauses.iter().map(|clause| clause.body));
-        roots.extend(referent.body);
-    }
-    if let Some(eventuality) = object.as_eventuality() {
-        roots.extend(
-            eventuality
-                .relative_clauses
-                .iter()
-                .map(|clause| clause.body),
-        );
-        roots.extend(eventuality.content);
-        roots.extend(eventuality.body);
-    }
-    roots
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -705,6 +805,8 @@ mod tests {
         MorphologyOptions, segment_words_with_modifiers_with_options_and_source_id,
     };
     use jbotci_source::SourceId;
+
+    use crate::model::{ScopeOwner, ScopeRegion, SourceOrderKey};
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
 
     use crate::{SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options};
@@ -739,6 +841,50 @@ mod tests {
             jbotci_dictionary_data::english(),
         )
         .expect("mandatory witness semantics")
+    }
+
+    /// The region id of the synthetic force segment in [`force_segment_scope`].
+    #[requires(true)]
+    #[ensures(ret != ScopeRegionId::new(1))]
+    fn force_segment_region() -> ScopeRegionId {
+        ScopeRegionId::new(2)
+    }
+
+    /// A two-region scope forest: the document root and one performed act.
+    #[requires(true)]
+    #[ensures(ret.regions.len() == 2)]
+    fn force_segment_scope() -> SemanticScopeTree {
+        let root = ScopeRegionId::new(1);
+        new!(SemanticScopeTree {
+            root: root,
+            regions: BTreeMap::from([
+                (
+                    root,
+                    new!(ScopeRegion {
+                        parent: None,
+                        owner: ScopeOwner::document(),
+                        boundary: new!(ScopeBoundary::Document),
+                        binders: Vec::new(),
+                        source_order: SourceOrderKey::new(1),
+                    }),
+                ),
+                (
+                    force_segment_region(),
+                    new!(ScopeRegion {
+                        parent: Some(root),
+                        owner: ScopeOwner::locus(
+                            SemanticObjectId::utterance(3),
+                            new!(ScopeSite::Object),
+                        ),
+                        boundary: new!(ScopeBoundary::ForceSegment),
+                        binders: Vec::new(),
+                        source_order: SourceOrderKey::new(2),
+                    }),
+                ),
+            ]),
+            object_origins: BTreeMap::new(),
+            uses: Vec::new(),
+        })
     }
 
     #[requires(true)]
@@ -852,9 +998,7 @@ mod tests {
     #[ensures(true)]
     fn failure_constructs_no_edge_and_exactly_one_typed_diagnostic() {
         let candidate = LexicalEdgeCandidate::new(
-            new!(LexicalEdgeSite::Predication {
-                predication: SemanticObjectId::predication(1),
-            }),
+            LexicalEdgeSite::argument(SemanticObjectId::predication(1), force_segment_region()),
             SemanticObjectId::referent(2),
             key("skicu", 2),
             DynamicValueFamily::RefCompReferentsEntity,
@@ -885,15 +1029,21 @@ mod tests {
             ScopePolicy::Opaque,
         )]);
         let candidate = LexicalEdgeCandidate::new(
-            new!(LexicalEdgeSite::Predication {
-                predication: SemanticObjectId::predication(1),
-            }),
+            LexicalEdgeSite::argument(SemanticObjectId::predication(1), force_segment_region()),
             SemanticObjectId::referent(2),
             key("djica", 2),
             DynamicValueFamily::RefCompReferentsEventuality,
             AttestedArity::new(3),
         );
-        let owner = GraphRefHostId::try_new(SemanticObjectId::utterance(3)).expect("act host");
+        let scope = force_segment_scope();
+        // Section 6.3 lets a raised computation stop at a performed act, a
+        // reification, or an opaque barrier — never at the document root.
+        assert_eq!(
+            DeReHostRegion::try_new(&scope, scope.root),
+            Err(DeReHostError::UnsupportedBoundary),
+        );
+        let owner = DeReHostRegion::try_new(&scope, force_segment_region())
+            .expect("a force segment is a legal explicit host");
         let attempt = attempt_lexical_dynamic_edge(&registry, &candidate, Some(owner));
         let data!(LexicalEdgeAttempt::Fallback { reason, .. }) = attempt.as_data() else {
             panic!("opaque edge with escaping owner must fail");
@@ -953,9 +1103,10 @@ mod tests {
                     .expect("mutating policy must preserve lookup identity");
                 assert_eq!(looked_up.policy(), alternative);
                 let candidate = LexicalEdgeCandidate::new(
-                    new!(LexicalEdgeSite::Predication {
-                        predication: SemanticObjectId::predication(80),
-                    }),
+                    LexicalEdgeSite::argument(
+                        SemanticObjectId::predication(80),
+                        force_segment_region(),
+                    ),
                     SemanticObjectId::referent(81),
                     selected.key.clone(),
                     selected.accepted_family,
@@ -965,8 +1116,9 @@ mod tests {
                     attempt_lexical_dynamic_edge(&mutated, &candidate, None).as_data(),
                     data!(LexicalEdgeAttempt::Constructed { .. })
                 ));
-                let owner = GraphRefHostId::try_new(SemanticObjectId::utterance(82))
-                    .expect("synthetic act host");
+                let scope = force_segment_scope();
+                let owner = DeReHostRegion::try_new(&scope, force_segment_region())
+                    .expect("a force segment is a legal explicit host");
                 let owned = attempt_lexical_dynamic_edge(&mutated, &candidate, Some(owner));
                 assert_eq!(
                     matches!(owned.as_data(), data!(LexicalEdgeAttempt::Fallback { .. })),
@@ -1112,12 +1264,9 @@ mod tests {
                 .find(|edge| edge.key.relation() == "melbi")
                 .expect("outer melbi owns the description")
                 .value;
-            let definitions = definition_subgraph(&graph, dynamic);
-            let descriptor = graph.objects[&dynamic]
-                .descriptor()
-                .expect("dynamic description");
-            assert_eq!(descriptor.relative_clauses.len(), 1);
-            assert!(definitions.contains(&descriptor.relative_clauses[0].body));
+            // The excluded edge is excluded because the builder recorded it as
+            // definition-internal, not because a walk over the description's
+            // body happened to reach it.
             let internal = graph.objects.iter().find_map(|(id, object)| {
                 let predication = object.as_predication()?;
                 matches!(
@@ -1127,12 +1276,15 @@ mod tests {
                 .then_some((*id, predication))
             });
             let (internal_id, internal) = internal.expect("defining predication");
-            assert!(definitions.contains(&internal_id));
             assert!(
                 internal
                     .arguments
                     .values()
                     .any(|argument| argument.value == Some(dynamic))
+            );
+            assert!(
+                definition_internal_edges(&graph).contains(&(internal_id, dynamic)),
+                "the defining edge is recorded as definition-internal",
             );
         }
     }

@@ -11,24 +11,21 @@
 //! any kernel signature, and it is not in this module's public one either:
 //! [`print_kernel_document`] takes a typed document and returns text.
 
-use std::collections::BTreeMap;
-
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
 use num_bigint::BigInt;
 
-use super::super::kernel::apply::PredicateSignature;
 use super::super::kernel::binder::{Bind, Category, Lambda, Let, LetRec, free_binders_of};
 use super::super::kernel::content::{
     AnswerSelection, AnswerSelectionData, Content, ContentData, Query,
 };
-use super::super::kernel::document::{KernelDocument, document_scope_facts};
+use super::super::kernel::document::{BinderUses, KernelDocument};
 use super::super::kernel::intrinsic::Intrinsic;
 use super::super::kernel::performable::{
     Act, ActData, Discourse, DiscourseData, Performable, TranscriptEntry, TranscriptEntryData,
 };
 use super::super::kernel::predicate::{PlaceFill, PlaceFillData, PredTerm, PredTermData};
-use super::super::kernel::types::{TypeAtom, TypeExpr, Variable};
+use super::super::kernel::types::{TypeAtom, TypeExpr};
 use super::super::kernel::value::{
     FnValue, FnValueData, Literal, LiteralData, Operand, RefComp, RefCompData, Value, ValueData,
 };
@@ -50,11 +47,8 @@ pub fn print_kernel_document(document: &KernelDocument, words: &[Datum]) -> Stri
 #[requires(true)]
 #[ensures(ret.form_head() == Some("Smusni"))]
 pub fn kernel_document_datum(document: &KernelDocument, words: &[Datum]) -> Datum {
-    let uses = document_uses(document);
-    let mut values = vec![
-        Datum::unsigned(0),
-        performable_datum(document.body(), &uses),
-    ];
+    let uses = document.binder_uses();
+    let mut values = vec![Datum::unsigned(0), performable_datum(document.body(), uses)];
     if !words.is_empty() {
         values.push(Datum::form("Words", words.iter().cloned()));
     }
@@ -65,20 +59,9 @@ pub fn kernel_document_datum(document: &KernelDocument, words: &[Datum]) -> Datu
 ///
 /// Section 2.4's utterance contraction is not a property of the entry being
 /// printed: it holds only when the token is unreferenced across the document.
-/// The census is taken once at the root and carried down to every position an
-/// entry can occupy.
-type DocumentUses = BTreeMap<Variable, usize>;
-
-/// Count every recorded binder use in one document.
-#[requires(true)]
-#[ensures(true)]
-fn document_uses(document: &KernelDocument) -> DocumentUses {
-    let mut counts = DocumentUses::new();
-    for (variable, _) in document_scope_facts(document.body()).uses() {
-        *counts.entry(variable.clone()).or_insert(0) += 1;
-    }
-    counts
-}
+/// The census is taken once, by the scope audit that already walks every use,
+/// and carried down from the root to every position an entry can occupy.
+type DocumentUses = BinderUses;
 
 /// What the surrounding position requires of the value being printed.
 ///
@@ -353,13 +336,17 @@ fn content_datum(value: &Content, expected: Expected<'_>, uses: &DocumentUses) -
 
 /// Report whether a `Close` node may be omitted at a `Content` operand.
 ///
-/// Section 5.2 additionally requires that the term is inline and not referenced
-/// elsewhere; a bound predicate term is exactly the case that is referenced, so
-/// it keeps its `Close`.
+/// Section 5.2 requires both that the term is inline and not referenced
+/// elsewhere — a bound predicate term is exactly the case that is referenced,
+/// so it keeps its `Close` — and that its effective row is statically known. An
+/// unknown numbered tail is the second condition failing: a `mo`-like relation
+/// question's `Close` is deferred to answer substitution (section 4.3), so it
+/// must stay on the surface however the term was assembled.
 #[requires(true)]
 #[ensures(true)]
 fn close_is_elidable(predicate: &PredTerm) -> bool {
     !matches!(predicate.as_data(), data!(PredTerm::Bound { .. }))
+        && !predicate.row().has_open_numbered_tail()
 }
 
 /// Serialize a query value.
@@ -422,11 +409,19 @@ fn answer_selection_datum(value: &AnswerSelection, uses: &DocumentUses) -> Datum
 fn predicate_datum(value: &PredTerm, uses: &DocumentUses) -> Datum {
     match value.as_data() {
         data!(PredTerm::Relation(signature)) => relation_ref_to_datum(signature.relation()),
-        data!(PredTerm::Applied { head, fills, .. }) => {
-            let signature = head.signature();
+        data!(PredTerm::Applied {
+            head,
+            fills,
+            result,
+        }) => {
+            let declared = result.filled_types();
             let mut values = vec![predicate_datum(head, uses)];
-            for fill in fills {
-                values.extend(fill_datums(fill, &signature, uses));
+            for (index, fill) in fills.iter().enumerate() {
+                values.extend(fill_datums(
+                    fill,
+                    declared.get(index).and_then(Option::as_ref),
+                    uses,
+                ));
             }
             Datum::list(values)
         }
@@ -440,34 +435,25 @@ fn predicate_datum(value: &PredTerm, uses: &DocumentUses) -> Datum {
 }
 
 /// Serialize one place fill, which may occupy two datum positions.
+///
+/// `declared` is the type the slot this fill consumed accepts, which the
+/// application kernel recorded when its cursor selected that slot. A plain fill
+/// is therefore just as declared as a labelled one, so both license the same
+/// expected-type elisions; only a computed fill, which reserves a domain rather
+/// than consuming one slot, declares nothing.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn fill_datums(
-    fill: &PlaceFill,
-    signature: &PredicateSignature,
-    uses: &DocumentUses,
-) -> Vec<Datum> {
+fn fill_datums(fill: &PlaceFill, declared: Option<&TypeExpr>, uses: &DocumentUses) -> Vec<Datum> {
+    let expected = declared.map_or(Expected::Unknown, Expected::Type);
     match fill.as_data() {
-        data!(PlaceFill::Plain(value)) => vec![operand_datum(
-            value,
-            slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
-            uses,
-        )],
+        data!(PlaceFill::Plain(value)) => vec![operand_datum(value, expected, uses)],
         data!(PlaceFill::Numbered { place, value }) => vec![
             Datum::atom(format!(":{place}")),
-            operand_datum(
-                value,
-                slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
-                uses,
-            ),
+            operand_datum(value, expected, uses),
         ],
         data!(PlaceFill::Eventuality(value)) => vec![
             Datum::atom(":Eventuality"),
-            operand_datum(
-                value,
-                slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
-                uses,
-            ),
+            operand_datum(value, expected, uses),
         ],
         data!(PlaceFill::Computed { place, value, .. }) => vec![Datum::form(
             "At",
@@ -477,31 +463,6 @@ fn fill_datums(
             ],
         )],
     }
-}
-
-/// Return the accepted type of the row slot a literal fill targets.
-///
-/// Only literal labelled and event fills name their slot without replaying the
-/// cursor, so a plain fill keeps its crossings explicit rather than guessing.
-#[requires(true)]
-#[ensures(true)]
-fn slot_expectation<'a>(
-    signature: &'a PredicateSignature,
-    fill: &PlaceFill,
-) -> Option<Expected<'a>> {
-    use super::super::kernel::types::PlaceLabel;
-
-    let label = match fill.as_data() {
-        data!(PlaceFill::Numbered { place, .. }) => PlaceLabel::Numbered(place.clone()),
-        data!(PlaceFill::Eventuality(_)) => PlaceLabel::Eventuality,
-        _ => return None,
-    };
-    signature
-        .row()
-        .slots()
-        .iter()
-        .find(|slot| slot.label_ref() == &label)
-        .map(|slot| Expected::Type(slot.accepted_type()))
 }
 
 /// Serialize any operand, applying the singleton-lift elision.

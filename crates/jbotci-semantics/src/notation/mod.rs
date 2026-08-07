@@ -7,10 +7,10 @@
 
 pub mod coverage;
 pub mod kernel;
+pub(crate) mod lexical_edge;
 pub(crate) mod registry;
 pub(crate) mod relation_expression;
 pub mod sexpr;
-pub(crate) mod typed_ir;
 pub mod word_cards;
 mod xml;
 pub mod xml_coverage;

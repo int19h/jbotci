@@ -25,7 +25,7 @@ pub use binder::{
     TypedParameter, free_binders_of,
 };
 pub use content::{AnswerSelection, BinaryOp, Content, JunctionOp, QuantifierOp, Query};
-pub use document::KernelDocument;
+pub use document::{BinderUses, KernelDocument, audit_document_scope, document_binder_uses};
 pub use error::KernelTypeError;
 pub use intrinsic::Intrinsic;
 pub use performable::{Act, Discourse, Performable, TranscriptEntry};
