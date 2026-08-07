@@ -2776,10 +2776,18 @@ impl Elaborator<'_> {
                     CompactFallbackCause::ConstantWithoutDependence,
                 );
             };
+            if self.reference_binding_frames.borrow().is_empty() {
+                // Outside every force segment there is no host position at all,
+                // which is not section 6.3's legality question but the
+                // enclosing value's own failure to be placed; that failure is
+                // already recorded by whatever could not place it.
+                return None;
+            }
             let Some(hosted) = self.host_context(id, node.sort, dependence) else {
-                // Every rule held except the one section 6.3 ends with: no open
-                // position has this constant's dependencies live, so the graph
-                // and the placement rules together determine no legal host.
+                // Every rule held except the one section 6.3 ends with: an open
+                // position exists but none has this constant's dependencies
+                // live, so the placement rules and the graph together determine
+                // no legal host.
                 return self.fallback_object(
                     id,
                     bound,
