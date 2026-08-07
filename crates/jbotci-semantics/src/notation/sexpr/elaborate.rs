@@ -144,8 +144,8 @@ struct ReferenceBinding {
 /// A use has to be constructed at exactly the type its binder printed, or the
 /// document audit rejects it, so the rendering environment carries the
 /// declaration rather than only the identity.
-#[invariant(::Value(_) => true)]
-#[invariant(::Predicate(_) => true)]
+#[invariant(::Value(_) => true, "a declared value type is whatever its binder printed")]
+#[invariant(::Predicate(_) => true, "a declared row is whatever its binder printed")]
 #[derive(Debug, Clone)]
 enum BoundValue {
     /// An ordinary value binder: a hosted reference, a quantifier variable, a
@@ -163,8 +163,8 @@ type Bound = BTreeMap<SemanticObjectId, BoundValue>;
 /// The two blocks are kept apart because the kernel's binding forms are: a
 /// `LetRec` group is a nonempty set of inert lambdas that see each other, and a
 /// `Let` block is a sequence of ordinary declarations.
-#[invariant(::Inert(_) => true)]
-#[invariant(::Recursive(_) => true)]
+#[invariant(::Inert(_) => true, "each declaration validated its own initializer")]
+#[invariant(::Recursive(_) => true, "each declaration validated its own inert lambda")]
 #[derive(Debug)]
 enum HostedGroup {
     Inert(Vec<Declaration>),
@@ -215,8 +215,8 @@ impl HostedGroup {
 }
 
 /// One elaborated graph object, in whichever kernel category it inhabits.
-#[invariant(::Operand(_) => true)]
-#[invariant(::Performable(_) => true)]
+#[invariant(::Operand(_) => true, "the kernel value inside already validated itself")]
+#[invariant(::Performable(_) => true, "the kernel value inside already validated itself")]
 #[derive(Debug, Clone)]
 enum Elaborated {
     Operand(Operand),
@@ -514,8 +514,8 @@ fn wrap_reference_bindings(
 /// this predication's own declined boundary, while a value that declined
 /// already recorded its own, and reporting both would attribute one failure to
 /// two owners.
-#[invariant(::Unrepresentable => true)]
-#[invariant(::ValueDeclined => true)]
+#[invariant(::Unrepresentable => true, "a unit discriminator carries nothing to constrain")]
+#[invariant(::ValueDeclined => true, "a unit discriminator carries nothing to constrain")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FillFailure {
     Unrepresentable,
@@ -4499,9 +4499,9 @@ fn exact_connective_projection(
 /// The three shapes are kept apart because their arities are: negation takes
 /// one operand, a junction two or more at one locus, and a truth-functional
 /// binary connective exactly two.
-#[invariant(::Not => true)]
-#[invariant(::Junction(_) => true)]
-#[invariant(::Binary(_) => true)]
+#[invariant(::Not => true, "negation takes one operand; the arity is checked where it applies")]
+#[invariant(::Junction(_) => true, "every junction operator is legal; operand arity is a Content invariant")]
+#[invariant(::Binary(_) => true, "every binary connective is legal; operand arity is checked where it applies")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ConnectiveForm {
     Not,

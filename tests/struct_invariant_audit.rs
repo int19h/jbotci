@@ -1220,8 +1220,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a lambda parameter is any variable/type pair; distinctness is the enclosing lambda's invariant",
     ),
     (
-        "crates/jbotci-semantics/src/notation/kernel/document.rs:ScopeFacts",
-        "the document audit accumulator holds whatever the walk has seen so far; the audit itself is the check",
+        "crates/jbotci-semantics/src/notation/kernel/document.rs:ScopeAudit",
+        "the scope walk's environment is whatever the current position makes live; the walk itself is the check, and its result is a census or the first failure",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/lexical_edge.rs:DeReHostRegion",
+        "every region id is a legal field value; what makes one a de-re host is that its fallible constructor is the only way to obtain the type",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:RaisedBinding",
+        "the three components are exactly the ones a validated Bind was taken apart into, and rebinding them revalidates through Bind::new",
     ),
     (
         "crates/jbotci-semantics/src/notation/kernel/types.rs:RowSlot",
@@ -1258,10 +1266,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:Elaborator",
         "private read-only graph context owns mutable traversal registries whose lifecycle is enforced by rendering helper contracts",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:PredicateApplication",
-        "every typed head and ordered sequence of typed operands is a valid pending predicate application",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ReferenceBinding",
@@ -1372,11 +1376,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "LexicalRoot and NfcText independently prove both word-card fields",
     ),
     (
-        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyKey",
+        "crates/jbotci-semantics/src/notation/lexical_edge.rs:LexicalPolicyKey",
         "every combination of normalized relation, nonzero place, and closed dynamic family is a valid lookup key",
     ),
     (
-        "crates/jbotci-semantics/src/notation/typed_ir.rs:PreHostLexicalIr",
+        "crates/jbotci-semantics/src/notation/lexical_edge.rs:PreHostLexicalIr",
         "every ordered sequence of independently validated pre-host candidates is valid",
     ),
     (

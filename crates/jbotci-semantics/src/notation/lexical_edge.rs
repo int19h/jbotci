@@ -226,7 +226,10 @@ impl VerifiedLexicalPolicy {
 ///
 /// Every region id is a legal field value on its own; what makes a value of this
 /// type a host is that [`DeReHostRegion::try_new`] is the only way to obtain one.
-#[invariant(true)]
+#[invariant(
+    true,
+    "the fallible constructor is the only way in, and it checks the boundary"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DeReHostRegion {
     region: ScopeRegionId,
