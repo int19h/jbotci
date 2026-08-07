@@ -129,6 +129,7 @@ pub struct PredicateApplicationResult {
     remaining_slots: Vec<RowSlot>,
     open_numbered_tail: bool,
     computed_domains: Vec<Vec<PlaceLabel>>,
+    filled_types: Vec<Option<TypeExpr>>,
 }
 
 impl PredicateApplicationResult {
@@ -138,6 +139,21 @@ impl PredicateApplicationResult {
     #[ensures(row_slots_are_canonical(ret))]
     pub fn remaining_slots(&self) -> &[RowSlot] {
         &self.remaining_slots
+    }
+
+    /// Borrow the type each ordered argument's slot declared.
+    ///
+    /// A fill's slot is not recoverable from the surface: only a labelled or
+    /// event fill names its place, and a plain one is resolved by the cursor.
+    /// The cursor is exact rather than a guess, though, so recording what it
+    /// selected is what lets a printer apply section 3.3's and section 5.2's
+    /// expected-type elisions at every fill instead of only at the named ones.
+    /// A computed fill reserves a domain rather than consuming one statically
+    /// known slot, so its entry is `None`.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn filled_types(&self) -> &[Option<TypeExpr>] {
+        &self.filled_types
     }
 
     /// Borrow the ordered computed-place domains.
@@ -262,6 +278,7 @@ pub fn apply_predicate(
     let mut cursor_after = None::<PositiveInteger>;
     let mut computed_seen = false;
     let mut computed_domains = Vec::<Vec<PlaceLabel>>::new();
+    let mut filled_types = Vec::<Option<TypeExpr>>::with_capacity(arguments.len());
     for argument in arguments {
         match argument {
             PredicateArgument::Plain { value_type } => {
@@ -277,6 +294,7 @@ pub fn apply_predicate(
                 };
                 ensure_accepted(value_type, remaining[index].accepted_type())?;
                 let label = remaining[index].label();
+                filled_types.push(Some(remaining[index].accepted_type().clone()));
                 remaining.remove(index);
                 let PlaceLabel::Numbered(place) = label else {
                     unreachable!("cursor selects only numbered places")
@@ -298,6 +316,7 @@ pub fn apply_predicate(
                     ));
                 };
                 ensure_accepted(value_type, remaining[index].accepted_type())?;
+                filled_types.push(Some(remaining[index].accepted_type().clone()));
                 remaining.remove(index);
                 cursor_after = Some(place.clone());
             }
@@ -316,6 +335,7 @@ pub fn apply_predicate(
                     ));
                 };
                 ensure_accepted(value_type, remaining[index].accepted_type())?;
+                filled_types.push(Some(remaining[index].accepted_type().clone()));
                 remaining.remove(index);
             }
             PredicateArgument::Computed {
@@ -399,6 +419,7 @@ pub fn apply_predicate(
                     ));
                 }
                 computed_domains.push(candidates.to_vec());
+                filled_types.push(None);
             }
         }
     }
@@ -406,6 +427,7 @@ pub fn apply_predicate(
         remaining_slots: remaining,
         open_numbered_tail: signature.row.has_open_numbered_tail(),
         computed_domains,
+        filled_types,
     }))
 }
 

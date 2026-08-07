@@ -536,6 +536,27 @@ impl FnValue {
         })
     }
 
+    /// Bind a block of inert declarations over a callable body.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn let_form(form: Let<FnValue>) -> Self {
+        new!(FnValue::Let(form))
+    }
+
+    /// Run a reference computation over a callable body.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn bind_form(form: Bind<FnValue>) -> Self {
+        new!(FnValue::Bind(form))
+    }
+
+    /// Tie a recursive function group over a callable body.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn let_rec_form(form: LetRec<FnValue>) -> Self {
+        new!(FnValue::LetRec(form))
+    }
+
     /// Report whether this callable is an inert lambda.
     ///
     /// `LetRec` initializers must be inert lambdas (section 2.2), and this is

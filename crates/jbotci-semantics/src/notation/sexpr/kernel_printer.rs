@@ -15,7 +15,6 @@
 use bityzba::{data, ensures, invariant, requires};
 use num_bigint::BigInt;
 
-use super::super::kernel::apply::PredicateSignature;
 use super::super::kernel::binder::{Bind, Category, Lambda, Let, LetRec, free_binders_of};
 use super::super::kernel::content::{
     AnswerSelection, AnswerSelectionData, Content, ContentData, Query,
@@ -410,11 +409,19 @@ fn answer_selection_datum(value: &AnswerSelection, uses: &DocumentUses) -> Datum
 fn predicate_datum(value: &PredTerm, uses: &DocumentUses) -> Datum {
     match value.as_data() {
         data!(PredTerm::Relation(signature)) => relation_ref_to_datum(signature.relation()),
-        data!(PredTerm::Applied { head, fills, .. }) => {
-            let signature = head.signature();
+        data!(PredTerm::Applied {
+            head,
+            fills,
+            result,
+        }) => {
+            let declared = result.filled_types();
             let mut values = vec![predicate_datum(head, uses)];
-            for fill in fills {
-                values.extend(fill_datums(fill, &signature, uses));
+            for (index, fill) in fills.iter().enumerate() {
+                values.extend(fill_datums(
+                    fill,
+                    declared.get(index).and_then(Option::as_ref),
+                    uses,
+                ));
             }
             Datum::list(values)
         }
@@ -428,34 +435,25 @@ fn predicate_datum(value: &PredTerm, uses: &DocumentUses) -> Datum {
 }
 
 /// Serialize one place fill, which may occupy two datum positions.
+///
+/// `declared` is the type the slot this fill consumed accepts, which the
+/// application kernel recorded when its cursor selected that slot. A plain fill
+/// is therefore just as declared as a labelled one, so both license the same
+/// expected-type elisions; only a computed fill, which reserves a domain rather
+/// than consuming one slot, declares nothing.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-fn fill_datums(
-    fill: &PlaceFill,
-    signature: &PredicateSignature,
-    uses: &DocumentUses,
-) -> Vec<Datum> {
+fn fill_datums(fill: &PlaceFill, declared: Option<&TypeExpr>, uses: &DocumentUses) -> Vec<Datum> {
+    let expected = declared.map_or(Expected::Unknown, Expected::Type);
     match fill.as_data() {
-        data!(PlaceFill::Plain(value)) => vec![operand_datum(
-            value,
-            slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
-            uses,
-        )],
+        data!(PlaceFill::Plain(value)) => vec![operand_datum(value, expected, uses)],
         data!(PlaceFill::Numbered { place, value }) => vec![
             Datum::atom(format!(":{place}")),
-            operand_datum(
-                value,
-                slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
-                uses,
-            ),
+            operand_datum(value, expected, uses),
         ],
         data!(PlaceFill::Eventuality(value)) => vec![
             Datum::atom(":Eventuality"),
-            operand_datum(
-                value,
-                slot_expectation(signature, fill).unwrap_or(Expected::Unknown),
-                uses,
-            ),
+            operand_datum(value, expected, uses),
         ],
         data!(PlaceFill::Computed { place, value, .. }) => vec![Datum::form(
             "At",
@@ -465,31 +463,6 @@ fn fill_datums(
             ],
         )],
     }
-}
-
-/// Return the accepted type of the row slot a literal fill targets.
-///
-/// Only literal labelled and event fills name their slot without replaying the
-/// cursor, so a plain fill keeps its crossings explicit rather than guessing.
-#[requires(true)]
-#[ensures(true)]
-fn slot_expectation<'a>(
-    signature: &'a PredicateSignature,
-    fill: &PlaceFill,
-) -> Option<Expected<'a>> {
-    use super::super::kernel::types::PlaceLabel;
-
-    let label = match fill.as_data() {
-        data!(PlaceFill::Numbered { place, .. }) => PlaceLabel::Numbered(place.clone()),
-        data!(PlaceFill::Eventuality(_)) => PlaceLabel::Eventuality,
-        _ => return None,
-    };
-    signature
-        .row()
-        .slots()
-        .iter()
-        .find(|slot| slot.label_ref() == &label)
-        .map(|slot| Expected::Type(slot.accepted_type()))
 }
 
 /// Serialize any operand, applying the singleton-lift elision.
