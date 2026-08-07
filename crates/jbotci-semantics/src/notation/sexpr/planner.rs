@@ -944,7 +944,7 @@ fn reachable_from_roots(
 /// Deterministic Kosaraju condensation, emitted in topological order.
 #[requires(true)]
 #[ensures(ret.iter().flatten().all(|id| adjacency.contains_key(id)))]
-fn strong_components(
+pub(super) fn strong_components(
     adjacency: &BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
 ) -> Vec<BTreeSet<SemanticObjectId>> {
     let mut visited = BTreeSet::new();

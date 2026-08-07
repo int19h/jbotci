@@ -35,7 +35,7 @@ use super::super::kernel::types::{
 };
 use super::super::kernel::value::{FnValue, Literal, Operand, RefComp, Value};
 use super::identity::object_variable;
-use super::planner::{GraphUsage, ProjectedIdentities, ReferencePlan};
+use super::planner::{GraphUsage, ProjectedIdentities, ReferencePlan, strong_components};
 use crate::model::{
     AbstractionKind, ActualityKind, Adjunct, ArgumentValue, ArgumentValueKind, DeicticProximity,
     DescriptorKind, EventualityDenotationData, EventualityNode, EventualitySort, FormulaNodeData,
@@ -163,6 +163,20 @@ type Bound = BTreeMap<SemanticObjectId, BoundValue>;
 /// The two blocks are kept apart because the kernel's binding forms are: a
 /// `LetRec` group is a nonempty set of inert lambdas that see each other, and a
 /// `Let` block is a sequence of ordinary declarations.
+/// One block of a host's group, after exact SCC condensation.
+///
+/// `recursive` is a property of the group's dependency graph, not of how far
+/// topological emission happened to get: it is set exactly for a component that
+/// is a genuine cycle — two or more identities that see each other, or one that
+/// sees itself.
+#[invariant(!members.is_empty(), "a declaration block declares at least one name")]
+#[invariant(!*recursive || !members.is_empty(), "a recursive block is a nonempty cycle")]
+#[derive(Debug, Clone)]
+struct DeclarationBlock {
+    members: Vec<SemanticObjectId>,
+    recursive: bool,
+}
+
 #[invariant(::Inert(_) => true, "each declaration validated its own initializer")]
 #[invariant(::Recursive(_) => true, "each declaration validated its own inert lambda")]
 #[derive(Debug)]
@@ -896,39 +910,63 @@ impl Elaborator<'_> {
         self.placed_definitions
             .borrow_mut()
             .extend(definitions.iter().copied());
-        let (ordered, recursive) = self.definition_order(&definitions);
+        let blocks = self.definition_blocks(&definitions);
         // Declining here is still a per-object failure, so the loop keeps the
         // exact identity that could not be typed rather than reporting the
         // whole declaration group.
-        let mut typed_definitions = Vec::with_capacity(ordered.len());
-        for id in ordered {
-            let Some(declared_type) = definition_type_expr(&self.graph.objects[&id]) else {
-                self.record_object_fallback(
-                    id,
-                    CompactFallbackCause::DefinitionTypeUnrepresentable,
-                );
-                return None;
-            };
-            typed_definitions.push((id, declared_type));
+        let mut typed_blocks = Vec::with_capacity(blocks.len());
+        for block in &blocks {
+            let mut typed = Vec::with_capacity(block.members.len());
+            for id in block.members.iter().copied() {
+                let Some(declared_type) = definition_type_expr(&self.graph.objects[&id]) else {
+                    self.record_object_fallback(
+                        id,
+                        CompactFallbackCause::DefinitionTypeUnrepresentable,
+                    );
+                    return None;
+                };
+                typed.push((id, declared_type));
+            }
+            typed_blocks.push(typed);
         }
-        let bindings = typed_definitions
+        let rendered = typed_blocks
             .into_iter()
-            .map(|(id, declared_type)| {
-                let value = self
-                    .render_object(id, bound, active, None)
-                    .and_then(Elaborated::into_operand);
-                (id, declared_type, value)
+            .map(|typed| {
+                typed
+                    .into_iter()
+                    .map(|(id, declared_type)| {
+                        let value = self
+                            .render_object(id, bound, active, None)
+                            .and_then(Elaborated::into_operand);
+                        (id, declared_type, value)
+                    })
+                    .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        if recursive
-            && let Some((id, _, _)) = bindings.iter().find(|(_, _, value)| {
-                !matches!(value, Some(Operand::Function(callable)) if callable.is_lambda())
-            })
-        {
-            self.record_object_fallback(*id, CompactFallbackCause::UnrepresentableRecursiveValue);
-            return None;
+        for (block, bindings) in blocks.iter().zip(&rendered) {
+            // Only a genuinely cyclic block is a `LetRec`, so only a cyclic
+            // block's initializers have to be inert lambdas. An acyclic
+            // neighbour that happens to share this host is an ordinary
+            // declaration and is no longer dragged into the group's shape.
+            if block.recursive
+                && let Some((id, _, _)) = bindings.iter().find(|(_, _, value)| {
+                    !matches!(value, Some(Operand::Function(callable)) if callable.is_lambda())
+                })
+            {
+                self.record_object_fallback(
+                    *id,
+                    CompactFallbackCause::UnrepresentableRecursiveValue,
+                );
+                return None;
+            }
         }
-        self.bind_definitions(bindings, recursive, body?)
+        // The first block is the outermost binder, so the blocks are applied
+        // from the innermost outwards over the body they all wrap.
+        let mut wrapped = body?;
+        for (block, bindings) in blocks.into_iter().zip(rendered).rev() {
+            wrapped = self.bind_definitions(bindings, block.recursive, wrapped)?;
+        }
+        Some(wrapped)
     }
 
     /// Bind one placed declaration group around the value it hosts.
@@ -993,40 +1031,84 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Topologically order one local group. A remaining dependency cycle
-    /// selects `LetRec` for the complete group.
+    /// Condense one host's group into the exact blocks the kernel admits.
     ///
-    /// Dependencies constrain the order; what remains is broken by the plan's
-    /// declaration order, which is source order rather than the allocation
-    /// order a set of identities happens to iterate in.
+    /// Specification section 3.4 gives `LetRec` one job: tie a group of inert
+    /// lambdas that see each other. So the recursive shape belongs to a
+    /// genuinely cyclic component of the group's dependency graph and to
+    /// nothing else. Promoting the whole residual group when topological
+    /// emission stalled — which is what this used to do — either rejected legal
+    /// acyclic neighbours for not being lambdas or tied names that never see
+    /// each other.
+    ///
+    /// Blocks are emitted in dependency order; ties, and the order inside one
+    /// block, fall to the plan's declaration order, which is source order
+    /// rather than the allocation order a set of identities iterates in.
+    /// Consecutive acyclic components merge into one `Let`, because section
+    /// 2.2's declarations are sequential and a later initializer may already
+    /// use an earlier name — so a group with no cycle in it emits exactly the
+    /// one block it emitted before.
     #[requires(definitions.is_subset(&self.definitions))]
-    #[ensures(ret.0.len() == definitions.len())]
-    fn definition_order(
-        &self,
-        definitions: &BTreeSet<SemanticObjectId>,
-    ) -> (Vec<SemanticObjectId>, bool) {
-        let mut candidates = definitions.iter().copied().collect::<Vec<_>>();
-        candidates.sort_by_key(|id| self.plan.declaration_order(*id));
+    #[ensures(ret.iter().map(|block| block.members.len()).sum::<usize>() == definitions.len())]
+    fn definition_blocks(&self, definitions: &BTreeSet<SemanticObjectId>) -> Vec<DeclarationBlock> {
+        let adjacency = definitions
+            .iter()
+            .copied()
+            .map(|id| {
+                let dependencies = self
+                    .definition_dependencies(id)
+                    .into_iter()
+                    .filter(|dependency| definitions.contains(dependency))
+                    .collect::<BTreeSet<_>>();
+                (id, dependencies)
+            })
+            .collect::<BTreeMap<_, _>>();
+        let key = |id: &SemanticObjectId| self.plan.declaration_order(*id);
+        let mut components = strong_components(&adjacency)
+            .into_iter()
+            .map(|component| {
+                let mut members = component.into_iter().collect::<Vec<_>>();
+                members.sort_by_key(key);
+                members
+            })
+            .collect::<Vec<_>>();
+        // A component's own least declaration order is what orders it against
+        // its independent siblings, which reproduces the previous total order
+        // exactly whenever every component is a single identity.
         let mut emitted = BTreeSet::new();
-        let mut ordered = Vec::new();
-        loop {
-            let next = candidates.iter().copied().find(|id| {
-                !emitted.contains(id)
-                    && self
-                        .definition_dependencies(*id)
-                        .into_iter()
-                        .filter(|dependency| definitions.contains(dependency))
-                        .all(|dependency| emitted.contains(&dependency))
-            });
-            let Some(next) = next else { break };
-            emitted.insert(next);
-            ordered.push(next);
+        let mut blocks: Vec<(Vec<SemanticObjectId>, bool)> = Vec::new();
+        while !components.is_empty() {
+            let next = components
+                .iter()
+                .enumerate()
+                .filter(|(_, members)| {
+                    members.iter().all(|id| {
+                        adjacency[id]
+                            .iter()
+                            .all(|dependency| members.contains(dependency) || emitted.contains(dependency))
+                    })
+                })
+                .min_by_key(|(_, members)| members.iter().map(key).min().expect("nonempty"))
+                .map(|(index, _)| index)
+                // A component whose dependencies are all inside the group and
+                // already emitted always exists in a condensation, so this is
+                // only a total-function guard, not a fixed point.
+                .unwrap_or(0);
+            let members = components.remove(next);
+            emitted.extend(members.iter().copied());
+            let recursive = members.len() > 1
+                || members
+                    .first()
+                    .is_some_and(|id| adjacency[id].contains(id));
+            match blocks.last_mut() {
+                Some((last, false)) if !recursive => last.extend(members),
+                _ => blocks.push((members, recursive)),
+            }
         }
-        let recursive = emitted.len() != definitions.len();
-        if recursive {
-            ordered.extend(candidates.into_iter().filter(|id| !emitted.contains(id)));
-        }
-        (ordered, recursive)
+        blocks
+            .into_iter()
+            .map(|(members, recursive)| new!(DeclarationBlock { members, recursive }))
+            .collect()
     }
 
     /// Typed outgoing references for dependency ordering.
