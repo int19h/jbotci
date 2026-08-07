@@ -9820,16 +9820,49 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
+    /// The single eventuality identity a content root denotes, if it has one.
+    ///
+    /// An abstraction's own event must fill the distinguished event place of
+    /// its content's root (semantic-model spec, abstraction outputs; smusni
+    /// spec §11.2), so an abstracted event whose content is a bare predication
+    /// simply *is* that predication's event. A quantifier or a scoped
+    /// compound-event shell does not change which single event the content
+    /// denotes: `lo nu ro lo prenu cu troci` is the one collective event of the
+    /// universal, not one event per person (the per-instance reading is the
+    /// different sentence `ro lo prenu cu troci lo nu …`, where the quantifier
+    /// stands outside the abstraction). So the identity is threaded through
+    /// exactly the shells that bind over a single body formula, plus a
+    /// connective shell that carries its own compound event.
+    ///
+    /// The shell set is deliberately enumerated rather than searched for. A
+    /// recursive hunt for "the unique event somewhere below" would reach into
+    /// nested abstractions, whose events belong to those abstractions; and a
+    /// branching connective without its own event genuinely has no single root
+    /// event, so it reports none rather than picking a branch.
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(ret.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     pub(super) fn single_generated_formula_eventuality(
         &self,
         formula: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
-        let predication = self.objects.get(&formula)?.formula_predication()?;
-        self.objects
-            .get(&predication)
-            .and_then(SemanticObject::predication_eventuality)
+        match self.objects.get(&formula)?.as_formula()?.as_data() {
+            data!(FormulaNode::Atom(node)) => self
+                .objects
+                .get(&node.predication)
+                .and_then(SemanticObject::predication_eventuality),
+            // A `Scoped` shell's own event is the compound event of everything
+            // under it; a branching connective carries none.
+            data!(FormulaNode::Connective(node)) => node.eventuality,
+            data!(FormulaNode::Quantified(node)) => {
+                self.single_generated_formula_eventuality(node.body)
+            }
+            data!(FormulaNode::QuantifierBundle(node)) => {
+                self.single_generated_formula_eventuality(node.body)
+            }
+            data!(FormulaNode::RespectivelyDistribution(node)) => {
+                self.single_generated_formula_eventuality(node.body)
+            }
+        }
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]

@@ -10600,6 +10600,75 @@ mod tests {
         );
     }
 
+    /// The abstracted event of a quantified content root is the one collective
+    /// event of the universal, filling the root predication's own event place
+    /// exactly as it does when the content is a bare predication.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_abstraction_content_root_fills_the_abstracted_event() {
+        let graph = semantic_graph_for("mi gleki lo nu ro lo prenu cu klama");
+        let abstraction = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                object
+                    .as_eventuality()
+                    .and_then(|eventuality| eventuality.content.map(|_| id))
+            })
+            .expect("lo nu denotes an eventuality");
+        let klama_event = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .expect("klama has a distinguished event place");
+        assert_eq!(klama_event, abstraction);
+        // The identity is the abstraction's own referential event, so nothing
+        // existentially binds it any more.
+        assert!(graph.objects.values().all(|owner| {
+            owner
+                .bound_eventualities()
+                .iter()
+                .all(|bound| bound.object_id() != abstraction)
+        }));
+    }
+
+    /// A branching connective content root has no single event to abstract, so
+    /// the abstraction keeps its own fresh identity rather than picking a
+    /// branch.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_abstraction_content_root_keeps_its_own_event() {
+        let graph = semantic_graph_for("mi gleki lo nu mi klama gi'e bajra");
+        let abstraction = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                object
+                    .as_eventuality()
+                    .and_then(|eventuality| eventuality.content.map(|_| id))
+            })
+            .expect("lo nu denotes an eventuality");
+        for relation in ["klama", "bajra"] {
+            let branch_event = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication.eventuality)
+                        .flatten()
+                })
+                .expect("branch has a distinguished event place");
+            assert_ne!(branch_event, abstraction);
+        }
+    }
     #[test]
     #[requires(true)]
     #[ensures(true)]

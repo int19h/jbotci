@@ -5792,6 +5792,18 @@ implementation gaps are listed separately in “Known Implementation Divergences
     to constrain the witness only when explicit. The wire version remains
     `lojban-semantics-json-1` because the notation is unreleased.
 
+44. **Abstracted event of a quantified content root (#778) — extend.** An
+    abstraction's own eventuality fills the distinguished event place of its
+    content's root even when that root is a quantifier, a quantifier bundle, a
+    respectively distribution, or a scoped compound-event shell. `lo nu ro lo
+    prenu cu troci` therefore denotes the single collective event of the
+    universal, with `troci`'s `eventuality` naming the abstraction itself; the
+    per-instance reading belongs to the different sentence `ro lo prenu cu troci
+    lo nu …`, where the quantifier stands outside the abstraction. A branching
+    connective root carries no single event and keeps its own fresh abstraction
+    identity. Before this amendment the abstracted event of a quantified root
+    was unused, which made the abstraction's property vacuous.
+
 ## Known Implementation Divergences (audited 2026-07-16)
 
 There are currently no accepted model/encoding divergences in this section.
