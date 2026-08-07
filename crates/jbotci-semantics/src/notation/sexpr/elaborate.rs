@@ -129,7 +129,7 @@ impl CompactFallbackLog {
     }
 }
 
-/// One fixed reference computation collected at its enclosing force segment.
+/// One fixed reference computation collected at its selected host.
 /// Version 0 deliberately keeps these distinct from pure `Let` values.
 #[invariant(true)]
 #[derive(Debug)]
@@ -137,6 +137,47 @@ struct ReferenceBinding {
     id: SemanticObjectId,
     declared_type: TypeExpr,
     computation: RefComp,
+}
+
+/// One position section 6.3 admits as the host of a raised `Bind`.
+///
+/// Raising ascends outwards until it meets a frame it may not leave. Two kinds
+/// of frame stop it, and the difference is exactly the specification's: a
+/// `barrier` stops every computation — a performed force segment, a
+/// reification, an opaque boundary, or the reference computation a nested one
+/// runs inside per section 8.3 — while a binder frame stops only a computation
+/// that depends on one of the binders it introduces, which is section 6.3's
+/// lambda-dependency boundary. Everything the elaborator renders between two
+/// frames is a transparent shell, so a computation with no dependency in scope
+/// raises straight through it.
+#[invariant(::Barrier => true, "a barrier stops every computation and carries no binder list")]
+#[invariant(::Binders(_) => true, "any binder set is a legal lambda-dependency boundary")]
+#[derive(Debug)]
+enum HostFrameKind {
+    Barrier,
+    Binders(BTreeSet<SemanticObjectId>),
+}
+
+impl HostFrameKind {
+    /// Whether a computation with these dependencies must stop at this frame.
+    #[requires(true)]
+    #[ensures(true)]
+    fn stops(&self, dependencies: &BTreeSet<SemanticObjectId>) -> bool {
+        match self {
+            Self::Barrier => true,
+            Self::Binders(binders) => !binders.is_disjoint(dependencies),
+        }
+    }
+}
+
+#[invariant(
+    true,
+    "the kind already constrains itself and any binding list is hostable here"
+)]
+#[derive(Debug)]
+struct HostFrame {
+    kind: HostFrameKind,
+    bindings: Vec<ReferenceBinding>,
 }
 
 /// What one live lexical binder was declared as.
@@ -504,12 +545,21 @@ enum DescriptionRecognition<'a> {
 
 /// Nest single-entry dynamic bindings in discovery order. The first reference
 /// discovered is the outermost handler, matching left-to-right evaluation.
+///
+/// The category is the host's own, so one rule serves every position a
+/// section-6.3 host can occupy: a force segment binds over a `Performable`, a
+/// quantifier scope or a description property binds over the `Content` it
+/// abstracts.
 #[requires(true)]
 #[ensures(true)]
-fn wrap_reference_bindings(
+fn wrap_reference_bindings<C: Category, F>(
     bindings: Vec<ReferenceBinding>,
-    body: Performable,
-) -> Option<Performable> {
+    body: C,
+    form: F,
+) -> Option<C>
+where
+    F: Fn(Bind<C>) -> C,
+{
     bindings.into_iter().rev().try_fold(body, |body, binding| {
         Bind::new(
             object_variable(binding.id),
@@ -518,7 +568,7 @@ fn wrap_reference_bindings(
             body,
         )
         .ok()
-        .map(Performable::Bind)
+        .map(&form)
     })
 }
 
@@ -735,7 +785,7 @@ struct Elaborator<'a> {
     binder_universes: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
     needed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     placed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
-    reference_binding_frames: RefCell<Vec<Vec<ReferenceBinding>>>,
+    reference_binding_frames: RefCell<Vec<HostFrame>>,
     counters: ElaborationCounters,
 }
 
@@ -1006,6 +1056,58 @@ impl Elaborator<'_> {
         hosted.wrap(body)
     }
 
+    /// Open one section-6.3 host position.
+    ///
+    /// A barrier frame is a position no computation may be raised out of; a
+    /// binder frame is one only a computation depending on one of its binders
+    /// has to stay inside.
+    #[requires(true)]
+    #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) + 1)]
+    fn open_host_frame(&self, kind: HostFrameKind) {
+        self.reference_binding_frames.borrow_mut().push(HostFrame {
+            kind,
+            bindings: Vec::new(),
+        });
+    }
+
+    /// Close the innermost host position and take what it hosts.
+    #[requires(!self.reference_binding_frames.borrow().is_empty())]
+    #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) - 1)]
+    fn close_host_frame(&self) -> Vec<ReferenceBinding> {
+        self.reference_binding_frames
+            .borrow_mut()
+            .pop()
+            .expect("a closed host frame was opened")
+            .bindings
+    }
+
+    /// Place one reference computation at its section-6.3 host.
+    ///
+    /// The host is the innermost open frame the computation may not be raised
+    /// out of: a barrier, or a frame introducing one of the binders the
+    /// computation's property depends on. With no such frame the computation
+    /// raises to the outermost open position, which is the enclosing force
+    /// segment. Reporting `false` means there is no open position at all, and
+    /// the caller declines rather than inventing one.
+    #[requires(true)]
+    #[ensures(true)]
+    fn host_reference(
+        &self,
+        binding: ReferenceBinding,
+        dependencies: &BTreeSet<SemanticObjectId>,
+    ) -> bool {
+        let mut frames = self.reference_binding_frames.borrow_mut();
+        if frames.is_empty() {
+            return false;
+        }
+        let host = frames
+            .iter()
+            .rposition(|frame| frame.kind.stops(dependencies))
+            .unwrap_or(0);
+        frames[host].bindings.push(binding);
+        true
+    }
+
     /// Include shared definitions referenced by binding values. This is a
     /// graph-level over-approximation; the value renderer may consume some of
     /// those edges through a named compact projection, but retaining an extra
@@ -1083,9 +1185,9 @@ impl Elaborator<'_> {
                 .enumerate()
                 .filter(|(_, members)| {
                     members.iter().all(|id| {
-                        adjacency[id]
-                            .iter()
-                            .all(|dependency| members.contains(dependency) || emitted.contains(dependency))
+                        adjacency[id].iter().all(|dependency| {
+                            members.contains(dependency) || emitted.contains(dependency)
+                        })
                     })
                 })
                 .min_by_key(|(_, members)| members.iter().map(key).min().expect("nonempty"))
@@ -1096,10 +1198,8 @@ impl Elaborator<'_> {
                 .unwrap_or(0);
             let members = components.remove(next);
             emitted.extend(members.iter().copied());
-            let recursive = members.len() > 1
-                || members
-                    .first()
-                    .is_some_and(|id| adjacency[id].contains(id));
+            let recursive =
+                members.len() > 1 || members.first().is_some_and(|id| adjacency[id].contains(id));
             match blocks.last_mut() {
                 Some((last, false)) if !recursive => last.extend(members),
                 _ => blocks.push((members, recursive)),
@@ -1365,13 +1465,11 @@ impl Elaborator<'_> {
         let expected_mode =
             (node.force == UtteranceForce::Assert).then_some(PredicationMode::Asserted);
         let content_id = content;
-        self.reference_binding_frames.borrow_mut().push(Vec::new());
+        // The performed act is section 6.3's ceiling: no reference computation
+        // raises out of its own force segment.
+        self.open_host_frame(HostFrameKind::Barrier);
         let content = self.render_id(content_id, bound, active, expected_mode);
-        let bindings = self
-            .reference_binding_frames
-            .borrow_mut()
-            .pop()
-            .expect("utterance rendering pushed one reference-binding frame");
+        let bindings = self.close_host_frame();
         let act = match node.force {
             UtteranceForce::Assert => content.and_then(Elaborated::into_content).map(Act::assert),
             // The question renderer already produced the complete `Ask` act,
@@ -1391,7 +1489,11 @@ impl Elaborator<'_> {
         };
         if utterance_record_is_default(self.graph, self.plan.usage(), id, node) {
             let act = act?;
-            return self.recognized(wrap_reference_bindings(bindings, Performable::Act(act)));
+            return self.recognized(wrap_reference_bindings(
+                bindings,
+                Performable::Act(act),
+                Performable::Bind,
+            ));
         }
         if !node.asides.is_empty() || node.vocative_kind.is_some() {
             return self.fallback_object(
@@ -1466,7 +1568,11 @@ impl Elaborator<'_> {
         // the record, not inside `Realizes`: section 6.3 raises a computation to
         // the outermost legal point, and the entry's own analyzer facts are one
         // administrative shell it may pass through.
-        self.recognized(wrap_reference_bindings(bindings, Performable::Entry(entry)))
+        self.recognized(wrap_reference_bindings(
+            bindings,
+            Performable::Entry(entry),
+            Performable::Bind,
+        ))
     }
 
     /// Build one analyzer fact relating the utterance token to a rendered value.
@@ -1666,6 +1772,13 @@ impl Elaborator<'_> {
                 let mut scoped = self.scope_generated_events(bound, &generated);
                 scoped.insert(node.variable, BoundValue::Value(variable_type.clone()));
                 let binding = TypedParameter::new(object_variable(node.variable), variable_type);
+                // Section 6.3's lambda-dependency boundary. The restriction and
+                // the scope are two sibling properties of one binder, so each
+                // opens its own host position: a computation depending on the
+                // variable stays in the property it was written in, and one
+                // that does not raises straight out of both.
+                let quantified_binder = BTreeSet::from([node.variable]);
+                self.open_host_frame(HostFrameKind::Binders(quantified_binder.clone()));
                 let restriction = node.restriction.map(|restriction| {
                     self.render_id(
                         restriction,
@@ -1675,9 +1788,19 @@ impl Elaborator<'_> {
                     )
                     .and_then(Elaborated::into_content)
                 });
+                let restriction_hosts = self.close_host_frame();
+                let restriction = restriction.map(|restriction| {
+                    restriction.and_then(|restriction| {
+                        wrap_reference_bindings(restriction_hosts, restriction, Content::bind_form)
+                    })
+                });
+                self.open_host_frame(HostFrameKind::Binders(quantified_binder));
                 let body = self
                     .render_id(node.body, &scoped, active, expected_mode)
                     .and_then(Elaborated::into_content);
+                let body_hosts = self.close_host_frame();
+                let body = body
+                    .and_then(|body| wrap_reference_bindings(body_hosts, body, Content::bind_form));
                 let universal = exact_universal_quantity(self.graph, node.operator, node.quantity);
                 let ordinary_exists =
                     node.operator == FormulaOperator::Exists && node.quantity.is_none();
@@ -2528,9 +2651,11 @@ impl Elaborator<'_> {
                 .collect(),
         };
         let computation = RefComp::context(dependencies, declared_type.clone()).ok()?;
+        // Section 6.3: `Context` stays at its represented evaluation site, so
+        // it is placed at the innermost open host without any ascent at all.
         let mut frames = self.reference_binding_frames.borrow_mut();
         let frame = frames.last_mut()?;
-        frame.push(ReferenceBinding {
+        frame.bindings.push(ReferenceBinding {
             id,
             declared_type: declared_type.clone(),
             computation,
@@ -2541,9 +2666,9 @@ impl Elaborator<'_> {
         )))
     }
 
-    /// Lower one exact fixed `lo`, `le`, or `la` description into a
-    /// force-hosted `Refer` computation. The `le` branch retains the builder's
-    /// explicit speaker/audience `skicu` property and never asserts the base
+    /// Lower one exact fixed `lo`, `le`, or `la` description into a hosted
+    /// `Refer` computation. The `le` branch retains the builder's explicit
+    /// speaker/audience `skicu` property and never asserts the base
     /// classification. Unsupported description families remain typed fallback;
     /// incidental relatives are not turned into conjuncts.
     #[requires(true)]
@@ -2569,7 +2694,58 @@ impl Elaborator<'_> {
         let variable = object_variable(id);
         let mut scoped = bound.clone();
         scoped.insert(id, BoundValue::Value(declared_type.clone()));
-        let subject = Operand::Value(Value::bound(variable.clone(), declared_type.clone()));
+        // Section 8.3: a nested reference computation required while evaluating
+        // this description's property runs *inside* this computation unless the
+        // graph gives that nested effect its own legal outer host, which no
+        // version-0 graph does. The property is therefore a barrier, and this
+        // is what replaces the old refusal to emit any nesting at all.
+        self.open_host_frame(HostFrameKind::Barrier);
+        let body =
+            self.description_property(id, node, &recognition, &declared_type, &scoped, active);
+        let nested = self.close_host_frame();
+        let body = wrap_reference_bindings(nested, body?, Content::bind_form)?;
+        let property = Lambda::new(
+            vec![TypedParameter::new(variable.clone(), declared_type.clone())],
+            body,
+        )
+        .ok()?;
+        let binding = ReferenceBinding {
+            id,
+            declared_type: declared_type.clone(),
+            computation: RefComp::refer(property).ok()?,
+        };
+        // Section 6.3 raises this `Bind` to the outermost point that is still
+        // inside every boundary it may not leave; the dependencies its property
+        // records are what decide the lambda-dependency half of that.
+        self.host_reference(binding, self.description_dependencies(id))
+            .then(|| Operand::Value(Value::bound(variable, declared_type)))
+    }
+
+    /// The binders one hosted computation's property depends on.
+    #[requires(true)]
+    #[ensures(true)]
+    fn description_dependencies(&self, id: SemanticObjectId) -> &BTreeSet<SemanticObjectId> {
+        static NONE: BTreeSet<SemanticObjectId> = BTreeSet::new();
+        self.binder_universes.get(&id).unwrap_or(&NONE)
+    }
+
+    /// Build the descriptive property of one recognized description.
+    ///
+    /// This is the whole body of the `Refer` lambda: the base description
+    /// property conjoined, in source order, with the restrictive clauses that
+    /// modify the same reference.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn description_property(
+        &self,
+        id: SemanticObjectId,
+        node: &ReferentNode,
+        recognition: &DescriptionRecognition<'_>,
+        declared_type: &TypeExpr,
+        scoped: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Option<Content> {
+        let subject = Operand::Value(Value::bound(object_variable(id), declared_type.clone()));
         let property = match recognition.as_data() {
             data!(DescriptionRecognition::Property {
                 constructor,
@@ -2581,7 +2757,7 @@ impl Elaborator<'_> {
                     .render_argument_map(
                         RelationRef::Lexical(LexicalRoot::try_new(property).ok()?),
                         arguments,
-                        &scoped,
+                        scoped,
                         active,
                         None,
                     )
@@ -2640,19 +2816,13 @@ impl Elaborator<'_> {
         }) {
             return None;
         }
-        let frame_len = self
-            .reference_binding_frames
-            .borrow()
-            .last()
-            .expect("description requires an active force frame")
-            .len();
         let mut conjuncts = vec![property];
         let rendered = clauses
             .into_iter()
             .map(|clause| {
                 self.render_id(
                     clause.body,
-                    &scoped,
+                    scoped,
                     active,
                     Some(PredicationMode::Restrictive),
                 )
@@ -2660,33 +2830,10 @@ impl Elaborator<'_> {
             })
             .collect::<Vec<_>>();
         conjuncts.extend(rendered.into_iter().collect::<Option<Vec<_>>>()?);
-        let mut frames = self.reference_binding_frames.borrow_mut();
-        let frame = frames
-            .last_mut()
-            .expect("description requires an active force frame");
-        if frame.len() != frame_len {
-            // Dependency ordering belongs to the full dynamic planner. Do not
-            // emit a guessed nesting for a description property that itself
-            // performs another reference computation.
-            frame.truncate(frame_len);
-            return None;
-        };
-        let body = if conjuncts.len() == 1 {
-            conjuncts.pop().expect("one description property")
-        } else {
-            Content::junction(JunctionOp::And, conjuncts).ok()?
-        };
-        let property = Lambda::new(
-            vec![TypedParameter::new(variable.clone(), declared_type.clone())],
-            body,
-        )
-        .ok()?;
-        frame.push(ReferenceBinding {
-            id,
-            declared_type: declared_type.clone(),
-            computation: RefComp::refer(property).ok()?,
-        });
-        Some(Operand::Value(Value::bound(variable, declared_type)))
+        if conjuncts.len() == 1 {
+            return conjuncts.pop();
+        }
+        Content::junction(JunctionOp::And, conjuncts).ok()
     }
 
     /// Render the two established pure abstraction crossings in this slice.
@@ -2746,7 +2893,12 @@ impl Elaborator<'_> {
                 declared_type,
             ));
         }
-        let body = self
+        // Section 6.3 stops raising at a reification, and an abstraction is
+        // exactly that: a reference computation inside the abstracted content
+        // is part of what the abstraction denotes, so hoisting it outside would
+        // read the description de re where the graph wrote it de dicto.
+        self.open_host_frame(HostFrameKind::Barrier);
+        let rendered = self
             .render_id(
                 body,
                 &scoped,
@@ -2757,7 +2909,9 @@ impl Elaborator<'_> {
                     PredicationMode::Inert
                 }),
             )
-            .and_then(Elaborated::into_content)?;
+            .and_then(Elaborated::into_content);
+        let abstracted = self.close_host_frame();
+        let body = wrap_reference_bindings(abstracted, rendered?, Content::bind_form)?;
         if kind == AbstractionKind::Proposition {
             return Value::intrinsic(Intrinsic::Reify, vec![Operand::Content(body)])
                 .ok()
