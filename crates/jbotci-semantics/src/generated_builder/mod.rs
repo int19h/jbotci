@@ -820,6 +820,9 @@ struct GeneratedDescriptionAbstraction<'syntax> {
     abstraction: &'syntax AbstractionTanruUnitSyntax,
     output_sort: SemanticSort,
     link_relation: &'static str,
+    /// The `be` links the NU tanru unit carries, which is where the grammar
+    /// supplies an abstractor's CLL 11.13 trailing place.
+    linkargs: Option<&'syntax LinkargsSyntax>,
 }
 
 #[invariant(nu.is_selmaho(Selmaho::Nu))]
@@ -10584,6 +10587,75 @@ mod tests {
             serde_json::to_value(object).expect("abstraction serializes")["denotation"],
             serde_json::json!("referential")
         );
+    }
+
+    /// Each abstractor's CLL 11.13 trailing place is recorded under its own
+    /// name when the `be` link states it.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abstractor_trailing_places_are_recorded_under_their_own_names() {
+        for (text, field) in [
+            ("lo ni la .alis. clani kei be lo mitre cu barda", "scale"),
+            ("lo jei mi klama kei be lo lojbo cu melbi", "epistemology"),
+            ("lo du'u mi klama kei be lo cukta cu melbi", "expressedBy"),
+            ("lo si'o mi klama kei be mi cu melbi", "mind"),
+            ("lo li'i mi klama kei be mi cu melbi", "experiencer"),
+            ("lo pu'u mi klama kei be lo stapa cu melbi", "stages"),
+            ("lo zu'o mi klama kei be lo zukte cu melbi", "actions"),
+        ] {
+            let graph = semantic_graph_for(text);
+            let recorded = graph
+                .objects
+                .values()
+                .filter_map(|object| {
+                    let json = serde_json::to_value(object).expect("object serializes");
+                    json.get(field).is_some().then(|| json[field].clone())
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(recorded.len(), 1, "{text}: expected exactly one {field}");
+        }
+    }
+
+    /// An abstractor whose place the speaker did not state records nothing:
+    /// whether the place was stated is semantic data, and smusni §11.3 makes
+    /// the omission a local contextual default rather than a graph object.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_unstated_trailing_place_stays_absent() {
+        let graph = semantic_graph_for("lo ni la .alis. clani cu barda");
+        for object in graph.objects.values() {
+            let json = serde_json::to_value(object).expect("object serializes");
+            assert!(json.get("scale").is_none(), "{json}");
+        }
+    }
+
+    /// `su'u` has no CLL 11.13 x2. The link path used to fabricate one for
+    /// every `su'u` description through the `Unspecified` arm (issue #778).
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn suhu_exposes_no_extra_surface_place() {
+        assert_eq!(
+            abstraction_extra_surface_place(AbstractionKind::Unspecified),
+            None
+        );
+        assert_eq!(AbstractionKind::Unspecified.trailing_place(), None);
+        let graph = semantic_graph_for("lo su'u mi klama cu melbi");
+        for object in graph.objects.values() {
+            let json = serde_json::to_value(object).expect("object serializes");
+            for field in [
+                "scale",
+                "epistemology",
+                "expressedBy",
+                "mind",
+                "stages",
+                "actions",
+            ] {
+                assert!(json.get(field).is_none(), "su'u recorded {field}: {json}");
+            }
+        }
     }
 
     #[test]

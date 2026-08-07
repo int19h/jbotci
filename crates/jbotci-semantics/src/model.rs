@@ -1986,6 +1986,12 @@ pub enum SemanticSort {
     Eventuality(EventualitySort),
     Predication,
     TruthValue,
+    /// The epistemology a truth value is judged by: `jei`'s CLL 11.13 x2.
+    ///
+    /// The kernel's `TruthValue : Content × Referents<Epistemology>` crossing
+    /// has always required this sort; without it an explicit `jei` x2 has no
+    /// model sort to cross the boundary with.
+    Epistemology,
     Proposition,
     Concept,
     Amount,
@@ -2022,6 +2028,7 @@ impl SemanticSort {
             Self::Eventuality(sort) => sort.label(),
             Self::Predication => "predication",
             Self::TruthValue => "truthValue",
+            Self::Epistemology => "epistemology",
             Self::Proposition => "proposition",
             Self::Concept => "concept",
             Self::Amount => "amount",
@@ -3516,6 +3523,57 @@ impl AbstractionKind {
             Self::SentenceSign => SemanticSort::Sign,
             Self::Concept => SemanticSort::Concept,
             Self::Unspecified => SemanticSort::AbstractNature,
+        }
+    }
+}
+
+/// Which CLL 11.13 trailing place an abstractor's surface x2 fills.
+///
+/// The model spells each place with its own field rather than sharing one
+/// generic slot: `abstractionKind` is internal, so a shared field would leave
+/// a public consumer unable to tell a scale from a mind.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AbstractionTrailingPlace {
+    /// `ni` x2.
+    Scale,
+    /// `jei` x2.
+    Epistemology,
+    /// `du'u` x2.
+    ExpressedBy,
+    /// `si'o` x2.
+    Mind,
+    /// `li'i` x2.
+    Experiencer,
+    /// `pu'u` x2.
+    Stages,
+    /// `zu'o` x2.
+    Actions,
+}
+
+impl AbstractionKind {
+    /// The trailing place this abstractor exposes, if any.
+    ///
+    /// `su'u` has no row: CLL 11.13 gives it no x2 and the model records none.
+    /// `nu`, `mu'e` and `za'i` are one-place event abstractors, and `ka`'s
+    /// extra structure is its `ce'u` parameters.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn trailing_place(self) -> Option<AbstractionTrailingPlace> {
+        match self {
+            Self::Amount => Some(AbstractionTrailingPlace::Scale),
+            Self::TruthValue => Some(AbstractionTrailingPlace::Epistemology),
+            Self::Proposition => Some(AbstractionTrailingPlace::ExpressedBy),
+            Self::Concept => Some(AbstractionTrailingPlace::Mind),
+            Self::Experience => Some(AbstractionTrailingPlace::Experiencer),
+            Self::Process => Some(AbstractionTrailingPlace::Stages),
+            Self::Activity => Some(AbstractionTrailingPlace::Actions),
+            Self::Event
+            | Self::Achievement
+            | Self::State
+            | Self::Property
+            | Self::SentenceSign
+            | Self::Unspecified => None,
         }
     }
 }

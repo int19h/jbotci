@@ -275,6 +275,18 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             SurfaceCategory::Object,
             "Eventuality",
             EntryKind::Field,
+            "actions",
+            None,
+            Presence::Optional,
+            new!(Witness::NoCorpusWitness),
+            Disposition::direct_lowering(
+                "normal-form:events/typed-event-property-and-registered-facets/Object:Eventuality:Field:actions",
+            ),
+        ),
+        entry(
+            SurfaceCategory::Object,
+            "Eventuality",
+            EntryKind::Field,
             "actuality",
             None,
             Presence::Optional,
@@ -706,6 +718,18 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Disposition::direct_lowering(
                 "normal-form:events/typed-event-property-and-registered-facets/Object:Eventuality:Field:spatialRecurrence",
+            ),
+        ),
+        entry(
+            SurfaceCategory::Object,
+            "Eventuality",
+            EntryKind::Field,
+            "stages",
+            None,
+            Presence::Optional,
+            new!(Witness::NoCorpusWitness),
+            Disposition::direct_lowering(
+                "normal-form:events/typed-event-property-and-registered-facets/Object:Eventuality:Field:stages",
             ),
         ),
         entry(
@@ -2254,12 +2278,36 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             SurfaceCategory::Object,
             "Referent",
             EntryKind::Field,
+            "epistemology",
+            None,
+            Presence::Optional,
+            new!(Witness::NoCorpusWitness),
+            Disposition::direct_lowering(
+                "normal-form:references/Refer-Referents-Restrict-Supplement-Among/Object:Referent:Field:epistemology",
+            ),
+        ),
+        entry(
+            SurfaceCategory::Object,
+            "Referent",
+            EntryKind::Field,
             "experiencer",
             None,
             Presence::Optional,
             new!(Witness::NoCorpusWitness),
             Disposition::direct_lowering(
                 "normal-form:references/Refer-Referents-Restrict-Supplement-Among/Object:Referent:Field:experiencer",
+            ),
+        ),
+        entry(
+            SurfaceCategory::Object,
+            "Referent",
+            EntryKind::Field,
+            "expressedBy",
+            None,
+            Presence::Optional,
+            new!(Witness::NoCorpusWitness),
+            Disposition::direct_lowering(
+                "normal-form:references/Refer-Referents-Restrict-Supplement-Among/Object:Referent:Field:expressedBy",
             ),
         ),
         entry(
@@ -2288,6 +2336,18 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             }),
             Disposition::direct_lowering(
                 "normal-form:references/Refer-Referents-Restrict-Supplement-Among/Object:Referent:Field:indexical",
+            ),
+        ),
+        entry(
+            SurfaceCategory::Object,
+            "Referent",
+            EntryKind::Field,
+            "mind",
+            None,
+            Presence::Optional,
+            new!(Witness::NoCorpusWitness),
+            Disposition::direct_lowering(
+                "normal-form:references/Refer-Referents-Restrict-Supplement-Among/Object:Referent:Field:mind",
             ),
         ),
         entry(
@@ -11130,6 +11190,18 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             new!(Witness::NoCorpusWitness),
             Disposition::direct_lowering(
                 "normal-form:typed-binding-and-graph-identity/Enum:SemanticSort:EnumVariant:Entity",
+            ),
+        ),
+        entry(
+            SurfaceCategory::Enum,
+            "SemanticSort",
+            EntryKind::EnumVariant,
+            "Epistemology",
+            None,
+            Presence::VariantConditional,
+            new!(Witness::NoCorpusWitness),
+            Disposition::direct_lowering(
+                "normal-form:typed-binding-and-graph-identity/Enum:SemanticSort:EnumVariant:Epistemology",
             ),
         ),
         entry(

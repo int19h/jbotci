@@ -142,7 +142,7 @@ mod tests {
                 data!(Disposition::Failure { .. }) => counts[5] += 1,
             }
         }
-        assert_eq!(counts, [628, 112, 65, 61, 18, 61]);
+        assert_eq!(counts, [634, 112, 65, 61, 18, 61]);
         assert_eq!(counts.iter().sum::<usize>(), inventory.len());
     }
 

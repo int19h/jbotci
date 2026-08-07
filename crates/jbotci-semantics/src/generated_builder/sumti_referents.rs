@@ -7940,6 +7940,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 description_source,
                 cmavo,
                 abstraction.abstraction,
+                abstraction.linkargs,
                 kind,
                 word,
             );
@@ -8321,6 +8322,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
         cmavo: Option<Cmavo>,
         abstraction: &'tree AbstractionTanruUnitSyntax,
+        linkargs: Option<&'tree LinkargsSyntax>,
         kind: DescriptorKind,
         word: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -8334,6 +8336,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         let id = self.build_abstraction_output(abstraction, source.clone())?;
+        self.record_generated_abstraction_trailing_place(
+            id,
+            abstraction_kind_for_nu(abstraction),
+            linkargs,
+        )?;
         let speaker = self.current_speaker();
         let object = self.objects.get_mut(&id).ok_or_else(|| {
             invalid_graph(format!(
@@ -8357,6 +8364,49 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }));
         object.replace_source(source);
         Ok(id)
+    }
+
+    /// Record an abstractor's CLL 11.13 trailing place from its `be` operand.
+    ///
+    /// Only a place the grammar actually states is recorded. An omitted place
+    /// stays absent rather than becoming an elided `zo'e`: whether the speaker
+    /// stated it is semantic data, and smusni §11.3 makes the omission a local
+    /// contextual default at the crossing site rather than a graph object.
+    ///
+    /// A `bei` continuation names a place beyond x2, which no abstractor has,
+    /// so only the first link is read.
+    #[requires(id.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    pub(super) fn record_generated_abstraction_trailing_place(
+        &mut self,
+        id: SemanticObjectId,
+        kind: AbstractionKind,
+        linkargs: Option<&'tree LinkargsSyntax>,
+    ) -> Result<(), SemanticsError> {
+        let (Some(place), Some(linkargs)) = (kind.trailing_place(), linkargs) else {
+            return Ok(());
+        };
+        let sumti = match &linkargs.first_link {
+            LinkedSumtiSyntax::PlainLinkedSumti(sumti) => Some(sumti.0.as_ref()),
+            // `be fe <sumti>` states the same single trailing place explicitly.
+            LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti)
+                if linked_sumti_place(&sumti.fa.value)? == 2 =>
+            {
+                match sumti.sumti.as_ref() {
+                    TaggedOrElidedSumtiSyntax::Sumti(sumti) => Some(sumti),
+                    TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => None,
+                }
+            }
+            _ => None,
+        };
+        let Some(sumti) = sumti else {
+            return Ok(());
+        };
+        let value = self.build_sumti_referent(sumti)?;
+        if let Some(object) = self.objects.get_mut(&id) {
+            object.set_abstraction_trailing_place(place, value);
+        }
+        Ok(())
     }
 
     #[requires(!word.is_empty())]

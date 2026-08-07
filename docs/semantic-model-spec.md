@@ -5849,9 +5849,24 @@ implementation gaps are listed separately in “Known Implementation Divergences
     binder's region. A described domain may be any object that can fill an
     argument place, because `xo ma` selects from a question parameter exactly as
     `ro lo prenu` selects from a description. The kind `witnessSet` is unchanged
-    and remains the only kind paired with `sourceVariable`. `SemanticSort` gains
-    `epistemology` for `jei`'s CLL 11.13 x2, whose typed crossing has always
-    required that sort.
+    and remains the only kind paired with `sourceVariable`.
+
+46. **Abstractor trailing places are recorded under their own names (#778)
+    — extend.** Each CLL 11.13 trailing place gets its own field on the
+    abstraction output, matching the table above: `scale` (`ni`),
+    `epistemology` (`jei`), `expressedBy` (`du'u`), `mind` (`si'o`),
+    `experiencer` (`li'i`), `stages` (`pu'u`), and `actions` (`zu'o`). One
+    shared field would be publicly ambiguous, because `abstractionKind` stays
+    internal per amendment 27. The builder fills a place from the `be` link
+    the grammar states — `lo ni la .alis. clani kei be lo mitre` records
+    `scale` — and records **nothing** when the place is unstated: whether the
+    speaker stated it is semantic data, and smusni §11.3 makes the omission a
+    local contextual default at the crossing site rather than a graph object.
+    This supersedes the illustrative elided-`zo'e` values in the `mind` and
+    `stages` sketches above. `SemanticSort` gains `epistemology` so the `jei`
+    place has a sort to cross the model/kernel boundary with. `su'u` still
+    records no trailing place; the constructed link relation no longer
+    fabricates an elided extra place for it either.
 
 ## Known Implementation Divergences (audited 2026-07-16)
 

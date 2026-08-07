@@ -113,6 +113,7 @@ fn referent_namespace_token(sort: SemanticSort) -> &'static str {
         SemanticSort::Eventuality(sort) => eventuality_namespace_token(sort),
         SemanticSort::Predication => "predication",
         SemanticSort::TruthValue => "truthValue",
+        SemanticSort::Epistemology => "epistemology",
         SemanticSort::Proposition => "proposition",
         SemanticSort::Concept => "concept",
         SemanticSort::Amount => "amount",

@@ -3479,6 +3479,7 @@ fn sort_type_expr(sort: SemanticSort) -> Option<TypeExpr> {
         SemanticSort::Eventuality(EventualitySort::Experience) => TypeAtom::Experience,
         SemanticSort::Eventuality(EventualitySort::Locution) => TypeAtom::Locution,
         SemanticSort::TruthValue => TypeAtom::TruthValue,
+        SemanticSort::Epistemology => TypeAtom::Epistemology,
         SemanticSort::Proposition => TypeAtom::Proposition,
         SemanticSort::Concept => TypeAtom::Concept,
         SemanticSort::Amount => TypeAtom::Amount,
