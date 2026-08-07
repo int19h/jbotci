@@ -22,8 +22,8 @@ use jbotci_semantics::model::{
     ScopeDependence, ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId,
     Subscript, UtteranceForce,
 };
+use jbotci_semantics::notation::kernel::types::Variable;
 use jbotci_semantics::notation::sexpr::internal_raw::whole_graph_capture;
-use jbotci_semantics::notation::sexpr::type_system::Variable;
 use jbotci_semantics::notation::sexpr::{Datum, parse_document, parse_v0_document};
 use jbotci_semantics::notation::word_cards::build_word_cards;
 use jbotci_semantics::{

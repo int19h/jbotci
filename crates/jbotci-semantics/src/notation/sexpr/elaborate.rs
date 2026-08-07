@@ -10,11 +10,12 @@ use std::collections::{BTreeMap, BTreeSet};
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 
+use super::super::kernel::types::{PlaceLabel, Row, RowSlot, TypeAtom, TypeExpr};
 use super::datum::{Atom, Datum};
 use super::identity::{object_variable, variable_datum};
 use super::planner::ReferencePlan;
 use super::structural::{ProvenanceDisposition, object_datum_with_variables};
-use super::type_system::{PlaceLabel, Row, RowSlot, TypeAtom, TypeExpr};
+use super::type_syntax::{parse_type, type_to_datum};
 use crate::model::{
     AbstractionKind, ActualityKind, Adjunct, ArgumentValue, ArgumentValueKind, DeicticProximity,
     DescriptorKind, EventualityDenotationData, EventualityNode, EventualitySort, FormulaNodeData,
@@ -2181,7 +2182,7 @@ impl Elaborator<'_> {
             ));
         }
         slots.push(RowSlot::new(PlaceLabel::Eventuality, eventuality_referents));
-        Some(TypeExpr::Predicate(Row::new(slots, true)).to_datum())
+        Some(type_to_datum(&TypeExpr::Predicate(Row::new(slots, true))))
     }
 
     /// Preserve quantity form, value, scale, comparison set, and question
@@ -2320,15 +2321,15 @@ fn datum_contains_atom(datum: &Datum, needle: &str) -> bool {
 
 /// Closed version-0 type spelling for model sorts that carry enough information.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|datum| TypeExpr::parse(datum).is_ok()))]
+#[ensures(ret.as_ref().is_none_or(|datum| parse_type(datum).is_ok()))]
 fn sort_type_datum(sort: SemanticSort) -> Option<Datum> {
-    sort_type_expr(sort).map(|value| value.to_datum())
+    sort_type_expr(sort).map(|value| type_to_datum(&value))
 }
 
 /// Closed typed counterpart of [`sort_type_datum`]. Composite model sorts do
 /// not retain the component type required by v0 and therefore fail closed.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|value| TypeExpr::parse(&value.to_datum()).is_ok()))]
+#[ensures(ret.as_ref().is_none_or(|value| parse_type(&type_to_datum(value)).is_ok()))]
 fn sort_type_expr(sort: SemanticSort) -> Option<TypeExpr> {
     let atom = match sort {
         SemanticSort::Entity => TypeAtom::Entity,
@@ -2366,9 +2367,9 @@ fn sort_type_expr(sort: SemanticSort) -> Option<TypeExpr> {
 
 /// Number-neutral reference type for one represented semantic sort.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|datum| datum.form_head() == Some("Referents") && TypeExpr::parse(datum).is_ok()))]
+#[ensures(ret.as_ref().is_none_or(|datum| datum.form_head() == Some("Referents") && parse_type(datum).is_ok()))]
 fn referents_type_datum(sort: SemanticSort) -> Option<Datum> {
-    referents_type_expr(sort).map(|value| value.to_datum())
+    referents_type_expr(sort).map(|value| type_to_datum(&value))
 }
 
 /// Typed number-neutral reference type, when the component sort is closed.
@@ -2382,7 +2383,7 @@ fn referents_type_expr(sort: SemanticSort) -> Option<TypeExpr> {
 /// terms are not referents, so they must never inherit an unrelated fallback
 /// semantic sort merely because `SemanticObject::sort` is intentionally absent.
 #[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|datum| TypeExpr::parse(datum).is_ok()))]
+#[ensures(ret.as_ref().is_none_or(|datum| parse_type(datum).is_ok()))]
 fn definition_type_datum(object: &crate::model::SemanticObject) -> Option<Datum> {
     let value = match object.as_data() {
         data!(SemanticObject::Formula(_)) => TypeExpr::Atom(TypeAtom::Content),
@@ -2402,7 +2403,7 @@ fn definition_type_datum(object: &crate::model::SemanticObject) -> Option<Datum>
         }
         _ => return None,
     };
-    Some(value.to_datum())
+    Some(type_to_datum(&value))
 }
 
 /// Closed context spelling: fixed context is the primitive atom, while an

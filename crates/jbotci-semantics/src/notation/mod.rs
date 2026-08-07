@@ -6,6 +6,7 @@
 //! the independent canonical SFN-XML renderer.
 
 pub mod coverage;
+pub mod kernel;
 pub(crate) mod registry;
 pub(crate) mod relation_expression;
 pub mod sexpr;

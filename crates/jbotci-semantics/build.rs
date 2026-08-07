@@ -56,6 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "codegen/smusni_v0_completeness.rs",
         "codegen/smusni_v0_dispositions.rs",
         "codegen/smusni_v0_kernel.rs",
+        "codegen/smusni_v0_sexpr.rs",
         "codegen/smusni_v0_surface.rs",
     ] {
         println!("cargo:rerun-if-changed={module}");

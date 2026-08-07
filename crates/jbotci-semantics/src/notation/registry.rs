@@ -13,8 +13,9 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 
+use super::kernel::types::TypeExpr;
 use super::sexpr::datum::parse_document;
-use super::sexpr::type_system::TypeExpr;
+use super::sexpr::type_syntax::parse_type;
 use super::typed_ir::{DynamicValueFamily, ScopePolicy};
 use crate::completeness::model::{FailureClass, WHOLE_GRAPH_RAW_ROOT_TYPE};
 
@@ -364,7 +365,7 @@ impl DispositionRegistry {
                     } => {
                         let expected_type = parse_document(expected_type_schema)
                             .ok()
-                            .and_then(|datum| TypeExpr::parse(&datum).ok())
+                            .and_then(|datum| parse_type(&datum).ok())
                             .ok_or(RegistryBuildError::InvalidExpectedType)?;
                         let minimum_raw_owner =
                             MinimumRawOwner::parse_generated(minimum_raw_owner_type)

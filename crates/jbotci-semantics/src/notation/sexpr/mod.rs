@@ -7,11 +7,12 @@ mod identity;
 /// a compatibility surface; see `docs/smusni/internal-raw.md`.
 #[doc(hidden)]
 pub mod internal_raw;
+pub mod kernel_printer;
 pub mod planner;
 pub mod renderer;
 pub mod structural;
 pub mod syntax;
-pub mod type_system;
+pub mod type_syntax;
 
 pub use datum::{Datum, ParseError, parse_document};
 pub use renderer::{

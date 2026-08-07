@@ -24,8 +24,9 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 
+use super::super::kernel::types::Variable;
 use super::datum::Datum;
-use super::type_system::Variable;
+use super::type_syntax::variable_to_datum;
 use crate::model::{
     EventualitySort, SemanticIdPrefix, SemanticObjectId, SemanticObjectKind, SemanticSort,
 };
@@ -46,7 +47,7 @@ pub(super) fn object_variable(id: SemanticObjectId) -> Variable {
 #[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with('$')))]
 #[ensures(ret.as_atom().is_some_and(|atom| atom[1..].starts_with(|first: char| first.is_ascii_lowercase())))]
 pub(super) fn variable_datum(id: SemanticObjectId) -> Datum {
-    object_variable(id).to_datum()
+    variable_to_datum(&object_variable(id))
 }
 
 /// Closed lexical token for one typed identity namespace.
@@ -372,7 +373,10 @@ mod tests {
                 !variable.as_str().contains('/'),
                 "{variable:?} must not carry the model's subtype separator",
             );
-            assert_eq!(variable.to_datum().as_atom(), Some(variable.as_str()));
+            assert_eq!(
+                variable_to_datum(&variable).as_atom(),
+                Some(variable.as_str())
+            );
         }
     }
 }

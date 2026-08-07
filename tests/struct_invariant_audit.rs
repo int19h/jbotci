@@ -36,10 +36,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "MCP JSON-RPC message DTO intentionally accepts malformed field combinations so protocol errors can be returned",
     ),
     (
-        "apps/jbotci/src/tool.rs:StringEnumTypeTransform",
-        "stateless unit transform; all instances are equivalent so there is no invariant to enforce",
-    ),
-    (
         "apps/jbotci/src/benchmark.rs:BenchmarkMeasurement",
         "benchmark measurement is mutable accumulator state bounded by NonZeroUsize and record_iteration contracts",
     ),
@@ -64,36 +60,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "wall-time stats are derived from non-empty iteration measurements by wall_time_stats",
     ),
     (
-        "apps/jbotci/src/lsp.rs:CompletionCancellationGuard",
-        "completion cancellation guard owns one independently valid shared token and cancels it on drop",
-    ),
-    (
-        "apps/jbotci/src/lsp.rs:DocumentState",
-        "document state is mutable under the document-store lock and its transition methods enforce text, version, generation, and snapshot coherence",
-    ),
-    (
-        "apps/jbotci/src/lsp.rs:DocumentStore",
-        "document store is an unconstrained shared mutex wrapper whose contents are governed by its transition methods",
-    ),
-    (
-        "apps/jbotci/src/lsp.rs:InlayInitializationOptions",
-        "kind enablement booleans and the independently validated structure-bracket value form accept every typed combination",
-    ),
-    (
-        "apps/jbotci/src/lsp.rs:ServerInitializationOptions",
-        "the optional current and legacy inlay wire shapes are validated for mutual exclusion during initialization",
-    ),
-    (
-        "apps/jbotci/src/lsp.rs:ServerState",
-        "LSP adapter state combines independently valid transport, document-store, encoding, capability, and callback values",
-    ),
-    (
-        "apps/jbotci/tests/lsp.rs:LspClient",
-        "protocol test harness permits stdin to become absent during orderly shutdown while ownership of the remaining child handles stays independent",
-    ),
-    (
-        "apps/jbotci/tests/support/cli.rs:CapturedCliRun",
-        "test helper records CLI process output after run_cli returns a status",
+        "apps/jbotci/src/commands/setup.rs:CliSetupProgressReporter",
+        "CLI setup progress reporter owns rendering state derived from the selected progress policy",
     ),
     (
         "apps/jbotci/src/lib.rs:Cli",
@@ -110,10 +78,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci/src/lib.rs:CliProgressPolicy",
         "CLI progress policy is derived from terminal capability and caller-selected verbosity",
-    ),
-    (
-        "apps/jbotci/src/commands/setup.rs:CliSetupProgressReporter",
-        "CLI setup progress reporter owns rendering state derived from the selected progress policy",
     ),
     (
         "apps/jbotci/src/lib.rs:CliTraceConfig",
@@ -148,6 +112,46 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLI input selector permits stdin, file, and literal text shapes",
     ),
     (
+        "apps/jbotci/src/lib.rs:VlackuInput",
+        "custom clap parser preserves ordered request flags and command validation checks mode combinations",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:VlaseiInput",
+        "CLI input selector permits stdin, file, and literal text shapes",
+    ),
+    (
+        "apps/jbotci/src/lib.rs:VlataiInput",
+        "CLI input selector is validated by clap and vlatai command execution",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:CompletionCancellationGuard",
+        "completion cancellation guard owns one independently valid shared token and cancels it on drop",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:DocumentState",
+        "document state is mutable under the document-store lock and its transition methods enforce text, version, generation, and snapshot coherence",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:DocumentStore",
+        "document store is an unconstrained shared mutex wrapper whose contents are governed by its transition methods",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:InlayInitializationOptions",
+        "kind enablement booleans and the independently validated structure-bracket value form accept every typed combination",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:ServerInitializationOptions",
+        "the optional current and legacy inlay wire shapes are validated for mutual exclusion during initialization",
+    ),
+    (
+        "apps/jbotci/src/lsp.rs:ServerState",
+        "LSP adapter state combines independently valid transport, document-store, encoding, capability, and callback values",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:StringEnumTypeTransform",
+        "stateless unit transform; all instances are equivalent so there is no invariant to enforce",
+    ),
+    (
         "apps/jbotci/src/tool.rs:ToolCuktaRequest",
         "shared cukta tool request is API transport state normalized into CuktaInput and validated during execution",
     ),
@@ -160,12 +164,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "shared gentufa tool request is API transport state validated by the CLI option validator during execution",
     ),
     (
-        "apps/jbotci/src/tool.rs:ToolGimfihiRequest",
-        "shared gimfi'i tool request is API transport state normalized into GimfihiInput and validated during execution",
-    ),
-    (
         "apps/jbotci/src/tool.rs:ToolGimfihiCommandInput",
         "tool gimfi'i command conversion pairs API transport state with the caller-specific word interpretation mode",
+    ),
+    (
+        "apps/jbotci/src/tool.rs:ToolGimfihiRequest",
+        "shared gimfi'i tool request is API transport state normalized into GimfihiInput and validated during execution",
     ),
     (
         "apps/jbotci/src/tool.rs:ToolGimfihiSource",
@@ -196,16 +200,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "shared vlasei tool request is API transport state validated by the CLI option validator during execution",
     ),
     (
-        "apps/jbotci/src/lib.rs:VlackuInput",
-        "custom clap parser preserves ordered request flags and command validation checks mode combinations",
+        "apps/jbotci/tests/lsp.rs:LspClient",
+        "protocol test harness permits stdin to become absent during orderly shutdown while ownership of the remaining child handles stays independent",
     ),
     (
-        "apps/jbotci/src/lib.rs:VlaseiInput",
-        "CLI input selector permits stdin, file, and literal text shapes",
-    ),
-    (
-        "apps/jbotci/src/lib.rs:VlataiInput",
-        "CLI input selector is validated by clap and vlatai command execution",
+        "apps/jbotci/tests/support/cli.rs:CapturedCliRun",
+        "test helper records CLI process output after run_cli returns a status",
     ),
     (
         "crates/bityzba/tests/contract_scanner/complete/src/lib.rs:ImplType",
@@ -564,28 +564,48 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "native embedding search service owns validated manifest and backend state from setup",
     ),
     (
-        "crates/jbotci-embeddings/src/native.rs:OwnedLlamaContext",
-        "owned llama context validity is enforced by its private constructor, drop order, and unsafe lifetime safety contract",
-    ),
-    (
         "crates/jbotci-embeddings/src/native.rs:NativeLlamaEmbeddingBackend",
         "native backend fields are produced by llama.cpp model/context initialization",
+    ),
+    (
+        "crates/jbotci-embeddings/src/native.rs:OwnedLlamaContext",
+        "owned llama context validity is enforced by its private constructor, drop order, and unsafe lifetime safety contract",
     ),
     (
         "crates/jbotci-f2llm-runtime/src/artifact.rs:ObjectSafeSources",
         "unit test source has no state; it exists only to prove the two async source traits remain separately object safe",
     ),
     (
+        "crates/jbotci-f2llm-runtime/src/core.rs:SpecialTokens",
+        "F2LLM special token ids are external tokenizer metadata interpreted by the tokenizer",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/core.rs:TokenizerArtifact",
+        "F2LLM tokenizer artifacts are external manifest DTOs validated while loading the runtime",
+    ),
+    (
         "crates/jbotci-f2llm-runtime/src/progress.rs:ObjectSafeProgressSink",
         "unit test progress sink has no state; it exists only to prove async fallible progress remains object safe",
     ),
     (
-        "crates/jbotci-gentufa/src/lib.rs:BlockTemp",
-        "temporary block color state is consumed inside the layout builder before transport output",
+        "crates/jbotci-f2llm-runtime/src/webgpu.rs:GpuErrorScopes",
+        "WebGPU error-scope guards are opaque RAII tokens with validity enforced by wgpu",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/webgpu.rs:VectorBuffer",
+        "WebGPU vector buffers are constructed by runtime buffer allocation helpers",
+    ),
+    (
+        "crates/jbotci-f2llm-runtime/src/webgpu.rs:WebGpuRuntime",
+        "WebGPU runtime owns mutable caches and transient buffers whose validity is maintained by its fallible methods",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:BlockCollapseFrame",
         "private block-collapse traversal frame; stack sequencing, not the field tuple itself, enforces traversal balance",
+    ),
+    (
+        "crates/jbotci-gentufa/src/lib.rs:BlockTemp",
+        "temporary block color state is consumed inside the layout builder before transport output",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockCollector",
@@ -760,12 +780,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "source character pairs one char with its byte position",
     ),
     (
-        "crates/jbotci-morphology/src/lib.rs:PhonemeRenderOptions",
-        "render options are independent booleans with no cross-field invariant",
-    ),
-    (
         "crates/jbotci-morphology/src/lib.rs:MorphologyOptions",
         "compiled dialect entry validity is enforced by CompiledDialectDefinition and other fields are independent parser options",
+    ),
+    (
+        "crates/jbotci-morphology/src/lib.rs:PhonemeRenderOptions",
+        "render options are independent booleans with no cross-field invariant",
     ),
     (
         "crates/jbotci-morphology/src/segment.rs:LujvoParseFailure",
@@ -796,10 +816,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated bracket rendering uses this as a mutable TreeVisitor accumulator; stack/root balance is controlled by TreeVisitor enter/exit calls and output tests",
     ),
     (
-        "crates/jbotci-output/src/sexpr.rs:FlattenFrame",
-        "private S-expression flatten traversal frame; stack sequencing controls pending and flattened child flow",
-    ),
-    (
         "crates/jbotci-output/src/json.rs:JsonEntry",
         "JSON entry mirrors traversal metadata and may contain empty values",
     ),
@@ -828,10 +844,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "render options are independent flags with no cross-field invariant",
     ),
     (
-        "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
-        "trace rendering now only carries a color flag, so all values are valid",
-    ),
-    (
         "crates/jbotci-output/src/qr_code.rs:QrBuild",
         "QR build state is internal renderer assembly data validated by encoded-output tests",
     ),
@@ -842,6 +854,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-output/src/qr_code.rs:QrLogoLayer",
         "QR logo layers are derived renderer masks covered by logo placement tests",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredBracketBuilder",
+        "mutable visitor state is governed by enter and exit method contracts during traversal",
+    ),
+    (
+        "crates/jbotci-output/src/recovered.rs:RecoveredBracketFrame",
+        "private mutable traversal frame accumulates children until pop while enter and exit methods govern its lifecycle",
     ),
     (
         "crates/jbotci-output/src/references.rs:GeneratedSyntaxWordCollector",
@@ -868,20 +888,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word labels are copied from already rendered tree word values",
     ),
     (
-        "crates/jbotci-output/src/recovered.rs:RecoveredBracketBuilder",
-        "mutable visitor state is governed by enter and exit method contracts during traversal",
+        "crates/jbotci-output/src/sexpr.rs:FlattenFrame",
+        "private S-expression flatten traversal frame; stack sequencing controls pending and flattened child flow",
     ),
     (
-        "crates/jbotci-output/src/recovered.rs:RecoveredBracketFrame",
-        "private mutable traversal frame accumulates children until pop while enter and exit methods govern its lifecycle",
-    ),
-    (
-        "crates/jbotci-output/src/tree.rs:GeneratedReferenceDisplay",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "crates/jbotci-output/src/trace.rs:TraceRenderOptions",
+        "trace rendering now only carries a color flag, so all values are valid",
     ),
     (
         "crates/jbotci-output/src/tree.rs:CollapseFrame",
         "private tree-collapse traversal frame; stack sequencing controls pending and collapsed child flow",
+    ),
+    (
+        "crates/jbotci-output/src/tree.rs:GeneratedReferenceDisplay",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
         "crates/jbotci-output/src/tree.rs:GeneratedStatementConnectionPart",
@@ -960,10 +980,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "word classifications are produced from morphology segmentation of a single word-like token",
     ),
     (
-        "crates/jbotci-semantics/src/completeness/model.rs:CompletenessContract",
-        "a disposition map with no cross-field invariant; every entry-key to disposition mapping is valid",
-    ),
-    (
         "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:BundlePaths",
         "offline bundle and generated-Rust paths are caller-selected and every I/O failure is returned as a typed error",
     ),
@@ -1032,32 +1048,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw TOML tag DTO is Hole-validated, typechecked, and graph-identity-checked before minting",
     ),
     (
-        "crates/jbotci-semantics/tests/support/schema_scan.rs:EnumDef",
-        "test-only parsed enum record; any combination of rename/tagging/variants is a valid parse result",
+        "crates/jbotci-semantics/codegen/smusni_v0_surface.rs:SerdeContainerOptions",
+        "private serde attribute scan state admits every independently optional tag/content observation",
     ),
     (
-        "crates/jbotci-semantics/tests/support/schema_scan.rs:Field",
-        "test-only parsed field record whose fields are populated valid by the source scanner",
+        "crates/jbotci-semantics/examples/smusni_corpus_report.rs:CorpusReport",
+        "corpus measurements are mutable derived counters; measure and record_success enforce their transitions",
     ),
     (
-        "crates/jbotci-semantics/tests/support/schema_scan.rs:Model",
-        "test-only parsed-model aggregate; any parsed structs/enums/node-keys are a valid scan result",
-    ),
-    (
-        "crates/jbotci-semantics/tests/support/schema_scan.rs:SerializedSurface",
-        "test-only classified surface aggregate; any value-struct/enum/node-key maps are a valid derivation",
-    ),
-    (
-        "crates/jbotci-semantics/tests/support/schema_scan.rs:Variant",
-        "test-only parsed enum-variant record whose fields are populated valid by the source scanner",
-    ),
-    (
-        "crates/jbotci-semantics/tests/support/type_graph.rs:Resolved",
-        "test-only resolution result whose owner/key are populated valid by the resolver",
-    ),
-    (
-        "crates/jbotci-semantics/tests/support/type_graph.rs:TypeGraph",
-        "test-only edge/field maps derived from the source scan; any consistent maps are a valid graph",
+        "crates/jbotci-semantics/src/completeness/model.rs:CompletenessContract",
+        "a disposition map with no cross-field invariant; every entry-key to disposition mapping is valid",
     ),
     (
         "crates/jbotci-semantics/src/facade.rs:SemanticBuildOptions",
@@ -1068,184 +1068,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "semantic errors are produced by constructors that attach nonempty diagnostic messages",
     ),
     (
-        "crates/jbotci-semantics/examples/smusni_corpus_report.rs:CorpusReport",
-        "corpus measurements are mutable derived counters; measure and record_success enforce their transitions",
-    ),
-    (
-        "crates/jbotci-semantics/codegen/smusni_v0_surface.rs:SerdeContainerOptions",
-        "private serde attribute scan state admits every independently optional tag/content observation",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedDispositionRow",
-        "unchecked generated constants are accepted only through DispositionRegistry::try_from_generated",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedLexicalPolicyRow",
-        "private generated lexical rows contain build-time-audited constants and closed enum values",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedProjectionFailureReasonRow",
-        "unchecked generated reason constants are joined and validated only by DispositionRegistry::try_from_generated",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Parser",
-        "private mutable parser state starts at byte zero and cursor-mutating methods contractually preserve UTF-8 boundaries",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:BindForm",
-        "ValueBinding fixes the name to a validated variable and both binding and body are independently valid",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:Declaration",
-        "every validated variable and type pair is a valid typed declaration",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LetForm",
-        "LetBinding proves the closed let-name alternatives and the body is independently validated",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:LocalFallback",
-        "the expected type, registered fallback reason, and identity-checked raw tree are independently validated",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:ObjectId",
-        "PositiveInteger provides canonical arbitrary-precision positivity for every fallback object identity",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:PreludeBinding",
-        "PreludeName proves registry membership and every validated type/expression pair is a valid initializer",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawField",
-        "every NFC field name and validated raw value form a valid raw field",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawObject",
-        "the identity, NFC type name, and raw fields are locally valid; RawTree proves global identity order",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawMapEntry",
-        "every pair of recursively validated raw values is a valid typed raw-map entry",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawRecord",
-        "every NFC model type name and sequence of recursively validated raw fields is a valid inline record",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawVariant",
-        "every NFC enum/constructor identity and sequence of recursively validated raw fields is a valid inline variant",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:TypedGraph",
-        "the NFC model-root name and identity-checked RawTree are independently valid",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Document",
-        "every validated body and optional sequence of validated word cards is a valid packaging value",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ValueBinding",
-        "every validated variable declaration and initializer expression is a valid variable binding",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:WordCard",
-        "LexicalRoot and NfcText independently prove both word-card fields",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:FunctionSignature",
-        "every ordered validated parameter sequence and validated result form a valid function signature",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:PredicateSignature",
-        "every validated relation identity and canonical effective row form a valid predicate signature",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/type_system.rs:RowSlot",
-        "every positive or distinguished label paired with a validated accepted type is a valid row slot",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallback",
-        "one failed projection edge pairs any graph identity with any declining boundary; every combination names a real edge",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallbackLog",
-        "the ordered, deduplicated per-edge channel is a BTreeSet property rather than a state constraint, and every set of edges is a valid log",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ElaborationCounters",
-        "private mutable counter state is updated only by recognition and fallback helpers with transition postconditions",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:Elaborator",
-        "private read-only graph context owns mutable traversal registries whose lifecycle is enforced by rendering helper contracts",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:PredicateApplication",
-        "every typed head and ordered sequence of typed operands is a valid pending predicate application",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ReferenceBinding",
-        "graph-owned identity, parsed declared type, and rendered computation are independently valid before Bind wrapping",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/renderer.rs:SpanResolver",
-        "the resolver is a private derived index over one already validated graph, so every field combination it can build is valid",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ReferencePlan",
-        "private planner output is constructed only by plan_references; partial analyses are hidden and complete-only queries require compact eligibility",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ScopeFailure",
-        "a closed failure kind plus optional typed binder and use-site evidence admits every typed combination",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:MapBuilder",
-        "private Serde map callback state permits both the between-entry and pending-key phases, with sequencing enforced by method contracts",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:SequenceBuilder",
-        "every sequence of already validated structural values is a valid in-progress Serde sequence",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructBuilder",
-        "private mutable Serde struct state is populated from static derived type and field names and validated when finalized",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructVariantBuilder",
-        "private mutable Serde variant state is populated from static derived type, variant, and field names and validated when finalized",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralSerializer",
-        "stateless unit serializer has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleStructBuilder",
-        "private mutable Serde tuple-struct state is populated from a static derived type name and validated when finalized",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleVariantBuilder",
-        "private mutable Serde tuple-variant state is populated from static derived type and variant names and validated when finalized",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyKey",
-        "every combination of normalized relation, nonzero place, and closed dynamic family is a valid lookup key",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/typed_ir.rs:PreHostLexicalIr",
-        "every ordered sequence of independently validated pre-host candidates is valid",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/xml.rs:RenderState",
-        "XML render state is deliberately mutable; balanced scope and definition transitions are enforced by method contracts and assertions",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/xml.rs:XmlElement",
-        "private mutable XML construction state is constrained by its constructors and canonical serializer rather than a validated wrapper",
-    ),
-    (
-        "crates/jbotci-semantics/src/notation/word_cards.rs:WordCardBuilder",
-        "word-card assembly accumulator is deliberately mutable; the complete cards/built_ids discipline (registry is exactly the card-id set, card ids pairwise distinct) is enforced by cheap and expensive postconditions on every mutating method",
+        "crates/jbotci-semantics/src/generated_builder/connectives.rs:GeneratedIndicatorCmavoVisitor",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgument",
@@ -1277,10 +1101,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedGraphBuilder",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_builder/connectives.rs:GeneratedIndicatorCmavoVisitor",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
@@ -1316,10 +1136,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder/sources.rs:GeneratedSpanCollector",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedStatementConnectionTail",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1345,6 +1161,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:IndicatorPart",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/sources.rs:GeneratedSpanCollector",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
@@ -1386,6 +1206,186 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/model.rs:SourceByteSpan",
         "source byte spans are projected from validated SourceSpan values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/kernel/apply.rs:FunctionSignature",
+        "every ordered validated parameter sequence and validated result form a valid function signature",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/kernel/apply.rs:PredicateSignature",
+        "every validated relation identity and canonical effective row form a valid predicate signature",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/kernel/binder.rs:TypedParameter",
+        "a lambda parameter is any variable/type pair; distinctness is the enclosing lambda's invariant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/kernel/document.rs:ScopeFacts",
+        "the document audit accumulator holds whatever the walk has seen so far; the audit itself is the check",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/kernel/types.rs:RowSlot",
+        "every positive or distinguished label paired with a validated accepted type is a valid row slot",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedDispositionRow",
+        "unchecked generated constants are accepted only through DispositionRegistry::try_from_generated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedLexicalPolicyRow",
+        "private generated lexical rows contain build-time-audited constants and closed enum values",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/registry.rs:GeneratedProjectionFailureReasonRow",
+        "unchecked generated reason constants are joined and validated only by DispositionRegistry::try_from_generated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/datum.rs:Parser",
+        "private mutable parser state starts at byte zero and cursor-mutating methods contractually preserve UTF-8 boundaries",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallback",
+        "one failed projection edge pairs any graph identity with any declining boundary; every combination names a real edge",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallbackLog",
+        "the ordered, deduplicated per-edge channel is a BTreeSet property rather than a state constraint, and every set of edges is a valid log",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ElaborationCounters",
+        "private mutable counter state is updated only by recognition and fallback helpers with transition postconditions",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:Elaborator",
+        "private read-only graph context owns mutable traversal registries whose lifecycle is enforced by rendering helper contracts",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:PredicateApplication",
+        "every typed head and ordered sequence of typed operands is a valid pending predicate application",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ReferenceBinding",
+        "graph-owned identity, parsed declared type, and rendered computation are independently valid before Bind wrapping",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:LocalFallback",
+        "the expected type, registered fallback reason, and identity-checked raw tree are independently validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:ObjectId",
+        "PositiveInteger provides canonical arbitrary-precision positivity for every fallback object identity",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawField",
+        "every NFC field name and validated raw value form a valid raw field",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawMapEntry",
+        "every pair of recursively validated raw values is a valid typed raw-map entry",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawObject",
+        "the identity, NFC type name, and raw fields are locally valid; RawTree proves global identity order",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawRecord",
+        "every NFC model type name and sequence of recursively validated raw fields is a valid inline record",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:RawVariant",
+        "every NFC enum/constructor identity and sequence of recursively validated raw fields is a valid inline variant",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:TypedGraph",
+        "the NFC model-root name and identity-checked RawTree are independently valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ReferencePlan",
+        "private planner output is constructed only by plan_references; partial analyses are hidden and complete-only queries require compact eligibility",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ScopeFailure",
+        "a closed failure kind plus optional typed binder and use-site evidence admits every typed combination",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/renderer.rs:SpanResolver",
+        "the resolver is a private derived index over one already validated graph, so every field combination it can build is valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:MapBuilder",
+        "private Serde map callback state permits both the between-entry and pending-key phases, with sequencing enforced by method contracts",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:SequenceBuilder",
+        "every sequence of already validated structural values is a valid in-progress Serde sequence",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructBuilder",
+        "private mutable Serde struct state is populated from static derived type and field names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructVariantBuilder",
+        "private mutable Serde variant state is populated from static derived type, variant, and field names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:StructuralSerializer",
+        "stateless unit serializer has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleStructBuilder",
+        "private mutable Serde tuple-struct state is populated from a static derived type name and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/structural.rs:TupleVariantBuilder",
+        "private mutable Serde tuple-variant state is populated from static derived type and variant names and validated when finalized",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:BindForm",
+        "ValueBinding fixes the name to a validated variable and both binding and body are independently valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:Declaration",
+        "every validated variable and type pair is a valid typed declaration",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:LetForm",
+        "LetBinding proves the closed let-name alternatives and the body is independently validated",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:PreludeBinding",
+        "PreludeName proves registry membership and every validated type/expression pair is a valid initializer",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:V0Document",
+        "every validated body and optional sequence of validated word cards is a valid packaging value",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:ValueBinding",
+        "every validated variable declaration and initializer expression is a valid variable binding",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/syntax.rs:WordCard",
+        "LexicalRoot and NfcText independently prove both word-card fields",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:LexicalPolicyKey",
+        "every combination of normalized relation, nonzero place, and closed dynamic family is a valid lookup key",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/typed_ir.rs:PreHostLexicalIr",
+        "every ordered sequence of independently validated pre-host candidates is valid",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/word_cards.rs:WordCardBuilder",
+        "word-card assembly accumulator is deliberately mutable; the complete cards/built_ids discipline (registry is exactly the card-id set, card ids pairwise distinct) is enforced by cheap and expensive postconditions on every mutating method",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:RenderState",
+        "XML render state is deliberately mutable; balanced scope and definition transitions are enforced by method contracts and assertions",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/xml.rs:XmlElement",
+        "private mutable XML construction state is constrained by its constructors and canonical serializer rather than a validated wrapper",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:AbstractionNodeId",
@@ -1448,15 +1448,15 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:GeneratedReferenceAnalysis",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:GeneratedPrenexCeiAssignmentSourceCollector",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedPrenexRelationVariableBindingCollector",
+        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:GeneratedReferenceAnalysis",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
@@ -1496,12 +1496,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "raw syntax node ids are opaque SyntaxIndex keys whose bounds are checked by node lookup",
     ),
     (
-        "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
-        "reference edge ids are assigned by the builder and carried by ReferenceEdge facts",
-    ),
-    (
         "crates/jbotci-semantics/src/references.rs:ReferenceEdge",
         "reference edges are typed traversal facts whose id/index consistency is maintained by the builder",
+    ),
+    (
+        "crates/jbotci-semantics/src/references.rs:ReferenceEdgeId",
+        "reference edge ids are assigned by the builder and carried by ReferenceEdge facts",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:ReferenceFixtureProjection",
@@ -1544,6 +1544,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
     (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:EnumDef",
+        "test-only parsed enum record; any combination of rename/tagging/variants is a valid parse result",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Field",
+        "test-only parsed field record whose fields are populated valid by the source scanner",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Model",
+        "test-only parsed-model aggregate; any parsed structs/enums/node-keys are a valid scan result",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:SerializedSurface",
+        "test-only classified surface aggregate; any value-struct/enum/node-key maps are a valid derivation",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/schema_scan.rs:Variant",
+        "test-only parsed enum-variant record whose fields are populated valid by the source scanner",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/type_graph.rs:Resolved",
+        "test-only resolution result whose owner/key are populated valid by the resolver",
+    ),
+    (
+        "crates/jbotci-semantics/tests/support/type_graph.rs:TypeGraph",
+        "test-only edge/field maps derived from the source scan; any consistent maps are a valid graph",
+    ),
+    (
         "crates/jbotci-source/src/lib.rs:SourceId",
         "source ids are opaque caller-provided labels",
     ),
@@ -1584,12 +1612,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
-        "crates/jbotci-syntax-macros/src/lib.rs:RecursiveRule",
-        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
-    ),
-    (
         "crates/jbotci-syntax-macros/src/lib.rs:RecoveredParserGeneration",
         "recovered parser generation state is built by fallible grammar analysis before code emission",
+    ),
+    (
+        "crates/jbotci-syntax-macros/src/lib.rs:RecursiveRule",
+        "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
         "crates/jbotci-syntax-macros/src/lib.rs:StrictParserGeneration",
@@ -1610,6 +1638,98 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarPolicy",
         "generated grammar policy flags are independent parser behavior switches",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ChildRecoveryCheckpointObservations",
+        "a valid observation range and shared validated observation node are independently valid child-frame data",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:GeneratedModelNoopVisitor",
+        "stateless generated-model validation visitor; all instances are equivalent",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ParserCheckpoint",
+        "checkpoint mirrors parser-core save state with warning count plus whether trace would record the save",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ParserState",
+        "mutable parser inspector state uses impl invariants for parser-location and memo-key relationships",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
+        "parser finish value carries deduplicated warnings and optional trace report from ParserState",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointCollection",
+        "mutable checkpoint arena state uses impl invariants for arena, identity, observation, and replay-node relationships",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointId",
+        "checkpoint identities are private arena indices whose bounds are enforced by collection methods",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointIndex",
+        "every private site-to-field threshold map is a valid existence-query index",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityKindTelemetry",
+        "raw event counters deliberately admit every intermediate combination while telemetry is accumulated",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityTelemetry",
+        "local and boundary-resync telemetry are independent invariant-bearing counter snapshots",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId",
+        "nonzero trial and frame components make every identity pair structurally valid",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplayEffects",
+        "memo replay position and side effects are independently valid after typed output validation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoRuleFrame",
+        "rule frames intentionally represent every partial accumulation and finalization stage during parser descent",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSideEffects",
+        "warning and diagnostic observation snapshots are independent replay payloads",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSuccessHit",
+        "memo lookup returns a valid stored success plus its observed trial-sensitivity classification",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoValue",
+        "syntax memo values are type-erased parser outputs validated by typed downcast on lookup",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoSession",
+        "private trial allocation methods maintain the monotonic identity counter over the shared store",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoStore",
+        "private memo APIs maintain key, observation-node, and sensitivity-cache relationships",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoTrial",
+        "a nonzero trial identity and shared memo store are independently valid components",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRuleObservationNode",
+        "observation child indices are finalized and checked by the enclosing memo store APIs",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedVec",
+        "empty and shared copy-on-write vectors are both valid; Some(empty) has the same semantics as the allocation-free None representation",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseError",
+        "lifetime-bearing parser error preserves invariants through constructors and merge helpers",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseErrorData",
+        "copy-on-write parser error payload uses private construction and mutation paths over invariant-bearing fields",
     ),
     (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:Boxed",
@@ -1710,98 +1830,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/parser_core.rs:Then",
         "combinator validity is fully expressed by the parser bounds on its Parser implementation",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:ChildRecoveryCheckpointObservations",
-        "a valid observation range and shared validated observation node are independently valid child-frame data",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:GeneratedModelNoopVisitor",
-        "stateless generated-model validation visitor; all instances are equivalent",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:ParserCheckpoint",
-        "checkpoint mirrors parser-core save state with warning count plus whether trace would record the save",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:ParserState",
-        "mutable parser inspector state uses impl invariants for parser-location and memo-key relationships",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
-        "parser finish value carries deduplicated warnings and optional trace report from ParserState",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointCollection",
-        "mutable checkpoint arena state uses impl invariants for arena, identity, observation, and replay-node relationships",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointId",
-        "checkpoint identities are private arena indices whose bounds are enforced by collection methods",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointIndex",
-        "every private site-to-field threshold map is a valid existence-query index",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityKindTelemetry",
-        "raw event counters deliberately admit every intermediate combination while telemetry is accumulated",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryReachabilityTelemetry",
-        "local and boundary-resync telemetry are independent invariant-bearing counter snapshots",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxDiagnosticObservationId",
-        "nonzero trial and frame components make every identity pair structurally valid",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoReplayEffects",
-        "memo replay position and side effects are independently valid after typed output validation",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoRuleFrame",
-        "rule frames intentionally represent every partial accumulation and finalization stage during parser descent",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSideEffects",
-        "warning and diagnostic observation snapshots are independent replay payloads",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoSuccessHit",
-        "memo lookup returns a valid stored success plus its observed trial-sensitivity classification",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxMemoValue",
-        "syntax memo values are type-erased parser outputs validated by typed downcast on lookup",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoSession",
-        "private trial allocation methods maintain the monotonic identity counter over the shared store",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoStore",
-        "private memo APIs maintain key, observation-node, and sensitivity-cache relationships",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRecoveryMemoTrial",
-        "a nonzero trial identity and shared memo store are independently valid components",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRuleObservationNode",
-        "observation child indices are finalized and checked by the enclosing memo store APIs",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedVec",
-        "empty and shared copy-on-write vectors are both valid; Some(empty) has the same semantics as the allocation-free None representation",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseError",
-        "lifetime-bearing parser error preserves invariants through constructors and merge helpers",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/parse_error.rs:SyntaxParseErrorData",
-        "copy-on-write parser error payload uses private construction and mutation paths over invariant-bearing fields",
     ),
     (
         "crates/jbotci-syntax/src/grammar/tokens.rs:IncompleteKindCandidate",
@@ -1912,12 +1940,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "tree paths are any ordered sequence of validated path steps; tree-relative validity is checked during lookup",
     ),
     (
-        "crates/jbotci-f2llm-runtime/src/core.rs:SpecialTokens",
-        "F2LLM special token ids are external tokenizer metadata interpreted by the tokenizer",
+        "crates/jbotci-ui/src/cukta.rs:CuktaPageSnapshot",
+        "cukta page snapshots group memoized render inputs whose validity is enforced by source state and clamped width helpers",
     ),
     (
-        "crates/jbotci-f2llm-runtime/src/core.rs:TokenizerArtifact",
-        "F2LLM tokenizer artifacts are external manifest DTOs validated while loading the runtime",
+        "crates/jbotci-ui/src/diagnostics.rs:DiagnosticOverlayMark",
+        "diagnostic overlay marks are transient render annotations whose index is validated against the paired diagnostics slice at render time",
     ),
     (
         "crates/jbotci-ui/src/f2llm_webgpu_runtime.rs:JbotciF2LlmTokenizer",
@@ -1936,24 +1964,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "JavaScript vector-store callbacks are opaque host functions whose failures are typed at the async boundary",
     ),
     (
-        "crates/jbotci-f2llm-runtime/src/webgpu.rs:VectorBuffer",
-        "WebGPU vector buffers are constructed by runtime buffer allocation helpers",
+        "crates/jbotci-ui/src/gentufa.rs:DesktopReferenceMarkerMetrics",
+        "desktop reference marker metrics are direct layout measurements used by overlay placement",
     ),
     (
-        "crates/jbotci-f2llm-runtime/src/webgpu.rs:GpuErrorScopes",
-        "WebGPU error-scope guards are opaque RAII tokens with validity enforced by wgpu",
+        "crates/jbotci-ui/src/gentufa.rs:DesktopReferenceOverlayMetrics",
+        "desktop reference overlay metrics are direct layout measurements used by overlay placement",
     ),
     (
-        "crates/jbotci-f2llm-runtime/src/webgpu.rs:WebGpuRuntime",
-        "WebGPU runtime owns mutable caches and transient buffers whose validity is maintained by its fallible methods",
+        "crates/jbotci-ui/src/gentufa.rs:GentufaPageSnapshot",
+        "gentufa page snapshots group memoized diagnostic render inputs whose source state owns validity",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:AsyncActivityGuard",
-        "activity guard is an RAII token whose cleanup invariant is enforced by finish and Drop",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:AsyncActivityTask",
-        "activity tasks are internal guard tokens created only by AsyncActivityState::begin",
+        "crates/jbotci-ui/src/gimfihi.rs:GimfihiPageSnapshot",
+        "gimfihi page snapshots group memoized source-word render inputs with no invalid field combinations",
     ),
     (
         "crates/jbotci-ui/src/layout.rs:BlockReferenceFitMetrics",
@@ -1976,26 +2000,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "block reference height updates are transient DOM measurement results applied immediately",
     ),
     (
-        "crates/jbotci-ui/src/lib.rs:CuktaAsyncPageState",
-        "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
-    ),
-    (
-        "crates/jbotci-ui/src/cukta.rs:CuktaPageSnapshot",
-        "cukta page snapshots group memoized render inputs whose validity is enforced by source state and clamped width helpers",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:CuktaPendingScroll",
-        "pending scroll state is transient browser navigation state normalized by the cukta scroll handlers",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:CuktaSemanticResultState",
-        "cukta semantic result state mirrors browser worker hits and is keyed by the committed search state",
-    ),
-    (
-        "crates/jbotci-ui/src/lib.rs:CuktaTocInteractionState",
-        "cukta TOC interaction state is transient UI state normalized by event handlers",
-    ),
-    (
         "crates/jbotci-ui/src/layout.rs:DesktopGentufaTreeAnchorMetrics",
         "desktop tree anchor metrics are direct layout measurements used to derive overlay geometry",
     ),
@@ -2008,14 +2012,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "desktop tree metrics are direct layout measurements used to derive overlay geometry",
     ),
     (
-        "crates/jbotci-ui/src/gentufa.rs:DesktopReferenceMarkerMetrics",
-        "desktop reference marker metrics are direct layout measurements used by overlay placement",
-    ),
-    (
-        "crates/jbotci-ui/src/gentufa.rs:DesktopReferenceOverlayMetrics",
-        "desktop reference overlay metrics are direct layout measurements used by overlay placement",
-    ),
-    (
         "crates/jbotci-ui/src/layout.rs:DesktopTooltipMeasure",
         "desktop tooltip measurement is direct platform geometry consumed by placement code",
     ),
@@ -2024,8 +2020,48 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "desktop tooltip placement is derived transient UI geometry used immediately for rendering",
     ),
     (
-        "crates/jbotci-ui/src/diagnostics.rs:DiagnosticOverlayMark",
-        "diagnostic overlay marks are transient render annotations whose index is validated against the paired diagnostics slice at render time",
+        "crates/jbotci-ui/src/layout.rs:GentufaTreeLineAnchor",
+        "tree line anchors are derived from rendered row positions and are validated by layout tests",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:JvozbaPaneMetrics",
+        "jvozba pane metrics are direct layout measurements used to derive pane placement",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:NativeEmbeddingSearchWorkerHandle",
+        "native embedding worker handle owns channels whose lifecycle is managed by setup and shutdown code",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:ReferenceBottoms",
+        "reference bottoms are transient browser DOM measurements checked by reference height sizer tests",
+    ),
+    (
+        "crates/jbotci-ui/src/layout.rs:TopbarLayoutMetrics",
+        "topbar metrics are direct layout measurements used by platform layout commands",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncActivityGuard",
+        "activity guard is an RAII token whose cleanup invariant is enforced by finish and Drop",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:AsyncActivityTask",
+        "activity tasks are internal guard tokens created only by AsyncActivityState::begin",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:CuktaAsyncPageState",
+        "async page state is transient UI cache data keyed and replaced by latest-wins worker tasks",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:CuktaPendingScroll",
+        "pending scroll state is transient browser navigation state normalized by the cukta scroll handlers",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:CuktaSemanticResultState",
+        "cukta semantic result state mirrors browser worker hits and is keyed by the committed search state",
+    ),
+    (
+        "crates/jbotci-ui/src/lib.rs:CuktaTocInteractionState",
+        "cukta TOC interaction state is transient UI state normalized by event handlers",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:DialectHighlightToken",
@@ -2056,18 +2092,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "gentufa layout inputs are a Dioxus reactive dependency bundle of render state and measured lengths",
     ),
     (
-        "crates/jbotci-ui/src/gentufa.rs:GentufaPageSnapshot",
-        "gentufa page snapshots group memoized diagnostic render inputs whose source state owns validity",
-    ),
-    (
-        "crates/jbotci-ui/src/layout.rs:GentufaTreeLineAnchor",
-        "tree line anchors are derived from rendered row positions and are validated by layout tests",
-    ),
-    (
-        "crates/jbotci-ui/src/gimfihi.rs:GimfihiPageSnapshot",
-        "gimfihi page snapshots group memoized source-word render inputs with no invalid field combinations",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:GimfihiAsyncResultState",
         "async result state is transient UI cache data keyed and replaced by latest-wins worker tasks",
     ),
@@ -2076,44 +2100,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "hovered reference state is copied from validated web-core reference markers",
     ),
     (
-        "crates/jbotci-ui/src/layout.rs:JvozbaPaneMetrics",
-        "jvozba pane metrics are direct layout measurements used to derive pane placement",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:LatestAsyncTask",
         "latest-task state couples Dioxus task handles with activity ids returned by the activity state",
     ),
     (
-        "crates/jbotci-ui/src/layout.rs:NativeEmbeddingSearchWorkerHandle",
-        "native embedding worker handle owns channels whose lifecycle is managed by setup and shutdown code",
-    ),
-    (
-        "crates/jbotci-ui/src/routing.rs:PendingLocalRouteWrites",
-        "pending route writes are transient browser navigation synchronization state normalized by record and consume helpers",
-    ),
-    (
-        "crates/jbotci-ui/src/layout.rs:ReferenceBottoms",
-        "reference bottoms are transient browser DOM measurements checked by reference height sizer tests",
-    ),
-    (
         "crates/jbotci-ui/src/lib.rs:ReferenceHoverState",
         "browser hover state is transient UI state derived from reference label DOM nodes",
-    ),
-    (
-        "crates/jbotci-ui/src/routing.rs:RouteLocationSyncAction",
-        "route sync action pairs parsed route state with a hydration flag derived by browser navigation handlers",
-    ),
-    (
-        "crates/jbotci-ui/src/settings.rs:SettingsPageSnapshot",
-        "settings page snapshots group memoized render inputs whose source settings states own validity",
-    ),
-    (
-        "crates/jbotci-ui/src/vlacku.rs:VlackuPageSnapshot",
-        "vlacku page snapshots group memoized dictionary render inputs whose source states own validity",
-    ),
-    (
-        "crates/jbotci-ui/src/layout.rs:TopbarLayoutMetrics",
-        "topbar metrics are direct layout measurements used by platform layout commands",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:UserSettings",
@@ -2180,16 +2172,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "platform service errors carry display diagnostics produced by service implementations",
     ),
     (
-        "crates/jbotci-ui/src/platform.rs:TimeoutHandle",
-        "timeout handles are opaque platform timer tokens returned by browser scheduling services",
-    ),
-    (
         "crates/jbotci-ui/src/platform.rs:Rect",
         "platform rectangles are direct geometry DTOs supplied by browser or desktop layout measurements",
     ),
     (
         "crates/jbotci-ui/src/platform.rs:Size",
         "platform size is a direct geometry DTO supplied by browser or desktop layout measurements",
+    ),
+    (
+        "crates/jbotci-ui/src/platform.rs:TimeoutHandle",
+        "timeout handles are opaque platform timer tokens returned by browser scheduling services",
     ),
     (
         "crates/jbotci-ui/src/platform.rs:TooltipPlacement",
@@ -2222,6 +2214,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-ui/src/platform.rs:Viewport",
         "platform viewport is a direct geometry DTO supplied by browser or desktop layout measurements",
+    ),
+    (
+        "crates/jbotci-ui/src/routing.rs:PendingLocalRouteWrites",
+        "pending route writes are transient browser navigation synchronization state normalized by record and consume helpers",
+    ),
+    (
+        "crates/jbotci-ui/src/routing.rs:RouteLocationSyncAction",
+        "route sync action pairs parsed route state with a hydration flag derived by browser navigation handlers",
+    ),
+    (
+        "crates/jbotci-ui/src/settings.rs:SettingsPageSnapshot",
+        "settings page snapshots group memoized render inputs whose source settings states own validity",
+    ),
+    (
+        "crates/jbotci-ui/src/vlacku.rs:VlackuPageSnapshot",
+        "vlacku page snapshots group memoized dictionary render inputs whose source states own validity",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:CuktaIndexEntry",
@@ -2396,12 +2404,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture export is a serialization aggregate",
     ),
     (
-        "xtask-common/src/fixtures/mod.rs:FixtureSummary",
-        "fixture summary is derived reporting data",
-    ),
-    (
         "xtask-common/src/fixtures/mod.rs:FixtureLojbanSourceShape",
         "fixture source shape records raw TOML key presence so invalid combinations can be diagnosed",
+    ),
+    (
+        "xtask-common/src/fixtures/mod.rs:FixtureSummary",
+        "fixture summary is derived reporting data",
     ),
     (
         "xtask-common/src/fixtures/mod.rs:GentufaOutputExpectation",

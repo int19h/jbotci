@@ -19,11 +19,12 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
-use crate::smusni_v0_kernel::datum::{Datum, parse_document, print_document};
-use crate::smusni_v0_kernel::syntax::{ProjectionReasonId, parse_v0_expression};
-use crate::smusni_v0_kernel::type_system::{
+use crate::smusni_v0_kernel::kernel::types::{
     PlaceLabel, PositiveInteger, Row, SignKind, TypeAtom, TypeExpr,
 };
+use crate::smusni_v0_kernel::sexpr::datum::{Datum, parse_document, print_document};
+use crate::smusni_v0_kernel::sexpr::syntax::{ProjectionReasonId, parse_v0_expression};
+use crate::smusni_v0_kernel::sexpr::type_syntax::{parse_type, type_to_datum};
 
 pub const BUNDLE_ROOT: &str = "data/smusni-v0";
 pub const SOURCE_PATH: &str = "sources/registry-source.toml";
@@ -1539,7 +1540,7 @@ fn build_lexical_rows(
             if *close_policy == ClosePolicy::LocalExistential
                 || (*close_policy == ClosePolicy::Contextual
                     && !matches!(
-                        TypeExpr::parse(&parse_document(&accepted).expect("canonical type parses")),
+                        parse_type(&parse_document(&accepted).expect("canonical type parses")),
                         Ok(TypeExpr::Referents(_))
                     ))
             {
@@ -4944,7 +4945,7 @@ fn canonical_row_schema(source: &str) -> Result<String, BundleError> {
         ));
     }
     let wrapped = Datum::form("PredTerm", [row.clone()]);
-    TypeExpr::parse(&wrapped).map_err(|error| {
+    parse_type(&wrapped).map_err(|error| {
         BundleError::new(BundleErrorKind::Type, format!("validate row: {error}"))
     })?;
     Ok(canonical_datum(&row))
@@ -5060,11 +5061,9 @@ impl StaticType {
             })));
         }
         if !contains_form(datum, "TypeParam") {
-            return TypeExpr::parse(datum)
-                .map(Self::from_concrete)
-                .map_err(|error| {
-                    BundleError::new(BundleErrorKind::Type, format!("validate type: {error}"))
-                });
+            return parse_type(datum).map(Self::from_concrete).map_err(|error| {
+                BundleError::new(BundleErrorKind::Type, format!("validate type: {error}"))
+            });
         }
         if !allow_type_parameters {
             return Err(BundleError::new(
@@ -5173,7 +5172,7 @@ impl StaticType {
     #[ensures(true)]
     fn to_datum(&self) -> Datum {
         match self {
-            Self::Concrete(value) => value.to_datum(),
+            Self::Concrete(value) => type_to_datum(value),
             Self::TypeParameter(name) => {
                 Datum::form("TypeParam", [Datum::string(name.name.clone())])
             }
@@ -5192,7 +5191,9 @@ impl StaticType {
                     result.to_datum(),
                 ],
             ),
-            Self::Predicate(predicate) => TypeExpr::Predicate(predicate.row.clone()).to_datum(),
+            Self::Predicate(predicate) => {
+                type_to_datum(&TypeExpr::Predicate(predicate.row.clone()))
+            }
             Self::ReferenceComputation(inner) => Datum::form("RefComp", [inner.to_datum()]),
             Self::Query(elements) => {
                 Datum::form("Query", [Datum::list(elements.iter().map(Self::to_datum))])
@@ -5495,7 +5496,7 @@ impl StaticTypeRegistry {
             if let Some(event) = &row.optional_event_slot_row {
                 slots.push(event.clone());
             }
-            let row_type = TypeExpr::parse(&Datum::form(
+            let row_type = parse_type(&Datum::form(
                 "PredTerm",
                 [parse_document(&row_schema(&slots)?)
                     .map_err(|error| BundleError::new(BundleErrorKind::Type, error.to_string()))?],
@@ -7250,7 +7251,7 @@ fn collect_atoms(datum: &Datum, visitor: &mut impl FnMut(&str)) {
 #[cfg(test)]
 mod static_checker_tests {
     use super::*;
-    use crate::smusni_v0_kernel::type_system::RowSlot;
+    use crate::smusni_v0_kernel::kernel::types::RowSlot;
 
     #[requires(true)]
     #[ensures(true)]
