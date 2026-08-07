@@ -1255,6 +1255,43 @@ pub fn semantic_scope_dependence_divergences(
     divergences
 }
 
+/// Every generated event binder the graph declares, with the nodes declaring it.
+///
+/// Generated event binders are not region binders and cannot become ones:
+/// [`ScopeRegion`] admits only referent and parameter objects, because a
+/// generated eventuality is bound by the formula or sequence node carrying it
+/// rather than by a lexical multiplicity region. The declaration is nonetheless
+/// explicit typed model data — the `boundEventualities` list — so a consumer
+/// that needs binder ownership reads it here instead of reconstructing
+/// ownership from reference edges.
+#[requires(true)]
+#[ensures(ret.values().all(|owners| !owners.is_empty()))]
+pub fn semantic_graph_generated_event_binders(
+    objects: &BTreeMap<SemanticObjectId, SemanticObject>,
+) -> BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> {
+    let mut declared: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> = BTreeMap::new();
+    for (owner, object) in objects {
+        let bound = match object.as_data() {
+            data!(SemanticObject::Sequence(node)) => &node.bound_eventualities,
+            data!(SemanticObject::Formula(node)) => match node.as_data() {
+                data!(FormulaNode::Atom(node)) => &node.bound_eventualities,
+                data!(FormulaNode::Connective(node)) => &node.bound_eventualities,
+                data!(FormulaNode::Quantified(node)) => &node.bound_eventualities,
+                data!(FormulaNode::QuantifierBundle(node)) => &node.bound_eventualities,
+                data!(FormulaNode::RespectivelyDistribution(node)) => &node.bound_eventualities,
+            },
+            _ => continue,
+        };
+        for eventuality in bound {
+            declared
+                .entry(eventuality.object_id())
+                .or_default()
+                .insert(*owner);
+        }
+    }
+    declared
+}
+
 /// Every object some node declares as a binder.
 ///
 /// This is what the scope-dependence derivation can see, and therefore the part
