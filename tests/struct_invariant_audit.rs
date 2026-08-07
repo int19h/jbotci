@@ -1304,6 +1304,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private planner output is constructed only by plan_references; partial analyses are hidden and complete-only queries require compact eligibility",
     ),
     (
+        "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ProjectedIdentities",
+        "the pre-scan reports which identities the renderer owns; any set of graph identities, including none, is a possible answer",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/sexpr/planner.rs:ScopeFailure",
         "a closed failure kind plus optional typed binder and use-site evidence admits every typed combination",
     ),
