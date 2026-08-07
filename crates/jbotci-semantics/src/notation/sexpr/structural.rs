@@ -1,10 +1,11 @@
-//! Mechanically complete typed structural projection.
+//! Mechanically complete typed structural serialization for the internal-raw
+//! debug codec.
 //!
 //! This is intentionally not a `serde_json::Value` walker. The custom serializer
 //! retains struct and enum type information, and recognizes the model's tagged
 //! `SemanticObjectId` newtype as a graph reference. Compact semantic forms are
-//! built directly from model types elsewhere; this module is their total,
-//! non-lossy fallback.
+//! built directly from typed kernel values, so the only projection left here is
+//! the whole-graph raw capture that [`super::internal_raw`] wraps.
 
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
@@ -610,14 +611,6 @@ impl SerializeStructVariant for StructVariantBuilder {
     }
 }
 
-/// Whether ordinary-profile provenance fields are retained.
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProvenanceDisposition {
-    Suppress,
-    Retain,
-}
-
 /// State for the canonical depth-first raw identity projection. `%1` is
 /// reserved for the `SemanticGraph`; semantic-object identities begin at `%2`.
 #[invariant(next_raw_id.get() == object_ids.borrow().len() + 2)]
@@ -791,11 +784,7 @@ impl<'a> RawGraphProjector<'a> {
                 "RawRecord",
                 std::iter::once(Datum::string(name)).chain(fields.into_iter().map(
                     |(field, value)| {
-                        let value = if field_is_suppressed(
-                            field,
-                            Some(name),
-                            ProvenanceDisposition::Suppress,
-                        ) {
+                        let value = if field_is_suppressed(field, name) {
                             Datum::form("RawNull", [])
                         } else {
                             self.render_value(value)
@@ -880,54 +869,6 @@ fn raw_scalar(model_type: &str, value: impl AsRef<str>) -> Datum {
     )
 }
 
-/// Project one object to the explicit local typed fallback.
-#[requires(true)]
-#[ensures(matches!(ret, Datum::List(_)))]
-pub fn object_datum(
-    kind: SemanticObjectKind,
-    object: &SemanticObject,
-    provenance: ProvenanceDisposition,
-) -> Datum {
-    object_datum_with_variables(kind, object, provenance, &BTreeMap::new())
-}
-
-/// Project one object while spelling selected graph references as lexical
-/// variables. Lookup keys are produced from typed IDs; ID text is never parsed.
-#[requires(true)]
-#[ensures(matches!(ret, Datum::List(_)))]
-pub fn object_datum_with_variables(
-    kind: SemanticObjectKind,
-    object: &SemanticObject,
-    provenance: ProvenanceDisposition,
-    variables: &BTreeMap<String, Datum>,
-) -> Datum {
-    let value = object
-        .serialize(StructuralSerializer)
-        .expect("the semantic model has a complete structural serialization");
-    let mut fields = object_field_datums(value, provenance, variables);
-    fields.extend(supplemental_object_field_datums(
-        object, provenance, variables,
-    ));
-    let mut arguments = vec![Datum::atom(kind_name(kind))];
-    arguments.extend(fields);
-    Datum::form("Object", arguments)
-}
-
-/// Project any typed model value through the same complete structural path.
-/// This is used for field-local fallback when a compact recognizer declines.
-#[requires(true)]
-#[ensures(true)]
-pub fn typed_value_datum<T: Serialize>(
-    value: &T,
-    provenance: ProvenanceDisposition,
-    variables: &BTreeMap<String, Datum>,
-) -> Datum {
-    let value = value
-        .serialize(StructuralSerializer)
-        .expect("model values have complete structural serializations");
-    structural_datum(value, variables, provenance)
-}
-
 /// Project one structured dictionary word card without introducing a second
 /// escaping or formatting path.
 #[requires(true)]
@@ -948,119 +889,13 @@ pub fn word_card_datum(card: &WordCard) -> Option<Datum> {
     ))
 }
 
-/// Project one object definition for the whole-document typed graph.
-#[requires(id.object_kind() == object.object_kind())]
-#[ensures(matches!(ret, Datum::List(_)))]
-pub fn definition_datum(id: SemanticObjectId, object: &SemanticObject) -> Datum {
-    let value = object
-        .serialize(StructuralSerializer)
-        .expect("the semantic model has a complete structural serialization");
-    let mut arguments = vec![
-        reference_datum(id),
-        Datum::atom(kind_name(object.object_kind())),
-    ];
-    arguments.extend(object_field_datums(
-        value,
-        ProvenanceDisposition::Retain,
-        &BTreeMap::new(),
-    ));
-    arguments.extend(supplemental_object_field_datums(
-        object,
-        ProvenanceDisposition::Retain,
-        &BTreeMap::new(),
-    ));
-    Datum::form("Def", arguments)
-}
-
-/// Fields present in the typed graph model but intentionally absent from the
-/// stable flat JSON serializer. Typed fallback is a model projection, so it
-/// must retain these fields without changing JSON compatibility.
-#[requires(true)]
-#[ensures(true)]
-fn supplemental_object_field_datums(
-    object: &SemanticObject,
-    provenance: ProvenanceDisposition,
-    variables: &BTreeMap<String, Datum>,
-) -> Vec<Datum> {
-    let mut fields = Vec::new();
-    match object.as_data() {
-        data!(SemanticObject::Eventuality(node)) => {
-            if let Some(class) = node.class {
-                fields.push(field_datum(
-                    "class",
-                    class
-                        .serialize(StructuralSerializer)
-                        .expect("eventuality classes have structural serialization"),
-                    variables,
-                    provenance,
-                ));
-            }
-            if let Some(kind) = node.abstraction_kind {
-                fields.push(field_datum(
-                    "abstractionKind",
-                    kind.serialize(StructuralSerializer)
-                        .expect("abstraction kinds have structural serialization"),
-                    variables,
-                    provenance,
-                ));
-            }
-        }
-        data!(SemanticObject::Referent(node)) => {
-            if let Some(kind) = node.abstraction_kind {
-                fields.push(field_datum(
-                    "abstractionKind",
-                    kind.serialize(StructuralSerializer)
-                        .expect("abstraction kinds have structural serialization"),
-                    variables,
-                    provenance,
-                ));
-            }
-        }
-        _ => {}
-    }
-    fields
-}
-
-/// Render a legacy Draft-9 graph identity as an escaped atom.
-#[requires(true)]
-#[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with("|@") && atom.ends_with('|')))]
-pub fn reference_datum(id: SemanticObjectId) -> Datum {
-    reference_text_datum(&id.to_string())
-}
-
-/// Convert the object serializer's flat map to ordered `(Field ...)` forms.
-#[requires(true)]
-#[ensures(true)]
-fn object_field_datums(
-    value: StructuralValue,
-    provenance: ProvenanceDisposition,
-    variables: &BTreeMap<String, Datum>,
-) -> Vec<Datum> {
-    let data!(StructuralValue::Map(entries)) = value.into_data() else {
-        panic!("SemanticObject must serialize as a field map")
-    };
-    entries
-        .into_iter()
-        .filter_map(|(key, value)| {
-            let name = structural_key_text(key);
-            if name == "type" || field_is_suppressed(&name, None, provenance) {
-                return None;
-            }
-            Some(match semantic_object_field_name(&name) {
-                Some(known) => field_datum(known, value, variables, provenance),
-                None => dynamic_field_datum(name, value, variables, provenance),
-            })
-        })
-        .collect()
-}
-
 /// Extract an object map key without interpreting its semantic content.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn structural_key_text(key: StructuralValue) -> String {
     // SemanticObject's custom serializer guarantees string keys. Retain the
-    // owned spelling here so a newly added field that has not yet reached the
-    // fixed public-name table is still rendered losslessly.
+    // owned spelling here so a newly added model field is still rendered
+    // losslessly under its own authored name.
     let data!(StructuralValue::String(key)) = key.into_data() else {
         panic!("SemanticObject field keys must serialize as strings")
     };
@@ -1068,296 +903,16 @@ fn structural_key_text(key: StructuralValue) -> String {
     key
 }
 
-/// Return the exact authored object field name for a serializer map key.
+/// Whether a record field carries provenance rather than semantic state. Only
+/// the actual `Adjunct.introducedBy` coordinate is provenance; identically
+/// named fields on argument values, ordinals, names, recurrence, and other
+/// records carry semantic state and must remain visible.
 #[requires(true)]
-#[ensures(ret.is_some() -> ret.unwrap() == name)]
-fn semantic_object_field_name(name: &str) -> Option<&'static str> {
-    const NAMES: &[&str] = &[
-        "type",
-        "force",
-        "speaker",
-        "audience",
-        "eventuality",
-        "content",
-        "deicticGround",
-        "asides",
-        "vocativeKind",
-        "items",
-        "connectionClaims",
-        "boundEventualities",
-        "ordinalLabels",
-        "relation",
-        "nonlogicalConnection",
-        "elidedConnectionOperand",
-        "denotation",
-        "class",
-        "actuality",
-        "tenseModal",
-        "time",
-        "timePath",
-        "timeInterval",
-        "timeSpan",
-        "aspect",
-        "aspects",
-        "recurrence",
-        "intervalModifiers",
-        "space",
-        "spacePath",
-        "spaceInterval",
-        "spatialAspect",
-        "spatialAspects",
-        "spatialRecurrence",
-        "spatialIntervalModifiers",
-        "category",
-        "scopeDependence",
-        "sort",
-        "indexical",
-        "descriptor",
-        "composition",
-        "relativeClauses",
-        "assignedNames",
-        "adjuncts",
-        "body",
-        "parameters",
-        "arity",
-        "embeddedQuestions",
-        "experiencer",
-        "target",
-        "scale",
-        "subscript",
-        "deicticReference",
-        "personalMassMembership",
-        "generatedReferent",
-        "abstracted",
-        "abstractionKind",
-        "role",
-        "introducedBy",
-        "relationParameter",
-        "tanruLink",
-        "arguments",
-        "placeQuestions",
-        "reciprocity",
-        "mode",
-        "scalarNegation",
-        "relationMetadata",
-        "operator",
-        "predication",
-        "children",
-        "connector",
-        "variable",
-        "sourceVariable",
-        "selectionSource",
-        "restriction",
-        "domainImport",
-        "quantity",
-        "bindings",
-        "coequalScope",
-        "streams",
-        "distinctPartition",
-        "kind",
-        "text",
-        "letterals",
-        "quotation",
-        "denotes",
-        "family",
-        "intensity",
-        "polarity",
-        "phase",
-        "modifiers",
-        "assertionEffect",
-        "targetFocus",
-        "anchor",
-        "literal",
-        "operatorDenotes",
-        "endpointInclusion",
-        "operands",
-        "operatorParameter",
-        "form",
-        "value",
-        "comparisonSet",
-        "sourceWords",
-        "placeStructure",
-        "expansion",
-        "asker",
-        "respondent",
-        "domain",
-        "slots",
-        "focus",
-        "presupposedAnswer",
-        "source",
-        "diagnostics",
-    ];
-    NAMES.iter().copied().find(|candidate| *candidate == name)
-}
-
-/// Whether a field is suppressed in the ordinary profile. Only the actual
-/// `Adjunct.introducedBy` coordinate is provenance; identically named fields
-/// on argument values, ordinals, names, recurrence, and other records carry
-/// semantic state and must remain visible.
-#[requires(true)]
-#[ensures(ret == (provenance == ProvenanceDisposition::Suppress
-    && ((container.is_none() && matches!(name, "source" | "diagnostics"))
-        || (name == "source" && container.is_some_and(|container| source_link_surfaces().contains(&container)))
-        || (container == Some("Adjunct") && matches!(name, "introducedBy" | "introduced_by")))))]
-fn field_is_suppressed(
-    name: &str,
-    container: Option<&str>,
-    provenance: ProvenanceDisposition,
-) -> bool {
-    provenance == ProvenanceDisposition::Suppress
-        && ((container.is_none() && matches!(name, "source" | "diagnostics"))
-            || (name == "source"
-                && container.is_some_and(|container| source_link_surfaces().contains(&container)))
-            || (container == Some("Adjunct") && matches!(name, "introducedBy" | "introduced_by")))
-}
-
-/// Construct one typed field form.
-#[requires(true)]
-#[ensures(matches!(ret, Datum::List(_)))]
-fn field_datum(
-    name: &str,
-    value: StructuralValue,
-    variables: &BTreeMap<String, Datum>,
-    provenance: ProvenanceDisposition,
-) -> Datum {
-    Datum::form(
-        "Field",
-        [
-            data_atom(&pascal_case(name)),
-            structural_datum(value, variables, provenance),
-        ],
-    )
-}
-
-/// Preserve a newly authored object-field key until its stable grammar atom is
-/// registered. The explicit `Name` form avoids collisions from case folding.
-#[requires(!name.is_empty())]
-#[ensures(matches!(ret, Datum::List(_)))]
-fn dynamic_field_datum(
-    name: String,
-    value: StructuralValue,
-    variables: &BTreeMap<String, Datum>,
-    provenance: ProvenanceDisposition,
-) -> Datum {
-    Datum::form(
-        "Field",
-        [
-            Datum::form("Name", [Datum::string(name)]),
-            structural_datum(value, variables, provenance),
-        ],
-    )
-}
-
-/// Convert structural serialization to the public datum grammar.
-#[requires(true)]
-#[ensures(true)]
-fn structural_datum(
-    value: StructuralValue,
-    variables: &BTreeMap<String, Datum>,
-    provenance: ProvenanceDisposition,
-) -> Datum {
-    match value.into_data() {
-        data!(StructuralValue::Reference(id)) => variables
-            .get(&id)
-            .cloned()
-            .unwrap_or_else(|| reference_text_datum(&id)),
-        data!(StructuralValue::String(value)) => Datum::string(value),
-        data!(StructuralValue::Bool(value)) => Datum::string(value.to_string()),
-        data!(StructuralValue::Signed(value)) => Datum::signed(value),
-        data!(StructuralValue::Unsigned(value)) => Datum::unsigned(value),
-        data!(StructuralValue::Float(value)) => Datum::string(value.to_string()),
-        data!(StructuralValue::Unit) => Datum::atom("None"),
-        data!(StructuralValue::Sequence(values)) => Datum::form(
-            "List",
-            values
-                .into_iter()
-                .map(|value| structural_datum(value, variables, provenance)),
-        ),
-        data!(StructuralValue::Map(entries)) => Datum::form(
-            "Map",
-            entries.into_iter().map(|(key, value)| {
-                Datum::form(
-                    "Entry",
-                    [
-                        structural_datum(key, variables, provenance),
-                        structural_datum(value, variables, provenance),
-                    ],
-                )
-            }),
-        ),
-        data!(StructuralValue::Record { name, fields }) => {
-            let mut arguments = vec![data_atom(name)];
-            arguments.extend(fields.into_iter().filter_map(|(field, value)| {
-                if field_is_suppressed(field, Some(name), provenance) {
-                    return None;
-                }
-                Some(Datum::form(
-                    "Field",
-                    [
-                        data_atom(&pascal_case(field)),
-                        structural_datum(value, variables, provenance),
-                    ],
-                ))
-            }));
-            Datum::form("Record", arguments)
-        }
-        data!(StructuralValue::Variant {
-            type_name,
-            variant,
-            value,
-        }) => {
-            let mut arguments = vec![data_atom(type_name), data_atom(&pascal_case(variant))];
-            arguments.extend(value.map(|value| structural_datum(*value, variables, provenance)));
-            Datum::form("Variant", arguments)
-        }
-    }
-}
-
-/// Build one atom from data-derived text without panicking.
-///
-/// Every caller of this helper spells an atom from model data — a field name, a
-/// model type name, a variant name, or an identity — rather than from a
-/// compile-time constant, so the bare spelling can be lexically invalid. The
-/// escaped `|…|` spelling is tried next, and text that cannot be spelled as an
-/// atom at all becomes a `(Name "…")` form. The capture therefore stays total
-/// on hostile data instead of aborting the process.
-#[requires(true)]
-#[ensures(true)]
-fn data_atom(text: &str) -> Datum {
-    Datum::try_atom(text.to_owned())
-        .or_else(|_| Datum::try_atom(escape_symbol(text)))
-        .unwrap_or_else(|_| Datum::form("Name", [Datum::string(text)]))
-}
-
-/// Preserve the legacy Draft-9 `@` spelling without extending the v0 bare-atom
-/// grammar. The final raw fallback assigns its separate depth-first `%id`s in
-/// the validated serialization layer instead.
-#[requires(!id.is_empty())]
-#[ensures(ret.as_atom().is_some_and(|atom| atom.starts_with("|@") && atom.ends_with('|')))]
-fn reference_text_datum(id: &str) -> Datum {
-    // Escape through the one shared escaping path rather than assembling the
-    // delimiters here, so an identity containing `|` or `\` still spells one
-    // valid escaped atom.
-    data_atom(&format!("@{}", id.replace(':', "_")))
-}
-
-/// Convert a serde camelCase/snake-case field to its grammar field atom.
-#[requires(!name.is_empty())]
-#[ensures(!ret.is_empty())]
-fn pascal_case(name: &str) -> String {
-    let mut output = String::with_capacity(name.len());
-    let mut uppercase_next = true;
-    for character in name.chars() {
-        if matches!(character, '_' | '-') {
-            uppercase_next = true;
-        } else if uppercase_next {
-            output.extend(character.to_uppercase());
-            uppercase_next = false;
-        } else {
-            output.push(character);
-        }
-    }
-    output
+#[ensures(ret == ((name == "source" && source_link_surfaces().contains(&container))
+    || (container == "Adjunct" && matches!(name, "introducedBy" | "introduced_by"))))]
+fn field_is_suppressed(name: &str, container: &str) -> bool {
+    (name == "source" && source_link_surfaces().contains(&container))
+        || (container == "Adjunct" && matches!(name, "introducedBy" | "introduced_by"))
 }
 
 /// Stable semantic object kind spelling.
@@ -1399,7 +954,6 @@ mod tests {
             id.serialize(StructuralSerializer).unwrap().as_data(),
             new!(StructuralValue::Reference("entity:7".to_owned())).as_data()
         );
-        assert_eq!(reference_datum(id).as_atom(), Some("|@entity_7|"));
     }
 
     #[test]
@@ -1417,73 +971,21 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn pascal_case_is_a_fixed_name_conversion() {
-        assert_eq!(pascal_case("scopeDependence"), "ScopeDependence");
-        assert_eq!(pascal_case("source_words"), "SourceWords");
-        assert_eq!(pascal_case("veridicalDescription"), "VeridicalDescription");
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn structural_enum_variants_use_the_intrinsic_namespace() {
-        let value = typed_value_datum(
-            &crate::model::PredicationMode::Asserted,
-            ProvenanceDisposition::Suppress,
-            &BTreeMap::new(),
-        );
-        let items = value.as_list().expect("variant is a typed form");
-        assert_eq!(items[0].as_atom(), Some("Variant"));
-        assert_eq!(items[2].as_atom(), Some("Asserted"));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn unknown_object_fields_are_preserved_with_their_exact_name() {
-        let fields = object_field_datums(
-            new!(StructuralValue::Map(vec![(
-                new!(StructuralValue::String("future_field".to_owned())),
-                new!(StructuralValue::Bool(true)),
-            )])),
-            ProvenanceDisposition::Suppress,
-            &BTreeMap::new(),
-        );
-        assert_eq!(fields.len(), 1);
-        let field = fields[0].as_list().expect("field is a typed form");
-        assert_eq!(field[0].as_atom(), Some("Field"));
-        let name = field[1].as_list().expect("unknown key uses Name");
-        assert_eq!(name[0].as_atom(), Some("Name"));
-        assert_eq!(name[1], Datum::string("future_field"));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
     fn introduced_by_suppression_is_limited_to_adjunct_records() {
-        let introduced_by = || {
-            vec![(
-                "introducedBy",
-                new!(StructuralValue::String("fi'o".to_owned())),
-            )]
-        };
-        let adjunct = structural_datum(
-            new!(StructuralValue::Record {
-                name: "Adjunct",
-                fields: introduced_by()
-            }),
-            &BTreeMap::new(),
-            ProvenanceDisposition::Suppress,
-        );
-        let argument = structural_datum(
-            new!(StructuralValue::Record {
-                name: "ArgumentValue",
-                fields: introduced_by()
-            }),
-            &BTreeMap::new(),
-            ProvenanceDisposition::Suppress,
-        );
-        assert_eq!(adjunct.count_forms("Field"), 0);
-        assert_eq!(argument.count_forms("Field"), 1);
+        assert!(field_is_suppressed("introducedBy", "Adjunct"));
+        assert!(field_is_suppressed("introduced_by", "Adjunct"));
+        assert!(!field_is_suppressed("introducedBy", "ArgumentValue"));
+        assert!(!field_is_suppressed("introducedBy", "AssignedName"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_suppression_is_limited_to_declared_link_surfaces() {
+        for surface in source_link_surfaces() {
+            assert!(field_is_suppressed("source", surface), "{surface}");
+        }
+        assert!(!field_is_suppressed("source", "NotALinkSurface"));
+        assert!(!field_is_suppressed("sourceWords", "Adjunct"));
     }
 }
