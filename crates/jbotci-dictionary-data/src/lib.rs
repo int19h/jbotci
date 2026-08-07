@@ -41,7 +41,7 @@ mod tests {
     use bityzba::requires;
     use jbotci_dictionary::{
         DictionaryLujvoEntry, DictionaryLujvoSegment, DictionaryLujvoSegmentKind,
-        DictionarySoundEntry, RafsiClaimKind, RafsiSource,
+        DictionarySoundEntry, RafsiClaimKind, RafsiSource, WordType,
     };
 
     use super::*;
@@ -104,6 +104,41 @@ mod tests {
                 .iter()
                 .any(|candidate| candidate.availability.is_free()),
             "the invented gismu nanpe still has free short rafsi"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn short_rafsi_candidates_count_cmavo_claims() {
+        // Regression for issue #769: `kam` is the listed rafsi of the cmavo
+        // `ka` (CLL 4.6), so it is not available to an invented `kacma`.
+        let dictionary = english();
+        assert_eq!(
+            dictionary
+                .short_rafsi_candidates("kacma")
+                .iter()
+                .map(|candidate| (
+                    candidate.form.as_str(),
+                    candidate.availability.claim_kind(),
+                    candidate.availability.claimant_words().to_vec(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("cma", "cmalu"),
+                ("ka'a", "katna"),
+                ("kac", "kancu"),
+                ("kam", "ka"),
+            ]
+            .map(|(form, holder)| (
+                form,
+                Some(RafsiClaimKind::Official),
+                vec![holder.to_owned()]
+            ))
+        );
+        assert_eq!(
+            dictionary.rafsi_claimants("kam").collect::<Vec<_>>(),
+            vec![("ka", WordType::Cmavo)]
         );
     }
 

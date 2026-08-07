@@ -46,6 +46,7 @@ from ._native import (
     _dictionary_universal_gismu_rafsi_forms,
     _dictionary_word_type_is_gismu_like,
     _dictionary_word_type_is_lujvo_like,
+    _dictionary_word_type_rafsi_claim_kind,
 )
 from ._native import JbotciError
 
@@ -75,11 +76,17 @@ def _word_type_is_lujvo_like(self: WordType) -> bool:
     return _dictionary_word_type_is_lujvo_like(self)
 
 
+def _word_type_rafsi_claim_kind(self: WordType) -> RafsiClaimKind:
+    """Return the standing of a rafsi claim made by this Rust word type."""
+    return _dictionary_word_type_rafsi_claim_kind(self)
+
+
 # Functional `StrEnum` construction is what lets Rust register the exact class
-# per interpreter. Attach the two Rust predicates after construction; their
+# per interpreter. Attach the Rust word-type methods after construction; their
 # implementations delegate through exact native enum extraction to Rust.
 setattr(WordType, "is_gismu_like", _word_type_is_gismu_like)
 setattr(WordType, "is_lujvo_like", _word_type_is_lujvo_like)
+setattr(WordType, "rafsi_claim_kind", _word_type_rafsi_claim_kind)
 
 
 @final
