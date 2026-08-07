@@ -455,6 +455,11 @@ pub(super) struct ProjectedIdentities {
     /// one costs nothing and shares no state, so the notation never declares
     /// them however many edges reach them.
     pub(super) atoms: BTreeSet<SemanticObjectId>,
+    /// Quantifier restrictions whose only other occurrences are the bound
+    /// variable's own argument-site repeats, mapped to the variable that
+    /// discharges them. Those repeats print nothing: section 8.4 conjoins the
+    /// clause with the quantifier's restriction at that one locus.
+    pub(super) discharged_restrictions: BTreeMap<SemanticObjectId, SemanticObjectId>,
 }
 
 impl ProjectedIdentities {

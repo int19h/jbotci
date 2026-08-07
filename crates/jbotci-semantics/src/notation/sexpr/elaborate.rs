@@ -38,14 +38,14 @@ use super::identity::object_variable;
 use super::planner::{GraphUsage, ProjectedIdentities, ReferencePlan, strong_components};
 use crate::model::{
     AbstractionKind, ActualityKind, Adjunct, ArgumentValue, ArgumentValueKind, DeicticProximity,
-    DescriptorKind, EventualityDenotationData, EventualityNode, EventualitySort, FormulaNodeData,
-    FormulaOperator, IndexicalKind, MathExpressionNodeKindData, MathOperatorData,
+    DescriptorKind, EventualityDenotationData, EventualityNode, EventualitySort, FormulaNode,
+    FormulaNodeData, FormulaOperator, IndexicalKind, MathExpressionNodeKindData, MathOperatorData,
     ParagraphTransition, ParameterRole, PlaceIndex, PredicationMode, PredicationNode,
     PredicationRelationData, QuantityForm, QuantityNode, QuantityScale, QuestionKind, QuestionMode,
     QuestionSlotData, QuestionSlotRole, ReferentCategory, ReferentNode, RelationLabelData,
-    RelativeClauseKind, ScopeDependenceData, SemanticGraph, SemanticObjectData, SemanticObjectId,
-    SemanticObjectKind, SemanticSort, SequenceNode, SequenceRelation, SignNode, UtteranceForce,
-    UtteranceNode, semantic_scope_dependence_binder_universes,
+    RelativeClauseKind, ScopeDependenceData, ScopeUseRole, SemanticGraph, SemanticObjectData,
+    SemanticObjectId, SemanticObjectKind, SemanticSort, SequenceNode, SequenceRelation, SignNode,
+    UtteranceForce, UtteranceNode, semantic_scope_dependence_binder_universes,
 };
 
 /// Mutable counters kept separate from semantic rendering decisions.
@@ -840,6 +840,7 @@ struct Elaborator<'a> {
     definitions: BTreeSet<SemanticObjectId>,
     projected_descriptions: BTreeSet<SemanticObjectId>,
     binder_universes: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>>,
+    discharged_restrictions: BTreeMap<SemanticObjectId, SemanticObjectId>,
     needed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     placed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     reference_binding_frames: RefCell<Vec<HostFrame>>,
@@ -863,6 +864,8 @@ pub(super) fn prescan_projections(
     let (event_support, described_events) = projected_described_event_objects(graph, usage);
     support.extend(event_support);
     values.extend(described_events);
+    let discharged_restrictions = discharged_quantifier_restrictions(graph);
+    support.extend(discharged_restrictions.keys().copied());
     let atoms = graph
         .objects
         .iter()
@@ -878,7 +881,86 @@ pub(super) fn prescan_projections(
         support,
         values,
         atoms,
+        discharged_restrictions,
     }
+}
+
+/// Quantifier restrictions the bound variable's argument sites merely repeat.
+///
+/// The builder records `ro da poi broda` twice: once as the quantifier's own
+/// `restriction`, and once as a relative clause on every argument filled by the
+/// bound variable. Section 8.4 puts it in exactly one place — "under the
+/// generalized-quantifier restriction analysis, a restrictive clause attached
+/// at that locus conjoins with the quantifier's restriction" — so the argument
+/// occurrences are already discharged by the binder above them: they neither
+/// print again nor make the restriction a shared declaration.
+///
+/// This is identity, not similarity. The argument's clause body must be the
+/// very object the quantifier restricts, and the argument must be filled by the
+/// very variable that quantifier binds. Any other occurrence of the restriction
+/// disqualifies it, so a formula genuinely used elsewhere keeps the ordinary
+/// placement it has today.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.keys().all(|restriction| graph.objects.contains_key(restriction)))]
+fn discharged_quantifier_restrictions(
+    graph: &SemanticGraph,
+) -> BTreeMap<SemanticObjectId, SemanticObjectId> {
+    let mut quantified: BTreeMap<SemanticObjectId, SemanticObjectId> = BTreeMap::new();
+    let mut ambiguous = BTreeSet::new();
+    for object in graph.objects.values() {
+        let Some(data!(FormulaNode::Quantified(node))) =
+            object.as_formula().map(FormulaNode::as_data)
+        else {
+            continue;
+        };
+        let Some(restriction) = node.restriction else {
+            continue;
+        };
+        // Two quantifiers restricting one formula object give its repeats no
+        // single binder to be discharged against.
+        if quantified.insert(restriction, node.variable).is_some() {
+            ambiguous.insert(restriction);
+        }
+    }
+    let mut discharged: BTreeMap<SemanticObjectId, usize> = BTreeMap::new();
+    for object in graph.objects.values() {
+        let Some(arguments) = object.predication_arguments() else {
+            continue;
+        };
+        for argument in arguments.values() {
+            for clause in &argument.relative_clauses {
+                let Some(variable) = quantified.get(&clause.body).copied() else {
+                    continue;
+                };
+                if argument.value == Some(variable)
+                    && clause.kind == RelativeClauseKind::Restrictive
+                    && clause.veridical != Some(false)
+                {
+                    *discharged.entry(clause.body).or_default() += 1;
+                } else {
+                    ambiguous.insert(clause.body);
+                }
+            }
+        }
+    }
+    let mut occurrences: BTreeMap<SemanticObjectId, usize> = BTreeMap::new();
+    for occurrence in &graph.scope.uses {
+        if occurrence.role == ScopeUseRole::Value {
+            *occurrences.entry(occurrence.target).or_default() += 1;
+        }
+    }
+    quantified
+        .into_iter()
+        .filter(|(restriction, _)| {
+            let repeats = discharged.get(restriction).copied().unwrap_or(0);
+            // One occurrence is the quantifier's own restriction edge. Every
+            // other one has to be a discharged repeat, or the restriction is
+            // shared with something this rule says nothing about.
+            !ambiguous.contains(restriction)
+                && repeats > 0
+                && occurrences.get(restriction).copied().unwrap_or(0) == repeats + 1
+        })
+        .collect()
 }
 
 /// Elaborate the compact document body, including deterministic shared-value
@@ -916,6 +998,7 @@ pub(super) fn elaborate_compact(
         definitions,
         projected_descriptions: projected.values.clone(),
         binder_universes: semantic_scope_dependence_binder_universes(graph.root, &graph.objects),
+        discharged_restrictions: projected.discharged_restrictions.clone(),
         needed_definitions: RefCell::new(BTreeSet::new()),
         placed_definitions: RefCell::new(BTreeSet::new()),
         reference_binding_frames: RefCell::new(Vec::new()),
@@ -2520,7 +2603,7 @@ impl Elaborator<'_> {
                 next += 1;
             }
             if argument.quantity.is_some()
-                || !argument.relative_clauses.is_empty()
+                || !self.argument_clauses_are_discharged(argument)
                 || argument.command_target.is_some()
                 || (argument.kind == ArgumentValueKind::Elided
                     && argument.introduced_by.as_deref() != Some("zo'e"))
@@ -2825,6 +2908,22 @@ impl Elaborator<'_> {
         // records are what decide the lambda-dependency half of that.
         self.host_reference(binding, self.hosted_dependencies(id))
             .then(|| Operand::Value(Value::bound(variable, declared_type)))
+    }
+
+    /// Whether every relative clause on this argument is already printed above
+    /// it by the binder it restricts.
+    ///
+    /// The only clause an argument may carry and still fill an ordinary place
+    /// is the repeat of its own quantifier's restriction: section 8.4 conjoins
+    /// that clause with the restriction at the quantifier's locus, so printing
+    /// it again here would state the restriction twice.
+    #[requires(true)]
+    #[ensures(ret == argument.relative_clauses.is_empty() || ret)]
+    fn argument_clauses_are_discharged(&self, argument: &ArgumentValue) -> bool {
+        argument
+            .relative_clauses
+            .iter()
+            .all(|clause| self.discharged_restrictions.get(&clause.body) == argument.value.as_ref())
     }
 
     /// The binders one hosted computation's property depends on.

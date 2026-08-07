@@ -1753,11 +1753,12 @@ fn failure_channel_is_evidenced_and_reproducible_on_the_corpus() {
 #[requires(true)]
 #[ensures(true)]
 fn scope_failures_carry_binder_and_use_evidence() {
-    // Definition placement, not a local recognizer, is what declines here, so
-    // the record comes from the planner channel. The host the region forest
-    // gives this shared value does not carry `da`, and no host that covers
-    // every use does, so the graph binds a variable the lexical notation cannot
-    // reach — the registered unbound-variable route, not a placement retry.
+    // The restriction repeat on `da`'s own argument is discharged, so planning
+    // no longer refuses this graph outright. What still declines is section
+    // 6.3's closing rule: the elided constants inside the quantifier depend on
+    // `da`, and the leftover declaration group has no open host with `da` live,
+    // so the registered scope-dependency route reports them per identity rather
+    // than a placement being retried.
     let input = build_input("ro da poi gerku cu bajra", "scope-evidence");
     let failed = project_failure(&input.graph);
     let records = failure_records(&failed);
