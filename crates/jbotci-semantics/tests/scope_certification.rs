@@ -167,11 +167,11 @@ fn record_model_scope_conflicts_are_pinned() {
 
 /// The three divergence classes, each with the smallest witness that shows it.
 ///
-/// Measured over the whole fixture corpus (22,311 documents that build), the
+/// Measured over the whole fixture corpus (22,875 documents that build), the
 /// structure is sound everywhere: no malformed tree, no occurrence mismatch, no
 /// missing origin, no source-order collision. The three classes below are the
-/// entire remainder — 18 documents bind one object twice, 307 use a binder
-/// outside its region, and 37 carry a constant the derivation blessed at a
+/// entire remainder — 18 documents bind one object twice, 311 use a binder
+/// outside its region, and 2 carry a constant the derivation blessed at a
 /// shallower path than the region tree records. Each is a property of the
 /// record graph rather than of this model, so each is exhibited rather than
 /// asserted away.
@@ -195,14 +195,14 @@ fn the_three_divergence_classes_have_pinned_witnesses() {
         "quantifying a deictic in place still leaves uses outside the binder"
     );
 
-    // The connection claim reaches the question's body formula before the
-    // utterance does, so the derivation blesses its elided places at empty
-    // scope while the region tree places them inside the question.
-    let graph = graph_for_text("ijebo ma ciska");
+    // The derivation does not enter a quotation, so it blesses the words of
+    // `lu ... li'u` at empty dependence, while the region tree places them where
+    // they are written — inside the `ce'u` lambda of the property quoting them.
+    let graph = graph_for_text("leka nelci lu broda li'u");
     let divergences = semantic_scope_dependence_divergences(&graph.scope, &graph.objects);
     assert!(
         !divergences.is_empty(),
-        "a shared question body still divides the two records"
+        "an opaque quotation inside a property still divides the two records"
     );
     assert!(
         divergences
@@ -210,6 +210,59 @@ fn the_three_divergence_classes_have_pinned_witnesses() {
             .all(|(_, derived, structural)| derived.is_subset(structural)),
         "the derivation never attributes a binder the region tree lacks"
     );
+}
+
+/// The shapes where the region the descent runs through is not the region the
+/// walk stamped, kept as their own cases because the phase-B corpus has none.
+///
+/// Two constructions put a binder region between a value and the parent the
+/// builder's walk gave it. A prenex quantifier over a statement connection is
+/// reached through the sequence's content — the connective, wrapped by the
+/// quantifier — while the walk stamped each operand inside the act that uttered
+/// it. A quantifier the builder wraps around an already-finished body likewise
+/// interposes a region between a walk-recorded locus and its walk-recorded
+/// parent, and the whole abstraction written under that locus goes with it.
+///
+/// Both were reachable only through builder unit tests until the scope
+/// invariant made them fail loudly; the second is the headline sentence from
+/// `generated_builder`'s connected-tanru case.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn interposed_binder_regions_enclose_the_values_written_under_them() {
+    for text in [
+        "da zo'u broda i je brode",
+        "roda zo'u mi prami da .ije naku do prami da",
+        "tu'e da zo'u broda i je brode tu'u",
+        "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa ro lo jmive kei ta'i lo racli",
+    ] {
+        let graph = graph_for_text(text);
+        for (constant, derived, structural) in
+            semantic_scope_dependence_divergences(&graph.scope, &graph.objects)
+        {
+            assert!(
+                derived.is_subset(&structural),
+                "{text}: {constant} depends on {derived:?} which its origin path {structural:?} does not carry"
+            );
+        }
+        // The subset check above is vacuous on a region tree that puts nothing
+        // under a binder at all, which is exactly how these shapes used to
+        // fail: the interposed region existed but the descent ran past it.
+        let enclosed = graph
+            .objects
+            .keys()
+            .filter(|id| {
+                graph
+                    .scope
+                    .origin(**id)
+                    .is_some_and(|origin| !graph.scope.binder_universe(origin).is_empty())
+            })
+            .count();
+        assert!(
+            enclosed > 0,
+            "{text}: no object is written inside a binder region, so the interposed region is not exercised"
+        );
+    }
 }
 
 #[requires(!text.is_empty())]

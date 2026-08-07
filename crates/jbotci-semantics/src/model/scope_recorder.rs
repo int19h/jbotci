@@ -415,6 +415,45 @@ fn scope_site_is_scoped(site: ScopeSite) -> bool {
     )
 }
 
+/// The order the descent enters one object's loci in, lowest first.
+///
+/// A shared object is homed by the first locus that reaches it, so this order
+/// decides which of several paths through the DAG owns the placement.
+///
+/// Ordinary loci go first. Scoped loci follow, because a binder's own region is
+/// the innermost home for anything reachable only through it, and an object
+/// that both a lambda body and an embedded question reach must be placed by the
+/// binder that actually scopes it rather than by whichever field the reference
+/// enumeration happens to list first.
+///
+/// A sequence item goes last of all. An item is the performed act a value was
+/// uttered in, not the structure it is written in: a connected statement gives
+/// the very same operand formula to an item and to the sequence's own content,
+/// and only the content path carries the connective — and any prenex quantifier
+/// wrapping it — that scopes over both operands. Placing by the item instead
+/// would record an origin outside a binder the operand demonstrably depends on,
+/// which is the one failure
+/// [`semantic_scope_dependences_agree_with_regions`](super::semantic_scope_dependences_agree_with_regions)
+/// exists to forbid.
+///
+/// Deferring every item, rather than only the items the walk leaves in the
+/// sequence's own segment, is deliberate. The narrower rule reads better — the
+/// walk owns segment membership, so an item that opens an act should place its
+/// own values — but measured over the fixture corpus it lets one document
+/// through with a constant whose origin path is missing a binder it depends on.
+/// A weaker record for the handful of documents where the content path reaches
+/// an act's values first, and their positions inside the act collapse to the
+/// region the walk stamped, is the price of the invariant holding everywhere.
+#[requires(true)]
+#[ensures(true)]
+fn scope_site_descent_rank(site: ScopeSite) -> u8 {
+    match site.as_data() {
+        data!(ScopeSite::Item { .. }) => 2,
+        _ if scope_site_is_scoped(site) => 1,
+        _ => 0,
+    }
+}
+
 /// The structural completion pass.
 #[invariant(true)]
 struct ScopeFinalization<'a> {
@@ -467,14 +506,12 @@ impl ScopeFinalization<'_> {
             placed.push((target, site, region));
         }
         // Occurrences are recorded in canonical reference order, but descent
-        // enters the scoped positions last. A binder's own region is the
-        // innermost home for anything reachable only through it, and an object
-        // both a lambda body and an embedded question reach must be placed by
-        // the binder that actually scopes it, not by whichever field the
-        // reference enumeration happens to list first.
-        for scoped in [false, true] {
+        // runs in the order [`scope_site_descent_rank`] gives, so a shared
+        // object is homed by the locus that genuinely scopes it rather than by
+        // whichever field the reference enumeration happens to list first.
+        for rank in 0..=2 {
             for (target, site, region) in &placed {
-                if scope_site_is_scoped(*site) == scoped {
+                if scope_site_descent_rank(*site) == rank {
                     self.visit(*target, *region);
                 }
             }
@@ -564,15 +601,26 @@ impl ScopeFinalization<'_> {
         boundary: ScopeBoundary,
     ) -> usize {
         if let Some(existing) = self.by_locus.get(&(object, site)).copied() {
-            // A walk-recorded region keeps its recorded context, but may be
-            // pushed deeper when the structure places it inside that context.
+            // A walk-recorded region keeps the *segment* it was recorded in and
+            // nothing more, exactly as [`Self::refine`] does for origins: the
+            // walk is the only witness to which performed act a locus was
+            // written in, but its position inside that act is the structure's
+            // call, because the builder stamps a nested construct before the
+            // quantifier or connective that comes to enclose it exists.
+            //
+            // Keeping the recorded parent instead would strand the locus on the
+            // walk's chain while the descent runs through the interposed
+            // region, and every value written under the locus would then record
+            // an origin path missing that region's binders.
             if self.is_descendant(parent, existing) {
+                // The structural parent is already inside this region, so the
+                // region is the outer extent and moving it would cycle.
                 return existing;
             }
-            if let Some(recorded_parent) = self.recorder.records[existing].parent
-                && self.is_descendant(parent, recorded_parent)
-                && !self.is_descendant(parent, existing)
-            {
+            let recorded_segment = self.recorder.records[existing]
+                .parent
+                .map_or(DOCUMENT_REGION, |recorded| self.segment(recorded));
+            if self.segment(parent) == recorded_segment {
                 self.recorder.records[existing].parent = Some(parent);
             }
             return existing;

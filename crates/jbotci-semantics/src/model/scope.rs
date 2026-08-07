@@ -431,6 +431,79 @@ impl SemanticScopeTree {
         }
         grouped
     }
+
+    /// Record where an object introduced outside the builder belongs.
+    ///
+    /// Origins are total over the object map, and nothing about a bare object
+    /// recovers the region it belongs in — that is the whole reason the record
+    /// exists — so a caller that adds an object has to say where it goes.
+    #[requires(self.regions.contains_key(&region))]
+    #[ensures(ret.origin(object) == Some(region))]
+    pub fn with_origin(self, object: SemanticObjectId, region: ScopeRegionId) -> Self {
+        let mut data = self.into_data();
+        data.object_origins.insert(object, region);
+        Self::from_data(data)
+    }
+
+    /// Re-place one owner's occurrences after its references changed.
+    ///
+    /// The occurrence table is exactly the graph's reference edges, in
+    /// enumeration order, so editing an object's references invalidates that
+    /// owner's rows. Each edge inherits the region its old row in the same
+    /// position had, and its role too when that row named the same target; an
+    /// edge with no counterpart is placed at the owner's origin as a plain
+    /// value, which is the weakest claim the table can make about it.
+    ///
+    /// This is repair, not derivation: it cannot recover a region the edit
+    /// should have introduced, so a caller that edits an object into a new
+    /// binder has to say so with [`Self::with_origin`].
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn with_owner_reindexed(self, owner: SemanticObjectId, object: &SemanticObject) -> Self {
+        let fallback = self.origin(owner).unwrap_or(self.root);
+        let mut data = self.into_data();
+        let mut previous = Vec::new();
+        data.uses.retain(|occurrence| {
+            let mine = occurrence.owner == owner;
+            if mine {
+                previous.push(*occurrence);
+            }
+            !mine
+        });
+        let mut references = Vec::new();
+        object.references_into(&mut references);
+        for (index, target) in references.into_iter().enumerate() {
+            let old = previous.get(index);
+            let inherited = old.filter(|occurrence| occurrence.target == target);
+            data.uses.push(new!(ScopeUseOccurrence {
+                owner: owner,
+                target: target,
+                role: inherited.map_or(ScopeUseRole::Value, |occurrence| occurrence.role),
+                region: old.map_or(fallback, |occurrence| occurrence.region),
+                source_order: SourceOrderKey::new(0),
+            }));
+        }
+        // Keys only order loci already placed in one region, so recording them
+        // afresh in table order preserves every ordering they claimed.
+        let mut next: BTreeMap<ScopeRegionId, usize> = BTreeMap::new();
+        data.uses = data
+            .uses
+            .into_iter()
+            .map(|occurrence| {
+                let slot = next.entry(occurrence.region).or_default();
+                let renumbered = new!(ScopeUseOccurrence {
+                    owner: occurrence.owner,
+                    target: occurrence.target,
+                    role: occurrence.role,
+                    region: occurrence.region,
+                    source_order: SourceOrderKey::new(*slot),
+                });
+                *slot += 1;
+                renumbered
+            })
+            .collect();
+        Self::from_data(data)
+    }
 }
 
 /// Every region reaches the root through parent links without revisiting one.
