@@ -864,6 +864,20 @@ impl SemanticObjectKind {
 #[expensive_invariant(semantic_object_domain_imports_are_valid(objects))]
 #[expensive_invariant(semantic_event_bindings_are_derived(*root, objects))]
 #[expensive_invariant(semantic_object_scope_dependences_are_derived(*root, objects))]
+#[expensive_invariant(
+    semantic_reference_sites_match_references(objects),
+    "the site enumeration the occurrence table is built from indexes the canonical reference edges"
+)]
+#[expensive_invariant(
+    semantic_scope_occurrences_match_references(scope, objects),
+    "the occurrence multiset is exactly the graph's reference edges"
+)]
+#[expensive_invariant(semantic_scope_origins_are_total(*root, scope, objects),
+    "every object has a recorded introduction region")]
+#[expensive_invariant(
+    semantic_scope_dependences_agree_with_regions(scope, objects),
+    "recorded constant dependence equals the graph-declared binders on its origin's ancestor path"
+)]
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticGraph {
@@ -871,6 +885,7 @@ pub struct SemanticGraph {
     pub root: SemanticObjectId,
     #[serde(serialize_with = "serialize_objects")]
     pub objects: BTreeMap<SemanticObjectId, SemanticObject>,
+    pub scope: SemanticScopeTree,
 }
 
 #[invariant(::ObjectIdTypeMismatch(message) => !message.is_empty())]
@@ -932,13 +947,20 @@ impl fmt::Display for SemanticGraphError {
 impl std::error::Error for SemanticGraphError {}
 
 impl SemanticGraph {
+    /// Validate a built graph and complete its recorded scope structure.
+    ///
+    /// The scope tree is finalized here, after event bindings are applied,
+    /// because those bindings add reference edges: an occurrence table
+    /// materialized any earlier would be missing exactly those edges, and a
+    /// missing occurrence is what silently authorizes a wrong host.
     #[requires(objects.contains_key(&root))]
     #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| graph.root == root))]
     #[expensive_ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| semantic_event_bindings_are_derived(graph.root, &graph.objects)))]
     #[expensive_ensures(ret.is_err() || ret.as_ref().is_ok_and(|graph| semantic_object_scope_dependences_are_derived(graph.root, &graph.objects)))]
-    pub fn new(
+    pub(crate) fn new(
         root: SemanticObjectId,
         mut objects: BTreeMap<SemanticObjectId, SemanticObject>,
+        scope: ScopeRecorder,
     ) -> Result<Self, SemanticGraphError> {
         if let Some(mismatch) = first_semantic_object_id_type_mismatch(&objects) {
             return Err(new!(SemanticGraphError::ObjectIdTypeMismatch(mismatch)));
@@ -964,10 +986,12 @@ impl SemanticGraph {
         apply_semantic_event_bindings(root, &mut objects)
             .map_err(|message| new!(SemanticGraphError::InvalidEventBindings(message)))?;
         apply_semantic_scope_dependence(root, &mut objects);
+        let scope = scope.finalize(root, &objects);
         Ok(new!(SemanticGraph {
             version: SEMANTIC_JSON_VERSION,
             root: root,
             objects: objects,
+            scope: scope,
         }))
     }
 
@@ -1011,14 +1035,18 @@ fn bool_is_false(value: &bool) -> bool {
 }
 
 mod event_binding;
+mod scope;
 mod scope_dependence;
+mod scope_recorder;
 mod semantic_object;
 
 pub(crate) use event_binding::apply_semantic_event_bindings;
 pub use event_binding::semantic_event_bindings_are_derived;
+pub use scope::*;
 pub(crate) use scope_dependence::apply_semantic_scope_dependence;
 pub use scope_dependence::semantic_object_scope_dependences_are_derived;
 pub(crate) use scope_dependence::semantic_scope_dependence_binder_universes;
+pub(crate) use scope_recorder::ScopeRecorder;
 pub use semantic_object::*;
 
 #[requires(true)]
@@ -4722,7 +4750,8 @@ mod tests {
             eventuality,
             SemanticObject::generated_eventuality(EventualityClass::Event, None, None),
         );
-        SemanticGraph::new(root, objects).expect("generated atom graph is valid")
+        SemanticGraph::new(root, objects, ScopeRecorder::new())
+            .expect("generated atom graph is valid")
     }
 
     #[test]
@@ -4831,7 +4860,8 @@ mod tests {
             SemanticObject::atom_formula(SemanticObjectId::predication(2), None, Vec::new()),
         );
 
-        let error = SemanticGraph::new(root, objects).expect_err("dangling reference");
+        let error = SemanticGraph::new(root, objects, ScopeRecorder::new())
+            .expect_err("dangling reference");
         assert!(error.to_string().contains("must not dangle"));
     }
 
@@ -4863,7 +4893,8 @@ mod tests {
             SemanticObject::generated_eventuality(EventualityClass::Event, None, None),
         );
 
-        let error = SemanticGraph::new(root, objects).expect_err("generated event has no use");
+        let error = SemanticGraph::new(root, objects, ScopeRecorder::new())
+            .expect_err("generated event has no use");
         assert!(error.to_string().contains("no bindable semantic use"));
     }
 
@@ -4965,7 +4996,8 @@ mod tests {
         );
         objects.insert(predication, object);
 
-        let error = SemanticGraph::new(root, objects).expect_err("dangling scale reference");
+        let error = SemanticGraph::new(root, objects, ScopeRecorder::new())
+            .expect_err("dangling scale reference");
         assert!(error.to_string().contains("must not dangle"));
     }
 
@@ -4999,7 +5031,8 @@ mod tests {
             ),
         );
 
-        let error = SemanticGraph::new(root, objects).expect_err("wrong object kind for ID");
+        let error = SemanticGraph::new(root, objects, ScopeRecorder::new())
+            .expect_err("wrong object kind for ID");
         assert!(
             error
                 .to_string()
@@ -5075,7 +5108,8 @@ mod tests {
             ),
         );
 
-        let error = SemanticGraph::new(root, objects).expect_err("wrong parameter sort");
+        let error = SemanticGraph::new(root, objects, ScopeRecorder::new())
+            .expect_err("wrong parameter sort");
         assert!(error.to_string().contains("coherent parameters"));
     }
 
@@ -5129,7 +5163,8 @@ mod tests {
             ),
         );
 
-        let error = SemanticGraph::new(root, objects).expect_err("impossible connector");
+        let error = SemanticGraph::new(root, objects, ScopeRecorder::new())
+            .expect_err("impossible connector");
         assert!(error.to_string().contains("coherent parameters"));
     }
 

@@ -95,6 +95,10 @@ fn corpus_input(doc: &str) -> BuiltInput {
 }
 
 /// Replace one object while revalidating the graph wrapper.
+///
+/// A mutation that adds, drops or retargets a reference invalidates that
+/// owner's rows in the scope occurrence table, which the graph requires to be
+/// exactly its reference edges, so the table is repaired alongside the object.
 #[requires(graph.objects.contains_key(&id))]
 #[requires(object.object_kind() == id.object_kind())]
 #[ensures(ret.objects.contains_key(&id))]
@@ -105,11 +109,20 @@ fn replace_object(
 ) -> SemanticGraph {
     let data = graph.into_data();
     let mut objects = data.objects;
+    let scope = data.scope.with_owner_reindexed(id, &object);
     objects.insert(id, object);
-    SemanticGraph::from_data(data!(SemanticGraph { objects, ..data }))
+    SemanticGraph::from_data(data!(SemanticGraph {
+        objects,
+        scope,
+        ..data
+    }))
 }
 
 /// Insert one otherwise unreachable support object for a mutation witness.
+///
+/// Origins are total over the object map, so the support object is recorded at
+/// the document region: it is written by this test rather than by any act, and
+/// the root region is the one place that claims no binders over it.
 #[requires(!graph.objects.contains_key(&id))]
 #[requires(object.object_kind() == id.object_kind())]
 #[ensures(ret.objects.contains_key(&id))]
@@ -120,8 +133,17 @@ fn insert_object(
 ) -> SemanticGraph {
     let data = graph.into_data();
     let mut objects = data.objects;
+    let root = data.scope.root;
+    let scope = data
+        .scope
+        .with_origin(id, root)
+        .with_owner_reindexed(id, &object);
     objects.insert(id, object);
-    SemanticGraph::from_data(data!(SemanticGraph { objects, ..data }))
+    SemanticGraph::from_data(data!(SemanticGraph {
+        objects,
+        scope,
+        ..data
+    }))
 }
 
 /// Locate the one matrix generated event in a simple focused graph.

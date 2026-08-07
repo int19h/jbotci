@@ -16,6 +16,7 @@ use syn::{Attribute, Fields, Item, ItemEnum, ItemStruct, LitStr, Meta, Visibilit
 
 const MODEL_RS: &str = include_str!("../src/model.rs");
 const SEMANTIC_OBJECT_RS: &str = include_str!("../src/model/semantic_object.rs");
+const SCOPE_RS: &str = include_str!("../src/model/scope.rs");
 
 const OBJECT_SURFACES: &[&str] = &[
     "Utterance",
@@ -177,6 +178,7 @@ pub fn scan_semantic_surface() -> Result<SemanticSurfaceScan, String> {
     let files = [
         syn::parse_file(MODEL_RS).map_err(|error| error.to_string())?,
         syn::parse_file(SEMANTIC_OBJECT_RS).map_err(|error| error.to_string())?,
+        syn::parse_file(SCOPE_RS).map_err(|error| error.to_string())?,
     ];
     let mut structs = BTreeMap::<String, ItemStruct>::new();
     let mut enums = BTreeMap::<String, ItemEnum>::new();

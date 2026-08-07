@@ -387,7 +387,7 @@ fn generated_table_counts_and_candidate_policy_keys_are_closed() {
                     !slots.is_empty() && slots.iter().all(|slot| slot.get("close-policy").is_some())
                 })
     }));
-    assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 885);
+    assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 946);
     let projection_failure_reasons = jsonl_rows("registry/projection-failure-reasons.jsonl");
     assert_eq!(projection_failure_reasons.len(), 63);
     assert_eq!(
