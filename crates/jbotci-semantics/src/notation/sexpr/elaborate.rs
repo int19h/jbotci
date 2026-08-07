@@ -177,7 +177,41 @@ impl HostFrameKind {
 #[derive(Debug)]
 struct HostFrame {
     kind: HostFrameKind,
+    /// The lexical binders live at this position, so a computation placed here
+    /// can be checked against the names its computation actually uses.
+    live: BTreeSet<SemanticObjectId>,
     bindings: Vec<ReferenceBinding>,
+}
+
+impl HostFrame {
+    /// Whether a computation depending on these binders may stand here.
+    ///
+    /// Section 6.3 rejects the smallest affected dynamic subgraph when the
+    /// rules and the graph do not determine one legal host, and a host that
+    /// does not have every dependency live is exactly that: the printed binder
+    /// would name a variable no enclosing form binds.
+    #[requires(true)]
+    #[ensures(true)]
+    fn admits(&self, dependencies: &BTreeSet<SemanticObjectId>) -> bool {
+        dependencies.is_subset(&self.live)
+    }
+
+    /// Bind one computation here, or recognize that this identity is already
+    /// bound here.
+    ///
+    /// One graph identity is one name. A second occurrence hosted at the same
+    /// position is a *use* of the binder the first one introduced, not a second
+    /// mint of the same reference — section 8.3's fixed reference is fixed for
+    /// the whole scope of its binder. Pushing it twice would introduce one name
+    /// inside a live binder of that name, which the document audit refuses.
+    #[requires(true)]
+    #[ensures(self.bindings.iter().any(|bound| bound.id == old(binding.id)))]
+    fn bind(&mut self, binding: ReferenceBinding) {
+        if self.bindings.iter().any(|bound| bound.id == binding.id) {
+            return;
+        }
+        self.bindings.push(binding);
+    }
 }
 
 /// What one live lexical binder was declared as.
@@ -346,6 +380,10 @@ pub(super) enum CompactFallbackCause {
     AdjunctFields,
     CompositionFields,
     ConstantWithoutDependence,
+    /// Section 6.3's closing rule: the placement rules and the graph together
+    /// determine no legal host for a dynamic computation, because no open
+    /// position has every binder it depends on live.
+    DynamicHostIllegal,
     ReferentFields,
     UnboundGeneratedEvent,
     UnrepresentableRecursiveValue,
@@ -407,6 +445,7 @@ impl CompactFallbackCause {
             Self::ConstantWithoutDependence | Self::ReferentFields => {
                 "smusni.projection.reference-description-unrepresentable"
             }
+            Self::DynamicHostIllegal => "smusni.projection.scope-dependency-without-binder",
             Self::UnboundGeneratedEvent => "smusni.projection.generated-eventuality-unbound",
             Self::UnrepresentableRecursiveValue => {
                 "smusni.projection.unguarded-or-unrepresentable-scc"
@@ -486,6 +525,9 @@ impl CompactFallbackCause {
             }
             Self::ConstantWithoutDependence => {
                 "a constant referent carries no recorded scope dependence"
+            }
+            Self::DynamicHostIllegal => {
+                "no legal host has every binder this dynamic computation depends on"
             }
             Self::ReferentFields => {
                 "these reference or description fields have no compact projection"
@@ -732,6 +774,21 @@ fn rewrap_bindings(bindings: Vec<RaisedBinding>, body: Performable) -> Option<Pe
         .ok()
         .map(Performable::Bind)
     })
+}
+
+/// Whether a rendered definition value is just a use of the name it declared.
+///
+/// A dynamic computation the renderer hosts returns a use of its own binder and
+/// pushes the `Bind` that introduces it, so the identity is already declared;
+/// declaring it a second time with a `Let` would make its name stop being an
+/// identity.
+#[requires(true)]
+#[ensures(true)]
+fn value_is_own_binder_use(id: SemanticObjectId, value: Option<&Operand>) -> bool {
+    let Some(Operand::Value(value)) = value else {
+        return false;
+    };
+    *value == Value::bound(object_variable(id), value.value_type())
 }
 
 /// Cross one performable onto an ordinary `Discourse` operand.
@@ -993,6 +1050,20 @@ impl Elaborator<'_> {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
+        // An identity the value renderer hosts with its own `Bind` is already
+        // declared by that binder: section 6.3's dynamic host *is* its
+        // declaration site, and a `Let` beside it would introduce the same name
+        // twice. Such a rendering returns exactly a use of the name it bound,
+        // which is what identifies it here.
+        let rendered = rendered
+            .into_iter()
+            .map(|bindings| {
+                bindings
+                    .into_iter()
+                    .filter(|(id, _, value)| !value_is_own_binder_use(*id, value.as_ref()))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
         for (block, bindings) in blocks.iter().zip(&rendered) {
             // Only a genuinely cyclic block is a `LetRec`, so only a cyclic
             // block's initializers have to be inert lambdas. An acyclic
@@ -1014,6 +1085,9 @@ impl Elaborator<'_> {
         // from the innermost outwards over the body they all wrap.
         let mut wrapped = body?;
         for (block, bindings) in blocks.into_iter().zip(rendered).rev() {
+            if bindings.is_empty() {
+                continue;
+            }
             wrapped = self.bind_definitions(bindings, block.recursive, wrapped)?;
         }
         Some(wrapped)
@@ -1063,9 +1137,10 @@ impl Elaborator<'_> {
     /// has to stay inside.
     #[requires(true)]
     #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) + 1)]
-    fn open_host_frame(&self, kind: HostFrameKind) {
+    fn open_host_frame(&self, kind: HostFrameKind, live: &Bound) {
         self.reference_binding_frames.borrow_mut().push(HostFrame {
             kind,
+            live: live.keys().copied().collect(),
             bindings: Vec::new(),
         });
     }
@@ -1104,7 +1179,33 @@ impl Elaborator<'_> {
             .iter()
             .rposition(|frame| frame.kind.stops(dependencies))
             .unwrap_or(0);
-        frames[host].bindings.push(binding);
+        if !frames[host].admits(dependencies) {
+            return false;
+        }
+        frames[host].bind(binding);
+        true
+    }
+
+    /// Place one computation that does not raise at all.
+    ///
+    /// Section 6.3: `Context` stays at its represented evaluation site, so it
+    /// takes the innermost open host rather than ascending. That position is
+    /// still only legal when every binder the context depends on is live there.
+    #[requires(true)]
+    #[ensures(true)]
+    fn host_locally(
+        &self,
+        binding: ReferenceBinding,
+        dependencies: &BTreeSet<SemanticObjectId>,
+    ) -> bool {
+        let mut frames = self.reference_binding_frames.borrow_mut();
+        let Some(frame) = frames.last_mut() else {
+            return false;
+        };
+        if !frame.admits(dependencies) {
+            return false;
+        }
+        frame.bind(binding);
         true
     }
 
@@ -1467,7 +1568,7 @@ impl Elaborator<'_> {
         let content_id = content;
         // The performed act is section 6.3's ceiling: no reference computation
         // raises out of its own force segment.
-        self.open_host_frame(HostFrameKind::Barrier);
+        self.open_host_frame(HostFrameKind::Barrier, bound);
         let content = self.render_id(content_id, bound, active, expected_mode);
         let bindings = self.close_host_frame();
         let act = match node.force {
@@ -1778,7 +1879,7 @@ impl Elaborator<'_> {
                 // variable stays in the property it was written in, and one
                 // that does not raises straight out of both.
                 let quantified_binder = BTreeSet::from([node.variable]);
-                self.open_host_frame(HostFrameKind::Binders(quantified_binder.clone()));
+                self.open_host_frame(HostFrameKind::Binders(quantified_binder.clone()), &scoped);
                 let restriction = node.restriction.map(|restriction| {
                     self.render_id(
                         restriction,
@@ -1794,7 +1895,7 @@ impl Elaborator<'_> {
                         wrap_reference_bindings(restriction_hosts, restriction, Content::bind_form)
                     })
                 });
-                self.open_host_frame(HostFrameKind::Binders(quantified_binder));
+                self.open_host_frame(HostFrameKind::Binders(quantified_binder), &scoped);
                 let body = self
                     .render_id(node.body, &scoped, active, expected_mode)
                     .and_then(Elaborated::into_content);
@@ -2592,7 +2693,18 @@ impl Elaborator<'_> {
                     CompactFallbackCause::ConstantWithoutDependence,
                 );
             };
-            return self.recognized(self.host_context(id, node.sort, dependence));
+            let Some(hosted) = self.host_context(id, node.sort, dependence) else {
+                // Every rule held except the one section 6.3 ends with: no open
+                // position has this constant's dependencies live, so the graph
+                // and the placement rules together determine no legal host.
+                return self.fallback_object(
+                    id,
+                    bound,
+                    active,
+                    CompactFallbackCause::DynamicHostIllegal,
+                );
+            };
+            return self.recognized(Some(hosted));
         }
         self.fallback_object(id, bound, active, CompactFallbackCause::ReferentFields)
     }
@@ -2651,19 +2763,13 @@ impl Elaborator<'_> {
                 .collect(),
         };
         let computation = RefComp::context(dependencies, declared_type.clone()).ok()?;
-        // Section 6.3: `Context` stays at its represented evaluation site, so
-        // it is placed at the innermost open host without any ascent at all.
-        let mut frames = self.reference_binding_frames.borrow_mut();
-        let frame = frames.last_mut()?;
-        frame.bindings.push(ReferenceBinding {
+        let binding = ReferenceBinding {
             id,
             declared_type: declared_type.clone(),
             computation,
-        });
-        Some(Operand::Value(Value::bound(
-            object_variable(id),
-            declared_type,
-        )))
+        };
+        self.host_locally(binding, self.hosted_dependencies(id))
+            .then(|| Operand::Value(Value::bound(object_variable(id), declared_type)))
     }
 
     /// Lower one exact fixed `lo`, `le`, or `la` description into a hosted
@@ -2699,7 +2805,7 @@ impl Elaborator<'_> {
         // graph gives that nested effect its own legal outer host, which no
         // version-0 graph does. The property is therefore a barrier, and this
         // is what replaces the old refusal to emit any nesting at all.
-        self.open_host_frame(HostFrameKind::Barrier);
+        self.open_host_frame(HostFrameKind::Barrier, &scoped);
         let body =
             self.description_property(id, node, &recognition, &declared_type, &scoped, active);
         let nested = self.close_host_frame();
@@ -2717,14 +2823,14 @@ impl Elaborator<'_> {
         // Section 6.3 raises this `Bind` to the outermost point that is still
         // inside every boundary it may not leave; the dependencies its property
         // records are what decide the lambda-dependency half of that.
-        self.host_reference(binding, self.description_dependencies(id))
+        self.host_reference(binding, self.hosted_dependencies(id))
             .then(|| Operand::Value(Value::bound(variable, declared_type)))
     }
 
     /// The binders one hosted computation's property depends on.
     #[requires(true)]
     #[ensures(true)]
-    fn description_dependencies(&self, id: SemanticObjectId) -> &BTreeSet<SemanticObjectId> {
+    fn hosted_dependencies(&self, id: SemanticObjectId) -> &BTreeSet<SemanticObjectId> {
         static NONE: BTreeSet<SemanticObjectId> = BTreeSet::new();
         self.binder_universes.get(&id).unwrap_or(&NONE)
     }
@@ -2897,7 +3003,7 @@ impl Elaborator<'_> {
         // exactly that: a reference computation inside the abstracted content
         // is part of what the abstraction denotes, so hoisting it outside would
         // read the description de re where the graph wrote it de dicto.
-        self.open_host_frame(HostFrameKind::Barrier);
+        self.open_host_frame(HostFrameKind::Barrier, &scoped);
         let rendered = self
             .render_id(
                 body,
