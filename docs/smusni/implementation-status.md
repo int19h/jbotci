@@ -75,7 +75,7 @@ in another format.
 | Relation formers | The canonical flat binary tanru graph projects to the registered former `(Tanru modifier head)` applied to the tertau's own places. The recognizer requires an implicit-juxtaposition `And` connective at predicate locus with exactly two children, a named tertau predication that is otherwise plain, a `Composition` link predication with exactly two plain arguments and no side fields, a fixed constant unary property abstraction over an exact `ce'u` entity parameter as the seltau, a `modifier-head` constructed relation label, and every supporting object private to this projection. Any other relation-former shape falls back, and the tanru-*like* relation question below is a separate unsupported family. | Spec section 4.6 |
 | Logical composition | Registered ordinary truth-functional connectives render with `¬`, `∧`, `∨`, `→`, `↔`, and `⊕`. Unsupported connector metadata falls back. | Spec section 9.1 |
 | Quantification | Restricted quantification over a planned binder renders `Every` or `Some`; unrestricted quantification renders bare `∀` or `∃`. Selection sources, plural quantifiers, inner/outer cardinality, witness export, and effect routing are not implemented and fall back. | Spec sections 9.2 through 9.5 |
-| Shared values and recursion | A value used more than once is bound once and shared. Nonrecursive groups nest canonical single-binding `Let` forms; a recursive strongly connected component uses `LetRec` only when every initializer in the group is a top-level lambda. Any other recursive value falls back. | Spec sections 2.2 and 15 (item 2) |
+| Shared values and recursion | A value used more than once is bound once and shared, at the deepest position that encloses every one of its recorded value occurrences; a reference occurring inside its own target's definition is not such an occurrence. A host is legal only when every binder the shared value leaves free is live on that host's region path, and a graph that has no such host binds a variable the notation cannot reach rather than a placement to retry. Nonrecursive groups nest canonical single-binding `Let` forms, ordered by dependency and then by source order; a recursive strongly connected component uses `LetRec` only when every initializer in the group is a top-level lambda. Mutual recursion between declared values is reported by the planner; any other recursive value falls back where it is recognized. | Spec sections 2.2, 6.2–6.3, and 15 (item 2) |
 | Contextual and deictic values | `Speaker`, `Audience`, `Now`, `Here`, and the proximity deictics `This`, `That`, and `Yonder` render as the declared atoms. A fixed context renders as the bare `Context` primitive and an underspecified one as `(Context deps…)` over its direct dependencies. A deictic with a non-current ground falls back. | Spec sections 3.5 and 6.1 |
 | Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`. For `lo` and `le` the descriptor body is the property: it retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. The compact `la` shape is exactly the fixed name description — `la` with a cmevla name and no descriptor body and no relative clause — whose property is `(Named "name" $var)`; a `la` description over a selbri body carries no name at all and has no compact route. Nested reference effects, richer descriptors, incidental/nonveridical relatives, and shared placement fall back. | Spec sections 6.3, 8.3, and 8.4 |
 | Modals and tense | Exact represented modal predicates are joined to the host by `Joi` and share the graph event under one lambda-shaped existential. The verified `before`/`at`/`after` event relations lower to `purci`/`cabna`/`balvi`. Other tag maps and event facets fall back. | Spec sections 10.1 through 10.4 |
@@ -118,12 +118,17 @@ acceptable way to close it.
 Each item names the observed construct, current honest boundary, and intended
 specification destination.
 
-- Dynamic host planning: `ro da poi gerku cu bajra` currently fails at
-  definition placement, and the tanru-like `ti mo zdani`
-  question still has unlicensed relation/property crossings and event hosting.
-  Implement graph-owned accessibility, force
-  handlers, dependency lifting, and legal shared capture before enabling these
-  compact paths (sections 6.2–6.4 and 12.1).
+- Dynamic host planning: host selection is structural — the planner places each
+  shared identity at the deepest position enclosing its recorded value
+  occurrences and checks that host against the region forest — but the routes
+  that would exploit the better placement are not migrated yet.
+  `ro da poi gerku cu bajra` still fails: no host covering every use of its
+  shared value has `da` live on its region path, which is now reported as the
+  registered unbound-variable route rather than as a placement search that gave
+  up. The tanru-like `ti mo zdani` question still has unlicensed
+  relation/property crossings and event hosting. Implement graph-owned
+  accessibility, force handlers, dependency lifting, and legal shared capture
+  before enabling these compact paths (sections 6.2–6.4 and 12.1).
 - Simultaneous termsets: both grammar-licensed prenex spellings retain their one
   semantic `QuantifierBundle`, but projection currently fails.
   Implement the approved equal-scope reduction rather than choosing a nested
