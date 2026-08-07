@@ -75,9 +75,9 @@ in another format.
 | Relation formers | The canonical flat binary tanru graph projects to the registered former `(Tanru modifier head)` applied to the tertau's own places. The recognizer requires an implicit-juxtaposition `And` connective at predicate locus with exactly two children, a named tertau predication that is otherwise plain, a `Composition` link predication with exactly two plain arguments and no side fields, a fixed constant unary property abstraction over an exact `ce'u` entity parameter as the seltau, a `modifier-head` constructed relation label, and every supporting object private to this projection. Any other relation-former shape falls back, and the tanru-*like* relation question below is a separate unsupported family. | Spec section 4.6 |
 | Logical composition | Registered ordinary truth-functional connectives render with `¬`, `∧`, `∨`, `→`, `↔`, and `⊕`. Unsupported connector metadata falls back. | Spec section 9.1 |
 | Quantification | Restricted quantification over a planned binder renders `Every` or `Some`; unrestricted quantification renders bare `∀` or `∃`. Selection sources, plural quantifiers, inner/outer cardinality, witness export, and effect routing are not implemented and fall back. | Spec sections 9.2 through 9.5 |
-| Shared values and recursion | A value used more than once is bound once and shared, at the deepest position that encloses every one of its recorded value occurrences; a reference occurring inside its own target's definition is not such an occurrence. A host is legal only when every binder the shared value leaves free is live on that host's region path, and a graph that has no such host binds a variable the notation cannot reach rather than a placement to retry. Nonrecursive groups nest canonical single-binding `Let` forms, ordered by dependency and then by source order; a recursive strongly connected component uses `LetRec` only when every initializer in the group is a top-level lambda. Mutual recursion between declared values is reported by the planner; any other recursive value falls back where it is recognized. | Spec sections 2.2, 6.2–6.3, and 15 (item 2) |
+| Shared values and recursion | A value used more than once is bound once and shared, at the deepest position that encloses every one of its recorded value occurrences; a reference occurring inside its own target's definition is not such an occurrence, and neither is a quantifier restriction that the bound variable's own argument sites merely repeat. A host is legal only when every binder the shared value leaves free is live on that host's region path, and a graph that has no such host binds a variable the notation cannot reach rather than a placement to retry. A host's group is condensed into its exact strong components: consecutive acyclic components share one `Let` block whose canonical single-binding forms nest in dependency and then source order, and only a genuinely cyclic component becomes a `LetRec`, which then requires every initializer in *that* component to be a top-level lambda. Mutual recursion between declared values is reported by the planner; any other recursive value falls back where it is recognized. | Spec sections 2.2, 6.2–6.3, and 15 (item 2) |
 | Contextual and deictic values | `Speaker`, `Audience`, `Now`, `Here`, and the proximity deictics `This`, `That`, and `Yonder` render as the declared atoms. A contextual constant is a `RefComp`, not a value: it is hosted by a `Bind` at its enclosing force segment and the place is filled by the name that binds, with a fixed context spelling the bare `Context` primitive and an underspecified one `(Context deps…)` over its direct dependencies. A deictic with a non-current ground falls back. | Spec sections 3.5, 5.1, and 6.1 |
-| Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`. For `lo` and `le` the descriptor body is the property: it retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. The compact `la` shape is exactly the fixed name description — `la` with a cmevla name and no descriptor body and no relative clause — whose property is `(Named "name" $var)`; a `la` description over a selbri body carries no name at all and has no compact route. Nested reference effects, richer descriptors, incidental/nonveridical relatives, and shared placement fall back. | Spec sections 6.3, 8.3, and 8.4 |
+| Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`. For `lo` and `le` the descriptor body is the property: it retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. The compact `la` shape is exactly the fixed name description — `la` with a cmevla name and no descriptor body and no relative clause — whose property is `(Named "name" $var)`; a `la` description over a selbri body carries no name at all and has no compact route. A reference effect required while evaluating the property runs inside this computation, per section 8.3, because no version-0 graph gives the nested effect its own outer host. Richer descriptors, incidental/nonveridical relatives, and placement shared across force segments fall back. | Spec sections 6.3, 8.3, and 8.4 |
 | Modals and tense | Exact represented modal predicates are joined to the host by `Joi` and share the graph event under one lambda-shaped existential. The verified `before`/`at`/`after` event relations lower to `purci`/`cabna`/`balvi`. Other tag maps and event facets fall back. | Spec sections 10.1 through 10.4 |
 | Discourse | Same-topic items use `Do`, which sequences two or more performables; a one-item sequence contracts to that item and an empty one denotes no discourse at all, so it has no compact route. Exact paragraph provenance uses `NewTopic` or `Resume`, with explicit `Perform`/`PerformUtterance` crossings at the transition operand, and a reference computation hosted by a lone transition item stands outside the transition rather than under its `Discourse` operand. | Spec sections 7.1 and 7.2 |
 | Force | `Assert` and `Mention` are compact for their exact typed shapes. `Ask` is emitted only by the question projection below, so ask force over content that is not a typed question fails closed rather than applying `Ask` at the wrong type. Quote, parenthetical, subordinated, command, and vocative force fall back. | Spec sections 1.3 and 7.1 |
@@ -118,17 +118,28 @@ acceptable way to close it.
 Each item names the observed construct, current honest boundary, and intended
 specification destination.
 
-- Dynamic host planning: host selection is structural — the planner places each
-  shared identity at the deepest position enclosing its recorded value
-  occurrences and checks that host against the region forest — but the routes
-  that would exploit the better placement are not migrated yet.
-  `ro da poi gerku cu bajra` still fails: no host covering every use of its
-  shared value has `da` live on its region path, which is now reported as the
-  registered unbound-variable route rather than as a placement search that gave
-  up. The tanru-like `ti mo zdani` question still has unlicensed
-  relation/property crossings and event hosting. Implement graph-owned
-  accessibility, force handlers, dependency lifting, and legal shared capture
-  before enabling these compact paths (sections 6.2–6.4 and 12.1).
+- Dynamic host planning: host selection is structural, and the routes now raise
+  by section 6.3's boundary rule rather than hosting at the enclosing force
+  segment in discovery order. A performed act, a reification, and a description
+  property (section 8.3's nested case) are barriers; a quantifier's restriction
+  and its scope are lambda-dependency boundaries a computation crosses exactly
+  when it does not depend on the bound variable; `Context` does not raise. What
+  is not implemented is the closed lexical place policy: section 6.3 fails
+  closed on missing policy metadata, and the registry attests eight
+  `(root, original place)` rows in total, so arming that gate would reject
+  nearly every description in an argument position. Until the policy table is
+  populated, an `Intensional` or `Opaque` place is not a barrier and unattested
+  places keep the previous behaviour; the
+  `smusni.projection.lexical-policy.*` reasons are the seats that gate will use.
+  Cross-segment sharing is still refused: section 6.2 requires one printed
+  binder to enclose both sites of a shared identity, and section 6.4's only
+  escape is a graph-owned discourse host the record model does not carry, so a
+  `goi`/`KOhA` chain or a `ri` across `.i` reports
+  `smusni.projection.dynamic-host-not-unique`. The tanru-like `ti mo zdani`
+  question still has unlicensed relation/property crossings and event hosting,
+  though bare `ti mo` and `ma zdani` do render. Implement graph-owned
+  accessibility, force handlers, and the lexical policy table before enabling
+  the remaining compact paths (sections 6.2–6.4 and 12.1).
 - Simultaneous termsets: both grammar-licensed prenex spellings retain their one
   semantic `QuantifierBundle`, but projection currently fails.
   Implement the approved equal-scope reduction rather than choosing a nested
@@ -242,10 +253,10 @@ them, and they will move whenever a compact recognizer is added.
 
 | Slice | Inputs | Documents | Projection failures | Render panics | Notes |
 |---|---:|---:|---:|---:|---|
-| `phaseb` | 48 | 16 | 32 | 0 | the frozen structural corpus |
-| `cll` | 1,247 | 204 | 1,041 | 0 | 2 pre-render morphology failures |
+| `phaseb` | 48 | 17 | 31 | 0 | the frozen structural corpus |
+| `cll` | 1,247 | 209 | 1,036 | 0 | 2 pre-render morphology failures |
 | `focused` | 16 | 6 | 10 | 0 | |
-| `alice-lines` | 2,436 | 48 | 1,036 | 0 | the remaining 1,352 inputs fail earlier parsing or building, mostly syntax |
+| `alice-lines` | 2,436 | 42 | 1,042 | 0 | the remaining 1,352 inputs fail earlier parsing or building, mostly syntax |
 | `alice-whole` | 1 | 0 | 1 | 0 | one failed projection over 49,172 objects |
 
 The whole-Alice run is the memory reference point: 7,523,428 KiB RSS after the
@@ -265,11 +276,11 @@ slice rather than expectations.
 
 | Slice | Failed edges | Failing owners | Multi-edge owners |
 |---|---:|---:|---:|
-| `phaseb` | 91 | 88 | 3 |
-| `cll` | 2,806 | 2,643 | 113 |
-| `focused` | 30 | 29 | 1 |
-| `alice-lines` | 2,824 | 2,599 | 149 |
-| `alice-whole` | 376 | 122 | 55 |
+| `phaseb` | 127 | 126 | 1 |
+| `cll` | 3,342 | 3,328 | 12 |
+| `focused` | 33 | 32 | 1 |
+| `alice-lines` | 2,721 | 2,701 | 20 |
+| `alice-whole` | 101 | 76 | 12 |
 
 The edge and owner measurements differ because they count different things,
 which is why they are reported side by side rather than derived from one

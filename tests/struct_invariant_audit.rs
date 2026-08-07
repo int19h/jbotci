@@ -1268,6 +1268,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private read-only graph context owns mutable traversal registries whose lifecycle is enforced by rendering helper contracts",
     ),
     (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:HostFrame",
+        "private mutable accumulator for one open host position; the boundary kind and its live binders are independently valid, and the one real constraint (one identity is one binder) is the postcondition of HostFrame::bind",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:ReferenceBinding",
         "graph-owned identity, parsed declared type, and rendered computation are independently valid before Bind wrapping",
     ),

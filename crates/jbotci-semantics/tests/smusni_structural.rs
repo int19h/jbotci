@@ -1753,11 +1753,12 @@ fn failure_channel_is_evidenced_and_reproducible_on_the_corpus() {
 #[requires(true)]
 #[ensures(true)]
 fn scope_failures_carry_binder_and_use_evidence() {
-    // Definition placement, not a local recognizer, is what declines here, so
-    // the record comes from the planner channel. The host the region forest
-    // gives this shared value does not carry `da`, and no host that covers
-    // every use does, so the graph binds a variable the lexical notation cannot
-    // reach — the registered unbound-variable route, not a placement retry.
+    // The restriction repeat on `da`'s own argument is discharged, so planning
+    // no longer refuses this graph outright. What still declines is section
+    // 6.3's closing rule: the elided constants inside the quantifier depend on
+    // `da`, and the leftover declaration group has no open host with `da` live,
+    // so the registered scope-dependency route reports them per identity rather
+    // than a placement being retried.
     let input = build_input("ro da poi gerku cu bajra", "scope-evidence");
     let failed = project_failure(&input.graph);
     let records = failure_records(&failed);
@@ -1787,4 +1788,83 @@ fn scope_failures_carry_binder_and_use_evidence() {
             );
         }
     }
+}
+
+/// Whether a form with this head occurs anywhere in a datum.
+#[requires(!head.is_empty())]
+#[ensures(true)]
+fn contains_form(datum: &Datum, head: &str) -> bool {
+    datum.form_head() == Some(head)
+        || datum
+            .as_list()
+            .is_some_and(|items| items.iter().any(|item| contains_form(item, head)))
+}
+
+/// Whether any `inner` form occurs strictly inside some `outer` form.
+#[requires(!outer.is_empty() && !inner.is_empty())]
+#[ensures(true)]
+fn nests_inside(datum: &Datum, outer: &str, inner: &str) -> bool {
+    if datum.form_head() == Some(outer)
+        && datum
+            .as_list()
+            .is_some_and(|items| items.iter().skip(1).any(|item| contains_form(item, inner)))
+    {
+        return true;
+    }
+    datum
+        .as_list()
+        .is_some_and(|items| items.iter().any(|item| nests_inside(item, outer, inner)))
+}
+
+/// A reference computation required while evaluating a description's property
+/// runs inside that computation, and the outer one still raises to the top of
+/// its force segment.
+///
+/// Specification section 8.3 states the nesting: "A nested `RefComp` required
+/// while evaluating `$P` runs inside this reference computation unless the
+/// graph assigns that nested effect its own legal outer host", and no version-0
+/// graph assigns one. Section 6.3 states the ascent: the outer `Bind` raises to
+/// the outermost legal point inside its force segment, so its binder encloses
+/// the act constructor rather than standing under `Assert`.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_nested_description_is_hosted_inside_the_description_that_needs_it() {
+    let input = build_input(
+        "le prenu poi zvati le kumfa poi blanu cu masno",
+        "nested-refer",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(
+        nests_inside(&datum, "Refer", "Bind"),
+        "the inner reference computation must run inside the outer one:\n{}",
+        rendered.text,
+    );
+    assert!(
+        nests_inside(&datum, "Bind", "Assert"),
+        "the outer binder must enclose the act constructor:\n{}",
+        rendered.text,
+    );
+    assert!(
+        !nests_inside(&datum, "Assert", "Bind"),
+        "no reference computation stays under Assert once it may raise:\n{}",
+        rendered.text,
+    );
+}
+
+/// The same nesting holds when the nested computation fills an argument place
+/// of the outer description's own property rather than a relative clause.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_description_inside_a_description_property_nests_rather_than_raising() {
+    let input = build_input("le le nanmu ku karce cu blanu", "nested-refer-argument");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(
+        nests_inside(&datum, "Refer", "Bind"),
+        "the argument's reference computation runs inside the property that needs it:\n{}",
+        rendered.text,
+    );
 }
