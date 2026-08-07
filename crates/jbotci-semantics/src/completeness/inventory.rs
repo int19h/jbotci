@@ -10812,6 +10812,18 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             SurfaceCategory::Enum,
             "SelectionSourceKind",
             EntryKind::EnumVariant,
+            "Description",
+            None,
+            Presence::VariantConditional,
+            new!(Witness::NoCorpusWitness),
+            Disposition::direct_lowering(
+                "normal-form:typed-binding-and-graph-identity/Enum:SelectionSourceKind:EnumVariant:Description",
+            ),
+        ),
+        entry(
+            SurfaceCategory::Enum,
+            "SelectionSourceKind",
+            EntryKind::EnumVariant,
             "WitnessSet",
             None,
             Presence::VariantConditional,

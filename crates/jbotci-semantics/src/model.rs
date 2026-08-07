@@ -2459,11 +2459,27 @@ pub enum ParameterRole {
     RespectiveSlot,
 }
 
-#[invariant(variable.object_kind() == SemanticObjectKind::Referent)]
+/// Where a quantifier's domain is selected from, named by the binding itself
+/// and therefore introduced *outside* its own binder.
+///
+/// The placement is the whole point. A plurality cannot depend on the variable
+/// ranging over its own members, so the underspecified places inside
+/// `lo prenu` must not record `ro lo prenu`'s own candidate in their dependence
+/// universe. Both derived scope records — the `mayDependOn` universes and the
+/// region forest — read placement off the graph structurally, so making the
+/// source an operand of the binding is what makes them tell the truth; reaching
+/// it only through the restriction would put it under the binder.
+#[invariant(argument_object_kind_can_fill(variable.object_kind()), "a domain is selected from something that can fill an argument place")]
+#[invariant(*kind != SelectionSourceKind::WitnessSet || variable.object_kind() == SemanticObjectKind::Referent, "a witness set belongs to an established variable")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectionSource {
     pub kind: SelectionSourceKind,
+    /// The object the domain is selected from: the earlier bound variable whose
+    /// witness set is re-quantified, or the described plurality whose members
+    /// the candidate ranges over. A described domain may be any object that can
+    /// fill an argument place, because `xo ma` selects from a question
+    /// parameter just as `ro lo prenu` selects from a description.
     pub variable: SemanticObjectId,
 }
 
@@ -2477,6 +2493,21 @@ impl SelectionSource {
         }))
     }
 
+    #[requires(argument_object_kind_can_fill(description.object_kind()))]
+    #[ensures(ret.variable == description)]
+    pub fn description(description: SemanticObjectId) -> Self {
+        Self::from_data(data!(SelectionSource {
+            kind: SelectionSourceKind::Description,
+            variable: description,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn is_witness_set(&self) -> bool {
+        self.kind == SelectionSourceKind::WitnessSet
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
@@ -2488,7 +2519,12 @@ impl SelectionSource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SelectionSourceKind {
+    /// CLL 16.11 re-quantification: `re da` after `ci da` selects from the
+    /// witness set of the established variable.
     WitnessSet,
+    /// The described plurality a quantifier selects members of: `ro lo prenu`
+    /// restricts its candidate with `memberOf(candidate, description)`.
+    Description,
 }
 
 #[invariant(argument_value_shape_is_valid(*kind, *value, introduced_by.as_deref()))]
@@ -3237,7 +3273,8 @@ pub enum DomainImport {
 #[invariant(quantifier_formula_operator_is_allowed(*operator))]
 #[invariant(quantifier_variable_kind_is_allowed(variable.object_kind()))]
 #[invariant(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
-#[invariant(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(selection_source.as_ref().is_none_or(|source| argument_object_kind_can_fill(source.variable.object_kind())))]
+#[invariant(selection_source.as_ref().is_none_or(|source| source.is_witness_set() == source_variable.is_some()), "only a witness-set selection re-quantifies an established variable")]
 #[invariant(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
 #[invariant(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
@@ -3262,7 +3299,8 @@ impl QuantifierBinding {
     #[requires(quantifier_formula_operator_is_allowed(operator))]
     #[requires(quantifier_variable_kind_is_allowed(variable.object_kind()))]
     #[requires(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
-    #[requires(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == SemanticObjectKind::Referent))]
+    #[requires(selection_source.as_ref().is_none_or(|source| argument_object_kind_can_fill(source.variable.object_kind())))]
+    #[requires(selection_source.as_ref().is_none_or(|source| source.is_witness_set() == source_variable.is_some()))]
     #[requires(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
     #[requires(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
     #[requires(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]

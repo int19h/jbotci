@@ -3514,11 +3514,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 } else {
                     node.source_variable
                 };
-                let selection_source = if node
-                    .selection_source
-                    .as_ref()
-                    .is_some_and(|source| source.variable == source_variable)
-                {
+                let selection_source = if node.selection_source.as_ref().is_some_and(|source| {
+                    source.is_witness_set() && source.variable == source_variable
+                }) {
                     Some(SelectionSource::witness_set(variable))
                 } else {
                     node.selection_source.clone()
@@ -3541,11 +3539,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     if data.source_variable == Some(source_variable) {
                         data.source_variable = Some(variable);
                     }
-                    if data
-                        .selection_source
-                        .as_ref()
-                        .is_some_and(|source| source.variable == source_variable)
-                    {
+                    if data.selection_source.as_ref().is_some_and(|source| {
+                        source.is_witness_set() && source.variable == source_variable
+                    }) {
                         data.selection_source = Some(SelectionSource::witness_set(variable));
                     }
                     if let Some(restriction) = data.restriction {
@@ -6159,8 +6155,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
 
         let variable = self.build_scoped_argument_variable_for_generated_sumti(sumti)?;
-        let mut restrictions =
+        let selected =
             self.generated_argument_restrictions_for_scope_source(scope_source, variable)?;
+        let selected = selected.into_data();
+        let selection_source = selected
+            .selection_referent
+            .map(SelectionSource::description);
+        let mut restrictions = selected.formulas;
         if let Some(relative_clauses) = generated_sumti_relative_clause_list(sumti) {
             restrictions.extend(
                 self.lower_generated_relative_clause_list(relative_clauses, variable)?
@@ -6188,7 +6189,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source: scope_source,
             variable,
             source_variable: None,
-            selection_source: None,
+            selection_source,
             source_restriction_nodes: Vec::new(),
             source_restriction_formulas: Vec::new(),
             inherited_restrictions: Vec::new(),

@@ -1436,6 +1436,54 @@ struct GeneratedSemanticDaSeriesScopeBinding {
     restriction_formulas: Vec<SemanticObjectId>,
 }
 
+/// What one quantifier source contributes to its binding: the restriction
+/// formulas, and — when the domain is an xorlo description — the referent the
+/// domain is selected from.
+///
+/// The selection referent is carried out of restriction building because it
+/// belongs to the *binding*, not to the restriction: it is introduced outside
+/// the binder the restriction is evaluated under, and both derived scope
+/// records read that placement off the graph rather than being told it.
+#[invariant(formulas.iter().all(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula))]
+#[invariant(selection_referent.is_none_or(|referent| crate::model::argument_object_kind_can_fill(referent.object_kind())))]
+#[derive(Debug, Clone)]
+struct GeneratedArgumentRestrictions {
+    formulas: Vec<SemanticObjectId>,
+    selection_referent: Option<SemanticObjectId>,
+}
+
+impl GeneratedArgumentRestrictions {
+    /// A source that contributes no restriction and names no domain, which is
+    /// what a bare `da`-series quantifier is.
+    #[requires(true)]
+    #[ensures(ret.formulas.is_empty() && ret.selection_referent.is_none())]
+    fn none() -> Self {
+        new!(GeneratedArgumentRestrictions {
+            formulas: Vec::new(),
+            selection_referent: None,
+        })
+    }
+}
+
+/// The selection source one prepared quantifier binding records.
+///
+/// A re-quantified `da` already names the established variable whose witness
+/// set it selects from, and that binding builds no description; otherwise an
+/// xorlo description's referent becomes the binding's own operand so it is
+/// introduced outside the binder its `memberOf` restriction is evaluated under.
+#[requires(true)]
+#[ensures(true)]
+fn generated_argument_selection_source(
+    scope: &GeneratedArgumentQuantifierScope<'_>,
+    restrictions: &GeneratedArgumentRestrictions,
+) -> Option<SelectionSource> {
+    scope.selection_source.clone().or_else(|| {
+        restrictions
+            .selection_referent
+            .map(SelectionSource::description)
+    })
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone)]
 struct GeneratedArgumentQuantifierScope<'syntax> {

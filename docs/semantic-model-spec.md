@@ -2500,6 +2500,39 @@ as restrictions on the selected variable:
 }
 ```
 
+A quantifier whose domain is a description records that description the same
+way, with `selectionSource.kind = "description"` and no `sourceVariable`.  The
+description is an operand of the *binding*, so it is introduced outside the
+binder even though the generated `memberOf(candidate, description)` restriction
+is evaluated under it; the description and everything beneath it therefore
+exclude the candidate from `mayDependOn`, and the structural scope forest homes
+them outside the binder's region.  A plurality cannot depend on the variable
+ranging over its own members.  `ro lo prenu` yields:
+
+```json
+{
+  "formula:17": {
+    "type": "formula",
+    "operator": "forall",
+    "variable": "entity:7",
+    "selectionSource": {
+      "kind": "description",
+      "variable": "entity:11"
+    },
+    "restriction": "formula:15",
+    "domainImport": "projective",
+    "body": "formula:10",
+    "quantity": "quantity:16"
+  }
+}
+```
+
+A described domain may be any object that can fill an argument place: `xo ma`
+selects from a question parameter exactly as `ro lo prenu` selects from a
+description.  A gadri-less description such as `ci gerku` restricts with the
+selbri's own property and has no separate plurality object, so it records no
+selection source.
+
 Grouping termsets (`ce'e`, or `nu'i...nu'u` without a connective) equalize the
 scope of their quantified terms.  They use one formula with
 `operator:"quantifierBundle"`, ordered `bindings`, one shared `body`, and
@@ -5803,6 +5836,22 @@ implementation gaps are listed separately in “Known Implementation Divergences
     connective root carries no single event and keeps its own fresh abstraction
     identity. Before this amendment the abstracted event of a quantified root
     was unused, which made the abstraction's property vacuous.
+
+45. **Selection source for a described quantifier domain (#778) — extend.**
+    `selectionSource` gains the kind `description`, whose `variable` names the
+    object a gadri quantifier selects members from — the same object the
+    generated `memberOf(candidate, description)` restriction uses. Recording it
+    on the binding rather than reaching it only through the restriction is what
+    places the description *outside* the binder: a plurality cannot depend on
+    the variable ranging over its own members, so the description and every
+    underspecified place beneath it must exclude that candidate from
+    `mayDependOn`, and the structural scope forest must home it outside the
+    binder's region. A described domain may be any object that can fill an
+    argument place, because `xo ma` selects from a question parameter exactly as
+    `ro lo prenu` selects from a description. The kind `witnessSet` is unchanged
+    and remains the only kind paired with `sourceVariable`. `SemanticSort` gains
+    `epistemology` for `jei`'s CLL 11.13 x2, whose typed crossing has always
+    required that sort.
 
 ## Known Implementation Divergences (audited 2026-07-16)
 
