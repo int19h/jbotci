@@ -9391,14 +9391,17 @@ mod tests {
             dictionary_count_node(&gismu.children, "experimental").count,
             408
         );
-        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_443);
+        // Both rafsi counts are unique-form counts, so each grew by exactly the
+        // 60 forms the extracted table (issue #768) adds to 55 experimental
+        // gismu: 1_443 + 60 and 11 + 60.
+        assert_eq!(dictionary_count_node(&gismu.children, "rafsi").count, 1_503);
         assert_eq!(
             dictionary_count_node(
                 &dictionary_count_node(&gismu.children, "experimental").children,
                 "rafsi",
             )
             .count,
-            11
+            71
         );
 
         let lujvo = dictionary_count_node(&brivla.children, "lujvo");

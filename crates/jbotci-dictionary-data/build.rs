@@ -1,12 +1,13 @@
 extern crate bityzba;
 
+use std::collections::BTreeMap;
 use std::env;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use bityzba::{invariant, requires};
+use bityzba::{invariant, new, requires};
 use jbotci_dictionary::import::{
     ImportedDictionary, ImportedDictionaryEntry, ImportedDictionaryUser, ImportedKeyword,
     parse_lensisku_json,
@@ -17,9 +18,10 @@ use jbotci_dictionary::{
     EntryIndex, Keyword, OwnedDictionaryIndexes, OwnedPatternIndexEntry, OwnedRafsiIndexEntry,
     OwnedSelmahoIndexEntry, OwnedWordIndexEntry, Rafsi, RafsiIndexEntry, RafsiIndexTarget,
     RafsiSource, RawSelmaho, SelmahoIndexEntry, WordIndexEntry, WordType, build_owned_indexes,
+    normalize_lookup_query, universal_gismu_rafsi_forms,
 };
 use jbotci_jvozba::decompose_lujvo_like;
-use jbotci_morphology::LujvoPart;
+use jbotci_morphology::{LujvoPart, possible_short_rafsi_forms};
 use jbotci_phonetic::{
     IpaSegmentId, IpaTokenSequenceView, PronunciationTargetId, PronunciationTargetSequenceView,
     lojban_text_to_pronunciation_targets, lojban_text_to_tokenized_ipa,
@@ -27,11 +29,13 @@ use jbotci_phonetic::{
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
 use rayon::prelude::*;
-use serde::Deserialize;
+use serde::de::{self, MapAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 use sha2::{Digest, Sha256};
 
 const VENDORED_DICTIONARY: &str = "data/dictionary-en.json";
 const VENDORED_METADATA: &str = "data/dictionary-en.metadata.toml";
+const VENDORED_EXTRACTED_RAFSI: &str = "data/extracted-rafsi-en.json";
 
 #[derive(Debug, Clone, Deserialize)]
 #[invariant(true)]
@@ -45,6 +49,133 @@ struct DictionaryMetadata {
     lensisku_created_at: String,
     sha256: String,
     entry_count: usize,
+}
+
+/// Vendored table of rafsi recovered from prose that the snapshot never
+/// recorded structurally (see `data/README.md` and jbotci issue #768).
+#[invariant(
+    !rafsi.is_empty(),
+    "an empty table means the vendored file lost its payload"
+)]
+#[invariant(
+    rafsi.iter().all(|(word, forms)| {
+        !word.is_empty()
+            && !forms.is_empty()
+            && forms.windows(2).all(|pair| pair[0] < pair[1])
+    }),
+    "every listed word carries at least one rafsi, sorted and duplicate free"
+)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExtractedRafsiTable {
+    provenance: ExtractedRafsiProvenance,
+    // Deserialized through a duplicate-rejecting visitor: collecting straight
+    // into a map would let a repeated JSON key silently discard one of the two
+    // assignments before any invariant or collision check could see it.
+    #[serde(deserialize_with = "deserialize_unique_rafsi_table")]
+    rafsi: BTreeMap<String, Vec<String>>,
+}
+
+/// Provenance of the extraction run that produced [`ExtractedRafsiTable`].
+///
+/// The build never consumes these fields beyond checking that they are filled
+/// in; they exist so the vendored data documents its own origin.
+#[invariant(
+    !run_date.is_empty() && !method.is_empty() && !tooling.is_empty(),
+    "provenance must name the run date, method, and tooling"
+)]
+#[invariant(
+    models.len() > 1
+        && models
+            .iter()
+            .enumerate()
+            .all(|(index, model)| !model.is_empty() && !models[..index].contains(model)),
+    "a vote needs at least two voters, each named exactly once"
+)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExtractedRafsiProvenance {
+    run_date: String,
+    models: Vec<String>,
+    method: String,
+    tooling: String,
+}
+
+/// Deserialize the word-to-rafsi table, rejecting repeated words.
+///
+/// `serde` collapses duplicate map keys silently, which would drop one of two
+/// conflicting assignments before the merge could complain about it. The
+/// vendored file is fail-closed data, so a repeated word is an error.
+#[requires(true)]
+#[ensures(true)]
+fn deserialize_unique_rafsi_table<'de, D>(
+    deserializer: D,
+) -> Result<BTreeMap<String, Vec<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserializer.deserialize_map(UniqueRafsiTableVisitor)
+}
+
+struct UniqueRafsiTableVisitor;
+
+impl<'de> Visitor<'de> for UniqueRafsiTableVisitor {
+    type Value = BTreeMap<String, Vec<String>>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("a map of dictionary word to its extracted rafsi")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_map<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut table = BTreeMap::new();
+        while let Some((word, forms)) = access.next_entry::<String, Vec<String>>()? {
+            if let Some(previous) = table.insert(word.clone(), forms) {
+                return Err(de::Error::custom(format!(
+                    "extracted rafsi word `{word}` is listed more than once \
+                     (first listing: {previous:?})"
+                )));
+            }
+        }
+        Ok(table)
+    }
+}
+
+/// Who already holds a rafsi form while the extracted table is merged.
+#[invariant(!word.is_empty(), "a claim always names its claimant")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RafsiClaim {
+    word: String,
+    origin: RafsiClaimOrigin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[invariant(true)]
+enum RafsiClaimOrigin {
+    /// The snapshot records the form as a structured rafsi of the entry.
+    SnapshotListed,
+    /// The form is a universal rafsi of a gismu-like snapshot entry.
+    SnapshotUniversal,
+    /// An earlier word of the extracted table claimed the form.
+    Extracted,
+}
+
+impl RafsiClaimOrigin {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    const fn describe(self) -> &'static str {
+        match self {
+            Self::SnapshotListed => "a listed rafsi of",
+            Self::SnapshotUniversal => "a universal gismu rafsi of",
+            Self::Extracted => "an extracted rafsi of",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -89,8 +220,10 @@ fn run() -> Result<(), Box<dyn Error>> {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
     let dictionary_path = manifest_dir.join(VENDORED_DICTIONARY);
     let metadata_path = manifest_dir.join(VENDORED_METADATA);
+    let extracted_rafsi_path = manifest_dir.join(VENDORED_EXTRACTED_RAFSI);
     println!("cargo:rerun-if-changed={}", dictionary_path.display());
     println!("cargo:rerun-if-changed={}", metadata_path.display());
+    println!("cargo:rerun-if-changed={}", extracted_rafsi_path.display());
     println!("cargo:rerun-if-env-changed=JBOTCI_DICTIONARY_BUILD_TIMINGS");
     emit_build_timing(format_args!(
         "rayon threads: {}",
@@ -103,9 +236,15 @@ fn run() -> Result<(), Box<dyn Error>> {
     let metadata = timed_stage("load dictionary metadata", || {
         load_dictionary_metadata(&metadata_path)
     })?;
-    let imported = timed_stage("parse lensisku json", || parse_lensisku_json(&input))?;
+    let mut imported = timed_stage("parse lensisku json", || parse_lensisku_json(&input))?;
     timed_stage("validate dictionary metadata", || {
         validate_dictionary_metadata(&metadata, &imported, input.as_bytes())
+    })?;
+    let extracted_rafsi = timed_stage("load extracted rafsi", || {
+        load_extracted_rafsi(&extracted_rafsi_path)
+    })?;
+    timed_stage("merge extracted rafsi", || {
+        merge_extracted_rafsi(&mut imported, &extracted_rafsi)
     })?;
     let leaked_entries = timed_stage("leak entries", || leak_entries(&imported));
     let indexes = timed_stage("build lookup indexes", || {
@@ -478,6 +617,144 @@ fn validate_dictionary_metadata(
     }
 
     Ok(())
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|table| !table.rafsi.is_empty()) || ret.is_err())]
+fn load_extracted_rafsi(path: &Path) -> Result<ExtractedRafsiTable, Box<dyn Error>> {
+    let input = fs::read_to_string(path)?;
+    Ok(serde_json::from_str(&input)?)
+}
+
+/// Merge the vendored extracted rafsi into the imported snapshot.
+///
+/// The merge is deliberately fail-closed: the extracted table was audited
+/// against one specific snapshot, so any drift between the two (a word that
+/// disappeared, changed word type, or grew structured rafsi of its own, or a
+/// form that some other entry has since claimed) must break the build and
+/// force a re-audit rather than silently produce a corrupt rafsi index. See
+/// `data/README.md` for the refresh protocol.
+#[requires(true)]
+#[ensures(
+    ret.is_err()
+        || table.rafsi.iter().all(|(word, forms)| {
+            dictionary.entries.iter().any(|entry| entry.word == *word)
+                && dictionary
+                    .entries
+                    .iter()
+                    .filter(|entry| entry.word == *word)
+                    .all(|entry| forms.iter().all(|form| entry.rafsi.contains(form)))
+        }),
+    "a successful merge lands every accepted assignment on every entry of its word"
+)]
+fn merge_extracted_rafsi(
+    dictionary: &mut ImportedDictionary,
+    table: &ExtractedRafsiTable,
+) -> Result<(), Box<dyn Error>> {
+    let mut claims = snapshot_rafsi_claims(dictionary);
+    for (word, forms) in &table.rafsi {
+        // A word may legitimately have several snapshot entries (one per
+        // definition); rafsi belong to the word, so every entry gets them, and
+        // every entry has to pass the same checks.
+        let targets = dictionary
+            .entries
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| entry.word == *word)
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if targets.is_empty() {
+            return Err(format!(
+                "extracted rafsi word `{word}` is missing from the dictionary snapshot; \
+                 re-audit the extraction against the refreshed snapshot"
+            )
+            .into());
+        }
+        for &index in &targets {
+            let entry = &dictionary.entries[index];
+            if !entry.word_type.is_gismu_like() {
+                return Err(format!(
+                    "extracted rafsi word `{word}` is a {} in the dictionary snapshot, \
+                     but short rafsi belong to gismu",
+                    entry.word_type.as_str()
+                )
+                .into());
+            }
+            if !entry.rafsi.is_empty() {
+                return Err(format!(
+                    "extracted rafsi word `{word}` now carries structured rafsi {:?} in the \
+                     dictionary snapshot; re-audit the extracted entry against them and drop it \
+                     from {VENDORED_EXTRACTED_RAFSI}",
+                    entry.rafsi
+                )
+                .into());
+            }
+        }
+
+        let derivable = possible_short_rafsi_forms(word);
+        for form in forms {
+            if !derivable.iter().any(|candidate| candidate.form == *form) {
+                return Err(format!(
+                    "extracted rafsi `{form}` is not a CLL-derivable short rafsi of `{word}`"
+                )
+                .into());
+            }
+            let key = normalize_lookup_query(form);
+            if let Some(claim) = claims.get(&key) {
+                return Err(format!(
+                    "extracted rafsi `{form}` for `{word}` is already {} `{}`",
+                    claim.origin.describe(),
+                    claim.word
+                )
+                .into());
+            }
+            claims.insert(
+                key,
+                new!(RafsiClaim {
+                    word: word.clone(),
+                    origin: RafsiClaimOrigin::Extracted,
+                }),
+            );
+        }
+
+        for index in targets {
+            dictionary.entries[index].rafsi = forms.clone();
+        }
+    }
+    Ok(())
+}
+
+/// Index every rafsi form the snapshot already claims, listed or universal.
+///
+/// This mirrors the rafsi keys [`build_owned_indexes`] would produce, so a
+/// clash found here is exactly a clash that would land in the rafsi index.
+#[requires(true)]
+#[ensures(true)]
+fn snapshot_rafsi_claims(dictionary: &ImportedDictionary) -> BTreeMap<String, RafsiClaim> {
+    let mut claims = BTreeMap::new();
+    for entry in &dictionary.entries {
+        for rafsi in &entry.rafsi {
+            claims
+                .entry(normalize_lookup_query(rafsi))
+                .or_insert_with(|| {
+                    new!(RafsiClaim {
+                        word: entry.word.clone(),
+                        origin: RafsiClaimOrigin::SnapshotListed,
+                    })
+                });
+        }
+        if entry.word_type.is_gismu_like() {
+            for (form, _) in universal_gismu_rafsi_forms(&entry.word) {
+                claims.entry(form).or_insert_with(|| {
+                    new!(RafsiClaim {
+                        word: entry.word.clone(),
+                        origin: RafsiClaimOrigin::SnapshotUniversal,
+                    })
+                });
+            }
+        }
+    }
+    claims
 }
 
 #[requires(true)]

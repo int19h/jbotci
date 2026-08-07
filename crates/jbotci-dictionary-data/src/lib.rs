@@ -178,6 +178,34 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn extracted_rafsi_are_merged_into_the_embedded_dictionary() {
+        // The vendored extraction (issue #768) backfills rafsi that the
+        // snapshot only ever stated in prose; downstream they are ordinary
+        // listed rafsi.
+        assert_extracted_rafsi("xrotu", &["xro"]);
+        assert_extracted_rafsi("dutso", &["tso"]);
+        assert_extracted_rafsi("vujnu", &["vu'u", "vuj"]);
+        assert_extracted_rafsi("celdi", &["cle"]);
+        assert_extracted_rafsi("ditcu", &["dit"]);
+        assert_extracted_rafsi("supso", &["sus"]);
+
+        // Losers of the owner-adjudicated conflicts keep no rafsi at all:
+        // `dit` went to ditcu, `sus` to supso, and dzama's `zam` claim was
+        // dropped in favour of the cmavo zai'e.
+        for word in ["dinti", "smusu", "dzama"] {
+            let entry = english()
+                .lookup_word(word)
+                .unwrap_or_else(|| panic!("entry for {word}"));
+            assert!(
+                entry.rafsi.is_empty(),
+                "{word} lost its contested rafsi claim and must stay rafsi-free"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn known_entry_is_present() {
         let entry = english().lookup_word("a").expect("entry for a");
         assert_eq!(entry.word, "a");
@@ -442,6 +470,28 @@ mod tests {
         assert_eq!(segment.kind, kind);
         assert_eq!(segment.surface, surface);
         assert_eq!(segment.source_word, source_word);
+    }
+
+    /// Assert that `word` carries exactly `rafsi`, each resolving back to it.
+    #[requires(!word.is_empty() && !rafsi.is_empty())]
+    #[ensures(true)]
+    fn assert_extracted_rafsi(word: &str, rafsi: &[&str]) {
+        let entry = english()
+            .lookup_word(word)
+            .unwrap_or_else(|| panic!("entry for {word}"));
+        assert_eq!(
+            entry
+                .rafsi
+                .iter()
+                .map(|value| value.0)
+                .collect::<Vec<_>>()
+                .as_slice(),
+            rafsi,
+            "extracted rafsi for {word} did not reach the embedded entry"
+        );
+        for form in rafsi {
+            assert_listed_rafsi(form, word);
+        }
     }
 
     #[requires(!rafsi.is_empty() && !word.is_empty())]

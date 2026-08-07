@@ -3926,6 +3926,32 @@ fn vlacku_rafsi_lookup_returns_source_entry() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn vlacku_surfaces_extracted_rafsi_in_both_directions() {
+    // Issue #768: rafsi recovered from prose are ordinary rafsi on the card
+    // and resolve back to their gismu through the rafsi index.
+    let word_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "xrotu"], false);
+
+    assert_eq!(word_run.status, CliStatus::Success);
+    assert!(word_run.stderr.is_empty(), "{}", word_run.stderr);
+    assert!(word_run.stdout.contains("1. xrotu | by: selckiku"));
+    assert!(word_run.stdout.contains("  rafsi: xro"));
+
+    let rafsi_run = run_cli_capture(&["jbotci", "vlacku", "--rafsi", "xro"], false);
+
+    assert_eq!(rafsi_run.status, CliStatus::Success);
+    assert!(rafsi_run.stderr.is_empty(), "{}", rafsi_run.stderr);
+    assert!(rafsi_run.stdout.contains("1. xrotu | by: selckiku"));
+
+    // A word with two extracted rafsi lists both.
+    let multi_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "vujnu"], false);
+
+    assert_eq!(multi_run.status, CliStatus::Success);
+    assert!(multi_run.stdout.contains("  rafsi: vu'u vuj"));
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn vlacku_lujvo_outputs_headword_decomposition_then_sources() {
     let run = run_cli_capture(
         &["jbotci", "vlacku", "--ascii", "--lujvo", "mivyselbai"],
