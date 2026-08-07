@@ -14,8 +14,10 @@ use std::fmt;
 use bityzba::{data, ensures, invariant, new, requires};
 
 use super::datum::{Datum, print_document};
-use super::elaborate::{CompactElaborationData, CompactFallback, elaborate_compact};
-use super::planner::{ScopeFailure, ScopeFailureKind, plan_references};
+use super::elaborate::{
+    CompactElaborationData, CompactFallback, elaborate_compact, prescan_projections,
+};
+use super::planner::{ScopeFailure, ScopeFailureKind, index_graph_usage, plan_references};
 use crate::completeness::model::FailureClass;
 use crate::model::{
     DiagnosticSeverity, SemanticGraph, SemanticObjectId, SemanticObjectKind, SourceByteSpan,
@@ -222,7 +224,13 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniPro
         ));
     }
 
-    let plan = plan_references(graph);
+    // Three explicit phases, in dependency order: index the graph's reference
+    // edges and binder declarations, recognize the projections whose binders
+    // the renderer owns, then plan hosts knowing both. Planning used to reach
+    // back into elaboration mid-pass to retract failures it had just made.
+    let usage = index_graph_usage(graph);
+    let projected = prescan_projections(graph, &usage);
+    let plan = plan_references(graph, usage, &projected);
     if !plan.compact_is_eligible() {
         // Scope planning proved that no lexical compact tree represents this
         // graph. Return here: nothing is elaborated and nothing is serialized.
@@ -234,7 +242,7 @@ pub fn render_document(graph: &SemanticGraph, word_cards: &[Datum]) -> SmusniPro
         return Err(failed(failures, diagnostics, semantic_diagnostic_count));
     }
 
-    let elaboration = elaborate_compact(graph, &plan);
+    let elaboration = elaborate_compact(graph, &plan, &projected);
     if elaboration.has_failures() {
         let failures = elaboration
             .failures
@@ -478,15 +486,14 @@ impl<'graph> SpanResolver<'graph> {
 /// Keep the complete named failure table linked into this renderer even when a
 /// corpus happens not to exercise all classes.
 #[requires(true)]
-#[ensures(ret.len() == 7)]
-pub fn scope_failure_labels() -> [&'static str; 7] {
+#[ensures(ret.len() == 6)]
+pub fn scope_failure_labels() -> [&'static str; 6] {
     [
         ScopeFailureKind::MultipleBinderOwners.label(),
         ScopeFailureKind::BinderDoesNotEncloseUse.label(),
         ScopeFailureKind::ScopeDependencyBinderUnowned.label(),
         ScopeFailureKind::ScopeDependencyWithoutEnclosingBinder.label(),
         ScopeFailureKind::UnrepresentableCycle.label(),
-        ScopeFailureKind::DefinitionSiteDoesNotDominateUse.label(),
-        ScopeFailureKind::DeclarationPlanningDidNotConverge.label(),
+        ScopeFailureKind::DynamicHostNotUnique.label(),
     ]
 }

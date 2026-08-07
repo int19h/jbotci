@@ -185,10 +185,19 @@ fn an_unspecified_abstraction_about_a_raised_operand_is_a_tracked_spec_gap() {
 #[requires(true)]
 #[ensures(true)]
 fn an_ill_scoped_binder_is_an_invalid_graph() {
-    // A stacked question whose binders do not enclose their uses is not a
-    // missing route: the graph itself is ill-scoped, and nothing follows about
-    // whether smusni can express the corresponding distinction.
-    let graph = graph_of("pau xo ma mo xu");
+    // `ro do` quantifies the audience deictic in place, so the vocative
+    // utterance's own reference to the audience is evaluated outside the
+    // binder's region. That is not a missing route: the graph itself is
+    // ill-scoped, and nothing follows about whether smusni can express the
+    // corresponding distinction.
+    //
+    // This is the witness `scope_certification` pins for the same class, and it
+    // replaces the stacked question `pau xo ma mo xu` the reconstructing
+    // planner used to report here. A question introduces all of its slots at
+    // one region and every use of them is inside it, so the record model says
+    // that graph is well scoped; only the old reverse-reference reconstruction
+    // said otherwise.
+    let graph = graph_of("co'o rodo");
     let failed = failed_projection(&graph);
     assert!(classes_of(&failed).contains(&FailureClass::InvalidGraph));
     let ill_scoped = failed
@@ -200,6 +209,69 @@ fn an_ill_scoped_binder_is_an_invalid_graph() {
     // A scope failure names both ends of the edge it describes.
     assert!(ill_scoped.owner.is_some());
     assert!(ill_scoped.use_site.is_some());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn one_object_bound_at_two_scopes_is_an_invalid_graph() {
+    // A quantified argument distributed over two connective branches binds the
+    // same variable object at both quantifiers, so no single printed binder
+    // owns it. `scope_certification` pins this as a property of the record
+    // graph rather than a recorder gap, and it is exactly the shape the planner
+    // cannot give one lexical home.
+    let graph = graph_of("pe'i ro manti cu morsi gi'e cliva le mi zdani");
+    let failed = failed_projection(&graph);
+    let conflict = failed
+        .failures
+        .iter()
+        .find(|failure| failure.reason_id == "smusni.projection.conflicting-binder-owners")
+        .expect("the double-binding record is present");
+    assert_eq!(conflict.failure_class, FailureClass::InvalidGraph);
+    // The binder is the affected identity; there is no second object, because
+    // the conflict is between two scopes rather than between two objects.
+    assert!(conflict.owner.is_some());
+    assert!(conflict.use_site.is_none());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_description_shared_by_two_acts_has_no_determined_host() {
+    // `gy.` resumes `le gerku` in the next sentence, so one reference
+    // computation is used in two performed acts. Version 0 hosts an ordinary
+    // `Refer` inside its own force segment, and this graph names no discourse
+    // host, so the rules do not determine one legal host — section 6.3's
+    // registered invalid-graph outcome, not a route the renderer is missing.
+    let graph = graph_of("le gerku .i gy. klama");
+    let failed = failed_projection(&graph);
+    let unhosted = failed
+        .failures
+        .iter()
+        .find(|failure| failure.reason_id == "smusni.projection.dynamic-host-not-unique")
+        .expect("the undetermined dynamic host record is present");
+    assert_eq!(unhosted.failure_class, FailureClass::InvalidGraph);
+    assert!(unhosted.owner.is_some());
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn mutually_recursive_shared_values_are_a_tracked_spec_gap() {
+    // Three `go'i` back-references over connected statements make the shared
+    // values of this text depend on one another in a cycle. `LetRec` binds only
+    // groups of inert lambdas, so a cycle through a value that prints no binder
+    // has no guarded lexical form at all — the specification's tracked gap,
+    // reported here rather than discovered halfway through emission.
+    let graph = graph_of("na go'i .ije na'e go'i .ije na'i go'i");
+    let failed = failed_projection(&graph);
+    let cycle = failed
+        .failures
+        .iter()
+        .find(|failure| failure.reason_id == "smusni.projection.unguarded-or-unrepresentable-scc")
+        .expect("the unrepresentable cycle record is present");
+    assert_eq!(cycle.failure_class, FailureClass::TrackedSpecGap);
+    assert!(cycle.owner.is_some());
 }
 
 #[test]

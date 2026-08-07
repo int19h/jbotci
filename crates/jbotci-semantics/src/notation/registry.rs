@@ -589,13 +589,13 @@ mod tests {
     fn generated_registry_round_trips_every_disposition_and_boundary() {
         let registry = disposition_registry();
         assert_eq!(registry.iter().len(), GENERATED_DISPOSITION_ROWS.len());
-        assert_eq!(registry.iter().len(), 946);
+        assert_eq!(registry.iter().len(), 944);
         assert_eq!(
             registry
                 .iter()
                 .filter(|row| row.failure_boundary().is_some())
                 .count(),
-            63
+            61
         );
         for row in registry.iter() {
             let coordinate = row.coordinate();

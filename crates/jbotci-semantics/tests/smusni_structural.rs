@@ -1754,13 +1754,16 @@ fn failure_channel_is_evidenced_and_reproducible_on_the_corpus() {
 #[ensures(true)]
 fn scope_failures_carry_binder_and_use_evidence() {
     // Definition placement, not a local recognizer, is what declines here, so
-    // the record comes from the planner channel.
+    // the record comes from the planner channel. The host the region forest
+    // gives this shared value does not carry `da`, and no host that covers
+    // every use does, so the graph binds a variable the lexical notation cannot
+    // reach — the registered unbound-variable route, not a placement retry.
     let input = build_input("ro da poi gerku cu bajra", "scope-evidence");
     let failed = project_failure(&input.graph);
     let records = failure_records(&failed);
     let definition_site = records
         .iter()
-        .filter(|(reason_id, ..)| reason_id.starts_with("smusni.projection.definition-site"))
+        .filter(|(reason_id, ..)| *reason_id == "smusni.projection.scope-dependency-without-binder")
         .collect::<Vec<_>>();
     assert!(
         !definition_site.is_empty(),

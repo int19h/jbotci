@@ -13,7 +13,7 @@ use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use super::super::kernel::types::{PlaceLabel, Row, RowSlot, TypeAtom, TypeExpr};
 use super::datum::{Atom, Datum};
 use super::identity::{object_variable, variable_datum};
-use super::planner::ReferencePlan;
+use super::planner::{GraphUsage, ProjectedIdentities, ReferencePlan};
 use super::structural::{ProvenanceDisposition, object_datum_with_variables};
 use super::type_syntax::{parse_type, type_to_datum};
 use crate::model::{
@@ -433,33 +433,63 @@ struct Elaborator<'a> {
     counters: ElaborationCounters,
 }
 
+/// Recognize the projections whose binders the renderer owns.
+///
+/// This is the pre-plan phase. It reads only edge multiplicities and binder
+/// ownership, both of which the graph fixes before any host is chosen, so
+/// planning can consume the result instead of calling back into elaboration to
+/// retract placement failures it had already made.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.support.iter().all(|id| graph.objects.contains_key(id)))]
+#[ensures(ret.values.iter().all(|id| graph.objects.contains_key(id)))]
+pub(super) fn prescan_projections(
+    graph: &SemanticGraph,
+    usage: &GraphUsage,
+) -> ProjectedIdentities {
+    let (mut support, mut values) = projected_description_objects(graph, usage);
+    let (event_support, described_events) = projected_described_event_objects(graph, usage);
+    support.extend(event_support);
+    values.extend(described_events);
+    let atoms = graph
+        .objects
+        .iter()
+        .filter(|(_, object)| {
+            is_conventional_atom(object)
+                || object
+                    .as_referent()
+                    .is_some_and(|node| exact_deictic(node, graph).is_some())
+        })
+        .map(|(id, _)| *id)
+        .collect();
+    ProjectedIdentities {
+        support,
+        values,
+        atoms,
+    }
+}
+
 /// Elaborate the compact document body, including deterministic shared-value
 /// declarations when needed.
 #[requires(graph.objects.contains_key(&graph.root))]
 #[requires(plan.compact_is_eligible())]
 #[ensures(true)]
-pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> CompactElaboration {
-    let (mut projected_description_support, mut description_values) =
-        projected_description_objects(graph, plan);
-    let (event_support, described_events) = projected_described_event_objects(graph, plan);
-    projected_description_support.extend(event_support);
-    description_values.extend(described_events);
-    let projected_use_counts =
-        reference_counts_excluding_sources(graph, &projected_description_support);
+pub(super) fn elaborate_compact(
+    graph: &SemanticGraph,
+    plan: &ReferencePlan,
+    projected: &ProjectedIdentities,
+) -> CompactElaboration {
+    let projected_use_counts = reference_counts_excluding_sources(graph, &projected.support);
     let definitions = graph
         .objects
         .iter()
-        .filter_map(|(id, object)| {
+        .filter_map(|(id, _)| {
             if plan.binder_owner(*id).is_some()
-                || is_conventional_atom(object)
-                || object
-                    .as_referent()
-                    .is_some_and(|node| exact_deictic(node, graph).is_some())
-                || projected_description_support.contains(id)
+                || projected.atoms.contains(id)
+                || projected.support.contains(id)
             {
                 return None;
             }
-            let needs_definition = if description_values.contains(id) {
+            let needs_definition = if projected.values.contains(id) {
                 projected_use_counts.get(id).copied().unwrap_or(0) > 1
             } else {
                 plan.use_count(*id) > 1 || plan.is_cyclic(*id)
@@ -471,7 +501,7 @@ pub(super) fn elaborate_compact(graph: &SemanticGraph, plan: &ReferencePlan) -> 
         graph,
         plan,
         definitions,
-        projected_descriptions: description_values,
+        projected_descriptions: projected.values.clone(),
         binder_universes: semantic_scope_dependence_binder_universes(graph.root, &graph.objects),
         needed_definitions: RefCell::new(BTreeSet::new()),
         placed_definitions: RefCell::new(BTreeSet::new()),
@@ -620,16 +650,22 @@ impl Elaborator<'_> {
 
     /// Topologically order one local group. A remaining dependency cycle
     /// selects `LetRec` for the complete group.
+    ///
+    /// Dependencies constrain the order; what remains is broken by the plan's
+    /// declaration order, which is source order rather than the allocation
+    /// order a set of identities happens to iterate in.
     #[requires(definitions.is_subset(&self.definitions))]
     #[ensures(ret.0.len() == definitions.len())]
     fn definition_order(
         &self,
         definitions: &BTreeSet<SemanticObjectId>,
     ) -> (Vec<SemanticObjectId>, bool) {
+        let mut candidates = definitions.iter().copied().collect::<Vec<_>>();
+        candidates.sort_by_key(|id| self.plan.declaration_order(*id));
         let mut emitted = BTreeSet::new();
         let mut ordered = Vec::new();
         loop {
-            let next = definitions.iter().copied().find(|id| {
+            let next = candidates.iter().copied().find(|id| {
                 !emitted.contains(id)
                     && self
                         .definition_dependencies(*id)
@@ -643,12 +679,7 @@ impl Elaborator<'_> {
         }
         let recursive = emitted.len() != definitions.len();
         if recursive {
-            ordered.extend(
-                definitions
-                    .iter()
-                    .copied()
-                    .filter(|id| !emitted.contains(id)),
-            );
+            ordered.extend(candidates.into_iter().filter(|id| !emitted.contains(id)));
         }
         (ordered, recursive)
     }
@@ -918,7 +949,7 @@ impl Elaborator<'_> {
             ),
         };
         let act = wrap_reference_bindings(bindings, act);
-        if utterance_record_is_default(self.graph, self.plan, id, node) {
+        if utterance_record_is_default(self.graph, self.plan.usage(), id, node) {
             return self.recognized(act);
         }
         if !node.asides.is_empty() || node.vocative_kind.is_some() {
@@ -1318,7 +1349,7 @@ impl Elaborator<'_> {
         let (modifier_relation, modifier_predication, modifier_event) =
             recognize_tanru_modifier_property(
                 self.graph,
-                self.plan,
+                self.plan.usage(),
                 modifier_formula,
                 modifier_parameter,
             )?;
@@ -1398,7 +1429,7 @@ impl Elaborator<'_> {
             .iter()
             .copied()
             .filter(|event| {
-                !generated_event_is_default(self.graph, self.plan, owner, *event)
+                !generated_event_is_default(self.graph, self.plan.usage(), owner, *event)
                     || datum_contains_atom(&body, object_variable(*event).as_str())
             })
             .collect::<Vec<_>>();
@@ -1641,7 +1672,7 @@ impl Elaborator<'_> {
         if let Some(eventuality) = eventuality {
             let owner = self.plan.binder_owner(eventuality);
             let silent = owner.is_some_and(|owner| {
-                generated_event_is_default(self.graph, self.plan, owner, eventuality)
+                generated_event_is_default(self.graph, self.plan.usage(), owner, eventuality)
             });
             if !silent {
                 application.push(Datum::atom(":Eventuality"));
@@ -1796,7 +1827,8 @@ impl Elaborator<'_> {
         }
         let scope_default =
             self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound);
-        let recognition = recognize_description(self.graph, self.plan, id, node, scope_default)?;
+        let recognition =
+            recognize_description(self.graph, self.plan.usage(), id, node, scope_default)?;
         let declared_type = referents_type_datum(node.sort)?;
         let mut scoped = bound.clone();
         scoped.insert(id);
@@ -2160,7 +2192,7 @@ impl Elaborator<'_> {
         ) || predication.mode != PredicationMode::Asserted
             || !predication_is_otherwise_plain(predication)
             || predication.eventuality != Some(event)
-            || !generated_event_is_default(self.graph, self.plan, node.body, event)
+            || !generated_event_is_default(self.graph, self.plan.usage(), node.body, event)
             || predication.arguments.is_empty()
         {
             return None;
@@ -2445,9 +2477,9 @@ fn is_conventional_atom(object: &crate::model::SemanticObject) -> bool {
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(ret.0.iter().all(|id| graph.objects.contains_key(id)))]
 #[ensures(ret.1.iter().all(|id| graph.objects.contains_key(id)))]
-pub(super) fn projected_description_objects(
+fn projected_description_objects(
     graph: &SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
 ) -> (BTreeSet<SemanticObjectId>, BTreeSet<SemanticObjectId>) {
     let mut projected = BTreeSet::new();
     let mut descriptions = BTreeSet::new();
@@ -2461,7 +2493,8 @@ pub(super) fn projected_description_objects(
                 .map(|dependence| dependence.as_data()),
             Some(data!(ScopeDependence::Fixed))
         );
-        let Some(recognition) = recognize_description(graph, plan, *described, node, scope_default)
+        let Some(recognition) =
+            recognize_description(graph, usage, *described, node, scope_default)
         else {
             continue;
         };
@@ -2512,7 +2545,8 @@ pub(super) fn projected_description_objects(
             .chain([*described])
             .collect::<BTreeSet<_>>();
         if support.iter().all(|id| {
-            plan.uses_of(*id)
+            usage
+                .uses_of(*id)
                 .is_none_or(|uses| uses.is_subset(&allowed_sources))
         }) {
             projected.extend(support);
@@ -2530,7 +2564,7 @@ pub(super) fn projected_description_objects(
 #[ensures(ret.1.iter().all(|id| graph.objects.contains_key(id)))]
 fn projected_described_event_objects(
     graph: &SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
 ) -> (BTreeSet<SemanticObjectId>, BTreeSet<SemanticObjectId>) {
     let mut projected = BTreeSet::new();
     let mut values = BTreeSet::new();
@@ -2567,7 +2601,8 @@ fn projected_described_event_objects(
             .chain([*event])
             .collect::<BTreeSet<_>>();
         if support.iter().all(|id| {
-            plan.uses_of(*id)
+            usage
+                .uses_of(*id)
                 .is_none_or(|uses| uses.is_subset(&allowed_sources))
         }) {
             projected.extend(support);
@@ -2677,17 +2712,17 @@ fn collect_speaker_description_support(
 #[ensures(true)]
 fn utterance_record_is_default(
     graph: &SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
     id: SemanticObjectId,
     node: &UtteranceNode,
 ) -> bool {
-    !utterance_identity_is_observed(graph, plan, id)
+    !utterance_identity_is_observed(graph, usage, id)
         && object_is_indexical(graph, node.speaker, IndexicalKind::Speaker)
         && object_is_indexical(graph, node.audience, IndexicalKind::Audience)
         && object_is_indexical(graph, node.deictic_ground.time, IndexicalKind::Now)
         && object_is_indexical(graph, node.deictic_ground.place, IndexicalKind::Here)
         && default_locution_event(graph, node.eventuality)
-        && plan.use_count(node.eventuality) == 1
+        && usage.use_count(node.eventuality) == 1
         && node.asides.is_empty()
         && node.vocative_kind.is_none()
 }
@@ -2696,16 +2731,16 @@ fn utterance_record_is_default(
 /// it does not observe the utterance token identity. Any other edge, repeated
 /// item occurrence, quotation containment, or ordinal target keeps the record.
 #[requires(graph.objects.contains_key(&id))]
-#[ensures(!ret || plan.use_count(id) > 0)]
+#[ensures(!ret || usage.use_count(id) > 0)]
 fn utterance_identity_is_observed(
     graph: &SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
     id: SemanticObjectId,
 ) -> bool {
-    match plan.use_count(id) {
+    match usage.use_count(id) {
         0 => false,
         1 => {
-            let Some(sources) = plan.uses_of(id) else {
+            let Some(sources) = usage.uses_of(id) else {
                 return true;
             };
             let Some(source) = sources
@@ -2890,7 +2925,7 @@ fn eventuality_optional_fields_are_empty(
 #[ensures(true)]
 fn generated_event_is_default(
     graph: &SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
     owner: SemanticObjectId,
     event: SemanticObjectId,
 ) -> bool {
@@ -2899,11 +2934,11 @@ fn generated_event_is_default(
     };
     generated_event_is_default_shape(node)
         && graph.objects[&event].diagnostics().is_empty()
-        && plan.binder_owner(event) == Some(owner)
+        && usage.binder_owner(event) == Some(owner)
         // A default event has exactly the closure-owner binding edge and the
         // predication's eventuality edge. Additional edges make its identity
         // observable even when they originate in the same object.
-        && plan.use_count(event) == 2
+        && usage.use_count(event) == 2
 }
 
 /// Object-local part of the generated-event default. Sort and class are
@@ -3240,7 +3275,7 @@ fn exact_described_event_time_facet(
 #[ensures(true)]
 fn recognize_description<'a>(
     graph: &'a SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
     described: SemanticObjectId,
     node: &'a ReferentNode,
     scope_is_default: bool,
@@ -3284,12 +3319,12 @@ fn recognize_description<'a>(
         match (descriptor.kind, descriptor.word.as_str()) {
             (DescriptorKind::VeridicalDescription, "lo") => {
                 let (property, arguments) =
-                    recognize_direct_description_property(graph, plan, body, described)?;
+                    recognize_direct_description_property(graph, usage, body, described)?;
                 (DescriptionConstructor::Lo, property, arguments, None)
             }
             (DescriptorKind::SpeakerDescription, "le") => {
                 let (property, arguments, parameter) =
-                    recognize_speaker_description_property(graph, plan, body, described)?;
+                    recognize_speaker_description_property(graph, usage, body, described)?;
                 (
                     DescriptionConstructor::Le,
                     property,
@@ -3313,11 +3348,11 @@ fn recognize_description<'a>(
 #[ensures(true)]
 fn recognize_direct_description_property<'a>(
     graph: &'a SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
     formula: SemanticObjectId,
     described: SemanticObjectId,
 ) -> Option<(&'a str, &'a BTreeMap<PlaceIndex, ArgumentValue>)> {
-    recognize_property_formula(graph, plan, formula, described)
+    recognize_property_formula(graph, usage, formula, described)
 }
 
 /// Exact recursive `skicu` encoding for `le`, including its separately stored
@@ -3326,7 +3361,7 @@ fn recognize_direct_description_property<'a>(
 #[ensures(true)]
 fn recognize_speaker_description_property<'a>(
     graph: &'a SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
     formula: SemanticObjectId,
     described: SemanticObjectId,
 ) -> Option<(
@@ -3385,7 +3420,7 @@ fn recognize_speaker_description_property<'a>(
         return None;
     }
     let parameter = relation_node.parameters[0];
-    recognize_property_formula(graph, plan, relation_node.body?, parameter)
+    recognize_property_formula(graph, usage, relation_node.body?, parameter)
         .map(|(property, arguments)| (property, arguments, parameter))
 }
 
@@ -3394,7 +3429,7 @@ fn recognize_speaker_description_property<'a>(
 #[ensures(true)]
 fn recognize_property_formula<'a>(
     graph: &'a SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
     formula: SemanticObjectId,
     subject: SemanticObjectId,
 ) -> Option<(&'a str, &'a BTreeMap<PlaceIndex, ArgumentValue>)> {
@@ -3431,7 +3466,7 @@ fn recognize_property_formula<'a>(
         let referent = graph.objects[&value].as_referent()?;
         if !default_elided_shape(referent)
             || !graph.objects[&value].diagnostics().is_empty()
-            || plan.use_count(value) != 1
+            || usage.use_count(value) != 1
         {
             return None;
         }
@@ -3480,7 +3515,7 @@ fn formula_atom(
 }))]
 fn recognize_tanru_modifier_property<'a>(
     graph: &'a SemanticGraph,
-    plan: &ReferencePlan,
+    usage: &GraphUsage,
     formula: SemanticObjectId,
     subject: SemanticObjectId,
 ) -> Option<(&'a str, SemanticObjectId, SemanticObjectId)> {
@@ -3497,7 +3532,7 @@ fn recognize_tanru_modifier_property<'a>(
         || predication.mode != PredicationMode::Restrictive
         || !predication_is_otherwise_plain(predication)
         || plain_argument_value(&predication.arguments, 1) != Some(subject)
-        || !generated_event_is_default(graph, plan, formula, event)
+        || !generated_event_is_default(graph, usage, formula, event)
     {
         return None;
     }
@@ -3509,7 +3544,7 @@ fn recognize_tanru_modifier_property<'a>(
         let referent = graph.objects[&value].as_referent()?;
         if !default_elided_shape(referent)
             || !graph.objects[&value].diagnostics().is_empty()
-            || plan.use_count(value) != 1
+            || usage.use_count(value) != 1
             || referent
                 .scope_dependence
                 .as_ref()

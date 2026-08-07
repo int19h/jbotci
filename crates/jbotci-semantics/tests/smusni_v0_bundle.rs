@@ -387,9 +387,9 @@ fn generated_table_counts_and_candidate_policy_keys_are_closed() {
                     !slots.is_empty() && slots.iter().all(|slot| slot.get("close-policy").is_some())
                 })
     }));
-    assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 946);
+    assert_eq!(jsonl_rows("registry/dispositions.jsonl").len(), 944);
     let projection_failure_reasons = jsonl_rows("registry/projection-failure-reasons.jsonl");
-    assert_eq!(projection_failure_reasons.len(), 63);
+    assert_eq!(projection_failure_reasons.len(), 61);
     assert_eq!(
         projection_failure_reasons
             .iter()
@@ -399,7 +399,7 @@ fn generated_table_counts_and_candidate_policy_keys_are_closed() {
                     && row["minimum-raw-owner-type"] == "SemanticGraph"
             })
             .count(),
-        56,
+        54,
     );
     // Every row carries a reviewed section-16.2 class, and exactly the two ids
     // section 14.4 names use the `WholeGraph` site with no expected type.
