@@ -16,7 +16,7 @@ use num_integer::Integer as _;
 use super::apply::FunctionSignature;
 use super::binder::{Bind, BinderSet, Category, Lambda, Let, LetRec};
 use super::content::{Content, Query};
-use super::document::ScopeFacts;
+use super::document::ScopeAudit;
 use super::error::KernelTypeError;
 use super::intrinsic::{Intrinsic, atom, kernel_accepts, property_of, referents};
 use super::performable::{Act, Discourse, TranscriptEntry};
@@ -334,35 +334,32 @@ impl Value {
 }
 
 impl Value {
-    /// Record this value's binder introductions and uses.
+    /// Check this value's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self.as_data() {
             data!(Value::Literal(_)) => {}
             data!(Value::Collection { items, .. }) => {
                 for item in items {
-                    item.collect_scope_facts(facts);
+                    item.walk_scope(audit);
                 }
             }
             data!(Value::Tuple(elements)) => {
                 for element in elements {
-                    element.collect_scope_facts(facts);
+                    element.walk_scope(audit);
                 }
             }
-            data!(Value::Sign {
-                token,
-                kind,
-                facts: items
-            }) => {
-                facts.record_introduction(token, TypeExpr::SignToken(*kind));
-                for item in items {
-                    item.collect_scope_facts(facts);
-                }
+            data!(Value::Sign { token, kind, facts }) => {
+                audit.scoped_token(token, TypeExpr::SignToken(*kind), |audit| {
+                    for fact in facts {
+                        fact.walk_scope(audit);
+                    }
+                });
             }
             data!(Value::Intrinsic { arguments, .. }) => {
                 for argument in arguments {
-                    argument.collect_scope_facts(facts);
+                    argument.walk_scope(audit);
                 }
             }
             data!(Value::Apply {
@@ -370,19 +367,21 @@ impl Value {
                 arguments,
                 ..
             }) => {
-                head.collect_scope_facts(facts);
+                head.walk_scope(audit);
                 for argument in arguments {
-                    argument.collect_scope_facts(facts);
+                    argument.walk_scope(audit);
                 }
             }
-            data!(Value::Let(form)) => facts.record_let(form),
-            data!(Value::Bind(form)) => facts.record_bind(form),
-            data!(Value::LetRec(form)) => facts.record_let_rec(form),
+            data!(Value::Let(form)) => audit.walk_let(form, |audit, body| body.walk_scope(audit)),
+            data!(Value::Bind(form)) => audit.walk_bind(form, |audit, body| body.walk_scope(audit)),
+            data!(Value::LetRec(form)) => {
+                audit.walk_let_rec(form, |audit, body| body.walk_scope(audit));
+            }
             data!(Value::Bound {
                 variable,
                 value_type
             }) => {
-                facts.record_use(variable, value_type.clone());
+                audit.record_use(variable, value_type);
             }
         }
     }
@@ -560,25 +559,31 @@ impl FnValue {
 }
 
 impl FnValue {
-    /// Record this callable's binder introductions and uses.
+    /// Check this callable's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self.as_data() {
-            data!(FnValue::Lambda(lambda)) => facts.record_lambda(lambda),
+            data!(FnValue::Lambda(lambda)) => {
+                audit.walk_lambda(lambda, |audit, body| body.walk_scope(audit));
+            }
             data!(FnValue::Intrinsic { arguments, .. }) => {
                 for argument in arguments {
-                    argument.collect_scope_facts(facts);
+                    argument.walk_scope(audit);
                 }
             }
             data!(FnValue::Registered { .. }) => {}
             data!(FnValue::Bound {
                 variable,
                 signature,
-            }) => facts.record_use(variable, signature.function_type()),
-            data!(FnValue::Let(form)) => facts.record_let(form),
-            data!(FnValue::Bind(form)) => facts.record_bind(form),
-            data!(FnValue::LetRec(form)) => facts.record_let_rec(form),
+            }) => audit.record_use(variable, &signature.function_type()),
+            data!(FnValue::Let(form)) => audit.walk_let(form, |audit, body| body.walk_scope(audit)),
+            data!(FnValue::Bind(form)) => {
+                audit.walk_bind(form, |audit, body| body.walk_scope(audit));
+            }
+            data!(FnValue::LetRec(form)) => {
+                audit.walk_let_rec(form, |audit, body| body.walk_scope(audit));
+            }
         }
     }
 }
@@ -769,7 +774,7 @@ impl RefComp {
         }
     }
 
-    /// Record this computation's binder introductions and uses.
+    /// Check this computation's binder uses against the live environment.
     ///
     /// A `Witnesses` run handle is used at the one type section 9.4 gives it —
     /// the `Content` identity of the quantifier application — so the audit can
@@ -779,20 +784,20 @@ impl RefComp {
     /// an unbound dependency.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self.as_data() {
             data!(RefComp::Refer { property }) | data!(RefComp::Typical { property }) => {
-                facts.record_lambda(property);
+                audit.walk_lambda(property, |audit, body| body.walk_scope(audit));
             }
             data!(RefComp::Stereotypical {
                 describer,
                 property,
             }) => {
-                describer.collect_scope_facts(facts);
-                facts.record_lambda(property);
+                describer.walk_scope(audit);
+                audit.walk_lambda(property, |audit, body| body.walk_scope(audit));
             }
             data!(RefComp::Witnesses { run, .. }) => {
-                facts.record_use(run, atom(TypeAtom::Content));
+                audit.record_use(run, &atom(TypeAtom::Content));
             }
             data!(RefComp::Context { .. }) => {}
         }
@@ -822,19 +827,19 @@ pub enum Operand {
 }
 
 impl Operand {
-    /// Record this operand's binder introductions and uses.
+    /// Check this operand's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self {
-            Self::Value(value) => value.collect_scope_facts(facts),
-            Self::Content(content) => content.collect_scope_facts(facts),
-            Self::Predicate(predicate) => predicate.collect_scope_facts(facts),
-            Self::Function(function) => function.collect_scope_facts(facts),
-            Self::Query(query) => query.collect_scope_facts(facts),
-            Self::Act(act) => act.collect_scope_facts(facts),
-            Self::Discourse(discourse) => discourse.collect_scope_facts(facts),
-            Self::Entry(entry) => entry.collect_scope_facts(facts),
+            Self::Value(value) => value.walk_scope(audit),
+            Self::Content(content) => content.walk_scope(audit),
+            Self::Predicate(predicate) => predicate.walk_scope(audit),
+            Self::Function(function) => function.walk_scope(audit),
+            Self::Query(query) => query.walk_scope(audit),
+            Self::Act(act) => act.walk_scope(audit),
+            Self::Discourse(discourse) => discourse.walk_scope(audit),
+            Self::Entry(entry) => entry.walk_scope(audit),
         }
     }
 }

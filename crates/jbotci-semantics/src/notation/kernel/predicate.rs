@@ -13,7 +13,7 @@ use super::apply::{
     PredicateApplicationResult, PredicateArgument, PredicateSignature, apply_predicate,
 };
 use super::binder::{Bind, BinderSet, Category, Let, LetRec};
-use super::document::ScopeFacts;
+use super::document::ScopeAudit;
 use super::error::KernelTypeError;
 use super::types::{
     ComputedPlaceDomain, PlaceCandidates, PositiveInteger, RelationRef, Row, ScalarKind, TypeExpr,
@@ -137,14 +137,14 @@ impl PlaceFill {
         self.value().append_free_binders_to(binders);
     }
 
-    /// Record this fill's binder introductions and uses.
+    /// Check this fill's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         if let data!(PlaceFill::Computed { place, .. }) = self.as_data() {
-            place.collect_scope_facts(facts);
+            place.walk_scope(audit);
         }
-        self.value().collect_scope_facts(facts);
+        self.value().walk_scope(audit);
     }
 }
 
@@ -344,26 +344,32 @@ impl PredTerm {
         }
     }
 
-    /// Record this term's binder introductions and uses.
+    /// Check this term's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self.as_data() {
             data!(PredTerm::Relation(signature)) => {
-                append_relation_scope_facts_to(signature.relation(), signature.row(), facts);
+                walk_relation_scope(signature.relation(), signature.row(), audit);
             }
             data!(PredTerm::Applied { head, fills, .. }) => {
-                head.collect_scope_facts(facts);
+                head.walk_scope(audit);
                 for fill in fills {
-                    fill.collect_scope_facts(facts);
+                    fill.walk_scope(audit);
                 }
             }
             data!(PredTerm::Bound { variable, row }) => {
-                facts.record_use(variable, TypeExpr::Predicate(row.clone()));
+                audit.record_use(variable, &TypeExpr::Predicate(row.clone()));
             }
-            data!(PredTerm::Let(form)) => facts.record_let(form),
-            data!(PredTerm::Bind(form)) => facts.record_bind(form),
-            data!(PredTerm::LetRec(form)) => facts.record_let_rec(form),
+            data!(PredTerm::Let(form)) => {
+                audit.walk_let(form, |audit, body| body.walk_scope(audit))
+            }
+            data!(PredTerm::Bind(form)) => {
+                audit.walk_bind(form, |audit, body| body.walk_scope(audit));
+            }
+            data!(PredTerm::LetRec(form)) => {
+                audit.walk_let_rec(form, |audit, body| body.walk_scope(audit));
+            }
         }
     }
 }
@@ -395,7 +401,7 @@ impl Category for PredTerm {
     }
 }
 
-/// Record the uses of the bound relation identities a relation expression names.
+/// Check the bound relation identities a relation expression names.
 ///
 /// A use can only be checked against its binder where the composed signature
 /// still records the row the binder declared. `Scalar` and a `Tanru` head
@@ -407,17 +413,21 @@ impl Category for PredTerm {
 /// [`append_relation_binders_to`] feeds.
 #[requires(true)]
 #[ensures(true)]
-fn append_relation_scope_facts_to(relation: &RelationRef, row: &Row, facts: &mut ScopeFacts) {
+fn walk_relation_scope<'value>(
+    relation: &'value RelationRef,
+    row: &Row,
+    audit: &mut ScopeAudit<'value>,
+) {
     match relation {
         RelationRef::Lexical(_) | RelationRef::DropPlace { .. } => {}
         RelationRef::Variable(variable) => {
-            facts.record_use(variable, TypeExpr::Predicate(row.clone()));
+            audit.record_use(variable, &TypeExpr::Predicate(row.clone()));
         }
         RelationRef::Scalar { relation, .. } => {
-            append_relation_scope_facts_to(relation, row, facts);
+            walk_relation_scope(relation, row, audit);
         }
         RelationRef::Tanru { head, .. } => {
-            append_relation_scope_facts_to(head, row, facts);
+            walk_relation_scope(head, row, audit);
         }
     }
 }

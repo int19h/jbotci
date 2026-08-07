@@ -10,7 +10,7 @@
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 
 use super::binder::{Bind, BinderSet, Category, Lambda, Let, LetRec};
-use super::document::ScopeFacts;
+use super::document::ScopeAudit;
 use super::error::KernelTypeError;
 use super::intrinsic::{Intrinsic, atom};
 use super::predicate::PredTerm;
@@ -165,7 +165,7 @@ impl Content {
     pub fn close(predicate: PredTerm) -> Result<Self, KernelTypeError> {
         if !row_is_closeable(&predicate.row()) {
             return Err(KernelTypeError::new(
-                "Close is undefined for this row: an unknown tail or a place with no ordinary default survives",
+                "Close is undefined for this row: a place with no ordinary default survives",
             ));
         }
         Ok(new!(Content::Close(predicate)))
@@ -306,51 +306,57 @@ impl Content {
         new!(Content::Bound(variable))
     }
 
-    /// Record this value's binder introductions and uses.
+    /// Check this value's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self.as_data() {
-            data!(Content::Close(predicate)) => predicate.collect_scope_facts(facts),
-            data!(Content::Not(inner)) => inner.collect_scope_facts(facts),
+            data!(Content::Close(predicate)) => predicate.walk_scope(audit),
+            data!(Content::Not(inner)) => inner.walk_scope(audit),
             data!(Content::Junction { operands, .. }) => {
                 for operand in operands {
-                    operand.collect_scope_facts(facts);
+                    operand.walk_scope(audit);
                 }
             }
             data!(Content::Binary { left, right, .. }) => {
-                left.collect_scope_facts(facts);
-                right.collect_scope_facts(facts);
+                left.walk_scope(audit);
+                right.walk_scope(audit);
             }
-            data!(Content::Quantified { lambda, .. }) => facts.record_lambda(lambda),
+            data!(Content::Quantified { lambda, .. }) => {
+                audit.walk_lambda(lambda, |audit, body| body.walk_scope(audit));
+            }
             data!(Content::Presuppose { trigger, body }) => {
-                trigger.collect_scope_facts(facts);
-                body.collect_scope_facts(facts);
+                trigger.walk_scope(audit);
+                body.walk_scope(audit);
             }
             data!(Content::Supplement { body, side }) => {
-                body.collect_scope_facts(facts);
-                side.collect_scope_facts(facts);
+                body.walk_scope(audit);
+                side.walk_scope(audit);
             }
             data!(Content::Answer { query, selection }) => {
-                query.collect_scope_facts(facts);
-                selection.collect_scope_facts(facts);
+                query.walk_scope(audit);
+                selection.walk_scope(audit);
             }
             data!(Content::Intrinsic { arguments, .. }) => {
                 for argument in arguments {
-                    argument.collect_scope_facts(facts);
+                    argument.walk_scope(audit);
                 }
             }
             data!(Content::Apply { head, arguments }) => {
-                head.collect_scope_facts(facts);
+                head.walk_scope(audit);
                 for argument in arguments {
-                    argument.collect_scope_facts(facts);
+                    argument.walk_scope(audit);
                 }
             }
-            data!(Content::Let(form)) => facts.record_let(form),
-            data!(Content::Bind(form)) => facts.record_bind(form),
-            data!(Content::LetRec(form)) => facts.record_let_rec(form),
+            data!(Content::Let(form)) => audit.walk_let(form, |audit, body| body.walk_scope(audit)),
+            data!(Content::Bind(form)) => {
+                audit.walk_bind(form, |audit, body| body.walk_scope(audit));
+            }
+            data!(Content::LetRec(form)) => {
+                audit.walk_let_rec(form, |audit, body| body.walk_scope(audit));
+            }
             data!(Content::Bound(variable)) => {
-                facts.record_use(variable, atom(TypeAtom::Content));
+                audit.record_use(variable, &atom(TypeAtom::Content));
             }
         }
     }
@@ -465,17 +471,17 @@ impl Query {
         }
     }
 
-    /// Record this value's binder introductions and uses.
+    /// Check this value's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         match self {
-            Self::Polar(content) => content.collect_scope_facts(facts),
-            Self::Open(lambda) => facts.record_lambda(lambda),
+            Self::Polar(content) => content.walk_scope(audit),
+            Self::Open(lambda) => audit.walk_lambda(lambda, |audit, body| body.walk_scope(audit)),
             Self::Bound {
                 variable,
                 parameters,
-            } => facts.record_use(variable, TypeExpr::Query(parameters.clone())),
+            } => audit.record_use(variable, &TypeExpr::Query(parameters.clone())),
         }
     }
 }
@@ -593,31 +599,36 @@ impl AnswerSelection {
         }
     }
 
-    /// Record this value's binder introductions and uses.
+    /// Check this value's binder uses against the live environment.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_scope_facts(&self, facts: &mut ScopeFacts) {
+    pub(super) fn walk_scope<'value>(&'value self, audit: &mut ScopeAudit<'value>) {
         if let data!(AnswerSelection::Tuple { values, .. }) = self.as_data() {
             for value in values {
-                value.collect_scope_facts(facts);
+                value.walk_scope(audit);
             }
         }
     }
 }
 
-/// Test whether every surviving place of a row can be closed.
+/// Test whether every statically surviving place of a row can be closed.
 ///
 /// Section 5.1 closes remaining ordinary referential places with a contextual
 /// computation and an open event place with a local existential event, and
 /// explicitly refuses to invent a default for a higher-order, function,
-/// content, sign, or act place. An unknown numbered tail is not closeable
-/// either, because its surviving places are not yet known.
+/// content, sign, or act place.
+///
+/// An unknown numbered tail does not make a row uncloseable. Section 4.3 states
+/// the `mo`-like relation question exactly the other way round: the query binds
+/// a predicate term whose total row is not yet known, and "answer substitution
+/// supplies the concrete relation and its remaining row before the deferred
+/// `Close` is checked". So the tail defers this test to substitution rather than
+/// failing it here — which is also why section 5.2 forbids *eliding* that
+/// `Close`, since its effective row is not statically known.
 #[requires(true)]
-#[ensures(ret -> !row.has_open_numbered_tail())]
+#[ensures(ret == row.slots().iter().all(|slot| matches!(slot.accepted_type(), TypeExpr::Referents(_))))]
 pub fn row_is_closeable(row: &Row) -> bool {
-    !row.has_open_numbered_tail()
-        && row
-            .slots()
-            .iter()
-            .all(|slot| matches!(slot.accepted_type(), TypeExpr::Referents(_)))
+    row.slots()
+        .iter()
+        .all(|slot| matches!(slot.accepted_type(), TypeExpr::Referents(_)))
 }

@@ -2,34 +2,52 @@
 //!
 //! Every constructor below this one already checked its own local rule, so
 //! well-typedness of the whole tree follows by induction — bityzba wrappers
-//! admit no mutation path. What induction does *not* give is a global property:
-//! that binder names really are identities. [`document_scope_audit`] proves
-//! exactly that, independently of the cached free-binder sets the binding forms
-//! carry.
+//! admit no mutation path. What induction does *not* give is a scope property:
+//! that every `$name` use resolves to exactly one live binder, at exactly the
+//! type that binder declared. [`audit_document_scope`] proves that, independently
+//! of the cached free-binder sets the binding forms carry.
+//!
+//! The audit is a single borrow-based walk carrying the live environment. It
+//! borrows rather than accumulating owned copies because it runs in every
+//! document build, so a corpus-scale render must not pay one `Variable` and one
+//! `TypeExpr` clone per binder occurrence. Carrying the environment rather than
+//! a flat list of every introduction anywhere is also what makes the audit say
+//! what section 2.2 actually requires: sibling scopes may spell one identity the
+//! same way — specification samples section 9 writes a quantifier's restriction
+//! and scope as `(λ (($x Entity)) …)` twice — while a binder introduced *inside*
+//! a live binder of the same name would make that name ambiguous and is refused.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{ensures, expensive_invariant, invariant, new, requires};
 
 use super::binder::{Bind, Category, Lambda, Let, LetRec, free_binders_of};
-use super::content::{Content, Query};
 use super::error::KernelTypeError;
-use super::performable::{Act, Discourse, Performable, TranscriptEntry};
-use super::predicate::PredTerm;
+use super::performable::Performable;
 use super::types::{TypeExpr, Variable};
-use super::value::{FnValue, Operand, RefComp, Value};
+
+/// How many times a whole document uses each binder name.
+///
+/// Section 2.4's utterance contraction is not a property of the entry being
+/// printed: it holds only when the token is unreferenced across the document.
+/// The census is therefore taken once, by the audit that already walks every
+/// use, and carried on the document.
+pub type BinderUses = BTreeMap<Variable, usize>;
 
 /// One complete typed kernel document.
 ///
-/// There is deliberately no `#[expensive_invariant(document_scope_audit(body))]`
-/// here: the constructor runs that audit in every build and the value is
-/// immutable afterwards, so an invariant re-running it would be pure double
-/// work in the expensive-contracts profile.
+/// There is deliberately no `#[expensive_invariant]` re-running the audit here:
+/// the constructor runs it in every build and the value is immutable
+/// afterwards, so an invariant re-running it would be pure double work in the
+/// expensive-contracts profile.
 #[invariant(!body.is_reference_only(), "a document body is performed, not a reference-only constant")]
+#[invariant(uses.values().all(|count| *count > 0), "a census entry records at least one use")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KernelDocument {
     body: Performable,
+    uses: BinderUses,
 }
 
 impl KernelDocument {
@@ -52,8 +70,8 @@ impl KernelDocument {
                 "the final document has no unbound variables",
             ));
         }
-        document_scope_audit(&body)?;
-        Ok(new!(KernelDocument { body }))
+        let uses = audit_document_scope(&body)?;
+        Ok(new!(KernelDocument { body, uses }))
     }
 
     /// Borrow the performable body.
@@ -62,178 +80,231 @@ impl KernelDocument {
     pub fn body(&self) -> &Performable {
         &self.body
     }
-}
 
-/// Binder introductions and uses collected from one whole document.
-#[invariant(true, "an audit accumulator holds whatever the walk has seen so far")]
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct ScopeFacts {
-    introductions: Vec<(Variable, TypeExpr)>,
-    uses: Vec<(Variable, TypeExpr)>,
-}
-
-impl ScopeFacts {
-    /// Borrow every recorded use in document order.
-    ///
-    /// The printer reads this to decide section 2.4's document-wide contraction
-    /// condition, which is a property of the whole document rather than of the
-    /// entry being printed.
+    /// Borrow the whole-document binder-use census the audit produced.
     #[requires(true)]
-    #[ensures(ret.len() == self.uses.len())]
-    pub fn uses(&self) -> &[(Variable, TypeExpr)] {
+    #[ensures(*ret == self.uses)]
+    pub fn binder_uses(&self) -> &BinderUses {
         &self.uses
     }
-
-    /// Record one binder introduction and its declared type.
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn record_introduction(&mut self, variable: &Variable, declared_type: TypeExpr) {
-        self.introductions.push((variable.clone(), declared_type));
-    }
-
-    /// Record one binder use and the type the use site carries.
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn record_use(&mut self, variable: &Variable, used_type: TypeExpr) {
-        self.uses.push((variable.clone(), used_type));
-    }
-
-    /// Record a lambda's parameters and descend into its body.
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn record_lambda<C: Category + ScopeWalk>(&mut self, lambda: &Lambda<C>) {
-        for parameter in lambda.parameters() {
-            self.record_introduction(parameter.variable(), parameter.declared_type().clone());
-        }
-        lambda.body().append_scope_facts_to(self);
-    }
-
-    /// Record a `Let` block's declarations and descend into it.
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn record_let<C: Category + ScopeWalk>(&mut self, form: &Let<C>) {
-        for declaration in form.declarations() {
-            self.record_introduction(declaration.variable(), declaration.declared_type().clone());
-            declaration.initializer().append_scope_facts_to(self);
-        }
-        form.body().append_scope_facts_to(self);
-    }
-
-    /// Record a `Bind` binder and descend into it.
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn record_bind<C: Category + ScopeWalk>(&mut self, form: &Bind<C>) {
-        self.record_introduction(form.variable(), form.declared_type().clone());
-        form.computation().append_scope_facts_to(self);
-        form.body().append_scope_facts_to(self);
-    }
-
-    /// Record a recursive group's declarations and descend into it.
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn record_let_rec<C: Category + ScopeWalk>(&mut self, form: &LetRec<C>) {
-        for declaration in form.declarations() {
-            self.record_introduction(declaration.variable(), declaration.declared_type().clone());
-            declaration.initializer().append_scope_facts_to(self);
-        }
-        form.body().append_scope_facts_to(self);
-    }
 }
 
-/// A kernel value that can report its binder introductions and uses.
+/// The live binder environment of one whole-document scope walk.
 ///
-/// This is the audit walk, kept separate from the cached free-binder sets so
-/// the document invariant checks the tree rather than the annotations the tree
-/// carries.
-#[contract_trait]
-pub trait ScopeWalk {
-    /// Record this value's binder introductions and uses.
+/// `live` is the environment at the current position, so a lookup answers which
+/// binder a use resolves to; `uses` is the running census the printer needs.
+/// The first failure is retained and every later check is skipped, because a
+/// document that has already failed produces no output to be right about.
+#[invariant(
+    true,
+    "an in-progress walk holds whatever the environment currently is"
+)]
+#[derive(Debug, Default)]
+pub struct ScopeAudit<'value> {
+    live: BTreeMap<&'value Variable, Cow<'value, TypeExpr>>,
+    uses: BTreeMap<&'value Variable, usize>,
+    failure: Option<KernelTypeError>,
+}
+
+impl<'value> ScopeAudit<'value> {
+    /// Whether the walk has already failed and may stop checking.
+    #[requires(true)]
+    #[ensures(ret == self.failure.is_some())]
+    fn failed(&self) -> bool {
+        self.failure.is_some()
+    }
+
+    /// Record the first failure of the walk.
+    #[requires(true)]
+    #[ensures(self.failed())]
+    fn fail(&mut self, message: impl Into<String>) {
+        if self.failure.is_none() {
+            self.failure = Some(KernelTypeError::new(message));
+        }
+    }
+
+    /// Bring one binder into scope, refusing to shadow a live one.
     #[requires(true)]
     #[ensures(true)]
-    fn append_scope_facts_to(&self, facts: &mut ScopeFacts);
-}
-
-/// Delegate the audit walk to one kernel category's own collector.
-macro_rules! scope_walk {
-    ($($kind:ty),+ $(,)?) => {
-        $(
-            #[contract_trait]
-            impl ScopeWalk for $kind {
-                fn append_scope_facts_to(&self, facts: &mut ScopeFacts) {
-                    self.collect_scope_facts(facts);
-                }
-            }
-        )+
-    };
-}
-
-scope_walk!(
-    Act,
-    Content,
-    Discourse,
-    FnValue,
-    Operand,
-    Performable,
-    PredTerm,
-    Query,
-    RefComp,
-    TranscriptEntry,
-    Value,
-);
-
-/// Collect every binder introduction and use in one document body.
-#[requires(true)]
-#[ensures(true)]
-pub fn document_scope_facts(body: &Performable) -> ScopeFacts {
-    let mut facts = ScopeFacts::default();
-    body.collect_scope_facts(&mut facts);
-    facts
-}
-
-/// Verify that binder names are identities across a whole document.
-///
-/// Two properties are checked: no name is introduced twice anywhere, so a use
-/// resolves to exactly one binder without a scope walk; and every use carries
-/// exactly the type its binder declared, so a `Bound` node's stored type is not
-/// an independent claim.
-///
-/// One position is exempt from the second property by construction: a
-/// `RefComp::Context` dependency list is a bare list of names with no stored
-/// type, so there is nothing to disagree with a binder about and the walk
-/// records no use for it. Those names are still reported as free binders, so
-/// the document's root free-binder check is what rejects an unbound dependency.
-/// The same limit applies to a bound relation identity reached through a
-/// `Tanru` modifier or a `DropPlace`, whose declared row the composed signature
-/// no longer records.
-#[requires(true)]
-#[ensures(ret.is_ok() || ret.is_err())]
-pub fn document_scope_audit(body: &Performable) -> Result<(), KernelTypeError> {
-    let facts = document_scope_facts(body);
-    let mut declared = BTreeMap::new();
-    for (variable, declared_type) in &facts.introductions {
-        if declared
-            .insert(variable.clone(), declared_type.clone())
-            .is_some()
-        {
-            return Err(KernelTypeError::new(format!(
-                "{} is introduced by two binders, so its name is not an identity",
+    fn introduce(&mut self, variable: &'value Variable, declared_type: Cow<'value, TypeExpr>) {
+        if self.failed() {
+            return;
+        }
+        if self.live.insert(variable, declared_type).is_some() {
+            self.fail(format!(
+                "{} is introduced inside a live binder of the same name, so its name is not an identity",
                 variable.as_str()
-            )));
+            ));
         }
     }
-    for (variable, used_type) in &facts.uses {
-        let Some(declared_type) = declared.get(variable) else {
-            return Err(KernelTypeError::new(format!(
-                "{} is used without a binder",
-                variable.as_str()
-            )));
+
+    /// Take one binder back out of scope.
+    #[requires(true)]
+    #[ensures(true)]
+    fn withdraw(&mut self, variable: &Variable) {
+        self.live.remove(variable);
+    }
+
+    /// Check one use against the binder that is actually live for it.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn record_use(&mut self, variable: &'value Variable, used_type: &TypeExpr) {
+        if self.failed() {
+            return;
+        }
+        let Some(declared_type) = self.live.get(variable) else {
+            self.fail(format!("{} is used without a binder", variable.as_str()));
+            return;
         };
-        if declared_type != used_type {
-            return Err(KernelTypeError::new(format!(
+        if declared_type.as_ref() != used_type {
+            self.fail(format!(
                 "{} is used at a type its binder did not declare",
                 variable.as_str()
-            )));
+            ));
+            return;
+        }
+        *self.uses.entry(variable).or_insert(0) += 1;
+    }
+
+    /// Record one binder that carries no independently declared type.
+    ///
+    /// A `Sign` token and an `Utterance` token are introduced by the value that
+    /// carries them rather than by a declaration, so their declared type is a
+    /// category constant the walk owns rather than a field it can borrow.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn scoped_token<F>(
+        &mut self,
+        token: &'value Variable,
+        declared_type: TypeExpr,
+        inner: F,
+    ) where
+        F: FnOnce(&mut Self),
+    {
+        self.introduce(token, Cow::Owned(declared_type));
+        inner(self);
+        self.withdraw(token);
+    }
+
+    /// Walk a lambda: its parameters scope over its body alone.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn walk_lambda<C, F>(&mut self, lambda: &'value Lambda<C>, body: F)
+    where
+        C: Category,
+        F: FnOnce(&mut Self, &'value C),
+    {
+        for parameter in lambda.parameters() {
+            self.introduce(
+                parameter.variable(),
+                Cow::Borrowed(parameter.declared_type()),
+            );
+        }
+        body(self, lambda.body());
+        for parameter in lambda.parameters() {
+            self.withdraw(parameter.variable());
         }
     }
-    Ok(())
+
+    /// Walk a `Let` block: declarations are sequential, so initializer `i` sees
+    /// the names declared before it and no later one.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn walk_let<C, F>(&mut self, form: &'value Let<C>, body: F)
+    where
+        C: Category,
+        F: FnOnce(&mut Self, &'value C),
+    {
+        for declaration in form.declarations() {
+            declaration.initializer().walk_scope(self);
+            self.introduce(
+                declaration.variable(),
+                Cow::Borrowed(declaration.declared_type()),
+            );
+        }
+        body(self, form.body());
+        for declaration in form.declarations() {
+            self.withdraw(declaration.variable());
+        }
+    }
+
+    /// Walk a `Bind`: the computation runs outside the binder it introduces.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn walk_bind<C, F>(&mut self, form: &'value Bind<C>, body: F)
+    where
+        C: Category,
+        F: FnOnce(&mut Self, &'value C),
+    {
+        form.computation().walk_scope(self);
+        self.introduce(form.variable(), Cow::Borrowed(form.declared_type()));
+        body(self, form.body());
+        self.withdraw(form.variable());
+    }
+
+    /// Walk a recursive group: every initializer sees every declared name.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn walk_let_rec<C, F>(&mut self, form: &'value LetRec<C>, body: F)
+    where
+        C: Category,
+        F: FnOnce(&mut Self, &'value C),
+    {
+        for declaration in form.declarations() {
+            self.introduce(
+                declaration.variable(),
+                Cow::Borrowed(declaration.declared_type()),
+            );
+        }
+        for declaration in form.declarations() {
+            declaration.initializer().walk_scope(self);
+        }
+        body(self, form.body());
+        for declaration in form.declarations() {
+            self.withdraw(declaration.variable());
+        }
+    }
+
+    /// Finish the walk, returning the census or the first failure.
+    #[requires(true)]
+    #[ensures(ret.is_ok() != old(self.failure.is_some()))]
+    fn finish(self) -> Result<BinderUses, KernelTypeError> {
+        match self.failure {
+            Some(failure) => Err(failure),
+            None => Ok(self
+                .uses
+                .into_iter()
+                .map(|(variable, count)| (variable.clone(), count))
+                .collect()),
+        }
+    }
+}
+
+/// Verify that every `$name` use in one document body resolves to exactly one
+/// live binder at exactly the type that binder declared, and return the census
+/// of those uses.
+///
+/// Two positions are exempt by construction, and both are covered by the
+/// document's separate free-binder check rather than by this walk: a
+/// `RefComp::Context` dependency list is a bare list of names with no stored
+/// type, so it has nothing to disagree with a binder about; and a bound relation
+/// identity reached through a `Tanru` modifier or a `DropPlace` is used at a row
+/// the composed signature no longer records.
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub fn audit_document_scope(body: &Performable) -> Result<BinderUses, KernelTypeError> {
+    let mut audit = ScopeAudit::default();
+    body.walk_scope(&mut audit);
+    audit.finish()
+}
+
+/// Collect the whole-document binder-use census of a body that is already known
+/// to be well scoped.
+///
+/// This exists for callers that hold a body rather than a [`KernelDocument`];
+/// a document carries the census the audit already produced.
+#[requires(true)]
+#[ensures(true)]
+pub fn document_binder_uses(body: &Performable) -> BinderUses {
+    audit_document_scope(body).unwrap_or_default()
 }

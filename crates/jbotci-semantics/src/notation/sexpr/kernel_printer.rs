@@ -11,8 +11,6 @@
 //! any kernel signature, and it is not in this module's public one either:
 //! [`print_kernel_document`] takes a typed document and returns text.
 
-use std::collections::BTreeMap;
-
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, requires};
 use num_bigint::BigInt;
@@ -22,13 +20,13 @@ use super::super::kernel::binder::{Bind, Category, Lambda, Let, LetRec, free_bin
 use super::super::kernel::content::{
     AnswerSelection, AnswerSelectionData, Content, ContentData, Query,
 };
-use super::super::kernel::document::{KernelDocument, document_scope_facts};
+use super::super::kernel::document::{BinderUses, KernelDocument};
 use super::super::kernel::intrinsic::Intrinsic;
 use super::super::kernel::performable::{
     Act, ActData, Discourse, DiscourseData, Performable, TranscriptEntry, TranscriptEntryData,
 };
 use super::super::kernel::predicate::{PlaceFill, PlaceFillData, PredTerm, PredTermData};
-use super::super::kernel::types::{TypeAtom, TypeExpr, Variable};
+use super::super::kernel::types::{TypeAtom, TypeExpr};
 use super::super::kernel::value::{
     FnValue, FnValueData, Literal, LiteralData, Operand, RefComp, RefCompData, Value, ValueData,
 };
@@ -50,11 +48,8 @@ pub fn print_kernel_document(document: &KernelDocument, words: &[Datum]) -> Stri
 #[requires(true)]
 #[ensures(ret.form_head() == Some("Smusni"))]
 pub fn kernel_document_datum(document: &KernelDocument, words: &[Datum]) -> Datum {
-    let uses = document_uses(document);
-    let mut values = vec![
-        Datum::unsigned(0),
-        performable_datum(document.body(), &uses),
-    ];
+    let uses = document.binder_uses();
+    let mut values = vec![Datum::unsigned(0), performable_datum(document.body(), uses)];
     if !words.is_empty() {
         values.push(Datum::form("Words", words.iter().cloned()));
     }
@@ -65,20 +60,9 @@ pub fn kernel_document_datum(document: &KernelDocument, words: &[Datum]) -> Datu
 ///
 /// Section 2.4's utterance contraction is not a property of the entry being
 /// printed: it holds only when the token is unreferenced across the document.
-/// The census is taken once at the root and carried down to every position an
-/// entry can occupy.
-type DocumentUses = BTreeMap<Variable, usize>;
-
-/// Count every recorded binder use in one document.
-#[requires(true)]
-#[ensures(true)]
-fn document_uses(document: &KernelDocument) -> DocumentUses {
-    let mut counts = DocumentUses::new();
-    for (variable, _) in document_scope_facts(document.body()).uses() {
-        *counts.entry(variable.clone()).or_insert(0) += 1;
-    }
-    counts
-}
+/// The census is taken once, by the scope audit that already walks every use,
+/// and carried down from the root to every position an entry can occupy.
+type DocumentUses = BinderUses;
 
 /// What the surrounding position requires of the value being printed.
 ///
@@ -353,13 +337,17 @@ fn content_datum(value: &Content, expected: Expected<'_>, uses: &DocumentUses) -
 
 /// Report whether a `Close` node may be omitted at a `Content` operand.
 ///
-/// Section 5.2 additionally requires that the term is inline and not referenced
-/// elsewhere; a bound predicate term is exactly the case that is referenced, so
-/// it keeps its `Close`.
+/// Section 5.2 requires both that the term is inline and not referenced
+/// elsewhere — a bound predicate term is exactly the case that is referenced,
+/// so it keeps its `Close` — and that its effective row is statically known. An
+/// unknown numbered tail is the second condition failing: a `mo`-like relation
+/// question's `Close` is deferred to answer substitution (section 4.3), so it
+/// must stay on the surface however the term was assembled.
 #[requires(true)]
 #[ensures(true)]
 fn close_is_elidable(predicate: &PredTerm) -> bool {
     !matches!(predicate.as_data(), data!(PredTerm::Bound { .. }))
+        && !predicate.row().has_open_numbered_tail()
 }
 
 /// Serialize a query value.
