@@ -739,8 +739,6 @@ fn derived_fact_coordinates() -> BTreeSet<SemanticCoordinate> {
         "binder-does-not-dominate-use",
         "scope-dependency-without-binder",
         "unguarded-or-unrepresentable-scc",
-        "definition-site-does-not-dominate-use",
-        "declaration-planning-nonconvergence",
         "generated-eventuality-unbound",
         // The two whole-graph failure facts of specification section 14.4.
         // Neither has a smaller sound owner, so both use a `WholeGraph` site.

@@ -41,6 +41,15 @@ report can be compared with a current one by rewriting the prefix. The complete
 map is given below anyway, because a rule is easy to misapply and these ids
 appear in archived measurements.
 
+Two rows are marked retired. Structural host planning (issue #761) removed
+`definition-site-does-not-dominate-use` and `declaration-planning-nonconvergence`
+from the registry: the region forest is a tree, so a common host always exists,
+and placement is one bottom-up pass with no fixed point to miss. A report
+carrying either historical id predates that planner and has no current
+counterpart; its edges are now either absent or one of the surviving
+scope reasons. The rows stay listed so an archived id still resolves to an
+answer.
+
 Pre-#753 experimental `TypedGraph` and `Fallback` output is removed and
 unsupported. There is no migration path for a document that contained one:
 those bytes were never a conformant v0 normal form, since version 0 had not
@@ -59,8 +68,8 @@ been minted, and the input should be re-rendered.
 | `smusni.fallback.de-re-owner-opaque` | `smusni.projection.de-re-owner-opaque` |
 | `smusni.fallback.de-re-owner-unrelated-or-nondominating` | `smusni.projection.de-re-owner-unrelated-or-nondominating` |
 | `smusni.fallback.de-re-owner-wrong-kind` | `smusni.projection.de-re-owner-wrong-kind` |
-| `smusni.fallback.declaration-planning-nonconvergence` | `smusni.projection.declaration-planning-nonconvergence` |
-| `smusni.fallback.definition-site-does-not-dominate-use` | `smusni.projection.definition-site-does-not-dominate-use` |
+| `smusni.fallback.declaration-planning-nonconvergence` | retired (see below) |
+| `smusni.fallback.definition-site-does-not-dominate-use` | retired (see below) |
 | `smusni.fallback.dependent-supplement-unrepresentable` | `smusni.projection.dependent-supplement-unrepresentable` |
 | `smusni.fallback.descriptor.unlowered-sumti` | `smusni.projection.descriptor.unlowered-sumti` |
 | `smusni.fallback.dynamic-host-cycle` | `smusni.projection.dynamic-host-cycle` |
