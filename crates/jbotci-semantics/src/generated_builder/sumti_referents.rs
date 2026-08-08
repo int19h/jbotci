@@ -2990,6 +2990,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         } else {
             (None, None, Vec::new(), Vec::new(), Vec::new())
         };
+        self.claim_generated_quantifier_goi_assignment(sumti, scope_source, referent)?;
         let mut argument = if generated_sumti_is_elided(sumti) {
             ArgumentValue::elided(
                 referent,
@@ -3513,11 +3514,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 } else {
                     node.source_variable
                 };
-                let selection_source = if node
-                    .selection_source
-                    .as_ref()
-                    .is_some_and(|source| source.variable == source_variable)
-                {
+                let selection_source = if node.selection_source.as_ref().is_some_and(|source| {
+                    source.is_witness_set() && source.variable == source_variable
+                }) {
                     Some(SelectionSource::witness_set(variable))
                 } else {
                     node.selection_source.clone()
@@ -3540,11 +3539,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     if data.source_variable == Some(source_variable) {
                         data.source_variable = Some(variable);
                     }
-                    if data
-                        .selection_source
-                        .as_ref()
-                        .is_some_and(|source| source.variable == source_variable)
-                    {
+                    if data.selection_source.as_ref().is_some_and(|source| {
+                        source.is_witness_set() && source.variable == source_variable
+                    }) {
                         data.selection_source = Some(SelectionSource::witness_set(variable));
                     }
                     if let Some(restriction) = data.restriction {
@@ -4017,12 +4014,55 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         relative_clauses: &'tree RelativeClauseListSyntax,
     ) -> Result<(), SemanticsError> {
         if let Some(clause) = generated_goi_assignment_clause(relative_clauses)
+            && !self.generated_goi_assignment_is_quantifier_owned(clause)
             && let Some(assigned_name) =
                 self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
         {
             self.assign_generated_name_to_argument_object(referent, assigned_name)?;
         }
         Ok(())
+    }
+
+    /// Bind a quantified argument's `goi` assignment to the candidate it binds.
+    ///
+    /// The claim happens as the binder is created — before the rest of the
+    /// bridi is built — because a `ko'a` the quantifier scopes over has to
+    /// resolve to the candidate rather than fall through to an unresolved
+    /// pro-sumti constant. The clause's own source span records the claim so
+    /// the description the candidate is selected from, which the grammar hands
+    /// the very same clause and which is built only once the whole bridi is
+    /// finished, does not take the name back.
+    #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    pub(super) fn claim_generated_quantifier_goi_assignment<'syntax: 'tree>(
+        &mut self,
+        sumti: &'syntax SumtiSyntax,
+        source: GeneratedArgumentQuantifierSource<'syntax>,
+        variable: SemanticObjectId,
+    ) -> Result<(), SemanticsError> {
+        let Some(clause) = generated_argument_quantifier_goi_assignment_clause(sumti, source)
+        else {
+            return Ok(());
+        };
+        let Some(assigned_name) =
+            self.assigned_name_for_generated_relative_sumti(&clause.sumti, clause)
+        else {
+            return Ok(());
+        };
+        if let Some(key) = self.source_key_for_node(clause) {
+            self.quantifier_owned_goi_assignments.insert(key);
+        }
+        self.assign_generated_name_to_argument_object(variable, assigned_name)
+    }
+
+    #[requires(clause.association_marker.value.cmavo() == Some(Cmavo::Goi))]
+    #[ensures(true)]
+    pub(super) fn generated_goi_assignment_is_quantifier_owned(
+        &self,
+        clause: &SumtiAssociationRelativeClauseSyntax,
+    ) -> bool {
+        self.source_key_for_node(clause)
+            .is_some_and(|key| self.quantifier_owned_goi_assignments.contains(&key))
     }
 
     #[requires(head.object_kind() == crate::model::SemanticObjectKind::Referent)]
@@ -6115,8 +6155,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
 
         let variable = self.build_scoped_argument_variable_for_generated_sumti(sumti)?;
-        let mut restrictions =
+        let selected =
             self.generated_argument_restrictions_for_scope_source(scope_source, variable)?;
+        let selected = selected.into_data();
+        let selection_source = selected
+            .selection_referent
+            .map(SelectionSource::description);
+        let mut restrictions = selected.formulas;
         if let Some(relative_clauses) = generated_sumti_relative_clause_list(sumti) {
             restrictions.extend(
                 self.lower_generated_relative_clause_list(relative_clauses, variable)?
@@ -6144,7 +6189,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source: scope_source,
             variable,
             source_variable: None,
-            selection_source: None,
+            selection_source,
             source_restriction_nodes: Vec::new(),
             source_restriction_formulas: Vec::new(),
             inherited_restrictions: Vec::new(),
@@ -7895,6 +7940,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 description_source,
                 cmavo,
                 abstraction.abstraction,
+                abstraction.linkargs,
                 kind,
                 word,
             );
@@ -8276,6 +8322,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
         cmavo: Option<Cmavo>,
         abstraction: &'tree AbstractionTanruUnitSyntax,
+        linkargs: Option<&'tree LinkargsSyntax>,
         kind: DescriptorKind,
         word: String,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -8289,6 +8336,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         let id = self.build_abstraction_output(abstraction, source.clone())?;
+        self.record_generated_abstraction_trailing_place(
+            id,
+            abstraction_kind_for_nu(abstraction),
+            linkargs,
+        )?;
         let speaker = self.current_speaker();
         let object = self.objects.get_mut(&id).ok_or_else(|| {
             invalid_graph(format!(
@@ -8312,6 +8364,49 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }));
         object.replace_source(source);
         Ok(id)
+    }
+
+    /// Record an abstractor's CLL 11.13 trailing place from its `be` operand.
+    ///
+    /// Only a place the grammar actually states is recorded. An omitted place
+    /// stays absent rather than becoming an elided `zo'e`: whether the speaker
+    /// stated it is semantic data, and smusni §11.3 makes the omission a local
+    /// contextual default at the crossing site rather than a graph object.
+    ///
+    /// A `bei` continuation names a place beyond x2, which no abstractor has,
+    /// so only the first link is read.
+    #[requires(id.object_kind() == crate::model::SemanticObjectKind::Referent)]
+    #[ensures(true)]
+    pub(super) fn record_generated_abstraction_trailing_place(
+        &mut self,
+        id: SemanticObjectId,
+        kind: AbstractionKind,
+        linkargs: Option<&'tree LinkargsSyntax>,
+    ) -> Result<(), SemanticsError> {
+        let (Some(place), Some(linkargs)) = (kind.trailing_place(), linkargs) else {
+            return Ok(());
+        };
+        let sumti = match &linkargs.first_link {
+            LinkedSumtiSyntax::PlainLinkedSumti(sumti) => Some(sumti.0.as_ref()),
+            // `be fe <sumti>` states the same single trailing place explicitly.
+            LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti)
+                if linked_sumti_place(&sumti.fa.value)? == 2 =>
+            {
+                match sumti.sumti.as_ref() {
+                    TaggedOrElidedSumtiSyntax::Sumti(sumti) => Some(sumti),
+                    TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => None,
+                }
+            }
+            _ => None,
+        };
+        let Some(sumti) = sumti else {
+            return Ok(());
+        };
+        let value = self.build_sumti_referent(sumti)?;
+        if let Some(object) = self.objects.get_mut(&id) {
+            object.set_abstraction_trailing_place(place, value);
+        }
+        Ok(())
     }
 
     #[requires(!word.is_empty())]
@@ -9820,16 +9915,49 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(id)
     }
 
+    /// The single eventuality identity a content root denotes, if it has one.
+    ///
+    /// An abstraction's own event must fill the distinguished event place of
+    /// its content's root (semantic-model spec, abstraction outputs; smusni
+    /// spec §11.2), so an abstracted event whose content is a bare predication
+    /// simply *is* that predication's event. A quantifier or a scoped
+    /// compound-event shell does not change which single event the content
+    /// denotes: `lo nu ro lo prenu cu troci` is the one collective event of the
+    /// universal, not one event per person (the per-instance reading is the
+    /// different sentence `ro lo prenu cu troci lo nu …`, where the quantifier
+    /// stands outside the abstraction). So the identity is threaded through
+    /// exactly the shells that bind over a single body formula, plus a
+    /// connective shell that carries its own compound event.
+    ///
+    /// The shell set is deliberately enumerated rather than searched for. A
+    /// recursive hunt for "the unique event somewhere below" would reach into
+    /// nested abstractions, whose events belong to those abstractions; and a
+    /// branching connective without its own event genuinely has no single root
+    /// event, so it reports none rather than picking a branch.
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[ensures(ret.is_none_or(|id| id.referent_sort().is_some_and(|sort| sort.is_subsort_of(SemanticSort::eventuality()))))]
     pub(super) fn single_generated_formula_eventuality(
         &self,
         formula: SemanticObjectId,
     ) -> Option<SemanticObjectId> {
-        let predication = self.objects.get(&formula)?.formula_predication()?;
-        self.objects
-            .get(&predication)
-            .and_then(SemanticObject::predication_eventuality)
+        match self.objects.get(&formula)?.as_formula()?.as_data() {
+            data!(FormulaNode::Atom(node)) => self
+                .objects
+                .get(&node.predication)
+                .and_then(SemanticObject::predication_eventuality),
+            // A `Scoped` shell's own event is the compound event of everything
+            // under it; a branching connective carries none.
+            data!(FormulaNode::Connective(node)) => node.eventuality,
+            data!(FormulaNode::Quantified(node)) => {
+                self.single_generated_formula_eventuality(node.body)
+            }
+            data!(FormulaNode::QuantifierBundle(node)) => {
+                self.single_generated_formula_eventuality(node.body)
+            }
+            data!(FormulaNode::RespectivelyDistribution(node)) => {
+                self.single_generated_formula_eventuality(node.body)
+            }
+        }
     }
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]

@@ -87,6 +87,8 @@ pub struct SequenceNode {
 #[invariant(embedded_questions.iter().all(|question| question.object_kind() == SemanticObjectKind::Question))]
 #[invariant(experiencer.is_none_or(|experiencer| experiencer.object_kind() == SemanticObjectKind::Referent))]
 #[invariant(scale.is_none_or(|scale| scale.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(stages.is_none_or(|stages| argument_object_kind_can_fill(stages.object_kind())))]
+#[invariant(actions.is_none_or(|actions| argument_object_kind_can_fill(actions.object_kind())))]
 #[invariant(target.is_none_or(referent_target_kind_is_allowed))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct EventualityNode {
@@ -122,8 +124,14 @@ pub struct EventualityNode {
     pub arity: Option<usize>,
     pub embedded_questions: Vec<SemanticObjectId>,
     pub abstraction_kind: Option<AbstractionKind>,
+    /// CLL 11.13 `li'i` x2: who undergoes the experience.
     pub experiencer: Option<SemanticObjectId>,
+    /// CLL 11.13 `ni` x2: the measurement scale.
     pub scale: Option<SemanticObjectId>,
+    /// CLL 11.3 `pu'u` x2: the process's stages.
+    pub stages: Option<SemanticObjectId>,
+    /// CLL 11.3 `zu'o` x2: the activity's actions.
+    pub actions: Option<SemanticObjectId>,
     pub target: Option<SemanticObjectId>,
     pub subscript: Option<Subscript>,
     pub common: SemanticObjectCommon,
@@ -142,6 +150,9 @@ pub struct EventualityNode {
 #[invariant(arity.is_none_or(|arity| arity == parameters.len()))]
 #[invariant(experiencer.is_none_or(|experiencer| experiencer.object_kind() == SemanticObjectKind::Referent))]
 #[invariant(scale.is_none_or(|scale| scale.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(epistemology.is_none_or(|epistemology| argument_object_kind_can_fill(epistemology.object_kind())))]
+#[invariant(expressed_by.is_none_or(|expressed_by| argument_object_kind_can_fill(expressed_by.object_kind())))]
+#[invariant(mind.is_none_or(|mind| argument_object_kind_can_fill(mind.object_kind())))]
 #[invariant(target.is_none_or(referent_target_kind_is_allowed))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReferentNode {
@@ -163,7 +174,14 @@ pub struct ReferentNode {
     pub abstraction_kind: Option<AbstractionKind>,
     pub abstracted: Option<SemanticObjectId>,
     pub experiencer: Option<SemanticObjectId>,
+    /// CLL 11.13 `ni` x2: the measurement scale.
     pub scale: Option<SemanticObjectId>,
+    /// CLL 11.13 `jei` x2: the epistemology the truth value is judged by.
+    pub epistemology: Option<SemanticObjectId>,
+    /// CLL 11.13 `du'u` x2: the sentence or text expressing the proposition.
+    pub expressed_by: Option<SemanticObjectId>,
+    /// CLL 11.13 `si'o` x2: the mind the concept is a concept of.
+    pub mind: Option<SemanticObjectId>,
     pub target: Option<SemanticObjectId>,
     pub subscript: Option<Subscript>,
     pub common: SemanticObjectCommon,
@@ -247,7 +265,8 @@ pub struct ConnectiveFormulaNode {
 #[invariant(quantifier_formula_operator_is_allowed(*operator))]
 #[invariant(quantifier_variable_kind_is_allowed(variable.object_kind()))]
 #[invariant(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
-#[invariant(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(selection_source.as_ref().is_none_or(|source| argument_object_kind_can_fill(source.variable.object_kind())))]
+#[invariant(selection_source.as_ref().is_none_or(|source| source.is_witness_set() == source_variable.is_some()), "only a witness-set selection re-quantifies an established variable")]
 #[invariant(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
 #[invariant(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(body.object_kind() == SemanticObjectKind::Formula)]
@@ -1085,6 +1104,8 @@ impl SemanticObject {
             abstraction_kind: None,
             experiencer: None,
             scale: None,
+            stages: None,
+            actions: None,
             target: None,
             subscript: None,
             common: SemanticObjectCommon::new(source, diagnostics),
@@ -1140,6 +1161,8 @@ impl SemanticObject {
                 abstraction_kind: None,
                 experiencer: None,
                 scale: None,
+                stages: None,
+                actions: None,
                 target: None,
                 subscript: None,
                 common: SemanticObjectCommon::new(source, diagnostics),
@@ -1181,6 +1204,9 @@ impl SemanticObject {
             abstracted: None,
             experiencer: None,
             scale: None,
+            epistemology: None,
+            expressed_by: None,
+            mind: None,
             target: None,
             subscript: None,
             common: SemanticObjectCommon::new(source, diagnostics),
@@ -2145,6 +2171,49 @@ impl SemanticObject {
         self.replace_source(source);
     }
 
+    /// Record an abstractor's CLL 11.13 trailing place on its output object.
+    ///
+    /// Each place has its own field because `abstractionKind` is not part of
+    /// the public surface: one shared field would leave a JSON consumer unable
+    /// to tell a scale from a mind.
+    #[requires(self.object_kind() == SemanticObjectKind::Referent)]
+    #[requires(argument_object_kind_can_fill(value.object_kind()))]
+    #[ensures(true)]
+    pub(crate) fn set_abstraction_trailing_place(
+        &mut self,
+        place: AbstractionTrailingPlace,
+        value: SemanticObjectId,
+    ) {
+        if self.as_eventuality().is_some() {
+            self.update_eventuality(|node| match place {
+                AbstractionTrailingPlace::Experiencer => {
+                    node.with_data(data! { experiencer: Some(value) })
+                }
+                AbstractionTrailingPlace::Scale => node.with_data(data! { scale: Some(value) }),
+                AbstractionTrailingPlace::Stages => node.with_data(data! { stages: Some(value) }),
+                AbstractionTrailingPlace::Actions => node.with_data(data! { actions: Some(value) }),
+                AbstractionTrailingPlace::Epistemology
+                | AbstractionTrailingPlace::ExpressedBy
+                | AbstractionTrailingPlace::Mind => node,
+            });
+        } else if self.as_referent().is_some() {
+            self.update_referent(|node| match place {
+                AbstractionTrailingPlace::Scale => node.with_data(data! { scale: Some(value) }),
+                AbstractionTrailingPlace::Epistemology => {
+                    node.with_data(data! { epistemology: Some(value) })
+                }
+                AbstractionTrailingPlace::ExpressedBy => {
+                    node.with_data(data! { expressed_by: Some(value) })
+                }
+                AbstractionTrailingPlace::Mind => node.with_data(data! { mind: Some(value) }),
+                AbstractionTrailingPlace::Experiencer => {
+                    node.with_data(data! { experiencer: Some(value) })
+                }
+                AbstractionTrailingPlace::Stages | AbstractionTrailingPlace::Actions => node,
+            });
+        }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     pub fn assigned_names(&self) -> &[AssignedName] {
@@ -2777,6 +2846,8 @@ fn serialize_eventuality<M: SerializeMap>(
     optional_entry!(map, "experiencer", node.experiencer.as_ref());
     optional_entry!(map, "target", node.target.as_ref());
     optional_entry!(map, "scale", node.scale.as_ref());
+    optional_entry!(map, "stages", node.stages.as_ref());
+    optional_entry!(map, "actions", node.actions.as_ref());
     optional_entry!(map, "subscript", node.subscript.as_ref());
     Ok(())
 }
@@ -2807,6 +2878,9 @@ fn serialize_referent<M: SerializeMap>(map: &mut M, node: &ReferentNode) -> Resu
     optional_entry!(map, "experiencer", node.experiencer.as_ref());
     optional_entry!(map, "target", node.target.as_ref());
     optional_entry!(map, "scale", node.scale.as_ref());
+    optional_entry!(map, "epistemology", node.epistemology.as_ref());
+    optional_entry!(map, "expressedBy", node.expressed_by.as_ref());
+    optional_entry!(map, "mind", node.mind.as_ref());
     optional_entry!(map, "subscript", node.subscript.as_ref());
     Ok(())
 }
@@ -3044,6 +3118,8 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
             out.extend(node.embedded_questions.iter().copied());
             extend_optional(out, node.experiencer);
             extend_optional(out, node.scale);
+            extend_optional(out, node.stages);
+            extend_optional(out, node.actions);
             extend_optional(out, node.target);
             for adjunct in &node.adjuncts {
                 adjunct.references_into(out);
@@ -3102,6 +3178,9 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
             extend_optional(out, node.abstracted);
             extend_optional(out, node.experiencer);
             extend_optional(out, node.scale);
+            extend_optional(out, node.epistemology);
+            extend_optional(out, node.expressed_by);
+            extend_optional(out, node.mind);
             extend_optional(out, node.target);
             if let Some(deictic_reference) = node.deictic_reference {
                 out.push(deictic_reference.ground);

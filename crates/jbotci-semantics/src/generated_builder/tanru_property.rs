@@ -1047,13 +1047,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut prepared_scopes = Vec::with_capacity(scopes.len());
         for (_order, scope) in scopes {
             prepared_scopes.push(match scope {
-                GeneratedOrderedFormulaScope::Argument(scope) => {
-                    let mut restrictions = self
+                GeneratedOrderedFormulaScope::Argument(mut scope) => {
+                    let selected = self
                         .generated_argument_restrictions_for_scope_source_in_formula_context(
                             formula,
                             scope.source,
                             scope.variable,
                         )?;
+                    scope.selection_source = generated_argument_selection_source(&scope, &selected);
+                    let mut restrictions = selected.into_data().formulas;
                     restrictions.extend(
                         self.lower_generated_argument_scope_source_restriction_nodes(
                             &scope,
@@ -1093,13 +1095,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 GeneratedOrderedFormulaScope::Bundle(bundle) => {
                     let GeneratedArgumentQuantifierBundleScope { scopes, source } = bundle;
                     let mut prepared = Vec::with_capacity(scopes.len());
-                    for scope in scopes {
-                        let mut restrictions = self
+                    for mut scope in scopes {
+                        let selected = self
                             .generated_argument_restrictions_for_scope_source_in_formula_context(
                                 formula,
                                 scope.source,
                                 scope.variable,
                             )?;
+                        scope.selection_source =
+                            generated_argument_selection_source(&scope, &selected);
+                        let mut restrictions = selected.into_data().formulas;
                         restrictions.extend(
                             self.lower_generated_argument_scope_source_restriction_nodes(
                                 &scope,
@@ -1191,13 +1196,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         scopes: Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut prepared_scopes = Vec::with_capacity(scopes.len());
-        for scope in scopes {
-            let mut restrictions = self
+        for mut scope in scopes {
+            let selected = self
                 .generated_argument_restrictions_for_scope_source_in_formula_context(
                     formula,
                     scope.source,
                     scope.variable,
                 )?;
+            scope.selection_source = generated_argument_selection_source(&scope, &selected);
+            let mut restrictions = selected.into_data().formulas;
             restrictions.extend(
                 self.lower_generated_argument_scope_source_restriction_nodes(
                     &scope,
@@ -1608,13 +1615,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(formula.object_kind() == crate::model::SemanticObjectKind::Formula)]
     #[requires(matches!(variable.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter))]
-    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.formulas.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn generated_argument_restrictions_for_scope_source_in_formula_context(
         &mut self,
         formula: SemanticObjectId,
         source: GeneratedArgumentQuantifierSource<'tree>,
         variable: SemanticObjectId,
-    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+    ) -> Result<GeneratedArgumentRestrictions, SemanticsError> {
         let Some(eventuality) = self.primary_eventuality_for_generated_formula(formula) else {
             return self.generated_argument_restrictions_for_scope_source(source, variable);
         };
@@ -1624,42 +1631,54 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(matches!(variable.object_kind(), crate::model::SemanticObjectKind::Referent | crate::model::SemanticObjectKind::Parameter))]
-    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.formulas.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn generated_argument_restrictions_for_scope_source(
         &mut self,
         source: GeneratedArgumentQuantifierSource<'tree>,
         variable: SemanticObjectId,
-    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+    ) -> Result<GeneratedArgumentRestrictions, SemanticsError> {
         match source {
             GeneratedArgumentQuantifierSource::QuantifiedSumti(quantified) => {
                 self.generated_argument_restrictions_for_quantified_sumti(quantified, variable)
             }
             GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description) => {
                 let base = self.build_outer_quantified_description_referent(description)?;
-                self.build_membership_restriction_formula(variable, base)
-                    .map(|restriction| vec![restriction])
+                let restriction = self.build_membership_restriction_formula(variable, base)?;
+                Ok(new!(GeneratedArgumentRestrictions {
+                    formulas: vec![restriction],
+                    selection_referent: Some(base),
+                }))
             }
-            GeneratedArgumentQuantifierSource::NoGadriDescription(description) => self
-                .build_no_gadri_restriction_formula(description, variable)
-                .map(|restriction| vec![restriction]),
+            // A gadri-less description restricts with the selbri's own
+            // property, so there is no plurality referent to select from.
+            GeneratedArgumentQuantifierSource::NoGadriDescription(description) => {
+                let restriction = self.build_no_gadri_restriction_formula(description, variable)?;
+                Ok(new!(GeneratedArgumentRestrictions {
+                    formulas: vec![restriction],
+                    selection_referent: None,
+                }))
+            }
         }
     }
 
     #[requires(variable.object_kind() == crate::model::SemanticObjectKind::Referent)]
-    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
+    #[ensures(ret.as_ref().is_ok_and(|restrictions| restrictions.formulas.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula)) || ret.is_err())]
     pub(super) fn generated_argument_restrictions_for_quantified_sumti(
         &mut self,
         quantified: &'tree QuantifiedSumtiSyntax,
         variable: SemanticObjectId,
-    ) -> Result<Vec<SemanticObjectId>, SemanticsError> {
+    ) -> Result<GeneratedArgumentRestrictions, SemanticsError> {
         if generated_sumti_base_spine_cmavo(&quantified.inner_sumti)
             .is_some_and(|cmavo| matches!(cmavo, Cmavo::Da | Cmavo::De | Cmavo::Di))
         {
-            return Ok(Vec::new());
+            return Ok(GeneratedArgumentRestrictions::none());
         }
         let base = self.build_sumti_base_referent(&quantified.inner_sumti)?;
-        self.build_membership_restriction_formula(variable, base)
-            .map(|restriction| vec![restriction])
+        let restriction = self.build_membership_restriction_formula(variable, base)?;
+        Ok(new!(GeneratedArgumentRestrictions {
+            formulas: vec![restriction],
+            selection_referent: Some(base),
+        }))
     }
 
     #[requires(restrictions.iter().all(|restriction| restriction.object_kind() == crate::model::SemanticObjectKind::Formula))]

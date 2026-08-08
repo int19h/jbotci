@@ -722,6 +722,8 @@ pub(crate) fn reference_sites_into(
             push_sites(out, node.embedded_questions.iter().copied(), site_object());
             push_optional_site(out, node.experiencer, site_object());
             push_optional_site(out, node.scale, site_object());
+            push_optional_site(out, node.stages, site_object());
+            push_optional_site(out, node.actions, site_object());
             push_optional_site(out, node.target, site_object());
             for adjunct in &node.adjuncts {
                 adjunct.references_into(&mut scratch);
@@ -791,6 +793,9 @@ pub(crate) fn reference_sites_into(
             push_optional_site(out, node.abstracted, site_object());
             push_optional_site(out, node.experiencer, site_object());
             push_optional_site(out, node.scale, site_object());
+            push_optional_site(out, node.epistemology, site_object());
+            push_optional_site(out, node.expressed_by, site_object());
+            push_optional_site(out, node.mind, site_object());
             push_optional_site(out, node.target, site_object());
             if let Some(deictic_reference) = node.deictic_reference {
                 out.push((deictic_reference.ground, site_object()));

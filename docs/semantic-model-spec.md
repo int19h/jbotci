@@ -2500,6 +2500,39 @@ as restrictions on the selected variable:
 }
 ```
 
+A quantifier whose domain is a description records that description the same
+way, with `selectionSource.kind = "description"` and no `sourceVariable`.  The
+description is an operand of the *binding*, so it is introduced outside the
+binder even though the generated `memberOf(candidate, description)` restriction
+is evaluated under it; the description and everything beneath it therefore
+exclude the candidate from `mayDependOn`, and the structural scope forest homes
+them outside the binder's region.  A plurality cannot depend on the variable
+ranging over its own members.  `ro lo prenu` yields:
+
+```json
+{
+  "formula:17": {
+    "type": "formula",
+    "operator": "forall",
+    "variable": "entity:7",
+    "selectionSource": {
+      "kind": "description",
+      "variable": "entity:11"
+    },
+    "restriction": "formula:15",
+    "domainImport": "projective",
+    "body": "formula:10",
+    "quantity": "quantity:16"
+  }
+}
+```
+
+A described domain may be any object that can fill an argument place: `xo ma`
+selects from a question parameter exactly as `ro lo prenu` selects from a
+description.  A gadri-less description such as `ci gerku` restricts with the
+selbri's own property and has no separate plurality object, so it records no
+selection source.
+
 Grouping termsets (`ce'e`, or `nu'i...nu'u` without a connective) equalize the
 scope of their quantified terms.  They use one formula with
 `operator:"quantifierBundle"`, ordered `bindings`, one shared `body`, and
@@ -5791,6 +5824,49 @@ implementation gaps are listed separately in “Known Implementation Divergences
     or sequence owner. The edge supplies existential scope only; CAhA continues
     to constrain the witness only when explicit. The wire version remains
     `lojban-semantics-json-1` because the notation is unreleased.
+
+44. **Abstracted event of a quantified content root (#778) — extend.** An
+    abstraction's own eventuality fills the distinguished event place of its
+    content's root even when that root is a quantifier, a quantifier bundle, a
+    respectively distribution, or a scoped compound-event shell. `lo nu ro lo
+    prenu cu troci` therefore denotes the single collective event of the
+    universal, with `troci`'s `eventuality` naming the abstraction itself; the
+    per-instance reading belongs to the different sentence `ro lo prenu cu troci
+    lo nu …`, where the quantifier stands outside the abstraction. A branching
+    connective root carries no single event and keeps its own fresh abstraction
+    identity. Before this amendment the abstracted event of a quantified root
+    was unused, which made the abstraction's property vacuous.
+
+45. **Selection source for a described quantifier domain (#778) — extend.**
+    `selectionSource` gains the kind `description`, whose `variable` names the
+    object a gadri quantifier selects members from — the same object the
+    generated `memberOf(candidate, description)` restriction uses. Recording it
+    on the binding rather than reaching it only through the restriction is what
+    places the description *outside* the binder: a plurality cannot depend on
+    the variable ranging over its own members, so the description and every
+    underspecified place beneath it must exclude that candidate from
+    `mayDependOn`, and the structural scope forest must home it outside the
+    binder's region. A described domain may be any object that can fill an
+    argument place, because `xo ma` selects from a question parameter exactly as
+    `ro lo prenu` selects from a description. The kind `witnessSet` is unchanged
+    and remains the only kind paired with `sourceVariable`.
+
+46. **Abstractor trailing places are recorded under their own names (#778)
+    — extend.** Each CLL 11.13 trailing place gets its own field on the
+    abstraction output, matching the table above: `scale` (`ni`),
+    `epistemology` (`jei`), `expressedBy` (`du'u`), `mind` (`si'o`),
+    `experiencer` (`li'i`), `stages` (`pu'u`), and `actions` (`zu'o`). One
+    shared field would be publicly ambiguous, because `abstractionKind` stays
+    internal per amendment 27. The builder fills a place from the `be` link
+    the grammar states — `lo ni la .alis. clani kei be lo mitre` records
+    `scale` — and records **nothing** when the place is unstated: whether the
+    speaker stated it is semantic data, and smusni §11.3 makes the omission a
+    local contextual default at the crossing site rather than a graph object.
+    This supersedes the illustrative elided-`zo'e` values in the `mind` and
+    `stages` sketches above. `SemanticSort` gains `epistemology` so the `jei`
+    place has a sort to cross the model/kernel boundary with. `su'u` still
+    records no trailing place; the constructed link relation no longer
+    fabricates an elided extra place for it either.
 
 ## Known Implementation Divergences (audited 2026-07-16)
 

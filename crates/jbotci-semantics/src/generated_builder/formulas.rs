@@ -618,7 +618,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         match unit {
             BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-                Self::generated_description_abstraction_for_tanru_atom(&unit.base)
+                // The `be` links belong to this level, not to the NU unit, and
+                // they carry the abstractor's CLL 11.13 trailing place.
+                Ok(
+                    Self::generated_description_abstraction_for_tanru_atom(&unit.base)?.map(
+                        |abstraction| GeneratedDescriptionAbstraction {
+                            linkargs: unit.linkargs.as_ref(),
+                            ..abstraction
+                        },
+                    ),
+                )
             }
             BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
             | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_)
@@ -660,6 +669,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 abstraction,
                 output_sort: abstraction_output_sort(kind),
                 link_relation: abstraction_link_relation(kind),
+                linkargs: None,
             }));
         }
         if !abstraction.abstractor_connections.is_empty() {
@@ -675,6 +685,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 abstraction,
                 output_sort: SemanticSort::Text,
                 link_relation: "sentenceExpresses",
+                linkargs: None,
             }));
         }
         Ok(None)

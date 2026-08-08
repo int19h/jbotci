@@ -265,6 +265,49 @@ fn interposed_binder_regions_enclose_the_values_written_under_them() {
     }
 }
 
+/// A description's reference to itself inside its own defining property is a
+/// bound candidate, not a value use, and the occurrence table says so.
+///
+/// This is the graph fact issue #778's §D2.5 requires. Consumers that count
+/// uses read the role rather than the raw reference edge; the two that do
+/// (`notation::lexical_edge` and the host planner's placement users) already
+/// honour it, so pinning the record here keeps the fact from silently
+/// regressing under later builder changes.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_description_self_use_is_recorded_as_definition_internal() {
+    for text in [
+        "lo prenu cu prami",
+        "ro lo prenu cu prami",
+        "mi klama lo zarci poi do nelci ke'a",
+    ] {
+        let graph = graph_for_text(text);
+        let description = graph
+            .objects
+            .iter()
+            .find_map(|(id, object)| {
+                object
+                    .as_referent()
+                    .and_then(|referent| referent.descriptor.as_ref())
+                    .is_some_and(|descriptor| descriptor.body.is_some())
+                    .then_some(*id)
+            })
+            .unwrap_or_else(|| panic!("{text}: no described referent with a property body"));
+        let roles = graph
+            .scope
+            .uses
+            .iter()
+            .filter(|occurrence| occurrence.target == description)
+            .map(|occurrence| occurrence.role)
+            .collect::<Vec<_>>();
+        assert!(
+            roles.contains(&ScopeUseRole::DefinitionInternal),
+            "{text}: {description}'s self-use inside its own property is recorded as {roles:?}"
+        );
+    }
+}
+
 #[requires(!text.is_empty())]
 #[ensures(!ret.objects.is_empty())]
 fn graph_for_text(text: &str) -> SemanticGraph {

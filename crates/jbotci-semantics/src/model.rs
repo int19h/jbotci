@@ -1986,6 +1986,12 @@ pub enum SemanticSort {
     Eventuality(EventualitySort),
     Predication,
     TruthValue,
+    /// The epistemology a truth value is judged by: `jei`'s CLL 11.13 x2.
+    ///
+    /// The kernel's `TruthValue : Content × Referents<Epistemology>` crossing
+    /// has always required this sort; without it an explicit `jei` x2 has no
+    /// model sort to cross the boundary with.
+    Epistemology,
     Proposition,
     Concept,
     Amount,
@@ -2022,6 +2028,7 @@ impl SemanticSort {
             Self::Eventuality(sort) => sort.label(),
             Self::Predication => "predication",
             Self::TruthValue => "truthValue",
+            Self::Epistemology => "epistemology",
             Self::Proposition => "proposition",
             Self::Concept => "concept",
             Self::Amount => "amount",
@@ -2459,11 +2466,27 @@ pub enum ParameterRole {
     RespectiveSlot,
 }
 
-#[invariant(variable.object_kind() == SemanticObjectKind::Referent)]
+/// Where a quantifier's domain is selected from, named by the binding itself
+/// and therefore introduced *outside* its own binder.
+///
+/// The placement is the whole point. A plurality cannot depend on the variable
+/// ranging over its own members, so the underspecified places inside
+/// `lo prenu` must not record `ro lo prenu`'s own candidate in their dependence
+/// universe. Both derived scope records — the `mayDependOn` universes and the
+/// region forest — read placement off the graph structurally, so making the
+/// source an operand of the binding is what makes them tell the truth; reaching
+/// it only through the restriction would put it under the binder.
+#[invariant(argument_object_kind_can_fill(variable.object_kind()), "a domain is selected from something that can fill an argument place")]
+#[invariant(*kind != SelectionSourceKind::WitnessSet || variable.object_kind() == SemanticObjectKind::Referent, "a witness set belongs to an established variable")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SelectionSource {
     pub kind: SelectionSourceKind,
+    /// The object the domain is selected from: the earlier bound variable whose
+    /// witness set is re-quantified, or the described plurality whose members
+    /// the candidate ranges over. A described domain may be any object that can
+    /// fill an argument place, because `xo ma` selects from a question
+    /// parameter just as `ro lo prenu` selects from a description.
     pub variable: SemanticObjectId,
 }
 
@@ -2477,6 +2500,21 @@ impl SelectionSource {
         }))
     }
 
+    #[requires(argument_object_kind_can_fill(description.object_kind()))]
+    #[ensures(ret.variable == description)]
+    pub fn description(description: SemanticObjectId) -> Self {
+        Self::from_data(data!(SelectionSource {
+            kind: SelectionSourceKind::Description,
+            variable: description,
+        }))
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn is_witness_set(&self) -> bool {
+        self.kind == SelectionSourceKind::WitnessSet
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn references_into(&self, out: &mut Vec<SemanticObjectId>) {
@@ -2488,7 +2526,12 @@ impl SelectionSource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum SelectionSourceKind {
+    /// CLL 16.11 re-quantification: `re da` after `ci da` selects from the
+    /// witness set of the established variable.
     WitnessSet,
+    /// The described plurality a quantifier selects members of: `ro lo prenu`
+    /// restricts its candidate with `memberOf(candidate, description)`.
+    Description,
 }
 
 #[invariant(argument_value_shape_is_valid(*kind, *value, introduced_by.as_deref()))]
@@ -3237,7 +3280,8 @@ pub enum DomainImport {
 #[invariant(quantifier_formula_operator_is_allowed(*operator))]
 #[invariant(quantifier_variable_kind_is_allowed(variable.object_kind()))]
 #[invariant(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
-#[invariant(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == SemanticObjectKind::Referent))]
+#[invariant(selection_source.as_ref().is_none_or(|source| argument_object_kind_can_fill(source.variable.object_kind())))]
+#[invariant(selection_source.as_ref().is_none_or(|source| source.is_witness_set() == source_variable.is_some()), "only a witness-set selection re-quantifies an established variable")]
 #[invariant(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
 #[invariant(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
 #[invariant(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
@@ -3262,7 +3306,8 @@ impl QuantifierBinding {
     #[requires(quantifier_formula_operator_is_allowed(operator))]
     #[requires(quantifier_variable_kind_is_allowed(variable.object_kind()))]
     #[requires(source_variable.is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent))]
-    #[requires(selection_source.as_ref().is_none_or(|source| source.variable.object_kind() == SemanticObjectKind::Referent))]
+    #[requires(selection_source.as_ref().is_none_or(|source| argument_object_kind_can_fill(source.variable.object_kind())))]
+    #[requires(selection_source.as_ref().is_none_or(|source| source.is_witness_set() == source_variable.is_some()))]
     #[requires(selection_source.as_ref().is_none_or(|source| source_variable.is_none_or(|variable| variable == source.variable)))]
     #[requires(restriction.is_none_or(|restriction| restriction.object_kind() == SemanticObjectKind::Formula))]
     #[requires(quantity.is_none_or(|quantity| quantity.object_kind() == SemanticObjectKind::Quantity))]
@@ -3478,6 +3523,57 @@ impl AbstractionKind {
             Self::SentenceSign => SemanticSort::Sign,
             Self::Concept => SemanticSort::Concept,
             Self::Unspecified => SemanticSort::AbstractNature,
+        }
+    }
+}
+
+/// Which CLL 11.13 trailing place an abstractor's surface x2 fills.
+///
+/// The model spells each place with its own field rather than sharing one
+/// generic slot: `abstractionKind` is internal, so a shared field would leave
+/// a public consumer unable to tell a scale from a mind.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AbstractionTrailingPlace {
+    /// `ni` x2.
+    Scale,
+    /// `jei` x2.
+    Epistemology,
+    /// `du'u` x2.
+    ExpressedBy,
+    /// `si'o` x2.
+    Mind,
+    /// `li'i` x2.
+    Experiencer,
+    /// `pu'u` x2.
+    Stages,
+    /// `zu'o` x2.
+    Actions,
+}
+
+impl AbstractionKind {
+    /// The trailing place this abstractor exposes, if any.
+    ///
+    /// `su'u` has no row: CLL 11.13 gives it no x2 and the model records none.
+    /// `nu`, `mu'e` and `za'i` are one-place event abstractors, and `ka`'s
+    /// extra structure is its `ce'u` parameters.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn trailing_place(self) -> Option<AbstractionTrailingPlace> {
+        match self {
+            Self::Amount => Some(AbstractionTrailingPlace::Scale),
+            Self::TruthValue => Some(AbstractionTrailingPlace::Epistemology),
+            Self::Proposition => Some(AbstractionTrailingPlace::ExpressedBy),
+            Self::Concept => Some(AbstractionTrailingPlace::Mind),
+            Self::Experience => Some(AbstractionTrailingPlace::Experiencer),
+            Self::Process => Some(AbstractionTrailingPlace::Stages),
+            Self::Activity => Some(AbstractionTrailingPlace::Actions),
+            Self::Event
+            | Self::Achievement
+            | Self::State
+            | Self::Property
+            | Self::SentenceSign
+            | Self::Unspecified => None,
         }
     }
 }
@@ -4541,6 +4637,12 @@ pub fn semantic_object_domain_imports_are_valid(
     })
 }
 
+/// A binding carried by a coequal termset bundle obeys the same role
+/// constraints as a standalone [`QuantifierBinding`], so this predicate must
+/// state exactly what that struct's own invariants state — including that a
+/// described domain may be any object that can fill an argument place, since
+/// `nu'i xo ma ce'e re da nu'u` bundles a quantifier selecting from a question
+/// parameter.
 #[requires(true)]
 #[ensures(true)]
 fn quantifier_binding_matches_role(binding: &QuantifierBinding) -> bool {
@@ -4550,7 +4652,8 @@ fn quantifier_binding_matches_role(binding: &QuantifierBinding) -> bool {
             .source_variable
             .is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent)
         && binding.selection_source.as_ref().is_none_or(|source| {
-            source.variable.object_kind() == SemanticObjectKind::Referent
+            argument_object_kind_can_fill(source.variable.object_kind())
+                && source.is_witness_set() == binding.source_variable.is_some()
                 && binding
                     .source_variable
                     .is_none_or(|variable| variable == source.variable)

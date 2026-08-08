@@ -459,7 +459,18 @@ fn node_type_scheme_is_exercised() {
 
 /// Corpus documents currently diverging from the frozen oracle graph. Pinned so
 /// a regression fails rather than scrolling past in the report.
-const FROZEN_DIVERGENCE_BASELINE: usize = 0;
+///
+/// The two are `medium-quantified` and `question-multiple-domains`, and both
+/// diverge for the same intended reason (semantic-model spec amendment 45,
+/// issue #778): a quantifier whose domain is a description now names that
+/// description on the binding as `selectionSource`, which the frozen graphs
+/// predate. `medium-quantified` additionally shows `Referent:scopeDependence`
+/// gaining `fixed` values, because the description is now introduced outside
+/// its own quantifier's binder and so no longer records that quantifier's
+/// candidate in its dependence universe. The frozen graphs stay untouched: they
+/// are a retained oracle from the notation research repository, not a snapshot
+/// of the current builder.
+const FROZEN_DIVERGENCE_BASELINE: usize = 2;
 
 /// A JSON scalar looks like a semantic-object ID (`entity:1`, `eventuality/locution:25`).
 #[requires(true)]

@@ -43,9 +43,10 @@ use crate::model::{
     ParagraphTransition, ParameterRole, PlaceIndex, PredicationMode, PredicationNode,
     PredicationRelationData, QuantityForm, QuantityNode, QuantityScale, QuestionKind, QuestionMode,
     QuestionSlotData, QuestionSlotRole, ReferentCategory, ReferentNode, RelationLabelData,
-    RelativeClauseKind, ScopeDependenceData, ScopeUseRole, SemanticGraph, SemanticObjectData,
-    SemanticObjectId, SemanticObjectKind, SemanticSort, SequenceNode, SequenceRelation, SignNode,
-    UtteranceForce, UtteranceNode, semantic_scope_dependence_binder_universes,
+    RelativeClauseKind, ScopeDependenceData, ScopeUseRole, SelectionSource, SemanticGraph,
+    SemanticObjectData, SemanticObjectId, SemanticObjectKind, SemanticSort, SequenceNode,
+    SequenceRelation, SignNode, UtteranceForce, UtteranceNode,
+    semantic_scope_dependence_binder_universes,
 };
 
 /// Mutable counters kept separate from semantic rendering decisions.
@@ -1988,8 +1989,16 @@ impl Elaborator<'_> {
                 let universal = exact_universal_quantity(self.graph, node.operator, node.quantity);
                 let ordinary_exists =
                     node.operator == FormulaOperator::Exists && node.quantity.is_none();
+                // A witness-set selection re-quantifies an established variable
+                // and has no registered compact reduction. A described domain
+                // is different: it only names the object the binding's own
+                // `memberOf` restriction already reaches, so the reduction is
+                // the ordinary one and the record adds no printing obligation.
                 if node.source_variable.is_some()
-                    || node.selection_source.is_some()
+                    || node
+                        .selection_source
+                        .as_ref()
+                        .is_some_and(SelectionSource::is_witness_set)
                     || !(universal || ordinary_exists)
                 {
                     return self.fallback_object(
@@ -3470,6 +3479,7 @@ fn sort_type_expr(sort: SemanticSort) -> Option<TypeExpr> {
         SemanticSort::Eventuality(EventualitySort::Experience) => TypeAtom::Experience,
         SemanticSort::Eventuality(EventualitySort::Locution) => TypeAtom::Locution,
         SemanticSort::TruthValue => TypeAtom::TruthValue,
+        SemanticSort::Epistemology => TypeAtom::Epistemology,
         SemanticSort::Proposition => TypeAtom::Proposition,
         SemanticSort::Concept => TypeAtom::Concept,
         SemanticSort::Amount => TypeAtom::Amount,

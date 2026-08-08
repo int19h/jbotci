@@ -229,6 +229,12 @@ struct GeneratedGraphBuilder<'a, 'dict, 'syntax> {
     pending_sumti_candidates: Vec<GeneratedPendingSumtiCandidate<'syntax>>,
     recent_sumti_referents: Vec<GeneratedRecentSumtiReferent>,
     assigned_referents: BTreeMap<String, SemanticObjectId>,
+    // `goi` clauses a quantified argument's own binder has already claimed, by
+    // clause source span. `ro lo prenu goi ko'a` parses its relative clauses
+    // onto the description tail, so without this the description would take the
+    // name back when it is built — after the whole bridi, and therefore after
+    // every `ko'a` the quantifier scopes over.
+    quantifier_owned_goi_assignments: BTreeSet<(usize, usize)>,
     math_variable_referents: BTreeMap<String, SemanticObjectId>,
     assigned_pro_bridi_bindings: BTreeMap<String, GeneratedAssignedProBridiBinding<'syntax>>,
     pending_asides: Vec<SemanticObjectId>,
@@ -814,6 +820,9 @@ struct GeneratedDescriptionAbstraction<'syntax> {
     abstraction: &'syntax AbstractionTanruUnitSyntax,
     output_sort: SemanticSort,
     link_relation: &'static str,
+    /// The `be` links the NU tanru unit carries, which is where the grammar
+    /// supplies an abstractor's CLL 11.13 trailing place.
+    linkargs: Option<&'syntax LinkargsSyntax>,
 }
 
 #[invariant(nu.is_selmaho(Selmaho::Nu))]
@@ -1430,6 +1439,54 @@ struct GeneratedSemanticDaSeriesScopeBinding {
     restriction_formulas: Vec<SemanticObjectId>,
 }
 
+/// What one quantifier source contributes to its binding: the restriction
+/// formulas, and — when the domain is an xorlo description — the referent the
+/// domain is selected from.
+///
+/// The selection referent is carried out of restriction building because it
+/// belongs to the *binding*, not to the restriction: it is introduced outside
+/// the binder the restriction is evaluated under, and both derived scope
+/// records read that placement off the graph rather than being told it.
+#[invariant(formulas.iter().all(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula))]
+#[invariant(selection_referent.is_none_or(|referent| crate::model::argument_object_kind_can_fill(referent.object_kind())))]
+#[derive(Debug, Clone)]
+struct GeneratedArgumentRestrictions {
+    formulas: Vec<SemanticObjectId>,
+    selection_referent: Option<SemanticObjectId>,
+}
+
+impl GeneratedArgumentRestrictions {
+    /// A source that contributes no restriction and names no domain, which is
+    /// what a bare `da`-series quantifier is.
+    #[requires(true)]
+    #[ensures(ret.formulas.is_empty() && ret.selection_referent.is_none())]
+    fn none() -> Self {
+        new!(GeneratedArgumentRestrictions {
+            formulas: Vec::new(),
+            selection_referent: None,
+        })
+    }
+}
+
+/// The selection source one prepared quantifier binding records.
+///
+/// A re-quantified `da` already names the established variable whose witness
+/// set it selects from, and that binding builds no description; otherwise an
+/// xorlo description's referent becomes the binding's own operand so it is
+/// introduced outside the binder its `memberOf` restriction is evaluated under.
+#[requires(true)]
+#[ensures(true)]
+fn generated_argument_selection_source(
+    scope: &GeneratedArgumentQuantifierScope<'_>,
+    restrictions: &GeneratedArgumentRestrictions,
+) -> Option<SelectionSource> {
+    scope.selection_source.clone().or_else(|| {
+        restrictions
+            .selection_referent
+            .map(SelectionSource::description)
+    })
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone)]
 struct GeneratedArgumentQuantifierScope<'syntax> {
@@ -1701,6 +1758,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             pending_sumti_candidates: Vec::new(),
             recent_sumti_referents: Vec::new(),
             assigned_referents: BTreeMap::new(),
+            quantifier_owned_goi_assignments: BTreeSet::new(),
             math_variable_referents: BTreeMap::new(),
             assigned_pro_bridi_bindings: BTreeMap::new(),
             pending_asides: Vec::new(),
@@ -5952,6 +6010,67 @@ fn generated_goi_assignment_clause(
             generated_goi_assignment_clause_atom(atom)
         })
     })
+}
+
+/// The `goi` assignment the sumti opening a quantifier binder owns.
+///
+/// `ro lo prenu goi ko'a` is one sumti whose argument value is the bound
+/// candidate, so a `ko'a` inside that quantifier's scope denotes the candidate
+/// rather than the description the candidate is selected from. Finding the
+/// clause has to go through the quantifier source's own syntax: the grammar
+/// attaches the relative clauses of `[quantifier] LE selbri [relative-clauses]`
+/// to the description tail, not to the enclosing sumti, so the enclosing
+/// sumti's own clause list is empty in exactly the configuration that matters.
+#[requires(true)]
+#[ensures(ret.is_none_or(|clause| clause.association_marker.value.cmavo() == Some(Cmavo::Goi)))]
+fn generated_argument_quantifier_goi_assignment_clause<'syntax>(
+    sumti: &'syntax SumtiSyntax,
+    source: GeneratedArgumentQuantifierSource<'syntax>,
+) -> Option<&'syntax SumtiAssociationRelativeClauseSyntax> {
+    if let Some(relative_clauses) = generated_sumti_relative_clause_list(sumti)
+        && let Some(clause) = generated_goi_assignment_clause(relative_clauses)
+    {
+        return Some(clause);
+    }
+    match source {
+        GeneratedArgumentQuantifierSource::OuterQuantifiedDescription(description) => {
+            generated_description_tail_goi_assignment_clause(&description.tail)
+        }
+        GeneratedArgumentQuantifierSource::QuantifiedSumti(quantified) => {
+            match quantified.inner_sumti.as_ref() {
+                SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
+                    generated_description_tail_goi_assignment_clause(&description.tail)
+                }
+                SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
+                    generated_description_tail_goi_assignment_clause(&description.tail)
+                }
+                _ => None,
+            }
+        }
+        // A gadri-less description carries its clauses on the sumti itself, so
+        // the list above already covered it.
+        GeneratedArgumentQuantifierSource::NoGadriDescription(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_none_or(|clause| clause.association_marker.value.cmavo() == Some(Cmavo::Goi)))]
+fn generated_description_tail_goi_assignment_clause(
+    tail: &DescriptionTailSyntax,
+) -> Option<&SumtiAssociationRelativeClauseSyntax> {
+    if let Some(relative_clauses) = tail.leading_tail_elements.relative_clauses.as_ref()
+        && let Some(clause) = generated_goi_assignment_clause(relative_clauses)
+    {
+        return Some(clause);
+    }
+    let relative_clauses = match tail.tail.as_ref() {
+        DescriptionTailBodySyntax::RelationDescriptionTail(tail) => tail.relative_clauses.as_ref(),
+        DescriptionTailBodySyntax::QuantifierRelationDescriptionTail(tail) => {
+            tail.relative_clauses.as_ref()
+        }
+        DescriptionTailBodySyntax::QuantifierSumtiDescriptionTail(_) => None,
+    }?;
+    generated_goi_assignment_clause(relative_clauses)
 }
 
 #[requires(true)]
@@ -10470,6 +10589,131 @@ mod tests {
         );
     }
 
+    /// Each abstractor's CLL 11.13 trailing place is recorded under its own
+    /// name when the `be` link states it, and names the operand the speaker
+    /// actually stated.
+    ///
+    /// The value half is not decoration: a trailing place the reference
+    /// traversal does not walk is pruned out from under its own id, so the
+    /// field is only meaningful if the object it names survives.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn abstractor_trailing_places_are_recorded_under_their_own_names() {
+        for (text, field, operand) in [
+            (
+                "lo ni la .alis. clani kei be lo mitre cu barda",
+                "scale",
+                "lo mitre",
+            ),
+            (
+                "lo jei mi klama kei be lo lojbo cu melbi",
+                "epistemology",
+                "lo lojbo",
+            ),
+            (
+                "lo du'u mi klama kei be lo cukta cu melbi",
+                "expressedBy",
+                "lo cukta",
+            ),
+            ("lo si'o mi klama kei be mi cu melbi", "mind", "speaker"),
+            (
+                "lo li'i mi klama kei be mi cu melbi",
+                "experiencer",
+                "speaker",
+            ),
+            (
+                "lo pu'u mi klama kei be lo stapa cu melbi",
+                "stages",
+                "lo stapa",
+            ),
+            (
+                "lo zu'o mi klama kei be lo zukte cu melbi",
+                "actions",
+                "lo zukte",
+            ),
+        ] {
+            let graph = semantic_graph_for(text);
+            let json = serde_json::to_value(&graph).expect("graph serializes");
+            let objects = json["objects"].as_object().expect("graph names objects");
+            let recorded = objects
+                .values()
+                .filter_map(|object| object.get(field).and_then(serde_json::Value::as_str))
+                .collect::<Vec<_>>();
+            assert_eq!(recorded.len(), 1, "{text}: expected exactly one {field}");
+            assert_eq!(
+                stated_operand_of(objects, recorded[0]),
+                operand,
+                "{text}: {field} should name the stated operand"
+            );
+        }
+    }
+
+    /// Name the operand `id` refers to: an indexical by its kind, a
+    /// description by the descriptor's own relation. Panics when `id` is
+    /// dangling, which is the condition this witness exists to catch.
+    #[requires(!id.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn stated_operand_of(objects: &serde_json::Map<String, serde_json::Value>, id: &str) -> String {
+        let object = objects
+            .get(id)
+            .unwrap_or_else(|| panic!("{id} should survive pruning"));
+        if let Some(indexical) = object.get("indexical").and_then(serde_json::Value::as_str) {
+            return indexical.to_string();
+        }
+        let body = object["descriptor"]["body"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{id} should describe its referent"));
+        let predication = objects[body]["predication"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{body} should be an atom"));
+        let relation = objects[predication]["relation"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{predication} should name a relation"));
+        format!("lo {relation}")
+    }
+
+    /// An abstractor whose place the speaker did not state records nothing:
+    /// whether the place was stated is semantic data, and smusni §11.3 makes
+    /// the omission a local contextual default rather than a graph object.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_unstated_trailing_place_stays_absent() {
+        let graph = semantic_graph_for("lo ni la .alis. clani cu barda");
+        for object in graph.objects.values() {
+            let json = serde_json::to_value(object).expect("object serializes");
+            assert!(json.get("scale").is_none(), "{json}");
+        }
+    }
+
+    /// `su'u` has no CLL 11.13 x2. The link path used to fabricate one for
+    /// every `su'u` description through the `Unspecified` arm (issue #778).
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn suhu_exposes_no_extra_surface_place() {
+        assert_eq!(
+            abstraction_extra_surface_place(AbstractionKind::Unspecified),
+            None
+        );
+        assert_eq!(AbstractionKind::Unspecified.trailing_place(), None);
+        let graph = semantic_graph_for("lo su'u mi klama cu melbi");
+        for object in graph.objects.values() {
+            let json = serde_json::to_value(object).expect("object serializes");
+            for field in [
+                "scale",
+                "epistemology",
+                "expressedBy",
+                "mind",
+                "stages",
+                "actions",
+            ] {
+                assert!(json.get(field).is_none(), "su'u recorded {field}: {json}");
+            }
+        }
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
@@ -10491,6 +10735,75 @@ mod tests {
                 .get(&event_binding_owner(&graph, event))
                 .and_then(SemanticObject::formula_operator),
             Some(FormulaOperator::Atom)
+        );
+    }
+
+    /// `goi` on a quantified sumti names the candidate the quantifier binds, so
+    /// a `ko'a` the quantifier scopes over is that candidate rather than an
+    /// unresolved pro-sumti constant.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_under_a_quantifier_resolves_to_the_bound_candidate() {
+        let graph = semantic_graph_for("ro lo prenu goi ko'a cu prami ko'a");
+        let prami = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "prami")
+                    .then_some(predication)
+            })
+            .expect("prami predication exists");
+        let x1 = prami.arguments[&argument_key(1)]
+            .value
+            .expect("prami x1 is filled");
+        let x2 = prami.arguments[&argument_key(2)]
+            .value
+            .expect("prami x2 is filled");
+        assert_eq!(x1, x2);
+        let variable = graph.objects.get(&x1).expect("candidate exists");
+        assert_eq!(
+            variable.referent_category(),
+            Some(ReferentCategory::Variable)
+        );
+        assert_eq!(
+            variable
+                .assigned_names()
+                .iter()
+                .map(|name| name.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["ko'a"]
+        );
+        // The description the candidate is selected from does not also carry
+        // the name: the quantifier's binder owns the assignment.
+        assert!(
+            graph
+                .objects
+                .iter()
+                .all(|(id, object)| { *id == x1 || object.assigned_names().is_empty() })
+        );
+    }
+
+    /// Same-scope `goi` without a quantifier is unchanged: the description
+    /// itself is the assignment target.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn goi_without_a_quantifier_still_names_the_description() {
+        let graph = semantic_graph_for("lo prenu goi ko'a cu prami ko'a");
+        let named = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| (!object.assigned_names().is_empty()).then_some(id))
+            .expect("goi assigns a name");
+        let object = graph.objects.get(&named).expect("named referent exists");
+        assert_eq!(object.referent_category(), Some(ReferentCategory::Constant));
+        assert!(
+            object
+                .as_referent()
+                .and_then(|referent| referent.descriptor.as_ref())
+                .is_some_and(|descriptor| descriptor.word == "lo")
         );
     }
 
@@ -10600,6 +10913,75 @@ mod tests {
         );
     }
 
+    /// The abstracted event of a quantified content root is the one collective
+    /// event of the universal, filling the root predication's own event place
+    /// exactly as it does when the content is a bare predication.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantified_abstraction_content_root_fills_the_abstracted_event() {
+        let graph = semantic_graph_for("mi gleki lo nu ro lo prenu cu klama");
+        let abstraction = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                object
+                    .as_eventuality()
+                    .and_then(|eventuality| eventuality.content.map(|_| id))
+            })
+            .expect("lo nu denotes an eventuality");
+        let klama_event = graph
+            .objects
+            .values()
+            .find_map(|object| {
+                let predication = object.as_predication()?;
+                matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation }) if relation == "klama")
+                    .then_some(predication.eventuality)
+                    .flatten()
+            })
+            .expect("klama has a distinguished event place");
+        assert_eq!(klama_event, abstraction);
+        // The identity is the abstraction's own referential event, so nothing
+        // existentially binds it any more.
+        assert!(graph.objects.values().all(|owner| {
+            owner
+                .bound_eventualities()
+                .iter()
+                .all(|bound| bound.object_id() != abstraction)
+        }));
+    }
+
+    /// A branching connective content root has no single event to abstract, so
+    /// the abstraction keeps its own fresh identity rather than picking a
+    /// branch.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn connected_abstraction_content_root_keeps_its_own_event() {
+        let graph = semantic_graph_for("mi gleki lo nu mi klama gi'e bajra");
+        let abstraction = graph
+            .objects
+            .iter()
+            .find_map(|(&id, object)| {
+                object
+                    .as_eventuality()
+                    .and_then(|eventuality| eventuality.content.map(|_| id))
+            })
+            .expect("lo nu denotes an eventuality");
+        for relation in ["klama", "bajra"] {
+            let branch_event = graph
+                .objects
+                .values()
+                .find_map(|object| {
+                    let predication = object.as_predication()?;
+                    matches!(predication.relation.as_data(), data!(crate::model::PredicationRelation::Named { relation: candidate }) if candidate == relation)
+                        .then_some(predication.eventuality)
+                        .flatten()
+                })
+                .expect("branch has a distinguished event place");
+            assert_ne!(branch_event, abstraction);
+        }
+    }
     #[test]
     #[requires(true)]
     #[ensures(true)]
