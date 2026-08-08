@@ -779,7 +779,11 @@ fn speaker_description_is_one_nonveridical_reference_computation() {
     let input = build_input("le mlatu cu gerku", "speaker-description");
     let datum = validate_render(&input.graph, &document_text(&input.graph));
 
-    assert_eq!(count_forms(&datum, "Bind"), 1);
+    // Two binders: the description's own `Refer`, and — inside the described
+    // property, where the candidate is live — section 5.1's explicit bind for
+    // `mlatu`'s elided x2, whose recorded dependence is the described candidate
+    // rather than `Fixed`.
+    assert_eq!(count_forms(&datum, "Bind"), 2);
     assert_eq!(count_forms(&datum, "Refer"), 1);
     assert_eq!(count_forms(&datum, "skicu"), 1);
     assert_eq!(count_forms(&datum, "mlatu"), 1);
@@ -1904,9 +1908,12 @@ fn a_gadri_folded_property_crossing_is_one_lambda() {
         "folding the gadri introduces no description:\n{}",
         rendered.text,
     );
+    // The lambda declares the parameter, `melbi` fills its first place with it,
+    // and each of the three remaining elided places records the parameter as
+    // its permitted dependence, so section 5.1 names it once per explicit bind.
     assert_eq!(
         count_atoms(&datum, "$parameterNode_8"),
-        2,
+        5,
         "the lambda binds and uses the graph-owned parameter:\n{}",
         rendered.text,
     );
@@ -2043,17 +2050,19 @@ fn an_asserted_predication_inside_abstracted_content_is_refused() {
 /// Section 6.3 stops a raised reference at the binders its property actually
 /// names, not at every binder its recorded dependence permits it to name.
 ///
-/// `lo nu mi klama` inside a universal records `mayDependOn` on the quantified
-/// variable, because the builder writes the permission the position allows. Its
-/// property mentions no binder at all, so the computation raises past the
-/// quantifier to the enclosing abstraction's barrier; anchoring it by the
-/// permission instead would trap it inside a quantifier it never mentions.
+/// `lo nu mi dunda ti do` inside a universal records `mayDependOn` on the
+/// quantified variable, because the builder writes the permission the position
+/// allows. Its property mentions no binder at all — the base predication's
+/// places are all filled, so it has no elided place whose own section-5.1 bind
+/// would name one — and the computation raises past the quantifier to the
+/// enclosing abstraction's barrier; anchoring it by the permission instead
+/// would trap it inside a quantifier it never mentions.
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn a_raised_reference_stops_at_the_binders_its_property_names() {
     let input = build_input(
-        "lo nu ro lo prenu cu troci lo nu mi klama kei kei cu cadga",
+        "lo nu ro lo prenu cu troci lo nu mi dunda ti do kei kei cu cadga",
         "permission-wider-than-use",
     );
     assert!(
@@ -2407,4 +2416,164 @@ fn a_handle_resolved_onto_an_atom_prints_that_atom() {
     );
     assert_eq!(count_forms(&datum, "Bind"), 0, "{}", rendered.text);
     assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// Section 5.1 rule 1: a defaultable ordinary referential place whose graph
+/// dependence is `Fixed` "receives a fresh bare `Context` computation" as part
+/// of closure, and section 5.2 lets that closure itself be omitted. Nothing of
+/// it is written, because a fresh site-stable lookup is fully determined by the
+/// place it fills — there is no permission to preserve.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_fixed_default_place_is_hidden_by_close() {
+    let input = build_input("mi klama", "fixed-default-place");
+    let elided = input
+        .graph
+        .objects
+        .values()
+        .filter_map(SemanticObject::as_referent)
+        .filter(|node| {
+            node.scope_dependence
+                .as_ref()
+                .is_some_and(|dependence| dependence.may_depend_on().is_none())
+        })
+        .count();
+    assert!(
+        elided > 0,
+        "the graph records `Fixed` defaults for `klama`'s unstated places",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert_eq!(count_forms(&datum, "Bind"), 0, "{}", rendered.text);
+    assert_eq!(count_atoms(&datum, "Context"), 0, "{}", rendered.text);
+    let applications = collect_forms_owned(&datum, "klama");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    assert_eq!(
+        applications[0]
+            .as_list()
+            .expect("an application is a list")
+            .len(),
+        2,
+        "only the stated place is written:\n{}",
+        rendered.text
+    );
+}
+
+/// Section 5.1's other half: an `Underspecified { mayDependOn }` default
+/// "cannot be hidden by `Close`: it is bound explicitly from
+/// `(Context dependencies...)` and the same bound value fills the place. This
+/// preserves the exact permitted dependency set rather than replacing it with
+/// 'all accessible binders.'"
+///
+/// This is the one position where the recorded universe *is* the printed
+/// content. Eliding the place instead would leave re-elaboration to rederive a
+/// dependence at the printed site, and the two coincide only by accident of
+/// this site: nothing in the document would still say which binders the graph
+/// actually permitted this lookup to resolve against.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn an_underspecified_default_place_is_bound_explicitly_from_its_recorded_dependence() {
+    let input = build_input("ro lo prenu cu prami", "underspecified-default-place");
+    let permitted = input
+        .graph
+        .objects
+        .values()
+        .filter_map(SemanticObject::as_referent)
+        .filter_map(|node| {
+            node.scope_dependence
+                .as_ref()
+                .and_then(|dependence| dependence.may_depend_on().cloned())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        permitted.len(),
+        1,
+        "one elided place records a permission naming the quantified variable",
+    );
+    assert_eq!(permitted[0].len(), 1);
+
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    let contexts = collect_forms_owned(&datum, "Context");
+    assert_eq!(
+        contexts.len(),
+        1,
+        "the recorded permission is written once:\n{}",
+        rendered.text
+    );
+    let dependencies = contexts[0]
+        .as_list()
+        .expect("a context computation is a list")
+        .iter()
+        .skip(1)
+        .map(|item| item.as_atom().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        dependencies,
+        vec![Some("$entity_7".to_owned())],
+        "the dependency list is the recorded one, not every accessible binder:\n{}",
+        rendered.text
+    );
+    let hosts = collect_bind_hosts(&datum, "$entity_8");
+    assert_eq!(
+        hosts.len(),
+        1,
+        "the explicit bind stands at the closure it belongs to:\n{}",
+        rendered.text
+    );
+    let applications = collect_forms_owned(&datum, "prami");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    let places = applications[0]
+        .as_list()
+        .expect("an application is a list")
+        .iter()
+        .skip(1)
+        .map(|item| item.as_atom().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        places,
+        vec![Some("$entity_7".to_owned()), Some("$entity_8".to_owned())],
+        "the same bound value fills the place it was bound for:\n{}",
+        rendered.text
+    );
+}
+
+/// Section 5.1 orders the closure's own computations: they "run left to right
+/// in current numbered-place order". The explicit binds are that order made
+/// visible, so the binder nesting at one closure follows the places rather than
+/// graph-identity allocation order.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn underspecified_default_binds_run_left_to_right_in_numbered_place_order() {
+    let input = build_input("mi nelci lo ka ce'u melbi", "default-bind-order");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    let binders = collect_forms_owned(&datum, "Bind")
+        .into_iter()
+        .map(|host| {
+            binding_name(
+                &host.as_list().expect("a bind is a list")[1]
+                    .as_list()
+                    .expect("a bind declares a list of entries")[0],
+            )
+        })
+        .collect::<Vec<_>>();
+    let applications = collect_forms_owned(&datum, "melbi");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    let filled = applications[0]
+        .as_list()
+        .expect("an application is a list")
+        .iter()
+        .skip(2)
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(binders.len(), 3, "{}", rendered.text);
+    assert_eq!(
+        binders, filled,
+        "the binders nest in the order their places are numbered:\n{}",
+        rendered.text
+    );
 }

@@ -2766,19 +2766,37 @@ impl Elaborator<'_> {
     }
 
     /// Named default for an unshared elided contextual referent.
+    ///
+    /// Section 5.1 gives `Close` exactly one silent default: rule 1's fresh bare
+    /// `Context` for a place whose graph dependence is `Fixed`. An
+    /// `Underspecified { mayDependOn }` one "cannot be hidden by `Close`: it is
+    /// bound explicitly from `(Context dependencies...)` and the same bound
+    /// value fills the place. This preserves the exact permitted dependency set
+    /// rather than replacing it with 'all accessible binders.'" So a recorded
+    /// dependence that names the complete derived universe is still not silent:
+    /// eliding it would leave re-elaboration to *rederive* that universe at the
+    /// printed site rather than read the permission the graph recorded, and the
+    /// two coincide only by accident of this site. Rule 2's shared default is
+    /// already loud for a different reason — it is placed as a declaration — and
+    /// the use-count test below is what keeps it out of this branch.
     #[requires(self.graph.objects.contains_key(&id))]
     #[ensures(true)]
     fn default_elided_is_silent(&self, id: SemanticObjectId, bound: &Bound) -> bool {
         let Some(node) = self.graph.objects[&id].as_referent() else {
             return false;
         };
+        let Some(dependence) = node.scope_dependence.as_ref() else {
+            return false;
+        };
         if !default_elided_shape(node)
             || !self.graph.objects[&id].diagnostics().is_empty()
             || self.plan.use_count(id) != 1
+            // A recorded `mayDependOn` list is the loud case, whatever it names.
+            || dependence.may_depend_on().is_some()
         {
             return false;
         }
-        self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
+        self.scope_dependence_is_default(id, Some(dependence), bound)
     }
 
     /// Whether a stored dependence policy is exactly the default at this
