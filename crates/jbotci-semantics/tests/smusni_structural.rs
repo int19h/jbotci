@@ -17,10 +17,11 @@ use jbotci_morphology::{
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::model::{
     Actuality, ActualityKind, AnchorRelation, ArgumentValueKind, Aspect, EventualityNode,
-    EventualitySort, IndexicalKind, MathLiteral, ParameterRole, QuantityForm, QuantityScale,
-    QuantityValue, QuestionSlot, QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory,
-    ScopeDependence, ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId,
-    Subscript, UtteranceForce,
+    EventualitySort, IndexicalKind, MathLiteral, ParameterRole, PredicationMode,
+    PredicationRelationData, QuantityForm, QuantityScale, QuantityValue, QuestionSlot,
+    QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory, ScopeDependence,
+    ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId, Subscript,
+    UtteranceForce,
 };
 use jbotci_semantics::notation::kernel::types::Variable;
 use jbotci_semantics::notation::sexpr::internal_raw::whole_graph_capture;
@@ -1867,4 +1868,249 @@ fn a_description_inside_a_description_property_nests_rather_than_raising() {
         "the argument's reference computation runs inside the property that needs it:\n{}",
         rendered.text,
     );
+}
+
+/// A gadri-folded property abstraction is section 11.1's bare lambda.
+///
+/// The builder writes `lo ka ce'u broda` as one relation-sorted referent
+/// carrying the descriptor *and* the abstraction payload, so the object is the
+/// property. Section 11.1 licenses exactly that — "no `Property` or `Relation`
+/// record is needed around the function" — and there is no second body
+/// predicating over the abstraction, so no `Refer` may appear either.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_gadri_folded_property_crossing_is_one_lambda() {
+    let input = build_input("mi nelci lo ka ce'u melbi", "folded-ka");
+    assert!(
+        input
+            .graph
+            .objects
+            .values()
+            .any(|object| object.as_parameter().is_some()),
+        "a ka abstraction has a ce'u parameter",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert_eq!(
+        count_forms(&datum, "λ"),
+        1,
+        "the crossing is one lambda:\n{}",
+        rendered.text,
+    );
+    assert_eq!(
+        count_forms(&datum, "Refer"),
+        0,
+        "folding the gadri introduces no description:\n{}",
+        rendered.text,
+    );
+    assert_eq!(
+        count_atoms(&datum, "$parameterNode_8"),
+        2,
+        "the lambda binds and uses the graph-owned parameter:\n{}",
+        rendered.text,
+    );
+}
+
+/// A gadri-folded proposition abstraction is section 11.3's `Reify`.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_gadri_folded_proposition_crossing_is_one_reify() {
+    let input = build_input("mi djuno lo du'u do klama", "folded-duhu");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert_eq!(
+        count_forms(&datum, "Reify"),
+        1,
+        "the proposition crossing is one `Reify`:\n{}",
+        rendered.text,
+    );
+    assert_eq!(
+        count_forms(&datum, "Close"),
+        0,
+        "section 5.2 elides `Close` at a registered `Content` operand:\n{}",
+        rendered.text,
+    );
+}
+
+/// An event abstraction is section 11.2's ordinary reference computation, and
+/// its property binds the abstracted event at the content root's own event
+/// place rather than through an `EventOf`-style primitive.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_described_event_binds_its_own_event_place() {
+    let input = build_input("lo nu mi klama cu se cinri mi", "described-event");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(
+        nests_inside(&datum, "Bind", "Refer"),
+        "the abstraction is hosted by an ordinary `Bind`:\n{}",
+        rendered.text,
+    );
+    assert!(
+        nests_inside(&datum, "Refer", "λ"),
+        "the reference computation carries a property:\n{}",
+        rendered.text,
+    );
+    assert!(
+        rendered.text.contains(":Eventuality $eventuality_7"),
+        "the property fills the content root's distinguished event place:\n{}",
+        rendered.text,
+    );
+    for forbidden in ["EventOf", "AchievementOf", "StateOf"] {
+        assert_eq!(
+            count_atoms(&datum, forbidden),
+            0,
+            "section 14.3 forbids {forbidden}:\n{}",
+            rendered.text,
+        );
+    }
+}
+
+/// A quantified content root names the abstraction's own collective event, and
+/// its `memberOf` restriction is recorded `inert` rather than `restrictive`.
+///
+/// The builder stamps an abstraction body's mode over everything under it,
+/// including a quantifier restriction written inside that body, so the two
+/// non-asserted modes occur at one and the same locus across a corpus. Both
+/// denote content without force and print identically, so the boundary accepts
+/// the set rather than one member.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn an_inert_restriction_inside_abstracted_content_projects() {
+    let input = build_input(
+        "lo nu ro lo prenu cu troci kei cu cadga",
+        "inert-restriction",
+    );
+    let restriction = input
+        .graph
+        .objects
+        .values()
+        .filter_map(|object| object.as_predication())
+        .find(|node| {
+            matches!(
+                node.relation.as_data(),
+                data!(PredicationRelation::Named { relation }) if relation == "memberOf"
+            )
+        })
+        .expect("a described domain records a membership restriction");
+    assert_eq!(
+        restriction.mode,
+        PredicationMode::Inert,
+        "the witness for the accepted-set boundary is the builder's own mode",
+    );
+    let rendered = project_document(&input.graph);
+    assert!(
+        rendered.text.contains(":Eventuality $eventuality_7"),
+        "the quantified content root fills the abstraction's own event place:\n{}",
+        rendered.text,
+    );
+}
+
+/// Assertion stays positional: an asserted predication inside abstracted
+/// content is a graph inconsistency and keeps failing.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn an_asserted_predication_inside_abstracted_content_is_refused() {
+    let input = build_input("lo nu mi klama cu se cinri mi", "asserted-inside-content");
+    let abstracted = input
+        .graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            object
+                .as_predication()
+                .is_some_and(|node| node.mode == PredicationMode::Inert)
+                .then_some(*id)
+        })
+        .expect("abstracted content carries an inert predication");
+    let mut object = input.graph.objects[&abstracted].clone();
+    object.update_predication(|node| node.with_data(data! { mode: PredicationMode::Asserted }));
+    let graph = replace_object(input.graph.clone(), abstracted, object);
+    let failed = project_failure(&graph);
+    assert!(
+        failure_reason_ids(&failed)
+            .contains(&"smusni.projection.relation-reduction-unregistered-or-inexact"),
+        "force inside a property is not licensed by the no-force boundary: {:?}",
+        failure_reason_ids(&failed),
+    );
+}
+
+/// Section 6.3 stops a raised reference at the binders its property actually
+/// names, not at every binder its recorded dependence permits it to name.
+///
+/// `lo nu mi klama` inside a universal records `mayDependOn` on the quantified
+/// variable, because the builder writes the permission the position allows. Its
+/// property mentions no binder at all, so the computation raises past the
+/// quantifier to the enclosing abstraction's barrier; anchoring it by the
+/// permission instead would trap it inside a quantifier it never mentions.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_raised_reference_stops_at_the_binders_its_property_names() {
+    let input = build_input(
+        "lo nu ro lo prenu cu troci lo nu mi klama kei kei cu cadga",
+        "permission-wider-than-use",
+    );
+    assert!(
+        input.graph.objects.values().any(|object| {
+            object.as_eventuality().is_some_and(|node| {
+                node.content.is_some()
+                    && node
+                        .denotation
+                        .scope_dependence()
+                        .and_then(|dependence| dependence.may_depend_on().cloned())
+                        .is_some_and(|universe| !universe.is_empty())
+            })
+        }),
+        "the inner abstraction records a dependence permission it does not use",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    let hosts = collect_bind_hosts(&datum, "$eventuality_9");
+    assert_eq!(
+        hosts.len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_form(&hosts[0], "Every"),
+        "the binder encloses the quantifier its property never names:\n{}",
+        rendered.text,
+    );
+}
+
+/// Every `Bind` form in a document that introduces one named binder.
+#[requires(!binder.is_empty())]
+#[ensures(true)]
+fn collect_bind_hosts<'a>(datum: &'a Datum, binder: &str) -> Vec<&'a Datum> {
+    let mut hosts = Vec::new();
+    collect_bind_hosts_into(datum, binder, &mut hosts);
+    hosts
+}
+
+/// Recursive half of [`collect_bind_hosts`].
+#[requires(!binder.is_empty())]
+#[ensures(true)]
+fn collect_bind_hosts_into<'a>(datum: &'a Datum, binder: &str, out: &mut Vec<&'a Datum>) {
+    if datum.form_head() == Some("Bind")
+        && datum.as_list().is_some_and(|items| {
+            items
+                .get(1)
+                .and_then(Datum::as_list)
+                .is_some_and(|entries| entries.iter().any(|entry| binding_name(entry) == binder))
+        })
+    {
+        out.push(datum);
+    }
+    if let Some(items) = datum.as_list() {
+        for item in items {
+            collect_bind_hosts_into(item, binder, out);
+        }
+    }
 }

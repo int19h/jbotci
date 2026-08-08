@@ -23,6 +23,7 @@ use bityzba::{data, ensures, expensive_ensures, invariant, new, requires};
 use super::super::kernel::apply::PredicateSignature;
 use super::super::kernel::binder::{
     Bind, Category, Declaration, Lambda, Let, LetRec, RecursiveDeclaration, TypedParameter,
+    free_binders_of,
 };
 use super::super::kernel::content::{BinaryOp, Content, JunctionOp, QuantifierOp, Query};
 use super::super::kernel::document::KernelDocument;
@@ -349,6 +350,71 @@ impl Elaborated {
     }
 }
 
+/// The predication modes one content boundary licenses.
+///
+/// Specification section 14.3 desugars mode away rather than representing it:
+/// an asserted predication is an explicit `Assert` at its owning force
+/// boundary, an inert one is a bare content value with no force, and a
+/// restrictive one is the body of a reference property or a quantifier
+/// restriction. So the printed bytes of the two non-asserted modes are
+/// identical and only their *position* differs, which is why the boundary
+/// table — not the kernel — is where mode is consumed.
+///
+/// The distinction the table must never blur is asserted against
+/// non-asserted. An `asserted` predication inside a property, or a
+/// non-asserted one at a force boundary, is a graph inconsistency and keeps
+/// failing; admitting either would erase force.
+#[invariant(::Unlicensed => true, "no boundary is responsible for this position")]
+#[invariant(::Force => true, "a force boundary licenses assertion and nothing else")]
+#[invariant(::NoForce => true, "a content boundary with no force of its own")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AcceptedModes {
+    /// An ordinary argument position or a declined object's re-render: no
+    /// content boundary stands here, so no predication mode is licensed.
+    Unlicensed,
+    /// An utterance's asserted content, or a question body.
+    Force,
+    /// A quantifier restriction, a description property or relative clause, or
+    /// an abstraction's body or content.
+    NoForce,
+}
+
+impl AcceptedModes {
+    /// Whether this boundary licenses one predication's recorded mode.
+    #[requires(true)]
+    #[ensures(
+        !ret || (self == AcceptedModes::Force) == (mode == PredicationMode::Asserted),
+        "force is admitted at a force boundary and nowhere else"
+    )]
+    fn admits(self, mode: PredicationMode) -> bool {
+        match self {
+            Self::Unlicensed => false,
+            Self::Force => mode == PredicationMode::Asserted,
+            Self::NoForce => {
+                matches!(mode, PredicationMode::Restrictive | PredicationMode::Inert)
+            }
+        }
+    }
+}
+
+/// What one exact route did with the object it was offered.
+///
+/// The three cases are not interchangeable. A route whose graph shape does not
+/// match has said nothing about the object, so the next route — and finally the
+/// enclosing family's own boundary — still owns it. A route that *proved* its
+/// shape owns the object outright: when its content declines, the boundary that
+/// declined has already recorded why, and adding this object's family fallback
+/// beside it would attribute one failure to two owners.
+#[invariant(::Unmatched => true, "an unmatched route made no claim about the object")]
+#[invariant(::Value(_) => true, "the kernel value inside already validated itself")]
+#[invariant(::Declined => true, "a declining route has already recorded its boundary")]
+#[derive(Debug)]
+enum Routed {
+    Unmatched,
+    Value(Operand),
+    Declined,
+}
+
 /// Description constructors whose graph encodings are inverted into lexical
 /// binders by one shared recognition proof.
 #[invariant(true)]
@@ -584,6 +650,31 @@ enum DescriptionRecognition<'a> {
     Name {
         name: &'a str,
     },
+}
+
+/// The live binders one rendered property actually names.
+///
+/// Section 6.3 stops a raised reference at "lambda regions whose binders the
+/// computation depends on", and that is a property of the computation, not a
+/// permission granted to it. The recorded `mayDependOn` universe answers a
+/// different question — which binders a `Context` lookup is *allowed* to
+/// resolve against, which section 5.1 then prints verbatim — so using it as a
+/// stop set anchors a description inside quantifiers its property never
+/// mentions. The kernel already carries the exact answer: a lambda's free
+/// binders, minus its own parameter.
+///
+/// Every free binder of a rendered property is one of the binders live where it
+/// was rendered, so intersecting against `bound` recovers the graph identities
+/// the frame stack is keyed by without inverting the variable spelling.
+#[requires(true)]
+#[ensures(ret.iter().all(|id| bound.contains_key(id)))]
+fn property_dependencies(bound: &Bound, property: &Lambda<Content>) -> BTreeSet<SemanticObjectId> {
+    let free = property.free_binders();
+    bound
+        .keys()
+        .copied()
+        .filter(|id| free.contains(&object_variable(*id)))
+        .collect()
 }
 
 /// Nest single-entry dynamic bindings in discovery order. The first reference
@@ -1071,7 +1162,12 @@ impl Elaborator<'_> {
         let mut active = BTreeSet::new();
         let bound = Bound::new();
         let body = self
-            .render_id(self.graph.root, &bound, &mut active, None)
+            .render_id(
+                self.graph.root,
+                &bound,
+                &mut active,
+                AcceptedModes::Unlicensed,
+            )
             .and_then(Elaborated::into_performable)
             .map(Elaborated::Performable);
         let remaining = self
@@ -1127,7 +1223,7 @@ impl Elaborator<'_> {
                     .into_iter()
                     .map(|(id, declared_type)| {
                         let value = self
-                            .render_object(id, bound, active, None)
+                            .render_object(id, bound, active, AcceptedModes::Unlicensed)
                             .and_then(Elaborated::into_operand);
                         (id, declared_type, value)
                     })
@@ -1434,7 +1530,7 @@ impl Elaborator<'_> {
         id: SemanticObjectId,
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
-        expected_mode: Option<PredicationMode>,
+        modes: AcceptedModes,
     ) -> Option<Elaborated> {
         if let Some(declaration) = bound.get(&id) {
             return Some(Elaborated::Operand(bound_use(id, declaration)));
@@ -1450,7 +1546,7 @@ impl Elaborator<'_> {
                 &BoundValue::Value(declared_type),
             )));
         }
-        self.render_object(id, bound, active, expected_mode)
+        self.render_object(id, bound, active, modes)
     }
 
     /// Dispatch one graph object through exact typed recognizers.
@@ -1461,7 +1557,7 @@ impl Elaborator<'_> {
         id: SemanticObjectId,
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
-        expected_mode: Option<PredicationMode>,
+        modes: AcceptedModes,
     ) -> Option<Elaborated> {
         if !active.insert(id) {
             // Re-entering an identity means the graph has a cycle that no
@@ -1477,10 +1573,10 @@ impl Elaborator<'_> {
                 .render_sequence(id, node, bound, active)
                 .map(Elaborated::Performable),
             data!(SemanticObject::Predication(node)) => self
-                .render_predication(id, node, bound, active, expected_mode)
+                .render_predication(id, node, bound, active, modes)
                 .map(operand_content),
             data!(SemanticObject::Formula(node)) => self
-                .render_formula(id, node, bound, active, expected_mode)
+                .render_formula(id, node, bound, active, modes)
                 .map(operand_content),
             data!(SemanticObject::Referent(node)) => self
                 .render_referent(id, node, bound, active)
@@ -1596,7 +1692,7 @@ impl Elaborator<'_> {
                 self.graph.objects.contains_key(&reference),
                 "validated semantic graphs close every object reference"
             );
-            let _ = self.render_id(reference, bound, active, None);
+            let _ = self.render_id(reference, bound, active, AcceptedModes::Unlicensed);
         }
     }
 
@@ -1647,13 +1743,19 @@ impl Elaborator<'_> {
                 CompactFallbackCause::AskForceWithoutQuestion,
             );
         }
-        let expected_mode =
-            (node.force == UtteranceForce::Assert).then_some(PredicationMode::Asserted);
+        // An asserted utterance is the force boundary its content is asserted
+        // at; every other force this route reaches carries its own act
+        // constructor and leaves no predication boundary standing here.
+        let modes = if node.force == UtteranceForce::Assert {
+            AcceptedModes::Force
+        } else {
+            AcceptedModes::Unlicensed
+        };
         let content_id = content;
         // The performed act is section 6.3's ceiling: no reference computation
         // raises out of its own force segment.
         self.open_host_frame(HostFrameKind::Barrier, bound);
-        let content = self.render_id(content_id, bound, active, expected_mode);
+        let content = self.render_id(content_id, bound, active, modes);
         let bindings = self.close_host_frame();
         let act = match node.force {
             UtteranceForce::Assert => content.and_then(Elaborated::into_content).map(Act::assert),
@@ -1772,7 +1874,7 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Option<Content> {
         let value = self
-            .render_id(value, bound, active, None)
+            .render_id(value, bound, active, AcceptedModes::Unlicensed)
             .and_then(Elaborated::into_operand)?;
         Content::intrinsic(intrinsic, vec![token.clone(), value]).ok()
     }
@@ -1856,7 +1958,7 @@ impl Elaborator<'_> {
         items_of
             .iter()
             .map(|item| {
-                self.render_id(*item, bound, active, None)
+                self.render_id(*item, bound, active, AcceptedModes::Unlicensed)
                     .and_then(Elaborated::into_performable)
             })
             .collect::<Vec<_>>()
@@ -1874,7 +1976,7 @@ impl Elaborator<'_> {
         formula: &crate::model::FormulaNode,
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
-        expected_mode: Option<PredicationMode>,
+        modes: AcceptedModes,
     ) -> Option<Content> {
         match formula.as_data() {
             data!(FormulaNode::Atom(node)) => {
@@ -1885,14 +1987,12 @@ impl Elaborator<'_> {
                     .collect::<Vec<_>>();
                 let scoped = self.scope_generated_events(bound, &generated);
                 let body = self
-                    .render_id(node.predication, &scoped, active, expected_mode)
+                    .render_id(node.predication, &scoped, active, modes)
                     .and_then(Elaborated::into_content);
                 self.recognized(self.bind_generated_events(id, &generated, body, &scoped, active))
             }
             data!(FormulaNode::Connective(node)) => {
-                if let Some(value) =
-                    self.render_tanru_projection(id, node, bound, active, expected_mode)
-                {
+                if let Some(value) = self.render_tanru_projection(id, node, bound, active, modes) {
                     return self.recognized(Some(value));
                 }
                 if node.eventuality.is_some() {
@@ -1921,7 +2021,7 @@ impl Elaborator<'_> {
                 let operands = children
                     .into_iter()
                     .map(|child| {
-                        self.render_id(child, &scoped, active, expected_mode)
+                        self.render_id(child, &scoped, active, modes)
                             .and_then(Elaborated::into_content)
                     })
                     .collect::<Vec<_>>();
@@ -1965,13 +2065,8 @@ impl Elaborator<'_> {
                 let quantified_binder = BTreeSet::from([node.variable]);
                 self.open_host_frame(HostFrameKind::Binders(quantified_binder.clone()), &scoped);
                 let restriction = node.restriction.map(|restriction| {
-                    self.render_id(
-                        restriction,
-                        &scoped,
-                        active,
-                        Some(PredicationMode::Restrictive),
-                    )
-                    .and_then(Elaborated::into_content)
+                    self.render_id(restriction, &scoped, active, AcceptedModes::NoForce)
+                        .and_then(Elaborated::into_content)
                 });
                 let restriction_hosts = self.close_host_frame();
                 let restriction = restriction.map(|restriction| {
@@ -1981,7 +2076,7 @@ impl Elaborator<'_> {
                 });
                 self.open_host_frame(HostFrameKind::Binders(quantified_binder), &scoped);
                 let body = self
-                    .render_id(node.body, &scoped, active, expected_mode)
+                    .render_id(node.body, &scoped, active, modes)
                     .and_then(Elaborated::into_content);
                 let body_hosts = self.close_host_frame();
                 let body = body
@@ -2096,7 +2191,7 @@ impl Elaborator<'_> {
         node: &crate::model::ConnectiveFormulaNode,
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
-        expected_mode: Option<PredicationMode>,
+        modes: AcceptedModes,
     ) -> Option<Content> {
         let connector = node.connector.as_ref()?;
         if node.operator != FormulaOperator::And
@@ -2127,7 +2222,7 @@ impl Elaborator<'_> {
         let data!(PredicationRelation::Composition) = link.relation.as_data() else {
             return None;
         };
-        if expected_mode != Some(head.mode)
+        if !modes.admits(head.mode)
             || !predication_is_otherwise_plain(head)
             || link.eventuality.is_some()
             || link.place_questions.len() > 0
@@ -2342,7 +2437,7 @@ impl Elaborator<'_> {
     ) -> Option<Content> {
         let event_use = bound_use(event, bound.get(&event)?);
         let anchor = self
-            .render_id(anchor, bound, active, None)
+            .render_id(anchor, bound, active, AcceptedModes::Unlicensed)
             .and_then(Elaborated::into_operand)?;
         let row = Row::new(
             vec![
@@ -2390,9 +2485,9 @@ impl Elaborator<'_> {
         node: &PredicationNode,
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
-        expected_mode: Option<PredicationMode>,
+        modes: AcceptedModes,
     ) -> Option<Content> {
-        if expected_mode != Some(node.mode) {
+        if !modes.admits(node.mode) {
             return self.fallback_object(
                 id,
                 bound,
@@ -2437,7 +2532,7 @@ impl Elaborator<'_> {
                 // variable of a `mo` question, and its row comes from that
                 // binder rather than from this predication's place map.
                 let head = self
-                    .render_id(*parameter, bound, active, None)
+                    .render_id(*parameter, bound, active, AcceptedModes::Unlicensed)
                     .and_then(Elaborated::into_operand)
                     .and_then(|operand| match operand {
                         Operand::Predicate(term) => Some(term),
@@ -2628,7 +2723,7 @@ impl Elaborator<'_> {
                 continue;
             }
             let Some(value) = self
-                .render_id(value, bound, active, None)
+                .render_id(value, bound, active, AcceptedModes::Unlicensed)
                 .and_then(Elaborated::into_operand)
             else {
                 declined = true;
@@ -2653,7 +2748,7 @@ impl Elaborator<'_> {
             });
             if !silent {
                 let Some(value) = self
-                    .render_id(eventuality, bound, active, None)
+                    .render_id(eventuality, bound, active, AcceptedModes::Unlicensed)
                     .and_then(Elaborated::into_operand)
                 else {
                     return Err(FillFailure::ValueDeclined);
@@ -2765,8 +2860,10 @@ impl Elaborator<'_> {
         if let Some(description) = self.render_description(id, node, bound, active) {
             return self.recognized(Some(description));
         }
-        if let Some(abstraction) = self.render_referent_abstraction(id, node, bound, active) {
-            return self.recognized(Some(abstraction));
+        match self.render_referent_abstraction(id, node, bound, active) {
+            Routed::Value(abstraction) => return self.recognized(Some(abstraction)),
+            Routed::Declined => return None,
+            Routed::Unmatched => {}
         }
         if node.composition.is_some() {
             return self.fallback_object(
@@ -2915,15 +3012,16 @@ impl Elaborator<'_> {
             body,
         )
         .ok()?;
+        let dependencies = property_dependencies(bound, &property);
         let binding = ReferenceBinding {
             id,
             declared_type: declared_type.clone(),
             computation: RefComp::refer(property).ok()?,
         };
         // Section 6.3 raises this `Bind` to the outermost point that is still
-        // inside every boundary it may not leave; the dependencies its property
-        // records are what decide the lambda-dependency half of that.
-        self.host_reference(binding, self.hosted_dependencies(id))
+        // inside every boundary it may not leave; the binders its property
+        // actually names are what decide the lambda-dependency half of that.
+        self.host_reference(binding, &dependencies)
             .then(|| Operand::Value(Value::bound(variable, declared_type)))
     }
 
@@ -3042,13 +3140,8 @@ impl Elaborator<'_> {
         let rendered = clauses
             .into_iter()
             .map(|clause| {
-                self.render_id(
-                    clause.body,
-                    scoped,
-                    active,
-                    Some(PredicationMode::Restrictive),
-                )
-                .and_then(Elaborated::into_content)
+                self.render_id(clause.body, scoped, active, AcceptedModes::NoForce)
+                    .and_then(Elaborated::into_content)
             })
             .collect::<Vec<_>>();
         conjuncts.extend(rendered.into_iter().collect::<Option<Vec<_>>>()?);
@@ -3058,10 +3151,20 @@ impl Elaborator<'_> {
         Content::junction(JunctionOp::And, conjuncts).ok()
     }
 
-    /// Render the two established pure abstraction crossings in this slice.
-    /// Event-valued abstractions are reference computations and are therefore
-    /// left to the force-hosted reference path rather than printed as `Nu`-like
-    /// constructors.
+    /// Render the property and proposition crossings, in both encodings the
+    /// builder emits for them.
+    ///
+    /// A bare abstraction (`abstraction_kind` with no descriptor) and a
+    /// gadri-folded one (`lo ka …`, which folds the descriptor into the
+    /// abstraction object itself) denote the same crossing, so one route proves
+    /// both. Folding is not a description *of* the abstraction: the graph
+    /// records no second body predicating over the abstraction referent, so
+    /// there is no `Refer` to build — section 11.1's "no `Property` or
+    /// `Relation` record is needed around the function" is what licenses the
+    /// object to *be* the lambda.
+    ///
+    /// Event-valued abstractions are section 11.2 reference computations
+    /// instead, and take [`Self::render_described_event`].
     #[requires(true)]
     #[ensures(true)]
     fn render_referent_abstraction(
@@ -3070,10 +3173,18 @@ impl Elaborator<'_> {
         node: &ReferentNode,
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
-    ) -> Option<Operand> {
-        let kind = node.abstraction_kind?;
-        let body = node.body?;
-        if !referent_except_abstraction_is_default(node)
+    ) -> Routed {
+        let (Some(kind), Some(body)) = (node.abstraction_kind, node.body) else {
+            return Routed::Unmatched;
+        };
+        let folded = match node.descriptor.as_ref() {
+            None => referent_except_abstraction_is_default(node),
+            Some(descriptor) => {
+                folded_abstraction_descriptor_is_exact(self.graph, descriptor)
+                    && referent_except_described_abstraction_is_default(node)
+            }
+        };
+        if !folded
             || !self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
             || !node.parameters.iter().all(|parameter| {
                 exact_parameter(
@@ -3086,12 +3197,8 @@ impl Elaborator<'_> {
                     "ce'u",
                 )
             })
-            || node
-                .parameters
-                .iter()
-                .any(|parameter| self.graph.objects[parameter].sort() != Some(SemanticSort::Entity))
         {
-            return None;
+            return Routed::Unmatched;
         }
         if !matches!(
             kind,
@@ -3099,16 +3206,22 @@ impl Elaborator<'_> {
         ) || (kind == AbstractionKind::Property && node.parameters.is_empty())
             || (kind == AbstractionKind::Proposition && !node.parameters.is_empty())
         {
-            return None;
+            return Routed::Unmatched;
         }
+        // A `ce'u` place is typed by the sort the graph gave it. A sort with no
+        // closed version-0 reference type — a relation-sorted parameter is the
+        // only one the model can currently mint — has no lambda parameter to
+        // declare, so the crossing stays unavailable rather than borrowing an
+        // unrelated type.
         let mut parameters = Vec::with_capacity(node.parameters.len());
         let mut scoped = bound.clone();
         for parameter in node.parameters.iter().copied() {
-            let declared_type = referents_type_expr(
-                self.graph.objects[&parameter]
-                    .sort()
-                    .unwrap_or(SemanticSort::Entity),
-            )?;
+            let Some(declared_type) = self.graph.objects[&parameter]
+                .sort()
+                .and_then(referents_type_expr)
+            else {
+                return Routed::Unmatched;
+            };
             scoped.insert(parameter, BoundValue::Value(declared_type.clone()));
             parameters.push(TypedParameter::new(
                 object_variable(parameter),
@@ -3118,30 +3231,189 @@ impl Elaborator<'_> {
         // Section 6.3 stops raising at a reification, and an abstraction is
         // exactly that: a reference computation inside the abstracted content
         // is part of what the abstraction denotes, so hoisting it outside would
-        // read the description de re where the graph wrote it de dicto.
+        // read the description de re where the graph wrote it de dicto. The
+        // frame carries this crossing's own binders, so a computation that
+        // depends on a `ce'u` is hostable inside it.
         self.open_host_frame(HostFrameKind::Barrier, &scoped);
         let rendered = self
-            .render_id(
-                body,
-                &scoped,
-                active,
-                Some(if kind == AbstractionKind::Property {
-                    PredicationMode::Restrictive
-                } else {
-                    PredicationMode::Inert
-                }),
-            )
+            .render_id(body, &scoped, active, AcceptedModes::NoForce)
             .and_then(Elaborated::into_content);
         let abstracted = self.close_host_frame();
-        let body = wrap_reference_bindings(abstracted, rendered?, Content::bind_form)?;
+        // The shape is proved from here on, so a declining body has already
+        // recorded its own boundary and this object adds none.
+        let Some(rendered) = rendered else {
+            return Routed::Declined;
+        };
+        let Some(body) = wrap_reference_bindings(abstracted, rendered, Content::bind_form) else {
+            return self.construction_rejected(id);
+        };
         if kind == AbstractionKind::Proposition {
-            return Value::intrinsic(Intrinsic::Reify, vec![Operand::Content(body)])
-                .ok()
-                .map(Operand::Value);
+            return match Value::intrinsic(Intrinsic::Reify, vec![Operand::Content(body)]) {
+                Ok(value) => Routed::Value(Operand::Value(value)),
+                Err(_) => self.construction_rejected(id),
+            };
         }
-        Lambda::new(parameters, Operand::Content(body))
-            .ok()
-            .map(|lambda| Operand::Function(FnValue::lambda(lambda)))
+        match Lambda::new(parameters, Operand::Content(body)) {
+            Ok(lambda) => Routed::Value(Operand::Function(FnValue::lambda(lambda))),
+            Err(_) => self.construction_rejected(id),
+        }
+    }
+
+    /// Record that a proved route could not construct its typed kernel value.
+    #[requires(true)]
+    #[ensures(matches!(ret, Routed::Declined))]
+    fn construction_rejected(&self, id: SemanticObjectId) -> Routed {
+        self.record_object_fallback(id, CompactFallbackCause::TypedConstructionRejected);
+        Routed::Declined
+    }
+
+    /// Project one described eventuality as specification section 11.2's
+    /// ordinary reference computation.
+    ///
+    /// `lo nu broda` is not a crossing constructor at all: it is a `Refer`
+    /// whose property binds the event explicitly and predicates the abstracted
+    /// content of it, hosted by the same `Bind` machinery every other
+    /// `RefComp` uses. That is why `EventOf`, `AchievementOf`, and `StateOf`
+    /// are not primitives — section 11.2 and section 14.3's forbidden list
+    /// agree — and why a more specific eventuality subtype needs nothing but a
+    /// narrower parameter type, since its one-way upcast already permits the
+    /// reference at the root's event place.
+    ///
+    /// The property must actually *name* its parameter. Section 11.2 requires
+    /// the abstracted event to fill the distinguished event place of the
+    /// content's root, and a content root that reports no single event — a
+    /// branching connective is the one shape that genuinely does not — would
+    /// leave a vacuous property describing nothing about the event. That stays
+    /// the registered event-facet refusal rather than an invented link.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn render_described_event(
+        &self,
+        id: SemanticObjectId,
+        node: &EventualityNode,
+        bound: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Routed {
+        let (Some(descriptor), Some(kind), Some(content)) = (
+            node.descriptor.as_ref(),
+            node.abstraction_kind,
+            node.content,
+        ) else {
+            return Routed::Unmatched;
+        };
+        // The pre-scan already proved this object's shape and reserved its
+        // binder for the renderer, so its content subgraph is consumed here and
+        // declared nowhere. What planning could not decide — whether the
+        // recorded dependence is the derived one at *this* lexical position —
+        // is decided here, exactly as for an ordinary description.
+        if !self.projected_descriptions.contains(&id)
+            || !described_eventuality_base_is_exact(node, descriptor, kind)
+            || !self.scope_dependence_is_default(id, node.denotation.scope_dependence(), bound)
+            || self.reference_binding_frames.borrow().is_empty()
+        {
+            return Routed::Unmatched;
+        }
+        let Some(declared_type) = referents_type_expr(SemanticSort::Eventuality(node.sort)) else {
+            return Routed::Unmatched;
+        };
+        let variable = object_variable(id);
+        let mut scoped = bound.clone();
+        scoped.insert(id, BoundValue::Value(declared_type.clone()));
+        // The abstraction is a reification, so section 6.3 stops every raise
+        // here, and the frame carries the bound event so the content's own
+        // computations can depend on it.
+        self.open_host_frame(HostFrameKind::Barrier, &scoped);
+        let rendered = self
+            .render_id(content, &scoped, active, AcceptedModes::NoForce)
+            .and_then(Elaborated::into_content);
+        let facets = self.described_event_facets(id, node, &scoped, active);
+        let nested = self.close_host_frame();
+        // The route is proved from here on: a declining content boundary has
+        // already recorded itself, and this object adds no second reason.
+        let (Some(rendered), Some(facets)) = (rendered, facets) else {
+            return Routed::Declined;
+        };
+        let mut conjuncts = vec![rendered];
+        conjuncts.extend(facets);
+        let body = if conjuncts.len() == 1 {
+            conjuncts.pop().expect("one abstracted content")
+        } else {
+            match Content::junction(JunctionOp::Joi, conjuncts) {
+                Ok(body) => body,
+                Err(_) => return self.construction_rejected(id),
+            }
+        };
+        let Some(body) = wrap_reference_bindings(nested, body, Content::bind_form) else {
+            return self.construction_rejected(id);
+        };
+        if !free_binders_of(&body).contains(&variable) {
+            // Nothing in the content fills the abstracted event's place, so the
+            // property would say nothing about the event it abstracts.
+            self.record_object_fallback(id, CompactFallbackCause::EventualityFacets);
+            return Routed::Declined;
+        }
+        let Ok(property) = Lambda::new(
+            vec![TypedParameter::new(variable.clone(), declared_type.clone())],
+            body,
+        ) else {
+            return self.construction_rejected(id);
+        };
+        let dependencies = property_dependencies(bound, &property);
+        let Ok(computation) = RefComp::refer(property) else {
+            return self.construction_rejected(id);
+        };
+        let binding = ReferenceBinding {
+            id,
+            declared_type: declared_type.clone(),
+            computation,
+        };
+        if !self.host_reference(binding, &dependencies) {
+            // Section 6.3's closing rule, reached by a proved route: an open
+            // position exists but none has every binder this property names.
+            self.record_object_fallback(id, CompactFallbackCause::DynamicHostIllegal);
+            return Routed::Declined;
+        }
+        Routed::Value(Operand::Value(Value::bound(variable, declared_type)))
+    }
+
+    /// Section 10.3 facets of one described eventuality, as ordinary
+    /// predications of the bound event variable.
+    ///
+    /// A facet is not a record beside the abstraction: it conjoins into the
+    /// very property the content occupies, exactly like any other predication
+    /// of that event. `None` means an unregistered facet has already recorded
+    /// the refusal section 10.3 requires.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn described_event_facets(
+        &self,
+        id: SemanticObjectId,
+        node: &EventualityNode,
+        scoped: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Option<Vec<Content>> {
+        if node.time.is_none() {
+            return Some(Vec::new());
+        }
+        let anchored = exact_described_event_time_facet(node).and_then(|time| {
+            let relation = match time.relation.as_str() {
+                "before" => "purci",
+                "after" => "balvi",
+                "at" => "cabna",
+                _ => return None,
+            };
+            Some((relation, time.anchor))
+        });
+        let Some((relation, anchor)) = anchored else {
+            return self.fallback_object(
+                id,
+                scoped,
+                active,
+                CompactFallbackCause::EventualityFacets,
+            );
+        };
+        self.anchor_facet(relation, id, anchor, scoped, active)
+            .map(|facet| vec![facet])
     }
 
     /// Eventualities use the same abstraction family and fixed indexicals;
@@ -3168,6 +3440,11 @@ impl Elaborator<'_> {
                     CompactFallbackCause::UnboundGeneratedEvent,
                 ),
             };
+        }
+        match self.render_described_event(id, node, bound, active) {
+            Routed::Value(reference) => return self.recognized(Some(reference)),
+            Routed::Declined => return None,
+            Routed::Unmatched => {}
         }
         // `tu'a` is the one construction specification section 14.4 names a
         // tracked spec gap: its descriptor deliberately withholds *which*
@@ -3225,7 +3502,7 @@ impl Elaborator<'_> {
             scoped.insert(parameter, declaration);
         }
         let body = self
-            .render_id(node.body, &scoped, active, Some(PredicationMode::Asserted))
+            .render_id(node.body, &scoped, active, AcceptedModes::Force)
             .and_then(Elaborated::into_content);
         let ordinary_slots = node.slots.iter().all(|slot| {
             matches!(
@@ -3430,7 +3707,7 @@ impl Elaborator<'_> {
                 let arguments = operands
                     .iter()
                     .map(|operand| {
-                        self.render_id(*operand, bound, active, None)
+                        self.render_id(*operand, bound, active, AcceptedModes::Unlicensed)
                             .and_then(Elaborated::into_operand)
                     })
                     .collect::<Vec<_>>()
@@ -3710,13 +3987,13 @@ fn projected_described_event_objects(
         ) else {
             continue;
         };
+        // Which dependence policy a described event records is not a
+        // pre-planning question: a dependent abstraction is representable —
+        // its `Bind` simply stands inside the binders its property names — and
+        // whether the recorded universe *is* the derived one is decided at the
+        // lexical position, by the route. What planning needs here is only that
+        // some policy is recorded at all, which the base shape already proves.
         if !described_eventuality_base_is_exact(node, descriptor, kind)
-            || !matches!(
-                node.denotation
-                    .scope_dependence()
-                    .map(|dependence| dependence.as_data()),
-                Some(data!(ScopeDependence::Fixed))
-            )
             || !descriptor
                 .speaker
                 .is_some_and(|speaker| object_is_indexical(graph, speaker, IndexicalKind::Speaker))
@@ -4230,6 +4507,35 @@ fn referent_except_abstraction_is_default(node: &ReferentNode) -> bool {
         && node.arity
             == (node.abstraction_kind == Some(AbstractionKind::Property))
                 .then_some(node.parameters.len())
+}
+
+/// The exact `lo` descriptor a gadri-folded abstraction carries.
+///
+/// The builder writes `lo ka ce'u broda` as one object holding both the
+/// descriptor and the abstraction payload rather than as a description over a
+/// separate abstraction referent, so the descriptor here has no body of its own
+/// and every other descriptor coordinate must be absent: a quantity, a scale, a
+/// definiteness, a relative clause, or a non-veridical marking would each be a
+/// second semantic commitment that the plain crossing does not carry.
+#[requires(true)]
+#[ensures(true)]
+fn folded_abstraction_descriptor_is_exact(
+    graph: &SemanticGraph,
+    descriptor: &crate::model::Descriptor,
+) -> bool {
+    descriptor.kind == DescriptorKind::VeridicalDescription
+        && descriptor.word == "lo"
+        && descriptor
+            .speaker
+            .is_some_and(|speaker| object_is_indexical(graph, speaker, IndexicalKind::Speaker))
+        && descriptor.body.is_none()
+        && descriptor.veridical.is_none()
+        && descriptor.relative_clauses.is_empty()
+        && descriptor.quantity.is_none()
+        && descriptor.name.is_none()
+        && descriptor.scale.is_none()
+        && descriptor.definiteness.is_none()
+        && descriptor.operand.is_none()
 }
 
 /// `lo`-described abstraction has no second denotation mechanism or attached
