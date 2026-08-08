@@ -190,6 +190,16 @@ impl HostFrameKind {
 #[derive(Debug)]
 struct HostFrame {
     kind: HostFrameKind,
+    /// The graph object whose rendering opened this position, when this scope
+    /// is the *whole* of that object's rendered content. Only a closure scope
+    /// carries one: section 5.1's rule 2 places a graph-shared default at the
+    /// site the plan computed for it, and matching that site against an open
+    /// scope is what lets the shared `Bind` be scheduled with the closure's own
+    /// numbered-place walk instead of appended after it. A predication that
+    /// also carries adjuncts renders as several closures under one plan site,
+    /// so none of them owns the site and the shared default keeps the
+    /// declaration placement that spans them all.
+    owner: Option<SemanticObjectId>,
     /// The lexical binders live at this position, so a computation placed here
     /// can be checked against the names its computation actually uses.
     live: BTreeSet<SemanticObjectId>,
@@ -958,6 +968,11 @@ struct Elaborator<'a> {
     discharged_restrictions: BTreeMap<SemanticObjectId, SemanticObjectId>,
     needed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     placed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
+    /// Shared section-5.1 defaults already scheduled inside their own closure's
+    /// effect scope. A second use of one of these names the binder the first
+    /// use scheduled rather than asking for a declaration that is no longer
+    /// coming.
+    scheduled_defaults: RefCell<BTreeSet<SemanticObjectId>>,
     reference_binding_frames: RefCell<Vec<HostFrame>>,
     counters: ElaborationCounters,
 }
@@ -1116,6 +1131,7 @@ pub(super) fn elaborate_compact(
         discharged_restrictions: projected.discharged_restrictions.clone(),
         needed_definitions: RefCell::new(BTreeSet::new()),
         placed_definitions: RefCell::new(BTreeSet::new()),
+        scheduled_defaults: RefCell::new(BTreeSet::new()),
         reference_binding_frames: RefCell::new(Vec::new()),
         counters: ElaborationCounters::default(),
     };
@@ -1342,6 +1358,7 @@ impl Elaborator<'_> {
     fn open_host_frame(&self, kind: HostFrameKind, live: &Bound) {
         self.reference_binding_frames.borrow_mut().push(HostFrame {
             kind,
+            owner: None,
             live: live.keys().copied().collect(),
             bindings: Vec::new(),
         });
@@ -1357,9 +1374,10 @@ impl Elaborator<'_> {
     /// whatever lambda or force segment happens to enclose it.
     #[requires(true)]
     #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) + 1)]
-    fn open_closure_scope(&self, live: &Bound) {
+    fn open_closure_scope(&self, owner: Option<SemanticObjectId>, live: &Bound) {
         self.reference_binding_frames.borrow_mut().push(HostFrame {
             kind: HostFrameKind::Closure,
+            owner,
             live: live.keys().copied().collect(),
             bindings: Vec::new(),
         });
@@ -1587,6 +1605,9 @@ impl Elaborator<'_> {
             return Some(Elaborated::Operand(bound_use(id, declaration)));
         }
         if self.definitions.contains(&id) {
+            if let Some(scheduled) = self.schedule_shared_default(id, bound, active) {
+                return Some(scheduled);
+            }
             self.needed_definitions.borrow_mut().insert(id);
             // The declaration this use resolves to is placed by
             // `wrap_definitions`, which is also where an identity whose type the
@@ -1598,6 +1619,79 @@ impl Elaborator<'_> {
             )));
         }
         self.render_object(id, bound, active, modes)
+    }
+
+    /// Schedule one graph-shared section-5.1 default inside the closure that
+    /// owns it, at the place that uses it first.
+    ///
+    /// Section 5.1's rule 2 keeps a shared default shared — one explicit `Bind`
+    /// for one graph identity — but it does not exempt that `Bind` from rule
+    /// 1's schedule: the omitted computations still "run left to right in
+    /// current numbered-place order at the dynamic evaluation site of `Close`".
+    /// Reaching the shared computation only through the deferred declaration
+    /// pass breaks both halves of that: the declaration is emitted after the
+    /// whole closure has been built, so an unshared default discovered at a
+    /// *later* place is already bound inside it, and the closure's own scope
+    /// has been left, so the `Bind` lands at a coarser lambda or force
+    /// position. Rendering it here instead binds it at the first place that
+    /// asks for it, in the scope that place is being rendered in.
+    ///
+    /// Only a closure that is the whole of its plan site's content is eligible,
+    /// which is what keeps the shared name in scope at every use: a site that
+    /// renders as several closures — a predication with adjuncts — opens no
+    /// owned scope and keeps the declaration placement that spans them all.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn schedule_shared_default(
+        &self,
+        id: SemanticObjectId,
+        bound: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Option<Elaborated> {
+        if !self.scheduled_defaults.borrow().contains(&id) {
+            if !self.is_shared_closure_default(id) {
+                return None;
+            }
+            let owned = self
+                .reference_binding_frames
+                .borrow()
+                .iter()
+                .rev()
+                .find_map(|frame| frame.owner);
+            if owned.is_none() || owned != self.plan.definition_site(id) {
+                return None;
+            }
+            // The rendering itself is what appends the `Bind`: a contextual
+            // constant hosts its own computation at the innermost open scope,
+            // which is the closure this use stands in.
+            let value = self.render_object(id, bound, active, AcceptedModes::Unlicensed)?;
+            self.scheduled_defaults.borrow_mut().insert(id);
+            self.placed_definitions.borrow_mut().insert(id);
+            return Some(value);
+        }
+        let declared_type = definition_use_type(&self.graph.objects[&id])?;
+        Some(Elaborated::Operand(bound_use(
+            id,
+            &BoundValue::Value(declared_type),
+        )))
+    }
+
+    /// Whether one shared definition is a section-5.1 contextual default rather
+    /// than an ordinary shared value.
+    ///
+    /// Only the default has a computation the closure schedules; every other
+    /// shared identity is a value whose placement the declaration pass owns.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn is_shared_closure_default(&self, id: SemanticObjectId) -> bool {
+        if self.projected_descriptions.contains(&id) {
+            return false;
+        }
+        self.graph.objects[&id].as_referent().is_some_and(|node| {
+            default_elided_shape(node)
+                && node.scope_dependence.is_some()
+                && self.graph.objects[&id].diagnostics().is_empty()
+        })
     }
 
     /// Dispatch one graph object through exact typed recognizers.
@@ -2472,7 +2566,10 @@ impl Elaborator<'_> {
         };
         // The projected `Tanru` application is one `Close` like any other, so it
         // owns the section-5.1 effect scope of the places it omits.
-        self.open_closure_scope(bound);
+        self.open_closure_scope(
+            head.adjuncts.is_empty().then_some(head_atom.predication),
+            bound,
+        );
         let closed = self
             .render_argument_map(former, &head.arguments, bound, active, head.eventuality)
             .ok()
@@ -2689,7 +2786,7 @@ impl Elaborator<'_> {
         // pooled at the enclosing lambda or force segment, where a later
         // conjunct's lookup would run before the earlier conjunct it is
         // supposed to see the dynamic context of.
-        self.open_closure_scope(bound);
+        self.open_closure_scope(node.adjuncts.is_empty().then_some(id), bound);
         let application = match node.relation.as_data() {
             data!(PredicationRelation::Named { relation }) => {
                 let root = LexicalRoot::try_new(relation).expect("the atomic spelling is proved");
@@ -3027,7 +3124,7 @@ impl Elaborator<'_> {
         }
         let relation = adjunct.relation.as_ref()?;
         let root = LexicalRoot::try_new(relation).ok()?;
-        self.open_closure_scope(bound);
+        self.open_closure_scope(None, bound);
         let closed = self
             .render_argument_map(
                 RelationRef::Lexical(root),
@@ -3281,7 +3378,7 @@ impl Elaborator<'_> {
                 // default inside it belongs to that conjunct rather than to the
                 // whole `∧` a restrictive clause would build around it.
                 let root = RelationRef::Lexical(LexicalRoot::try_new(property).ok()?);
-                self.open_closure_scope(scoped);
+                self.open_closure_scope(None, scoped);
                 let closed = self
                     .render_argument_map(root, arguments, scoped, active, None)
                     .ok()

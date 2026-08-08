@@ -2795,6 +2795,155 @@ fn retarget_place(
     replace_object(graph, predication, object)
 }
 
+/// Point one place of a predication at the identity another place already
+/// names, in one revalidation.
+///
+/// The two halves have to land together. Retargeting alone leaves the displaced
+/// identity unreached, and the derived-dependence invariant is total over the
+/// object map: an unreached object is its own component, which the derivation
+/// visits at empty scope. So the displaced identity is re-homed at the document
+/// region with a `Fixed` dependence in the same edit, and the graph is legal at
+/// every point a validator sees it.
+///
+/// This is model surgery, not a builder shape: the model permits one graph
+/// identity to fill two places of one predication, and the renderer has to
+/// schedule the shared computation correctly whether or not this builder ever
+/// writes that.
+#[requires(true)]
+#[ensures(ret.0.objects.len() == old(graph.objects.len()))]
+fn share_place_with(
+    graph: SemanticGraph,
+    relation: &str,
+    place: usize,
+    with_place: usize,
+) -> (SemanticGraph, SemanticObjectId) {
+    let predication = named_predication(&graph, relation);
+    let arguments = graph.objects[&predication]
+        .predication_arguments()
+        .expect("a predication carries an argument map");
+    let key = PlaceIndex::new(place);
+    let shared = arguments[&PlaceIndex::new(with_place)]
+        .value
+        .expect("the retained place is filled");
+    let displaced = arguments[&key]
+        .value
+        .expect("the retargeted place is filled");
+    let mut owner = graph.objects[&predication].clone();
+    owner.update_predication(|node| {
+        let mut arguments = node.arguments.clone();
+        let argument = arguments
+            .remove(&key)
+            .expect("the retargeted place is present")
+            .with_data(data! { value: Some(shared) });
+        arguments.insert(key, argument);
+        node.with_data(data! { arguments: arguments })
+    });
+    let mut orphan = graph.objects[&displaced].clone();
+    orphan.update_referent(|node| {
+        node.with_data(data! { scope_dependence: Some(ScopeDependence::fixed()) })
+    });
+    let data = graph.into_data();
+    let mut objects = data.objects;
+    let root = data.scope.root;
+    let scope = data
+        .scope
+        .with_owner_reindexed(predication, &owner)
+        .with_origin(displaced, root)
+        .with_owner_reindexed(displaced, &orphan);
+    objects.insert(predication, owner);
+    objects.insert(displaced, orphan);
+    let graph = SemanticGraph::from_data(data!(SemanticGraph {
+        objects,
+        scope,
+        ..data
+    }));
+    (graph, displaced)
+}
+
+/// Section 5.1 rule 2 keeps a graph-shared default shared — one explicit
+/// binder for one identity — but it does not lift that binder out of rule 1's
+/// schedule: the omitted computations still "run left to right in current
+/// numbered-place order at the dynamic evaluation site of `Close`". So a
+/// default shared between x2 and x4 is bound *before* an unshared one at x3,
+/// and both stand at the closure that omits them.
+///
+/// Reaching the shared computation through the deferred declaration pass
+/// instead gets both halves wrong: it is emitted after the whole closure has
+/// been built, so the later place's binder is already inside it, and it is
+/// placed at whatever coarser position the closure has already been left for.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_shared_default_binds_at_its_first_place_in_numbered_order() {
+    let input = build_input("mi nelci lo ka ce'u klama je bajra", "shared-default-order");
+    let shared = SemanticObjectId::referent(9);
+    let unshared = SemanticObjectId::referent(10);
+    let displaced = SemanticObjectId::referent(11);
+    let last = SemanticObjectId::referent(12);
+    for id in [shared, unshared, displaced, last] {
+        assert!(
+            input.graph.objects[&id]
+                .scope_dependence()
+                .is_some_and(|dependence| dependence.may_depend_on().is_some()),
+            "each of `klama`'s omitted places records a permission",
+        );
+    }
+    // x4 now names the same identity x2 does, which is what makes that identity
+    // shared; x3 and x5 keep their own. The identity x4 used to name is left
+    // reachable from nothing, so it is re-homed at the document region, where a
+    // disconnected object's derived dependence is `Fixed`.
+    let (graph, orphaned) = share_place_with(input.graph.clone(), "klama", 4, 2);
+    assert_eq!(orphaned, displaced);
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let applications = collect_forms_owned(&datum, "klama");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    let filled = form_operands(applications[0])
+        .iter()
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filled[1], filled[3],
+        "one identity fills both places:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        count_forms(&datum, "Let"),
+        0,
+        "the shared default is one `Bind`, not a declaration beside it:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        collect_bind_hosts(&datum, &filled[1]).len(),
+        1,
+        "and it is bound exactly once:\n{}",
+        rendered.text
+    );
+
+    // The conjunction is where the difference shows: a declaration placed after
+    // the closure was built stands above the whole `∧`, where the sibling
+    // conjunct — which never mentions this identity — would run inside it.
+    let conjunctions = collect_forms_owned(&datum, "∧");
+    assert_eq!(conjunctions.len(), 1, "{}", rendered.text);
+    let conjuncts = form_operands(conjunctions[0]);
+    assert_eq!(conjuncts.len(), 2, "{}", rendered.text);
+    let (binders, body) = peel_binds(&conjuncts[0]);
+    assert_eq!(body.form_head(), Some("klama"), "{}", rendered.text);
+    assert_eq!(
+        binders,
+        vec![filled[1].clone(), filled[2].clone(), filled[4].clone()],
+        "the shared default is scheduled at its first place, inside its own \
+         closure, ahead of the unshared one at the next place:\n{}",
+        rendered.text
+    );
+    assert!(
+        !contains_atom(&conjuncts[1], &filled[1]),
+        "the sibling conjunct does not use it, and is not inside its binder:\n{}",
+        rendered.text
+    );
+}
+
 /// The described selection source is semantic data: it names the plurality the
 /// candidate is drawn from, and the model states that the candidate is
 /// restricted with `memberOf(candidate, description)`. The reduction prints the
