@@ -2985,13 +2985,16 @@ impl Elaborator<'_> {
         if node.sort != SemanticSort::Entity
             || !self.projected_descriptions.contains(&id)
             || self.reference_binding_frames.borrow().is_empty()
+            // Section 5.1's default is a property of the *site*: a fixed
+            // dependence is default only where no binder is accessible, and an
+            // underspecified one only where it names the complete derived
+            // universe. Anything else is a policy this position does not state,
+            // and the description keeps its registered refusal.
+            || !self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
         {
             return None;
         }
-        let scope_default =
-            self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound);
-        let recognition =
-            recognize_description(self.graph, self.plan.usage(), id, node, scope_default)?;
+        let recognition = recognize_description(self.graph, self.plan.usage(), id, node)?;
         let declared_type = referents_type_expr(node.sort)?;
         let variable = object_variable(id);
         let mut scoped = bound.clone();
@@ -3894,15 +3897,13 @@ fn projected_description_objects(
         let Some(node) = object.as_referent() else {
             continue;
         };
-        let scope_default = matches!(
-            node.scope_dependence
-                .as_ref()
-                .map(|dependence| dependence.as_data()),
-            Some(data!(ScopeDependence::Fixed))
-        );
-        let Some(recognition) =
-            recognize_description(graph, usage, *described, node, scope_default)
-        else {
+        // Which dependence policy a description records is not a pre-planning
+        // question, exactly as for a described event: a dependent description is
+        // representable — its `Bind` stands inside the binders its property
+        // names — and whether the recorded universe *is* the derived one at that
+        // lexical position is decided by the route, which knows the position.
+        // Recognition already proves that some policy is recorded.
+        let Some(recognition) = recognize_description(graph, usage, *described, node) else {
             continue;
         };
         let mut support = BTreeSet::new();
@@ -4774,10 +4775,14 @@ fn exact_described_event_time_facet(
     .then_some(time)
 }
 
-/// Shared exact recognition for `lo`, `le`, and `la`. The caller supplies the
-/// scope proof because rendering knows its lexical environment while planning
-/// intentionally accepts only the independently provable fixed case. Every
-/// other descriptor and attachment coordinate is audited here once.
+/// Shared exact recognition for `lo`, `le`, and `la`. Every descriptor and
+/// attachment coordinate is audited here once.
+///
+/// Whether the recorded dependence policy is the default *at a lexical
+/// position* is deliberately not asked here: that is a question about a
+/// position, so only the route that has one can answer it, and the pre-scan
+/// that runs before any position exists would otherwise have to refuse every
+/// dependent description outright.
 #[requires(graph.objects.contains_key(&described))]
 #[ensures(true)]
 fn recognize_description<'a>(
@@ -4785,11 +4790,9 @@ fn recognize_description<'a>(
     usage: &GraphUsage,
     described: SemanticObjectId,
     node: &'a ReferentNode,
-    scope_is_default: bool,
 ) -> Option<DescriptionRecognition<'a>> {
     let descriptor = node.descriptor.as_ref()?;
-    if !scope_is_default
-        || !referent_except_descriptor_is_default(node)
+    if !referent_except_descriptor_is_default(node)
         || descriptor.quantity.is_some()
         || descriptor.scale.is_some()
         || descriptor.definiteness.is_some()
@@ -4971,29 +4974,21 @@ fn recognize_property_formula<'a>(
         }
         let value = plain_elided_argument_value(argument)?;
         let referent = graph.objects[&value].as_referent()?;
+        // An interior `zo'e` records whichever binders the graph says its value
+        // may be resolved against, and any such record is representable: it
+        // projects as the section-5.1 `Context` its dependence names, bound
+        // inside this property, and section 6.3 then hosts the description at
+        // the innermost position where its property's free binders — those
+        // dependences included — are all live. What this recognizer owes is
+        // therefore only that a policy is recorded at all; the site the policy
+        // is default at is the route's question, and an unsupplied binder is a
+        // hosting failure with its own registered reason rather than a reason to
+        // refuse the description shape here.
         if !default_elided_shape(referent)
+            || referent.scope_dependence.is_none()
             || !graph.objects[&value].diagnostics().is_empty()
             || usage.use_count(value) != 1
         {
-            return None;
-        }
-        let dependence_matches =
-            if subject.object_kind() == crate::model::SemanticObjectKind::Parameter {
-                referent
-                    .scope_dependence
-                    .as_ref()
-                    .and_then(|dependence| dependence.may_depend_on())
-                    == Some(&BTreeSet::from([subject]))
-            } else {
-                matches!(
-                    referent
-                        .scope_dependence
-                        .as_ref()
-                        .map(|value| value.as_data()),
-                    Some(data!(ScopeDependence::Fixed))
-                )
-            };
-        if !dependence_matches {
             return None;
         }
     }
