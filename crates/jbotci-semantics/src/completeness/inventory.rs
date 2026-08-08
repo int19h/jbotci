@@ -364,7 +364,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
             Presence::Optional,
             new!(Witness::NoCorpusWitness),
             Disposition::direct_lowering(
-                "normal-form:events/typed-event-property-and-registered-facets/Object:Eventuality:Field:assignedNames",
+                "normal-form:events/goi-assignment-Let-Bind-or-naming-predicate/Object:Eventuality:Field:assignedNames",
             ),
         ),
         entry(
@@ -2175,7 +2175,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 expect: new!(WitnessExpect::Present)
             }),
             Disposition::direct_lowering(
-                "normal-form:references/Refer-Referents-Restrict-Supplement-Among/Object:Referent:Field:assignedNames",
+                "normal-form:references/goi-assignment-Let-Bind-or-naming-predicate/Object:Referent:Field:assignedNames",
             ),
         ),
         entry(
@@ -3731,7 +3731,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 expect: new!(WitnessExpect::Present)
             }),
             Disposition::direct_lowering(
-                "normal-form:references/Refer-Referents-Restrict-Supplement-Among/ValueStruct:AssignedName:Field:name",
+                "normal-form:references/goi-assignment-Let-Bind-or-naming-predicate/ValueStruct:AssignedName:Field:name",
             ),
         ),
         entry(
@@ -3764,7 +3764,7 @@ pub fn render_field_inventory() -> RenderFieldInventory {
                 expect: new!(WitnessExpect::Present)
             }),
             Disposition::direct_lowering(
-                "normal-form:references/Refer-Referents-Restrict-Supplement-Among/ValueStruct:AssignedName:Field:word",
+                "normal-form:references/goi-assignment-Let-Bind-or-naming-predicate/ValueStruct:AssignedName:Field:word",
             ),
         ),
         entry(

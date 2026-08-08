@@ -4274,14 +4274,52 @@ fn exact_deictic(node: &ReferentNode, graph: &SemanticGraph) -> Option<Intrinsic
 
 /// Referent fields absent from the indexical/deictic role itself.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret == (node.assigned_names.is_empty() && referent_payload_except_names_is_empty(node)))]
 fn referent_payload_is_empty(node: &ReferentNode) -> bool {
+    node.assigned_names.is_empty() && referent_payload_except_names_is_empty(node)
+}
+
+/// Whether every name assignment on a referent is the resolution's provenance.
+///
+/// Section 8.4 lowers a `goi` assignment to "`Let`, `Bind`, or the represented
+/// naming or association predicate, depending on its graph semantics". When the
+/// handle is a pro-sumti or lerfu-string stand-in, the graph's semantics are
+/// already the binder: the builder resolves every use of the handle to the
+/// object the assignment was written on (jbotci#779), so that object's own
+/// binder *is* the assignment and the record is the provenance of a resolution
+/// that already happened. Nothing is dropped by not printing it, because no
+/// other object carries the handle.
+///
+/// The builder writes exactly three assignment shapes, and only those two are
+/// stand-ins: an assignable `KOhA` and a lerfu string each record the handle as
+/// both `word` and `name`, while `X goi la djan` records the name-marking word
+/// and the name separately. That third shape states something about the
+/// referent — section 8.4's naming predicate — which no resolution edge
+/// carries, so it is not provenance and keeps its registered refusal.
+///
+/// The marker audit is defence rather than discrimination: every builder path
+/// that writes an `AssignedName` is gated on `goi` today, and the other `GOI`
+/// members attach an association with content of its own through a relative
+/// clause instead. Checking it here keeps a future marker from silently
+/// inheriting a suppression that was only ever true of assignment.
+#[requires(true)]
+#[ensures(ret || !node.assigned_names.is_empty())]
+fn assigned_names_are_resolution_provenance(node: &ReferentNode) -> bool {
+    node.assigned_names
+        .iter()
+        .all(|assigned| assigned.introduced_by == "goi" && assigned.word == assigned.name)
+}
+
+/// The referent audit of [`referent_payload_is_empty`] without name
+/// assignments, for the positions that carry them as provenance.
+#[requires(true)]
+#[ensures(true)]
+fn referent_payload_except_names_is_empty(node: &ReferentNode) -> bool {
     node.descriptor.is_none()
         && node.composition.is_none()
         && node.personal_mass_membership.is_none()
         && node.generated_referent.is_none()
         && node.relative_clauses.is_empty()
-        && node.assigned_names.is_empty()
         && node.body.is_none()
         && node.parameters.is_empty()
         && node.arity.is_none()
@@ -4487,6 +4525,11 @@ fn default_elided_shape(node: &ReferentNode) -> bool {
 }
 
 /// Description referent has no content outside its descriptor/attached clauses.
+///
+/// A `goi` handle assigned to the description is provenance on the same terms
+/// as one assigned to a bound variable: section 8.4's menu selects `Bind` here,
+/// and the description's own hosted `Refer` *is* that `Bind`, so every use of
+/// the handle already prints as the name it introduced.
 #[requires(true)]
 #[ensures(true)]
 fn referent_except_descriptor_is_default(node: &ReferentNode) -> bool {
@@ -4498,7 +4541,7 @@ fn referent_except_descriptor_is_default(node: &ReferentNode) -> bool {
         && node.composition.is_none()
         && node.personal_mass_membership.is_none()
         && node.generated_referent.is_none()
-        && node.assigned_names.is_empty()
+        && assigned_names_are_resolution_provenance(node)
         && node.body.is_none()
         && node.parameters.is_empty()
         && node.arity.is_none()
@@ -5041,6 +5084,14 @@ fn predication_is_otherwise_plain(node: &PredicationNode) -> bool {
 /// be the unique plain-variable default. Provenance source is the ordinary
 /// profile suppression, while diagnostics are kept out of compact binding so
 /// their object attachment is retained by TypedGraph.
+///
+/// A `goi` handle assigned to the variable is one of those provenance
+/// coordinates rather than a second commitment: `ro lo prenu goi ko'a` resolves
+/// every `ko'a` to this very variable, so the quantifier's own λ is the
+/// assignment section 8.4 asks for and the recorded handle names the binder
+/// that is already printed. See
+/// [`assigned_names_are_resolution_provenance`] for the assignment shapes that
+/// qualify.
 #[requires(graph.objects.contains_key(&variable))]
 #[ensures(ret.is_none_or(|sort| graph.objects[&variable].sort() == Some(sort)))]
 fn exact_plain_bound_variable(
@@ -5050,7 +5101,8 @@ fn exact_plain_bound_variable(
     let node = graph.objects[&variable].as_referent()?;
     (node.category == ReferentCategory::Variable
         && node.scope_dependence.is_none()
-        && referent_payload_is_empty(node)
+        && referent_payload_except_names_is_empty(node)
+        && assigned_names_are_resolution_provenance(node)
         && graph.objects[&variable].diagnostics().is_empty())
     .then_some(node.sort)
 }
