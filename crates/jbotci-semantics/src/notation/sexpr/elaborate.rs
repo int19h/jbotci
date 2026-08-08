@@ -4273,23 +4273,31 @@ fn exact_deictic(node: &ReferentNode, graph: &SemanticGraph) -> Option<Intrinsic
     })
 }
 
-/// Referent fields absent from the indexical/deictic role itself.
+/// Referent fields absent from the indexical/deictic role itself, allowing the
+/// name assignments that role may carry as provenance.
+///
+/// An indexical or deictic atom has no binder for a handle to name, and it needs
+/// none: the atom prints by identity wherever it occurs, so `mi goi ko'a` makes
+/// every `ko'a` print `Speaker` with nothing left to state. See
+/// [`assigned_names_are_resolution_provenance`].
 #[requires(true)]
-#[ensures(ret == (node.assigned_names.is_empty() && referent_payload_except_names_is_empty(node)))]
+#[ensures(ret == (assigned_names_are_resolution_provenance(node)
+    && referent_payload_except_names_is_empty(node)))]
 fn referent_payload_is_empty(node: &ReferentNode) -> bool {
-    node.assigned_names.is_empty() && referent_payload_except_names_is_empty(node)
+    assigned_names_are_resolution_provenance(node) && referent_payload_except_names_is_empty(node)
 }
 
 /// Whether every name assignment on a referent is the resolution's provenance.
 ///
 /// Section 8.4 lowers a `goi` assignment to "`Let`, `Bind`, or the represented
 /// naming or association predicate, depending on its graph semantics". When the
-/// handle is a pro-sumti or lerfu-string stand-in, the graph's semantics are
-/// already the binder: the builder resolves every use of the handle to the
-/// object the assignment was written on (jbotci#779), so that object's own
-/// binder *is* the assignment and the record is the provenance of a resolution
-/// that already happened. Nothing is dropped by not printing it, because no
-/// other object carries the handle.
+/// handle is a pro-sumti or lerfu-string stand-in, the graph has already made
+/// that choice: the builder resolves every use of the handle to the object the
+/// assignment was written on (jbotci#779), so whatever prints that object — a
+/// quantifier's λ, a description's hosted `Bind`, or a canonical atom — *is* the
+/// assignment, and the record is the provenance of a resolution that already
+/// happened. Nothing is dropped by not printing it, because no other object
+/// carries the handle.
 ///
 /// The builder writes exactly three assignment shapes, and only those two are
 /// stand-ins: an assignable `KOhA` and a lerfu string each record the handle as

@@ -2385,3 +2385,26 @@ fn collect_forms_owned<'a>(datum: &'a Datum, head: &str) -> Vec<&'a Datum> {
 fn contains_atom(datum: &Datum, atom: &str) -> bool {
     count_atoms(datum, atom) > 0
 }
+
+/// A handle resolved onto an indexical needs no binder at all: the atom prints
+/// by identity wherever it occurs, so every use of the handle prints that atom
+/// and the assignment has nothing left to state. This is the third position
+/// section 8.4's "depending on its graph semantics" reaches, and it is why an
+/// assignment on a canonical atom is provenance rather than a refusal.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_handle_resolved_onto_an_atom_prints_that_atom() {
+    let input = build_input("mi goi ko'a cu prami ko'a", "indexical-goi");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(!rendered.text.contains("ko'a"), "{}", rendered.text);
+    assert_eq!(
+        count_atoms(&datum, "Speaker"),
+        2,
+        "both places print the atom the handle resolved to:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Bind"), 0, "{}", rendered.text);
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
