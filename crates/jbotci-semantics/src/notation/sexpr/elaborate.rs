@@ -652,6 +652,31 @@ enum DescriptionRecognition<'a> {
     },
 }
 
+/// The live binders one rendered property actually names.
+///
+/// Section 6.3 stops a raised reference at "lambda regions whose binders the
+/// computation depends on", and that is a property of the computation, not a
+/// permission granted to it. The recorded `mayDependOn` universe answers a
+/// different question — which binders a `Context` lookup is *allowed* to
+/// resolve against, which section 5.1 then prints verbatim — so using it as a
+/// stop set anchors a description inside quantifiers its property never
+/// mentions. The kernel already carries the exact answer: a lambda's free
+/// binders, minus its own parameter.
+///
+/// Every free binder of a rendered property is one of the binders live where it
+/// was rendered, so intersecting against `bound` recovers the graph identities
+/// the frame stack is keyed by without inverting the variable spelling.
+#[requires(true)]
+#[ensures(ret.iter().all(|id| bound.contains_key(id)))]
+fn property_dependencies(bound: &Bound, property: &Lambda<Content>) -> BTreeSet<SemanticObjectId> {
+    let free = property.free_binders();
+    bound
+        .keys()
+        .copied()
+        .filter(|id| free.contains(&object_variable(*id)))
+        .collect()
+}
+
 /// Nest single-entry dynamic bindings in discovery order. The first reference
 /// discovered is the outermost handler, matching left-to-right evaluation.
 ///
@@ -2987,15 +3012,16 @@ impl Elaborator<'_> {
             body,
         )
         .ok()?;
+        let dependencies = property_dependencies(bound, &property);
         let binding = ReferenceBinding {
             id,
             declared_type: declared_type.clone(),
             computation: RefComp::refer(property).ok()?,
         };
         // Section 6.3 raises this `Bind` to the outermost point that is still
-        // inside every boundary it may not leave; the dependencies its property
-        // records are what decide the lambda-dependency half of that.
-        self.host_reference(binding, self.hosted_dependencies(id))
+        // inside every boundary it may not leave; the binders its property
+        // actually names are what decide the lambda-dependency half of that.
+        self.host_reference(binding, &dependencies)
             .then(|| Operand::Value(Value::bound(variable, declared_type)))
     }
 
@@ -3332,6 +3358,7 @@ impl Elaborator<'_> {
         ) else {
             return self.construction_rejected(id);
         };
+        let dependencies = property_dependencies(bound, &property);
         let Ok(computation) = RefComp::refer(property) else {
             return self.construction_rejected(id);
         };
@@ -3340,7 +3367,7 @@ impl Elaborator<'_> {
             declared_type: declared_type.clone(),
             computation,
         };
-        if !self.host_reference(binding, self.hosted_dependencies(id)) {
+        if !self.host_reference(binding, &dependencies) {
             // Section 6.3's closing rule, reached by a proved route: an open
             // position exists but none has every binder this property names.
             self.record_object_fallback(id, CompactFallbackCause::DynamicHostIllegal);

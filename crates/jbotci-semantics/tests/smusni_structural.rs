@@ -2039,3 +2039,78 @@ fn an_asserted_predication_inside_abstracted_content_is_refused() {
         failure_reason_ids(&failed),
     );
 }
+
+/// Section 6.3 stops a raised reference at the binders its property actually
+/// names, not at every binder its recorded dependence permits it to name.
+///
+/// `lo nu mi klama` inside a universal records `mayDependOn` on the quantified
+/// variable, because the builder writes the permission the position allows. Its
+/// property mentions no binder at all, so the computation raises past the
+/// quantifier to the enclosing abstraction's barrier; anchoring it by the
+/// permission instead would trap it inside a quantifier it never mentions.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_raised_reference_stops_at_the_binders_its_property_names() {
+    let input = build_input(
+        "lo nu ro lo prenu cu troci lo nu mi klama kei kei cu cadga",
+        "permission-wider-than-use",
+    );
+    assert!(
+        input.graph.objects.values().any(|object| {
+            object.as_eventuality().is_some_and(|node| {
+                node.content.is_some()
+                    && node
+                        .denotation
+                        .scope_dependence()
+                        .and_then(|dependence| dependence.may_depend_on().cloned())
+                        .is_some_and(|universe| !universe.is_empty())
+            })
+        }),
+        "the inner abstraction records a dependence permission it does not use",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    let hosts = collect_bind_hosts(&datum, "$eventuality_9");
+    assert_eq!(
+        hosts.len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_form(&hosts[0], "Every"),
+        "the binder encloses the quantifier its property never names:\n{}",
+        rendered.text,
+    );
+}
+
+/// Every `Bind` form in a document that introduces one named binder.
+#[requires(!binder.is_empty())]
+#[ensures(true)]
+fn collect_bind_hosts<'a>(datum: &'a Datum, binder: &str) -> Vec<&'a Datum> {
+    let mut hosts = Vec::new();
+    collect_bind_hosts_into(datum, binder, &mut hosts);
+    hosts
+}
+
+/// Recursive half of [`collect_bind_hosts`].
+#[requires(!binder.is_empty())]
+#[ensures(true)]
+fn collect_bind_hosts_into<'a>(datum: &'a Datum, binder: &str, out: &mut Vec<&'a Datum>) {
+    if datum.form_head() == Some("Bind")
+        && datum.as_list().is_some_and(|items| {
+            items
+                .get(1)
+                .and_then(Datum::as_list)
+                .is_some_and(|entries| entries.iter().any(|entry| binding_name(entry) == binder))
+        })
+    {
+        out.push(datum);
+    }
+    if let Some(items) = datum.as_list() {
+        for item in items {
+            collect_bind_hosts_into(item, binder, out);
+        }
+    }
+}
