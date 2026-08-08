@@ -2577,3 +2577,174 @@ fn underspecified_default_binds_run_left_to_right_in_numbered_place_order() {
         rendered.text
     );
 }
+
+/// The operands of one rendered form, which for a logical junction are its
+/// conjuncts and for a `Bind` are its binding list and its body.
+#[requires(datum.as_list().is_some())]
+#[ensures(true)]
+fn form_operands(datum: &Datum) -> &[Datum] {
+    &datum.as_list().expect("a form is a list")[1..]
+}
+
+/// Peel one `Bind` into the single name it introduces and the value it wraps.
+#[requires(datum.form_head() == Some("Bind"))]
+#[ensures(true)]
+fn peel_bind(datum: &Datum) -> (String, &Datum) {
+    let operands = form_operands(datum);
+    assert_eq!(operands.len(), 2, "a bind has entries and a body");
+    let entries = operands[0].as_list().expect("bind entries are a list");
+    assert_eq!(entries.len(), 1, "each hosted computation binds one name");
+    (binding_name(&entries[0]), &operands[1])
+}
+
+/// Peel a nest of `Bind`s into the names they introduce, outermost first, and
+/// the innermost value they all wrap.
+#[requires(true)]
+#[ensures(true)]
+fn peel_binds(datum: &Datum) -> (Vec<String>, &Datum) {
+    let mut names = Vec::new();
+    let mut body = datum;
+    while body.form_head() == Some("Bind") {
+        let (name, inner) = peel_bind(body);
+        names.push(name);
+        body = inner;
+    }
+    (names, body)
+}
+
+/// Section 5.1's locality rule, asserted as topology rather than presence: each
+/// omitted computation runs "at the dynamic evaluation site of `Close` ... local
+/// to that closure", and section 6.2 evaluates `∧` and `Joi` operands left to
+/// right with each operand seeing the preceding one's context. So a `Context`
+/// belonging to the second conjunct must stand *inside* that conjunct: pooling
+/// both above the junction resolves the second lookup before the first conjunct
+/// has run, which is a different document.
+///
+/// The witness is the sharpest case in the corpus, carrying both junctions: the
+/// `je` conjunction of `xendo` and `cnikansa`, and the `Joi` of the inner
+/// abstraction's content with its `ta'i` adjunct.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn each_closure_binds_its_own_defaults_inside_its_own_operand() {
+    let input = build_input(
+        "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa \
+         ro lo jmive kei ta'i lo racli",
+        "issue-778-witness-topology",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = validate_render(&input.graph, &rendered.text);
+
+    let conjunctions = collect_forms_owned(&datum, "∧");
+    assert_eq!(conjunctions.len(), 1, "{}", rendered.text);
+    let conjuncts = form_operands(conjunctions[0]);
+    assert_eq!(conjuncts.len(), 2, "{}", rendered.text);
+    for (conjunct, relation) in conjuncts.iter().zip(["xendo", "cnikansa"]) {
+        let (names, body) = peel_binds(conjunct);
+        assert_eq!(
+            names.len(),
+            1,
+            "{relation}'s own default binds inside its own conjunct:\n{}",
+            rendered.text
+        );
+        assert_eq!(
+            body.form_head(),
+            Some(relation),
+            "the bind wraps exactly its own closure:\n{}",
+            rendered.text
+        );
+        assert!(
+            body.as_list()
+                .expect("an application is a list")
+                .iter()
+                .any(|item| item.as_atom() == Some(names[0].as_str())),
+            "{relation} fills its place with the value bound for it:\n{}",
+            rendered.text
+        );
+    }
+    // Nothing hoists either conjunct's computation above the junction.
+    assert_eq!(
+        collect_bind_hosts(&datum, "$entity_13").len(),
+        1,
+        "{}",
+        rendered.text
+    );
+    assert!(
+        !contains_atom(&peel_binds(&conjuncts[0]).1, "cnikansa"),
+        "the first conjunct's bind does not enclose the second conjunct:\n{}",
+        rendered.text
+    );
+
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    let (tarti_binds, tarti_body) = peel_binds(&operands[0]);
+    assert_eq!(tarti_binds.len(), 1, "{}", rendered.text);
+    assert_eq!(tarti_body.form_head(), Some("tarti"), "{}", rendered.text);
+    let (tadji_binds, tadji_body) = peel_binds(&operands[1]);
+    assert_eq!(
+        tadji_binds.len(),
+        2,
+        "the adjunct's two defaults bind inside the adjunct's own operand:\n{}",
+        rendered.text
+    );
+    assert_eq!(tadji_body.form_head(), Some("tadji"), "{}", rendered.text);
+    let filled = form_operands(tadji_body)
+        .iter()
+        .skip(1)
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        tadji_binds, filled,
+        "and in the order their places are numbered:\n{}",
+        rendered.text
+    );
+}
+
+/// A question body with two sibling closures is the same rule one level up: the
+/// answered slot's lambda is a section-6.3 host position, but it is not the
+/// section-5.1 evaluation site of anything, so each conjunct's own default
+/// stays inside that conjunct and only the identity the graph shares between
+/// them is bound above both.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_question_body_binds_each_closure_default_in_its_own_closure() {
+    let input = build_input("do jai se smuni ma", "question-body-closures");
+    let rendered = project_document(&input.graph);
+    let datum = validate_render(&input.graph, &rendered.text);
+    let queries = collect_forms_owned(&datum, "OpenQ");
+    assert_eq!(queries.len(), 1, "{}", rendered.text);
+    let lambda = &form_operands(queries[0])[0];
+    let (shared, junction) = peel_binds(&form_operands(lambda)[1]);
+    assert_eq!(
+        shared.len(),
+        1,
+        "only the identity both closures use is bound above them:\n{}",
+        rendered.text
+    );
+    assert_eq!(junction.form_head(), Some("∧"), "{}", rendered.text);
+    let conjuncts = form_operands(junction);
+    assert_eq!(conjuncts.len(), 2, "{}", rendered.text);
+    let (local, smuni) = peel_binds(&conjuncts[0]);
+    assert_eq!(
+        local.len(),
+        1,
+        "the first closure's own default binds inside it:\n{}",
+        rendered.text
+    );
+    assert_eq!(smuni.form_head(), Some("smuni"), "{}", rendered.text);
+    assert_eq!(
+        conjuncts[1].form_head(),
+        Some("involves"),
+        "the second closure omits nothing and binds nothing:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_atom(&conjuncts[1], &shared[0]),
+        "the shared value is used in the second closure, which is why it is \
+         bound above both:\n{}",
+        rendered.text
+    );
+}

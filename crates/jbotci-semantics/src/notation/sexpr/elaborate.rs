@@ -143,8 +143,8 @@ struct ReferenceBinding {
 
 /// One position section 6.3 admits as the host of a raised `Bind`.
 ///
-/// Raising ascends outwards until it meets a frame it may not leave. Two kinds
-/// of frame stop it, and the difference is exactly the specification's: a
+/// Raising ascends outwards until it meets a frame it may not leave. Three
+/// kinds of frame exist, and the difference is exactly the specification's: a
 /// `barrier` stops every computation — a performed force segment, a
 /// reification, an opaque boundary, or the reference computation a nested one
 /// runs inside per section 8.3 — while a binder frame stops only a computation
@@ -152,12 +152,22 @@ struct ReferenceBinding {
 /// lambda-dependency boundary. Everything the elaborator renders between two
 /// frames is a transparent shell, so a computation with no dependency in scope
 /// raises straight through it.
+///
+/// A `closure` frame stops nothing at all. It is not a raising boundary but an
+/// *effect scope*: section 5.1 runs each omitted computation "at the dynamic
+/// evaluation site of `Close`", left to right in numbered-place order and local
+/// to that closure, so every `Close` is its own host position for the
+/// computations it closes. A `Refer` that raises is unaffected — it passes
+/// straight through — which is why this is a third kind rather than a binder
+/// frame with an empty list.
 #[invariant(::Barrier => true, "a barrier stops every computation and carries no binder list")]
 #[invariant(::Binders(_) => true, "any binder set is a legal lambda-dependency boundary")]
+#[invariant(::Closure => true, "a closure scope is transparent to every raise")]
 #[derive(Debug)]
 enum HostFrameKind {
     Barrier,
     Binders(BTreeSet<SemanticObjectId>),
+    Closure,
 }
 
 impl HostFrameKind {
@@ -168,6 +178,7 @@ impl HostFrameKind {
         match self {
             Self::Barrier => true,
             Self::Binders(binders) => !binders.is_disjoint(dependencies),
+            Self::Closure => false,
         }
     }
 }
@@ -1324,6 +1335,35 @@ impl Elaborator<'_> {
         });
     }
 
+    /// Open the effect scope of one `Close`.
+    ///
+    /// Section 5.1: the computations this closure omits run at the dynamic
+    /// evaluation site of *this* `Close`, in current numbered-place order, and
+    /// stay local to it unless graph identity has shared them. So a closure is
+    /// its own host position — one per conjunct of a `∧`, one per operand of a
+    /// `Joi`, one per closure in a question body — rather than a contributor to
+    /// whatever lambda or force segment happens to enclose it.
+    #[requires(true)]
+    #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) + 1)]
+    fn open_closure_scope(&self, live: &Bound) {
+        self.reference_binding_frames.borrow_mut().push(HostFrame {
+            kind: HostFrameKind::Closure,
+            live: live.keys().copied().collect(),
+            bindings: Vec::new(),
+        });
+    }
+
+    /// Close one effect scope over the content it was opened for.
+    ///
+    /// The scope is always closed, whether or not the closure rendered: a
+    /// declining route still has to leave the frame stack as it found it.
+    #[requires(!self.reference_binding_frames.borrow().is_empty())]
+    #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) - 1)]
+    fn close_closure_scope(&self, closed: Option<Content>) -> Option<Content> {
+        let hosted = self.close_host_frame();
+        wrap_reference_bindings(hosted, closed?, Content::bind_form)
+    }
+
     /// Close the innermost host position and take what it hosts.
     #[requires(!self.reference_binding_frames.borrow().is_empty())]
     #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) - 1)]
@@ -2319,10 +2359,14 @@ impl Elaborator<'_> {
                 LexicalRoot::try_new(head_relation).ok()?,
             )),
         };
-        let application = self
+        // The projected `Tanru` application is one `Close` like any other, so it
+        // owns the section-5.1 effect scope of the places it omits.
+        self.open_closure_scope(bound);
+        let closed = self
             .render_argument_map(former, &head.arguments, bound, active, head.eventuality)
-            .ok()?;
-        let mut conjuncts = vec![Content::close(application).ok()?];
+            .ok()
+            .and_then(|application| Content::close(application).ok());
+        let mut conjuncts = vec![self.close_closure_scope(closed)?];
         conjuncts.extend(
             head.adjuncts
                 .iter()
@@ -2508,16 +2552,36 @@ impl Elaborator<'_> {
                 CompactFallbackCause::PredicationSideFields,
             );
         }
+        if matches!(
+            node.relation.as_data(),
+            data!(PredicationRelation::Composition)
+        ) {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::CompositionPredication,
+            );
+        }
+        if let data!(PredicationRelation::Named { relation }) = node.relation.as_data()
+            && LexicalRoot::try_new(relation).is_err()
+        {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::NonAtomicRelation,
+            );
+        }
+        // Section 5.1's evaluation site. Everything the place walk below omits
+        // is computed here, in this closure, in numbered-place order — not
+        // pooled at the enclosing lambda or force segment, where a later
+        // conjunct's lookup would run before the earlier conjunct it is
+        // supposed to see the dynamic context of.
+        self.open_closure_scope(bound);
         let application = match node.relation.as_data() {
             data!(PredicationRelation::Named { relation }) => {
-                let Ok(root) = LexicalRoot::try_new(relation) else {
-                    return self.fallback_object(
-                        id,
-                        bound,
-                        active,
-                        CompactFallbackCause::NonAtomicRelation,
-                    );
-                };
+                let root = LexicalRoot::try_new(relation).expect("the atomic spelling is proved");
                 self.render_argument_map(
                     RelationRef::Lexical(root),
                     &node.arguments,
@@ -2549,25 +2613,27 @@ impl Elaborator<'_> {
                 }
             }
             data!(PredicationRelation::Composition) => {
-                return self.fallback_object(
-                    id,
-                    bound,
-                    active,
-                    CompactFallbackCause::CompositionPredication,
-                );
+                unreachable!("a composition predication declined before its scope was opened")
             }
         };
-        let application = match application {
-            Ok(application) => application,
+        // The scope is closed before any decline is reported, so a route that
+        // gives up still leaves the frame stack as it found it.
+        let (closed, failure) = match application {
+            Ok(application) => (Content::close(application).ok(), None),
+            Err(failure) => (None, Some(failure)),
+        };
+        let closed = self.close_closure_scope(closed);
+        match failure {
+            None => {}
             // A value that declined at its own boundary has already said so;
             // reporting the place map as well would attribute one failure
             // twice. The rest of this predication still has boundaries of its
             // own — its adjuncts and its event — so they are still reached.
-            Err(FillFailure::ValueDeclined) => {
+            Some(FillFailure::ValueDeclined) => {
                 self.record_declined_children(id, bound, active);
                 return None;
             }
-            Err(FillFailure::Unrepresentable) => {
+            Some(FillFailure::Unrepresentable) => {
                 return self.fallback_object(
                     id,
                     bound,
@@ -2575,8 +2641,8 @@ impl Elaborator<'_> {
                     CompactFallbackCause::ArgumentFields,
                 );
             }
-        };
-        let Ok(closed) = Content::close(application) else {
+        }
+        let Some(closed) = closed else {
             return self.fallback_object(
                 id,
                 bound,
@@ -2827,6 +2893,12 @@ impl Elaborator<'_> {
 
     /// Render a canonical adjunct from its actual relation/place map. The
     /// surface `introduced_by` string is deliberately never inspected.
+    ///
+    /// An adjunct is a `Joi` operand of its own, so it is its own `Close` and
+    /// therefore its own section-5.1 effect scope: the defaults it omits belong
+    /// inside its operand, evaluated at the recorded nonlogical locus in the
+    /// same left-to-right flow section 6.2 gives conjunction, not hoisted above
+    /// the junction beside the predication's.
     #[requires(true)]
     #[ensures(true)]
     fn render_modal(
@@ -2835,26 +2907,27 @@ impl Elaborator<'_> {
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Option<Content> {
-        if adjunct.component.is_none()
-            && adjunct.negation.is_none()
-            && adjunct.scalar_negation.is_none()
-            && adjunct.modifiers.is_empty()
+        if adjunct.component.is_some()
+            || adjunct.negation.is_some()
+            || adjunct.scalar_negation.is_some()
+            || !adjunct.modifiers.is_empty()
         {
-            if let Some(relation) = &adjunct.relation {
-                if let Ok(root) = LexicalRoot::try_new(relation) {
-                    if let Ok(application) = self.render_argument_map(
-                        RelationRef::Lexical(root),
-                        &adjunct.arguments,
-                        bound,
-                        active,
-                        None,
-                    ) {
-                        return Content::close(application).ok();
-                    }
-                }
-            }
+            return None;
         }
-        None
+        let relation = adjunct.relation.as_ref()?;
+        let root = LexicalRoot::try_new(relation).ok()?;
+        self.open_closure_scope(bound);
+        let closed = self
+            .render_argument_map(
+                RelationRef::Lexical(root),
+                &adjunct.arguments,
+                bound,
+                active,
+                None,
+            )
+            .ok()
+            .and_then(|application| Content::close(application).ok());
+        self.close_closure_scope(closed)
     }
 
     /// Render reference constructors, indexicals, composition, abstractions,
@@ -3093,16 +3166,16 @@ impl Elaborator<'_> {
                 arguments,
                 parameter: None,
             }) if *constructor == DescriptionConstructor::Lo => {
-                let term = self
-                    .render_argument_map(
-                        RelationRef::Lexical(LexicalRoot::try_new(property).ok()?),
-                        arguments,
-                        scoped,
-                        active,
-                        None,
-                    )
-                    .ok()?;
-                Content::close(term).ok()?
+                // The base property is its own `Close`, so a section-5.1
+                // default inside it belongs to that conjunct rather than to the
+                // whole `∧` a restrictive clause would build around it.
+                let root = RelationRef::Lexical(LexicalRoot::try_new(property).ok()?);
+                self.open_closure_scope(scoped);
+                let closed = self
+                    .render_argument_map(root, arguments, scoped, active, None)
+                    .ok()
+                    .and_then(|term| Content::close(term).ok());
+                self.close_closure_scope(closed)?
             }
             data!(DescriptionRecognition::Property {
                 constructor,
