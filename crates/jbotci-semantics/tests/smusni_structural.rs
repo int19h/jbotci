@@ -2114,3 +2114,274 @@ fn collect_bind_hosts_into<'a>(datum: &'a Datum, binder: &str, out: &mut Vec<&'a
         }
     }
 }
+
+/// A description's own body mentions the description it defines, and that
+/// occurrence is not a use: the builder records it as `definitionInternal`
+/// exactly so that counting it as sharing cannot turn every ordinary `lo broda`
+/// into a shared definition no reference type can spell.
+///
+/// This is the specification's membership shape end to end (sections 8.4, 9.2):
+/// `ro lo P` is an `Every` whose restriction is `memberOf` of the bound variable
+/// against the description referent, and the description is hosted *outside* the
+/// quantifier, so the restriction is a plain predicate over one bound variable
+/// and one outer binding.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_description_reached_once_is_not_a_shared_definition() {
+    let input = build_input("ro lo prenu cu prami", "membership-restriction");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    let hosts = collect_bind_hosts(&datum, "$entity_11");
+    assert_eq!(
+        hosts.len(),
+        1,
+        "the description is bound exactly once:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_form(hosts[0], "Every"),
+        "the description referent is hosted outside its own quantifier:\n{}",
+        rendered.text
+    );
+    let restrictions = collect_forms_owned(&datum, "Every");
+    assert_eq!(restrictions.len(), 1);
+    assert!(
+        contains_atom(restrictions[0], "memberOf"),
+        "section 9.2 restricts the candidate by membership in the description:\n{}",
+        rendered.text
+    );
+    // No `Let` is written, because section 6.3's dynamic host is already the
+    // declaration site; the failure this used to take was the demand for a
+    // `Let`-bindable type of a value that never becomes a `Let`.
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// Section 8.4's `goi` menu, in the configuration the builder resolves
+/// structurally: the quantifier's own λ *is* the assignment, so the handle names
+/// a binder that is already printed and contributes nothing of its own.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_quantified_goi_handle_is_the_binder_it_names() {
+    let input = build_input("ro lo prenu goi ko'a cu prami ko'a", "quantified-goi");
+    assert!(
+        input.graph.objects.values().any(|object| object
+            .as_referent()
+            .is_some_and(|node| node.category == ReferentCategory::Variable
+                && !node.assigned_names.is_empty())),
+        "the bound variable carries the assignment the builder resolved onto it",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(
+        !rendered.text.contains("ko'a"),
+        "the handle is provenance and prints nothing:\n{}",
+        rendered.text
+    );
+    let applications = collect_forms_owned(&datum, "prami");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    let places = applications[0]
+        .as_list()
+        .expect("an application is a list")
+        .iter()
+        .skip(1)
+        .map(|item| item.as_atom().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        places,
+        vec![Some("$entity_7".to_owned()), Some("$entity_7".to_owned())],
+        "both places are the one variable the assignment resolved to:\n{}",
+        rendered.text
+    );
+}
+
+/// The same handle written outside a quantifier selects the other item on
+/// section 8.4's menu: the description's own hosted `Refer` is the `Bind`, and
+/// both occurrences are uses of the name it introduced. No `Let` alias is
+/// needed, because there is no second identity to alias.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_same_scope_goi_handle_is_the_description_binder() {
+    let input = build_input("lo prenu goi ko'a cu prami ko'a", "same-scope-goi");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(!rendered.text.contains("ko'a"), "{}", rendered.text);
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+    assert_eq!(
+        collect_bind_hosts(&datum, "$entity_7").len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+}
+
+/// The third assignment shape the builder writes is not provenance. `X goi la
+/// djan` states that the referent bears a name, which is section 8.4's naming
+/// predicate; no resolution edge carries it, so suppressing it would drop
+/// content and the description keeps its registered refusal.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_goi_name_assignment_is_not_resolution_provenance() {
+    let input = build_input("lo prenu goi la djan cu prami", "goi-name-assignment");
+    assert!(
+        input
+            .graph
+            .objects
+            .values()
+            .any(|object| object
+                .as_referent()
+                .is_some_and(|node| node.assigned_names.iter().any(|assigned| {
+                    assigned.introduced_by == "goi" && assigned.name != assigned.word
+                }))),
+        "the record separates the name-marking word from the name",
+    );
+    let failed = project_failure(&input.graph);
+    assert!(
+        failure_reason_ids(&failed)
+            .contains(&"smusni.projection.reference-description-unrepresentable"),
+        "{:?}",
+        failure_reason_ids(&failed)
+    );
+}
+
+/// A binder is a free binder of the value being projected, not something the
+/// projection consumes. Collecting one into an inlined subgraph's support makes
+/// the quantifier that binds it — and every sibling place it fills — look like
+/// an escape, which refused every abstraction whose content mentions a variable
+/// bound outside it.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_binder_named_inside_abstracted_content_is_not_support() {
+    let input = build_input(
+        "ro lo prenu goi ko'a cu troci lo nu ko'a klama",
+        "binder-inside-content",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    // `validate_render` proves the whole document is well scoped, so an
+    // abstraction whose binding names the quantified variable necessarily
+    // stands inside that quantifier's scope.
+    validate_render(&input.graph, &rendered.text);
+    let hosts = collect_bind_hosts(&datum, "$eventuality_8");
+    assert_eq!(hosts.len(), 1, "{}", rendered.text);
+    assert!(
+        contains_atom(hosts[0], "$entity_7"),
+        "the abstraction's content names the variable bound outside it:\n{}",
+        rendered.text
+    );
+    assert!(contains_atom(&datum, "klama"), "{}", rendered.text);
+}
+
+/// An interior `zo'e` of a description property may record any binders live at
+/// the description's host position. It projects as the section-5.1 `Context` its
+/// dependence names, bound inside the property, and section 6.3 then hosts the
+/// description where its property's free binders are all live — so a dependent
+/// description is representable rather than a shape to refuse before planning.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_dependent_description_projects_inside_the_binders_it_names() {
+    let input = build_input(
+        "ro lo prenu cu troci lo nu lo pendo cu klama",
+        "dependent-description",
+    );
+    assert!(
+        input.graph.objects.values().any(|object| {
+            object.as_referent().is_some_and(|node| {
+                node.descriptor
+                    .as_ref()
+                    .is_some_and(|descriptor| descriptor.body.is_some())
+                    && node
+                        .scope_dependence
+                        .as_ref()
+                        .and_then(|dependence| dependence.may_depend_on())
+                        .is_some_and(|universe| !universe.is_empty())
+            })
+        }),
+        "the inner description records a dependence on the quantified variable",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(contains_atom(&datum, "pendo"), "{}", rendered.text);
+}
+
+/// The issue's named acceptance witness. Every claim below is a specification
+/// claim about the document's shape rather than a byte expectation: two `nu`
+/// reference computations hosted where their properties' binders are live, a
+/// `ka` lambda over its graph-owned `ce'u`, two membership restrictions, and the
+/// `ta'i` modal conjoined into the inner abstraction's property.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn the_membership_path_witness_renders_a_canonical_document() {
+    let input = build_input(
+        "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa \
+         ro lo jmive kei ta'i lo racli",
+        "issue-778-witness",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    validate_render(&input.graph, &rendered.text);
+    let quantifiers = collect_forms_owned(&datum, "Every");
+    assert_eq!(quantifiers.len(), 2, "{}", rendered.text);
+    for quantifier in &quantifiers {
+        assert!(
+            contains_atom(quantifier, "memberOf"),
+            "each domain is a membership restriction:\n{}",
+            rendered.text
+        );
+    }
+    // The `ka` crossing is a bare lambda over the graph's own parameter, and its
+    // body is the `je` conjunction of both relations.
+    assert!(
+        rendered.text.contains("$parameterNode_11"),
+        "{}",
+        rendered.text
+    );
+    for relation in ["cadga", "troci", "tarti", "xendo", "cnikansa", "tadji"] {
+        assert!(
+            contains_atom(&datum, relation),
+            "{relation} reaches the document:\n{}",
+            rendered.text
+        );
+    }
+    // The outer `nu` is fixed and binds at the top; the inner one names the
+    // quantified variable and binds inside the quantifier.
+    let outer = collect_bind_hosts(&datum, "$eventuality_7");
+    assert_eq!(outer.len(), 1, "{}", rendered.text);
+    assert!(
+        contains_form(outer[0], "Assert"),
+        "the fixed abstraction binds above the act that mentions it:\n{}",
+        rendered.text
+    );
+    let inner = collect_bind_hosts(&datum, "$eventuality_9");
+    assert_eq!(inner.len(), 1, "{}", rendered.text);
+    // The document is well scoped, so a binding that names `$entity_8` stands
+    // inside the quantifier that introduces it.
+    assert!(
+        contains_atom(inner[0], "$entity_8"),
+        "the dependent abstraction names the quantified variable:\n{}",
+        rendered.text
+    );
+    assert!(!rendered.text.contains("ko'a"), "{}", rendered.text);
+}
+
+/// Every `head` form in one document, outermost first.
+#[requires(!head.is_empty())]
+#[ensures(true)]
+fn collect_forms_owned<'a>(datum: &'a Datum, head: &str) -> Vec<&'a Datum> {
+    let mut out = Vec::new();
+    collect_forms(datum, head, &mut out);
+    out
+}
+
+/// Whether one atom occurs anywhere in a document.
+#[requires(!atom.is_empty())]
+#[ensures(ret == (count_atoms(datum, atom) > 0))]
+fn contains_atom(datum: &Datum, atom: &str) -> bool {
+    count_atoms(datum, atom) > 0
+}
