@@ -1198,13 +1198,40 @@ impl Elaborator<'_> {
             .borrow_mut()
             .extend(definitions.iter().copied());
         let blocks = self.definition_blocks(&definitions);
-        // Declining here is still a per-object failure, so the loop keeps the
-        // exact identity that could not be typed rather than reporting the
-        // whole declaration group.
-        let mut typed_blocks = Vec::with_capacity(blocks.len());
-        for block in &blocks {
-            let mut typed = Vec::with_capacity(block.members.len());
-            for id in block.members.iter().copied() {
+        // An identity the value renderer hosts with its own `Bind` is already
+        // declared by that binder: section 6.3's dynamic host *is* its
+        // declaration site, and a `Let` beside it would introduce the same name
+        // twice. Such a rendering returns exactly a use of the name it bound,
+        // which is what identifies it here.
+        let rendered = blocks
+            .iter()
+            .map(|block| {
+                block
+                    .members
+                    .iter()
+                    .copied()
+                    .map(|id| {
+                        let value = self
+                            .render_object(id, bound, active, AcceptedModes::Unlicensed)
+                            .and_then(Elaborated::into_operand);
+                        (id, value)
+                    })
+                    .filter(|(id, value)| !value_is_own_binder_use(*id, value.as_ref()))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        // Only a declaration that survives to become a `Let` needs a type the
+        // notation can spell. Placement and declaration are separate decisions:
+        // the plan says *where* a shared identity is rendered, and a reference
+        // computation rendered there declares itself, so demanding a
+        // `Let`-bindable type of it would refuse the whole document over a
+        // binding that is never written. Declining is still a per-object
+        // failure, so the loop keeps the exact identity that could not be typed
+        // rather than reporting the whole declaration group.
+        let mut typed_blocks = Vec::with_capacity(rendered.len());
+        for bindings in rendered {
+            let mut typed = Vec::with_capacity(bindings.len());
+            for (id, value) in bindings {
                 let Some(declared_type) = definition_type_expr(&self.graph.objects[&id]) else {
                     self.record_object_fallback(
                         id,
@@ -1212,39 +1239,11 @@ impl Elaborator<'_> {
                     );
                     return None;
                 };
-                typed.push((id, declared_type));
+                typed.push((id, declared_type, value));
             }
             typed_blocks.push(typed);
         }
-        let rendered = typed_blocks
-            .into_iter()
-            .map(|typed| {
-                typed
-                    .into_iter()
-                    .map(|(id, declared_type)| {
-                        let value = self
-                            .render_object(id, bound, active, AcceptedModes::Unlicensed)
-                            .and_then(Elaborated::into_operand);
-                        (id, declared_type, value)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        // An identity the value renderer hosts with its own `Bind` is already
-        // declared by that binder: section 6.3's dynamic host *is* its
-        // declaration site, and a `Let` beside it would introduce the same name
-        // twice. Such a rendering returns exactly a use of the name it bound,
-        // which is what identifies it here.
-        let rendered = rendered
-            .into_iter()
-            .map(|bindings| {
-                bindings
-                    .into_iter()
-                    .filter(|(id, _, value)| !value_is_own_binder_use(*id, value.as_ref()))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        for (block, bindings) in blocks.iter().zip(&rendered) {
+        for (block, bindings) in blocks.iter().zip(&typed_blocks) {
             // Only a genuinely cyclic block is a `LetRec`, so only a cyclic
             // block's initializers have to be inert lambdas. An acyclic
             // neighbour that happens to share this host is an ordinary
@@ -1264,7 +1263,7 @@ impl Elaborator<'_> {
         // The first block is the outermost binder, so the blocks are applied
         // from the innermost outwards over the body they all wrap.
         let mut wrapped = body?;
-        for (block, bindings) in blocks.into_iter().zip(rendered).rev() {
+        for (block, bindings) in blocks.into_iter().zip(typed_blocks).rev() {
             if bindings.is_empty() {
                 continue;
             }
