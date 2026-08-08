@@ -744,11 +744,22 @@ fn placement_users(
                 .entry(occurrence.target)
                 .or_default()
                 .insert(occurrence.owner);
-        } else if occurrence.role == ScopeUseRole::DefinitionInternal {
-            internal
-                .entry(occurrence.target)
-                .or_default()
-                .insert(occurrence.owner);
+            continue;
+        }
+        // Exhaustive on purpose: a role added later has to be dispositioned
+        // here as well as in `occurrence_is_value_use`, rather than silently
+        // becoming neither a use nor a placement constraint.
+        match occurrence.role {
+            ScopeUseRole::DefinitionInternal => {
+                internal
+                    .entry(occurrence.target)
+                    .or_default()
+                    .insert(occurrence.owner);
+            }
+            ScopeUseRole::BinderDeclaration => {}
+            ScopeUseRole::Value | ScopeUseRole::BinderUse => {
+                unreachable!("a value occurrence is handled above")
+            }
         }
     }
     let mut placement = value.clone();
