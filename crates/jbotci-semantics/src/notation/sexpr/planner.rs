@@ -8,7 +8,7 @@
 //!
 //! Two records answer two different questions and are deliberately kept apart:
 //!
-//! * [`GraphUsage`] counts reference *edges*. It is what recognizers ask when
+//! * [`GraphUsage`] counts *value* occurrences. It is what recognizers ask when
 //!   they need to know whether an identity is used more than once, and it is
 //!   computed before any placement decision so that the projection pre-scan can
 //!   run as an explicit pre-plan phase rather than a call back into the
@@ -17,6 +17,14 @@
 //!   collapsed use-site sets: one owner object can hold two references
 //!   evaluated in different regions, and a reference occurring inside its own
 //!   target's definition is not a use that definition must be hosted to cover.
+//!
+//! Both read the same occurrence table, and for the same reason: a raw
+//! reference edge does not say what kind of occurrence it is. A description's
+//! body mentions the description it defines, and a binder-introducing node
+//! mentions the variable it introduces; neither is a use that makes the
+//! identity shared. The builder already classifies every edge, so counting
+//! edges instead of occurrences reports both as sharing and turns an ordinary
+//! description into an untypeable shared definition.
 //!
 //! Placement itself is one bottom-up pass over the SCC-condensed use DAG. The
 //! host of an identity is the deepest position whose rendered value encloses
@@ -137,6 +145,22 @@ pub struct ScopeFailure {
     pub use_site: Option<SemanticObjectId>,
 }
 
+/// Whether one occurrence uses the identity it names as a value.
+///
+/// A binder declaration introduces the identity, and a reference inside the
+/// target's own definition is a bound candidate of that definition rather than
+/// a use the definition would have to be hosted to cover. Both are the record's
+/// own classification, which is why every question about sharing asks it here
+/// rather than counting reference edges.
+#[requires(true)]
+#[ensures(ret == matches!(role, ScopeUseRole::Value | ScopeUseRole::BinderUse))]
+fn occurrence_is_value_use(role: ScopeUseRole) -> bool {
+    match role {
+        ScopeUseRole::Value | ScopeUseRole::BinderUse => true,
+        ScopeUseRole::BinderDeclaration | ScopeUseRole::DefinitionInternal => false,
+    }
+}
+
 /// Order one planner channel and drop only exact repeats of a single edge.
 ///
 /// Sorting before deduplicating is what makes the order stable across runs and
@@ -157,12 +181,13 @@ fn stable_failure_channel(mut failures: Vec<ScopeFailure>) -> Vec<ScopeFailure> 
     failures
 }
 
-/// Edge-level usage and binder ownership, independent of any placement.
+/// Occurrence-level usage and binder ownership, independent of any placement.
 ///
-/// This is the pre-plan record. It answers "how many edges reach this identity"
-/// and "which node binds this variable" — both decided by the graph alone — so
-/// the projection pre-scan can consume it before hosts exist. Splitting it out
-/// is what severs the planner's old back-reference into the elaborator.
+/// This is the pre-plan record. It answers "how many value occurrences reach
+/// this identity" and "which node binds this variable" — both decided by the
+/// graph alone — so the projection pre-scan can consume it before hosts exist.
+/// Splitting it out is what severs the planner's old back-reference into the
+/// elaborator.
 #[invariant(binder_owners.keys().all(|binder| !conflicting_binders.iter().any(|(other, _)| other == binder)),
     "a binder with more than one introducing region has no unique owner")]
 #[derive(Debug, Clone)]
@@ -174,14 +199,14 @@ pub(super) struct GraphUsage {
 }
 
 impl GraphUsage {
-    /// Number of graph edges that use an identity.
+    /// Number of value occurrences of an identity.
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn use_count(&self, id: SemanticObjectId) -> usize {
         self.use_counts.get(&id).copied().unwrap_or(0)
     }
 
-    /// Source objects containing a reference to `id`.
+    /// Source objects whose value occurrences reach `id`.
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn uses_of(&self, id: SemanticObjectId) -> Option<&BTreeSet<SemanticObjectId>> {
@@ -198,7 +223,7 @@ impl GraphUsage {
     /// Whether some region or node introduces `id` as a binder at all.
     #[requires(true)]
     #[ensures(true)]
-    fn is_binder(&self, id: SemanticObjectId) -> bool {
+    pub(super) fn is_binder(&self, id: SemanticObjectId) -> bool {
         self.binder_owners.contains_key(&id)
             || self
                 .conflicting_binders
@@ -207,28 +232,34 @@ impl GraphUsage {
     }
 }
 
-/// Build the pre-plan usage record: edge multiplicities and binder ownership.
+/// Build the pre-plan usage record: value multiplicities and binder ownership.
 ///
-/// Binder ownership is read, not swept. Lexical binders are the ones the region
-/// forest introduces, so their owner is the object owning the introducing
-/// region; generated event binders are declared by the formula and sequence
-/// nodes that carry them, which [`ScopeRegion`](crate::model::ScopeRegion)
-/// cannot record because its binder vocabulary is restricted to referent and
-/// parameter objects. Neither source reconstructs anything from reference
-/// edges.
+/// Usage is read off the occurrence table, not swept out of the reference
+/// edges, because only the table says what an edge *is*. A binder declaration
+/// introduces the identity rather than using it, and a reference inside the
+/// target's own definition is a bound candidate of that definition; counting
+/// either as a use makes an ordinary description look shared and forces it into
+/// a `Let` no reference type can spell.
+///
+/// Binder ownership is read the same way. Lexical binders are the ones the
+/// region forest introduces, so their owner is the object owning the
+/// introducing region; generated event binders are declared by the formula and
+/// sequence nodes that carry them, which
+/// [`ScopeRegion`](crate::model::ScopeRegion) cannot record because its binder
+/// vocabulary is restricted to referent and parameter objects.
 #[requires(graph.objects.contains_key(&graph.root))]
 #[ensures(true)]
 pub(super) fn index_graph_usage(graph: &SemanticGraph) -> GraphUsage {
     let mut uses: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> = BTreeMap::new();
     let mut use_counts = BTreeMap::new();
-    let mut references = Vec::new();
-    for (source, object) in &graph.objects {
-        references.clear();
-        object.references_into(&mut references);
-        for target in references.iter().copied() {
-            uses.entry(target).or_default().insert(*source);
-            *use_counts.entry(target).or_default() += 1;
+    for occurrence in &graph.scope.uses {
+        if !occurrence_is_value_use(occurrence.role) {
+            continue;
         }
+        uses.entry(occurrence.target)
+            .or_default()
+            .insert(occurrence.owner);
+        *use_counts.entry(occurrence.target).or_default() += 1;
     }
 
     let conflicting_binders = scope_binder_introduction_conflicts(&graph.scope.regions);
@@ -369,14 +400,14 @@ impl ReferencePlan {
         &self.usage
     }
 
-    /// Number of graph edges that use an identity.
+    /// Number of value occurrences of an identity.
     #[requires(true)]
     #[ensures(ret == self.usage.use_count(id))]
     pub(super) fn use_count(&self, id: SemanticObjectId) -> usize {
         self.usage.use_count(id)
     }
 
-    /// Source objects containing a reference to `id`.
+    /// Source objects whose value occurrences reach `id`.
     #[requires(true)]
     #[ensures(true)]
     pub(super) fn uses_of(&self, id: SemanticObjectId) -> Option<&BTreeSet<SemanticObjectId>> {
@@ -390,7 +421,7 @@ impl ReferencePlan {
         self.usage.binder_owner(id)
     }
 
-    /// Whether `id` participates in a graph cycle and therefore requires
+    /// Whether `id` participates in a value-use cycle and therefore requires
     /// recursive definition treatment when it is not a lexical binder.
     #[requires(self.compact_is_eligible())]
     #[ensures(true)]
@@ -553,9 +584,15 @@ pub(super) fn plan_references(
         .iter()
         .map(|(id, targets)| (*id, targets.iter().copied().collect()))
         .collect::<BTreeMap<_, BTreeSet<_>>>();
-    let cyclic = cyclic_nodes(&adjacency);
 
     let (declaration_users, hosted_by) = placement_users(graph);
+    let declarations = placement_adjacency(&graph.objects, &declaration_users);
+    // A cycle is a property of the *value* graph. A description whose body
+    // mentions the description it defines is not recursive — that occurrence is
+    // the bound candidate the definition introduces — so reading cyclicity off
+    // reference edges would demand a guarded recursive form for every ordinary
+    // `lo broda`.
+    let cyclic = cyclic_nodes(&declarations);
     let placement = placement_adjacency(&graph.objects, &hosted_by);
     let components = strong_components(&placement);
     let containment = build_containment(graph.root, &components, &hosted_by);
@@ -611,7 +648,6 @@ pub(super) fn plan_references(
     // guarded lexical form, which is the specification's tracked gap rather
     // than a placement question.
     let lambda_shaped = objects_introducing_binders(graph);
-    let declarations = placement_adjacency(&graph.objects, &declaration_users);
     for component in strong_components(&declarations) {
         let Some(entry) = component.iter().copied().next() else {
             continue;
@@ -703,20 +739,16 @@ fn placement_users(
     let mut value: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> = BTreeMap::new();
     let mut internal: BTreeMap<SemanticObjectId, BTreeSet<SemanticObjectId>> = BTreeMap::new();
     for occurrence in &graph.scope.uses {
-        match occurrence.role {
-            ScopeUseRole::Value | ScopeUseRole::BinderUse => {
-                value
-                    .entry(occurrence.target)
-                    .or_default()
-                    .insert(occurrence.owner);
-            }
-            ScopeUseRole::DefinitionInternal => {
-                internal
-                    .entry(occurrence.target)
-                    .or_default()
-                    .insert(occurrence.owner);
-            }
-            ScopeUseRole::BinderDeclaration => {}
+        if occurrence_is_value_use(occurrence.role) {
+            value
+                .entry(occurrence.target)
+                .or_default()
+                .insert(occurrence.owner);
+        } else if occurrence.role == ScopeUseRole::DefinitionInternal {
+            internal
+                .entry(occurrence.target)
+                .or_default()
+                .insert(occurrence.owner);
         }
     }
     let mut placement = value.clone();
@@ -971,7 +1003,7 @@ pub(super) fn strong_components(
     components
 }
 
-/// Compute graph nodes belonging to cyclic SCCs of the whole reference graph.
+/// Compute graph nodes belonging to cyclic SCCs of the value-use graph.
 #[requires(true)]
 #[ensures(ret.iter().all(|id| adjacency.contains_key(id)))]
 fn cyclic_nodes(
