@@ -3922,10 +3922,16 @@ fn projected_description_objects(
                     .expect("recognized property has a descriptor body");
                 match *constructor {
                     DescriptionConstructor::Lo => {
-                        collect_property_support(graph, body, *described, &mut support);
+                        collect_property_support(graph, usage, body, *described, &mut support);
                     }
                     DescriptionConstructor::Le => {
-                        collect_speaker_description_support(graph, body, *described, &mut support);
+                        collect_speaker_description_support(
+                            graph,
+                            usage,
+                            body,
+                            *described,
+                            &mut support,
+                        );
                     }
                 }
                 for clause in descriptor
@@ -3933,7 +3939,7 @@ fn projected_description_objects(
                     .iter()
                     .chain(node.relative_clauses.iter())
                 {
-                    collect_inline_support(graph, clause.body, *described, &mut support);
+                    collect_inline_support(graph, usage, clause.body, *described, &mut support);
                 }
             }
             // A recognized name description has no descriptor body and no
@@ -4001,7 +4007,7 @@ fn projected_described_event_objects(
             continue;
         }
         let mut support = BTreeSet::new();
-        collect_inline_support(graph, content, *event, &mut support);
+        collect_inline_support(graph, usage, content, *event, &mut support);
         let allowed_sources = support
             .iter()
             .copied()
@@ -4019,19 +4025,35 @@ fn projected_described_event_objects(
     (projected, values)
 }
 
-/// Collect an inline subgraph without crossing its owning self-reference or a
-/// canonical atom that is safe to repeat by identity.
+/// Collect an inline subgraph without crossing its owning self-reference, a
+/// canonical atom that is safe to repeat by identity, or a binder.
+///
+/// A binder is not something the projection *consumes*: it is a free binder of
+/// the property being built, declared by whatever introduces it, and no
+/// declaration of it is ever written. Collecting one would make an ordinary
+/// mention outside — the quantifier that binds it, a sibling place filled by the
+/// same variable — look like an escape of the inlined subgraph and refuse the
+/// whole projection. This is section D5's stop-set distinction at the pre-scan:
+/// what a value contains is not what it depends on.
 #[requires(graph.objects.contains_key(&root))]
-#[ensures(out.contains(&root) || root == owner || is_conventional_atom(&graph.objects[&root]))]
+#[ensures(out.contains(&root)
+    || root == owner
+    || usage.is_binder(root)
+    || is_conventional_atom(&graph.objects[&root]))]
 fn collect_inline_support(
     graph: &SemanticGraph,
+    usage: &GraphUsage,
     root: SemanticObjectId,
     owner: SemanticObjectId,
     out: &mut BTreeSet<SemanticObjectId>,
 ) {
     let mut pending = vec![root];
     while let Some(id) = pending.pop() {
-        if id == owner || is_conventional_atom(&graph.objects[&id]) || !out.insert(id) {
+        if id == owner
+            || usage.is_binder(id)
+            || is_conventional_atom(&graph.objects[&id])
+            || !out.insert(id)
+        {
             continue;
         }
         let mut references = Vec::new();
@@ -4046,6 +4068,7 @@ fn collect_inline_support(
 #[ensures(out.contains(&formula))]
 fn collect_property_support(
     graph: &SemanticGraph,
+    usage: &GraphUsage,
     formula: SemanticObjectId,
     subject: SemanticObjectId,
     out: &mut BTreeSet<SemanticObjectId>,
@@ -4066,7 +4089,11 @@ fn collect_property_support(
             .arguments
             .values()
             .filter_map(|argument| argument.value)
-            .filter(|value| *value != subject && !is_conventional_atom(&graph.objects[value])),
+            .filter(|value| {
+                *value != subject
+                    && !usage.is_binder(*value)
+                    && !is_conventional_atom(&graph.objects[value])
+            }),
     );
 }
 
@@ -4075,6 +4102,7 @@ fn collect_property_support(
 #[ensures(out.contains(&formula))]
 fn collect_speaker_description_support(
     graph: &SemanticGraph,
+    usage: &GraphUsage,
     formula: SemanticObjectId,
     described: SemanticObjectId,
     out: &mut BTreeSet<SemanticObjectId>,
@@ -4102,15 +4130,15 @@ fn collect_speaker_description_support(
             .filter(|value| {
                 *value != described
                     && *value != relation_value
+                    && !usage.is_binder(*value)
                     && !is_conventional_atom(&graph.objects[value])
             }),
     );
     let Some(relation_node) = graph.objects[&relation_value].as_referent() else {
         return;
     };
-    out.extend(relation_node.parameters.iter().copied());
     if let (Some(body), Some(parameter)) = (relation_node.body, relation_node.parameters.first()) {
-        collect_property_support(graph, body, *parameter, out);
+        collect_property_support(graph, usage, body, *parameter, out);
     }
 }
 
