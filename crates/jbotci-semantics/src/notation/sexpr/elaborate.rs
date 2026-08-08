@@ -3092,20 +3092,30 @@ impl Elaborator<'_> {
                 arguments,
                 parameter: Some(parameter),
             }) if *constructor == DescriptionConstructor::Le => {
+                let root = RelationRef::Lexical(LexicalRoot::try_new(property).ok()?);
                 let mut property_scope = scoped.clone();
                 property_scope.insert(*parameter, BoundValue::Value(declared_type.clone()));
-                let term = self
-                    .render_argument_map(
-                        RelationRef::Lexical(LexicalRoot::try_new(property).ok()?),
-                        arguments,
-                        &property_scope,
-                        active,
-                        None,
-                    )
-                    .ok()?;
+                // The described property is a lambda of its own, so it is a
+                // section-6.3 host position: a computation naming the described
+                // candidate — which is what a section-5.1 `Context` inside this
+                // property depends on — may not be raised out of the binder
+                // that introduces it. Without this frame the innermost open
+                // position is the description's barrier, one binder too far out.
+                self.open_host_frame(
+                    HostFrameKind::Binders([*parameter].into_iter().collect()),
+                    &property_scope,
+                );
+                let term = self.render_argument_map(root, arguments, &property_scope, active, None);
+                let hosted = self.close_host_frame();
+                let term = term.ok()?;
+                let body = wrap_reference_bindings(
+                    hosted,
+                    Content::close(term).ok()?,
+                    Content::bind_form,
+                )?;
                 let candidate =
                     TypedParameter::new(object_variable(*parameter), declared_type.clone());
-                let described = callable_property(&candidate, Content::close(term).ok())?;
+                let described = callable_property(&candidate, Some(body))?;
                 // The builder's `le` encoding is a `skicu` predication over the
                 // speaker, the described referent, the audience, and the
                 // property; it is a lexical relation like any other, so it is
@@ -3503,9 +3513,27 @@ impl Elaborator<'_> {
             };
             scoped.insert(parameter, declaration);
         }
+        // An answered slot is a binder the query's own lambda introduces, and
+        // section 6.3 will not let a computation naming it stand outside that
+        // lambda — which is where a section-5.1 `Context` inside the question's
+        // body would otherwise be hosted. A polar question binds nothing and
+        // keeps the enclosing position it always had.
+        let query_binders = !parameters.is_empty();
+        if query_binders {
+            self.open_host_frame(
+                HostFrameKind::Binders(parameters.iter().copied().collect()),
+                &scoped,
+            );
+        }
         let body = self
             .render_id(node.body, &scoped, active, AcceptedModes::Force)
             .and_then(Elaborated::into_content);
+        let body = if query_binders {
+            let hosted = self.close_host_frame();
+            body.and_then(|body| wrap_reference_bindings(hosted, body, Content::bind_form))
+        } else {
+            body
+        };
         let ordinary_slots = node.slots.iter().all(|slot| {
             matches!(
                 slot.as_data(),
