@@ -4637,6 +4637,12 @@ pub fn semantic_object_domain_imports_are_valid(
     })
 }
 
+/// A binding carried by a coequal termset bundle obeys the same role
+/// constraints as a standalone [`QuantifierBinding`], so this predicate must
+/// state exactly what that struct's own invariants state — including that a
+/// described domain may be any object that can fill an argument place, since
+/// `nu'i xo ma ce'e re da nu'u` bundles a quantifier selecting from a question
+/// parameter.
 #[requires(true)]
 #[ensures(true)]
 fn quantifier_binding_matches_role(binding: &QuantifierBinding) -> bool {
@@ -4646,7 +4652,8 @@ fn quantifier_binding_matches_role(binding: &QuantifierBinding) -> bool {
             .source_variable
             .is_none_or(|variable| variable.object_kind() == SemanticObjectKind::Referent)
         && binding.selection_source.as_ref().is_none_or(|source| {
-            source.variable.object_kind() == SemanticObjectKind::Referent
+            argument_object_kind_can_fill(source.variable.object_kind())
+                && source.is_witness_set() == binding.source_variable.is_some()
                 && binding
                     .source_variable
                     .is_none_or(|variable| variable == source.variable)

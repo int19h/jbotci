@@ -967,6 +967,81 @@ fn tersmu_smusni_projection_failure_is_labelled_on_stderr_with_empty_stdout() {
     assert!(run.stderr.contains("failure class: "));
 }
 
+/// A coequal termset bundling a `xo ma` quantifier builds a graph and then
+/// fails the smusni projection through the registered route, exactly as the
+/// same question does outside a bundle (issue #778).
+///
+/// `xo ma` selects its domain from a question *parameter*, so the binding
+/// records a `description` selection source naming a parameter. The bundle
+/// node's own invariant predicate once demanded a referent there, so graph
+/// construction panicked on every such input while the standalone quantifier
+/// degraded gracefully. Running the CLI in process makes that panic a test
+/// failure rather than an unobserved abort.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_bundled_question_quantifier_builds_and_fails_through_the_registered_route() {
+    for text in [
+        "nu'i xo ma ce'e re da nu'u prami",
+        "nu'i re da ce'e xo ma nu'u prami",
+        "nu'i ro lo prenu ce'e xo ma nu'u cu prami",
+    ] {
+        // The graph itself builds: the bundle's binding selects from the
+        // question parameter that `xo ma` introduces.
+        let built = run_cli_capture(&["jbotci", "tersmu", "--format", "json", text], false);
+        assert_eq!(built.status, CliStatus::Success, "{text}");
+        let graph: serde_json::Value =
+            serde_json::from_str(&built.stdout).expect("the graph is valid JSON");
+        let bundled_parameter_domains = graph["objects"]
+            .as_object()
+            .expect("the graph has objects")
+            .values()
+            .filter_map(|object| object.get("bindings")?.as_array())
+            .flatten()
+            .filter_map(|binding| binding.get("selectionSource"))
+            .filter(|source| {
+                source["kind"] == serde_json::json!("description")
+                    && source["variable"]
+                        .as_str()
+                        .is_some_and(|variable| variable.starts_with("parameter:"))
+            })
+            .count();
+        assert_eq!(
+            bundled_parameter_domains, 1,
+            "{text}: the bundled question selects its domain from a parameter: {}",
+            built.stdout
+        );
+
+        // The projection then refuses through the registered reason, which is
+        // what this input produced before the bundle carried a question at all.
+        let projected = run_cli_capture(
+            &[
+                "jbotci",
+                "tersmu",
+                "--format",
+                "smusni",
+                "--color=never",
+                text,
+            ],
+            false,
+        );
+        assert_eq!(projected.status, CliStatus::Failure, "{text}");
+        assert!(projected.stdout.is_empty(), "{text}: {}", projected.stdout);
+        assert!(
+            projected
+                .stderr
+                .contains("error[smusni.projection.higher-order-crossing-unlicensed]"),
+            "{text}: {}",
+            projected.stderr
+        );
+        assert!(
+            projected.stderr.contains("failure class: RouteUnavailable"),
+            "{text}: {}",
+            projected.stderr
+        );
+    }
+}
+
 /// `--max-errors` is the command line's display limit on projection records.
 /// Section 16.3 allows truncating only when the omitted count is printed.
 #[test]
