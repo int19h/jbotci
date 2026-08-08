@@ -10590,31 +10590,87 @@ mod tests {
     }
 
     /// Each abstractor's CLL 11.13 trailing place is recorded under its own
-    /// name when the `be` link states it.
+    /// name when the `be` link states it, and names the operand the speaker
+    /// actually stated.
+    ///
+    /// The value half is not decoration: a trailing place the reference
+    /// traversal does not walk is pruned out from under its own id, so the
+    /// field is only meaningful if the object it names survives.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn abstractor_trailing_places_are_recorded_under_their_own_names() {
-        for (text, field) in [
-            ("lo ni la .alis. clani kei be lo mitre cu barda", "scale"),
-            ("lo jei mi klama kei be lo lojbo cu melbi", "epistemology"),
-            ("lo du'u mi klama kei be lo cukta cu melbi", "expressedBy"),
-            ("lo si'o mi klama kei be mi cu melbi", "mind"),
-            ("lo li'i mi klama kei be mi cu melbi", "experiencer"),
-            ("lo pu'u mi klama kei be lo stapa cu melbi", "stages"),
-            ("lo zu'o mi klama kei be lo zukte cu melbi", "actions"),
+        for (text, field, operand) in [
+            (
+                "lo ni la .alis. clani kei be lo mitre cu barda",
+                "scale",
+                "lo mitre",
+            ),
+            (
+                "lo jei mi klama kei be lo lojbo cu melbi",
+                "epistemology",
+                "lo lojbo",
+            ),
+            (
+                "lo du'u mi klama kei be lo cukta cu melbi",
+                "expressedBy",
+                "lo cukta",
+            ),
+            ("lo si'o mi klama kei be mi cu melbi", "mind", "speaker"),
+            (
+                "lo li'i mi klama kei be mi cu melbi",
+                "experiencer",
+                "speaker",
+            ),
+            (
+                "lo pu'u mi klama kei be lo stapa cu melbi",
+                "stages",
+                "lo stapa",
+            ),
+            (
+                "lo zu'o mi klama kei be lo zukte cu melbi",
+                "actions",
+                "lo zukte",
+            ),
         ] {
             let graph = semantic_graph_for(text);
-            let recorded = graph
-                .objects
+            let json = serde_json::to_value(&graph).expect("graph serializes");
+            let objects = json["objects"].as_object().expect("graph names objects");
+            let recorded = objects
                 .values()
-                .filter_map(|object| {
-                    let json = serde_json::to_value(object).expect("object serializes");
-                    json.get(field).is_some().then(|| json[field].clone())
-                })
+                .filter_map(|object| object.get(field).and_then(serde_json::Value::as_str))
                 .collect::<Vec<_>>();
             assert_eq!(recorded.len(), 1, "{text}: expected exactly one {field}");
+            assert_eq!(
+                stated_operand_of(objects, recorded[0]),
+                operand,
+                "{text}: {field} should name the stated operand"
+            );
         }
+    }
+
+    /// Name the operand `id` refers to: an indexical by its kind, a
+    /// description by the descriptor's own relation. Panics when `id` is
+    /// dangling, which is the condition this witness exists to catch.
+    #[requires(!id.is_empty())]
+    #[ensures(!ret.is_empty())]
+    fn stated_operand_of(objects: &serde_json::Map<String, serde_json::Value>, id: &str) -> String {
+        let object = objects
+            .get(id)
+            .unwrap_or_else(|| panic!("{id} should survive pruning"));
+        if let Some(indexical) = object.get("indexical").and_then(serde_json::Value::as_str) {
+            return indexical.to_string();
+        }
+        let body = object["descriptor"]["body"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{id} should describe its referent"));
+        let predication = objects[body]["predication"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{body} should be an atom"));
+        let relation = objects[predication]["relation"]
+            .as_str()
+            .unwrap_or_else(|| panic!("{predication} should name a relation"));
+        format!("lo {relation}")
     }
 
     /// An abstractor whose place the speaker did not state records nothing:

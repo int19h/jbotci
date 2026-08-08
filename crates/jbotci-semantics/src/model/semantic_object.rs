@@ -3118,6 +3118,8 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
             out.extend(node.embedded_questions.iter().copied());
             extend_optional(out, node.experiencer);
             extend_optional(out, node.scale);
+            extend_optional(out, node.stages);
+            extend_optional(out, node.actions);
             extend_optional(out, node.target);
             for adjunct in &node.adjuncts {
                 adjunct.references_into(out);
@@ -3176,6 +3178,9 @@ fn references_into(object: &SemanticObject, out: &mut Vec<SemanticObjectId>) {
             extend_optional(out, node.abstracted);
             extend_optional(out, node.experiencer);
             extend_optional(out, node.scale);
+            extend_optional(out, node.epistemology);
+            extend_optional(out, node.expressed_by);
+            extend_optional(out, node.mind);
             extend_optional(out, node.target);
             if let Some(deictic_reference) = node.deictic_reference {
                 out.push(deictic_reference.ground);
