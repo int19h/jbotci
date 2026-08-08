@@ -17,11 +17,11 @@ use jbotci_morphology::{
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::model::{
     Actuality, ActualityKind, AnchorRelation, ArgumentValueKind, Aspect, EventualityNode,
-    EventualitySort, IndexicalKind, MathLiteral, ParameterRole, PredicationMode,
-    PredicationRelationData, QuantityForm, QuantityScale, QuantityValue, QuestionSlot,
-    QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory, ScopeDependence,
-    ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId, Subscript,
-    UtteranceForce,
+    EventualitySort, FormulaNode, FormulaNodeData, IndexicalKind, MathLiteral, ParameterRole,
+    PlaceIndex, PredicationMode, PredicationRelationData, QuantityForm, QuantityScale,
+    QuantityValue, QuestionSlot, QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory,
+    ScopeDependence, ScopeDependenceData, SelectionSource, SemanticGraphData, SemanticObject,
+    SemanticObjectId, Subscript, UtteranceForce,
 };
 use jbotci_semantics::notation::kernel::types::Variable;
 use jbotci_semantics::notation::sexpr::internal_raw::whole_graph_capture;
@@ -2746,5 +2746,126 @@ fn a_question_body_binds_each_closure_default_in_its_own_closure() {
         "the shared value is used in the second closure, which is why it is \
          bound above both:\n{}",
         rendered.text
+    );
+}
+
+/// The one predication in a focused graph that names the given relation.
+#[requires(!relation.is_empty())]
+#[ensures(graph.objects.contains_key(&ret))]
+fn named_predication(graph: &SemanticGraph, relation: &str) -> SemanticObjectId {
+    graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            matches!(
+                object.as_predication()?.relation.as_data(),
+                data!(PredicationRelation::Named { relation: named }) if named == relation
+            )
+            .then_some(*id)
+        })
+        .expect("the named predication is present")
+}
+
+/// Retarget one place of a named predication onto another value already in the
+/// graph.
+///
+/// This is model surgery, not a builder shape: the audit under test exists
+/// because the model's invariants permit a described selection source and its
+/// restriction to disagree, and only a hand-written graph reaches that.
+#[requires(graph.objects.contains_key(&target))]
+#[ensures(ret.objects.len() == old(graph.objects.len()))]
+fn retarget_place(
+    graph: SemanticGraph,
+    relation: &str,
+    place: usize,
+    target: SemanticObjectId,
+) -> SemanticGraph {
+    let predication = named_predication(&graph, relation);
+    let key = PlaceIndex::new(place);
+    let mut object = graph.objects[&predication].clone();
+    object.update_predication(|node| {
+        let mut arguments = node.arguments.clone();
+        let argument = arguments
+            .remove(&key)
+            .expect("the retargeted place is present")
+            .with_data(data! { value: Some(target) });
+        arguments.insert(key, argument);
+        node.with_data(data! { arguments: arguments })
+    });
+    replace_object(graph, predication, object)
+}
+
+/// The described selection source is semantic data: it names the plurality the
+/// candidate is drawn from, and the model states that the candidate is
+/// restricted with `memberOf(candidate, description)`. The reduction prints the
+/// restriction and nothing else for the source, which is only sound while the
+/// restriction really does contain that conjunct. Nothing in the model's
+/// invariants requires it, so the exact renderer audits it — and a restriction
+/// naming some other object leaves the recorded domain unprinted, which is a
+/// refusal rather than a document.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_selection_source_the_restriction_does_not_name_is_refused() {
+    let input = build_input("ro lo prenu cu prami", "selection-source-mismatch");
+    let described = SemanticObjectId::referent(11);
+    let elsewhere = SemanticObjectId::referent(1);
+    assert_eq!(
+        input.graph.objects[&SemanticObjectId::formula(17)]
+            .as_formula()
+            .and_then(|node| match node.as_data() {
+                data!(FormulaNode::Quantified(binding)) => binding.selection_source.clone(),
+                _ => None,
+            })
+            .map(|source| source.variable),
+        Some(described),
+        "the built graph selects from the description its restriction names",
+    );
+    // The binding keeps naming the description; the restriction stops agreeing,
+    // which is the shape the model permits and nothing else audits.
+    let graph = retarget_place(input.graph.clone(), "memberOf", 2, elsewhere);
+    let failed = project_failure(&graph);
+    assert!(
+        failure_reason_ids(&failed).contains(&"smusni.projection.quantifier-effect-export-illegal"),
+        "the uncertified domain is refused with its registered reason: {:?}",
+        failure_reason_ids(&failed)
+    );
+    assert!(
+        failed
+            .failures
+            .iter()
+            .any(|failure| failure.message.contains("selection source")),
+        "the per-edge record names the boundary that declined: {:?}",
+        failed
+            .failures
+            .iter()
+            .map(|failure| failure.message)
+            .collect::<Vec<_>>()
+    );
+}
+
+/// The same obligation, in the shape that loses the domain most quietly: a
+/// described source with no restriction at all would print a plain unrestricted
+/// quantifier, and the plurality the graph selected from would appear nowhere.
+/// Fail closed; the missing conjunct is never synthesized from the source.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_selection_source_with_no_restriction_is_refused() {
+    let input = build_input("ro lo prenu cu prami", "selection-source-unrestricted");
+    let quantifier = SemanticObjectId::formula(17);
+    let mut object = input.graph.objects[&quantifier].clone();
+    object.update_formula(|node| match node.into_data() {
+        data!(FormulaNode::Quantified(binding)) => new!(FormulaNode::Quantified(
+            binding.with_data(data! { restriction: None })
+        )),
+        data => FormulaNode::from_data(data),
+    });
+    let graph = replace_object(input.graph.clone(), quantifier, object);
+    let failed = project_failure(&graph);
+    assert!(
+        failure_reason_ids(&failed).contains(&"smusni.projection.quantifier-effect-export-illegal"),
+        "an unrestricted sourced quantifier is refused: {:?}",
+        failure_reason_ids(&failed)
     );
 }

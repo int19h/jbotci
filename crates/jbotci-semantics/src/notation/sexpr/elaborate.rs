@@ -449,6 +449,13 @@ pub(super) enum CompactFallbackCause {
     UnrecognizedConnective,
     QuantifierVariableFields,
     QuantifierFields,
+    /// A described `selectionSource` the restriction does not certify. The
+    /// model states that a described domain restricts the candidate with
+    /// `memberOf(candidate, description)`, but nothing in the model's
+    /// invariants makes the two agree, so the exact renderer audits the
+    /// correspondence and fails closed rather than printing a quantifier whose
+    /// domain has quietly disappeared.
+    SelectionSourceUncertified,
     RespectivelySlotFields,
     PredicationSideFields,
     PredicationModeUnrepresentable,
@@ -511,7 +518,9 @@ impl CompactFallbackCause {
             | Self::NonAtomicRelation => {
                 "smusni.projection.relation-reduction-unregistered-or-inexact"
             }
-            Self::QuantifierVariableFields | Self::QuantifierFields => {
+            Self::QuantifierVariableFields
+            | Self::QuantifierFields
+            | Self::SelectionSourceUncertified => {
                 "smusni.projection.quantifier-effect-export-illegal"
             }
             Self::RespectivelySlotFields => "smusni.projection.simultaneous-termset-unlicensed",
@@ -581,6 +590,9 @@ impl CompactFallbackCause {
                 "the quantifier's bound-variable fields have no compact representation"
             }
             Self::QuantifierFields => "the quantifier shape is not a registered compact reduction",
+            Self::SelectionSourceUncertified => {
+                "the restriction does not state the described selection source's membership"
+            }
             Self::RespectivelySlotFields => {
                 "simultaneous termset slots are not licensed by version 0"
             }
@@ -2124,10 +2136,7 @@ impl Elaborator<'_> {
                 let ordinary_exists =
                     node.operator == FormulaOperator::Exists && node.quantity.is_none();
                 // A witness-set selection re-quantifies an established variable
-                // and has no registered compact reduction. A described domain
-                // is different: it only names the object the binding's own
-                // `memberOf` restriction already reaches, so the reduction is
-                // the ordinary one and the record adds no printing obligation.
+                // and has no registered compact reduction.
                 if node.source_variable.is_some()
                     || node
                         .selection_source
@@ -2140,6 +2149,31 @@ impl Elaborator<'_> {
                         bound,
                         active,
                         CompactFallbackCause::QuantifierFields,
+                    );
+                }
+                // A described domain adds no printing obligation of its own
+                // only because the binding's own restriction already names it:
+                // the model says a described source restricts the candidate
+                // with `memberOf(candidate, description)`, and the reduction
+                // renders that restriction. Nothing in the model's invariants
+                // makes the two agree, though, so this is where the exact
+                // renderer certifies the correspondence — and refuses when it
+                // does not hold, rather than dropping the domain silently or
+                // manufacturing the conjunct the graph did not write. A source
+                // with no restriction at all is the same failure: the domain
+                // would simply not be printed.
+                if let Some(source) = node.selection_source.as_ref()
+                    && !self.restriction_states_membership(
+                        node.restriction,
+                        node.variable,
+                        source.variable,
+                    )
+                {
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::SelectionSourceUncertified,
                     );
                 }
                 let quantified = match restriction {
@@ -2185,6 +2219,83 @@ impl Elaborator<'_> {
                 self.fallback_object(id, bound, active, CompactFallbackCause::QuantifierFields)
             }
         }
+    }
+
+    /// Whether one quantifier's restriction states the membership its described
+    /// selection source claims.
+    ///
+    /// The certified shape is the one the builder writes and the one section
+    /// 9.2 describes: a `memberOf` conjunct over exactly this candidate and
+    /// exactly this source, reached through the conjunction the restriction is
+    /// built as. Every other conjunct is independently licensed content and is
+    /// left alone — this proves a conjunct is *present*, never that it is the
+    /// only one — and a restriction that is absent, or that names some other
+    /// plurality, certifies nothing.
+    #[requires(true)]
+    #[ensures(true)]
+    fn restriction_states_membership(
+        &self,
+        restriction: Option<SemanticObjectId>,
+        candidate: SemanticObjectId,
+        source: SemanticObjectId,
+    ) -> bool {
+        let Some(restriction) = restriction else {
+            return false;
+        };
+        let mut visited = BTreeSet::new();
+        let mut pending = vec![restriction];
+        while let Some(formula) = pending.pop() {
+            if !visited.insert(formula) || !self.graph.objects.contains_key(&formula) {
+                continue;
+            }
+            let Some(node) = self.graph.objects[&formula].as_formula() else {
+                continue;
+            };
+            match node.as_data() {
+                data!(FormulaNode::Atom(atom)) => {
+                    if self.predication_states_membership(atom.predication, candidate, source) {
+                        return true;
+                    }
+                }
+                // Only conjunction distributes: a conjunct of the restriction
+                // is asserted of every candidate the domain keeps, which is
+                // what makes the membership claim the domain itself. A branch
+                // of a disjunction or the operand of a negation is not.
+                data!(FormulaNode::Connective(connective))
+                    if connective.operator == FormulaOperator::And =>
+                {
+                    pending.extend(connective.children.iter().copied());
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// Whether one predication is exactly `memberOf(candidate, source)`.
+    #[requires(true)]
+    #[ensures(true)]
+    fn predication_states_membership(
+        &self,
+        predication: SemanticObjectId,
+        candidate: SemanticObjectId,
+        source: SemanticObjectId,
+    ) -> bool {
+        let Some(node) = self
+            .graph
+            .objects
+            .get(&predication)
+            .and_then(|object| object.as_predication())
+        else {
+            return false;
+        };
+        let data!(PredicationRelation::Named { relation }) = node.relation.as_data() else {
+            return false;
+        };
+        relation == "memberOf"
+            && node.arguments.len() == 2
+            && plain_argument_value(&node.arguments, 1) == Some(candidate)
+            && plain_argument_value(&node.arguments, 2) == Some(source)
     }
 
     /// Extend a rendering environment with the events a formula generates.
