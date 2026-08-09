@@ -1238,7 +1238,11 @@ fn rename_replacing(source: &Path, destination: &Path) -> Result<(), EmbeddingEr
 
 #[requires(!path.as_os_str().is_empty())]
 #[requires(!suffix.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|sibling| sibling.parent() == path.parent()) || ret.is_err())]
+#[ensures(
+    ret.as_ref().is_ok_and(|sibling| {
+        sibling.parent() == path.parent() && sibling.as_path() != path
+    }) || ret.is_err()
+)]
 fn sibling_path_with_suffix(path: &Path, suffix: &str) -> Result<PathBuf, EmbeddingError> {
     let file_name = path.file_name().ok_or_else(|| EmbeddingError::Io {
         context: format!("failed to create sibling path for `{}`", path.display()),
@@ -1697,6 +1701,7 @@ pub fn download_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(),
 #[requires(!source.is_empty())]
 #[requires(!partial_path.as_os_str().is_empty())]
 #[requires(!destination.as_os_str().is_empty())]
+#[requires(partial_path != destination)]
 #[requires(!label.is_empty())]
 #[requires(!detail.is_empty())]
 #[requires(buffer.len() == DOWNLOAD_CHUNK_BYTES)]
