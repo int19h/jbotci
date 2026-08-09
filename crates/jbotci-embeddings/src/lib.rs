@@ -1238,6 +1238,12 @@ fn rename_replacing(source: &Path, destination: &Path) -> Result<(), EmbeddingEr
 
 #[requires(!path.as_os_str().is_empty())]
 #[requires(!suffix.is_empty())]
+#[requires(
+    suffix
+        .chars()
+        .all(|character| !std::path::is_separator(character)),
+    "sibling path suffix must not contain platform path separators"
+)]
 #[ensures(
     ret.as_ref().is_ok_and(|sibling| {
         sibling.parent() == path.parent() && sibling.as_path() != path
@@ -3675,6 +3681,15 @@ mod tests {
             sibling,
             PathBuf::from("models/f2llm-v2-0.6b-q4-k-m-1024/packs/f2llm-v2-0.6b-pack.tmp")
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "sibling path suffix must not contain platform path separators")]
+    #[requires(true)]
+    #[ensures(true)]
+    fn temporary_sibling_paths_reject_platform_separator_suffix() {
+        let suffix = format!("tmp{}nested", std::path::MAIN_SEPARATOR);
+        let _ = sibling_path_with_suffix(Path::new("models/test-pack"), &suffix);
     }
 
     #[test]
