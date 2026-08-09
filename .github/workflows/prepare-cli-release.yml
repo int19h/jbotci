@@ -1,0 +1,795 @@
+name: Prepare CLI release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prepare-cli-release
+  cancel-in-progress: false
+
+env:
+  CARGO_PROFILE_RELEASE_STRIP: symbols
+
+jobs:
+  preflight:
+    name: Verify release commit
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      sha: ${{ steps.identity.outputs.sha }}
+      tag: ${{ steps.identity.outputs.tag }}
+      version: ${{ steps.identity.outputs.version }}
+    steps:
+      - name: Require a main branch dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" != "refs/heads/main" ]]; then
+            echo "Prepare CLI release must be dispatched from main; got ${GITHUB_REF}" >&2
+            exit 1
+          fi
+
+      - name: Check out the dispatch commit
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          submodules: recursive
+
+      - name: Prove source and derive release identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [[ "${actual_sha}" != "${GITHUB_SHA}" ]]; then
+            echo "Checkout resolved to ${actual_sha}, expected dispatch SHA ${GITHUB_SHA}" >&2
+            exit 1
+          fi
+
+          cargo metadata --locked --no-deps --format-version 1 > "${RUNNER_TEMP}/cargo-metadata.json"
+          mapfile -t versions < <(
+            jq -r '.packages[] | select(.name == "jbotci") | .version' \
+              "${RUNNER_TEMP}/cargo-metadata.json"
+          )
+          if [[ "${#versions[@]}" -ne 1 || -z "${versions[0]}" ]]; then
+            echo "Cargo metadata must contain exactly one versioned jbotci package" >&2
+            exit 1
+          fi
+          version="${versions[0]}"
+          echo "sha=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "tag=v${version}" >> "${GITHUB_OUTPUT}"
+          echo "Preparing jbotci ${version} from ${GITHUB_SHA}"
+
+      - name: Require successful Test push run for the exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="${RUNNER_TEMP}/test-runs.json"
+          gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/test.yml/runs" \
+            -f branch=main \
+            -f event=push \
+            -f head_sha="${GITHUB_SHA}" \
+            -f per_page=100 > "${response}"
+
+          run_count="$(jq '.workflow_runs | length' "${response}")"
+          if [[ "${run_count}" -eq 0 ]]; then
+            echo "No Test push run exists for main at ${GITHUB_SHA}" >&2
+            exit 1
+          fi
+          latest="$(jq -c '.workflow_runs | max_by(.run_number)' "${response}")"
+          if ! jq -e \
+            --arg repository "${GITHUB_REPOSITORY}" \
+            --arg sha "${GITHUB_SHA}" \
+            '(.name == "Test") and
+             (.path == ".github/workflows/test.yml") and
+             (.event == "push") and
+             (.head_branch == "main") and
+             (.head_sha == $sha) and
+             (.head_repository.full_name == $repository)' \
+            <<< "${latest}" > /dev/null; then
+            echo "The latest API result does not identify the exact Test push run" >&2
+            jq . <<< "${latest}" >&2
+            exit 1
+          fi
+          status="$(jq -r '.status' <<< "${latest}")"
+          conclusion="$(jq -r '.conclusion // ""' <<< "${latest}")"
+          if [[ "${status}" != "completed" || "${conclusion}" != "success" ]]; then
+            echo "Latest Test push run for ${GITHUB_SHA} is status=${status}, conclusion=${conclusion}" >&2
+            echo "$(jq -r '.html_url' <<< "${latest}")" >&2
+            exit 1
+          fi
+          echo "Accepted successful Test run $(jq -r '.html_url' <<< "${latest}")"
+
+  build-linux:
+    name: Build ${{ matrix.target }}
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            platform: linux/amd64
+            uname: x86_64
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            platform: linux/arm64
+            uname: aarch64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the dispatch commit
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.sha }}
+          submodules: recursive
+
+      - name: Prove checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ needs.preflight.outputs.sha }}"
+
+      - name: Install host ELF inspection tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils
+
+      - name: Build in pinned native Alpine toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_root="${RUNNER_TEMP}/linux-build"
+          mkdir -p "${build_root}"
+          docker run --rm \
+            --platform "${{ matrix.platform }}" \
+            --env CARGO_PROFILE_RELEASE_STRIP=symbols \
+            --env CARGO_TARGET_DIR=/out/target \
+            --env EXPECTED_RUST_HOST="${{ matrix.target }}" \
+            --env EXPECTED_UNAME="${{ matrix.uname }}" \
+            --volume "${GITHUB_WORKSPACE}:/work:ro" \
+            --volume "${build_root}:/out" \
+            --workdir /work \
+            rust:1.96.0-alpine3.24 \
+            sh -euc '
+              test "$(uname -m)" = "${EXPECTED_UNAME}"
+              test "$(rustc -vV | sed -n "s/^host: //p")" = "${EXPECTED_RUST_HOST}"
+              apk add --no-cache \
+                binutils \
+                build-base \
+                clang22 \
+                clang22-dev \
+                clang22-libclang \
+                cmake \
+                git \
+                llvm22-dev \
+                pkgconf \
+                python3 \
+                zstd \
+                zstd-dev
+              git config --global --add safe.directory /work
+              cargo build --release --locked -p jbotci
+            '
+          sudo chown -R "$(id -u):$(id -g)" "${build_root}"
+          test -x "${build_root}/target/release/jbotci"
+
+      - name: Reject dynamically linked ELF output
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="${RUNNER_TEMP}/linux-build/target/release/jbotci"
+          readelf --wide --program-headers "${binary}" > "${RUNNER_TEMP}/program-headers.txt"
+          if grep -q 'INTERP' "${RUNNER_TEMP}/program-headers.txt"; then
+            echo "${{ matrix.target }} unexpectedly contains PT_INTERP" >&2
+            exit 1
+          fi
+          readelf --wide --dynamic "${binary}" > "${RUNNER_TEMP}/dynamic-section.txt"
+          if grep -q '(NEEDED)' "${RUNNER_TEMP}/dynamic-section.txt"; then
+            echo "${{ matrix.target }} unexpectedly contains DT_NEEDED" >&2
+            exit 1
+          fi
+
+      - name: Stage and smoke-test in pristine Alpine containers
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="${RUNNER_TEMP}/linux-build/target/release/jbotci"
+          version_output="$(
+            docker run --rm \
+              --platform "${{ matrix.platform }}" \
+              --network none \
+              --read-only \
+              --volume "${binary}:/jbotci:ro" \
+              alpine:3.24 \
+              /jbotci --version
+          )"
+          test "${version_output}" = "jbotci ${{ needs.preflight.outputs.version }}"
+          python3 tools/cli_release.py stage \
+            --target "${{ matrix.target }}" \
+            --sha "${{ needs.preflight.outputs.sha }}" \
+            --version "${{ needs.preflight.outputs.version }}" \
+            --binary "${binary}" \
+            --version-output "${version_output}" \
+            --output "${RUNNER_TEMP}/stage"
+
+          staged_binary="${RUNNER_TEMP}/stage/jbotci"
+          staged_version="$(
+            docker run --rm \
+              --platform "${{ matrix.platform }}" \
+              --network none \
+              --read-only \
+              --volume "${staged_binary}:/jbotci:ro" \
+              alpine:3.24 \
+              /jbotci --version
+          )"
+          test "${staged_version}" = "jbotci ${{ needs.preflight.outputs.version }}"
+          docker run --rm \
+            --platform "${{ matrix.platform }}" \
+            --network none \
+            --read-only \
+            --volume "${staged_binary}:/jbotci:ro" \
+            alpine:3.24 \
+            /jbotci vlatai coi
+
+      - name: Upload staged binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: cli-stage-${{ matrix.target }}
+          path: ${{ runner.temp }}/stage/*
+          if-no-files-found: error
+          retention-days: 2
+
+  build-macos:
+    name: Build ${{ matrix.target }}
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: macos-15
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the dispatch commit
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.sha }}
+          submodules: recursive
+
+      - name: Prove checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ needs.preflight.outputs.sha }}"
+
+      - name: Build jbotci
+        shell: bash
+        run: cargo build --release --locked -p jbotci
+
+      - name: Smoke-test and stage binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="target/release/jbotci"
+          version_output="$("${binary}" --version)"
+          test "${version_output}" = "jbotci ${{ needs.preflight.outputs.version }}"
+          "${binary}" vlatai coi
+          python3 tools/cli_release.py stage \
+            --target "${{ matrix.target }}" \
+            --sha "${{ needs.preflight.outputs.sha }}" \
+            --version "${{ needs.preflight.outputs.version }}" \
+            --binary "${binary}" \
+            --version-output "${version_output}" \
+            --output "${RUNNER_TEMP}/stage"
+          test "$("${RUNNER_TEMP}/stage/jbotci" --version)" = "${version_output}"
+          "${RUNNER_TEMP}/stage/jbotci" vlatai coi
+
+      - name: Upload staged binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: cli-stage-${{ matrix.target }}
+          path: ${{ runner.temp }}/stage/*
+          if-no-files-found: error
+          retention-days: 2
+
+  build-windows:
+    name: Build x86_64-pc-windows-msvc
+    needs: preflight
+    runs-on: windows-2025
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the dispatch commit
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.sha }}
+          submodules: recursive
+
+      - name: Prove checkout
+        shell: pwsh
+        run: |
+          $actualSha = (git rev-parse HEAD).Trim()
+          if ($actualSha -ne "${{ needs.preflight.outputs.sha }}") {
+            throw "Checkout resolved to $actualSha"
+          }
+
+      - name: Build jbotci
+        run: cargo build --release --locked -p jbotci
+
+      - name: Smoke-test and stage binary
+        shell: pwsh
+        run: |
+          $binary = "target/release/jbotci.exe"
+          $versionOutput = ((& $binary --version) -join "`n").Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "jbotci --version failed"
+          }
+          if ($versionOutput -ne "jbotci ${{ needs.preflight.outputs.version }}") {
+            throw "Unexpected version output: $versionOutput"
+          }
+          & $binary vlatai coi
+          if ($LASTEXITCODE -ne 0) {
+            throw "jbotci vlatai coi failed"
+          }
+          python tools/cli_release.py stage `
+            --target x86_64-pc-windows-msvc `
+            --sha "${{ needs.preflight.outputs.sha }}" `
+            --version "${{ needs.preflight.outputs.version }}" `
+            --binary $binary `
+            --version-output $versionOutput `
+            --output "$env:RUNNER_TEMP/stage"
+          if ($LASTEXITCODE -ne 0) {
+            throw "release staging failed"
+          }
+          & "$env:RUNNER_TEMP/stage/jbotci.exe" --version
+          if ($LASTEXITCODE -ne 0) {
+            throw "staged jbotci --version failed"
+          }
+          & "$env:RUNNER_TEMP/stage/jbotci.exe" vlatai coi
+          if ($LASTEXITCODE -ne 0) {
+            throw "staged jbotci vlatai coi failed"
+          }
+
+      - name: Upload staged binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: cli-stage-x86_64-pc-windows-msvc
+          path: ${{ runner.temp }}/stage/*
+          if-no-files-found: error
+          retention-days: 2
+
+  package:
+    name: Package and validate release assets
+    needs:
+      - preflight
+      - build-linux
+      - build-macos
+      - build-windows
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Check out the dispatch commit
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.sha }}
+
+      - name: Prove checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ needs.preflight.outputs.sha }}"
+
+      - name: Download x86-64 Linux stage
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-stage-x86_64-unknown-linux-musl
+          path: ${{ runner.temp }}/staging/x86_64-unknown-linux-musl
+
+      - name: Download ARM64 Linux stage
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-stage-aarch64-unknown-linux-musl
+          path: ${{ runner.temp }}/staging/aarch64-unknown-linux-musl
+
+      - name: Download Intel macOS stage
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-stage-x86_64-apple-darwin
+          path: ${{ runner.temp }}/staging/x86_64-apple-darwin
+
+      - name: Download Apple Silicon stage
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-stage-aarch64-apple-darwin
+          path: ${{ runner.temp }}/staging/aarch64-apple-darwin
+
+      - name: Download Windows stage
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-stage-x86_64-pc-windows-msvc
+          path: ${{ runner.temp }}/staging/x86_64-pc-windows-msvc
+
+      - name: Create and independently validate exact assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/cli_release.py package \
+            --staging-root "${RUNNER_TEMP}/staging" \
+            --repository-root "${GITHUB_WORKSPACE}" \
+            --output "${RUNNER_TEMP}/release" \
+            --version "${{ needs.preflight.outputs.version }}" \
+            --sha "${{ needs.preflight.outputs.sha }}"
+          python3 tools/cli_release.py validate \
+            --release-dir "${RUNNER_TEMP}/release" \
+            --repository-root "${GITHUB_WORKSPACE}" \
+            --version "${{ needs.preflight.outputs.version }}" \
+            --staging-root "${RUNNER_TEMP}/staging" \
+            --sha "${{ needs.preflight.outputs.sha }}"
+
+      - name: Upload validated release assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: cli-release-assets-${{ needs.preflight.outputs.sha }}
+          path: ${{ runner.temp }}/release/*
+          if-no-files-found: error
+          retention-days: 2
+
+  draft:
+    name: Create or resume draft release
+    needs:
+      - preflight
+      - package
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check out the dispatch commit
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.preflight.outputs.sha }}
+
+      - name: Prove checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ needs.preflight.outputs.sha }}"
+
+      - name: Download validated assets
+        uses: actions/download-artifact@v7
+        with:
+          name: cli-release-assets-${{ needs.preflight.outputs.sha }}
+          path: ${{ runner.temp }}/release
+
+      - name: Revalidate downloaded assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/cli_release.py validate \
+            --release-dir "${RUNNER_TEMP}/release" \
+            --repository-root "${GITHUB_WORKSPACE}" \
+            --version "${{ needs.preflight.outputs.version }}"
+
+      - name: Create or safely resume the exact draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ needs.preflight.outputs.sha }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_dir="${RUNNER_TEMP}/release"
+          state_dir="${RUNNER_TEMP}/release-state"
+          mkdir -p "${state_dir}"
+          encoded_tag="$(jq -rn --arg value "${RELEASE_TAG}" '$value | @uri')"
+
+          enumerate_releases() {
+            gh api --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              > "${state_dir}/release-pages.json"
+            jq -e 'all(.[]; type == "array")' \
+              "${state_dir}/release-pages.json" > /dev/null
+            jq '[.[][]]' "${state_dir}/release-pages.json" \
+              > "${state_dir}/releases.json"
+          }
+
+          select_release() {
+            jq --arg tag "${RELEASE_TAG}" \
+              '[.[] | select(.tag_name == $tag)]' \
+              "${state_dir}/releases.json" > "${state_dir}/matching-releases.json"
+            local count
+            count="$(jq 'length' "${state_dir}/matching-releases.json")"
+            if [[ "${count}" -gt 1 ]]; then
+              echo "Multiple releases use tag ${RELEASE_TAG}; refusing ambiguous state" >&2
+              exit 1
+            fi
+            echo "${count}"
+          }
+
+          verify_matching_release() {
+            jq -e \
+              --arg tag "${RELEASE_TAG}" \
+              --arg sha "${RELEASE_SHA}" \
+              '.[0] |
+               (.tag_name == $tag) and
+               (.target_commitish == $sha) and
+               (.draft == true) and
+               (.prerelease == false) and
+               (.id | type == "number")' \
+              "${state_dir}/matching-releases.json" > /dev/null || {
+                echo "Existing ${RELEASE_TAG} release is not an exact-SHA, non-prerelease draft" >&2
+                jq '.[0] | {tag_name, target_commitish, draft, prerelease, html_url}' \
+                  "${state_dir}/matching-releases.json" >&2
+                exit 1
+              }
+          }
+
+          enumerate_tag_refs() {
+            gh api --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/git/matching-refs/tags/${encoded_tag}?per_page=100" \
+              > "${state_dir}/tag-pages.json"
+            jq -e 'all(.[]; type == "array")' "${state_dir}/tag-pages.json" > /dev/null
+            jq --arg ref "refs/tags/${RELEASE_TAG}" \
+              '[.[][] | select(.ref == $ref)]' \
+              "${state_dir}/tag-pages.json" > "${state_dir}/matching-tags.json"
+          }
+
+          verify_tag_if_present() {
+            local count
+            count="$(jq 'length' "${state_dir}/matching-tags.json")"
+            if [[ "${count}" -gt 1 ]]; then
+              echo "Git ref enumeration returned duplicate exact tags for ${RELEASE_TAG}" >&2
+              exit 1
+            fi
+            if [[ "${count}" -eq 1 ]]; then
+              jq -e --arg sha "${RELEASE_SHA}" \
+                '.[0].object.type == "commit" and .[0].object.sha == $sha' \
+                "${state_dir}/matching-tags.json" > /dev/null || {
+                  echo "${RELEASE_TAG} is not a lightweight tag at ${RELEASE_SHA}" >&2
+                  jq '.[0]' "${state_dir}/matching-tags.json" >&2
+                  exit 1
+                }
+            fi
+            echo "${count}"
+          }
+
+          enumerate_assets() {
+            local release_id="$1"
+            gh api --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100" \
+              > "${state_dir}/asset-pages.json"
+            jq -e 'all(.[]; type == "array")' "${state_dir}/asset-pages.json" > /dev/null
+            jq '[.[][]]' "${state_dir}/asset-pages.json" > "${state_dir}/assets.json"
+          }
+
+          mapfile -t expected_names < <(
+            python3 tools/cli_release.py expected-assets --version "${RELEASE_VERSION}"
+          )
+          if [[ "${#expected_names[@]}" -ne 6 ]]; then
+            echo "Release helper did not return exactly six assets" >&2
+            exit 1
+          fi
+          expected_json="$(printf '%s\n' "${expected_names[@]}" | jq -R . | jq -s .)"
+          mapfile -t local_names < <(
+            find "${release_dir}" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort
+          )
+          local_json="$(printf '%s\n' "${local_names[@]}" | jq -R . | jq -s .)"
+          if ! jq -en --argjson expected "${expected_json}" --argjson actual "${local_json}" \
+            '($expected | length == 6) and ($actual | length == 6) and
+             (($expected | sort) == ($actual | sort))' > /dev/null; then
+            echo "Downloaded release directory does not contain the exact six assets" >&2
+            exit 1
+          fi
+
+          enumerate_releases
+          release_count="$(select_release)"
+          enumerate_tag_refs
+          tag_count="$(verify_tag_if_present)"
+
+          if [[ "${release_count}" -eq 1 ]]; then
+            verify_matching_release
+            if [[ "${tag_count}" -ne 1 ]]; then
+              echo "Existing draft ${RELEASE_TAG} has no matching git tag" >&2
+              exit 1
+            fi
+            jq '.[0] | {name, body}' "${state_dir}/matching-releases.json" \
+              > "${state_dir}/preserved-text.json"
+          else
+            stable_base="$(
+              jq -r '
+                [.[] |
+                  select(
+                    (.draft == false) and
+                    (.prerelease == false) and
+                    (.published_at | type == "string")
+                  )] |
+                sort_by(.published_at) |
+                if length == 0 then "" else .[-1].tag_name end
+              ' "${state_dir}/releases.json"
+            )"
+            if [[ -n "${stable_base}" ]]; then
+              notes_base="${stable_base}"
+            else
+              initial_base_count="$(
+                jq '[.[] |
+                      select(
+                        (.tag_name == "pr-artifacts") and
+                        (.draft == false) and
+                        (.prerelease == true) and
+                        (.published_at | type == "string")
+                      )] | length' \
+                  "${state_dir}/releases.json"
+              )"
+              if [[ "${initial_base_count}" -ne 1 ]]; then
+                echo "The initial release requires exactly one published pr-artifacts prerelease base" >&2
+                exit 1
+              fi
+              notes_base="pr-artifacts"
+            fi
+            if [[ -z "${notes_base}" || "${notes_base}" == "${RELEASE_TAG}" ]]; then
+              echo "Invalid explicit release-notes base: ${notes_base}" >&2
+              exit 1
+            fi
+            echo "Generating ${RELEASE_TAG} notes with exact comparison base ${notes_base}"
+            jq -n \
+              --arg tag "${RELEASE_TAG}" \
+              --arg target "${RELEASE_SHA}" \
+              --arg previous "${notes_base}" \
+              '{tag_name: $tag, target_commitish: $target, previous_tag_name: $previous}' \
+              > "${state_dir}/notes-request.json"
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+              --input "${state_dir}/notes-request.json" \
+              > "${state_dir}/generated-notes.json"
+            jq -e '
+              (.name | type == "string") and
+              (.name | length > 0) and
+              (((.name | contains("\n")) or (.name | contains("\r"))) | not) and
+              (.body | type == "string") and
+              (.body | length > 0)
+            ' "${state_dir}/generated-notes.json" > /dev/null || {
+              echo "Release Notes API returned an invalid title or empty body" >&2
+              exit 1
+            }
+            jq -r -j '.name' "${state_dir}/generated-notes.json" > "${state_dir}/title.txt"
+            jq -r -j '.body' "${state_dir}/generated-notes.json" > "${state_dir}/notes.md"
+            echo "Generated release title: $(cat "${state_dir}/title.txt")"
+            echo "Generated release notes:"
+            cat "${state_dir}/notes.md"
+            echo
+
+            if [[ "${tag_count}" -eq 0 ]]; then
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+                -f ref="refs/tags/${RELEASE_TAG}" \
+                -f sha="${RELEASE_SHA}" > "${state_dir}/created-tag.json"
+            fi
+            enumerate_tag_refs
+            if [[ "$(verify_tag_if_present)" -ne 1 ]]; then
+              echo "Failed to establish exact tag ${RELEASE_TAG}" >&2
+              exit 1
+            fi
+
+            title="$(cat "${state_dir}/title.txt")"
+            gh release create "${RELEASE_TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${RELEASE_SHA}" \
+              --verify-tag \
+              --draft \
+              --title "${title}" \
+              --notes-file "${state_dir}/notes.md"
+            jq '{name, body}' "${state_dir}/generated-notes.json" \
+              > "${state_dir}/preserved-text.json"
+
+            enumerate_releases
+            if [[ "$(select_release)" -ne 1 ]]; then
+              echo "Release creation did not yield exactly one ${RELEASE_TAG} release" >&2
+              exit 1
+            fi
+            verify_matching_release
+          fi
+
+          release_id="$(jq -r '.[0].id' "${state_dir}/matching-releases.json")"
+          enumerate_assets "${release_id}"
+          if ! jq -e --argjson expected "${expected_json}" '
+            ([.[].name] | length == (unique | length)) and
+            all(.[]; .name as $name | $expected | index($name) != null)
+          ' "${state_dir}/assets.json" > /dev/null; then
+            echo "Existing draft contains duplicate or unmanaged assets" >&2
+            jq '[.[].name]' "${state_dir}/assets.json" >&2
+            exit 1
+          fi
+
+          upload_paths=()
+          for name in "${expected_names[@]}"; do
+            upload_paths+=("${release_dir}/${name}")
+          done
+          gh release upload "${RELEASE_TAG}" "${upload_paths[@]}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
+
+          enumerate_releases
+          if [[ "$(select_release)" -ne 1 ]]; then
+            echo "Final release enumeration is ambiguous" >&2
+            exit 1
+          fi
+          verify_matching_release
+          jq '.[0] | {name, body}' "${state_dir}/matching-releases.json" \
+            > "${state_dir}/final-text.json"
+          if ! jq -e -s '.[0] == .[1]' \
+            "${state_dir}/preserved-text.json" "${state_dir}/final-text.json" > /dev/null; then
+            echo "Draft title or body changed during asset resume" >&2
+            exit 1
+          fi
+
+          release_id="$(jq -r '.[0].id' "${state_dir}/matching-releases.json")"
+          enumerate_assets "${release_id}"
+          if ! jq -e --argjson expected "${expected_json}" '
+            (length == 6) and
+            ([.[].name] | sort == ($expected | sort)) and
+            ([.[].name] | length == (unique | length)) and
+            all(.[]; .state == "uploaded")
+          ' "${state_dir}/assets.json" > /dev/null; then
+            echo "Final release assets are not the exact uploaded six" >&2
+            jq '[.[] | {name, state, size, digest}]' "${state_dir}/assets.json" >&2
+            exit 1
+          fi
+          for name in "${expected_names[@]}"; do
+            local_size="$(stat --format '%s' "${release_dir}/${name}")"
+            local_digest="sha256:$(sha256sum "${release_dir}/${name}" | cut -d ' ' -f 1)"
+            if ! jq -e \
+              --arg name "${name}" \
+              --arg digest "${local_digest}" \
+              --argjson size "${local_size}" \
+              '[.[] | select(.name == $name)] |
+               (length == 1) and
+               (.[0].state == "uploaded") and
+               (.[0].size == $size) and
+               (.[0].digest == $digest)' \
+              "${state_dir}/assets.json" > /dev/null; then
+              echo "Uploaded asset ${name} does not match its local size and SHA-256" >&2
+              exit 1
+            fi
+          done
+
+          enumerate_tag_refs
+          if [[ "$(verify_tag_if_present)" -ne 1 ]]; then
+            echo "Final tag verification failed" >&2
+            exit 1
+          fi
+          release_url="$(jq -r '.[0].html_url' "${state_dir}/matching-releases.json")"
+          if [[ "${release_url}" != "https://github.com/${GITHUB_REPOSITORY}/releases/"* ]]; then
+            echo "Unexpected release URL: ${release_url}" >&2
+            exit 1
+          fi
+          {
+            echo "### Draft CLI release"
+            echo
+            echo "[${RELEASE_TAG}](${release_url}) targets \`${RELEASE_SHA}\` and remains unpublished."
+          } >> "${GITHUB_STEP_SUMMARY}"
