@@ -1,3 +1,5 @@
+"""File-text regressions; workflow gates enforce runtime and static behavior."""
+
 from __future__ import annotations
 
 import unittest
@@ -72,6 +74,7 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
         bindgen_override = self.build_step.index(
             'export BINDGEN_EXTRA_CLANG_ARGS="--target=${EXPECTED_BINDGEN_TARGET}"'
         )
+        cargo_command = self.build_step.index(CARGO_COMMAND)
         probe_targets = [
             line.strip().removesuffix(" \\")
             for line in self.build_step[header_probe:probe_end].splitlines()
@@ -89,6 +92,7 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
         self.assertLess(bindgen_target, language)
         self.assertLess(language, syntax_only)
         self.assertLess(syntax_only, bindgen_override)
+        self.assertLess(bindgen_override, cargo_command)
         self.assertEqual(
             probe_targets,
             [
@@ -104,13 +108,23 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
             if line.strip().startswith(("cargo ", "RUSTFLAGS="))
         ]
         self.assertEqual(cargo_commands, [CARGO_COMMAND])
-        self.assertNotIn(" --target ", f" {cargo_commands[0]} ")
+        self.assertNotIn("--target", cargo_commands[0])
+        self.assertNotIn("CARGO_BUILD_TARGET", self.build_step)
         self.assertLess(
             self.build_step.index("target-feature=-crt-static"),
             self.build_step.index("target-feature=+crt-static"),
         )
 
     def test_linux_consumers_keep_the_native_target_release_path(self) -> None:
+        self.assertEqual(
+            self.build_step.count('build_root="${RUNNER_TEMP}/linux-build"'), 1
+        )
+        self.assertEqual(
+            self.build_step.count("--env CARGO_TARGET_DIR=/out/target"), 1
+        )
+        self.assertEqual(
+            self.build_step.count('--volume "${build_root}:/out"'), 1
+        )
         self.assertEqual(self.linux_job.count("target/release/jbotci"), 3)
         self.assertIn(
             'test -x "${build_root}/target/release/jbotci"', self.linux_job
