@@ -908,19 +908,75 @@ fn command_exists(cmd: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn link_linux_cpp_runtime(target: &str) {
+    if !target.contains("linux") {
+        return;
+    }
+
+    // A musl target is expected to produce a self-contained executable. A
+    // dynamic libstdc++ request makes rustc add a dynamic ELF interpreter even
+    // when crt-static is enabled, leaving the binary unusable on a clean musl
+    // system. GNU targets retain their conventional dynamic C++ runtime.
+    let link_kind = if target.contains("musl") {
+        let compiler = cc::Build::new()
+            .cpp(true)
+            .cargo_metadata(false)
+            .get_compiler();
+        let output = compiler
+            .to_command()
+            .arg("-print-file-name=libstdc++.a")
+            .output()
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to ask C++ compiler '{}' for libstdc++.a: {error}",
+                    compiler.path().display()
+                )
+            });
+        assert!(
+            output.status.success(),
+            "C++ compiler '{}' could not locate libstdc++.a: {}",
+            compiler.path().display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+        let runtime = PathBuf::from(
+            String::from_utf8(output.stdout)
+                .expect("C++ compiler returned a non-UTF-8 libstdc++.a path")
+                .trim(),
+        );
+        assert!(
+            runtime.is_file(),
+            "C++ compiler '{}' reported missing static runtime '{}'",
+            compiler.path().display(),
+            runtime.display()
+        );
+        println!(
+            "cargo:rustc-link-search=native={}",
+            runtime
+                .parent()
+                .expect("libstdc++.a path has no parent directory")
+                .display()
+        );
+        "static"
+    } else {
+        "dylib"
+    };
+    println!("cargo:rustc-link-lib={link_kind}=stdc++");
+}
+
 /// Compile the MTP C++ shim (stable C linkage for `mtp_session_*`).
 ///
 /// Required on both the CMake and prebuilt paths: prebuilt tarballs ship
 /// llama/ggml/common libs only; `mtp_shim` is always built from source here
 /// against the vendored llama.cpp headers so it matches the crate revision.
-fn compile_mtp_shim(manifest_dir: &Path, llama_dst: &Path) {
+fn compile_mtp_shim(manifest_dir: &Path, llama_dst: &Path, target: &str) {
     let shim_dir = manifest_dir.join("mtp_shim");
     let mtp_shim_src = shim_dir.join("mtp_shim.cpp");
     if !mtp_shim_src.exists() {
         return;
     }
 
-    cc::Build::new()
+    let mut build = cc::Build::new();
+    build
         .cpp(true)
         .std("c++17")
         .file(&mtp_shim_src)
@@ -929,8 +985,13 @@ fn compile_mtp_shim(manifest_dir: &Path, llama_dst: &Path) {
         .include(llama_dst.join("ggml/include"))
         .include(llama_dst.join("src"))
         .include(llama_dst.join("common"))
-        .warnings(false)
-        .compile("mtp_shim");
+        .warnings(false);
+    if target.contains("linux") {
+        // link_linux_cpp_runtime is the single authority for the Linux C++
+        // runtime; do not let cc emit an additional unspecified-kind request.
+        build.cpp_link_stdlib(None);
+    }
+    build.compile("mtp_shim");
     println!("cargo:rerun-if-changed={}", mtp_shim_src.display());
     println!(
         "cargo:rerun-if-changed={}",
@@ -1644,9 +1705,6 @@ fn main() {
                 println!("cargo:rustc-link-lib=framework=Accelerate");
                 println!("cargo:rustc-link-lib=c++");
             }
-            if target.contains("linux") {
-                println!("cargo:rustc-link-lib=dylib=stdc++");
-            }
             if target.contains("windows") && !target.contains("msvc") {
                 println!("cargo:rustc-link-lib=static=stdc++");
                 println!("cargo:rustc-link-lib=static=winpthread");
@@ -1687,7 +1745,8 @@ fn main() {
                 }
             }
 
-            compile_mtp_shim(Path::new(&manifest_dir), &llama_dst);
+            compile_mtp_shim(Path::new(&manifest_dir), &llama_dst, &target);
+            link_linux_cpp_runtime(&target);
             return;
         }
         panic!(
@@ -2444,7 +2503,7 @@ fn main() {
         }
     }
 
-    compile_mtp_shim(Path::new(&manifest_dir), &llama_dst);
+    compile_mtp_shim(Path::new(&manifest_dir), &llama_dst, &target);
 
     // OpenMP: link gomp when the cmake build enabled it (GGML_OPENMP_ENABLED=ON).
     // This can happen even without the "openmp" feature because cmake's FindOpenMP
@@ -2479,9 +2538,7 @@ fn main() {
     }
 
     // Linux libstdc++
-    if target.contains("linux") {
-        println!("cargo:rustc-link-lib=dylib=stdc++");
-    }
+    link_linux_cpp_runtime(&target);
 
     // Windows MinGW (GCC-based, not MSVC): link the C++ and threading runtimes.
     // MSVC handles its own C++ runtime via the CRT; MinGW needs explicit flags
