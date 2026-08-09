@@ -1,5 +1,17 @@
 # jbotci 
 
+Lojban parser, semantic analyzer, dictionary with semantic search, gismu generation, lujvo composition and decomposition, and language server.
+
+## Installing
+
+There are no releases (yet). To build the CLI, clone the repo **with submodules** and then run `cargo build -r` from it. 
+
+## Screenshots
+
+<img width="2834" height="1966" alt="image" src="https://github.com/user-attachments/assets/e2ed8b5e-a0e9-47f3-92c4-31753572f651" />
+<img width="2058" height="1508" alt="image" src="https://github.com/user-attachments/assets/c4dbec81-bb1c-4668-85e4-4fddc45ce90e" />
+<img width="2330" height="968" alt="image" src="https://github.com/user-attachments/assets/aa6920aa-d8f5-4a72-90a3-9b33554394d7" />
+
 ## License
 
 jbotci is licensed under the [MIT License](LICENSE.md).
