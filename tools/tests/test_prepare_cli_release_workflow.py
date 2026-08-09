@@ -187,13 +187,9 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
         self.assertIn("created-release.json", script)
         self.assertIn("(.assets | length == 0)", script)
 
-    def test_script_keeps_pagination_and_bounded_fail_closed_polls(self) -> None:
+    def test_script_keeps_full_pagination_and_explicit_state_outputs(self) -> None:
         script = self.release_draft_script
         self.assertEqual(script.count("gh api --paginate --slurp"), 3)
-        self.assertIn("readonly poll_timeout_seconds=60", script)
-        self.assertIn("readonly poll_interval_seconds=2", script)
-        self.assertIn("poll_deadline=$((now_epoch + poll_timeout_seconds))", script)
-        self.assertIn('while [[ "${consecutive_absences}" -lt 2 ]]', script)
         self.assertNotIn("$(select_release)", script)
         self.assertNotIn("$(verify_tag", script)
 

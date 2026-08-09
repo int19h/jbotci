@@ -159,6 +159,7 @@ analyze_release_snapshot() {
       (.target_commitish | type == "string") and
       (.draft | type == "boolean") and
       (.prerelease | type == "boolean") and
+      has("published_at") and
       ((.published_at | type) == "string" or .published_at == null)
     )
   ' "${state_dir}/releases.json" > /dev/null ||
@@ -190,8 +191,10 @@ analyze_release_snapshot() {
       (.target_commitish == $sha) and
       (.draft == true) and
       (.prerelease == false) and
-      (.name | type == "string") and
-      (.body | type == "string") and
+      has("name") and
+      (((.name | type) == "string") or .name == null) and
+      has("body") and
+      (((.body | type) == "string") or .body == null) and
       (.html_url | type == "string")
     ' "${state_dir}/matching-release.json" > /dev/null || {
       jq '{id, tag_name, target_commitish, draft, prerelease, name, body, html_url}' \
@@ -271,8 +274,10 @@ validate_asset_snapshot_shape() {
         (($id | floor) == $id)) and
       (.name | type == "string") and
       (.state | type == "string") and
+      has("size") and
       (((.size | type) == "number" and .size >= 0 and (.size | floor) == .size) or
        .size == null) and
+      has("digest") and
       (((.digest | type) == "string") or .digest == null)
     ) and
     ([.[].id] | length == (unique | length)) and
@@ -294,7 +299,6 @@ validate_asset_snapshot_shape() {
 
 classify_final_asset_snapshot() {
   local expected_name asset_match_count expected_size expected_digest
-  local actual_size actual_digest actual_state
   validate_asset_snapshot_shape
   asset_snapshot_complete="true"
 
@@ -317,32 +321,31 @@ classify_final_asset_snapshot() {
     jq -r --arg name "${expected_name}" \
       '.[] | select(.name == $name) | .digest' \
       "${state_dir}/expected-assets.json" > "${state_dir}/expected-digest.txt"
-    jq -r '.size // "null"' "${state_dir}/current-asset.json" \
-      > "${state_dir}/actual-size.txt"
-    jq -r '.digest // "null"' "${state_dir}/current-asset.json" \
-      > "${state_dir}/actual-digest.txt"
-    jq -r '.state' "${state_dir}/current-asset.json" \
-      > "${state_dir}/actual-state.txt"
     IFS= read -r expected_size < "${state_dir}/expected-size.txt"
     IFS= read -r expected_digest < "${state_dir}/expected-digest.txt"
-    IFS= read -r actual_size < "${state_dir}/actual-size.txt"
-    IFS= read -r actual_digest < "${state_dir}/actual-digest.txt"
-    IFS= read -r actual_state < "${state_dir}/actual-state.txt"
 
-    if [[ "${actual_size}" != "null" && "${actual_size}" != "${expected_size}" ]]; then
+    if ! jq -e --argjson size "${expected_size}" \
+      '(.size == null) or (.size == $size)' \
+      "${state_dir}/current-asset.json" > /dev/null; then
       die "asset ${expected_name} has the wrong non-null size"
     fi
-    if [[ "${actual_digest}" != "null" && "${actual_digest}" != "${expected_digest}" ]]; then
+    if ! jq -e --arg digest "${expected_digest}" \
+      '(.digest == null) or (.digest == $digest)' \
+      "${state_dir}/current-asset.json" > /dev/null; then
       die "asset ${expected_name} has the wrong non-null digest"
     fi
-    if [[ "${actual_state}" == "uploaded" &&
-          "${actual_size}" == "${expected_size}" &&
-          "${actual_digest}" == "${expected_digest}" ]]; then
+    if jq -e \
+      --argjson size "${expected_size}" \
+      --arg digest "${expected_digest}" '
+        (.state == "uploaded") and
+        (.size == $size) and
+        (.digest == $digest)
+      ' "${state_dir}/current-asset.json" > /dev/null; then
       continue
     fi
-    if [[ "${actual_state}" != "starter" && "${actual_state}" != "uploaded" ]]; then
-      die "asset ${expected_name} has unexpected state ${actual_state}"
-    fi
+    # GitHub documents `open` while failed uploads may leave `starter`, and
+    # other non-complete strings may appear. Only positive uploaded proof is
+    # complete; non-null contradictory metadata was rejected above.
     asset_snapshot_complete="false"
   done < "${state_dir}/expected-names.txt"
 }
@@ -407,16 +410,30 @@ prepare_expected_assets() {
 }
 
 confirm_tag_only_release_absence() {
-  local consecutive_absences=1
+  local remaining_seconds sleep_seconds
+  # Draft enumeration is eventually consistent and GitHub permits duplicate
+  # drafts for one tag. A tag-only recovery therefore needs a zero snapshot at
+  # or beyond the complete deadline before it may create a release.
   start_poll_deadline "tag-only release absence confirmation"
-  while [[ "${consecutive_absences}" -lt 2 ]]; do
-    wait_for_next_poll
+  while :; do
+    read_clock
+    if (( now_epoch < poll_deadline )); then
+      remaining_seconds=$((poll_deadline - now_epoch))
+      sleep_seconds="${poll_interval_seconds}"
+      if (( remaining_seconds < sleep_seconds )); then
+        sleep_seconds="${remaining_seconds}"
+      fi
+      sleep "${sleep_seconds}"
+    fi
     enumerate_releases
     analyze_release_snapshot
     if [[ "${release_observation}" == "present" ]]; then
       return
     fi
-    consecutive_absences=$((consecutive_absences + 1))
+    read_clock
+    if (( now_epoch >= poll_deadline )); then
+      return
+    fi
   done
 }
 
@@ -503,18 +520,6 @@ create_tag() {
     die "tag creation response did not identify the exact lightweight tag"
 }
 
-poll_created_tag_visibility() {
-  start_poll_deadline "created tag visibility"
-  while :; do
-    enumerate_tag_refs
-    analyze_tag_snapshot
-    if [[ "${tag_observation}" == "present" ]]; then
-      return
-    fi
-    wait_for_next_poll
-  done
-}
-
 create_release() {
   jq -n \
     --arg tag "${release_tag}" \
@@ -535,11 +540,11 @@ create_release() {
     "repos/${repository}/releases" \
     --input "${state_dir}/create-release-request.json" \
     > "${state_dir}/created-release.json"
+  # GitHub may normalize stored text. Validate generated-draft shape here, then
+  # preserve the returned name/body as the authority for every later proof.
   jq -e \
     --arg tag "${release_tag}" \
-    --arg sha "${release_sha}" \
-    --rawfile expected_name "${state_dir}/title.txt" \
-    --rawfile expected_body "${state_dir}/notes.md" '
+    --arg sha "${release_sha}" '
       type == "object" and
       (.id as $id |
         ($id | type == "number") and
@@ -549,8 +554,11 @@ create_release() {
       (.target_commitish == $sha) and
       (.draft == true) and
       (.prerelease == false) and
-      (.name == $expected_name) and
-      (.body == $expected_body) and
+      (.name | type == "string") and
+      (.name | length > 0) and
+      (((.name | contains("\n")) or (.name | contains("\r"))) | not) and
+      (.body | type == "string") and
+      (.body | length > 0) and
       (.assets | type == "array") and
       (.assets | length == 0)
     ' "${state_dir}/created-release.json" > /dev/null ||
@@ -618,8 +626,10 @@ upload_expected_assets() {
           ($id > 0) and
           (($id | floor) == $id)) and
         (.name == $name) and
-        (.state == "starter" or .state == "uploaded") and
+        (.state | type == "string") and
+        has("size") and
         (.size == null or .size == $size) and
+        has("digest") and
         (.digest == null or .digest == $digest)
       ' "${state_dir}/uploaded-asset.json" > /dev/null ||
       die "upload response for ${expected_name} did not match the local asset"
@@ -662,7 +672,6 @@ else
     generate_release_notes
     if [[ "${tag_observation}" == "absent" ]]; then
       create_tag
-      poll_created_tag_visibility
     else
       enumerate_tag_refs
       analyze_tag_snapshot

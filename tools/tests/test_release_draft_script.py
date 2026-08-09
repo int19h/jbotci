@@ -197,8 +197,8 @@ def paginated(*pages: list[dict[str, object]]) -> list[list[dict[str, object]]]:
 def release(
     *,
     release_id: int = RELEASE_ID,
-    name: str = GENERATED_NAME,
-    body: str = GENERATED_BODY,
+    name: str | None = GENERATED_NAME,
+    body: str | None = GENERATED_BODY,
     sha: str = SHA,
     draft: bool = True,
     prerelease: bool = False,
@@ -230,10 +230,10 @@ def initial_notes_base() -> dict[str, object]:
     }
 
 
-def exact_tag() -> dict[str, object]:
+def exact_tag(*, object_type: str = "commit", sha: str = SHA) -> dict[str, object]:
     return {
         "ref": f"refs/tags/{TAG}",
-        "object": {"type": "commit", "sha": SHA},
+        "object": {"type": object_type, "sha": sha},
     }
 
 
@@ -244,6 +244,7 @@ class RunResult:
     sleeps: list[int]
     state_dir: Path
     summary: Path
+    elapsed_seconds: int
 
 
 class ReleaseDraftScriptTest(unittest.TestCase):
@@ -275,6 +276,7 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         self,
         *,
         first_state: str = "uploaded",
+        first_size: int | None | object = UNSET,
         first_digest: str | None | object = UNSET,
     ) -> list[dict[str, object]]:
         assets = []
@@ -283,40 +285,47 @@ class ReleaseDraftScriptTest(unittest.TestCase):
             digest: str | None = f"sha256:{hashlib.sha256(contents).hexdigest()}"
             if index == 0:
                 state = first_state
+                size: int | None = len(contents)
+                if first_size is not UNSET:
+                    size = first_size  # type: ignore[assignment]
                 if first_digest is not UNSET:
                     digest = first_digest  # type: ignore[assignment]
             else:
                 state = "uploaded"
+                size = len(contents)
             assets.append(
                 {
                     "id": 1000 + index,
                     "name": name,
                     "state": state,
-                    "size": len(contents),
+                    "size": size,
                     "digest": digest,
                 }
             )
         return assets
 
     def successful_create_responses(
-        self, *, delayed_release_visibility: bool = False
+        self,
+        *,
+        delayed_release_visibility: bool = False,
+        stored_release: dict[str, object] | None = None,
     ) -> dict[str, list[dict[str, object]]]:
         base = initial_notes_base()
+        stored_release = stored_release if stored_release is not None else release()
         final_assets = self.uploaded_assets()
         release_pages = [queued(paginated([base]))]
         if delayed_release_visibility:
             release_pages.append(queued(paginated([base])))
         release_pages.extend(
             [
-                queued(paginated([base, release()])),
-                queued(paginated([base, release()])),
+                queued(paginated([base, stored_release])),
+                queued(paginated([base, stored_release])),
             ]
         )
         return {
             "list_releases": release_pages,
             "list_tags": [
                 queued(paginated([])),
-                queued(paginated([exact_tag()])),
                 queued(paginated([exact_tag()])),
             ],
             "list_assets": [
@@ -332,20 +341,21 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         release_value: dict[str, object] | None = None,
         asset_pages: list[dict[str, object]] | None = None,
     ) -> dict[str, list[dict[str, object]]]:
-        release_value = release_value or release()
+        release_value = release_value if release_value is not None else release()
         final_assets = self.uploaded_assets()
+        if asset_pages is None:
+            asset_pages = [
+                queued(paginated([])),
+                queued(paginated(final_assets)),
+                queued(paginated(final_assets)),
+            ]
         return {
             "list_releases": [
                 queued(paginated([initial_notes_base(), release_value])),
                 queued(paginated([initial_notes_base(), release_value])),
             ],
             "list_tags": [queued(paginated([exact_tag()]))],
-            "list_assets": asset_pages
-            or [
-                queued(paginated([])),
-                queued(paginated(final_assets)),
-                queued(paginated(final_assets)),
-            ],
+            "list_assets": asset_pages,
         }
 
     def run_script(
@@ -422,7 +432,15 @@ class ReleaseDraftScriptTest(unittest.TestCase):
             int(line)
             for line in sleep_log.read_text(encoding="ascii").splitlines()
         ]
-        return RunResult(process, calls, sleeps, state_dir, summary)
+        elapsed_seconds = int(clock_path.read_text(encoding="ascii")) - 1000
+        return RunResult(
+            process,
+            calls,
+            sleeps,
+            state_dir,
+            summary,
+            elapsed_seconds,
+        )
 
     @staticmethod
     def operations(result: RunResult) -> list[str]:
@@ -435,6 +453,18 @@ class ReleaseDraftScriptTest(unittest.TestCase):
             msg=f"stdout:\n{result.process.stdout}\nstderr:\n{result.process.stderr}",
         )
 
+    def assert_no_mutation(self, result: RunResult) -> None:
+        self.assertEqual(result.sleeps, [])
+        self.assertTrue(
+            {
+                "create_tag",
+                "create_release",
+                "delete_asset",
+                "upload_asset",
+                "patch",
+            }.isdisjoint(self.operations(result))
+        )
+
     def test_delayed_created_release_list_visibility_retries(self) -> None:
         result = self.run_script(
             self.successful_create_responses(delayed_release_visibility=True),
@@ -445,7 +475,9 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         self.assertEqual(result.sleeps, [2])
         operations = self.operations(result)
         self.assertEqual(operations.count("create_release"), 1)
-        self.assertLess(operations.index("create_release"), operations.index("upload_asset"))
+        self.assertLess(
+            operations.index("create_release"), operations.index("upload_asset")
+        )
 
     def test_bad_create_response_fails_before_upload(self) -> None:
         responses = self.successful_create_responses()
@@ -468,6 +500,55 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         self.assertNotEqual(result.process.returncode, 0)
         self.assertIn("release creation response", result.process.stderr)
         self.assertNotIn("upload_asset", self.operations(result))
+
+    def test_normalized_create_response_text_becomes_preserved_authority(self) -> None:
+        normalized_release = release(
+            name="Server-normalized release title",
+            body="Server-normalized release body\n",
+        )
+        responses = self.successful_create_responses(
+            stored_release=normalized_release
+        )
+        responses["create_release"] = [
+            queued({**normalized_release, "assets": []})
+        ]
+        result = self.run_script(responses, case="normalized-create-text")
+
+        self.assert_success(result)
+        create_call = next(
+            call for call in result.calls if call["operation"] == "create_release"
+        )
+        self.assertEqual(create_call["request_json"]["name"], GENERATED_NAME)
+        self.assertEqual(create_call["request_json"]["body"], GENERATED_BODY)
+        self.assertEqual(
+            json.loads(
+                (result.state_dir / "preserved-text.json").read_text(
+                    encoding="utf-8"
+                )
+            ),
+            {
+                "name": normalized_release["name"],
+                "body": normalized_release["body"],
+            },
+        )
+
+    def test_empty_create_response_text_fails_before_upload(self) -> None:
+        for field in ("name", "body"):
+            with self.subTest(field=field):
+                created_release = release()
+                created_release[field] = ""
+                responses = self.successful_create_responses()
+                responses["create_release"] = [
+                    queued({**created_release, "assets": []})
+                ]
+                result = self.run_script(
+                    responses,
+                    case=f"empty-created-{field}",
+                )
+
+                self.assertNotEqual(result.process.returncode, 0)
+                self.assertIn("release creation response", result.process.stderr)
+                self.assertNotIn("upload_asset", self.operations(result))
 
     def test_bad_tag_create_response_fails_before_release_creation(self) -> None:
         responses = self.successful_create_responses()
@@ -518,9 +599,70 @@ class ReleaseDraftScriptTest(unittest.TestCase):
 
         self.assertNotEqual(result.process.returncode, 0)
         self.assertIn("multiple releases", result.process.stderr)
-        self.assertEqual(result.sleeps, [])
+        self.assert_no_mutation(result)
 
-    def test_foreign_created_release_id_is_immediately_terminal_without_sleep(self) -> None:
+    def test_published_release_is_immediately_terminal(self) -> None:
+        published_release = release(draft=False)
+        published_release["published_at"] = "2026-08-09T00:00:00Z"
+        result = self.run_script(
+            {
+                "list_releases": [
+                    queued(paginated([initial_notes_base(), published_release]))
+                ]
+            },
+            case="published-release",
+        )
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn(
+            "is not an exact-SHA, non-prerelease draft", result.process.stderr
+        )
+        self.assert_no_mutation(result)
+        self.assertEqual(self.operations(result), ["list_releases"])
+
+    def test_prerelease_is_immediately_terminal(self) -> None:
+        result = self.run_script(
+            {
+                "list_releases": [
+                    queued(
+                        paginated(
+                            [initial_notes_base(), release(prerelease=True)]
+                        )
+                    )
+                ]
+            },
+            case="prerelease",
+        )
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn(
+            "is not an exact-SHA, non-prerelease draft", result.process.stderr
+        )
+        self.assert_no_mutation(result)
+
+    def test_wrong_release_target_sha_is_immediately_terminal(self) -> None:
+        result = self.run_script(
+            {
+                "list_releases": [
+                    queued(
+                        paginated(
+                            [initial_notes_base(), release(sha="f" * 40)]
+                        )
+                    )
+                ]
+            },
+            case="wrong-release-sha",
+        )
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn(
+            "is not an exact-SHA, non-prerelease draft", result.process.stderr
+        )
+        self.assert_no_mutation(result)
+
+    def test_foreign_created_release_id_is_immediately_terminal_without_sleep(
+        self,
+    ) -> None:
         responses = self.successful_create_responses()
         responses["list_releases"] = [
             queued(paginated([initial_notes_base()])),
@@ -536,6 +678,42 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         self.assertIn("foreign release id", result.process.stderr)
         self.assertEqual(result.sleeps, [])
         self.assertNotIn("upload_asset", self.operations(result))
+
+    def test_annotated_or_wrong_sha_exact_tag_is_immediately_terminal(self) -> None:
+        invalid_tags = {
+            "annotated-tag": exact_tag(object_type="tag"),
+            "wrong-tag-sha": exact_tag(sha="f" * 40),
+        }
+        for case, invalid_tag in invalid_tags.items():
+            with self.subTest(case=case):
+                result = self.run_script(
+                    {
+                        "list_releases": [
+                            queued(paginated([initial_notes_base()]))
+                        ],
+                        "list_tags": [queued(paginated([invalid_tag]))],
+                    },
+                    case=case,
+                )
+
+                self.assertNotEqual(result.process.returncode, 0)
+                self.assertIn("is not a lightweight tag", result.process.stderr)
+                self.assert_no_mutation(result)
+
+    def test_existing_draft_without_matching_tag_is_immediately_terminal(self) -> None:
+        result = self.run_script(
+            {
+                "list_releases": [
+                    queued(paginated([initial_notes_base(), release()]))
+                ],
+                "list_tags": [queued(paginated([]))],
+            },
+            case="draft-missing-tag",
+        )
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn("has no matching git tag", result.process.stderr)
+        self.assert_no_mutation(result)
 
     def test_resume_never_creates_or_patches_and_preserves_text(self) -> None:
         resumed_release = release(
@@ -560,6 +738,49 @@ class ReleaseDraftScriptTest(unittest.TestCase):
             preserved,
             {"name": resumed_release["name"], "body": resumed_release["body"]},
         )
+
+    def test_resume_preserves_null_owner_text(self) -> None:
+        resumed_release = release(name=None, body=None)
+        result = self.run_script(
+            self.successful_resume_responses(release_value=resumed_release),
+            case="resume-null-text",
+        )
+
+        self.assert_success(result)
+        self.assertEqual(
+            json.loads(
+                (result.state_dir / "preserved-text.json").read_text(
+                    encoding="utf-8"
+                )
+            ),
+            {"name": None, "body": None},
+        )
+        operations = self.operations(result)
+        self.assertNotIn("create_release", operations)
+        self.assertNotIn("patch", operations)
+
+    def test_owner_text_change_at_final_proof_is_terminal(self) -> None:
+        opened_release = release(
+            name="Owner-edited title",
+            body="Owner-edited body",
+        )
+        changed_release = release(
+            name="Concurrent edit",
+            body="Owner-edited body",
+        )
+        responses = self.successful_resume_responses(
+            release_value=opened_release
+        )
+        responses["list_releases"] = [
+            queued(paginated([initial_notes_base(), opened_release])),
+            queued(paginated([initial_notes_base(), changed_release])),
+        ]
+        result = self.run_script(responses, case="owner-text-changed")
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn("title or body changed during resume", result.process.stderr)
+        self.assertEqual(self.operations(result).count("upload_asset"), 6)
+        self.assertEqual(result.sleeps, [])
 
     def test_unmanaged_seventh_asset_fails_before_any_mutation(self) -> None:
         unmanaged = [
@@ -608,45 +829,125 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         )
         operations = self.operations(result)
         self.assertLess(
-            max(index for index, value in enumerate(operations) if value == "delete_asset"),
+            max(
+                index
+                for index, value in enumerate(operations)
+                if value == "delete_asset"
+            ),
             operations.index("upload_asset"),
         )
 
-    def test_starter_asset_retries_until_uploaded(self) -> None:
-        starter_assets = self.uploaded_assets(first_state="starter", first_digest=None)
+    def test_open_asset_retries_until_uploaded(self) -> None:
+        open_assets = self.uploaded_assets(
+            first_state="open",
+            first_size=None,
+            first_digest=None,
+        )
         uploaded_assets = self.uploaded_assets()
         responses = self.successful_resume_responses(
             asset_pages=[
                 queued(paginated([])),
-                queued(paginated(starter_assets)),
+                queued(paginated(open_assets)),
                 queued(paginated(uploaded_assets)),
                 queued(paginated(uploaded_assets)),
             ]
         )
-        result = self.run_script(responses, case="starter-asset")
+        responses["upload_asset"] = [queued(asset) for asset in open_assets]
+        result = self.run_script(responses, case="open-asset")
 
         self.assert_success(result)
         self.assertEqual(result.sleeps, [2])
 
+    def test_absent_asset_retries_until_uploaded(self) -> None:
+        uploaded_assets = self.uploaded_assets()
+        responses = self.successful_resume_responses(
+            asset_pages=[
+                queued(paginated([])),
+                queued(paginated([])),
+                queued(paginated(uploaded_assets)),
+                queued(paginated(uploaded_assets)),
+            ]
+        )
+        result = self.run_script(responses, case="absent-asset")
+
+        self.assert_success(result)
+        self.assertEqual(result.sleeps, [2])
+
+    def test_failed_upload_starter_leftover_is_replaced_by_id(self) -> None:
+        starter_leftover = self.uploaded_assets(
+            first_state="starter",
+            first_size=None,
+            first_digest=None,
+        )[:1]
+        uploaded_assets = self.uploaded_assets()
+        responses = self.successful_resume_responses(
+            asset_pages=[
+                queued(paginated(starter_leftover)),
+                queued(paginated(uploaded_assets)),
+                queued(paginated(uploaded_assets)),
+            ]
+        )
+        result = self.run_script(responses, case="starter-leftover")
+
+        self.assert_success(result)
+        delete_calls = [
+            call for call in result.calls if call["operation"] == "delete_asset"
+        ]
+        self.assertEqual(
+            [call["endpoint"] for call in delete_calls],
+            [
+                "repos/"
+                f"{REPOSITORY}/releases/assets/{starter_leftover[0]['id']}"
+            ],
+        )
+        self.assertEqual(result.sleeps, [])
+
     def test_uploaded_wrong_digest_fails_immediately(self) -> None:
-        wrong_assets = self.uploaded_assets(first_digest=f"sha256:{'0' * 64}")
+        wrong_digests = {
+            "wrong-sha256": f"sha256:{'0' * 64}",
+            "literal-null": "null",
+        }
+        for case, wrong_digest in wrong_digests.items():
+            with self.subTest(case=case):
+                wrong_assets = self.uploaded_assets(first_digest=wrong_digest)
+                responses = self.successful_resume_responses(
+                    asset_pages=[
+                        queued(paginated([])),
+                        queued(paginated(wrong_assets)),
+                    ]
+                )
+                result = self.run_script(
+                    responses,
+                    case=f"wrong-uploaded-digest-{case}",
+                )
+
+                self.assertNotEqual(result.process.returncode, 0)
+                self.assertIn("wrong non-null digest", result.process.stderr)
+                self.assertEqual(result.sleeps, [])
+
+    def test_uploaded_wrong_size_fails_immediately(self) -> None:
+        wrong_assets = self.uploaded_assets(first_size=999_999)
         responses = self.successful_resume_responses(
             asset_pages=[
                 queued(paginated([])),
                 queued(paginated(wrong_assets)),
             ]
         )
-        result = self.run_script(responses, case="wrong-uploaded-digest")
+        result = self.run_script(responses, case="wrong-uploaded-size")
 
         self.assertNotEqual(result.process.returncode, 0)
-        self.assertIn("wrong non-null digest", result.process.stderr)
+        self.assertIn("wrong non-null size", result.process.stderr)
         self.assertEqual(result.sleeps, [])
 
-    def test_exact_tag_without_visible_release_requires_consecutive_zeroes(self) -> None:
+    def test_exact_tag_without_visible_release_waits_the_full_confirmation_window(
+        self,
+    ) -> None:
         base = initial_notes_base()
         final_assets = self.uploaded_assets()
         responses = {
             "list_releases": [
+                queued(paginated([base])),
+                queued(paginated([base])),
                 queued(paginated([base])),
                 queued(paginated([base])),
                 queued(paginated([base, release()])),
@@ -664,8 +965,9 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         self.assert_success(result)
         operations = self.operations(result)
         create_index = operations.index("create_release")
-        self.assertEqual(operations[:create_index].count("list_releases"), 2)
-        self.assertEqual(result.sleeps, [2])
+        self.assertEqual(operations[:create_index].count("list_releases"), 4)
+        self.assertEqual(result.sleeps, [2, 2, 2])
+        self.assertEqual(result.elapsed_seconds, 60)
         self.assertNotIn("create_tag", operations)
 
     def test_tag_only_wait_switches_to_a_draft_that_appears(self) -> None:
@@ -696,6 +998,34 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         self.assertNotIn("create_release", operations)
         self.assertNotIn("create_tag", operations)
 
+    def test_tag_only_wait_treats_later_ambiguity_as_terminal(self) -> None:
+        base = initial_notes_base()
+        responses = {
+            "list_releases": [
+                queued(paginated([base])),
+                queued(
+                    paginated(
+                        [
+                            base,
+                            release(),
+                            release(release_id=RELEASE_ID + 1),
+                        ]
+                    )
+                ),
+            ],
+            "list_tags": [queued(paginated([exact_tag()]))],
+        }
+        result = self.run_script(responses, case="tag-only-later-ambiguity")
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn("multiple releases", result.process.stderr)
+        self.assertEqual(result.sleeps, [2])
+        self.assertTrue(
+            {"create_release", "delete_asset", "upload_asset"}.isdisjoint(
+                self.operations(result)
+            )
+        )
+
     def test_absent_tag_creates_without_release_absence_wait(self) -> None:
         result = self.run_script(
             self.successful_create_responses(),
@@ -708,6 +1038,7 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         self.assertEqual(operations[:create_index].count("list_releases"), 1)
         self.assertEqual(result.sleeps, [])
         self.assertEqual(operations.count("create_tag"), 1)
+        self.assertEqual(operations[:create_index].count("list_tags"), 1)
         create_tag_call = next(
             call for call in result.calls if call["operation"] == "create_tag"
         )
@@ -735,7 +1066,16 @@ class ReleaseDraftScriptTest(unittest.TestCase):
         ]
         self.assertEqual(len(upload_calls), 6)
         self.assertTrue(
-            all(f"/releases/{RELEASE_ID}/assets?name=" in call["endpoint"] for call in upload_calls)
+            all(
+                f"/releases/{RELEASE_ID}/assets?name=" in call["endpoint"]
+                for call in upload_calls
+            )
+        )
+        self.assertEqual(
+            result.summary.read_text(encoding="utf-8"),
+            "### Draft CLI release\n\n"
+            f"[{TAG}](https://github.com/example/jbotci/releases/tag/untagged-draft) "
+            f"targets `{SHA}` and remains unpublished.\n",
         )
 
     def test_release_match_on_a_later_page_resumes(self) -> None:
@@ -768,6 +1108,75 @@ class ReleaseDraftScriptTest(unittest.TestCase):
 
         self.assert_success(result)
         self.assertNotIn("create_release", self.operations(result))
+
+    def test_malformed_pagination_is_immediately_terminal(self) -> None:
+        result = self.run_script(
+            {"list_releases": [queued({"not": "paginated arrays"})]},
+            case="malformed-pagination",
+        )
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn("pagination returned malformed pages", result.process.stderr)
+        self.assert_no_mutation(result)
+
+    def test_malformed_release_response_is_immediately_terminal(self) -> None:
+        result = self.run_script(
+            {
+                "list_releases": [
+                    queued(paginated([{"id": "not-a-release"}]))
+                ]
+            },
+            case="malformed-release",
+        )
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn("malformed release", result.process.stderr)
+        self.assert_no_mutation(result)
+
+    def test_final_release_proof_rejects_later_ambiguity(self) -> None:
+        opened_release = release()
+        responses = self.successful_resume_responses(
+            release_value=opened_release
+        )
+        responses["list_releases"] = [
+            queued(paginated([initial_notes_base(), opened_release])),
+            queued(
+                paginated(
+                    [
+                        initial_notes_base(),
+                        opened_release,
+                        release(release_id=RELEASE_ID + 1),
+                    ]
+                )
+            ),
+        ]
+        result = self.run_script(responses, case="final-release-ambiguity")
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn("multiple releases", result.process.stderr)
+        self.assertEqual(self.operations(result).count("upload_asset"), 6)
+        self.assertEqual(result.sleeps, [])
+
+    def test_tag_only_confirmation_api_error_is_terminal(self) -> None:
+        result = self.run_script(
+            {
+                "list_releases": [
+                    queued(paginated([initial_notes_base()])),
+                    failed(),
+                ],
+                "list_tags": [queued(paginated([exact_tag()]))],
+            },
+            case="tag-only-api-error",
+        )
+
+        self.assertNotEqual(result.process.returncode, 0)
+        self.assertIn("HTTP 500", result.process.stderr)
+        self.assertEqual(result.sleeps, [2])
+        self.assertTrue(
+            {"create_release", "delete_asset", "upload_asset"}.isdisjoint(
+                self.operations(result)
+            )
+        )
 
     def test_api_error_fails_closed_without_retry(self) -> None:
         responses = {"list_releases": [failed()]}
