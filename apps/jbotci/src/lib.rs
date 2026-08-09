@@ -10,6 +10,8 @@ mod lsp;
 mod output;
 pub mod projection;
 mod tool;
+#[cfg(test)]
+mod windows_stack;
 
 pub use cli::main_entry;
 use cli::run_cli_command_with_tool_context;
