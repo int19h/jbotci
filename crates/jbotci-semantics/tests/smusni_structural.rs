@@ -3274,12 +3274,112 @@ fn a_default_shared_across_two_closures_binds_above_the_junction() {
         "one identity is still one binder:\n{}",
         rendered.text
     );
-    assert!(
-        contains_form(hosts[0], "Joi"),
-        "and it stands above the whole junction, which is the site both uses \
-         have in common:\n{}",
+    let (names, hosted) = peel_binds(hosts[0]);
+    assert_eq!(
+        names,
+        vec![shared.clone()],
+        "the shared default is the only thing bound there:\n{}",
         rendered.text
     );
+    assert_eq!(
+        hosted.form_head(),
+        Some("Joi"),
+        "and it wraps exactly the junction, which is the site both uses have in \
+         common — not the force segment above it:\n{}",
+        rendered.text
+    );
+    let asserts = collect_forms_owned(&datum, "Assert");
+    assert_eq!(asserts.len(), 1, "{}", rendered.text);
+    assert_eq!(
+        form_operands(asserts[0])[0].form_head(),
+        Some("Bind"),
+        "the force segment stands outside the binder, not inside it:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// The same leg, in the shape that tells the graph-owned site apart from every
+/// scope above it: the joined predication is one conjunct of a `∧`, and an
+/// unrelated earlier conjunct shares its force segment.
+///
+/// A `Bind` appended to that force segment still *contains* the junction, so
+/// containment proves nothing here. What section 5.1 requires is the position
+/// the plan computed — the common dynamic site of the two `Close`s — and at that
+/// position the earlier conjunct runs before the `Context` lookup rather than
+/// inside its binder.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_cross_closure_default_binds_at_its_site_not_around_an_unrelated_sibling() {
+    let input = build_input(
+        "mi gleki gi'e klama ta'i lo racli",
+        "shared-default-cross-closure-sibling",
+    );
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(2)),
+        ("klama", ClosurePlace::Adjunct(0, 2)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let conjunctions = collect_forms_owned(&datum, "∧");
+    assert_eq!(conjunctions.len(), 1, "{}", rendered.text);
+    let conjuncts = form_operands(conjunctions[0]);
+    assert_eq!(conjuncts.len(), 2, "{}", rendered.text);
+    assert_eq!(
+        conjuncts[0].form_head(),
+        Some("gleki"),
+        "the earlier conjunct is unrelated and carries no binder of its \
+         own:\n{}",
+        rendered.text
+    );
+    let (names, junction) = peel_binds(&conjuncts[1]);
+    assert_eq!(
+        names.len(),
+        1,
+        "the shared default binds at the junction that is the plan's site:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        junction.form_head(),
+        Some("Joi"),
+        "and wraps exactly that junction:\n{}",
+        rendered.text
+    );
+    let operands = form_operands(junction);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    assert_eq!(
+        operands[0].form_head(),
+        Some("klama"),
+        "neither operand may bind what the other one uses:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        operands[1].form_head(),
+        Some("tadji"),
+        "neither operand may bind what the other one uses:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_atom(&operands[0], &names[0]) && contains_atom(&operands[1], &names[0]),
+        "both closures use the identity the binder above them introduces:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        collect_bind_hosts(&datum, &names[0]).len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert!(
+        !contains_atom(&conjuncts[1], "gleki"),
+        "and the earlier conjunct runs before the lookup, outside that \
+         binder:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
 }
 
 /// Owner matching and physical binding have to name the same effect scope.

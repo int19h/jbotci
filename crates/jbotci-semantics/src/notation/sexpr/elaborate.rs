@@ -160,14 +160,22 @@ struct ReferenceBinding {
 /// computations it closes. A `Refer` that raises is unaffected — it passes
 /// straight through — which is why this is a third kind rather than a binder
 /// frame with an empty list.
+///
+/// A `placement` frame stops nothing either. It is the position one graph
+/// object's rendered value occupies, which is where the declaration plan put
+/// the identities it sited there — so a planned declaration whose value binds
+/// itself rather than declaring itself has a host of its own instead of falling
+/// back on whatever coarser scope is still open.
 #[invariant(::Barrier => true, "a barrier stops every computation and carries no binder list")]
 #[invariant(::Binders(_) => true, "any binder set is a legal lambda-dependency boundary")]
 #[invariant(::Closure => true, "a closure scope is transparent to every raise")]
+#[invariant(::Placement => true, "a placement position is transparent to every raise")]
 #[derive(Debug)]
 enum HostFrameKind {
     Barrier,
     Binders(BTreeSet<SemanticObjectId>),
     Closure,
+    Placement,
 }
 
 impl HostFrameKind {
@@ -178,7 +186,7 @@ impl HostFrameKind {
         match self {
             Self::Barrier => true,
             Self::Binders(binders) => !binders.is_disjoint(dependencies),
-            Self::Closure => false,
+            Self::Closure | Self::Placement => false,
         }
     }
 }
@@ -374,6 +382,26 @@ impl Elaborated {
         }
     }
 
+    /// Whether this category has a binding form of its own.
+    ///
+    /// Sections 2.2 and 3.1 give a query, act, discourse or transcript entry no
+    /// `Bind`, exactly as they give it no `Let`, so a computation planned at a
+    /// position one of those occupies has nowhere to stand.
+    #[requires(true)]
+    #[ensures(true)]
+    fn hosts_reference_bindings(&self) -> bool {
+        match self {
+            Self::Performable(_)
+            | Self::Operand(
+                Operand::Value(_)
+                | Operand::Content(_)
+                | Operand::Predicate(_)
+                | Operand::Function(_),
+            ) => true,
+            Self::Operand(_) => false,
+        }
+    }
+
     /// Read this value as a performable, crossing an act or discourse operand
     /// onto the implicit performance spine.
     #[requires(true)]
@@ -497,6 +525,11 @@ pub(super) enum CompactFallbackCause {
     /// determine no legal host for a dynamic computation, because no open
     /// position has every binder it depends on live.
     DynamicHostIllegal,
+    /// The same closing rule reached from the other side: the plan sited a
+    /// dynamic computation at one object, and that object's own category has no
+    /// binding form to write it at. Hosting it at some enclosing scope instead
+    /// would place it where the plan did not, so the site is refused.
+    PlacedHostWithoutBindingForm,
     ReferentFields,
     UnboundGeneratedEvent,
     UnrepresentableRecursiveValue,
@@ -560,7 +593,9 @@ impl CompactFallbackCause {
             Self::ConstantWithoutDependence | Self::ReferentFields => {
                 "smusni.projection.reference-description-unrepresentable"
             }
-            Self::DynamicHostIllegal => "smusni.projection.scope-dependency-without-binder",
+            Self::DynamicHostIllegal | Self::PlacedHostWithoutBindingForm => {
+                "smusni.projection.scope-dependency-without-binder"
+            }
             Self::UnboundGeneratedEvent => "smusni.projection.generated-eventuality-unbound",
             Self::UnrepresentableRecursiveValue => {
                 "smusni.projection.unguarded-or-unrepresentable-scc"
@@ -646,6 +681,9 @@ impl CompactFallbackCause {
             }
             Self::DynamicHostIllegal => {
                 "no legal host has every binder this dynamic computation depends on"
+            }
+            Self::PlacedHostWithoutBindingForm => {
+                "the site this dynamic computation was placed at has no binding form"
             }
             Self::ReferentFields => {
                 "these reference or description fields have no compact projection"
@@ -755,6 +793,40 @@ where
         .ok()
         .map(&form)
     })
+}
+
+/// Bind one placement site's hosted computations over the value that stands
+/// there, in that value's own category.
+///
+/// The categories are exactly the ones [`HostedGroup::wrap`] declares: a query,
+/// act, discourse or transcript entry has no binding form at all, and reports
+/// so rather than letting the computation drift to a position the plan did not
+/// name.
+#[requires(!bindings.is_empty())]
+#[ensures(true)]
+fn bind_at_site(bindings: Vec<ReferenceBinding>, body: Elaborated) -> Option<Elaborated> {
+    match body {
+        Elaborated::Performable(body) => {
+            wrap_reference_bindings(bindings, body, Performable::Bind).map(Elaborated::Performable)
+        }
+        Elaborated::Operand(Operand::Value(body)) => {
+            wrap_reference_bindings(bindings, body, Value::bind_form)
+                .map(|value| Elaborated::Operand(Operand::Value(value)))
+        }
+        Elaborated::Operand(Operand::Content(body)) => {
+            wrap_reference_bindings(bindings, body, Content::bind_form)
+                .map(|content| Elaborated::Operand(Operand::Content(content)))
+        }
+        Elaborated::Operand(Operand::Predicate(body)) => {
+            wrap_reference_bindings(bindings, body, PredTerm::bind_form)
+                .map(|term| Elaborated::Operand(Operand::Predicate(term)))
+        }
+        Elaborated::Operand(Operand::Function(body)) => {
+            wrap_reference_bindings(bindings, body, FnValue::bind_form)
+                .map(|callable| Elaborated::Operand(Operand::Function(callable)))
+        }
+        Elaborated::Operand(_) => None,
+    }
 }
 
 /// Why one place map produced no ordered fills.
@@ -1848,8 +1920,71 @@ impl Elaborator<'_> {
                     && self.needed_definitions.borrow().contains(definition)
                     && self.plan.definition_site(*definition) == Some(id)
             })
-            .collect();
-        self.wrap_definitions(definitions, value, bound, active)
+            .collect::<BTreeSet<_>>();
+        self.place_definitions(id, definitions, value, bound, active)
+    }
+
+    /// Place the declarations the plan sited at one object, at that object's own
+    /// position.
+    ///
+    /// The plan's placement coordinate is a graph object, and the position that
+    /// object's rendered value occupies is a physical one this renderer owns:
+    /// the wrapper it is about to build around that value. So the site is a host
+    /// position, and a planned declaration whose value hosts its own computation
+    /// — section 5.1's shared default, which is *bound* from `(Context ...)`
+    /// rather than declared with a `Let` — belongs at it. Section 6.3 keeps that
+    /// computation at its represented evaluation site, and for an identity no
+    /// single closure closes, the site the graph determines is exactly the one
+    /// the plan computed: the common position of every use. Without this frame
+    /// the `Bind` would be appended to whichever force segment or lambda region
+    /// is still open above the site, running the lookup ahead of content the
+    /// site stands after and wrapping unrelated siblings in its binder.
+    ///
+    /// Only where the renderer already owns a host region: outside every force
+    /// segment there is no host position at all — which is a placement failure
+    /// of whatever could not place the enclosing value, not section 6.3's
+    /// legality question — and opening one here would invent it.
+    ///
+    /// A site whose own category has no binding form is refused rather than
+    /// hosted elsewhere. Sections 2.2 and 3.1 give a query, act, discourse or
+    /// transcript entry no `Bind` of its own, so at such a site the plan's
+    /// position is one nothing can be written at, and the rules and the graph
+    /// together determine no host — the same closing clause of section 6.3 that
+    /// an unlive dependency reaches, with a message of its own.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[requires(definitions.is_subset(&self.definitions))]
+    #[ensures(true)]
+    fn place_definitions(
+        &self,
+        id: SemanticObjectId,
+        definitions: BTreeSet<SemanticObjectId>,
+        value: Option<Elaborated>,
+        bound: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Option<Elaborated> {
+        if definitions.is_empty() || self.reference_binding_frames.borrow().is_empty() {
+            return self.wrap_definitions(definitions, value, bound, active);
+        }
+        self.open_host_frame(HostFrameKind::Placement, bound);
+        let wrapped = self.wrap_definitions(definitions, value, bound, active);
+        let hosted = self.close_host_frame();
+        let wrapped = wrapped?;
+        if hosted.is_empty() {
+            return Some(wrapped);
+        }
+        if !wrapped.hosts_reference_bindings() {
+            self.record_object_fallback(id, CompactFallbackCause::PlacedHostWithoutBindingForm);
+            return None;
+        }
+        let Some(bound_at_site) = bind_at_site(hosted, wrapped) else {
+            // The category was proved to have a binding form, so a rejection
+            // here is this renderer failing to construct one. Every boundary
+            // below this object was already reached by the render that
+            // succeeded, so only the new edge is recorded.
+            self.record_object_fallback(id, CompactFallbackCause::TypedConstructionRejected);
+            return None;
+        };
+        Some(bound_at_site)
     }
 
     /// Decline one object at a named boundary, having reached every boundary
