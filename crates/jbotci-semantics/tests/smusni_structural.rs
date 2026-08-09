@@ -17,11 +17,11 @@ use jbotci_morphology::{
 use jbotci_semantics::completeness::corpus::CORPUS_DOCS;
 use jbotci_semantics::model::{
     Actuality, ActualityKind, AnchorRelation, ArgumentValueKind, Aspect, EventualityNode,
-    EventualitySort, IndexicalKind, MathLiteral, ParameterRole, PredicationMode,
-    PredicationRelationData, QuantityForm, QuantityScale, QuantityValue, QuestionSlot,
-    QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory, ScopeDependence,
-    ScopeDependenceData, SemanticGraphData, SemanticObject, SemanticObjectId, Subscript,
-    UtteranceForce,
+    EventualitySort, FormulaNode, FormulaNodeData, IndexicalKind, MathLiteral, ParameterRole,
+    PlaceIndex, PredicationMode, PredicationRelationData, QuantityForm, QuantityScale,
+    QuantityValue, QuestionSlot, QuestionSlotRole, Recurrence, RecurrenceKind, ReferentCategory,
+    ScopeDependence, ScopeDependenceData, SelectionSource, SemanticGraphData, SemanticObject,
+    SemanticObjectId, Subscript, UtteranceForce,
 };
 use jbotci_semantics::notation::kernel::types::Variable;
 use jbotci_semantics::notation::sexpr::internal_raw::whole_graph_capture;
@@ -779,7 +779,11 @@ fn speaker_description_is_one_nonveridical_reference_computation() {
     let input = build_input("le mlatu cu gerku", "speaker-description");
     let datum = validate_render(&input.graph, &document_text(&input.graph));
 
-    assert_eq!(count_forms(&datum, "Bind"), 1);
+    // Two binders: the description's own `Refer`, and — inside the described
+    // property, where the candidate is live — section 5.1's explicit bind for
+    // `mlatu`'s elided x2, whose recorded dependence is the described candidate
+    // rather than `Fixed`.
+    assert_eq!(count_forms(&datum, "Bind"), 2);
     assert_eq!(count_forms(&datum, "Refer"), 1);
     assert_eq!(count_forms(&datum, "skicu"), 1);
     assert_eq!(count_forms(&datum, "mlatu"), 1);
@@ -1904,9 +1908,12 @@ fn a_gadri_folded_property_crossing_is_one_lambda() {
         "folding the gadri introduces no description:\n{}",
         rendered.text,
     );
+    // The lambda declares the parameter, `melbi` fills its first place with it,
+    // and each of the three remaining elided places records the parameter as
+    // its permitted dependence, so section 5.1 names it once per explicit bind.
     assert_eq!(
         count_atoms(&datum, "$parameterNode_8"),
-        2,
+        5,
         "the lambda binds and uses the graph-owned parameter:\n{}",
         rendered.text,
     );
@@ -2043,17 +2050,19 @@ fn an_asserted_predication_inside_abstracted_content_is_refused() {
 /// Section 6.3 stops a raised reference at the binders its property actually
 /// names, not at every binder its recorded dependence permits it to name.
 ///
-/// `lo nu mi klama` inside a universal records `mayDependOn` on the quantified
-/// variable, because the builder writes the permission the position allows. Its
-/// property mentions no binder at all, so the computation raises past the
-/// quantifier to the enclosing abstraction's barrier; anchoring it by the
-/// permission instead would trap it inside a quantifier it never mentions.
+/// `lo nu mi dunda ti do` inside a universal records `mayDependOn` on the
+/// quantified variable, because the builder writes the permission the position
+/// allows. Its property mentions no binder at all — the base predication's
+/// places are all filled, so it has no elided place whose own section-5.1 bind
+/// would name one — and the computation raises past the quantifier to the
+/// enclosing abstraction's barrier; anchoring it by the permission instead
+/// would trap it inside a quantifier it never mentions.
 #[test]
 #[requires(true)]
 #[ensures(true)]
 fn a_raised_reference_stops_at_the_binders_its_property_names() {
     let input = build_input(
-        "lo nu ro lo prenu cu troci lo nu mi klama kei kei cu cadga",
+        "lo nu ro lo prenu cu troci lo nu mi dunda ti do kei kei cu cadga",
         "permission-wider-than-use",
     );
     assert!(
@@ -2113,4 +2122,1389 @@ fn collect_bind_hosts_into<'a>(datum: &'a Datum, binder: &str, out: &mut Vec<&'a
             collect_bind_hosts_into(item, binder, out);
         }
     }
+}
+
+/// A description's own body mentions the description it defines, and that
+/// occurrence is not a use: the builder records it as `definitionInternal`
+/// exactly so that counting it as sharing cannot turn every ordinary `lo broda`
+/// into a shared definition no reference type can spell.
+///
+/// This is the specification's membership shape end to end (sections 8.4, 9.2):
+/// `ro lo P` is an `Every` whose restriction is `memberOf` of the bound variable
+/// against the description referent, and the description is hosted *outside* the
+/// quantifier, so the restriction is a plain predicate over one bound variable
+/// and one outer binding.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_description_reached_once_is_not_a_shared_definition() {
+    let input = build_input("ro lo prenu cu prami", "membership-restriction");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    let hosts = collect_bind_hosts(&datum, "$entity_11");
+    assert_eq!(
+        hosts.len(),
+        1,
+        "the description is bound exactly once:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_form(hosts[0], "Every"),
+        "the description referent is hosted outside its own quantifier:\n{}",
+        rendered.text
+    );
+    let restrictions = collect_forms_owned(&datum, "Every");
+    assert_eq!(restrictions.len(), 1);
+    assert!(
+        contains_atom(restrictions[0], "memberOf"),
+        "section 9.2 restricts the candidate by membership in the description:\n{}",
+        rendered.text
+    );
+    // No `Let` is written, because section 6.3's dynamic host is already the
+    // declaration site; the failure this used to take was the demand for a
+    // `Let`-bindable type of a value that never becomes a `Let`.
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// Section 8.4's `goi` menu, in the configuration the builder resolves
+/// structurally: the quantifier's own λ *is* the assignment, so the handle names
+/// a binder that is already printed and contributes nothing of its own.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_quantified_goi_handle_is_the_binder_it_names() {
+    let input = build_input("ro lo prenu goi ko'a cu prami ko'a", "quantified-goi");
+    assert!(
+        input.graph.objects.values().any(|object| object
+            .as_referent()
+            .is_some_and(|node| node.category == ReferentCategory::Variable
+                && !node.assigned_names.is_empty())),
+        "the bound variable carries the assignment the builder resolved onto it",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(
+        !rendered.text.contains("ko'a"),
+        "the handle is provenance and prints nothing:\n{}",
+        rendered.text
+    );
+    let applications = collect_forms_owned(&datum, "prami");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    let places = applications[0]
+        .as_list()
+        .expect("an application is a list")
+        .iter()
+        .skip(1)
+        .map(|item| item.as_atom().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        places,
+        vec![Some("$entity_7".to_owned()), Some("$entity_7".to_owned())],
+        "both places are the one variable the assignment resolved to:\n{}",
+        rendered.text
+    );
+}
+
+/// The same handle written outside a quantifier selects the other item on
+/// section 8.4's menu: the description's own hosted `Refer` is the `Bind`, and
+/// both occurrences are uses of the name it introduced. No `Let` alias is
+/// needed, because there is no second identity to alias.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_same_scope_goi_handle_is_the_description_binder() {
+    let input = build_input("lo prenu goi ko'a cu prami ko'a", "same-scope-goi");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(!rendered.text.contains("ko'a"), "{}", rendered.text);
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+    assert_eq!(
+        collect_bind_hosts(&datum, "$entity_7").len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+}
+
+/// The third assignment shape the builder writes is not provenance. `X goi la
+/// djan` states that the referent bears a name, which is section 8.4's naming
+/// predicate; no resolution edge carries it, so suppressing it would drop
+/// content and the description keeps its registered refusal.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_goi_name_assignment_is_not_resolution_provenance() {
+    let input = build_input("lo prenu goi la djan cu prami", "goi-name-assignment");
+    assert!(
+        input
+            .graph
+            .objects
+            .values()
+            .any(|object| object
+                .as_referent()
+                .is_some_and(|node| node.assigned_names.iter().any(|assigned| {
+                    assigned.introduced_by == "goi" && assigned.name != assigned.word
+                }))),
+        "the record separates the name-marking word from the name",
+    );
+    let failed = project_failure(&input.graph);
+    assert!(
+        failure_reason_ids(&failed)
+            .contains(&"smusni.projection.reference-description-unrepresentable"),
+        "{:?}",
+        failure_reason_ids(&failed)
+    );
+}
+
+/// A binder is a free binder of the value being projected, not something the
+/// projection consumes. Collecting one into an inlined subgraph's support makes
+/// the quantifier that binds it — and every sibling place it fills — look like
+/// an escape, which refused every abstraction whose content mentions a variable
+/// bound outside it.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_binder_named_inside_abstracted_content_is_not_support() {
+    let input = build_input(
+        "ro lo prenu goi ko'a cu troci lo nu ko'a klama",
+        "binder-inside-content",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    // `validate_render` proves the whole document is well scoped, so an
+    // abstraction whose binding names the quantified variable necessarily
+    // stands inside that quantifier's scope.
+    validate_render(&input.graph, &rendered.text);
+    let hosts = collect_bind_hosts(&datum, "$eventuality_8");
+    assert_eq!(hosts.len(), 1, "{}", rendered.text);
+    assert!(
+        contains_atom(hosts[0], "$entity_7"),
+        "the abstraction's content names the variable bound outside it:\n{}",
+        rendered.text
+    );
+    assert!(contains_atom(&datum, "klama"), "{}", rendered.text);
+}
+
+/// An interior `zo'e` of a description property may record any binders live at
+/// the description's host position. It projects as the section-5.1 `Context` its
+/// dependence names, bound inside the property, and section 6.3 then hosts the
+/// description where its property's free binders are all live — so a dependent
+/// description is representable rather than a shape to refuse before planning.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_dependent_description_projects_inside_the_binders_it_names() {
+    let input = build_input(
+        "ro lo prenu cu troci lo nu lo pendo cu klama",
+        "dependent-description",
+    );
+    assert!(
+        input.graph.objects.values().any(|object| {
+            object.as_referent().is_some_and(|node| {
+                node.descriptor
+                    .as_ref()
+                    .is_some_and(|descriptor| descriptor.body.is_some())
+                    && node
+                        .scope_dependence
+                        .as_ref()
+                        .and_then(|dependence| dependence.may_depend_on())
+                        .is_some_and(|universe| !universe.is_empty())
+            })
+        }),
+        "the inner description records a dependence on the quantified variable",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(contains_atom(&datum, "pendo"), "{}", rendered.text);
+}
+
+/// The issue's named acceptance witness. Every claim below is a specification
+/// claim about the document's shape rather than a byte expectation: two `nu`
+/// reference computations hosted where their properties' binders are live, a
+/// `ka` lambda over its graph-owned `ce'u`, two membership restrictions, and the
+/// `ta'i` modal conjoined into the inner abstraction's property.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn the_membership_path_witness_renders_a_canonical_document() {
+    let input = build_input(
+        "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa \
+         ro lo jmive kei ta'i lo racli",
+        "issue-778-witness",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    validate_render(&input.graph, &rendered.text);
+    let quantifiers = collect_forms_owned(&datum, "Every");
+    assert_eq!(quantifiers.len(), 2, "{}", rendered.text);
+    for quantifier in &quantifiers {
+        assert!(
+            contains_atom(quantifier, "memberOf"),
+            "each domain is a membership restriction:\n{}",
+            rendered.text
+        );
+    }
+    // The `ka` crossing is a bare lambda over the graph's own parameter, and its
+    // body is the `je` conjunction of both relations.
+    assert!(
+        rendered.text.contains("$parameterNode_11"),
+        "{}",
+        rendered.text
+    );
+    for relation in ["cadga", "troci", "tarti", "xendo", "cnikansa", "tadji"] {
+        assert!(
+            contains_atom(&datum, relation),
+            "{relation} reaches the document:\n{}",
+            rendered.text
+        );
+    }
+    // The outer `nu` is fixed and binds at the top; the inner one names the
+    // quantified variable and binds inside the quantifier.
+    let outer = collect_bind_hosts(&datum, "$eventuality_7");
+    assert_eq!(outer.len(), 1, "{}", rendered.text);
+    assert!(
+        contains_form(outer[0], "Assert"),
+        "the fixed abstraction binds above the act that mentions it:\n{}",
+        rendered.text
+    );
+    let inner = collect_bind_hosts(&datum, "$eventuality_9");
+    assert_eq!(inner.len(), 1, "{}", rendered.text);
+    // The document is well scoped, so a binding that names `$entity_8` stands
+    // inside the quantifier that introduces it.
+    assert!(
+        contains_atom(inner[0], "$entity_8"),
+        "the dependent abstraction names the quantified variable:\n{}",
+        rendered.text
+    );
+    assert!(!rendered.text.contains("ko'a"), "{}", rendered.text);
+}
+
+/// Every `head` form in one document, outermost first.
+#[requires(!head.is_empty())]
+#[ensures(true)]
+fn collect_forms_owned<'a>(datum: &'a Datum, head: &str) -> Vec<&'a Datum> {
+    let mut out = Vec::new();
+    collect_forms(datum, head, &mut out);
+    out
+}
+
+/// Whether one atom occurs anywhere in a document.
+#[requires(!atom.is_empty())]
+#[ensures(ret == (count_atoms(datum, atom) > 0))]
+fn contains_atom(datum: &Datum, atom: &str) -> bool {
+    count_atoms(datum, atom) > 0
+}
+
+/// A handle resolved onto an indexical needs no binder at all: the atom prints
+/// by identity wherever it occurs, so every use of the handle prints that atom
+/// and the assignment has nothing left to state. This is the third position
+/// section 8.4's "depending on its graph semantics" reaches, and it is why an
+/// assignment on a canonical atom is provenance rather than a refusal.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_handle_resolved_onto_an_atom_prints_that_atom() {
+    let input = build_input("mi goi ko'a cu prami ko'a", "indexical-goi");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert!(!rendered.text.contains("ko'a"), "{}", rendered.text);
+    assert_eq!(
+        count_atoms(&datum, "Speaker"),
+        2,
+        "both places print the atom the handle resolved to:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Bind"), 0, "{}", rendered.text);
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// Section 5.1 rule 1: a defaultable ordinary referential place whose graph
+/// dependence is `Fixed` "receives a fresh bare `Context` computation" as part
+/// of closure, and section 5.2 lets that closure itself be omitted. Nothing of
+/// it is written, because a fresh site-stable lookup is fully determined by the
+/// place it fills — there is no permission to preserve.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_fixed_default_place_is_hidden_by_close() {
+    let input = build_input("mi klama", "fixed-default-place");
+    let elided = input
+        .graph
+        .objects
+        .values()
+        .filter_map(SemanticObject::as_referent)
+        .filter(|node| {
+            node.scope_dependence
+                .as_ref()
+                .is_some_and(|dependence| dependence.may_depend_on().is_none())
+        })
+        .count();
+    assert!(
+        elided > 0,
+        "the graph records `Fixed` defaults for `klama`'s unstated places",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    assert_eq!(count_forms(&datum, "Bind"), 0, "{}", rendered.text);
+    assert_eq!(count_atoms(&datum, "Context"), 0, "{}", rendered.text);
+    let applications = collect_forms_owned(&datum, "klama");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    assert_eq!(
+        applications[0]
+            .as_list()
+            .expect("an application is a list")
+            .len(),
+        2,
+        "only the stated place is written:\n{}",
+        rendered.text
+    );
+}
+
+/// Section 5.1's other half: an `Underspecified { mayDependOn }` default
+/// "cannot be hidden by `Close`: it is bound explicitly from
+/// `(Context dependencies...)` and the same bound value fills the place. This
+/// preserves the exact permitted dependency set rather than replacing it with
+/// 'all accessible binders.'"
+///
+/// This is the one position where the recorded universe *is* the printed
+/// content. Eliding the place instead would leave re-elaboration to rederive a
+/// dependence at the printed site, and the two coincide only by accident of
+/// this site: nothing in the document would still say which binders the graph
+/// actually permitted this lookup to resolve against.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn an_underspecified_default_place_is_bound_explicitly_from_its_recorded_dependence() {
+    let input = build_input("ro lo prenu cu prami", "underspecified-default-place");
+    let permitted = input
+        .graph
+        .objects
+        .values()
+        .filter_map(SemanticObject::as_referent)
+        .filter_map(|node| {
+            node.scope_dependence
+                .as_ref()
+                .and_then(|dependence| dependence.may_depend_on().cloned())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        permitted.len(),
+        1,
+        "one elided place records a permission naming the quantified variable",
+    );
+    assert_eq!(permitted[0].len(), 1);
+
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    let contexts = collect_forms_owned(&datum, "Context");
+    assert_eq!(
+        contexts.len(),
+        1,
+        "the recorded permission is written once:\n{}",
+        rendered.text
+    );
+    let dependencies = contexts[0]
+        .as_list()
+        .expect("a context computation is a list")
+        .iter()
+        .skip(1)
+        .map(|item| item.as_atom().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        dependencies,
+        vec![Some("$entity_7".to_owned())],
+        "the dependency list is the recorded one, not every accessible binder:\n{}",
+        rendered.text
+    );
+    let hosts = collect_bind_hosts(&datum, "$entity_8");
+    assert_eq!(
+        hosts.len(),
+        1,
+        "the explicit bind stands at the closure it belongs to:\n{}",
+        rendered.text
+    );
+    let applications = collect_forms_owned(&datum, "prami");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    let places = applications[0]
+        .as_list()
+        .expect("an application is a list")
+        .iter()
+        .skip(1)
+        .map(|item| item.as_atom().map(str::to_owned))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        places,
+        vec![Some("$entity_7".to_owned()), Some("$entity_8".to_owned())],
+        "the same bound value fills the place it was bound for:\n{}",
+        rendered.text
+    );
+}
+
+/// Section 5.1 orders the closure's own computations: they "run left to right
+/// in current numbered-place order". The explicit binds are that order made
+/// visible, so the binder nesting at one closure follows the places rather than
+/// graph-identity allocation order.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn underspecified_default_binds_run_left_to_right_in_numbered_place_order() {
+    let input = build_input("mi nelci lo ka ce'u melbi", "default-bind-order");
+    let rendered = project_document(&input.graph);
+    let datum = parse_document(&rendered.text).expect("a rendered document parses");
+    let binders = collect_forms_owned(&datum, "Bind")
+        .into_iter()
+        .map(|host| {
+            binding_name(
+                &host.as_list().expect("a bind is a list")[1]
+                    .as_list()
+                    .expect("a bind declares a list of entries")[0],
+            )
+        })
+        .collect::<Vec<_>>();
+    let applications = collect_forms_owned(&datum, "melbi");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    let filled = applications[0]
+        .as_list()
+        .expect("an application is a list")
+        .iter()
+        .skip(2)
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(binders.len(), 3, "{}", rendered.text);
+    assert_eq!(
+        binders, filled,
+        "the binders nest in the order their places are numbered:\n{}",
+        rendered.text
+    );
+}
+
+/// The operands of one rendered form, which for a logical junction are its
+/// conjuncts and for a `Bind` are its binding list and its body.
+#[requires(datum.as_list().is_some())]
+#[ensures(true)]
+fn form_operands(datum: &Datum) -> &[Datum] {
+    &datum.as_list().expect("a form is a list")[1..]
+}
+
+/// Peel one `Bind` into the single name it introduces and the value it wraps.
+#[requires(datum.form_head() == Some("Bind"))]
+#[ensures(true)]
+fn peel_bind(datum: &Datum) -> (String, &Datum) {
+    let operands = form_operands(datum);
+    assert_eq!(operands.len(), 2, "a bind has entries and a body");
+    let entries = operands[0].as_list().expect("bind entries are a list");
+    assert_eq!(entries.len(), 1, "each hosted computation binds one name");
+    (binding_name(&entries[0]), &operands[1])
+}
+
+/// Peel a nest of `Bind`s into the names they introduce, outermost first, and
+/// the innermost value they all wrap.
+#[requires(true)]
+#[ensures(true)]
+fn peel_binds(datum: &Datum) -> (Vec<String>, &Datum) {
+    let mut names = Vec::new();
+    let mut body = datum;
+    while body.form_head() == Some("Bind") {
+        let (name, inner) = peel_bind(body);
+        names.push(name);
+        body = inner;
+    }
+    (names, body)
+}
+
+/// Section 5.1's locality rule, asserted as topology rather than presence: each
+/// omitted computation runs "at the dynamic evaluation site of `Close` ... local
+/// to that closure", and section 6.2 evaluates `∧` and `Joi` operands left to
+/// right with each operand seeing the preceding one's context. So a `Context`
+/// belonging to the second conjunct must stand *inside* that conjunct: pooling
+/// both above the junction resolves the second lookup before the first conjunct
+/// has run, which is a different document.
+///
+/// The witness is the sharpest case in the corpus, carrying both junctions: the
+/// `je` conjunction of `xendo` and `cnikansa`, and the `Joi` of the inner
+/// abstraction's content with its `ta'i` adjunct.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn each_closure_binds_its_own_defaults_inside_its_own_operand() {
+    let input = build_input(
+        "cadga fa lonu ro lo prenu goi ko'a cu troci lonu ko'a tarti loka ce'u xendo je cnikansa \
+         ro lo jmive kei ta'i lo racli",
+        "issue-778-witness-topology",
+    );
+    let rendered = project_document(&input.graph);
+    let datum = validate_render(&input.graph, &rendered.text);
+
+    let conjunctions = collect_forms_owned(&datum, "∧");
+    assert_eq!(conjunctions.len(), 1, "{}", rendered.text);
+    let conjuncts = form_operands(conjunctions[0]);
+    assert_eq!(conjuncts.len(), 2, "{}", rendered.text);
+    for (conjunct, relation) in conjuncts.iter().zip(["xendo", "cnikansa"]) {
+        let (names, body) = peel_binds(conjunct);
+        assert_eq!(
+            names.len(),
+            1,
+            "{relation}'s own default binds inside its own conjunct:\n{}",
+            rendered.text
+        );
+        assert_eq!(
+            body.form_head(),
+            Some(relation),
+            "the bind wraps exactly its own closure:\n{}",
+            rendered.text
+        );
+        assert!(
+            body.as_list()
+                .expect("an application is a list")
+                .iter()
+                .any(|item| item.as_atom() == Some(names[0].as_str())),
+            "{relation} fills its place with the value bound for it:\n{}",
+            rendered.text
+        );
+    }
+    // Nothing hoists either conjunct's computation above the junction.
+    assert_eq!(
+        collect_bind_hosts(&datum, "$entity_13").len(),
+        1,
+        "{}",
+        rendered.text
+    );
+    assert!(
+        !contains_atom(&peel_binds(&conjuncts[0]).1, "cnikansa"),
+        "the first conjunct's bind does not enclose the second conjunct:\n{}",
+        rendered.text
+    );
+
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    let (tarti_binds, tarti_body) = peel_binds(&operands[0]);
+    assert_eq!(tarti_binds.len(), 1, "{}", rendered.text);
+    assert_eq!(tarti_body.form_head(), Some("tarti"), "{}", rendered.text);
+    let (tadji_binds, tadji_body) = peel_binds(&operands[1]);
+    assert_eq!(
+        tadji_binds.len(),
+        2,
+        "the adjunct's two defaults bind inside the adjunct's own operand:\n{}",
+        rendered.text
+    );
+    assert_eq!(tadji_body.form_head(), Some("tadji"), "{}", rendered.text);
+    let filled = form_operands(tadji_body)
+        .iter()
+        .skip(1)
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        tadji_binds, filled,
+        "and in the order their places are numbered:\n{}",
+        rendered.text
+    );
+}
+
+/// A question body with two sibling closures is the same rule one level up: the
+/// answered slot's lambda is a section-6.3 host position, but it is not the
+/// section-5.1 evaluation site of anything, so each conjunct's own default
+/// stays inside that conjunct and only the identity the graph shares between
+/// them is bound above both.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_question_body_binds_each_closure_default_in_its_own_closure() {
+    let input = build_input("do jai se smuni ma", "question-body-closures");
+    let rendered = project_document(&input.graph);
+    let datum = validate_render(&input.graph, &rendered.text);
+    let queries = collect_forms_owned(&datum, "OpenQ");
+    assert_eq!(queries.len(), 1, "{}", rendered.text);
+    let lambda = &form_operands(queries[0])[0];
+    let (shared, junction) = peel_binds(&form_operands(lambda)[1]);
+    assert_eq!(
+        shared.len(),
+        1,
+        "only the identity both closures use is bound above them:\n{}",
+        rendered.text
+    );
+    assert_eq!(junction.form_head(), Some("∧"), "{}", rendered.text);
+    let conjuncts = form_operands(junction);
+    assert_eq!(conjuncts.len(), 2, "{}", rendered.text);
+    let (local, smuni) = peel_binds(&conjuncts[0]);
+    assert_eq!(
+        local.len(),
+        1,
+        "the first closure's own default binds inside it:\n{}",
+        rendered.text
+    );
+    assert_eq!(smuni.form_head(), Some("smuni"), "{}", rendered.text);
+    assert_eq!(
+        conjuncts[1].form_head(),
+        Some("involves"),
+        "the second closure omits nothing and binds nothing:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_atom(&conjuncts[1], &shared[0]),
+        "the shared value is used in the second closure, which is why it is \
+         bound above both:\n{}",
+        rendered.text
+    );
+}
+
+/// The one predication in a focused graph that names the given relation.
+#[requires(!relation.is_empty())]
+#[ensures(graph.objects.contains_key(&ret))]
+fn named_predication(graph: &SemanticGraph, relation: &str) -> SemanticObjectId {
+    graph
+        .objects
+        .iter()
+        .find_map(|(id, object)| {
+            matches!(
+                object.as_predication()?.relation.as_data(),
+                data!(PredicationRelation::Named { relation: named }) if named == relation
+            )
+            .then_some(*id)
+        })
+        .expect("the named predication is present")
+}
+
+/// Retarget one place of a named predication onto another value already in the
+/// graph.
+///
+/// This is model surgery, not a builder shape: the audit under test exists
+/// because the model's invariants permit a described selection source and its
+/// restriction to disagree, and only a hand-written graph reaches that.
+#[requires(graph.objects.contains_key(&target))]
+#[ensures(ret.objects.len() == old(graph.objects.len()))]
+fn retarget_place(
+    graph: SemanticGraph,
+    relation: &str,
+    place: usize,
+    target: SemanticObjectId,
+) -> SemanticGraph {
+    let predication = named_predication(&graph, relation);
+    let key = PlaceIndex::new(place);
+    let mut object = graph.objects[&predication].clone();
+    object.update_predication(|node| {
+        let mut arguments = node.arguments.clone();
+        let argument = arguments
+            .remove(&key)
+            .expect("the retargeted place is present")
+            .with_data(data! { value: Some(target) });
+        arguments.insert(key, argument);
+        node.with_data(data! { arguments: arguments })
+    });
+    replace_object(graph, predication, object)
+}
+
+/// One numbered place of one `Close` inside a predication: a place of the
+/// predication's own map, or of one of its adjuncts'.
+#[invariant(::Main(_) => true, "the predication's own places are one closure")]
+#[invariant(::Adjunct(_, _) => true, "each adjunct's places are a closure of its own")]
+#[derive(Debug, Clone, Copy)]
+enum ClosurePlace {
+    Main(usize),
+    Adjunct(usize, usize),
+}
+
+/// How many references still reach one identity once `owner` replaces `edited`.
+#[requires(true)]
+#[ensures(true)]
+fn still_reaches(
+    graph: &SemanticGraph,
+    edited: SemanticObjectId,
+    owner: &SemanticObject,
+    target: SemanticObjectId,
+) -> usize {
+    graph
+        .objects
+        .iter()
+        .map(|(id, object)| if *id == edited { owner } else { object })
+        .map(|object| {
+            let mut references = Vec::new();
+            object.references_into(&mut references);
+            references
+                .into_iter()
+                .filter(|reference| *reference == target)
+                .count()
+        })
+        .sum()
+}
+
+/// The identity one closure place names.
+#[requires(true)]
+#[ensures(graph.objects.contains_key(&ret))]
+fn closure_place_value(
+    graph: &SemanticGraph,
+    predication: SemanticObjectId,
+    place: ClosurePlace,
+) -> SemanticObjectId {
+    let node = graph.objects[&predication]
+        .as_predication()
+        .expect("a predication carries a place map");
+    let arguments = match place {
+        ClosurePlace::Main(_) => &node.arguments,
+        ClosurePlace::Adjunct(adjunct, _) => &node.adjuncts[adjunct].arguments,
+    };
+    let index = match place {
+        ClosurePlace::Main(index) | ClosurePlace::Adjunct(_, index) => index,
+    };
+    arguments[&PlaceIndex::new(index)]
+        .value
+        .expect("the place is filled")
+}
+
+/// Point one closure place at the identity another closure place already names,
+/// in one revalidation.
+///
+/// The two halves have to land together. Retargeting can leave the displaced
+/// identity unreached, and the derived-dependence invariant is total over the
+/// object map: an unreached object is its own component, which the derivation
+/// visits at empty scope. So when the edit actually strands it, the displaced
+/// identity is re-homed at the document region with a `Fixed` dependence in the
+/// same revalidation, and the graph is legal at every point a validator sees
+/// it. When some other reference still reaches it, it is left exactly as it
+/// was: re-homing an identity that is still in use would be the corruption this
+/// guards against.
+///
+/// This is model surgery, not a builder shape: the model permits one graph
+/// identity to fill two places, in one closure or across two, and the renderer
+/// has to schedule the shared computation correctly whether or not this builder
+/// ever writes that.
+#[requires(true)]
+#[ensures(ret.0.objects.len() == old(graph.objects.len()))]
+fn share_closure_places(
+    graph: SemanticGraph,
+    retained: (&str, ClosurePlace),
+    retargeted: (&str, ClosurePlace),
+) -> (SemanticGraph, SemanticObjectId) {
+    let keeper = named_predication(&graph, retained.0);
+    let target = named_predication(&graph, retargeted.0);
+    let shared = closure_place_value(&graph, keeper, retained.1);
+    let displaced = closure_place_value(&graph, target, retargeted.1);
+    let mut owner = graph.objects[&target].clone();
+    owner.update_predication(|node| match retargeted.1 {
+        ClosurePlace::Main(index) => {
+            let key = PlaceIndex::new(index);
+            let mut arguments = node.arguments.clone();
+            let argument = arguments
+                .remove(&key)
+                .expect("the retargeted place is present")
+                .with_data(data! { value: Some(shared) });
+            arguments.insert(key, argument);
+            node.with_data(data! { arguments: arguments })
+        }
+        ClosurePlace::Adjunct(adjunct, index) => {
+            let key = PlaceIndex::new(index);
+            let mut adjuncts = node.adjuncts.clone();
+            let mut arguments = adjuncts[adjunct].arguments.clone();
+            let argument = arguments
+                .remove(&key)
+                .expect("the retargeted place is present")
+                .with_data(data! { value: Some(shared) });
+            arguments.insert(key, argument);
+            adjuncts[adjunct] = adjuncts[adjunct]
+                .clone()
+                .with_data(data! { arguments: arguments });
+            node.with_data(data! { adjuncts: adjuncts })
+        }
+    });
+    let mut orphan = graph.objects[&displaced].clone();
+    orphan.update_referent(|node| {
+        node.with_data(data! { scope_dependence: Some(ScopeDependence::fixed()) })
+    });
+    let stranded = still_reaches(&graph, target, &owner, displaced) == 0;
+    let data = graph.into_data();
+    let mut objects = data.objects;
+    let root = data.scope.root;
+    let mut scope = data.scope.with_owner_reindexed(target, &owner);
+    objects.insert(target, owner);
+    if stranded {
+        scope = scope
+            .with_origin(displaced, root)
+            .with_owner_reindexed(displaced, &orphan);
+        objects.insert(displaced, orphan);
+    }
+    let graph = SemanticGraph::from_data(data!(SemanticGraph {
+        objects,
+        scope,
+        ..data
+    }));
+    (graph, displaced)
+}
+
+/// Section 5.1 rule 2 keeps a graph-shared default shared — one explicit
+/// binder for one identity — but it does not lift that binder out of rule 1's
+/// schedule: the omitted computations still "run left to right in current
+/// numbered-place order at the dynamic evaluation site of `Close`". So a
+/// default shared between x2 and x4 is bound *before* an unshared one at x3,
+/// and both stand at the closure that omits them.
+///
+/// Reaching the shared computation through the deferred declaration pass
+/// instead gets both halves wrong: it is emitted after the whole closure has
+/// been built, so the later place's binder is already inside it, and it is
+/// placed at whatever coarser position the closure has already been left for.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_shared_default_binds_at_its_first_place_in_numbered_order() {
+    let input = build_input("mi nelci lo ka ce'u klama je bajra", "shared-default-order");
+    let shared = SemanticObjectId::referent(9);
+    let unshared = SemanticObjectId::referent(10);
+    let displaced = SemanticObjectId::referent(11);
+    let last = SemanticObjectId::referent(12);
+    for id in [shared, unshared, displaced, last] {
+        assert!(
+            input.graph.objects[&id]
+                .scope_dependence()
+                .is_some_and(|dependence| dependence.may_depend_on().is_some()),
+            "each of `klama`'s omitted places records a permission",
+        );
+    }
+    // x4 now names the same identity x2 does, which is what makes that identity
+    // shared; x3 and x5 keep their own. The identity x4 used to name is left
+    // reachable from nothing, so it is re-homed at the document region, where a
+    // disconnected object's derived dependence is `Fixed`.
+    let (graph, orphaned) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(2)),
+        ("klama", ClosurePlace::Main(4)),
+    );
+    assert_eq!(orphaned, displaced);
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let applications = collect_forms_owned(&datum, "klama");
+    assert_eq!(applications.len(), 1, "{}", rendered.text);
+    let filled = form_operands(applications[0])
+        .iter()
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filled[1], filled[3],
+        "one identity fills both places:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        count_forms(&datum, "Let"),
+        0,
+        "the shared default is one `Bind`, not a declaration beside it:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        collect_bind_hosts(&datum, &filled[1]).len(),
+        1,
+        "and it is bound exactly once:\n{}",
+        rendered.text
+    );
+
+    // The conjunction is where the difference shows: a declaration placed after
+    // the closure was built stands above the whole `∧`, where the sibling
+    // conjunct — which never mentions this identity — would run inside it.
+    let conjunctions = collect_forms_owned(&datum, "∧");
+    assert_eq!(conjunctions.len(), 1, "{}", rendered.text);
+    let conjuncts = form_operands(conjunctions[0]);
+    assert_eq!(conjuncts.len(), 2, "{}", rendered.text);
+    let (binders, body) = peel_binds(&conjuncts[0]);
+    assert_eq!(body.form_head(), Some("klama"), "{}", rendered.text);
+    assert_eq!(
+        binders,
+        vec![filled[1].clone(), filled[2].clone(), filled[4].clone()],
+        "the shared default is scheduled at its first place, inside its own \
+         closure, ahead of the unshared one at the next place:\n{}",
+        rendered.text
+    );
+    assert!(
+        !contains_atom(&conjuncts[1], &filled[1]),
+        "the sibling conjunct does not use it, and is not inside its binder:\n{}",
+        rendered.text
+    );
+}
+
+/// The described selection source is semantic data: it names the plurality the
+/// candidate is drawn from, and the model states that the candidate is
+/// restricted with `memberOf(candidate, description)`. The reduction prints the
+/// restriction and nothing else for the source, which is only sound while the
+/// restriction really does contain that conjunct. Nothing in the model's
+/// invariants requires it, so the exact renderer audits it — and a restriction
+/// naming some other object leaves the recorded domain unprinted, which is a
+/// refusal rather than a document.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_selection_source_the_restriction_does_not_name_is_refused() {
+    let input = build_input("ro lo prenu cu prami", "selection-source-mismatch");
+    let described = SemanticObjectId::referent(11);
+    let elsewhere = SemanticObjectId::referent(1);
+    assert_eq!(
+        input.graph.objects[&SemanticObjectId::formula(17)]
+            .as_formula()
+            .and_then(|node| match node.as_data() {
+                data!(FormulaNode::Quantified(binding)) => binding.selection_source.clone(),
+                _ => None,
+            })
+            .map(|source| source.variable),
+        Some(described),
+        "the built graph selects from the description its restriction names",
+    );
+    // The binding keeps naming the description; the restriction stops agreeing,
+    // which is the shape the model permits and nothing else audits.
+    let graph = retarget_place(input.graph.clone(), "memberOf", 2, elsewhere);
+    let failed = project_failure(&graph);
+    assert!(
+        failure_reason_ids(&failed).contains(&"smusni.projection.quantifier-effect-export-illegal"),
+        "the uncertified domain is refused with its registered reason: {:?}",
+        failure_reason_ids(&failed)
+    );
+    assert!(
+        failed
+            .failures
+            .iter()
+            .any(|failure| failure.message.contains("selection source")),
+        "the per-edge record names the boundary that declined: {:?}",
+        failed
+            .failures
+            .iter()
+            .map(|failure| failure.message)
+            .collect::<Vec<_>>()
+    );
+}
+
+/// The same obligation, in the shape that loses the domain most quietly: a
+/// described source with no restriction at all would print a plain unrestricted
+/// quantifier, and the plurality the graph selected from would appear nowhere.
+/// Fail closed; the missing conjunct is never synthesized from the source.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_selection_source_with_no_restriction_is_refused() {
+    let input = build_input("ro lo prenu cu prami", "selection-source-unrestricted");
+    let quantifier = SemanticObjectId::formula(17);
+    let mut object = input.graph.objects[&quantifier].clone();
+    object.update_formula(|node| match node.into_data() {
+        data!(FormulaNode::Quantified(binding)) => new!(FormulaNode::Quantified(
+            binding.with_data(data! { restriction: None })
+        )),
+        data => FormulaNode::from_data(data),
+    });
+    let graph = replace_object(input.graph.clone(), quantifier, object);
+    let failed = project_failure(&graph);
+    assert!(
+        failure_reason_ids(&failed).contains(&"smusni.projection.quantifier-effect-export-illegal"),
+        "an unrestricted sourced quantifier is refused: {:?}",
+        failure_reason_ids(&failed)
+    );
+}
+
+/// Section 5.1's rule 2 places the one `Bind` a shared default gets at the
+/// dynamic evaluation site the identity's uses have in common, and a predication
+/// that also carries an adjunct has *several* `Close`s under one graph object:
+/// its own application, and one `Joi` operand per adjunct. So the graph object
+/// is not the coordinate. A default shared between two places of the
+/// application is closed by the application, and belongs inside that operand —
+/// where the sibling adjunct, which never mentions the identity, runs outside
+/// its binder.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_shared_default_of_a_joined_predication_binds_in_its_own_application() {
+    let input = build_input("mi klama ta'i lo racli", "shared-default-main-closure");
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(2)),
+        ("klama", ClosurePlace::Main(3)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    let (names, application) = peel_binds(&operands[0]);
+    assert_eq!(
+        names.len(),
+        1,
+        "the shared default binds inside the application that closes it:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        application.form_head(),
+        Some("klama"),
+        "and wraps exactly that application:\n{}",
+        rendered.text
+    );
+    let filled = form_operands(application)
+        .iter()
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filled[1..3].to_vec(),
+        vec![names[0].clone(), names[0].clone()],
+        "one identity fills both places:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        collect_bind_hosts(&datum, &names[0]).len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        count_forms(&datum, "Let"),
+        0,
+        "it is a `Bind`, not a declaration beside the junction:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        operands[1].form_head(),
+        Some("tadji"),
+        "the adjunct never mentions the identity and runs outside its binder:\n{}",
+        rendered.text
+    );
+}
+
+/// The mirror leg of the same taxonomy: a default shared between two places of
+/// one adjunct is closed by *that adjunct*, so it binds inside the adjunct's own
+/// `Joi` operand and the application runs outside it. The graph object is the
+/// same one as in the application case, which is exactly why the object cannot
+/// decide this.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_shared_default_of_one_adjunct_binds_in_that_adjunct() {
+    let input = build_input("mi klama ta'i lo racli", "shared-default-adjunct-closure");
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Adjunct(0, 2)),
+        ("klama", ClosurePlace::Adjunct(0, 3)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    assert_eq!(
+        operands[0].form_head(),
+        Some("klama"),
+        "the application never mentions the identity and runs outside its \
+         binder:\n{}",
+        rendered.text
+    );
+    let (names, adjunct) = peel_binds(&operands[1]);
+    assert_eq!(
+        names.len(),
+        1,
+        "the shared default binds inside the adjunct that closes it:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        adjunct.form_head(),
+        Some("tadji"),
+        "and wraps exactly that adjunct:\n{}",
+        rendered.text
+    );
+    let filled = form_operands(adjunct)
+        .iter()
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filled[1..3].to_vec(),
+        vec![names[0].clone(), names[0].clone()],
+        "one identity fills both of the adjunct's places:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        collect_bind_hosts(&datum, &names[0]).len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// The third leg, and the one that keeps the other two honest: a default the
+/// application and the adjunct *both* use has no single `Close` that covers it.
+/// A name bound inside the first operand would not be in scope in the second,
+/// so section 5.1's one `Bind` stands at the common dynamic site above the whole
+/// junction — which is the placement the plan computes from the graph.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_default_shared_across_two_closures_binds_above_the_junction() {
+    let input = build_input("mi klama ta'i lo racli", "shared-default-cross-closure");
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(2)),
+        ("klama", ClosurePlace::Adjunct(0, 2)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    assert_eq!(
+        operands[0].form_head(),
+        Some("klama"),
+        "neither operand may bind what the other one uses:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        operands[1].form_head(),
+        Some("tadji"),
+        "neither operand may bind what the other one uses:\n{}",
+        rendered.text
+    );
+    let shared = form_operands(&operands[0])
+        .last()
+        .and_then(Datum::as_atom)
+        .expect("the application's last place is the shared identity")
+        .to_owned();
+    assert!(
+        contains_atom(&operands[1], &shared),
+        "the adjunct uses the same identity:\n{}",
+        rendered.text
+    );
+    let hosts = collect_bind_hosts(&datum, &shared);
+    assert_eq!(
+        hosts.len(),
+        1,
+        "one identity is still one binder:\n{}",
+        rendered.text
+    );
+    let (names, hosted) = peel_binds(hosts[0]);
+    assert_eq!(
+        names,
+        vec![shared.clone()],
+        "the shared default is the only thing bound there:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        hosted.form_head(),
+        Some("Joi"),
+        "and it wraps exactly the junction, which is the site both uses have in \
+         common — not the force segment above it:\n{}",
+        rendered.text
+    );
+    let asserts = collect_forms_owned(&datum, "Assert");
+    assert_eq!(asserts.len(), 1, "{}", rendered.text);
+    assert_eq!(
+        form_operands(asserts[0])[0].form_head(),
+        Some("Bind"),
+        "the force segment stands outside the binder, not inside it:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// The same leg, in the shape that tells the graph-owned site apart from every
+/// scope above it: the joined predication is one conjunct of a `∧`, and an
+/// unrelated earlier conjunct shares its force segment.
+///
+/// A `Bind` appended to that force segment still *contains* the junction, so
+/// containment proves nothing here. What section 5.1 requires is the position
+/// the plan computed — the common dynamic site of the two `Close`s — and at that
+/// position the earlier conjunct runs before the `Context` lookup rather than
+/// inside its binder.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_cross_closure_default_binds_at_its_site_not_around_an_unrelated_sibling() {
+    let input = build_input(
+        "mi gleki gi'e klama ta'i lo racli",
+        "shared-default-cross-closure-sibling",
+    );
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(2)),
+        ("klama", ClosurePlace::Adjunct(0, 2)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let conjunctions = collect_forms_owned(&datum, "∧");
+    assert_eq!(conjunctions.len(), 1, "{}", rendered.text);
+    let conjuncts = form_operands(conjunctions[0]);
+    assert_eq!(conjuncts.len(), 2, "{}", rendered.text);
+    assert_eq!(
+        conjuncts[0].form_head(),
+        Some("gleki"),
+        "the earlier conjunct is unrelated and carries no binder of its \
+         own:\n{}",
+        rendered.text
+    );
+    let (names, junction) = peel_binds(&conjuncts[1]);
+    assert_eq!(
+        names.len(),
+        1,
+        "the shared default binds at the junction that is the plan's site:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        junction.form_head(),
+        Some("Joi"),
+        "and wraps exactly that junction:\n{}",
+        rendered.text
+    );
+    let operands = form_operands(junction);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    assert_eq!(
+        operands[0].form_head(),
+        Some("klama"),
+        "neither operand may bind what the other one uses:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        operands[1].form_head(),
+        Some("tadji"),
+        "neither operand may bind what the other one uses:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_atom(&operands[0], &names[0]) && contains_atom(&operands[1], &names[0]),
+        "both closures use the identity the binder above them introduces:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        collect_bind_hosts(&datum, &names[0]).len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert!(
+        !contains_atom(&conjuncts[1], "gleki"),
+        "and the earlier conjunct runs before the lookup, outside that \
+         binder:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// Owner matching and physical binding have to name the same effect scope.
+///
+/// The `Bind` a scheduled default emits lands at the *innermost* open scope,
+/// because that is what section 6.3 says a `Context` does. So a scheduler that
+/// searched outward for a scope owning the plan's site would accept a schedule
+/// against an outer closure and then bind inside an inner one it does not own,
+/// leaving every later use of the name outside its binder — a representable
+/// graph turned into an unbound document.
+///
+/// The shape: a `du'u` whose predication carries an adjunct — several closures,
+/// none of which closes the identity — nested inside the open closure of an
+/// outer predication that uses the same identity at a later place. The one
+/// legal host is the outer site, spanning both uses.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_shared_default_is_not_scheduled_at_a_closure_that_does_not_own_it() {
+    let input = build_input(
+        "mi djuno lo du'u mi klama ta'i lo racli",
+        "shared-default-nested-closure",
+    );
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(3)),
+        ("djuno", ClosurePlace::Main(3)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let outer = collect_forms_owned(&datum, "djuno");
+    assert_eq!(outer.len(), 1, "{}", rendered.text);
+    let shared = form_operands(outer[0])
+        .last()
+        .and_then(Datum::as_atom)
+        .expect("the outer predication's last place is the shared identity")
+        .to_owned();
+    let hosts = collect_bind_hosts(&datum, &shared);
+    assert_eq!(
+        hosts.len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_atom(hosts[0], "djuno"),
+        "and it spans the outer use, not just the inner one:\n{}",
+        rendered.text
+    );
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(
+        operands[0].form_head(),
+        Some("klama"),
+        "the inner closure does not bind an identity it does not close:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_atom(&operands[0], &shared),
+        "though it is where the identity is first used:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// The same rule inside a question body, where the answered slot's lambda is a
+/// section-6.3 host position that is not the section-5.1 evaluation site of
+/// anything. A default shared between two places of the question's own
+/// application still binds inside that application — at the first place that
+/// asks for it, ahead of the later place's unshared one — rather than being
+/// pooled at the lambda with the raised description that legitimately lives
+/// there.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_question_body_schedules_its_own_shared_default_in_numbered_order() {
+    let input = build_input("ma klama ta'i lo racli", "question-body-shared-default");
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(3)),
+        ("klama", ClosurePlace::Main(4)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let queries = collect_forms_owned(&datum, "OpenQ");
+    assert_eq!(queries.len(), 1, "{}", rendered.text);
+    let lambda = &form_operands(queries[0])[0];
+    let (hoisted, junction) = peel_binds(&form_operands(lambda)[1]);
+    assert_eq!(junction.form_head(), Some("Joi"), "{}", rendered.text);
+    let operands = form_operands(junction);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    let (names, application) = peel_binds(&operands[0]);
+    assert_eq!(application.form_head(), Some("klama"), "{}", rendered.text);
+    let filled = form_operands(application)
+        .iter()
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filled[2], filled[3],
+        "one identity fills x3 and x4:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        names,
+        vec![filled[1].clone(), filled[2].clone(), filled[4].clone()],
+        "the shared default is scheduled at the first place that asks for it, \
+         in the closure's own numbered-place order:\n{}",
+        rendered.text
+    );
+    assert!(
+        !hoisted.contains(&filled[2]),
+        "nothing about the query lambda makes it this closure's evaluation \
+         site:\n{}",
+        rendered.text
+    );
+    let (adjunct_names, adjunct) = peel_binds(&operands[1]);
+    assert_eq!(adjunct.form_head(), Some("tadji"), "{}", rendered.text);
+    assert_eq!(
+        adjunct_names.len(),
+        2,
+        "the adjunct keeps closing its own two defaults:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
 }

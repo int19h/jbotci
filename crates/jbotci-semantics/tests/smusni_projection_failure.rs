@@ -128,13 +128,13 @@ fn an_unregistered_relation_reduction_is_renderer_backlog() {
 #[requires(true)]
 #[ensures(true)]
 fn an_unlicensed_higher_order_crossing_is_renderer_backlog() {
-    // A defined zei-lujvo description reaches the higher-order crossing
-    // boundary. That reason's population is dominated by section-11 designed
-    // crossings — an ordinary `lo ka ce'u ...` property reaches it too — so the
-    // reason is renderer backlog, not a claim that version 0 cannot express the
-    // construction. If the zei-description subcase later proves genuinely
-    // unrouted it earns its own reason id under section 14.2's split rule.
-    let graph = graph_of("lo abu zei sance cu barda");
+    // A `ce'u` standing inside a proposition rather than a property reaches the
+    // higher-order crossing boundary: section 11.1 gives the parameter to `ka`,
+    // and `du'u` has no parameter list to bind it, so no route consumes the
+    // parameter as a value. That reason is renderer backlog, not a claim that
+    // version 0 cannot express the construction — the crossing itself is
+    // designed in section 11 and `lo ka ce'u ...` takes it.
+    let graph = graph_of("mi djuno lo du'u ce'u klama");
     let failed = failed_projection(&graph);
     let crossing = failed
         .failures

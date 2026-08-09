@@ -143,8 +143,8 @@ struct ReferenceBinding {
 
 /// One position section 6.3 admits as the host of a raised `Bind`.
 ///
-/// Raising ascends outwards until it meets a frame it may not leave. Two kinds
-/// of frame stop it, and the difference is exactly the specification's: a
+/// Raising ascends outwards until it meets a frame it may not leave. Three
+/// kinds of frame exist, and the difference is exactly the specification's: a
 /// `barrier` stops every computation — a performed force segment, a
 /// reification, an opaque boundary, or the reference computation a nested one
 /// runs inside per section 8.3 — while a binder frame stops only a computation
@@ -152,12 +152,30 @@ struct ReferenceBinding {
 /// lambda-dependency boundary. Everything the elaborator renders between two
 /// frames is a transparent shell, so a computation with no dependency in scope
 /// raises straight through it.
+///
+/// A `closure` frame stops nothing at all. It is not a raising boundary but an
+/// *effect scope*: section 5.1 runs each omitted computation "at the dynamic
+/// evaluation site of `Close`", left to right in numbered-place order and local
+/// to that closure, so every `Close` is its own host position for the
+/// computations it closes. A `Refer` that raises is unaffected — it passes
+/// straight through — which is why this is a third kind rather than a binder
+/// frame with an empty list.
+///
+/// A `placement` frame stops nothing either. It is the position one graph
+/// object's rendered value occupies, which is where the declaration plan put
+/// the identities it sited there — so a planned declaration whose value binds
+/// itself rather than declaring itself has a host of its own instead of falling
+/// back on whatever coarser scope is still open.
 #[invariant(::Barrier => true, "a barrier stops every computation and carries no binder list")]
 #[invariant(::Binders(_) => true, "any binder set is a legal lambda-dependency boundary")]
+#[invariant(::Closure => true, "a closure scope is transparent to every raise")]
+#[invariant(::Placement => true, "a placement position is transparent to every raise")]
 #[derive(Debug)]
 enum HostFrameKind {
     Barrier,
     Binders(BTreeSet<SemanticObjectId>),
+    Closure,
+    Placement,
 }
 
 impl HostFrameKind {
@@ -168,8 +186,30 @@ impl HostFrameKind {
         match self {
             Self::Barrier => true,
             Self::Binders(binders) => !binders.is_disjoint(dependencies),
+            Self::Closure | Self::Placement => false,
         }
     }
+}
+
+/// Which `Close` of one graph object an effect scope is.
+///
+/// Section 5.1's evaluation site is a closure, and one graph object renders as
+/// several: a predication is its own application plus one `Joi` operand per
+/// adjunct, and each of those is its own `Close`. The plan's placement
+/// coordinate is coarser than that — [`ReferencePlan::definition_site`] names
+/// the containing *object* — so a shared default's schedule cannot be decided
+/// on the object alone. Shared twice in the application, shared twice inside
+/// one adjunct, and shared across the two are three different hosts: the first
+/// two bind inside their own closure at the place that asks first, and only the
+/// third has to stand at the common site above both.
+#[invariant(::Main(_) => true, "an object's own application is one closure")]
+#[invariant(::Adjunct(_, _) => true, "each adjunct is a `Joi` operand and so a closure of its own")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClosureSite {
+    /// The object's own relation applied to its numbered places.
+    Main(SemanticObjectId),
+    /// One adjunct of that object, named by its position in the adjunct list.
+    Adjunct(SemanticObjectId, usize),
 }
 
 #[invariant(
@@ -179,6 +219,13 @@ impl HostFrameKind {
 #[derive(Debug)]
 struct HostFrame {
     kind: HostFrameKind,
+    /// The `Close` this scope is the whole of, when it is one the notation can
+    /// name. Only a closure scope carries one: section 5.1's rule 2 places a
+    /// graph-shared default at the closure whose own places share it, and
+    /// matching that closure against an open scope is what lets the shared
+    /// `Bind` be scheduled with the closure's own numbered-place walk instead
+    /// of appended after it.
+    owner: Option<ClosureSite>,
     /// The lexical binders live at this position, so a computation placed here
     /// can be checked against the names its computation actually uses.
     live: BTreeSet<SemanticObjectId>,
@@ -335,6 +382,26 @@ impl Elaborated {
         }
     }
 
+    /// Whether this category has a binding form of its own.
+    ///
+    /// Sections 2.2 and 3.1 give a query, act, discourse or transcript entry no
+    /// `Bind`, exactly as they give it no `Let`, so a computation planned at a
+    /// position one of those occupies has nowhere to stand.
+    #[requires(true)]
+    #[ensures(true)]
+    fn hosts_reference_bindings(&self) -> bool {
+        match self {
+            Self::Performable(_)
+            | Self::Operand(
+                Operand::Value(_)
+                | Operand::Content(_)
+                | Operand::Predicate(_)
+                | Operand::Function(_),
+            ) => true,
+            Self::Operand(_) => false,
+        }
+    }
+
     /// Read this value as a performable, crossing an act or discourse operand
     /// onto the implicit performance spine.
     #[requires(true)]
@@ -438,6 +505,13 @@ pub(super) enum CompactFallbackCause {
     UnrecognizedConnective,
     QuantifierVariableFields,
     QuantifierFields,
+    /// A described `selectionSource` the restriction does not certify. The
+    /// model states that a described domain restricts the candidate with
+    /// `memberOf(candidate, description)`, but nothing in the model's
+    /// invariants makes the two agree, so the exact renderer audits the
+    /// correspondence and fails closed rather than printing a quantifier whose
+    /// domain has quietly disappeared.
+    SelectionSourceUncertified,
     RespectivelySlotFields,
     PredicationSideFields,
     PredicationModeUnrepresentable,
@@ -451,6 +525,11 @@ pub(super) enum CompactFallbackCause {
     /// determine no legal host for a dynamic computation, because no open
     /// position has every binder it depends on live.
     DynamicHostIllegal,
+    /// The same closing rule reached from the other side: the plan sited a
+    /// dynamic computation at one object, and that object's own category has no
+    /// binding form to write it at. Hosting it at some enclosing scope instead
+    /// would place it where the plan did not, so the site is refused.
+    PlacedHostWithoutBindingForm,
     ReferentFields,
     UnboundGeneratedEvent,
     UnrepresentableRecursiveValue,
@@ -500,7 +579,9 @@ impl CompactFallbackCause {
             | Self::NonAtomicRelation => {
                 "smusni.projection.relation-reduction-unregistered-or-inexact"
             }
-            Self::QuantifierVariableFields | Self::QuantifierFields => {
+            Self::QuantifierVariableFields
+            | Self::QuantifierFields
+            | Self::SelectionSourceUncertified => {
                 "smusni.projection.quantifier-effect-export-illegal"
             }
             Self::RespectivelySlotFields => "smusni.projection.simultaneous-termset-unlicensed",
@@ -512,7 +593,9 @@ impl CompactFallbackCause {
             Self::ConstantWithoutDependence | Self::ReferentFields => {
                 "smusni.projection.reference-description-unrepresentable"
             }
-            Self::DynamicHostIllegal => "smusni.projection.scope-dependency-without-binder",
+            Self::DynamicHostIllegal | Self::PlacedHostWithoutBindingForm => {
+                "smusni.projection.scope-dependency-without-binder"
+            }
             Self::UnboundGeneratedEvent => "smusni.projection.generated-eventuality-unbound",
             Self::UnrepresentableRecursiveValue => {
                 "smusni.projection.unguarded-or-unrepresentable-scc"
@@ -570,6 +653,9 @@ impl CompactFallbackCause {
                 "the quantifier's bound-variable fields have no compact representation"
             }
             Self::QuantifierFields => "the quantifier shape is not a registered compact reduction",
+            Self::SelectionSourceUncertified => {
+                "the restriction does not state the described selection source's membership"
+            }
             Self::RespectivelySlotFields => {
                 "simultaneous termset slots are not licensed by version 0"
             }
@@ -595,6 +681,9 @@ impl CompactFallbackCause {
             }
             Self::DynamicHostIllegal => {
                 "no legal host has every binder this dynamic computation depends on"
+            }
+            Self::PlacedHostWithoutBindingForm => {
+                "the site this dynamic computation was placed at has no binding form"
             }
             Self::ReferentFields => {
                 "these reference or description fields have no compact projection"
@@ -706,6 +795,40 @@ where
     })
 }
 
+/// Bind one placement site's hosted computations over the value that stands
+/// there, in that value's own category.
+///
+/// The categories are exactly the ones [`HostedGroup::wrap`] declares: a query,
+/// act, discourse or transcript entry has no binding form at all, and reports
+/// so rather than letting the computation drift to a position the plan did not
+/// name.
+#[requires(!bindings.is_empty())]
+#[ensures(true)]
+fn bind_at_site(bindings: Vec<ReferenceBinding>, body: Elaborated) -> Option<Elaborated> {
+    match body {
+        Elaborated::Performable(body) => {
+            wrap_reference_bindings(bindings, body, Performable::Bind).map(Elaborated::Performable)
+        }
+        Elaborated::Operand(Operand::Value(body)) => {
+            wrap_reference_bindings(bindings, body, Value::bind_form)
+                .map(|value| Elaborated::Operand(Operand::Value(value)))
+        }
+        Elaborated::Operand(Operand::Content(body)) => {
+            wrap_reference_bindings(bindings, body, Content::bind_form)
+                .map(|content| Elaborated::Operand(Operand::Content(content)))
+        }
+        Elaborated::Operand(Operand::Predicate(body)) => {
+            wrap_reference_bindings(bindings, body, PredTerm::bind_form)
+                .map(|term| Elaborated::Operand(Operand::Predicate(term)))
+        }
+        Elaborated::Operand(Operand::Function(body)) => {
+            wrap_reference_bindings(bindings, body, FnValue::bind_form)
+                .map(|callable| Elaborated::Operand(Operand::Function(callable)))
+        }
+        Elaborated::Operand(_) => None,
+    }
+}
+
 /// Why one place map produced no ordered fills.
 ///
 /// The two cases take different routes: a map this notation cannot represent is
@@ -769,6 +892,21 @@ fn deleted_places(arguments: &BTreeMap<PlaceIndex, ArgumentValue>) -> BTreeSet<P
         .filter(|(_, argument)| argument.kind == ArgumentValueKind::Deleted)
         .map(|(place, _)| *place)
         .collect()
+}
+
+/// How many places of one argument map are filled by exactly this identity.
+///
+/// Only the filled value counts. A place that names the identity some other
+/// way — a quantity, a relative clause — is an occurrence this count does not
+/// see, and the caller compares against the plan's own use count precisely so
+/// that such a place makes the closure unnameable rather than miscounted.
+#[requires(true)]
+#[ensures(ret <= arguments.len())]
+fn fills_naming(arguments: &BTreeMap<PlaceIndex, ArgumentValue>, id: SemanticObjectId) -> usize {
+    arguments
+        .values()
+        .filter(|argument| argument.value == Some(id))
+        .count()
 }
 
 /// The ordinary referential type an unfilled or deleted place accepts.
@@ -935,6 +1073,11 @@ struct Elaborator<'a> {
     discharged_restrictions: BTreeMap<SemanticObjectId, SemanticObjectId>,
     needed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
     placed_definitions: RefCell<BTreeSet<SemanticObjectId>>,
+    /// Shared section-5.1 defaults already scheduled inside their own closure's
+    /// effect scope. A second use of one of these names the binder the first
+    /// use scheduled rather than asking for a declaration that is no longer
+    /// coming.
+    scheduled_defaults: RefCell<BTreeSet<SemanticObjectId>>,
     reference_binding_frames: RefCell<Vec<HostFrame>>,
     counters: ElaborationCounters,
 }
@@ -1093,6 +1236,7 @@ pub(super) fn elaborate_compact(
         discharged_restrictions: projected.discharged_restrictions.clone(),
         needed_definitions: RefCell::new(BTreeSet::new()),
         placed_definitions: RefCell::new(BTreeSet::new()),
+        scheduled_defaults: RefCell::new(BTreeSet::new()),
         reference_binding_frames: RefCell::new(Vec::new()),
         counters: ElaborationCounters::default(),
     };
@@ -1198,13 +1342,40 @@ impl Elaborator<'_> {
             .borrow_mut()
             .extend(definitions.iter().copied());
         let blocks = self.definition_blocks(&definitions);
-        // Declining here is still a per-object failure, so the loop keeps the
-        // exact identity that could not be typed rather than reporting the
-        // whole declaration group.
-        let mut typed_blocks = Vec::with_capacity(blocks.len());
-        for block in &blocks {
-            let mut typed = Vec::with_capacity(block.members.len());
-            for id in block.members.iter().copied() {
+        // An identity the value renderer hosts with its own `Bind` is already
+        // declared by that binder: section 6.3's dynamic host *is* its
+        // declaration site, and a `Let` beside it would introduce the same name
+        // twice. Such a rendering returns exactly a use of the name it bound,
+        // which is what identifies it here.
+        let rendered = blocks
+            .iter()
+            .map(|block| {
+                block
+                    .members
+                    .iter()
+                    .copied()
+                    .map(|id| {
+                        let value = self
+                            .render_object(id, bound, active, AcceptedModes::Unlicensed)
+                            .and_then(Elaborated::into_operand);
+                        (id, value)
+                    })
+                    .filter(|(id, value)| !value_is_own_binder_use(*id, value.as_ref()))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        // Only a declaration that survives to become a `Let` needs a type the
+        // notation can spell. Placement and declaration are separate decisions:
+        // the plan says *where* a shared identity is rendered, and a reference
+        // computation rendered there declares itself, so demanding a
+        // `Let`-bindable type of it would refuse the whole document over a
+        // binding that is never written. Declining is still a per-object
+        // failure, so the loop keeps the exact identity that could not be typed
+        // rather than reporting the whole declaration group.
+        let mut typed_blocks = Vec::with_capacity(rendered.len());
+        for bindings in rendered {
+            let mut typed = Vec::with_capacity(bindings.len());
+            for (id, value) in bindings {
                 let Some(declared_type) = definition_type_expr(&self.graph.objects[&id]) else {
                     self.record_object_fallback(
                         id,
@@ -1212,39 +1383,11 @@ impl Elaborator<'_> {
                     );
                     return None;
                 };
-                typed.push((id, declared_type));
+                typed.push((id, declared_type, value));
             }
             typed_blocks.push(typed);
         }
-        let rendered = typed_blocks
-            .into_iter()
-            .map(|typed| {
-                typed
-                    .into_iter()
-                    .map(|(id, declared_type)| {
-                        let value = self
-                            .render_object(id, bound, active, AcceptedModes::Unlicensed)
-                            .and_then(Elaborated::into_operand);
-                        (id, declared_type, value)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        // An identity the value renderer hosts with its own `Bind` is already
-        // declared by that binder: section 6.3's dynamic host *is* its
-        // declaration site, and a `Let` beside it would introduce the same name
-        // twice. Such a rendering returns exactly a use of the name it bound,
-        // which is what identifies it here.
-        let rendered = rendered
-            .into_iter()
-            .map(|bindings| {
-                bindings
-                    .into_iter()
-                    .filter(|(id, _, value)| !value_is_own_binder_use(*id, value.as_ref()))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        for (block, bindings) in blocks.iter().zip(&rendered) {
+        for (block, bindings) in blocks.iter().zip(&typed_blocks) {
             // Only a genuinely cyclic block is a `LetRec`, so only a cyclic
             // block's initializers have to be inert lambdas. An acyclic
             // neighbour that happens to share this host is an ordinary
@@ -1264,7 +1407,7 @@ impl Elaborator<'_> {
         // The first block is the outermost binder, so the blocks are applied
         // from the innermost outwards over the body they all wrap.
         let mut wrapped = body?;
-        for (block, bindings) in blocks.into_iter().zip(rendered).rev() {
+        for (block, bindings) in blocks.into_iter().zip(typed_blocks).rev() {
             if bindings.is_empty() {
                 continue;
             }
@@ -1320,9 +1463,40 @@ impl Elaborator<'_> {
     fn open_host_frame(&self, kind: HostFrameKind, live: &Bound) {
         self.reference_binding_frames.borrow_mut().push(HostFrame {
             kind,
+            owner: None,
             live: live.keys().copied().collect(),
             bindings: Vec::new(),
         });
+    }
+
+    /// Open the effect scope of one `Close`.
+    ///
+    /// Section 5.1: the computations this closure omits run at the dynamic
+    /// evaluation site of *this* `Close`, in current numbered-place order, and
+    /// stay local to it unless graph identity has shared them. So a closure is
+    /// its own host position — one per conjunct of a `∧`, one per operand of a
+    /// `Joi`, one per closure in a question body — rather than a contributor to
+    /// whatever lambda or force segment happens to enclose it.
+    #[requires(true)]
+    #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) + 1)]
+    fn open_closure_scope(&self, owner: Option<ClosureSite>, live: &Bound) {
+        self.reference_binding_frames.borrow_mut().push(HostFrame {
+            kind: HostFrameKind::Closure,
+            owner,
+            live: live.keys().copied().collect(),
+            bindings: Vec::new(),
+        });
+    }
+
+    /// Close one effect scope over the content it was opened for.
+    ///
+    /// The scope is always closed, whether or not the closure rendered: a
+    /// declining route still has to leave the frame stack as it found it.
+    #[requires(!self.reference_binding_frames.borrow().is_empty())]
+    #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) - 1)]
+    fn close_closure_scope(&self, closed: Option<Content>) -> Option<Content> {
+        let hosted = self.close_host_frame();
+        wrap_reference_bindings(hosted, closed?, Content::bind_form)
     }
 
     /// Close the innermost host position and take what it hosts.
@@ -1536,6 +1710,9 @@ impl Elaborator<'_> {
             return Some(Elaborated::Operand(bound_use(id, declaration)));
         }
         if self.definitions.contains(&id) {
+            if let Some(scheduled) = self.schedule_shared_default(id, bound, active) {
+                return Some(scheduled);
+            }
             self.needed_definitions.borrow_mut().insert(id);
             // The declaration this use resolves to is placed by
             // `wrap_definitions`, which is also where an identity whose type the
@@ -1547,6 +1724,134 @@ impl Elaborator<'_> {
             )));
         }
         self.render_object(id, bound, active, modes)
+    }
+
+    /// Schedule one graph-shared section-5.1 default inside the closure that
+    /// owns it, at the place that uses it first.
+    ///
+    /// Section 5.1's rule 2 keeps a shared default shared — one explicit `Bind`
+    /// for one graph identity — but it does not exempt that `Bind` from rule
+    /// 1's schedule: the omitted computations still "run left to right in
+    /// current numbered-place order at the dynamic evaluation site of `Close`".
+    /// Reaching the shared computation only through the deferred declaration
+    /// pass breaks both halves of that: the declaration is emitted after the
+    /// whole closure has been built, so an unshared default discovered at a
+    /// *later* place is already bound inside it, and the closure's own scope
+    /// has been left, so the `Bind` lands at a coarser lambda or force
+    /// position. Rendering it here instead binds it at the first place that
+    /// asks for it, in the scope that place is being rendered in.
+    ///
+    /// Only a default whose every use is a place of one single closure is
+    /// eligible, which is what keeps the shared name in scope at every use. A
+    /// default shared across two closures of one object — the main application
+    /// and an adjunct, or two adjuncts — has no such closure, and section 5.1's
+    /// rule 2 puts its one `Bind` at the common dynamic site above both, which
+    /// is the declaration placement the plan already computed.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn schedule_shared_default(
+        &self,
+        id: SemanticObjectId,
+        bound: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Option<Elaborated> {
+        if !self.scheduled_defaults.borrow().contains(&id) {
+            if !self.is_shared_closure_default(id) {
+                return None;
+            }
+            let closure = self.shared_default_closure(id)?;
+            // The scope that owns the schedule and the scope the `Bind` lands
+            // in have to be the same one. Rendering hosts a contextual constant
+            // at the *innermost* open scope, so an outward search that skipped
+            // an intervening closure would schedule against one effect scope
+            // and bind inside another, leaving every later use of the name
+            // outside its binder.
+            let innermost = self
+                .reference_binding_frames
+                .borrow()
+                .last()
+                .and_then(|frame| frame.owner);
+            if innermost != Some(closure) {
+                return None;
+            }
+            // The rendering itself is what appends the `Bind`: a contextual
+            // constant hosts its own computation at the innermost open scope,
+            // which is the closure this use stands in.
+            let value = self.render_object(id, bound, active, AcceptedModes::Unlicensed)?;
+            self.scheduled_defaults.borrow_mut().insert(id);
+            self.placed_definitions.borrow_mut().insert(id);
+            return Some(value);
+        }
+        let declared_type = definition_use_type(&self.graph.objects[&id])?;
+        Some(Elaborated::Operand(bound_use(
+            id,
+            &BoundValue::Value(declared_type),
+        )))
+    }
+
+    /// The one `Close` whose own numbered places share this default, when the
+    /// graph names one.
+    ///
+    /// The plan places a shared identity at the object that contains every use
+    /// of it, and that object may render as several closures. So the closure is
+    /// read off the object's own place maps: the application's places are one
+    /// `Close`, each adjunct's are another. One closure holding every use is a
+    /// closure that can schedule the default itself; two are the cross-closure
+    /// case, where a name bound inside the first would not be in scope in the
+    /// second and the common site above both is the only legal host.
+    ///
+    /// Deliberately narrow in the other direction too: every use has to be a
+    /// place of the site object itself. A use reached *through* some further
+    /// object stands in whatever closure renders that object, which this
+    /// coordinate cannot name, so such a default keeps its planned declaration.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn shared_default_closure(&self, id: SemanticObjectId) -> Option<ClosureSite> {
+        let site = self.plan.definition_site(id)?;
+        if self
+            .plan
+            .uses_of(id)
+            .is_none_or(|uses| uses.len() != 1 || !uses.contains(&site))
+        {
+            return None;
+        }
+        let node = self.graph.objects[&site].as_predication()?;
+        let mut closures = Vec::new();
+        let main = fills_naming(&node.arguments, id) + usize::from(node.eventuality == Some(id));
+        if main > 0 {
+            closures.push((ClosureSite::Main(site), main));
+        }
+        for (index, adjunct) in node.adjuncts.iter().enumerate() {
+            let places = fills_naming(&adjunct.arguments, id);
+            if places > 0 {
+                closures.push((ClosureSite::Adjunct(site, index), places));
+            }
+        }
+        // Exactly one closure, and it accounts for every use the plan counted:
+        // an occurrence this walk did not see is one whose closure it cannot
+        // name, and guessing at it is what would bind a name out of scope.
+        let [(closure, places)] = closures[..] else {
+            return None;
+        };
+        (places == self.plan.use_count(id)).then_some(closure)
+    }
+
+    /// Whether one shared definition is a section-5.1 contextual default rather
+    /// than an ordinary shared value.
+    ///
+    /// Only the default has a computation the closure schedules; every other
+    /// shared identity is a value whose placement the declaration pass owns.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn is_shared_closure_default(&self, id: SemanticObjectId) -> bool {
+        if self.projected_descriptions.contains(&id) {
+            return false;
+        }
+        self.graph.objects[&id].as_referent().is_some_and(|node| {
+            default_elided_shape(node)
+                && node.scope_dependence.is_some()
+                && self.graph.objects[&id].diagnostics().is_empty()
+        })
     }
 
     /// Dispatch one graph object through exact typed recognizers.
@@ -1615,8 +1920,71 @@ impl Elaborator<'_> {
                     && self.needed_definitions.borrow().contains(definition)
                     && self.plan.definition_site(*definition) == Some(id)
             })
-            .collect();
-        self.wrap_definitions(definitions, value, bound, active)
+            .collect::<BTreeSet<_>>();
+        self.place_definitions(id, definitions, value, bound, active)
+    }
+
+    /// Place the declarations the plan sited at one object, at that object's own
+    /// position.
+    ///
+    /// The plan's placement coordinate is a graph object, and the position that
+    /// object's rendered value occupies is a physical one this renderer owns:
+    /// the wrapper it is about to build around that value. So the site is a host
+    /// position, and a planned declaration whose value hosts its own computation
+    /// — section 5.1's shared default, which is *bound* from `(Context ...)`
+    /// rather than declared with a `Let` — belongs at it. Section 6.3 keeps that
+    /// computation at its represented evaluation site, and for an identity no
+    /// single closure closes, the site the graph determines is exactly the one
+    /// the plan computed: the common position of every use. Without this frame
+    /// the `Bind` would be appended to whichever force segment or lambda region
+    /// is still open above the site, running the lookup ahead of content the
+    /// site stands after and wrapping unrelated siblings in its binder.
+    ///
+    /// Only where the renderer already owns a host region: outside every force
+    /// segment there is no host position at all — which is a placement failure
+    /// of whatever could not place the enclosing value, not section 6.3's
+    /// legality question — and opening one here would invent it.
+    ///
+    /// A site whose own category has no binding form is refused rather than
+    /// hosted elsewhere. Sections 2.2 and 3.1 give a query, act, discourse or
+    /// transcript entry no `Bind` of its own, so at such a site the plan's
+    /// position is one nothing can be written at, and the rules and the graph
+    /// together determine no host — the same closing clause of section 6.3 that
+    /// an unlive dependency reaches, with a message of its own.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[requires(definitions.is_subset(&self.definitions))]
+    #[ensures(true)]
+    fn place_definitions(
+        &self,
+        id: SemanticObjectId,
+        definitions: BTreeSet<SemanticObjectId>,
+        value: Option<Elaborated>,
+        bound: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Option<Elaborated> {
+        if definitions.is_empty() || self.reference_binding_frames.borrow().is_empty() {
+            return self.wrap_definitions(definitions, value, bound, active);
+        }
+        self.open_host_frame(HostFrameKind::Placement, bound);
+        let wrapped = self.wrap_definitions(definitions, value, bound, active);
+        let hosted = self.close_host_frame();
+        let wrapped = wrapped?;
+        if hosted.is_empty() {
+            return Some(wrapped);
+        }
+        if !wrapped.hosts_reference_bindings() {
+            self.record_object_fallback(id, CompactFallbackCause::PlacedHostWithoutBindingForm);
+            return None;
+        }
+        let Some(bound_at_site) = bind_at_site(hosted, wrapped) else {
+            // The category was proved to have a binding form, so a rejection
+            // here is this renderer failing to construct one. Every boundary
+            // below this object was already reached by the render that
+            // succeeded, so only the new edge is recorded.
+            self.record_object_fallback(id, CompactFallbackCause::TypedConstructionRejected);
+            return None;
+        };
+        Some(bound_at_site)
     }
 
     /// Decline one object at a named boundary, having reached every boundary
@@ -2085,10 +2453,7 @@ impl Elaborator<'_> {
                 let ordinary_exists =
                     node.operator == FormulaOperator::Exists && node.quantity.is_none();
                 // A witness-set selection re-quantifies an established variable
-                // and has no registered compact reduction. A described domain
-                // is different: it only names the object the binding's own
-                // `memberOf` restriction already reaches, so the reduction is
-                // the ordinary one and the record adds no printing obligation.
+                // and has no registered compact reduction.
                 if node.source_variable.is_some()
                     || node
                         .selection_source
@@ -2101,6 +2466,31 @@ impl Elaborator<'_> {
                         bound,
                         active,
                         CompactFallbackCause::QuantifierFields,
+                    );
+                }
+                // A described domain adds no printing obligation of its own
+                // only because the binding's own restriction already names it:
+                // the model says a described source restricts the candidate
+                // with `memberOf(candidate, description)`, and the reduction
+                // renders that restriction. Nothing in the model's invariants
+                // makes the two agree, though, so this is where the exact
+                // renderer certifies the correspondence — and refuses when it
+                // does not hold, rather than dropping the domain silently or
+                // manufacturing the conjunct the graph did not write. A source
+                // with no restriction at all is the same failure: the domain
+                // would simply not be printed.
+                if let Some(source) = node.selection_source.as_ref()
+                    && !self.restriction_states_membership(
+                        node.restriction,
+                        node.variable,
+                        source.variable,
+                    )
+                {
+                    return self.fallback_object(
+                        id,
+                        bound,
+                        active,
+                        CompactFallbackCause::SelectionSourceUncertified,
                     );
                 }
                 let quantified = match restriction {
@@ -2146,6 +2536,83 @@ impl Elaborator<'_> {
                 self.fallback_object(id, bound, active, CompactFallbackCause::QuantifierFields)
             }
         }
+    }
+
+    /// Whether one quantifier's restriction states the membership its described
+    /// selection source claims.
+    ///
+    /// The certified shape is the one the builder writes and the one section
+    /// 9.2 describes: a `memberOf` conjunct over exactly this candidate and
+    /// exactly this source, reached through the conjunction the restriction is
+    /// built as. Every other conjunct is independently licensed content and is
+    /// left alone — this proves a conjunct is *present*, never that it is the
+    /// only one — and a restriction that is absent, or that names some other
+    /// plurality, certifies nothing.
+    #[requires(true)]
+    #[ensures(true)]
+    fn restriction_states_membership(
+        &self,
+        restriction: Option<SemanticObjectId>,
+        candidate: SemanticObjectId,
+        source: SemanticObjectId,
+    ) -> bool {
+        let Some(restriction) = restriction else {
+            return false;
+        };
+        let mut visited = BTreeSet::new();
+        let mut pending = vec![restriction];
+        while let Some(formula) = pending.pop() {
+            if !visited.insert(formula) || !self.graph.objects.contains_key(&formula) {
+                continue;
+            }
+            let Some(node) = self.graph.objects[&formula].as_formula() else {
+                continue;
+            };
+            match node.as_data() {
+                data!(FormulaNode::Atom(atom)) => {
+                    if self.predication_states_membership(atom.predication, candidate, source) {
+                        return true;
+                    }
+                }
+                // Only conjunction distributes: a conjunct of the restriction
+                // is asserted of every candidate the domain keeps, which is
+                // what makes the membership claim the domain itself. A branch
+                // of a disjunction or the operand of a negation is not.
+                data!(FormulaNode::Connective(connective))
+                    if connective.operator == FormulaOperator::And =>
+                {
+                    pending.extend(connective.children.iter().copied());
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// Whether one predication is exactly `memberOf(candidate, source)`.
+    #[requires(true)]
+    #[ensures(true)]
+    fn predication_states_membership(
+        &self,
+        predication: SemanticObjectId,
+        candidate: SemanticObjectId,
+        source: SemanticObjectId,
+    ) -> bool {
+        let Some(node) = self
+            .graph
+            .objects
+            .get(&predication)
+            .and_then(|object| object.as_predication())
+        else {
+            return false;
+        };
+        let data!(PredicationRelation::Named { relation }) = node.relation.as_data() else {
+            return false;
+        };
+        relation == "memberOf"
+            && node.arguments.len() == 2
+            && plain_argument_value(&node.arguments, 1) == Some(candidate)
+            && plain_argument_value(&node.arguments, 2) == Some(source)
     }
 
     /// Extend a rendering environment with the events a formula generates.
@@ -2320,14 +2787,26 @@ impl Elaborator<'_> {
                 LexicalRoot::try_new(head_relation).ok()?,
             )),
         };
-        let application = self
+        // The projected `Tanru` application is one `Close` like any other, so it
+        // owns the section-5.1 effect scope of the places it omits.
+        self.open_closure_scope(Some(ClosureSite::Main(head_atom.predication)), bound);
+        let closed = self
             .render_argument_map(former, &head.arguments, bound, active, head.eventuality)
-            .ok()?;
-        let mut conjuncts = vec![Content::close(application).ok()?];
+            .ok()
+            .and_then(|application| Content::close(application).ok());
+        let mut conjuncts = vec![self.close_closure_scope(closed)?];
         conjuncts.extend(
             head.adjuncts
                 .iter()
-                .map(|adjunct| self.render_modal(adjunct, bound, active))
+                .enumerate()
+                .map(|(index, adjunct)| {
+                    self.render_modal(
+                        ClosureSite::Adjunct(head_atom.predication, index),
+                        adjunct,
+                        bound,
+                        active,
+                    )
+                })
                 .collect::<Option<Vec<_>>>()?,
         );
         let value = if conjuncts.len() == 1 {
@@ -2509,16 +2988,36 @@ impl Elaborator<'_> {
                 CompactFallbackCause::PredicationSideFields,
             );
         }
+        if matches!(
+            node.relation.as_data(),
+            data!(PredicationRelation::Composition)
+        ) {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::CompositionPredication,
+            );
+        }
+        if let data!(PredicationRelation::Named { relation }) = node.relation.as_data()
+            && LexicalRoot::try_new(relation).is_err()
+        {
+            return self.fallback_object(
+                id,
+                bound,
+                active,
+                CompactFallbackCause::NonAtomicRelation,
+            );
+        }
+        // Section 5.1's evaluation site. Everything the place walk below omits
+        // is computed here, in this closure, in numbered-place order — not
+        // pooled at the enclosing lambda or force segment, where a later
+        // conjunct's lookup would run before the earlier conjunct it is
+        // supposed to see the dynamic context of.
+        self.open_closure_scope(Some(ClosureSite::Main(id)), bound);
         let application = match node.relation.as_data() {
             data!(PredicationRelation::Named { relation }) => {
-                let Ok(root) = LexicalRoot::try_new(relation) else {
-                    return self.fallback_object(
-                        id,
-                        bound,
-                        active,
-                        CompactFallbackCause::NonAtomicRelation,
-                    );
-                };
+                let root = LexicalRoot::try_new(relation).expect("the atomic spelling is proved");
                 self.render_argument_map(
                     RelationRef::Lexical(root),
                     &node.arguments,
@@ -2550,25 +3049,27 @@ impl Elaborator<'_> {
                 }
             }
             data!(PredicationRelation::Composition) => {
-                return self.fallback_object(
-                    id,
-                    bound,
-                    active,
-                    CompactFallbackCause::CompositionPredication,
-                );
+                unreachable!("a composition predication declined before its scope was opened")
             }
         };
-        let application = match application {
-            Ok(application) => application,
+        // The scope is closed before any decline is reported, so a route that
+        // gives up still leaves the frame stack as it found it.
+        let (closed, failure) = match application {
+            Ok(application) => (Content::close(application).ok(), None),
+            Err(failure) => (None, Some(failure)),
+        };
+        let closed = self.close_closure_scope(closed);
+        match failure {
+            None => {}
             // A value that declined at its own boundary has already said so;
             // reporting the place map as well would attribute one failure
             // twice. The rest of this predication still has boundaries of its
             // own — its adjuncts and its event — so they are still reached.
-            Err(FillFailure::ValueDeclined) => {
+            Some(FillFailure::ValueDeclined) => {
                 self.record_declined_children(id, bound, active);
                 return None;
             }
-            Err(FillFailure::Unrepresentable) => {
+            Some(FillFailure::Unrepresentable) => {
                 return self.fallback_object(
                     id,
                     bound,
@@ -2576,8 +3077,8 @@ impl Elaborator<'_> {
                     CompactFallbackCause::ArgumentFields,
                 );
             }
-        };
-        let Ok(closed) = Content::close(application) else {
+        }
+        let Some(closed) = closed else {
             return self.fallback_object(
                 id,
                 bound,
@@ -2586,8 +3087,10 @@ impl Elaborator<'_> {
             );
         };
         let mut conjuncts = vec![closed];
-        for adjunct in &node.adjuncts {
-            let Some(modal) = self.render_modal(adjunct, bound, active) else {
+        for (index, adjunct) in node.adjuncts.iter().enumerate() {
+            let Some(modal) =
+                self.render_modal(ClosureSite::Adjunct(id, index), adjunct, bound, active)
+            else {
                 return self.fallback_object(
                     id,
                     bound,
@@ -2767,19 +3270,37 @@ impl Elaborator<'_> {
     }
 
     /// Named default for an unshared elided contextual referent.
+    ///
+    /// Section 5.1 gives `Close` exactly one silent default: rule 1's fresh bare
+    /// `Context` for a place whose graph dependence is `Fixed`. An
+    /// `Underspecified { mayDependOn }` one "cannot be hidden by `Close`: it is
+    /// bound explicitly from `(Context dependencies...)` and the same bound
+    /// value fills the place. This preserves the exact permitted dependency set
+    /// rather than replacing it with 'all accessible binders.'" So a recorded
+    /// dependence that names the complete derived universe is still not silent:
+    /// eliding it would leave re-elaboration to *rederive* that universe at the
+    /// printed site rather than read the permission the graph recorded, and the
+    /// two coincide only by accident of this site. Rule 2's shared default is
+    /// already loud for a different reason — it is placed as a declaration — and
+    /// the use-count test below is what keeps it out of this branch.
     #[requires(self.graph.objects.contains_key(&id))]
     #[ensures(true)]
     fn default_elided_is_silent(&self, id: SemanticObjectId, bound: &Bound) -> bool {
         let Some(node) = self.graph.objects[&id].as_referent() else {
             return false;
         };
+        let Some(dependence) = node.scope_dependence.as_ref() else {
+            return false;
+        };
         if !default_elided_shape(node)
             || !self.graph.objects[&id].diagnostics().is_empty()
             || self.plan.use_count(id) != 1
+            // A recorded `mayDependOn` list is the loud case, whatever it names.
+            || dependence.may_depend_on().is_some()
         {
             return false;
         }
-        self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
+        self.scope_dependence_is_default(id, Some(dependence), bound)
     }
 
     /// Whether a stored dependence policy is exactly the default at this
@@ -2810,34 +3331,42 @@ impl Elaborator<'_> {
 
     /// Render a canonical adjunct from its actual relation/place map. The
     /// surface `introduced_by` string is deliberately never inspected.
+    ///
+    /// An adjunct is a `Joi` operand of its own, so it is its own `Close` and
+    /// therefore its own section-5.1 effect scope: the defaults it omits belong
+    /// inside its operand, evaluated at the recorded nonlogical locus in the
+    /// same left-to-right flow section 6.2 gives conjunction, not hoisted above
+    /// the junction beside the predication's.
     #[requires(true)]
     #[ensures(true)]
     fn render_modal(
         &self,
+        site: ClosureSite,
         adjunct: &Adjunct,
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
     ) -> Option<Content> {
-        if adjunct.component.is_none()
-            && adjunct.negation.is_none()
-            && adjunct.scalar_negation.is_none()
-            && adjunct.modifiers.is_empty()
+        if adjunct.component.is_some()
+            || adjunct.negation.is_some()
+            || adjunct.scalar_negation.is_some()
+            || !adjunct.modifiers.is_empty()
         {
-            if let Some(relation) = &adjunct.relation {
-                if let Ok(root) = LexicalRoot::try_new(relation) {
-                    if let Ok(application) = self.render_argument_map(
-                        RelationRef::Lexical(root),
-                        &adjunct.arguments,
-                        bound,
-                        active,
-                        None,
-                    ) {
-                        return Content::close(application).ok();
-                    }
-                }
-            }
+            return None;
         }
-        None
+        let relation = adjunct.relation.as_ref()?;
+        let root = LexicalRoot::try_new(relation).ok()?;
+        self.open_closure_scope(Some(site), bound);
+        let closed = self
+            .render_argument_map(
+                RelationRef::Lexical(root),
+                &adjunct.arguments,
+                bound,
+                active,
+                None,
+            )
+            .ok()
+            .and_then(|application| Content::close(application).ok());
+        self.close_closure_scope(closed)
     }
 
     /// Render reference constructors, indexicals, composition, abstractions,
@@ -2986,13 +3515,16 @@ impl Elaborator<'_> {
         if node.sort != SemanticSort::Entity
             || !self.projected_descriptions.contains(&id)
             || self.reference_binding_frames.borrow().is_empty()
+            // Section 5.1's default is a property of the *site*: a fixed
+            // dependence is default only where no binder is accessible, and an
+            // underspecified one only where it names the complete derived
+            // universe. Anything else is a policy this position does not state,
+            // and the description keeps its registered refusal.
+            || !self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
         {
             return None;
         }
-        let scope_default =
-            self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound);
-        let recognition =
-            recognize_description(self.graph, self.plan.usage(), id, node, scope_default)?;
+        let recognition = recognize_description(self.graph, self.plan.usage(), id, node)?;
         let declared_type = referents_type_expr(node.sort)?;
         let variable = object_variable(id);
         let mut scoped = bound.clone();
@@ -3073,16 +3605,16 @@ impl Elaborator<'_> {
                 arguments,
                 parameter: None,
             }) if *constructor == DescriptionConstructor::Lo => {
-                let term = self
-                    .render_argument_map(
-                        RelationRef::Lexical(LexicalRoot::try_new(property).ok()?),
-                        arguments,
-                        scoped,
-                        active,
-                        None,
-                    )
-                    .ok()?;
-                Content::close(term).ok()?
+                // The base property is its own `Close`, so a section-5.1
+                // default inside it belongs to that conjunct rather than to the
+                // whole `∧` a restrictive clause would build around it.
+                let root = RelationRef::Lexical(LexicalRoot::try_new(property).ok()?);
+                self.open_closure_scope(None, scoped);
+                let closed = self
+                    .render_argument_map(root, arguments, scoped, active, None)
+                    .ok()
+                    .and_then(|term| Content::close(term).ok());
+                self.close_closure_scope(closed)?
             }
             data!(DescriptionRecognition::Property {
                 constructor,
@@ -3090,20 +3622,30 @@ impl Elaborator<'_> {
                 arguments,
                 parameter: Some(parameter),
             }) if *constructor == DescriptionConstructor::Le => {
+                let root = RelationRef::Lexical(LexicalRoot::try_new(property).ok()?);
                 let mut property_scope = scoped.clone();
                 property_scope.insert(*parameter, BoundValue::Value(declared_type.clone()));
-                let term = self
-                    .render_argument_map(
-                        RelationRef::Lexical(LexicalRoot::try_new(property).ok()?),
-                        arguments,
-                        &property_scope,
-                        active,
-                        None,
-                    )
-                    .ok()?;
+                // The described property is a lambda of its own, so it is a
+                // section-6.3 host position: a computation naming the described
+                // candidate — which is what a section-5.1 `Context` inside this
+                // property depends on — may not be raised out of the binder
+                // that introduces it. Without this frame the innermost open
+                // position is the description's barrier, one binder too far out.
+                self.open_host_frame(
+                    HostFrameKind::Binders([*parameter].into_iter().collect()),
+                    &property_scope,
+                );
+                let term = self.render_argument_map(root, arguments, &property_scope, active, None);
+                let hosted = self.close_host_frame();
+                let term = term.ok()?;
+                let body = wrap_reference_bindings(
+                    hosted,
+                    Content::close(term).ok()?,
+                    Content::bind_form,
+                )?;
                 let candidate =
                     TypedParameter::new(object_variable(*parameter), declared_type.clone());
-                let described = callable_property(&candidate, Content::close(term).ok())?;
+                let described = callable_property(&candidate, Some(body))?;
                 // The builder's `le` encoding is a `skicu` predication over the
                 // speaker, the described referent, the audience, and the
                 // property; it is a lexical relation like any other, so it is
@@ -3501,9 +4043,27 @@ impl Elaborator<'_> {
             };
             scoped.insert(parameter, declaration);
         }
+        // An answered slot is a binder the query's own lambda introduces, and
+        // section 6.3 will not let a computation naming it stand outside that
+        // lambda — which is where a section-5.1 `Context` inside the question's
+        // body would otherwise be hosted. A polar question binds nothing and
+        // keeps the enclosing position it always had.
+        let query_binders = !parameters.is_empty();
+        if query_binders {
+            self.open_host_frame(
+                HostFrameKind::Binders(parameters.iter().copied().collect()),
+                &scoped,
+            );
+        }
         let body = self
             .render_id(node.body, &scoped, active, AcceptedModes::Force)
             .and_then(Elaborated::into_content);
+        let body = if query_binders {
+            let hosted = self.close_host_frame();
+            body.and_then(|body| wrap_reference_bindings(hosted, body, Content::bind_form))
+        } else {
+            body
+        };
         let ordinary_slots = node.slots.iter().all(|slot| {
             matches!(
                 slot.as_data(),
@@ -3895,15 +4455,13 @@ fn projected_description_objects(
         let Some(node) = object.as_referent() else {
             continue;
         };
-        let scope_default = matches!(
-            node.scope_dependence
-                .as_ref()
-                .map(|dependence| dependence.as_data()),
-            Some(data!(ScopeDependence::Fixed))
-        );
-        let Some(recognition) =
-            recognize_description(graph, usage, *described, node, scope_default)
-        else {
+        // Which dependence policy a description records is not a pre-planning
+        // question, exactly as for a described event: a dependent description is
+        // representable — its `Bind` stands inside the binders its property
+        // names — and whether the recorded universe *is* the derived one at that
+        // lexical position is decided by the route, which knows the position.
+        // Recognition already proves that some policy is recorded.
+        let Some(recognition) = recognize_description(graph, usage, *described, node) else {
             continue;
         };
         let mut support = BTreeSet::new();
@@ -3923,10 +4481,16 @@ fn projected_description_objects(
                     .expect("recognized property has a descriptor body");
                 match *constructor {
                     DescriptionConstructor::Lo => {
-                        collect_property_support(graph, body, *described, &mut support);
+                        collect_property_support(graph, usage, body, *described, &mut support);
                     }
                     DescriptionConstructor::Le => {
-                        collect_speaker_description_support(graph, body, *described, &mut support);
+                        collect_speaker_description_support(
+                            graph,
+                            usage,
+                            body,
+                            *described,
+                            &mut support,
+                        );
                     }
                 }
                 for clause in descriptor
@@ -3934,7 +4498,7 @@ fn projected_description_objects(
                     .iter()
                     .chain(node.relative_clauses.iter())
                 {
-                    collect_inline_support(graph, clause.body, *described, &mut support);
+                    collect_inline_support(graph, usage, clause.body, *described, &mut support);
                 }
             }
             // A recognized name description has no descriptor body and no
@@ -4002,7 +4566,7 @@ fn projected_described_event_objects(
             continue;
         }
         let mut support = BTreeSet::new();
-        collect_inline_support(graph, content, *event, &mut support);
+        collect_inline_support(graph, usage, content, *event, &mut support);
         let allowed_sources = support
             .iter()
             .copied()
@@ -4020,19 +4584,35 @@ fn projected_described_event_objects(
     (projected, values)
 }
 
-/// Collect an inline subgraph without crossing its owning self-reference or a
-/// canonical atom that is safe to repeat by identity.
+/// Collect an inline subgraph without crossing its owning self-reference, a
+/// canonical atom that is safe to repeat by identity, or a binder.
+///
+/// A binder is not something the projection *consumes*: it is a free binder of
+/// the property being built, declared by whatever introduces it, and no
+/// declaration of it is ever written. Collecting one would make an ordinary
+/// mention outside — the quantifier that binds it, a sibling place filled by the
+/// same variable — look like an escape of the inlined subgraph and refuse the
+/// whole projection. This is section D5's stop-set distinction at the pre-scan:
+/// what a value contains is not what it depends on.
 #[requires(graph.objects.contains_key(&root))]
-#[ensures(out.contains(&root) || root == owner || is_conventional_atom(&graph.objects[&root]))]
+#[ensures(out.contains(&root)
+    || root == owner
+    || usage.is_binder(root)
+    || is_conventional_atom(&graph.objects[&root]))]
 fn collect_inline_support(
     graph: &SemanticGraph,
+    usage: &GraphUsage,
     root: SemanticObjectId,
     owner: SemanticObjectId,
     out: &mut BTreeSet<SemanticObjectId>,
 ) {
     let mut pending = vec![root];
     while let Some(id) = pending.pop() {
-        if id == owner || is_conventional_atom(&graph.objects[&id]) || !out.insert(id) {
+        if id == owner
+            || usage.is_binder(id)
+            || is_conventional_atom(&graph.objects[&id])
+            || !out.insert(id)
+        {
             continue;
         }
         let mut references = Vec::new();
@@ -4047,6 +4627,7 @@ fn collect_inline_support(
 #[ensures(out.contains(&formula))]
 fn collect_property_support(
     graph: &SemanticGraph,
+    usage: &GraphUsage,
     formula: SemanticObjectId,
     subject: SemanticObjectId,
     out: &mut BTreeSet<SemanticObjectId>,
@@ -4067,7 +4648,11 @@ fn collect_property_support(
             .arguments
             .values()
             .filter_map(|argument| argument.value)
-            .filter(|value| *value != subject && !is_conventional_atom(&graph.objects[value])),
+            .filter(|value| {
+                *value != subject
+                    && !usage.is_binder(*value)
+                    && !is_conventional_atom(&graph.objects[value])
+            }),
     );
 }
 
@@ -4076,6 +4661,7 @@ fn collect_property_support(
 #[ensures(out.contains(&formula))]
 fn collect_speaker_description_support(
     graph: &SemanticGraph,
+    usage: &GraphUsage,
     formula: SemanticObjectId,
     described: SemanticObjectId,
     out: &mut BTreeSet<SemanticObjectId>,
@@ -4103,15 +4689,15 @@ fn collect_speaker_description_support(
             .filter(|value| {
                 *value != described
                     && *value != relation_value
+                    && !usage.is_binder(*value)
                     && !is_conventional_atom(&graph.objects[value])
             }),
     );
     let Some(relation_node) = graph.objects[&relation_value].as_referent() else {
         return;
     };
-    out.extend(relation_node.parameters.iter().copied());
     if let (Some(body), Some(parameter)) = (relation_node.body, relation_node.parameters.first()) {
-        collect_property_support(graph, body, *parameter, out);
+        collect_property_support(graph, usage, body, *parameter, out);
     }
 }
 
@@ -4245,16 +4831,62 @@ fn exact_deictic(node: &ReferentNode, graph: &SemanticGraph) -> Option<Intrinsic
     })
 }
 
-/// Referent fields absent from the indexical/deictic role itself.
+/// Referent fields absent from the indexical/deictic role itself, allowing the
+/// name assignments that role may carry as provenance.
+///
+/// An indexical or deictic atom has no binder for a handle to name, and it needs
+/// none: the atom prints by identity wherever it occurs, so `mi goi ko'a` makes
+/// every `ko'a` print `Speaker` with nothing left to state. See
+/// [`assigned_names_are_resolution_provenance`].
+#[requires(true)]
+#[ensures(ret == (assigned_names_are_resolution_provenance(node)
+    && referent_payload_except_names_is_empty(node)))]
+fn referent_payload_is_empty(node: &ReferentNode) -> bool {
+    assigned_names_are_resolution_provenance(node) && referent_payload_except_names_is_empty(node)
+}
+
+/// Whether every name assignment on a referent is the resolution's provenance.
+///
+/// Section 8.4 lowers a `goi` assignment to "`Let`, `Bind`, or the represented
+/// naming or association predicate, depending on its graph semantics". When the
+/// handle is a pro-sumti or lerfu-string stand-in, the graph has already made
+/// that choice: the builder resolves every use of the handle to the object the
+/// assignment was written on (jbotci#779), so whatever prints that object — a
+/// quantifier's λ, a description's hosted `Bind`, or a canonical atom — *is* the
+/// assignment, and the record is the provenance of a resolution that already
+/// happened. Nothing is dropped by not printing it, because no other object
+/// carries the handle.
+///
+/// The builder writes exactly three assignment shapes, and only those two are
+/// stand-ins: an assignable `KOhA` and a lerfu string each record the handle as
+/// both `word` and `name`, while `X goi la djan` records the name-marking word
+/// and the name separately. That third shape states something about the
+/// referent — section 8.4's naming predicate — which no resolution edge
+/// carries, so it is not provenance and keeps its registered refusal.
+///
+/// The marker audit is defence rather than discrimination: every builder path
+/// that writes an `AssignedName` is gated on `goi` today, and the other `GOI`
+/// members attach an association with content of its own through a relative
+/// clause instead. Checking it here keeps a future marker from silently
+/// inheriting a suppression that was only ever true of assignment.
+#[requires(true)]
+#[ensures(ret || !node.assigned_names.is_empty())]
+fn assigned_names_are_resolution_provenance(node: &ReferentNode) -> bool {
+    node.assigned_names
+        .iter()
+        .all(|assigned| assigned.introduced_by == "goi" && assigned.word == assigned.name)
+}
+
+/// The referent audit of [`referent_payload_is_empty`] without name
+/// assignments, for the positions that carry them as provenance.
 #[requires(true)]
 #[ensures(true)]
-fn referent_payload_is_empty(node: &ReferentNode) -> bool {
+fn referent_payload_except_names_is_empty(node: &ReferentNode) -> bool {
     node.descriptor.is_none()
         && node.composition.is_none()
         && node.personal_mass_membership.is_none()
         && node.generated_referent.is_none()
         && node.relative_clauses.is_empty()
-        && node.assigned_names.is_empty()
         && node.body.is_none()
         && node.parameters.is_empty()
         && node.arity.is_none()
@@ -4460,6 +5092,11 @@ fn default_elided_shape(node: &ReferentNode) -> bool {
 }
 
 /// Description referent has no content outside its descriptor/attached clauses.
+///
+/// A `goi` handle assigned to the description is provenance on the same terms
+/// as one assigned to a bound variable: section 8.4's menu selects `Bind` here,
+/// and the description's own hosted `Refer` *is* that `Bind`, so every use of
+/// the handle already prints as the name it introduced.
 #[requires(true)]
 #[ensures(true)]
 fn referent_except_descriptor_is_default(node: &ReferentNode) -> bool {
@@ -4471,7 +5108,7 @@ fn referent_except_descriptor_is_default(node: &ReferentNode) -> bool {
         && node.composition.is_none()
         && node.personal_mass_membership.is_none()
         && node.generated_referent.is_none()
-        && node.assigned_names.is_empty()
+        && assigned_names_are_resolution_provenance(node)
         && node.body.is_none()
         && node.parameters.is_empty()
         && node.arity.is_none()
@@ -4704,10 +5341,14 @@ fn exact_described_event_time_facet(
     .then_some(time)
 }
 
-/// Shared exact recognition for `lo`, `le`, and `la`. The caller supplies the
-/// scope proof because rendering knows its lexical environment while planning
-/// intentionally accepts only the independently provable fixed case. Every
-/// other descriptor and attachment coordinate is audited here once.
+/// Shared exact recognition for `lo`, `le`, and `la`. Every descriptor and
+/// attachment coordinate is audited here once.
+///
+/// Whether the recorded dependence policy is the default *at a lexical
+/// position* is deliberately not asked here: that is a question about a
+/// position, so only the route that has one can answer it, and the pre-scan
+/// that runs before any position exists would otherwise have to refuse every
+/// dependent description outright.
 #[requires(graph.objects.contains_key(&described))]
 #[ensures(true)]
 fn recognize_description<'a>(
@@ -4715,11 +5356,9 @@ fn recognize_description<'a>(
     usage: &GraphUsage,
     described: SemanticObjectId,
     node: &'a ReferentNode,
-    scope_is_default: bool,
 ) -> Option<DescriptionRecognition<'a>> {
     let descriptor = node.descriptor.as_ref()?;
-    if !scope_is_default
-        || !referent_except_descriptor_is_default(node)
+    if !referent_except_descriptor_is_default(node)
         || descriptor.quantity.is_some()
         || descriptor.scale.is_some()
         || descriptor.definiteness.is_some()
@@ -4901,29 +5540,21 @@ fn recognize_property_formula<'a>(
         }
         let value = plain_elided_argument_value(argument)?;
         let referent = graph.objects[&value].as_referent()?;
+        // An interior `zo'e` records whichever binders the graph says its value
+        // may be resolved against, and any such record is representable: it
+        // projects as the section-5.1 `Context` its dependence names, bound
+        // inside this property, and section 6.3 then hosts the description at
+        // the innermost position where its property's free binders — those
+        // dependences included — are all live. What this recognizer owes is
+        // therefore only that a policy is recorded at all; the site the policy
+        // is default at is the route's question, and an unsupplied binder is a
+        // hosting failure with its own registered reason rather than a reason to
+        // refuse the description shape here.
         if !default_elided_shape(referent)
+            || referent.scope_dependence.is_none()
             || !graph.objects[&value].diagnostics().is_empty()
             || usage.use_count(value) != 1
         {
-            return None;
-        }
-        let dependence_matches =
-            if subject.object_kind() == crate::model::SemanticObjectKind::Parameter {
-                referent
-                    .scope_dependence
-                    .as_ref()
-                    .and_then(|dependence| dependence.may_depend_on())
-                    == Some(&BTreeSet::from([subject]))
-            } else {
-                matches!(
-                    referent
-                        .scope_dependence
-                        .as_ref()
-                        .map(|value| value.as_data()),
-                    Some(data!(ScopeDependence::Fixed))
-                )
-            };
-        if !dependence_matches {
             return None;
         }
     }
@@ -5014,6 +5645,14 @@ fn predication_is_otherwise_plain(node: &PredicationNode) -> bool {
 /// be the unique plain-variable default. Provenance source is the ordinary
 /// profile suppression, while diagnostics are kept out of compact binding so
 /// their object attachment is retained by TypedGraph.
+///
+/// A `goi` handle assigned to the variable is one of those provenance
+/// coordinates rather than a second commitment: `ro lo prenu goi ko'a` resolves
+/// every `ko'a` to this very variable, so the quantifier's own λ is the
+/// assignment section 8.4 asks for and the recorded handle names the binder
+/// that is already printed. See
+/// [`assigned_names_are_resolution_provenance`] for the assignment shapes that
+/// qualify.
 #[requires(graph.objects.contains_key(&variable))]
 #[ensures(ret.is_none_or(|sort| graph.objects[&variable].sort() == Some(sort)))]
 fn exact_plain_bound_variable(
@@ -5023,7 +5662,8 @@ fn exact_plain_bound_variable(
     let node = graph.objects[&variable].as_referent()?;
     (node.category == ReferentCategory::Variable
         && node.scope_dependence.is_none()
-        && referent_payload_is_empty(node)
+        && referent_payload_except_names_is_empty(node)
+        && assigned_names_are_resolution_provenance(node)
         && graph.objects[&variable].diagnostics().is_empty())
     .then_some(node.sort)
 }
