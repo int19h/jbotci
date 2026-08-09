@@ -45,6 +45,7 @@ const NATIVE_PARTIAL_BUILD_SCHEMA_VERSION: u32 = 1;
 const NATIVE_PARTIAL_BUILD_SOURCE: &str = "native-partial";
 const NATIVE_PARTIAL_BUILD_FILE: &str = "native-local-build.json";
 const NATIVE_VECTOR_CHUNK_ROWS: usize = 256;
+const DOWNLOAD_CHUNK_BYTES: usize = 1024 * 1024;
 const DEFAULT_HF_ENDPOINT: &str = "https://huggingface.co";
 const DEFAULT_WEB_DTYPE: &str = "q4";
 const LLAMA_CPP_4_RUNTIME_VERSION: &str = "0.3.0";
@@ -1692,6 +1693,76 @@ pub fn download_model_file(spec: &EmbeddingModelSpec, path: &Path) -> Result<(),
     download_model_file_with_progress(spec, path, &mut progress)
 }
 
+#[allow(clippy::too_many_arguments)]
+#[requires(!source.is_empty())]
+#[requires(!partial_path.as_os_str().is_empty())]
+#[requires(!destination.as_os_str().is_empty())]
+#[requires(!label.is_empty())]
+#[requires(!detail.is_empty())]
+#[requires(buffer.len() == DOWNLOAD_CHUNK_BYTES)]
+#[ensures(ret.as_ref().is_ok_and(|_| destination.is_file() && !partial_path.exists()) || ret.is_err())]
+fn stream_reader_to_file_with_progress<R: Read>(
+    reader: &mut R,
+    source: &str,
+    partial_path: &Path,
+    destination: &Path,
+    total: Option<u64>,
+    phase: SetupProgressPhase,
+    label: &str,
+    detail: &str,
+    buffer: &mut [u8],
+    progress: &mut SetupProgressCallback<'_>,
+) -> Result<u64, EmbeddingError> {
+    let mut writer =
+        BufWriter::new(
+            File::create(partial_path).map_err(|source| EmbeddingError::Io {
+                context: format!("failed to create `{}`", partial_path.display()),
+                source,
+            })?,
+        );
+    let mut loaded = 0u64;
+    if let Some(total) = total {
+        progress(SetupProgress::determinate(
+            phase, "download", label, detail, 0, total,
+        ));
+    }
+    loop {
+        let read = reader
+            .read(buffer)
+            .map_err(|source_error| EmbeddingError::Io {
+                context: format!("failed to read `{source}`"),
+                source: source_error,
+            })?;
+        if read == 0 {
+            break;
+        }
+        writer
+            .write_all(&buffer[..read])
+            .map_err(|source| EmbeddingError::Io {
+                context: format!("failed to write `{}`", partial_path.display()),
+                source,
+            })?;
+        loaded = loaded.saturating_add(read as u64);
+        if let Some(total) = total {
+            progress(SetupProgress::determinate(
+                phase,
+                "download",
+                label,
+                detail,
+                loaded.min(total),
+                total,
+            ));
+        }
+    }
+    writer.flush().map_err(|source| EmbeddingError::Io {
+        context: format!("failed to flush `{}`", partial_path.display()),
+        source,
+    })?;
+    drop(writer);
+    rename_replacing(partial_path, destination)?;
+    Ok(loaded)
+}
+
 #[requires(!spec.native_hf_repo.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|_| path.is_file()) || ret.is_err())]
 pub fn download_model_file_with_progress(
@@ -1723,56 +1794,19 @@ pub fn download_model_file_with_progress(
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.parse::<u64>().ok());
     let mut reader = response.into_body().into_reader();
-    let mut writer =
-        BufWriter::new(
-            File::create(&partial_path).map_err(|source| EmbeddingError::Io {
-                context: format!("failed to create `{}`", partial_path.display()),
-                source,
-            })?,
-        );
-    let mut loaded = 0u64;
-    if let Some(total) = total {
-        progress(SetupProgress::determinate(
-            SetupProgressPhase::DownloadingModel,
-            "download",
-            "Downloading model",
-            "Downloading embedding model.",
-            0,
-            total,
-        ));
-    }
-    let mut buf = [0u8; 1024 * 1024];
-    loop {
-        let read = reader.read(&mut buf).map_err(|source| EmbeddingError::Io {
-            context: format!("failed to read `{url}`"),
-            source,
-        })?;
-        if read == 0 {
-            break;
-        }
-        writer
-            .write_all(&buf[..read])
-            .map_err(|source| EmbeddingError::Io {
-                context: format!("failed to write `{}`", partial_path.display()),
-                source,
-            })?;
-        if let Some(total) = total {
-            loaded = loaded.saturating_add(read as u64);
-            progress(SetupProgress::determinate(
-                SetupProgressPhase::DownloadingModel,
-                "download",
-                "Downloading model",
-                "Downloading embedding model.",
-                loaded.min(total),
-                total,
-            ));
-        }
-    }
-    writer.flush().map_err(|source| EmbeddingError::Io {
-        context: format!("failed to flush `{}`", partial_path.display()),
-        source,
-    })?;
-    rename_replacing(&partial_path, path)?;
+    let mut download_buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
+    stream_reader_to_file_with_progress(
+        &mut reader,
+        &url,
+        &partial_path,
+        path,
+        total,
+        SetupProgressPhase::DownloadingModel,
+        "Downloading model",
+        "Downloading embedding model.",
+        &mut download_buffer,
+        progress,
+    )?;
     Ok(())
 }
 
@@ -2367,6 +2401,7 @@ pub fn download_precomputed_embedding_pack_with_progress(
     })?;
     write_json_file(&work_pack_root.join("manifest.json"), &manifest)?;
     let remote_paths = native_pack_remote_paths(&manifest)?;
+    let mut download_buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
     for relative_path in remote_paths {
         let url = remote_pack_child_url(base_url, &model.manifest_url, &relative_path)?;
         let destination = work_pack_root.join(&relative_path);
@@ -2376,6 +2411,7 @@ pub fn download_precomputed_embedding_pack_with_progress(
             SetupProgressPhase::DownloadingIndex,
             "Downloading precomputed index",
             &format!("Downloading {relative_path}."),
+            &mut download_buffer,
             progress,
         )?;
     }
@@ -2669,6 +2705,7 @@ fn fetch_json_url<T: DeserializeOwned>(url: &str) -> Result<T, EmbeddingError> {
 #[requires(!destination.as_os_str().is_empty())]
 #[requires(!label.is_empty())]
 #[requires(!detail.is_empty())]
+#[requires(buffer.len() == DOWNLOAD_CHUNK_BYTES)]
 #[ensures(ret.as_ref().is_ok_and(|_| destination.is_file()) || ret.is_err())]
 fn download_url_to_file_with_progress(
     url: &str,
@@ -2676,6 +2713,7 @@ fn download_url_to_file_with_progress(
     phase: SetupProgressPhase,
     label: &str,
     detail: &str,
+    buffer: &mut [u8],
     progress: &mut SetupProgressCallback<'_>,
 ) -> Result<(), EmbeddingError> {
     ensure_parent_dir(destination)?;
@@ -2694,51 +2732,19 @@ fn download_url_to_file_with_progress(
         .and_then(|value| value.parse::<u64>().ok());
     let temp_path = sibling_path_with_suffix(destination, "downloadInProgress")?;
     let mut reader = response.into_body().into_reader();
-    let mut writer =
-        BufWriter::new(
-            File::create(&temp_path).map_err(|source| EmbeddingError::Io {
-                context: format!("failed to create `{}`", temp_path.display()),
-                source,
-            })?,
-        );
-    let mut loaded = 0u64;
-    if let Some(total) = total {
-        progress(SetupProgress::determinate(
-            phase, "download", label, detail, 0, total,
-        ));
-    }
-    let mut buf = [0u8; 1024 * 1024];
-    loop {
-        let read = reader.read(&mut buf).map_err(|source| EmbeddingError::Io {
-            context: format!("failed to read `{url}`"),
-            source,
-        })?;
-        if read == 0 {
-            break;
-        }
-        writer
-            .write_all(&buf[..read])
-            .map_err(|source| EmbeddingError::Io {
-                context: format!("failed to write `{}`", temp_path.display()),
-                source,
-            })?;
-        if let Some(total) = total {
-            loaded = loaded.saturating_add(read as u64);
-            progress(SetupProgress::determinate(
-                phase,
-                "download",
-                label,
-                detail,
-                loaded.min(total),
-                total,
-            ));
-        }
-    }
-    writer.flush().map_err(|source| EmbeddingError::Io {
-        context: format!("failed to flush `{}`", temp_path.display()),
-        source,
-    })?;
-    rename_replacing(&temp_path, destination)
+    stream_reader_to_file_with_progress(
+        &mut reader,
+        url,
+        &temp_path,
+        destination,
+        total,
+        phase,
+        label,
+        detail,
+        buffer,
+        progress,
+    )?;
+    Ok(())
 }
 
 #[requires(true)]
@@ -3250,6 +3256,49 @@ mod tests {
         fail_after: usize,
     }
 
+    #[invariant(::Bytes { .. } => true)]
+    #[invariant(::Error { .. } => true)]
+    #[derive(Debug)]
+    enum ScriptedReadStep {
+        Bytes { count: usize },
+        Error { kind: std::io::ErrorKind },
+    }
+
+    #[invariant(true)]
+    #[derive(Debug)]
+    struct ScriptedReader {
+        inner: std::io::Cursor<Vec<u8>>,
+        steps: std::collections::VecDeque<ScriptedReadStep>,
+    }
+
+    impl Read for ScriptedReader {
+        #[requires(true)]
+        #[ensures(ret.as_ref().is_ok_and(|read| *read <= buffer.len()) || ret.is_err())]
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            if buffer.is_empty() {
+                return Ok(0);
+            }
+            let Some(step) = self.steps.pop_front() else {
+                return Ok(0);
+            };
+            match step {
+                ScriptedReadStep::Bytes { count } => {
+                    let read_limit = count.min(buffer.len());
+                    let read = self.inner.read(&mut buffer[..read_limit])?;
+                    if read < count && self.inner.position() < self.inner.get_ref().len() as u64 {
+                        self.steps.push_front(ScriptedReadStep::Bytes {
+                            count: count - read,
+                        });
+                    }
+                    Ok(read)
+                }
+                ScriptedReadStep::Error { kind } => {
+                    Err(std::io::Error::new(kind, "scripted read failure"))
+                }
+            }
+        }
+    }
+
     #[requires(dimensions > 0)]
     #[requires(!input.is_empty())]
     #[ensures(ret.len() == dimensions)]
@@ -3344,6 +3393,190 @@ mod tests {
             b"new"
         );
         assert!(!source.exists());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn streaming_download_uses_heap_buffer_on_small_stack() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let destination = dir.path().join("download.bin");
+        let partial_path =
+            sibling_path_with_suffix(&destination, "downloadInProgress").expect("partial path");
+        let input = (0..(2 * DOWNLOAD_CHUNK_BYTES + 17))
+            .map(|index| (index % 251) as u8)
+            .collect::<Vec<_>>();
+        let thread_destination = destination.clone();
+        let thread_partial_path = partial_path.clone();
+
+        // Replacing the Vec with an inline 1 MiB array overflows this stack in
+        // release mode and aborts the entire test process. Box::new([0; N]) can
+        // expose the same regression only in debug, so production deliberately
+        // uses the initialized vec! spelling rather than relying on this guard.
+        let worker = std::thread::Builder::new()
+            .stack_size(256 * 1024)
+            .spawn(move || {
+                let mut reader = std::io::Cursor::new(input.as_slice());
+                let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
+                let mut progress_events = Vec::new();
+                let mut progress = |event| progress_events.push(event);
+                let loaded = stream_reader_to_file_with_progress(
+                    &mut reader,
+                    "memory://small-stack",
+                    &thread_partial_path,
+                    &thread_destination,
+                    Some(input.len() as u64),
+                    SetupProgressPhase::DownloadingIndex,
+                    "Downloading test data",
+                    "Testing heap-backed streaming.",
+                    &mut buffer,
+                    &mut progress,
+                )
+                .expect("stream download");
+                drop(reader);
+                (loaded, progress_events, input)
+            })
+            .expect("spawn small-stack worker");
+        let (loaded, progress_events, input) = worker.join().expect("small-stack worker");
+
+        assert_eq!(loaded, input.len() as u64);
+        assert_eq!(std::fs::read(&destination).expect("published file"), input);
+        assert!(!partial_path.exists());
+        assert_eq!(
+            progress_events.first().and_then(|event| event.loaded),
+            Some(0)
+        );
+        assert_eq!(
+            progress_events.last().and_then(|event| event.loaded),
+            Some(loaded)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn streaming_download_reports_short_reads_monotonically_and_clamps_total() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let destination = dir.path().join("short-reads.bin");
+        let partial_path =
+            sibling_path_with_suffix(&destination, "downloadInProgress").expect("partial path");
+        let input = b"abcdefghij".to_vec();
+        let mut reader = ScriptedReader {
+            inner: std::io::Cursor::new(input.clone()),
+            steps: [2, 1, 4, 3]
+                .into_iter()
+                .map(|count| ScriptedReadStep::Bytes { count })
+                .collect(),
+        };
+        let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
+        let mut progress_events = Vec::new();
+        let mut progress = |event| progress_events.push(event);
+
+        let loaded = stream_reader_to_file_with_progress(
+            &mut reader,
+            "memory://short-reads",
+            &partial_path,
+            &destination,
+            Some(7),
+            SetupProgressPhase::DownloadingIndex,
+            "Downloading test data",
+            "Testing short reads.",
+            &mut buffer,
+            &mut progress,
+        )
+        .expect("stream short reads");
+
+        assert_eq!(loaded, input.len() as u64);
+        assert_eq!(std::fs::read(&destination).expect("published file"), input);
+        let loaded_events = progress_events
+            .iter()
+            .map(|event| event.loaded.expect("determinate progress"))
+            .collect::<Vec<_>>();
+        assert_eq!(loaded_events, [0, 2, 3, 7, 7]);
+        assert!(loaded_events.windows(2).all(|pair| pair[0] <= pair[1]));
+        assert!(progress_events.iter().all(|event| event.total == Some(7)));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn streaming_download_without_content_length_has_no_determinate_progress() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let destination = dir.path().join("indeterminate.bin");
+        let partial_path =
+            sibling_path_with_suffix(&destination, "downloadInProgress").expect("partial path");
+        let input = b"no content length".to_vec();
+        let mut reader = std::io::Cursor::new(input.as_slice());
+        let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
+        let mut progress_events = Vec::new();
+        let mut progress = |event| progress_events.push(event);
+
+        let loaded = stream_reader_to_file_with_progress(
+            &mut reader,
+            "memory://indeterminate",
+            &partial_path,
+            &destination,
+            None,
+            SetupProgressPhase::DownloadingIndex,
+            "Downloading test data",
+            "Testing unknown content length.",
+            &mut buffer,
+            &mut progress,
+        )
+        .expect("stream without content length");
+
+        assert_eq!(loaded, input.len() as u64);
+        assert_eq!(std::fs::read(&destination).expect("published file"), input);
+        assert!(progress_events.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn failed_stream_leaves_partial_file_without_publishing_destination() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let destination = dir.path().join("published.bin");
+        let partial_path =
+            sibling_path_with_suffix(&destination, "downloadInProgress").expect("partial path");
+        std::fs::write(&destination, b"previous publication").expect("existing destination");
+        let mut reader = ScriptedReader {
+            inner: std::io::Cursor::new(b"partial data".to_vec()),
+            steps: [
+                ScriptedReadStep::Bytes { count: 7 },
+                ScriptedReadStep::Error {
+                    kind: std::io::ErrorKind::ConnectionReset,
+                },
+            ]
+            .into_iter()
+            .collect(),
+        };
+        let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
+        let mut progress = |_| {};
+
+        let error = stream_reader_to_file_with_progress(
+            &mut reader,
+            "memory://failure",
+            &partial_path,
+            &destination,
+            Some(12),
+            SetupProgressPhase::DownloadingIndex,
+            "Downloading test data",
+            "Testing interrupted publication.",
+            &mut buffer,
+            &mut progress,
+        )
+        .expect_err("scripted read must fail");
+
+        assert!(matches!(error, EmbeddingError::Io { .. }));
+        assert_eq!(
+            std::fs::read(&destination).expect("existing destination"),
+            b"previous publication"
+        );
+        assert!(partial_path.is_file());
+        assert_eq!(
+            std::fs::read(&partial_path).expect("partial file"),
+            b"partial"
+        );
     }
 
     #[requires(true)]

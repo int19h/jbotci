@@ -7,6 +7,8 @@ serve-web-release = "run -p xtask -- serve-web-release"
 jobs = 16
 
 [target.wasm32-unknown-unknown]
+# Keep this 8 MiB reserve aligned with WINDOWS_STACK_RESERVE_BYTES in
+# apps/jbotci/src/windows_stack.rs.
 rustflags = ["-C", "link-arg=-zstack-size=8388608"]
 
 [env]
