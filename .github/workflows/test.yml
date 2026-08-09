@@ -15,6 +15,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cli-release-tool:
+    name: CLI release tooling
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Run release tooling tests
+        run: python3 -m unittest tools.tests.test_cli_release -v
+
   cargo-test:
     name: Cargo tests
     runs-on: ubuntu-latest

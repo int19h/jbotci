@@ -217,6 +217,7 @@ const VLACKU_DETAIL_INDENT: &str = "    ";
 #[derive(Debug, Clone, Parser)]
 #[command(name = "jbotci")]
 #[command(about = "Command-line Lojban toolkit")]
+#[command(version)]
 #[invariant(true)]
 pub struct Cli {
     #[arg(

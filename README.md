@@ -4,7 +4,39 @@ Lojban parser, semantic analyzer, dictionary with semantic search, gismu generat
 
 ## Installing
 
-There are no releases (yet). To build the CLI, clone the repo **with submodules** and then run `cargo build -r` from it. 
+Download the archive for your platform and `SHA256SUMS` from the
+[GitHub Releases page](https://github.com/int19h/jbotci/releases). Each archive
+expands to a versioned directory containing `jbotci` (`jbotci.exe` on Windows),
+this README, the license, and the third-party notices.
+
+Verify the archive before extracting it. On Linux, for example:
+
+```sh
+version=0.1.0 # replace with the release version you downloaded
+archive="jbotci-${version}-x86_64-unknown-linux-musl.tar.gz"
+grep -F "  ${archive}" SHA256SUMS | sha256sum --check -
+tar -xzf "${archive}"
+```
+
+On macOS, use `shasum -a 256 --check` in place of `sha256sum --check`.
+On Windows, compare `(Get-FileHash <archive> -Algorithm SHA256).Hash` with the
+matching line in `SHA256SUMS`, then extract the `.zip` with `Expand-Archive` or
+File Explorer.
+
+To build from source instead, install the Rust toolchain and the native build
+prerequisites: CMake, a C and C++ compiler/linker toolchain, libclang
+development libraries, `pkg-config`, Python 3, and `zstd`. Package names vary
+by platform. Then clone the repository with its submodules and build only the
+CLI package:
+
+```sh
+git clone --recurse-submodules https://github.com/int19h/jbotci.git
+cd jbotci
+cargo build --release --locked -p jbotci
+```
+
+The executable is written to `target/release/jbotci` (or
+`target/release/jbotci.exe` on Windows).
 
 ## Screenshots
 

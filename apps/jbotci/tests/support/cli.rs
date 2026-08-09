@@ -37,6 +37,20 @@ fn parses_canonical_and_english_aliases() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn version_flag_reports_workspace_version() {
+    let error = Cli::try_parse_from(["jbotci", "--version"])
+        .expect_err("the version flag exits through clap's display path");
+
+    assert_eq!(error.kind(), ErrorKind::DisplayVersion);
+    assert_eq!(
+        error.to_string(),
+        format!("jbotci {}\n", env!("CARGO_PKG_VERSION")),
+    );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn lsp_accepts_optional_stdio_and_rejects_other_transports() {
     assert!(matches!(
         Cli::try_parse_from(["jbotci", "lsp"])
