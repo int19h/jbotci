@@ -3256,19 +3256,11 @@ mod tests {
         fail_after: usize,
     }
 
-    #[invariant(::Bytes { .. } => true)]
-    #[invariant(::Error { .. } => true)]
-    #[derive(Debug)]
-    enum ScriptedReadStep {
-        Bytes { count: usize },
-        Error { kind: std::io::ErrorKind },
-    }
-
     #[invariant(true)]
     #[derive(Debug)]
     struct ScriptedReader {
         inner: std::io::Cursor<Vec<u8>>,
-        steps: std::collections::VecDeque<ScriptedReadStep>,
+        steps: std::collections::VecDeque<Result<NonZeroUsize, std::io::ErrorKind>>,
     }
 
     impl Read for ScriptedReader {
@@ -3282,19 +3274,17 @@ mod tests {
                 return Ok(0);
             };
             match step {
-                ScriptedReadStep::Bytes { count } => {
+                Ok(count) => {
+                    let count = count.get();
                     let read_limit = count.min(buffer.len());
                     let read = self.inner.read(&mut buffer[..read_limit])?;
                     if read < count && self.inner.position() < self.inner.get_ref().len() as u64 {
-                        self.steps.push_front(ScriptedReadStep::Bytes {
-                            count: count - read,
-                        });
+                        self.steps.push_front(Ok(NonZeroUsize::new(count - read)
+                            .expect("remaining scripted read count is nonzero")));
                     }
                     Ok(read)
                 }
-                ScriptedReadStep::Error { kind } => {
-                    Err(std::io::Error::new(kind, "scripted read failure"))
-                }
+                Err(kind) => Err(std::io::Error::new(kind, "scripted read failure")),
             }
         }
     }
@@ -3465,7 +3455,7 @@ mod tests {
             inner: std::io::Cursor::new(input.clone()),
             steps: [2, 1, 4, 3]
                 .into_iter()
-                .map(|count| ScriptedReadStep::Bytes { count })
+                .map(|count| Ok(NonZeroUsize::new(count).expect("nonzero scripted read count")))
                 .collect(),
         };
         let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
@@ -3542,10 +3532,8 @@ mod tests {
         let mut reader = ScriptedReader {
             inner: std::io::Cursor::new(b"partial data".to_vec()),
             steps: [
-                ScriptedReadStep::Bytes { count: 7 },
-                ScriptedReadStep::Error {
-                    kind: std::io::ErrorKind::ConnectionReset,
-                },
+                Ok(NonZeroUsize::new(7).expect("nonzero scripted read count")),
+                Err(std::io::ErrorKind::ConnectionReset),
             ]
             .into_iter()
             .collect(),
