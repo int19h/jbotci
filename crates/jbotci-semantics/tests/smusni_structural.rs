@@ -2795,63 +2795,134 @@ fn retarget_place(
     replace_object(graph, predication, object)
 }
 
-/// Point one place of a predication at the identity another place already
-/// names, in one revalidation.
+/// One numbered place of one `Close` inside a predication: a place of the
+/// predication's own map, or of one of its adjuncts'.
+#[invariant(::Main(_) => true, "the predication's own places are one closure")]
+#[invariant(::Adjunct(_, _) => true, "each adjunct's places are a closure of its own")]
+#[derive(Debug, Clone, Copy)]
+enum ClosurePlace {
+    Main(usize),
+    Adjunct(usize, usize),
+}
+
+/// How many references still reach one identity once `owner` replaces `edited`.
+#[requires(true)]
+#[ensures(true)]
+fn still_reaches(
+    graph: &SemanticGraph,
+    edited: SemanticObjectId,
+    owner: &SemanticObject,
+    target: SemanticObjectId,
+) -> usize {
+    graph
+        .objects
+        .iter()
+        .map(|(id, object)| if *id == edited { owner } else { object })
+        .map(|object| {
+            let mut references = Vec::new();
+            object.references_into(&mut references);
+            references
+                .into_iter()
+                .filter(|reference| *reference == target)
+                .count()
+        })
+        .sum()
+}
+
+/// The identity one closure place names.
+#[requires(true)]
+#[ensures(graph.objects.contains_key(&ret))]
+fn closure_place_value(
+    graph: &SemanticGraph,
+    predication: SemanticObjectId,
+    place: ClosurePlace,
+) -> SemanticObjectId {
+    let node = graph.objects[&predication]
+        .as_predication()
+        .expect("a predication carries a place map");
+    let arguments = match place {
+        ClosurePlace::Main(_) => &node.arguments,
+        ClosurePlace::Adjunct(adjunct, _) => &node.adjuncts[adjunct].arguments,
+    };
+    let index = match place {
+        ClosurePlace::Main(index) | ClosurePlace::Adjunct(_, index) => index,
+    };
+    arguments[&PlaceIndex::new(index)]
+        .value
+        .expect("the place is filled")
+}
+
+/// Point one closure place at the identity another closure place already names,
+/// in one revalidation.
 ///
-/// The two halves have to land together. Retargeting alone leaves the displaced
+/// The two halves have to land together. Retargeting can leave the displaced
 /// identity unreached, and the derived-dependence invariant is total over the
 /// object map: an unreached object is its own component, which the derivation
-/// visits at empty scope. So the displaced identity is re-homed at the document
-/// region with a `Fixed` dependence in the same edit, and the graph is legal at
-/// every point a validator sees it.
+/// visits at empty scope. So when the edit actually strands it, the displaced
+/// identity is re-homed at the document region with a `Fixed` dependence in the
+/// same revalidation, and the graph is legal at every point a validator sees
+/// it. When some other reference still reaches it, it is left exactly as it
+/// was: re-homing an identity that is still in use would be the corruption this
+/// guards against.
 ///
 /// This is model surgery, not a builder shape: the model permits one graph
-/// identity to fill two places of one predication, and the renderer has to
-/// schedule the shared computation correctly whether or not this builder ever
-/// writes that.
+/// identity to fill two places, in one closure or across two, and the renderer
+/// has to schedule the shared computation correctly whether or not this builder
+/// ever writes that.
 #[requires(true)]
 #[ensures(ret.0.objects.len() == old(graph.objects.len()))]
-fn share_place_with(
+fn share_closure_places(
     graph: SemanticGraph,
-    relation: &str,
-    place: usize,
-    with_place: usize,
+    retained: (&str, ClosurePlace),
+    retargeted: (&str, ClosurePlace),
 ) -> (SemanticGraph, SemanticObjectId) {
-    let predication = named_predication(&graph, relation);
-    let arguments = graph.objects[&predication]
-        .predication_arguments()
-        .expect("a predication carries an argument map");
-    let key = PlaceIndex::new(place);
-    let shared = arguments[&PlaceIndex::new(with_place)]
-        .value
-        .expect("the retained place is filled");
-    let displaced = arguments[&key]
-        .value
-        .expect("the retargeted place is filled");
-    let mut owner = graph.objects[&predication].clone();
-    owner.update_predication(|node| {
-        let mut arguments = node.arguments.clone();
-        let argument = arguments
-            .remove(&key)
-            .expect("the retargeted place is present")
-            .with_data(data! { value: Some(shared) });
-        arguments.insert(key, argument);
-        node.with_data(data! { arguments: arguments })
+    let keeper = named_predication(&graph, retained.0);
+    let target = named_predication(&graph, retargeted.0);
+    let shared = closure_place_value(&graph, keeper, retained.1);
+    let displaced = closure_place_value(&graph, target, retargeted.1);
+    let mut owner = graph.objects[&target].clone();
+    owner.update_predication(|node| match retargeted.1 {
+        ClosurePlace::Main(index) => {
+            let key = PlaceIndex::new(index);
+            let mut arguments = node.arguments.clone();
+            let argument = arguments
+                .remove(&key)
+                .expect("the retargeted place is present")
+                .with_data(data! { value: Some(shared) });
+            arguments.insert(key, argument);
+            node.with_data(data! { arguments: arguments })
+        }
+        ClosurePlace::Adjunct(adjunct, index) => {
+            let key = PlaceIndex::new(index);
+            let mut adjuncts = node.adjuncts.clone();
+            let mut arguments = adjuncts[adjunct].arguments.clone();
+            let argument = arguments
+                .remove(&key)
+                .expect("the retargeted place is present")
+                .with_data(data! { value: Some(shared) });
+            arguments.insert(key, argument);
+            adjuncts[adjunct] = adjuncts[adjunct]
+                .clone()
+                .with_data(data! { arguments: arguments });
+            node.with_data(data! { adjuncts: adjuncts })
+        }
     });
     let mut orphan = graph.objects[&displaced].clone();
     orphan.update_referent(|node| {
         node.with_data(data! { scope_dependence: Some(ScopeDependence::fixed()) })
     });
+    let stranded = still_reaches(&graph, target, &owner, displaced) == 0;
     let data = graph.into_data();
     let mut objects = data.objects;
     let root = data.scope.root;
-    let scope = data
-        .scope
-        .with_owner_reindexed(predication, &owner)
-        .with_origin(displaced, root)
-        .with_owner_reindexed(displaced, &orphan);
-    objects.insert(predication, owner);
-    objects.insert(displaced, orphan);
+    let mut scope = data.scope.with_owner_reindexed(target, &owner);
+    objects.insert(target, owner);
+    if stranded {
+        scope = scope
+            .with_origin(displaced, root)
+            .with_owner_reindexed(displaced, &orphan);
+        objects.insert(displaced, orphan);
+    }
     let graph = SemanticGraph::from_data(data!(SemanticGraph {
         objects,
         scope,
@@ -2892,7 +2963,11 @@ fn a_shared_default_binds_at_its_first_place_in_numbered_order() {
     // shared; x3 and x5 keep their own. The identity x4 used to name is left
     // reachable from nothing, so it is re-homed at the document region, where a
     // disconnected object's derived dependence is `Fixed`.
-    let (graph, orphaned) = share_place_with(input.graph.clone(), "klama", 4, 2);
+    let (graph, orphaned) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(2)),
+        ("klama", ClosurePlace::Main(4)),
+    );
     assert_eq!(orphaned, displaced);
     let rendered = project_document(&graph);
     let datum = validate_render(&graph, &rendered.text);
@@ -3017,4 +3092,319 @@ fn a_selection_source_with_no_restriction_is_refused() {
         "an unrestricted sourced quantifier is refused: {:?}",
         failure_reason_ids(&failed)
     );
+}
+
+/// Section 5.1's rule 2 places the one `Bind` a shared default gets at the
+/// dynamic evaluation site the identity's uses have in common, and a predication
+/// that also carries an adjunct has *several* `Close`s under one graph object:
+/// its own application, and one `Joi` operand per adjunct. So the graph object
+/// is not the coordinate. A default shared between two places of the
+/// application is closed by the application, and belongs inside that operand —
+/// where the sibling adjunct, which never mentions the identity, runs outside
+/// its binder.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_shared_default_of_a_joined_predication_binds_in_its_own_application() {
+    let input = build_input("mi klama ta'i lo racli", "shared-default-main-closure");
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(2)),
+        ("klama", ClosurePlace::Main(3)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    let (names, application) = peel_binds(&operands[0]);
+    assert_eq!(
+        names.len(),
+        1,
+        "the shared default binds inside the application that closes it:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        application.form_head(),
+        Some("klama"),
+        "and wraps exactly that application:\n{}",
+        rendered.text
+    );
+    let filled = form_operands(application)
+        .iter()
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filled[1..3].to_vec(),
+        vec![names[0].clone(), names[0].clone()],
+        "one identity fills both places:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        collect_bind_hosts(&datum, &names[0]).len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        count_forms(&datum, "Let"),
+        0,
+        "it is a `Bind`, not a declaration beside the junction:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        operands[1].form_head(),
+        Some("tadji"),
+        "the adjunct never mentions the identity and runs outside its binder:\n{}",
+        rendered.text
+    );
+}
+
+/// The mirror leg of the same taxonomy: a default shared between two places of
+/// one adjunct is closed by *that adjunct*, so it binds inside the adjunct's own
+/// `Joi` operand and the application runs outside it. The graph object is the
+/// same one as in the application case, which is exactly why the object cannot
+/// decide this.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_shared_default_of_one_adjunct_binds_in_that_adjunct() {
+    let input = build_input("mi klama ta'i lo racli", "shared-default-adjunct-closure");
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Adjunct(0, 2)),
+        ("klama", ClosurePlace::Adjunct(0, 3)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    assert_eq!(
+        operands[0].form_head(),
+        Some("klama"),
+        "the application never mentions the identity and runs outside its \
+         binder:\n{}",
+        rendered.text
+    );
+    let (names, adjunct) = peel_binds(&operands[1]);
+    assert_eq!(
+        names.len(),
+        1,
+        "the shared default binds inside the adjunct that closes it:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        adjunct.form_head(),
+        Some("tadji"),
+        "and wraps exactly that adjunct:\n{}",
+        rendered.text
+    );
+    let filled = form_operands(adjunct)
+        .iter()
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filled[1..3].to_vec(),
+        vec![names[0].clone(), names[0].clone()],
+        "one identity fills both of the adjunct's places:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        collect_bind_hosts(&datum, &names[0]).len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// The third leg, and the one that keeps the other two honest: a default the
+/// application and the adjunct *both* use has no single `Close` that covers it.
+/// A name bound inside the first operand would not be in scope in the second,
+/// so section 5.1's one `Bind` stands at the common dynamic site above the whole
+/// junction — which is the placement the plan computes from the graph.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_default_shared_across_two_closures_binds_above_the_junction() {
+    let input = build_input("mi klama ta'i lo racli", "shared-default-cross-closure");
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(2)),
+        ("klama", ClosurePlace::Adjunct(0, 2)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    assert_eq!(
+        operands[0].form_head(),
+        Some("klama"),
+        "neither operand may bind what the other one uses:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        operands[1].form_head(),
+        Some("tadji"),
+        "neither operand may bind what the other one uses:\n{}",
+        rendered.text
+    );
+    let shared = form_operands(&operands[0])
+        .last()
+        .and_then(Datum::as_atom)
+        .expect("the application's last place is the shared identity")
+        .to_owned();
+    assert!(
+        contains_atom(&operands[1], &shared),
+        "the adjunct uses the same identity:\n{}",
+        rendered.text
+    );
+    let hosts = collect_bind_hosts(&datum, &shared);
+    assert_eq!(
+        hosts.len(),
+        1,
+        "one identity is still one binder:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_form(hosts[0], "Joi"),
+        "and it stands above the whole junction, which is the site both uses \
+         have in common:\n{}",
+        rendered.text
+    );
+}
+
+/// Owner matching and physical binding have to name the same effect scope.
+///
+/// The `Bind` a scheduled default emits lands at the *innermost* open scope,
+/// because that is what section 6.3 says a `Context` does. So a scheduler that
+/// searched outward for a scope owning the plan's site would accept a schedule
+/// against an outer closure and then bind inside an inner one it does not own,
+/// leaving every later use of the name outside its binder — a representable
+/// graph turned into an unbound document.
+///
+/// The shape: a `du'u` whose predication carries an adjunct — several closures,
+/// none of which closes the identity — nested inside the open closure of an
+/// outer predication that uses the same identity at a later place. The one
+/// legal host is the outer site, spanning both uses.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_shared_default_is_not_scheduled_at_a_closure_that_does_not_own_it() {
+    let input = build_input(
+        "mi djuno lo du'u mi klama ta'i lo racli",
+        "shared-default-nested-closure",
+    );
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(3)),
+        ("djuno", ClosurePlace::Main(3)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let outer = collect_forms_owned(&datum, "djuno");
+    assert_eq!(outer.len(), 1, "{}", rendered.text);
+    let shared = form_operands(outer[0])
+        .last()
+        .and_then(Datum::as_atom)
+        .expect("the outer predication's last place is the shared identity")
+        .to_owned();
+    let hosts = collect_bind_hosts(&datum, &shared);
+    assert_eq!(
+        hosts.len(),
+        1,
+        "one identity is one binder:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_atom(hosts[0], "djuno"),
+        "and it spans the outer use, not just the inner one:\n{}",
+        rendered.text
+    );
+    let junctions = collect_forms_owned(&datum, "Joi");
+    assert_eq!(junctions.len(), 1, "{}", rendered.text);
+    let operands = form_operands(junctions[0]);
+    assert_eq!(
+        operands[0].form_head(),
+        Some("klama"),
+        "the inner closure does not bind an identity it does not close:\n{}",
+        rendered.text
+    );
+    assert!(
+        contains_atom(&operands[0], &shared),
+        "though it is where the identity is first used:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
+}
+
+/// The same rule inside a question body, where the answered slot's lambda is a
+/// section-6.3 host position that is not the section-5.1 evaluation site of
+/// anything. A default shared between two places of the question's own
+/// application still binds inside that application — at the first place that
+/// asks for it, ahead of the later place's unshared one — rather than being
+/// pooled at the lambda with the raised description that legitimately lives
+/// there.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn a_question_body_schedules_its_own_shared_default_in_numbered_order() {
+    let input = build_input("ma klama ta'i lo racli", "question-body-shared-default");
+    let (graph, _) = share_closure_places(
+        input.graph.clone(),
+        ("klama", ClosurePlace::Main(3)),
+        ("klama", ClosurePlace::Main(4)),
+    );
+    let rendered = project_document(&graph);
+    let datum = validate_render(&graph, &rendered.text);
+
+    let queries = collect_forms_owned(&datum, "OpenQ");
+    assert_eq!(queries.len(), 1, "{}", rendered.text);
+    let lambda = &form_operands(queries[0])[0];
+    let (hoisted, junction) = peel_binds(&form_operands(lambda)[1]);
+    assert_eq!(junction.form_head(), Some("Joi"), "{}", rendered.text);
+    let operands = form_operands(junction);
+    assert_eq!(operands.len(), 2, "{}", rendered.text);
+    let (names, application) = peel_binds(&operands[0]);
+    assert_eq!(application.form_head(), Some("klama"), "{}", rendered.text);
+    let filled = form_operands(application)
+        .iter()
+        .map(|item| item.as_atom().unwrap_or_default().to_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        filled[2], filled[3],
+        "one identity fills x3 and x4:\n{}",
+        rendered.text
+    );
+    assert_eq!(
+        names,
+        vec![filled[1].clone(), filled[2].clone(), filled[4].clone()],
+        "the shared default is scheduled at the first place that asks for it, \
+         in the closure's own numbered-place order:\n{}",
+        rendered.text
+    );
+    assert!(
+        !hoisted.contains(&filled[2]),
+        "nothing about the query lambda makes it this closure's evaluation \
+         site:\n{}",
+        rendered.text
+    );
+    let (adjunct_names, adjunct) = peel_binds(&operands[1]);
+    assert_eq!(adjunct.form_head(), Some("tadji"), "{}", rendered.text);
+    assert_eq!(
+        adjunct_names.len(),
+        2,
+        "the adjunct keeps closing its own two defaults:\n{}",
+        rendered.text
+    );
+    assert_eq!(count_forms(&datum, "Let"), 0, "{}", rendered.text);
 }

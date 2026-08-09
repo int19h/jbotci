@@ -183,6 +183,27 @@ impl HostFrameKind {
     }
 }
 
+/// Which `Close` of one graph object an effect scope is.
+///
+/// Section 5.1's evaluation site is a closure, and one graph object renders as
+/// several: a predication is its own application plus one `Joi` operand per
+/// adjunct, and each of those is its own `Close`. The plan's placement
+/// coordinate is coarser than that — [`ReferencePlan::definition_site`] names
+/// the containing *object* — so a shared default's schedule cannot be decided
+/// on the object alone. Shared twice in the application, shared twice inside
+/// one adjunct, and shared across the two are three different hosts: the first
+/// two bind inside their own closure at the place that asks first, and only the
+/// third has to stand at the common site above both.
+#[invariant(::Main(_) => true, "an object's own application is one closure")]
+#[invariant(::Adjunct(_, _) => true, "each adjunct is a `Joi` operand and so a closure of its own")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClosureSite {
+    /// The object's own relation applied to its numbered places.
+    Main(SemanticObjectId),
+    /// One adjunct of that object, named by its position in the adjunct list.
+    Adjunct(SemanticObjectId, usize),
+}
+
 #[invariant(
     true,
     "the kind already constrains itself and any binding list is hostable here"
@@ -190,16 +211,13 @@ impl HostFrameKind {
 #[derive(Debug)]
 struct HostFrame {
     kind: HostFrameKind,
-    /// The graph object whose rendering opened this position, when this scope
-    /// is the *whole* of that object's rendered content. Only a closure scope
-    /// carries one: section 5.1's rule 2 places a graph-shared default at the
-    /// site the plan computed for it, and matching that site against an open
-    /// scope is what lets the shared `Bind` be scheduled with the closure's own
-    /// numbered-place walk instead of appended after it. A predication that
-    /// also carries adjuncts renders as several closures under one plan site,
-    /// so none of them owns the site and the shared default keeps the
-    /// declaration placement that spans them all.
-    owner: Option<SemanticObjectId>,
+    /// The `Close` this scope is the whole of, when it is one the notation can
+    /// name. Only a closure scope carries one: section 5.1's rule 2 places a
+    /// graph-shared default at the closure whose own places share it, and
+    /// matching that closure against an open scope is what lets the shared
+    /// `Bind` be scheduled with the closure's own numbered-place walk instead
+    /// of appended after it.
+    owner: Option<ClosureSite>,
     /// The lexical binders live at this position, so a computation placed here
     /// can be checked against the names its computation actually uses.
     live: BTreeSet<SemanticObjectId>,
@@ -804,6 +822,21 @@ fn deleted_places(arguments: &BTreeMap<PlaceIndex, ArgumentValue>) -> BTreeSet<P
         .collect()
 }
 
+/// How many places of one argument map are filled by exactly this identity.
+///
+/// Only the filled value counts. A place that names the identity some other
+/// way — a quantity, a relative clause — is an occurrence this count does not
+/// see, and the caller compares against the plan's own use count precisely so
+/// that such a place makes the closure unnameable rather than miscounted.
+#[requires(true)]
+#[ensures(ret <= arguments.len())]
+fn fills_naming(arguments: &BTreeMap<PlaceIndex, ArgumentValue>, id: SemanticObjectId) -> usize {
+    arguments
+        .values()
+        .filter(|argument| argument.value == Some(id))
+        .count()
+}
+
 /// The ordinary referential type an unfilled or deleted place accepts.
 #[requires(true)]
 #[ensures(matches!(ret, TypeExpr::Referents(_)))]
@@ -1374,7 +1407,7 @@ impl Elaborator<'_> {
     /// whatever lambda or force segment happens to enclose it.
     #[requires(true)]
     #[ensures(self.reference_binding_frames.borrow().len() == old(self.reference_binding_frames.borrow().len()) + 1)]
-    fn open_closure_scope(&self, owner: Option<SemanticObjectId>, live: &Bound) {
+    fn open_closure_scope(&self, owner: Option<ClosureSite>, live: &Bound) {
         self.reference_binding_frames.borrow_mut().push(HostFrame {
             kind: HostFrameKind::Closure,
             owner,
@@ -1636,10 +1669,12 @@ impl Elaborator<'_> {
     /// position. Rendering it here instead binds it at the first place that
     /// asks for it, in the scope that place is being rendered in.
     ///
-    /// Only a closure that is the whole of its plan site's content is eligible,
-    /// which is what keeps the shared name in scope at every use: a site that
-    /// renders as several closures — a predication with adjuncts — opens no
-    /// owned scope and keeps the declaration placement that spans them all.
+    /// Only a default whose every use is a place of one single closure is
+    /// eligible, which is what keeps the shared name in scope at every use. A
+    /// default shared across two closures of one object — the main application
+    /// and an adjunct, or two adjuncts — has no such closure, and section 5.1's
+    /// rule 2 puts its one `Bind` at the common dynamic site above both, which
+    /// is the declaration placement the plan already computed.
     #[requires(self.graph.objects.contains_key(&id))]
     #[ensures(true)]
     fn schedule_shared_default(
@@ -1652,13 +1687,19 @@ impl Elaborator<'_> {
             if !self.is_shared_closure_default(id) {
                 return None;
             }
-            let owned = self
+            let closure = self.shared_default_closure(id)?;
+            // The scope that owns the schedule and the scope the `Bind` lands
+            // in have to be the same one. Rendering hosts a contextual constant
+            // at the *innermost* open scope, so an outward search that skipped
+            // an intervening closure would schedule against one effect scope
+            // and bind inside another, leaving every later use of the name
+            // outside its binder.
+            let innermost = self
                 .reference_binding_frames
                 .borrow()
-                .iter()
-                .rev()
-                .find_map(|frame| frame.owner);
-            if owned.is_none() || owned != self.plan.definition_site(id) {
+                .last()
+                .and_then(|frame| frame.owner);
+            if innermost != Some(closure) {
                 return None;
             }
             // The rendering itself is what appends the `Bind`: a contextual
@@ -1674,6 +1715,53 @@ impl Elaborator<'_> {
             id,
             &BoundValue::Value(declared_type),
         )))
+    }
+
+    /// The one `Close` whose own numbered places share this default, when the
+    /// graph names one.
+    ///
+    /// The plan places a shared identity at the object that contains every use
+    /// of it, and that object may render as several closures. So the closure is
+    /// read off the object's own place maps: the application's places are one
+    /// `Close`, each adjunct's are another. One closure holding every use is a
+    /// closure that can schedule the default itself; two are the cross-closure
+    /// case, where a name bound inside the first would not be in scope in the
+    /// second and the common site above both is the only legal host.
+    ///
+    /// Deliberately narrow in the other direction too: every use has to be a
+    /// place of the site object itself. A use reached *through* some further
+    /// object stands in whatever closure renders that object, which this
+    /// coordinate cannot name, so such a default keeps its planned declaration.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn shared_default_closure(&self, id: SemanticObjectId) -> Option<ClosureSite> {
+        let site = self.plan.definition_site(id)?;
+        if self
+            .plan
+            .uses_of(id)
+            .is_none_or(|uses| uses.len() != 1 || !uses.contains(&site))
+        {
+            return None;
+        }
+        let node = self.graph.objects[&site].as_predication()?;
+        let mut closures = Vec::new();
+        let main = fills_naming(&node.arguments, id) + usize::from(node.eventuality == Some(id));
+        if main > 0 {
+            closures.push((ClosureSite::Main(site), main));
+        }
+        for (index, adjunct) in node.adjuncts.iter().enumerate() {
+            let places = fills_naming(&adjunct.arguments, id);
+            if places > 0 {
+                closures.push((ClosureSite::Adjunct(site, index), places));
+            }
+        }
+        // Exactly one closure, and it accounts for every use the plan counted:
+        // an occurrence this walk did not see is one whose closure it cannot
+        // name, and guessing at it is what would bind a name out of scope.
+        let [(closure, places)] = closures[..] else {
+            return None;
+        };
+        (places == self.plan.use_count(id)).then_some(closure)
     }
 
     /// Whether one shared definition is a section-5.1 contextual default rather
@@ -2566,10 +2654,7 @@ impl Elaborator<'_> {
         };
         // The projected `Tanru` application is one `Close` like any other, so it
         // owns the section-5.1 effect scope of the places it omits.
-        self.open_closure_scope(
-            head.adjuncts.is_empty().then_some(head_atom.predication),
-            bound,
-        );
+        self.open_closure_scope(Some(ClosureSite::Main(head_atom.predication)), bound);
         let closed = self
             .render_argument_map(former, &head.arguments, bound, active, head.eventuality)
             .ok()
@@ -2578,7 +2663,15 @@ impl Elaborator<'_> {
         conjuncts.extend(
             head.adjuncts
                 .iter()
-                .map(|adjunct| self.render_modal(adjunct, bound, active))
+                .enumerate()
+                .map(|(index, adjunct)| {
+                    self.render_modal(
+                        ClosureSite::Adjunct(head_atom.predication, index),
+                        adjunct,
+                        bound,
+                        active,
+                    )
+                })
                 .collect::<Option<Vec<_>>>()?,
         );
         let value = if conjuncts.len() == 1 {
@@ -2786,7 +2879,7 @@ impl Elaborator<'_> {
         // pooled at the enclosing lambda or force segment, where a later
         // conjunct's lookup would run before the earlier conjunct it is
         // supposed to see the dynamic context of.
-        self.open_closure_scope(node.adjuncts.is_empty().then_some(id), bound);
+        self.open_closure_scope(Some(ClosureSite::Main(id)), bound);
         let application = match node.relation.as_data() {
             data!(PredicationRelation::Named { relation }) => {
                 let root = LexicalRoot::try_new(relation).expect("the atomic spelling is proved");
@@ -2859,8 +2952,10 @@ impl Elaborator<'_> {
             );
         };
         let mut conjuncts = vec![closed];
-        for adjunct in &node.adjuncts {
-            let Some(modal) = self.render_modal(adjunct, bound, active) else {
+        for (index, adjunct) in node.adjuncts.iter().enumerate() {
+            let Some(modal) =
+                self.render_modal(ClosureSite::Adjunct(id, index), adjunct, bound, active)
+            else {
                 return self.fallback_object(
                     id,
                     bound,
@@ -3111,6 +3206,7 @@ impl Elaborator<'_> {
     #[ensures(true)]
     fn render_modal(
         &self,
+        site: ClosureSite,
         adjunct: &Adjunct,
         bound: &Bound,
         active: &mut BTreeSet<SemanticObjectId>,
@@ -3124,7 +3220,7 @@ impl Elaborator<'_> {
         }
         let relation = adjunct.relation.as_ref()?;
         let root = LexicalRoot::try_new(relation).ok()?;
-        self.open_closure_scope(None, bound);
+        self.open_closure_scope(Some(site), bound);
         let closed = self
             .render_argument_map(
                 RelationRef::Lexical(root),
