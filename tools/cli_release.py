@@ -513,7 +513,8 @@ def _validate_tar_archive(path: Path, version: str, spec: TargetSpec) -> Mapping
                 expected_mode = 0o755 if leaf_name == spec.binary_name else 0o644
                 if not member.isfile() or member.mode != expected_mode:
                     raise ReleaseToolError(
-                        f"{path} member {member.name} must be a regular mode-{expected_mode:04o} file"
+                        f"{path} member {member.name} must be a regular "
+                        f"mode-{expected_mode:04o} file"
                     )
                 extracted = archive.extractfile(member)
                 if extracted is None:

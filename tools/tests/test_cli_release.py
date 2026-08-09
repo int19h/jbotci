@@ -257,7 +257,10 @@ class CliReleaseTest(unittest.TestCase):
                     members = archive.infolist()
                     self.assertEqual(
                         [member.filename for member in members],
-                        [f"{expected_root}/", *[f"{expected_root}/{name}" for name in expected_files]],
+                        [
+                            f"{expected_root}/",
+                            *[f"{expected_root}/{name}" for name in expected_files],
+                        ],
                     )
                     self.assertEqual(stat.S_IMODE(members[0].external_attr >> 16), 0o755)
                     for member in members[1:]:
