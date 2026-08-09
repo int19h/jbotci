@@ -122,10 +122,12 @@ jobs:
         include:
           - runner: ubuntu-24.04
             target: x86_64-unknown-linux-musl
+            bindgen_target: x86_64-alpine-linux-musl
             platform: linux/amd64
             uname: x86_64
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
+            bindgen_target: aarch64-alpine-linux-musl
             platform: linux/arm64
             uname: aarch64
     runs-on: ${{ matrix.runner }}
@@ -164,6 +166,7 @@ jobs:
             --env CARGO_BUILD_JOBS \
             --env CARGO_PROFILE_RELEASE_STRIP=symbols \
             --env CARGO_TARGET_DIR=/out/target \
+            --env EXPECTED_BINDGEN_TARGET="${{ matrix.bindgen_target }}" \
             --env EXPECTED_RUST_HOST="${{ matrix.target }}" \
             --env EXPECTED_UNAME="${{ matrix.uname }}" \
             --env RUSTUP_TOOLCHAIN=1.96.0 \
@@ -189,8 +192,18 @@ jobs:
                 python3 \
                 zstd \
                 zstd-dev
+              test "$(g++ -dumpmachine)" = "${EXPECTED_BINDGEN_TARGET}"
+              printf "%s\n" "#include <bits/c++config.h>" | clang++ \
+                --target="${EXPECTED_RUST_HOST}" \
+                --target="${EXPECTED_BINDGEN_TARGET}" \
+                -x c++ \
+                -fsyntax-only \
+                -
+              export BINDGEN_EXTRA_CLANG_ARGS="--target=${EXPECTED_BINDGEN_TARGET}"
               git config --global --add safe.directory /work
-              cargo build --release --locked -p jbotci
+              # Host build scripts must stay dynamic for libclang, while the final CLI
+              # is static. Keep --target absent so RUSTFLAGS reaches the host scripts.
+              RUSTFLAGS="-C target-feature=-crt-static" cargo rustc --release --locked -p jbotci --bin jbotci -- -C target-feature=+crt-static
             '
           sudo chown -R "$(id -u):$(id -g)" "${build_root}"
           test -x "${build_root}/target/release/jbotci"
