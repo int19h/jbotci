@@ -3549,14 +3549,16 @@ pub(crate) enum AbstractionTrailingPlace {
     Stages,
     /// `zu'o` x2.
     Actions,
+    /// `su'u` x2, the type or category of the abstraction (CLL 11.9).
+    Categorizer,
 }
 
 impl AbstractionKind {
     /// The trailing place this abstractor exposes, if any.
     ///
-    /// `su'u` has no row: CLL 11.13 gives it no x2 and the model records none.
-    /// `nu`, `mu'e` and `za'i` are one-place event abstractors, and `ka`'s
-    /// extra structure is its `ce'u` parameters.
+    /// CLL 11.9 gives `su'u` an x2 naming the type of the abstraction. `nu`,
+    /// `mu'e` and `za'i` are one-place event abstractors, and `ka`'s extra
+    /// structure is its `ce'u` parameters.
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn trailing_place(self) -> Option<AbstractionTrailingPlace> {
@@ -3568,12 +3570,10 @@ impl AbstractionKind {
             Self::Experience => Some(AbstractionTrailingPlace::Experiencer),
             Self::Process => Some(AbstractionTrailingPlace::Stages),
             Self::Activity => Some(AbstractionTrailingPlace::Actions),
-            Self::Event
-            | Self::Achievement
-            | Self::State
-            | Self::Property
-            | Self::SentenceSign
-            | Self::Unspecified => None,
+            Self::Unspecified => Some(AbstractionTrailingPlace::Categorizer),
+            Self::Event | Self::Achievement | Self::State | Self::Property | Self::SentenceSign => {
+                None
+            }
         }
     }
 }
