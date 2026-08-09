@@ -24,6 +24,7 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 
+use super::super::kernel::intrinsic::Intrinsic;
 use super::super::kernel::types::Variable;
 use super::datum::Datum;
 use super::type_syntax::variable_to_datum;
@@ -40,6 +41,37 @@ use crate::model::{
 )]
 pub(super) fn object_variable(id: SemanticObjectId) -> Variable {
     Variable::from_token_and_index(identity_namespace_token(id.prefix()), id.index())
+}
+
+/// Fresh local binder for one omitted section-11.3 crossing operand.
+///
+/// The crossing name is part of the namespace because two different omitted
+/// operands on one graph identity are distinct contextual computations. Every
+/// token ends in `Context`, which no graph-identity namespace does, so these
+/// locals cannot collide with [`object_variable`].
+#[requires(matches!(
+    intrinsic,
+    Intrinsic::Measure
+        | Intrinsic::TruthValue
+        | Intrinsic::ExperienceOf
+        | Intrinsic::ProcessOf
+        | Intrinsic::ActivityOf
+        | Intrinsic::Concept
+        | Intrinsic::Abstract
+))]
+#[ensures(ret.as_str().starts_with('$'))]
+pub(super) fn crossing_default_variable(id: SemanticObjectId, intrinsic: Intrinsic) -> Variable {
+    let token = match intrinsic {
+        Intrinsic::Measure => "scaleContext",
+        Intrinsic::TruthValue => "epistemologyContext",
+        Intrinsic::ExperienceOf => "experiencerContext",
+        Intrinsic::ProcessOf => "stagesContext",
+        Intrinsic::ActivityOf => "actionsContext",
+        Intrinsic::Concept => "mindContext",
+        Intrinsic::Abstract => "categorizerContext",
+        _ => unreachable!("the contract admits exactly the section-11.3 crossings"),
+    };
+    Variable::from_token_and_index(token, id.index())
 }
 
 /// Stable lexical variable datum for one typed graph identity.

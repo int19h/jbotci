@@ -9,6 +9,7 @@ mod identity;
 pub mod internal_raw;
 pub mod kernel_printer;
 pub mod planner;
+mod purity;
 pub mod renderer;
 pub mod structural;
 pub mod syntax;

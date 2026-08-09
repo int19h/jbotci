@@ -8703,8 +8703,8 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 mod tests {
     use super::*;
     use crate::model::{
-        AbstractionTrailingPlace, ActualityKind, DeicticReference, DomainImport,
-        GeneratedReferent, ScopeDependence, ScopeDependenceData, SemanticObjectKind,
+        AbstractionTrailingPlace, ActualityKind, DeicticReference, DomainImport, GeneratedReferent,
+        ScopeDependence, ScopeDependenceData, SemanticObjectKind,
     };
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};

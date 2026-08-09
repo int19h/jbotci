@@ -1941,6 +1941,121 @@ fn a_gadri_folded_proposition_crossing_is_one_reify() {
     );
 }
 
+/// The four crossing families whose graph may omit x2 spell the exact local
+/// section-11.3 sugar. Each omission owns one fresh `Context` computation at
+/// the crossing; it is neither an open place for `Close` nor a raised
+/// description computation.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn omitted_referent_crossing_operands_are_local_typed_contexts() {
+    let cases = [
+        ("lo ni mi klama kei", "Measure", "Scale", "scaleContext"),
+        (
+            "lo jei mi klama kei",
+            "TruthValue",
+            "Epistemology",
+            "epistemologyContext",
+        ),
+        ("lo si'o mi klama kei", "Concept", "Entity", "mindContext"),
+        (
+            "lo su'u mi klama kei",
+            "Abstract",
+            "Entity",
+            "categorizerContext",
+        ),
+    ];
+    for (text, crossing, trailing_type, binder_stem) in cases {
+        let input = build_input(text, crossing);
+        let rendered = project_document(&input.graph);
+        let datum = parse_document(&rendered.text).expect("a rendered crossing parses");
+        let crossings = collect_forms_owned(&datum, crossing);
+        assert_eq!(crossings.len(), 1, "{}", rendered.text);
+        let binders = collect_forms_owned(&datum, "Bind");
+        assert_eq!(binders.len(), 1, "{}", rendered.text);
+        assert!(contains_atom(binders[0], "Context"), "{}", rendered.text);
+        assert!(
+            contains_atom(binders[0], trailing_type),
+            "{}",
+            rendered.text
+        );
+        assert!(
+            rendered.text.contains(binder_stem),
+            "the local name records which contextual operand it binds:\n{}",
+            rendered.text
+        );
+        assert_eq!(count_forms(&datum, "Refer"), 0, "{}", rendered.text);
+    }
+}
+
+/// Independently represented, correctly typed x2 objects reach all five
+/// surface-representable crossing families. Process and activity take an event
+/// reference, while experience, concept, and unspecified abstraction take an
+/// entity reference; none is replaced by contextual sugar.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn explicit_crossing_operands_reach_their_declared_fields() {
+    let cases = [
+        ("lo li'i mi klama kei be do", "ExperienceOf", "Audience"),
+        (
+            "lo pu'u mi klama kei be lo nu do cadzu",
+            "ProcessOf",
+            "cadzu",
+        ),
+        (
+            "lo zu'o mi klama kei be lo nu do cadzu",
+            "ActivityOf",
+            "cadzu",
+        ),
+        ("lo si'o mi klama kei be do", "Concept", "Audience"),
+        ("lo su'u mi klama kei be lo fasnu", "Abstract", "fasnu"),
+    ];
+    for (text, crossing, operand_evidence) in cases {
+        let input = build_input(text, crossing);
+        let rendered = project_document(&input.graph);
+        let datum = parse_document(&rendered.text).expect("a rendered crossing parses");
+        let crossings = collect_forms_owned(&datum, crossing);
+        assert_eq!(crossings.len(), 1, "{}", rendered.text);
+        assert!(
+            (contains_atom(&datum, operand_evidence) || contains_form(&datum, operand_evidence))
+                && crossings[0]
+                    .as_list()
+                    .is_some_and(|items| items.get(2).is_some_and(|operand| {
+                        operand.as_atom().is_some() || operand.as_list().is_some()
+                    })),
+            "the explicit operand reaches {crossing}:\n{}",
+            rendered.text
+        );
+        assert!(!contains_form(crossings[0], "Context"), "{}", rendered.text);
+    }
+}
+
+/// A source operand retains its graph type. In particular, `lo mitre` is an
+/// entity description, not a `Scale`, so the `Measure` kernel application must
+/// reject it instead of coercing it or silently substituting the omitted-x2
+/// sugar.
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn ill_typed_explicit_crossing_operand_is_a_registered_invalid_graph() {
+    let input = build_input("lo ni mi klama kei be lo mitre", "ill-typed-measure-scale");
+    let failed = project_failure(&input.graph);
+    assert!(
+        failure_reason_ids(&failed)
+            .contains(&"smusni.projection.predicate-fill-type-or-arity-mismatch"),
+        "{:?}",
+        failure_reason_ids(&failed)
+    );
+    assert!(
+        failed
+            .failures
+            .iter()
+            .any(|failure| failure.failure_class == FailureClass::InvalidGraph),
+        "the typed crossing mismatch is an invalid graph: {failed:?}"
+    );
+}
+
 /// An event abstraction is section 11.2's ordinary reference computation, and
 /// its property binds the abstracted event at the content root's own event
 /// place rather than through an `EventOf`-style primitive.

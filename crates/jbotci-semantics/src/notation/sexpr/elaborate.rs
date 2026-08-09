@@ -35,8 +35,9 @@ use super::super::kernel::types::{
     Variable,
 };
 use super::super::kernel::value::{FnValue, Literal, Operand, RefComp, Value};
-use super::identity::object_variable;
+use super::identity::{crossing_default_variable, object_variable};
 use super::planner::{GraphUsage, ProjectedIdentities, ReferencePlan, strong_components};
+use super::purity::{intrinsic_requires_pure_property, is_pure_property};
 use crate::model::{
     AbstractionKind, ActualityKind, Adjunct, ArgumentValue, ArgumentValueKind, DeicticProximity,
     DescriptorKind, EventualityDenotationData, EventualityNode, EventualitySort, FormulaNode,
@@ -505,6 +506,8 @@ pub(super) enum CompactFallbackCause {
     UnrecognizedConnective,
     QuantifierVariableFields,
     QuantifierFields,
+    /// The placed property failed a registry-only `PureProperty` requirement.
+    PurityUnproven,
     /// A described `selectionSource` the restriction does not certify. The
     /// model states that a described domain restricts the candidate with
     /// `memberOf(candidate, description)`, but nothing in the model's
@@ -518,6 +521,10 @@ pub(super) enum CompactFallbackCause {
     NonAtomicRelation,
     CompositionPredication,
     ArgumentFields,
+    /// A section-11.3 graph operand does not inhabit the crossing's declared
+    /// trailing type. The graph is structurally recognized, but the typed
+    /// kernel correctly refuses the application.
+    CrossingOperandMismatch,
     AdjunctFields,
     CompositionFields,
     ConstantWithoutDependence,
@@ -584,11 +591,14 @@ impl CompactFallbackCause {
             | Self::SelectionSourceUncertified => {
                 "smusni.projection.quantifier-effect-export-illegal"
             }
+            Self::PurityUnproven => "smusni.projection.prelude-reduction-unavailable",
             Self::RespectivelySlotFields => "smusni.projection.simultaneous-termset-unlicensed",
             Self::CompositionPredication | Self::CompositionFields => {
                 "smusni.projection.relation-former-reduction-unavailable"
             }
-            Self::ArgumentFields => "smusni.projection.predicate-fill-type-or-arity-mismatch",
+            Self::ArgumentFields | Self::CrossingOperandMismatch => {
+                "smusni.projection.predicate-fill-type-or-arity-mismatch"
+            }
             Self::AdjunctFields => "smusni.projection.modal-tag-reduction-unregistered",
             Self::ConstantWithoutDependence | Self::ReferentFields => {
                 "smusni.projection.reference-description-unrepresentable"
@@ -653,6 +663,9 @@ impl CompactFallbackCause {
                 "the quantifier's bound-variable fields have no compact representation"
             }
             Self::QuantifierFields => "the quantifier shape is not a registered compact reduction",
+            Self::PurityUnproven => {
+                "the placed property does not satisfy the registered purity precondition"
+            }
             Self::SelectionSourceUncertified => {
                 "the restriction does not state the described selection source's membership"
             }
@@ -671,6 +684,9 @@ impl CompactFallbackCause {
             }
             Self::ArgumentFields => {
                 "the argument map does not match the predicate's fill type or arity"
+            }
+            Self::CrossingOperandMismatch => {
+                "the abstraction's trailing graph operand does not inhabit the crossing's declared type"
             }
             Self::AdjunctFields => "no registered modal-tag reduction covers this adjunct",
             Self::CompositionFields => {
@@ -936,23 +952,49 @@ fn callable_property(parameter: &TypedParameter, body: Option<Content>) -> Optio
         .map(FnValue::lambda)
 }
 
+/// Outcome of constructing a generalized-quantifier reduction.
+#[invariant(::Rendered(_) => true)]
+#[invariant(::DeclinedOperand => true)]
+#[invariant(::PurityUnproven => true)]
+#[invariant(::ConstructionRejected => true)]
+#[derive(Debug)]
+enum GeneralizedQuantification {
+    Rendered(Content),
+    DeclinedOperand,
+    PurityUnproven,
+    ConstructionRejected,
+}
+
 /// Build section 9.4's application of one generalized quantifier to its scope.
 ///
 /// The restriction is an operand of the registered constructor and the nuclear
 /// scope is the argument of the generalized quantifier it returns; both are
 /// properties of the same binder.
-#[requires(true)]
+#[requires(matches!(constructor, Intrinsic::Some | Intrinsic::No | Intrinsic::Every))]
 #[ensures(true)]
 fn generalized_quantification(
     constructor: Intrinsic,
     parameter: &TypedParameter,
     restriction: Option<Content>,
     body: Option<Content>,
-) -> Option<Content> {
-    let restriction = callable_property(parameter, restriction)?;
-    let scope = callable_property(parameter, body)?;
-    let quantifier = FnValue::intrinsic(constructor, vec![Operand::Function(restriction)]).ok()?;
-    Content::apply(quantifier, vec![Operand::Function(scope)]).ok()
+) -> GeneralizedQuantification {
+    let (Some(restriction), Some(scope)) = (
+        callable_property(parameter, restriction),
+        callable_property(parameter, body),
+    ) else {
+        return GeneralizedQuantification::DeclinedOperand;
+    };
+    if intrinsic_requires_pure_property(constructor, 0) && !is_pure_property(&restriction) {
+        return GeneralizedQuantification::PurityUnproven;
+    }
+    let Ok(quantifier) = FnValue::intrinsic(constructor, vec![Operand::Function(restriction)])
+    else {
+        return GeneralizedQuantification::ConstructionRejected;
+    };
+    match Content::apply(quantifier, vec![Operand::Function(scope)]) {
+        Ok(content) => GeneralizedQuantification::Rendered(content),
+        Err(_) => GeneralizedQuantification::ConstructionRejected,
+    }
 }
 
 /// One `Bind` lifted off the value it used to wrap.
@@ -1079,6 +1121,9 @@ struct Elaborator<'a> {
     /// coming.
     scheduled_defaults: RefCell<BTreeSet<SemanticObjectId>>,
     reference_binding_frames: RefCell<Vec<HostFrame>>,
+    /// Event abstractions whose distinguished event fill is consumed by a
+    /// section-11.3 crossing. This is a stack because crossing bodies may nest.
+    absorbed_eventualities: RefCell<Vec<SemanticObjectId>>,
     counters: ElaborationCounters,
 }
 
@@ -1238,6 +1283,7 @@ pub(super) fn elaborate_compact(
         placed_definitions: RefCell::new(BTreeSet::new()),
         scheduled_defaults: RefCell::new(BTreeSet::new()),
         reference_binding_frames: RefCell::new(Vec::new()),
+        absorbed_eventualities: RefCell::new(Vec::new()),
         counters: ElaborationCounters::default(),
     };
     let document = elaborator
@@ -2510,7 +2556,26 @@ impl Elaborator<'_> {
                                 CompactFallbackCause::QuantifierFields,
                             );
                         };
-                        generalized_quantification(constructor, &binding, restriction, body)
+                        match generalized_quantification(constructor, &binding, restriction, body) {
+                            GeneralizedQuantification::Rendered(content) => Some(content),
+                            GeneralizedQuantification::DeclinedOperand => None,
+                            GeneralizedQuantification::PurityUnproven => {
+                                return self.fallback_object(
+                                    id,
+                                    bound,
+                                    active,
+                                    CompactFallbackCause::PurityUnproven,
+                                );
+                            }
+                            GeneralizedQuantification::ConstructionRejected => {
+                                return self.fallback_object(
+                                    id,
+                                    bound,
+                                    active,
+                                    CompactFallbackCause::TypedConstructionRejected,
+                                );
+                            }
+                        }
                     }
                     None => {
                         let operator = if universal {
@@ -3131,6 +3196,7 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
         eventuality: Option<SemanticObjectId>,
     ) -> Result<PredTerm, FillFailure> {
+        let eventuality = eventuality.filter(|id| !self.eventuality_is_absorbed(*id));
         let fills = self.render_fills(arguments, bound, active, eventuality)?;
         let mut slots = Vec::with_capacity(arguments.len() + 1);
         for place in arguments.keys() {
@@ -3175,6 +3241,7 @@ impl Elaborator<'_> {
         active: &mut BTreeSet<SemanticObjectId>,
         eventuality: Option<SemanticObjectId>,
     ) -> Result<PredTerm, FillFailure> {
+        let eventuality = eventuality.filter(|id| !self.eventuality_is_absorbed(*id));
         let fills = self.render_fills(arguments, bound, active, eventuality)?;
         apply_fills(head, fills).ok_or(FillFailure::Unrepresentable)
     }
@@ -3693,8 +3760,106 @@ impl Elaborator<'_> {
         Content::junction(JunctionOp::And, conjuncts).ok()
     }
 
-    /// Render the property and proposition crossings, in both encodings the
-    /// builder emits for them.
+    /// Whether this event identity is currently consumed by its surrounding
+    /// section-11.3 crossing instead of filling the content root's ordinary
+    /// distinguished-event place.
+    #[requires(true)]
+    #[ensures(true)]
+    fn eventuality_is_absorbed(&self, id: SemanticObjectId) -> bool {
+        self.absorbed_eventualities.borrow().last() == Some(&id)
+    }
+
+    /// Render one exact section-11.3 two-operand abstraction crossing.
+    ///
+    /// An omitted operand is not a `Close` default and is not description
+    /// raising: it is one fresh local `Bind` whose `Context` computation has the
+    /// type declared for this crossing. An explicit graph operand is rendered
+    /// at its own type and the kernel application is the final type gate.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[requires(self.graph.objects.contains_key(&body))]
+    #[requires(trailing.is_none_or(|operand| self.graph.objects.contains_key(&operand)))]
+    #[requires(matches!(
+        intrinsic,
+        Intrinsic::Measure
+            | Intrinsic::TruthValue
+            | Intrinsic::ExperienceOf
+            | Intrinsic::ProcessOf
+            | Intrinsic::ActivityOf
+            | Intrinsic::Concept
+            | Intrinsic::Abstract
+    ))]
+    #[requires(matches!(default_type, TypeExpr::Referents(_)))]
+    #[ensures(true)]
+    fn render_abstraction_crossing(
+        &self,
+        id: SemanticObjectId,
+        body: SemanticObjectId,
+        intrinsic: Intrinsic,
+        trailing: Option<SemanticObjectId>,
+        default_type: TypeExpr,
+        absorbs_eventuality: bool,
+        bound: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Routed {
+        // A crossing is a reification boundary. Computations discovered in its
+        // content remain part of that content and cannot be raised around the
+        // crossing itself.
+        self.open_host_frame(HostFrameKind::Barrier, bound);
+        if absorbs_eventuality {
+            self.absorbed_eventualities.borrow_mut().push(id);
+        }
+        let rendered = self
+            .render_id(body, bound, active, AcceptedModes::NoForce)
+            .and_then(Elaborated::into_content);
+        if absorbs_eventuality {
+            let popped = self.absorbed_eventualities.borrow_mut().pop();
+            debug_assert_eq!(popped, Some(id));
+        }
+        let nested = self.close_host_frame();
+        let Some(rendered) = rendered else {
+            return Routed::Declined;
+        };
+        let Some(content) = wrap_reference_bindings(nested, rendered, Content::bind_form) else {
+            return self.construction_rejected(id);
+        };
+
+        if let Some(trailing) = trailing {
+            let Some(operand) = self
+                .render_id(trailing, bound, active, AcceptedModes::Unlicensed)
+                .and_then(Elaborated::into_operand)
+            else {
+                return Routed::Declined;
+            };
+            return match Value::intrinsic(intrinsic, vec![Operand::Content(content), operand]) {
+                Ok(value) => Routed::Value(Operand::Value(value)),
+                Err(_) => {
+                    self.record_object_fallback(id, CompactFallbackCause::CrossingOperandMismatch);
+                    Routed::Declined
+                }
+            };
+        }
+
+        let variable = crossing_default_variable(id, intrinsic);
+        let Ok(computation) = RefComp::context(Vec::new(), default_type.clone()) else {
+            return self.construction_rejected(id);
+        };
+        let Ok(value) = Value::intrinsic(
+            intrinsic,
+            vec![
+                Operand::Content(content),
+                Operand::Value(Value::bound(variable.clone(), default_type.clone())),
+            ],
+        ) else {
+            return self.construction_rejected(id);
+        };
+        let Ok(binding) = Bind::new(variable, default_type, computation, value) else {
+            return self.construction_rejected(id);
+        };
+        Routed::Value(Operand::Value(Value::bind_form(binding)))
+    }
+
+    /// Render the property, proposition, and section-11.3 crossings in both
+    /// encodings the builder emits for them.
     ///
     /// A bare abstraction (`abstraction_kind` with no descriptor) and a
     /// gadri-folded one (`lo ka …`, which folds the descriptor into the
@@ -3719,14 +3884,10 @@ impl Elaborator<'_> {
         let (Some(kind), Some(body)) = (node.abstraction_kind, node.body) else {
             return Routed::Unmatched;
         };
-        let folded = match node.descriptor.as_ref() {
-            None => referent_except_abstraction_is_default(node),
-            Some(descriptor) => {
-                folded_abstraction_descriptor_is_exact(self.graph, descriptor)
-                    && referent_except_described_abstraction_is_default(node)
-            }
-        };
-        if !folded
+        let descriptor_is_exact = node.descriptor.as_ref().is_none_or(|descriptor| {
+            folded_abstraction_descriptor_is_exact(self.graph, descriptor)
+        });
+        if !descriptor_is_exact
             || !self.scope_dependence_is_default(id, node.scope_dependence.as_ref(), bound)
             || !node.parameters.iter().all(|parameter| {
                 exact_parameter(
@@ -3740,6 +3901,30 @@ impl Elaborator<'_> {
                 )
             })
         {
+            return Routed::Unmatched;
+        }
+        if let Some((intrinsic, trailing, default_sort)) =
+            exact_referent_abstraction_crossing(node, kind)
+        {
+            let Some(default_type) = referents_type_expr(default_sort) else {
+                return self.construction_rejected(id);
+            };
+            return self.render_abstraction_crossing(
+                id,
+                body,
+                intrinsic,
+                trailing,
+                default_type,
+                false,
+                bound,
+                active,
+            );
+        }
+        let folded = match node.descriptor.as_ref() {
+            None => referent_except_abstraction_is_default(node),
+            Some(_) => referent_except_described_abstraction_is_default(node),
+        };
+        if !folded {
             return Routed::Unmatched;
         }
         if !matches!(
@@ -3807,6 +3992,47 @@ impl Elaborator<'_> {
     fn construction_rejected(&self, id: SemanticObjectId) -> Routed {
         self.record_object_fallback(id, CompactFallbackCause::TypedConstructionRejected);
         Routed::Declined
+    }
+
+    /// Project a two-place experience, process, or activity abstraction.
+    ///
+    /// One-place members of these families remain the ordinary section-11.2
+    /// `Refer` route. The crossing is selected only by an independently
+    /// represented trailing graph operand, and it consumes the root's
+    /// distinguished event self-fill rather than manufacturing a recursive
+    /// value for the abstraction result.
+    #[requires(self.graph.objects.contains_key(&id))]
+    #[ensures(true)]
+    fn render_described_event_crossing(
+        &self,
+        id: SemanticObjectId,
+        node: &EventualityNode,
+        bound: &Bound,
+        active: &mut BTreeSet<SemanticObjectId>,
+    ) -> Routed {
+        let Some((body, intrinsic, trailing, default_sort)) =
+            exact_event_abstraction_crossing(self.graph, node)
+        else {
+            return Routed::Unmatched;
+        };
+        if !self.projected_descriptions.contains(&id)
+            || !self.scope_dependence_is_default(id, node.denotation.scope_dependence(), bound)
+        {
+            return Routed::Unmatched;
+        }
+        let Some(default_type) = referents_type_expr(default_sort) else {
+            return self.construction_rejected(id);
+        };
+        self.render_abstraction_crossing(
+            id,
+            body,
+            intrinsic,
+            Some(trailing),
+            default_type,
+            true,
+            bound,
+            active,
+        )
     }
 
     /// Project one described eventuality as specification section 11.2's
@@ -3982,6 +4208,11 @@ impl Elaborator<'_> {
                     CompactFallbackCause::UnboundGeneratedEvent,
                 ),
             };
+        }
+        match self.render_described_event_crossing(id, node, bound, active) {
+            Routed::Value(crossing) => return self.recognized(Some(crossing)),
+            Routed::Declined => return None,
+            Routed::Unmatched => {}
         }
         match self.render_described_event(id, node, bound, active) {
             Routed::Value(reference) => return self.recognized(Some(reference)),
@@ -4557,7 +4788,8 @@ fn projected_described_event_objects(
         // whether the recorded universe *is* the derived one is decided at the
         // lexical position, by the route. What planning needs here is only that
         // some policy is recorded at all, which the base shape already proves.
-        if !described_eventuality_base_is_exact(node, descriptor, kind)
+        let crossing_is_exact = exact_event_abstraction_crossing(graph, node).is_some();
+        if !(described_eventuality_base_is_exact(node, descriptor, kind) || crossing_is_exact)
             || !descriptor
                 .speaker
                 .is_some_and(|speaker| object_is_indexical(graph, speaker, IndexicalKind::Speaker))
@@ -4894,6 +5126,9 @@ fn referent_payload_except_names_is_empty(node: &ReferentNode) -> bool {
         && node.abstraction_kind.is_none()
         && node.abstracted.is_none()
         && node.experiencer.is_none()
+        && node.epistemology.is_none()
+        && node.expressed_by.is_none()
+        && node.mind.is_none()
         && node.target.is_none()
         && node.scale.is_none()
         && node.subscript.is_none()
@@ -5086,6 +5321,9 @@ fn default_elided_shape(node: &ReferentNode) -> bool {
         && node.abstraction_kind.is_none()
         && node.abstracted.is_none()
         && node.experiencer.is_none()
+        && node.epistemology.is_none()
+        && node.expressed_by.is_none()
+        && node.mind.is_none()
         && node.target.is_none()
         && node.scale.is_none()
         && node.subscript.is_none()
@@ -5116,6 +5354,9 @@ fn referent_except_descriptor_is_default(node: &ReferentNode) -> bool {
         && node.abstraction_kind.is_none()
         && node.abstracted.is_none()
         && node.experiencer.is_none()
+        && node.epistemology.is_none()
+        && node.expressed_by.is_none()
+        && node.mind.is_none()
         && node.target.is_none()
         && node.scale.is_none()
         && node.subscript.is_none()
@@ -5138,6 +5379,9 @@ fn referent_except_abstraction_is_default(node: &ReferentNode) -> bool {
         && node.embedded_questions.is_empty()
         && node.abstracted.is_none()
         && node.experiencer.is_none()
+        && node.epistemology.is_none()
+        && node.expressed_by.is_none()
+        && node.mind.is_none()
         && node.target.is_none()
         && node.scale.is_none()
         && node.subscript.is_none()
@@ -5200,6 +5444,168 @@ fn referent_except_described_abstraction_is_default(node: &ReferentNode) -> bool
                 .then_some(node.parameters.len())
 }
 
+/// Exact two-operand referent abstraction and its section-11.3 declaration.
+///
+/// The optional trailing identity is kept optional here because omission is
+/// precisely the contextual sugar this route owns. Every unrelated coordinate
+/// is rejected, so a missing non-defaultable semantic operand cannot be
+/// mistaken for that sugar.
+#[requires(true)]
+#[ensures(ret.is_none_or(|(intrinsic, _, _)| matches!(
+    intrinsic,
+    Intrinsic::Measure | Intrinsic::TruthValue | Intrinsic::Concept | Intrinsic::Abstract
+)))]
+fn exact_referent_abstraction_crossing(
+    node: &ReferentNode,
+    kind: AbstractionKind,
+) -> Option<(Intrinsic, Option<SemanticObjectId>, SemanticSort)> {
+    let (intrinsic, trailing, default_sort) = match kind {
+        AbstractionKind::Amount => (Intrinsic::Measure, node.scale, SemanticSort::Scale),
+        AbstractionKind::TruthValue => (
+            Intrinsic::TruthValue,
+            node.epistemology,
+            SemanticSort::Epistemology,
+        ),
+        AbstractionKind::Concept => (Intrinsic::Concept, node.mind, SemanticSort::Entity),
+        AbstractionKind::Unspecified => (Intrinsic::Abstract, node.target, SemanticSort::Entity),
+        _ => return None,
+    };
+    let trailing_fields_are_exact = match kind {
+        AbstractionKind::Amount => {
+            node.epistemology.is_none() && node.mind.is_none() && node.target.is_none()
+        }
+        AbstractionKind::TruthValue => {
+            node.scale.is_none() && node.mind.is_none() && node.target.is_none()
+        }
+        AbstractionKind::Concept => {
+            node.scale.is_none() && node.epistemology.is_none() && node.target.is_none()
+        }
+        AbstractionKind::Unspecified => {
+            node.scale.is_none() && node.epistemology.is_none() && node.mind.is_none()
+        }
+        _ => unreachable!("the crossing family was selected above"),
+    };
+    (node.category == ReferentCategory::Constant
+        && node.scope_dependence.is_some()
+        && node.sort == kind.output_sort()
+        && node.indexical.is_none()
+        && node.deictic_reference.is_none()
+        && node.composition.is_none()
+        && node.personal_mass_membership.is_none()
+        && node.generated_referent.is_none()
+        && node.relative_clauses.is_empty()
+        && node.assigned_names.is_empty()
+        && node.body.is_some()
+        && node.parameters.is_empty()
+        && node.arity.is_none()
+        && node.embedded_questions.is_empty()
+        && node.abstraction_kind == Some(kind)
+        && node.abstracted.is_none()
+        && node.experiencer.is_none()
+        && node.expressed_by.is_none()
+        && node.subscript.is_none()
+        && trailing_fields_are_exact)
+        .then_some((intrinsic, trailing, default_sort))
+}
+
+/// Exact two-place event abstraction and its explicit trailing operand.
+///
+/// Section 11.2 keeps the corresponding one-place graph as an ordinary
+/// described event. Consequently this recognizer requires the independent x2
+/// object; it never manufactures a crossing merely from the abstraction kind.
+#[requires(graph.objects.contains_key(&graph.root))]
+#[ensures(ret.is_none_or(|(_, intrinsic, _, _)| matches!(
+    intrinsic,
+    Intrinsic::ExperienceOf | Intrinsic::ProcessOf | Intrinsic::ActivityOf
+)))]
+fn exact_event_abstraction_crossing(
+    graph: &SemanticGraph,
+    node: &EventualityNode,
+) -> Option<(SemanticObjectId, Intrinsic, SemanticObjectId, SemanticSort)> {
+    let descriptor = node.descriptor.as_ref()?;
+    let kind = node.abstraction_kind?;
+    let (expected_sort, expected_class, intrinsic, trailing, default_sort) = match kind {
+        AbstractionKind::Experience => (
+            EventualitySort::Experience,
+            crate::model::EventualityClass::Event,
+            Intrinsic::ExperienceOf,
+            node.experiencer?,
+            SemanticSort::Entity,
+        ),
+        AbstractionKind::Process => (
+            EventualitySort::Process,
+            crate::model::EventualityClass::Process,
+            Intrinsic::ProcessOf,
+            node.stages?,
+            SemanticSort::eventuality(),
+        ),
+        AbstractionKind::Activity => (
+            EventualitySort::Activity,
+            crate::model::EventualityClass::Activity,
+            Intrinsic::ActivityOf,
+            node.actions?,
+            SemanticSort::eventuality(),
+        ),
+        _ => return None,
+    };
+    let trailing_fields_are_exact = match kind {
+        AbstractionKind::Experience => node.stages.is_none() && node.actions.is_none(),
+        AbstractionKind::Process => node.experiencer.is_none() && node.actions.is_none(),
+        AbstractionKind::Activity => node.experiencer.is_none() && node.stages.is_none(),
+        _ => unreachable!("the crossing family was selected above"),
+    };
+    (node.denotation.category() == Some(ReferentCategory::Constant)
+        && node.denotation.scope_dependence().is_some()
+        && node.sort == expected_sort
+        && node.class == Some(expected_class)
+        && node.indexical.is_none()
+        && descriptor.kind == DescriptorKind::VeridicalDescription
+        && descriptor.word == "lo"
+        && descriptor
+            .speaker
+            .is_some_and(|speaker| object_is_indexical(graph, speaker, IndexicalKind::Speaker))
+        && descriptor.body.is_none()
+        && descriptor.veridical.is_none()
+        && descriptor.relative_clauses.is_empty()
+        && descriptor.quantity.is_none()
+        && descriptor.name.is_none()
+        && descriptor.scale.is_none()
+        && descriptor.definiteness.is_none()
+        && descriptor.operand.is_none()
+        && node.composition.is_none()
+        && node.relative_clauses.is_empty()
+        && node.assigned_names.is_empty()
+        && node.adjuncts.is_empty()
+        && node.actuality.is_none()
+        && node.tense_modal.is_none()
+        && node.time.is_none()
+        && node.time_path.is_empty()
+        && node.time_interval.is_none()
+        && node.time_span.is_none()
+        && node.aspect.is_none()
+        && node.aspects.is_empty()
+        && node.recurrence.is_empty()
+        && node.interval_modifiers.is_empty()
+        && node.space.is_none()
+        && node.space_path.is_empty()
+        && node.space_interval.is_none()
+        && node.spatial_aspect.is_none()
+        && node.spatial_aspects.is_empty()
+        && node.spatial_recurrence.is_empty()
+        && node.spatial_interval_modifiers.is_empty()
+        && node.content.is_some()
+        && node.body.is_none()
+        && node.parameters.is_empty()
+        && node.arity.is_none()
+        && node.embedded_questions.is_empty()
+        && node.abstraction_kind == Some(kind)
+        && node.target.is_none()
+        && node.scale.is_none()
+        && node.subscript.is_none()
+        && trailing_fields_are_exact)
+        .then_some((node.content?, intrinsic, trailing, default_sort))
+}
+
 /// Eventuality abstraction has no facet or attachment that would need a
 /// described-event constructor.
 #[requires(true)]
@@ -5234,6 +5640,8 @@ fn eventuality_except_abstraction_is_default(node: &EventualityNode) -> bool {
         && node.content.is_none()
         && node.embedded_questions.is_empty()
         && node.experiencer.is_none()
+        && node.stages.is_none()
+        && node.actions.is_none()
         && node.target.is_none()
         && node.scale.is_none()
         && node.subscript.is_none()
@@ -5319,6 +5727,8 @@ fn described_eventuality_base_is_exact(
         && node.embedded_questions.is_empty()
         && node.abstraction_kind == Some(kind)
         && node.experiencer.is_none()
+        && node.stages.is_none()
+        && node.actions.is_none()
         && node.target.is_none()
         && node.scale.is_none()
         && node.subscript.is_none()
@@ -6037,6 +6447,32 @@ mod tests {
         ] {
             assert_eq!(sort_type_expr(erased), None);
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn universal_quantification_refuses_an_impure_restriction_once_at_its_operand() {
+        let variable = Variable::try_new("$candidate").expect("a valid variable");
+        let parameter = TypedParameter::new(variable.clone(), entity_referents());
+        let candidate = Operand::Value(Value::bound(variable, entity_referents()));
+        let pure = Content::intrinsic(Intrinsic::Among, vec![candidate.clone(), candidate])
+            .expect("Among produces content over two entity references");
+        let impure = Content::presuppose(pure.clone(), pure.clone());
+
+        assert!(matches!(
+            generalized_quantification(
+                Intrinsic::Every,
+                &parameter,
+                Some(impure.clone()),
+                Some(pure.clone()),
+            ),
+            GeneralizedQuantification::PurityUnproven
+        ));
+        assert!(matches!(
+            generalized_quantification(Intrinsic::Some, &parameter, Some(impure), Some(pure),),
+            GeneralizedQuantification::Rendered(_)
+        ));
     }
 
     /// Compose one failed projection edge without needing a whole graph.
