@@ -10,6 +10,7 @@ import tarfile
 import tempfile
 import unittest
 import zipfile
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from tools import cli_release
@@ -109,6 +110,24 @@ class CliReleaseTest(unittest.TestCase):
                 "SHA256SUMS",
             ),
         )
+
+    def test_expected_assets_cli_prints_the_exact_release_set(self) -> None:
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            result = cli_release.main(["expected-assets", "--version", VERSION])
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            tuple(stdout.getvalue().splitlines()), cli_release.asset_names(VERSION)
+        )
+
+    def test_expected_assets_cli_reports_invalid_versions(self) -> None:
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            result = cli_release.main(["expected-assets", "--version", "../unsafe"])
+
+        self.assertEqual(result, 1)
+        self.assertIn("unsafe Cargo package version", stderr.getvalue())
 
     def test_stage_binary_writes_exact_metadata_and_restores_mode(self) -> None:
         spec = cli_release.TARGET_BY_NAME["aarch64-unknown-linux-musl"]
@@ -315,6 +334,41 @@ class CliReleaseTest(unittest.TestCase):
                 repository_root=self.repository_root,
                 version=VERSION,
             )
+
+    def test_release_validation_requires_sha_and_staging_root_together(self) -> None:
+        release_dir = self.package()
+        for supplied in (
+            {"dispatch_sha": DISPATCH_SHA},
+            {"staging_root": self.staging_root},
+        ):
+            with self.subTest(supplied=tuple(supplied)):
+                with self.assertRaisesRegex(
+                    cli_release.ReleaseToolError, "must be supplied together"
+                ):
+                    cli_release.validate_release_assets(
+                        release_dir=release_dir,
+                        repository_root=self.repository_root,
+                        version=VERSION,
+                        **supplied,
+                    )
+
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            result = cli_release.main(
+                [
+                    "validate",
+                    "--release-dir",
+                    str(release_dir),
+                    "--repository-root",
+                    str(self.repository_root),
+                    "--version",
+                    VERSION,
+                    "--sha",
+                    DISPATCH_SHA,
+                ]
+            )
+        self.assertEqual(result, 1)
+        self.assertIn("must be supplied together", stderr.getvalue())
 
     def test_validation_rejects_symlink_archive_member_even_with_updated_checksum(self) -> None:
         release_dir = self.package()

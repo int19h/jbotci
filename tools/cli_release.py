@@ -410,12 +410,14 @@ def _write_zip(
     documents: Mapping[str, bytes],
 ) -> None:
     root = f"jbotci-{version}"
-    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+    with zipfile.ZipFile(path, "w") as archive:
         archive.writestr(_zip_info(f"{root}/", 0o755, directory=True), b"")
         for member_name, member_data, mode in _archive_members(
             version, spec, binary, documents
         ):
-            archive.writestr(_zip_info(member_name, mode), member_data)
+            archive.writestr(
+                _zip_info(member_name, mode), member_data, compresslevel=9
+            )
 
 
 def archive_names(version: str) -> tuple[str, ...]:

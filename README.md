@@ -23,8 +23,11 @@ On Windows, compare `(Get-FileHash <archive> -Algorithm SHA256).Hash` with the
 matching line in `SHA256SUMS`, then extract the `.zip` with `Expand-Archive` or
 File Explorer.
 
-To build from source instead, install the Rust toolchain, clone the repository
-with its submodules, and build only the CLI package:
+To build from source instead, install the Rust toolchain and the native build
+prerequisites: CMake, a C and C++ compiler/linker toolchain, libclang
+development libraries, `pkg-config`, Python 3, and `zstd`. Package names vary
+by platform. Then clone the repository with its submodules and build only the
+CLI package:
 
 ```sh
 git clone --recurse-submodules https://github.com/int19h/jbotci.git
