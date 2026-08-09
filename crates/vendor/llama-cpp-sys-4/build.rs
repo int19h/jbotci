@@ -922,7 +922,8 @@ fn link_linux_cpp_runtime(target: &str) {
             .cpp(true)
             .cargo_metadata(false)
             .get_compiler();
-        let output = Command::new(compiler.path())
+        let output = compiler
+            .to_command()
             .arg("-print-file-name=libstdc++.a")
             .output()
             .unwrap_or_else(|error| {
@@ -933,8 +934,9 @@ fn link_linux_cpp_runtime(target: &str) {
             });
         assert!(
             output.status.success(),
-            "C++ compiler '{}' could not locate libstdc++.a",
-            compiler.path().display()
+            "C++ compiler '{}' could not locate libstdc++.a: {}",
+            compiler.path().display(),
+            String::from_utf8_lossy(&output.stderr).trim()
         );
         let runtime = PathBuf::from(
             String::from_utf8(output.stdout)
@@ -966,14 +968,15 @@ fn link_linux_cpp_runtime(target: &str) {
 /// Required on both the CMake and prebuilt paths: prebuilt tarballs ship
 /// llama/ggml/common libs only; `mtp_shim` is always built from source here
 /// against the vendored llama.cpp headers so it matches the crate revision.
-fn compile_mtp_shim(manifest_dir: &Path, llama_dst: &Path) {
+fn compile_mtp_shim(manifest_dir: &Path, llama_dst: &Path, target: &str) {
     let shim_dir = manifest_dir.join("mtp_shim");
     let mtp_shim_src = shim_dir.join("mtp_shim.cpp");
     if !mtp_shim_src.exists() {
         return;
     }
 
-    cc::Build::new()
+    let mut build = cc::Build::new();
+    build
         .cpp(true)
         .std("c++17")
         .file(&mtp_shim_src)
@@ -982,8 +985,13 @@ fn compile_mtp_shim(manifest_dir: &Path, llama_dst: &Path) {
         .include(llama_dst.join("ggml/include"))
         .include(llama_dst.join("src"))
         .include(llama_dst.join("common"))
-        .warnings(false)
-        .compile("mtp_shim");
+        .warnings(false);
+    if target.contains("linux") {
+        // link_linux_cpp_runtime is the single authority for the Linux C++
+        // runtime; do not let cc emit an additional unspecified-kind request.
+        build.cpp_link_stdlib(None);
+    }
+    build.compile("mtp_shim");
     println!("cargo:rerun-if-changed={}", mtp_shim_src.display());
     println!(
         "cargo:rerun-if-changed={}",
@@ -1738,7 +1746,7 @@ fn main() {
                 }
             }
 
-            compile_mtp_shim(Path::new(&manifest_dir), &llama_dst);
+            compile_mtp_shim(Path::new(&manifest_dir), &llama_dst, &target);
             return;
         }
         panic!(
@@ -2495,7 +2503,7 @@ fn main() {
         }
     }
 
-    compile_mtp_shim(Path::new(&manifest_dir), &llama_dst);
+    compile_mtp_shim(Path::new(&manifest_dir), &llama_dst, &target);
 
     // OpenMP: link gomp when the cmake build enabled it (GGML_OPENMP_ENABLED=ON).
     // This can happen even without the "openmp" feature because cmake's FindOpenMP
