@@ -1705,7 +1705,6 @@ fn main() {
                 println!("cargo:rustc-link-lib=framework=Accelerate");
                 println!("cargo:rustc-link-lib=c++");
             }
-            link_linux_cpp_runtime(&target);
             if target.contains("windows") && !target.contains("msvc") {
                 println!("cargo:rustc-link-lib=static=stdc++");
                 println!("cargo:rustc-link-lib=static=winpthread");
@@ -1747,6 +1746,7 @@ fn main() {
             }
 
             compile_mtp_shim(Path::new(&manifest_dir), &llama_dst, &target);
+            link_linux_cpp_runtime(&target);
             return;
         }
         panic!(
