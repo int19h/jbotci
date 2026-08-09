@@ -1320,6 +1320,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "a closed failure kind plus optional typed binder and use-site evidence admits every typed combination",
     ),
     (
+        "crates/jbotci-semantics/src/notation/sexpr/purity.rs:PuritySummary",
+        "the section-3.2 summary is the product of three closed refinement coordinates, and every coordinate combination is a valid conservative summary",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/purity.rs:SummaryEnvironment",
+        "the lexical summary environment maps validated variables to validated kernel operands; every such finite map is valid",
+    ),
+    (
         "crates/jbotci-semantics/src/notation/sexpr/renderer.rs:SpanResolver",
         "the resolver is a private derived index over one already validated graph, so every field combination it can build is valid",
     ),

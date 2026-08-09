@@ -1388,6 +1388,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "static checker predicate carries a validated row and aligned closure policies",
     ),
     (
+        "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::PureProperty",
+        "registry-only purity refinement wraps a recursively validated StaticType; its contextual function-parameter placement is validated by canonical_prelude_type_schema",
+    ),
+    (
         "crates/jbotci-semantics/codegen/smusni_v0_bundle.rs:StaticType::Query",
         "static checker query elements are recursively validated StaticType values",
     ),
@@ -2218,6 +2222,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:CompactFallbackCause::UnrecognizedObjectFamily",
         "every closed SemanticObjectKind is valid evidence for this private conservative fallback cause",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:GeneralizedQuantification::ConstructionRejected",
+        "unit outcome tag records that typed constructor assembly rejected the operands; it has no payload state to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:GeneralizedQuantification::DeclinedOperand",
+        "unit outcome tag records that an operand had no compact projection; it has no payload state to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:GeneralizedQuantification::PurityUnproven",
+        "unit outcome tag records the standalone purity judgment's conservative refusal; it has no payload state to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/notation/sexpr/elaborate.rs:GeneralizedQuantification::Rendered",
+        "successful generalized-quantifier construction carries an already validated Content value",
     ),
     (
         "crates/jbotci-semantics/src/notation/sexpr/internal_raw.rs:Capture::Local",

@@ -74,7 +74,7 @@ in another format.
 | Predication | Named predicate terms, ordinary fills, `:n`, `:Eventuality`, numbered-only `DropPlace`, default closure omission, and explicit `Assert` are compact for their exact typed shapes. There is no lexical signature registry at render time — `render_smusni` takes no dictionary — so the effective row a lexical term is applied against is the one the graph itself records: the places its argument map names, the places it deletes, and the distinguished event place when it carries one. The application kernel therefore checks the fill cursor, `:n` labelling, duplicate and already-filled places, and `DropPlace` legality, but not lexical place *types*; the registered `smusni.projection.lexical-signature-missing-or-stale` reason is the seat a real signature table would fill. | Spec sections 4 and 5 |
 | Relation formers | The canonical flat binary tanru graph projects to the registered former `(Tanru modifier head)` applied to the tertau's own places. The recognizer requires an implicit-juxtaposition `And` connective at predicate locus with exactly two children, a named tertau predication that is otherwise plain, a `Composition` link predication with exactly two plain arguments and no side fields, a fixed constant unary property abstraction over an exact `ce'u` entity parameter as the seltau, a `modifier-head` constructed relation label, and every supporting object private to this projection. Any other relation-former shape falls back, and the tanru-*like* relation question below is a separate unsupported family. | Spec section 4.6 |
 | Logical composition | Registered ordinary truth-functional connectives render with `¬`, `∧`, `∨`, `→`, `↔`, and `⊕`. Unsupported connector metadata falls back. | Spec section 9.1 |
-| Quantification | Restricted quantification over a planned binder renders `Every` or `Some`; unrestricted quantification renders bare `∀` or `∃`. Selection sources, plural quantifiers, inner/outer cardinality, witness export, and effect routing are not implemented and fall back. | Spec sections 9.2 through 9.5 |
+| Quantification | Restricted quantification over a planned binder renders `Every` or `Some`; unrestricted quantification renders bare `∀` or `∃`. A described selection source is erased only after the rendered restriction is proved to contain its exact `memberOf(candidate, source)` conjunct. The registry restores `PureProperty` on `Every` and the cardinal helpers without adding it to the printable type language; the projection-side structural judgment checks a placed `Every` restriction before construction. Constants, variables, lexical fills, inert `Let`, application, and fixed or dependency-limited `Context` compose purely; `Refer`, `Presuppose`, `Supplement`, performed acts, and unrefined `LetRec` do not. Plural quantifiers, inner/outer cardinality routes, witness export, and effect routing are not implemented and fall back. | Spec sections 3.2 and 9.2 through 9.5 |
 | Shared values and recursion | A value used more than once is bound once and shared, at the deepest position that encloses every one of its recorded value occurrences; a reference occurring inside its own target's definition is not such an occurrence, and neither is a quantifier restriction that the bound variable's own argument sites merely repeat. A host is legal only when every binder the shared value leaves free is live on that host's region path, and a graph that has no such host binds a variable the notation cannot reach rather than a placement to retry. A host's group is condensed into its exact strong components: consecutive acyclic components share one `Let` block whose canonical single-binding forms nest in dependency and then source order, and only a genuinely cyclic component becomes a `LetRec`, which then requires every initializer in *that* component to be a top-level lambda. Mutual recursion between declared values is reported by the planner; any other recursive value falls back where it is recognized. | Spec sections 2.2, 6.2–6.3, and 15 (item 2) |
 | Contextual and deictic values | `Speaker`, `Audience`, `Now`, `Here`, and the proximity deictics `This`, `That`, and `Yonder` render as the declared atoms. A contextual constant is a `RefComp`, not a value: it is hosted by a `Bind` at its enclosing force segment and the place is filled by the name that binds, with a fixed context spelling the bare `Context` primitive and an underspecified one `(Context deps…)` over its direct dependencies. A deictic with a non-current ground falls back. | Spec sections 3.5, 5.1, and 6.1 |
 | Fixed descriptions | One force-local, exact entity `lo`, `le`, or `la` reference becomes `Bind` plus `Refer`. For `lo` and `le` the descriptor body is the property: it retains ordinary filled conventional arguments, `le` retains the represented speaker/audience `skicu` property without asserting classification, and a veridical restrictive `poi` is conjoined inside the one property. The compact `la` shape is exactly the fixed name description — `la` with a cmevla name and no descriptor body and no relative clause — whose property is `(Named "name" $var)`; a `la` description over a selbri body carries no name at all and has no compact route. A reference effect required while evaluating the property runs inside this computation, per section 8.3, because no version-0 graph gives the nested effect its own outer host. Richer descriptors, incidental/nonveridical relatives, and placement shared across force segments fall back. | Spec sections 6.3, 8.3, and 8.4 |
@@ -82,7 +82,7 @@ in another format.
 | Discourse | Same-topic items use `Do`, which sequences two or more performables; a one-item sequence contracts to that item and an empty one denotes no discourse at all, so it has no compact route. Exact paragraph provenance uses `NewTopic` or `Resume`, with explicit `Perform`/`PerformUtterance` crossings at the transition operand, and a reference computation hosted by a lone transition item stands outside the transition rather than under its `Discourse` operand. | Spec sections 7.1 and 7.2 |
 | Force | `Assert` and `Mention` are compact for their exact typed shapes. `Ask` is emitted only by the question projection below, so ask force over content that is not a typed question fails closed rather than applying `Ask` at the wrong type. Quote, parenthetical, subordinated, command, and vocative force fall back. | Spec sections 1.3 and 7.1 |
 | Questions | Exact direct polar questions render `Ask` plus `Polar`; exact entity argument questions and atomic `ti mo`-style relation questions render `OpenQ`, with the latter retaining a typed open predicate row and explicit `Close`. Tanru-like `ti mo zdani`, embedded, multi-slot, and richer questions fall back. No answer family is projected: section 12.2's `Answer`, `PolarAnswer`, `TupleAnswer`, `ContextualAnswer`, and `UnresolvedAnswer` have no compact route. | Spec section 12 |
-| Abstractions | Exact entity properties render as lambdas over the abstraction's own entity parameters, which may be more than one, and exact proposition crossings use `Reify` when their complete model shape is eligible. Event-valued and richer abstraction families fall back. | Spec section 11 |
+| Abstractions | Exact entity properties render as lambdas over the abstraction's own parameters, and exact proposition crossings use `Reify`. One-place event, achievement, state, experience, process, and activity abstractions are ordinary `Refer` computations whose properties fill the content root's distinguished event place; registered time facets conjoin inside that property. An independently represented x2 selects `ExperienceOf`, `ProcessOf`, or `ActivityOf` and consumes that root event link. `Measure`, `TruthValue`, `Concept`, and `Abstract` always use their two-operand crossings: an explicit graph operand retains its own type, while omission constructs one fresh local typed `Context` bind at the crossing, outside description raising and `Close` defaults. The `su'u` categorizer is its CLL 11.9 type x2 and is recorded in `target`. An explicit operand of the wrong type is a registered invalid-graph failure. Unregistered facets and inexact shapes still fall back. | Spec sections 11.1 through 11.3 |
 | Utterance entries | Retained entries use the fresh `UtteranceToken` binder and registered `SpeakerOf`, `AudienceOf`, `LocutionOf`, deictic, and `Realizes` facts. Unsupported force and asides are projection errors. | Spec section 7.2 |
 | Everything else | **Catch-all:** every specification family not named as compact above is a projection error. In particular that covers indicators and displayed content (7.4), sign and quotation constructors (7.3, 13.3), set/group descriptions and referential connections (8.5), simultaneous termsets (9.5), witness export (9.4), respectively-distribution, quantities, and math beyond exact integer literals and binary kernel arithmetic (13.1, 13.2), and answers (12.2). No compact head is emitted for any of them. | Whole specification |
 | Failure attribution | Every failure is attributed to the smallest owner the planner or elaborator actually held, and its span is resolved at that moment. Attribution to the smallest owner whose *expected type* is also proved is still future work (see the limitations below). | Spec sections 14.4, 16.2 |
@@ -118,6 +118,18 @@ acceptable way to close it.
 Each item names the observed construct, current honest boundary, and intended
 specification destination.
 
+The closing issue-#778 census also names four backlog questions explicitly.
+These are document counts over the 28,579-input in-repository probe at the
+issue-#778 head; classes overlap, and the selection-source row additionally
+reports graph-edge count.
+
+| Named backlog | Current census | Deferred question |
+|---|---:|---|
+| `selectionSource` occurrence role | 615 documents / 709 described-source edges | Should the scope occurrence table grow a provenance-only `selectionSource` role, letting the planner recognize that edge structurally? The current renderer remains correct without it: it proves the exact `memberOf` correspondence before erasure, and the later `Let` gate asks for a type only when a `Let` is actually written. |
+| Section-14.2 shared non-value representability | 7,956 documents | Shared values of a non-`Let`-representable kind still reach `DefinitionTypeUnrepresentable`. This is a type/representation design gap, not authority to stringify the value or duplicate it. |
+| Predication mode at unopened boundaries | 11,956 documents | These documents reach a non-asserted predication mode at a boundary whose enclosing semantic route is still unavailable. Open the owning boundary with an exact registered reduction before consuming the mode. |
+| Utterance-record requirement | 5,344 documents | Asides or vocative force require the utterance-record path; compact `Assert`/`Mention` cannot audit those coordinates away. |
+
 - Dynamic host planning: host selection is structural, and the routes now raise
   by section 6.3's boundary rule rather than hosting at the enclosing force
   segment in discovery order. A performed act, a reification, and a description
@@ -147,17 +159,21 @@ specification destination.
   (section 9.5, and section 12 of the samples).
 - Quantification: the compact lowering recognizes the simple `Every`/`Some`
   function shapes after scope planning and bare `∀`/`∃` for unrestricted
-  quantification, but selection sources and plural quantifiers (section 9.2),
-  inner and outer cardinality (section 9.3), witness export (section 9.4), and
-  effect routing (section 6.4) are not yet complete.
+  quantification. Described selection sources are supported through their
+  certified membership restrictions; witness-set selection, plural
+  quantifiers (section 9.2), inner and outer cardinality routes (section 9.3),
+  witness export (section 9.4), and effect routing (section 6.4) are not yet
+  complete. The restored `PureProperty` schemas are registry refinements, not
+  printable types.
 - Signs and quotation: structured and opaque quotation currently fail; no
   transcript is synthesized and no retired `Quotation` record
   prints. Add `StructuredQuote`, `OpaqueQuote`, raw sign constructors, and sign
   token facts only from graph-owned identities (sections 7.3 and 13.3).
-- Event abstractions and facets: unsupported actuality, aspect, recurrence,
-  space, path, and abstraction details fail. Add only registered
-  lowercase/prelude reductions with their actual shared event (sections
-  10.3–10.4 and 11.2–11.3).
+- Event abstractions and facets: the exact content-bearing abstraction and the
+  three independently represented section-11.3 trailing operands are compact;
+  unsupported actuality, aspect, recurrence, space, path, and other facet
+  details still fail. Add only registered lowercase/prelude reductions with
+  their actual shared event (sections 10.3–10.4 and 11.2–11.3).
 - Respectively, collections, and richer math: these all fail except for exact
   integer literals and binary kernel arithmetic.
   Generic composition records and non-exact quantities do not borrow callable
@@ -191,6 +207,14 @@ described as immutable, exhaustive, or final: the current runnable slice still
 fails on many rows classified for later direct lowering, and the runtime
 application/signature registry requires further semantic review.
 No renderer behavior is licensed merely by the existence of an inventory row.
+
+The prelude rows now retain section 14.2's registry-only `PureProperty T`
+refinement at every declared position: `Every`'s restriction and both property
+operands of `Exactly`, `AtLeast`, `AtMost`, `MoreThan`, and `FewerThan`.
+Generation validates that the refinement occurs directly in a function
+parameter position, erases it structurally to `Fn ((T)) Content` when checking
+or emitting ordinary prelude definitions, and never admits it to `TypeExpr` or
+surface syntax. `Some` and `No` deliberately retain ordinary properties.
 
 The ledger records the five closed semantic dispositions of section 14.4 plus
 the non-semantic `Failure` marker of section 14.2, which closes nothing and
@@ -246,18 +270,48 @@ transition, direct polar question, open question, quantification, and
 structured quotation. These files are observations only and are safe to wipe;
 typed/structural tests, not rendered bytes, are the acceptance oracle.
 
-`cargo run -r -p jbotci-semantics --example smusni_corpus_report -- <slice>`
-reproduces the aggregate corpus measurements below. They are **observations of
-what the current conservative slice does**, not expectations: no test asserts
-them, and they will move whenever a compact recognizer is added.
+The closing issue-#778 per-document probe covers every TOML fixture plus the
+named structural and connected-text slices. These are **observations of what
+the current conservative slice does**, not expectations: no test asserts them,
+and they will move whenever a compact recognizer is added.
 
-| Slice | Inputs | Documents | Projection failures | Render panics | Notes |
-|---|---:|---:|---:|---:|---|
-| `phaseb` | 48 | 17 | 31 | 0 | the frozen structural corpus |
-| `cll` | 1,247 | 209 | 1,036 | 0 | 2 pre-render morphology failures |
-| `focused` | 16 | 6 | 10 | 0 | |
-| `alice-lines` | 2,436 | 42 | 1,042 | 0 | the remaining 1,352 inputs fail earlier parsing or building, mostly syntax |
-| `alice-whole` | 1 | 0 | 1 | 0 | one failed projection over 49,172 objects |
+| Slice | Inputs | Built | Documents | Projection failures | Build failures | Render panics |
+|---|---:|---:|---:|---:|---:|---:|
+| all repository fixtures | 26,087 | 22,873 | 4,310 | 18,563 | 3,214 | 0 |
+| CLL fixtures (subset above) | 1,247 | 1,245 | 264 | 981 | 2 | 0 |
+| `phaseb` | 48 | 48 | 20 | 28 | 0 | 0 |
+| Alice lines | 2,436 | 1,084 | 62 | 1,022 | 1,352 | 0 |
+| whole Alice | 1 | 1 | 0 | 1 | 0 | 0 |
+| issue-#778 named witnesses | 7 | 7 | 7 | 0 | 0 | 0 |
+| frontier run-4 accepted messages | 7 | 7 | 0 | 7 | 0 | 0 |
+
+The frontier source is the retained run-4 JSONL named by the original probe's
+`FRONTIER_TRANSCRIPT` input. It contains seven accepted `message-posted`
+records after turn 1 was forfeited. Earlier issue reports respectively called
+this slice five turns (#775 and section D7) and four turns (#781) without
+archiving either subset. All seven complete-artifact messages fail at every
+measured issue-#778 head, so both historical subsets necessarily remain 0, but
+future census work should name the exact turn-number set rather than repeat an
+ambiguous aggregate.
+
+The compact-success movement makes both the final step and the whole increment
+explicit. CLL is a subset of repository fixtures and is not added again when
+computing totals.
+
+| Slice | Before #779 | Before 778d | Closing #778 | 778d change | Whole-increment change |
+|---|---:|---:|---:|---:|---:|
+| all repository fixtures | 3,614 | 4,308 | 4,310 | +2 | +696 |
+| CLL fixtures | 209 | 264 | 264 | 0 | +55 |
+| `phaseb` | 17 | 20 | 20 | 0 | +3 |
+| Alice lines | 42 | 62 | 62 | 0 | +20 |
+| whole Alice | 0 | 0 | 0 | 0 | 0 |
+| issue-#778 named witnesses | 0 | 7 | 7 | 0 | +7 |
+| frontier run-4 accepted messages | 0 | 0 | 0 | 0 | 0 |
+| non-overlapping in-repository total | 3,673 | 4,397 | 4,399 | +2 | +726 |
+
+Against the main commit immediately before 778d, all 4,397 prior successes are
+byte-identical, none changes bytes, none is lost, and two previously failing
+fixtures render. The hard compatibility rule is therefore 0 moved / 0 lost.
 
 The whole-Alice run is the memory reference point: 7,523,428 KiB RSS after the
 graph build and a 7,861,288 KiB peak, so it needs a host with about 8 GiB free.
@@ -266,34 +320,47 @@ Those figures vary by a few MiB between runs. The pre-#753 peak was
 capture, and the failure path no longer serializes a graph at all. That leaves
 the 7.5 GiB graph-build baseline, which is separate work.
 
-The same sweep reports the failed-edge channel and the owner channel
-separately. `Failed edges` is `SmusniRenderStats::failed_projection_edges`,
-which is also the number of failure records and the sum of `failure_reasons`.
-`Failing owners` is `SmusniRenderStats::failing_owners`, the distinct owners
-those records name, and `multi-edge owners` counts the owners named by more
-than one record. Like the table above, these are observations of the current
-slice rather than expectations.
+The same probe's comparable 28,579-input in-repository failure census counts
+documents naming each reason at least once. Reasons overlap within a document;
+this table therefore does not sum to the number of failed projections. The
+seven external frontier messages are reported separately above and are not
+folded into these long-lived repository-corpus seats.
 
-| Slice | Failed edges | Failing owners | Multi-edge owners |
-|---|---:|---:|---:|
-| `phaseb` | 127 | 126 | 1 |
-| `cll` | 3,342 | 3,328 | 12 |
-| `focused` | 33 | 32 | 1 |
-| `alice-lines` | 2,721 | 2,701 | 20 |
-| `alice-whole` | 101 | 76 | 12 |
-
-The edge and owner measurements differ because they count different things,
-which is why they are reported side by side rather than derived from one
-another. The per-edge identity in the code is justified by the typed law tests
-over the channel representations, not by these numbers.
+| Registered reason suffix | Documents |
+|---|---:|
+| `relation-reduction-unregistered-or-inexact` | 12,569 |
+| `reference-description-unrepresentable` | 10,590 |
+| `event-facet-reduction-unregistered` | 9,656 |
+| `higher-order-crossing-unlicensed` | 8,626 |
+| `force-reduction-unrepresentable` | 7,713 |
+| `sign-identity-missing` | 3,524 |
+| `generated-eventuality-unbound` | 2,800 |
+| `scope-dependency-without-binder` | 2,360 |
+| `lexical-signature-missing-or-stale` | 1,712 |
+| `unguarded-or-unrepresentable-scc` | 1,459 |
+| `quantifier-effect-export-illegal` | 1,429 |
+| `quantity-reduction-unregistered` | 1,131 |
+| `abstraction-about-unspecified` | 463 |
+| `binder-does-not-dominate-use` | 320 |
+| `question-domain-or-answer-mismatch` | 247 |
+| `relation-former-reduction-unavailable` | 231 |
+| `math-reduction-unregistered` | 191 |
+| `predicate-fill-type-or-arity-mismatch` | 181 |
+| `modal-tag-reduction-unregistered` | 166 |
+| `dynamic-host-not-unique` | 140 |
+| `conflicting-binder-owners` | 19 |
+| `unknown-registry-coordinate` | 3 |
+| `simultaneous-termset-unlicensed` | 3 |
 
 Of the four section-16.2 classes, three are reachable from real input today:
 `RouteUnavailable` for most families, `TrackedSpecGap` for `tu'a` sumti raising
 (`mi djica tu'a do`), and `InvalidGraph` for an ill-scoped binder (the frozen
 `question-multiple-domains` witness `pau xo ma mo xu`).
-`ImplementationInvariant` is not reachable, which is what it should mean, and
-`crates/jbotci-semantics/tests/smusni_projection_failure.rs` asserts that
-rather than leaving it to chance.
+`ImplementationInvariant` is intended to be unreachable, but the closing
+census still finds three documents under the legacy
+`unknown-registry-coordinate` seat. They remain implementation-defect backlog;
+the section-11.3 wrong-type route added here deliberately uses the registered
+`InvalidGraph` predicate-fill mismatch instead.
 
 The five CLL inputs that previously panicked while manufacturing a variable
 atom — `c11e12d2`, `c11e3d1`, `c11e3d3`, `c11e3d4`, and `c11e9d1` — no longer

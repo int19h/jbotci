@@ -353,28 +353,26 @@ pub(super) fn abstraction_link_relation(kind: AbstractionKind) -> &'static str {
 /// The surface place an abstractor exposes beyond the abstraction itself, on
 /// the constructed link predication.
 ///
-/// `su'u` is absent deliberately: CLL 11.13 gives it no x2 and the model
-/// records none ("do not fabricate one"). It used to appear here through the
-/// `Unspecified` arm, which invented an elided place for every `su'u`
-/// description (issue #778, §D2.4).
+/// CLL 11.9 gives `su'u` an x2 naming the abstraction's type, so it exposes
+/// the same second surface place as the other two-place abstractors.
 #[requires(true)]
 #[ensures(ret.is_none_or(|place| place > 0))]
-#[ensures(kind != AbstractionKind::Unspecified || ret.is_none(), "su'u exposes no extra surface place")]
+#[ensures(kind != AbstractionKind::Unspecified || ret == Some(2), "su'u exposes its CLL 11.9 type place")]
 pub(super) fn abstraction_extra_surface_place(kind: AbstractionKind) -> Option<u8> {
     match kind {
         AbstractionKind::Process
         | AbstractionKind::Activity
         | AbstractionKind::Amount
         | AbstractionKind::Concept
-        | AbstractionKind::Experience => Some(2),
+        | AbstractionKind::Experience
+        | AbstractionKind::Unspecified => Some(2),
         AbstractionKind::Event
         | AbstractionKind::Achievement
         | AbstractionKind::State
         | AbstractionKind::Property
         | AbstractionKind::TruthValue
         | AbstractionKind::Proposition
-        | AbstractionKind::SentenceSign
-        | AbstractionKind::Unspecified => None,
+        | AbstractionKind::SentenceSign => None,
     }
 }
 

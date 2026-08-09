@@ -3001,7 +3001,7 @@ extra fields carry the semantics.
 | `du'u` | `proposition` | `body`, optional `expressedBy` |
 | `si'o` | `concept` | `body`, optional `mind` |
 | `li'i` | `eventuality/experience` | `content` or `body`, optional `experiencer` |
-| `su'u` | `abstractNature` | `body` |
+| `su'u` | `abstractNature` | `body`, optional `target` categorizer |
 
 Property outputs use `parameters`:
 
@@ -3077,7 +3077,9 @@ wrapper.  CLL 11.13 gives these extra places:
 - `du'u` x2, the sentence or text expressing the bridi, appears as
   `expressedBy` on the proposition output.
 
-CLL 11.13 gives no extra x2 for `su'u`; do not fabricate one.
+CLL 11.9 gives `su'u` an x2 naming the type of the abstraction. It appears as
+`target` on the abstract-nature output, consistent with the field's existing
+role as the referent that categorizes or characterizes an abstraction.
 
 Connected abstractors, as in `pu'u jenai za'i`, produce a connected formula
 over the direct output objects.  Logical negation on the connective wraps the
@@ -5029,14 +5031,14 @@ These are the semantic object-model changes relative to
      `denotes` pointing directly at the full sumti denotation.  If that
      denotation is formula-scoped by an outer quantifier, see amendment 36.
 
-108. Exposed minor-abstraction x2 places. **Revised by amendment 27.**
+108. Exposed minor-abstraction x2 places. **Revised by amendments 27 and 47.**
      CLL 11.13 gives `li'i` and `si'o` their own x2 places: experiencer and
      mind respectively; it also gives `ni`, `jei`, and `du'u` x2 places
      elsewhere in the abstraction family.  The older constructed-link shape
      shifted those places to x3 because x2 was occupied by the first-class
      `abstraction` wrapper.  Under the direct-output rule, these are fields on
      the output object itself (`experiencer`, `mind`, `scale`, `epistemology`,
-     `expressedBy`).  CLL 11.13 gives no x2 for `su'u`; do not fabricate one.
+     `expressedBy`). CLL 11.9's `su'u` x2 is restored by amendment 47.
 
 109. Clarified `tu'a` and CLL 11.10 bare/BAI `jai` raising.
      CLL 11.10 says `tu'a` and bare `jai` both raise an argument to stand for
@@ -5687,9 +5689,9 @@ implementation gaps are listed separately in “Known Implementation Divergences
     `eventuality/process`, `eventuality/activity`, or
     `eventuality/achievement`.  For `ka`, the output relation carries
     `parameters` and `arity`; for `ni`, `jei`, `li'i`, `si'o`, and `du'u`, the
-    CLL 11.13 extra places are fields on the output (`scale`, `epistemology`,
-    `experiencer`, `mind`, `expressedBy`).  `su'u` is
-    `sort:"abstractNature"` and has no CLL 11.13 x2; do not fabricate one.
+    CLL abstraction-family extra places are fields on the output (`scale`,
+    `epistemology`, `experiencer`, `mind`, `expressedBy`, and amendment 47's
+    `target` categorizer). `su'u` is `sort:"abstractNature"`.
     Public JSON does not emit `abstractionKind` or eventuality `class`.
     Connected event abstractors may still duplicate inert body formulas so each
     branch can have its own event-type view.
@@ -5864,9 +5866,20 @@ implementation gaps are listed separately in “Known Implementation Divergences
     local contextual default at the crossing site rather than a graph object.
     This supersedes the illustrative elided-`zo'e` values in the `mind` and
     `stages` sketches above. `SemanticSort` gains `epistemology` so the `jei`
-    place has a sort to cross the model/kernel boundary with. `su'u` still
-    records no trailing place; the constructed link relation no longer
-    fabricates an elided extra place for it either.
+    place has a sort to cross the model/kernel boundary with. Amendment 47
+    supersedes this amendment's former claim that `su'u` records no trailing
+    place.
+
+47. **Restore `su'u`'s type place from CLL 11.9 (#778) — correction.**
+    CLL 11.9 states that `su'u` has an x2 naming the type of the abstract
+    nature, and examples 11.59–11.60 fill that place with `be`. The direct
+    abstraction output therefore records an explicit `su'u` x2 in `target`,
+    populated from the same surface `be` linkage as the other abstractor
+    trailing places and absent when elided. The constructed `abstractionOf`
+    link correspondingly exposes surface place x2. This supersedes amendment
+    46's former `su'u` exception and the matching clauses in amendments 27 and
+    108; those clauses resulted from reading the CLL 11.13 summary in isolation
+    from the governing `su'u` definition in CLL 11.9.
 
 ## Known Implementation Divergences (audited 2026-07-16)
 

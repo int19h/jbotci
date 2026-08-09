@@ -1,6 +1,6 @@
 //! Structural and reproducibility tests for the current smusni-v0 candidate bundle.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -504,6 +504,31 @@ fn prelude_rows_declare_the_exact_registry_type_parameter_domain() {
             .count(),
         7,
     );
+    let refined = rows
+        .iter()
+        .filter_map(|row| {
+            row["complete-signature-schema"]
+                .as_str()
+                .filter(|signature| signature.contains("PureProperty"))
+                .map(|signature| {
+                    (
+                        row["name"].as_str().expect("PreludeRow name"),
+                        signature.matches("PureProperty").count(),
+                    )
+                })
+        })
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(
+        refined,
+        BTreeMap::from([
+            ("AtLeast", 2),
+            ("AtMost", 2),
+            ("Every", 1),
+            ("Exactly", 2),
+            ("FewerThan", 2),
+            ("MoreThan", 2),
+        ])
+    );
     for row in rows {
         let declared = row["type-parameters"]
             .as_array()
@@ -514,6 +539,10 @@ fn prelude_rows_declare_the_exact_registry_type_parameter_domain() {
         let definition = row["canonical-definition"]
             .as_str()
             .expect("PreludeRow definition");
+        assert!(
+            !definition.contains("PureProperty"),
+            "the refinement must erase from ordinary prelude syntax"
+        );
         assert!(!registry_datum_contains_bare_t(signature));
         assert!(!registry_datum_contains_bare_t(definition));
         let used = registry_type_parameter_names(signature)
@@ -794,7 +823,7 @@ fn source_generator_rejects_invalid_type_parameter_declarations_and_uses() {
     let at_least = concat!(
         "name = \"AtLeast\"\n",
         "type_parameters = [\"T\"]\n",
-        "complete_signature_schema = \"(Fn (Natural (Fn ((TypeParam \\\"T\\\")) Content)) (GQ (TypeParam \\\"T\\\")))\"",
+        "complete_signature_schema = \"(Fn (Natural (PureProperty (TypeParam \\\"T\\\"))) (Fn ((PureProperty (TypeParam \\\"T\\\"))) Content))\"",
     );
     let mutations = [
         replace_once(
@@ -816,6 +845,22 @@ fn source_generator_rejects_invalid_type_parameter_declarations_and_uses() {
             REGISTRY_SOURCE,
             at_least,
             &at_least.replace("(TypeParam \\\"T\\\")", "T"),
+        ),
+        replace_once(
+            REGISTRY_SOURCE,
+            at_least,
+            &at_least.replace(
+                "(Fn ((PureProperty (TypeParam \\\"T\\\"))) Content)",
+                "(PureProperty (TypeParam \\\"T\\\"))",
+            ),
+        ),
+        replace_once(
+            REGISTRY_SOURCE,
+            at_least,
+            &at_least.replace(
+                "(PureProperty (TypeParam \\\"T\\\"))",
+                "(Set (PureProperty (TypeParam \\\"T\\\")))",
+            ),
         ),
         replace_once(
             REGISTRY_SOURCE,
@@ -965,8 +1010,8 @@ fn source_generator_requires_explicit_closure_and_checks_polymorphic_deictic_typ
         ),
         replace_once(
             REGISTRY_SOURCE,
-            "name = \"AtLeast\"\ntype_parameters = [\"T\"]\ncomplete_signature_schema = \"(Fn (Natural (Fn ((TypeParam \\\"T\\\")) Content)) (GQ (TypeParam \\\"T\\\")))\"",
-            "name = \"AtLeast\"\ntype_parameters = [\"T\"]\ncomplete_signature_schema = \"(Fn (Scale (Fn ((TypeParam \\\"T\\\")) Content)) (GQ (TypeParam \\\"T\\\")))\"",
+            "name = \"AtLeast\"\ntype_parameters = [\"T\"]\ncomplete_signature_schema = \"(Fn (Natural (PureProperty (TypeParam \\\"T\\\"))) (Fn ((PureProperty (TypeParam \\\"T\\\"))) Content))\"",
+            "name = \"AtLeast\"\ntype_parameters = [\"T\"]\ncomplete_signature_schema = \"(Fn (Scale (PureProperty (TypeParam \\\"T\\\"))) (Fn ((PureProperty (TypeParam \\\"T\\\"))) Content))\"",
         ),
         replace_once(
             REGISTRY_SOURCE,

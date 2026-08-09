@@ -8703,8 +8703,8 @@ fn referent_qualifier_sort(cmavo: Option<Cmavo>) -> SemanticSort {
 mod tests {
     use super::*;
     use crate::model::{
-        ActualityKind, DeicticReference, DomainImport, GeneratedReferent, ScopeDependence,
-        ScopeDependenceData, SemanticObjectKind,
+        AbstractionTrailingPlace, ActualityKind, DeicticReference, DomainImport, GeneratedReferent,
+        ScopeDependence, ScopeDependenceData, SemanticObjectKind,
     };
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
@@ -10632,6 +10632,11 @@ mod tests {
                 "actions",
                 "lo zukte",
             ),
+            (
+                "le su'u mi klama kei be lo fasnu cu melbi",
+                "target",
+                "lo fasnu",
+            ),
         ] {
             let graph = semantic_graph_for(text);
             let json = serde_json::to_value(&graph).expect("graph serializes");
@@ -10687,31 +10692,29 @@ mod tests {
         }
     }
 
-    /// `su'u` has no CLL 11.13 x2. The link path used to fabricate one for
-    /// every `su'u` description through the `Unspecified` arm (issue #778).
+    /// CLL 11.9 gives `su'u` an x2 naming the abstraction's type. The surface
+    /// link and the direct-output field must both retain it (issue #778).
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn suhu_exposes_no_extra_surface_place() {
+    fn suhu_exposes_and_records_its_type_place() {
         assert_eq!(
             abstraction_extra_surface_place(AbstractionKind::Unspecified),
-            None
+            Some(2)
         );
-        assert_eq!(AbstractionKind::Unspecified.trailing_place(), None);
-        let graph = semantic_graph_for("lo su'u mi klama cu melbi");
-        for object in graph.objects.values() {
-            let json = serde_json::to_value(object).expect("object serializes");
-            for field in [
-                "scale",
-                "epistemology",
-                "expressedBy",
-                "mind",
-                "stages",
-                "actions",
-            ] {
-                assert!(json.get(field).is_none(), "su'u recorded {field}: {json}");
-            }
-        }
+        assert_eq!(
+            AbstractionKind::Unspecified.trailing_place(),
+            Some(AbstractionTrailingPlace::Categorizer)
+        );
+        let graph = semantic_graph_for("le su'u mi klama kei be lo fasnu");
+        let json = serde_json::to_value(&graph).expect("graph serializes");
+        let objects = json["objects"].as_object().expect("graph names objects");
+        let targets = objects
+            .values()
+            .filter_map(|object| object.get("target").and_then(serde_json::Value::as_str))
+            .collect::<Vec<_>>();
+        assert_eq!(targets.len(), 1, "su'u records exactly one categorizer");
+        assert_eq!(stated_operand_of(objects, targets[0]), "lo fasnu");
     }
 
     #[test]

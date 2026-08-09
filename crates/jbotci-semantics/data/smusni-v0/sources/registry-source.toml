@@ -507,42 +507,42 @@ expected_dynamic_summary = { context_flow = "parameterized", parameter_evaluatio
 [[prelude]]
 name = "Every"
 type_parameters = ["T"]
-complete_signature_schema = "(Fn ((Fn ((TypeParam \"T\")) Content)) (GQ (TypeParam \"T\")))"
+complete_signature_schema = "(Fn ((PureProperty (TypeParam \"T\"))) (GQ (TypeParam \"T\")))"
 direct_dependencies = []
 expected_dynamic_summary = { context_flow = "projective", parameter_evaluations = ["P", "P", "Q"], ordered_effects = ["presupposition"], stability = "unstable" }
 
 [[prelude]]
 name = "Exactly"
 type_parameters = ["T"]
-complete_signature_schema = "(Fn (Natural (Fn ((TypeParam \"T\")) Content)) (GQ (TypeParam \"T\")))"
+complete_signature_schema = "(Fn (Natural (PureProperty (TypeParam \"T\"))) (Fn ((PureProperty (TypeParam \"T\"))) Content))"
 direct_dependencies = []
 expected_dynamic_summary = { context_flow = "parameterized", parameter_evaluations = ["P", "Q"], ordered_effects = [], stability = "parameterized" }
 
 [[prelude]]
 name = "AtLeast"
 type_parameters = ["T"]
-complete_signature_schema = "(Fn (Natural (Fn ((TypeParam \"T\")) Content)) (GQ (TypeParam \"T\")))"
+complete_signature_schema = "(Fn (Natural (PureProperty (TypeParam \"T\"))) (Fn ((PureProperty (TypeParam \"T\"))) Content))"
 direct_dependencies = ["≥"]
 expected_dynamic_summary = { context_flow = "parameterized", parameter_evaluations = ["P", "Q"], ordered_effects = [], stability = "parameterized" }
 
 [[prelude]]
 name = "AtMost"
 type_parameters = ["T"]
-complete_signature_schema = "(Fn (Natural (Fn ((TypeParam \"T\")) Content)) (GQ (TypeParam \"T\")))"
+complete_signature_schema = "(Fn (Natural (PureProperty (TypeParam \"T\"))) (Fn ((PureProperty (TypeParam \"T\"))) Content))"
 direct_dependencies = []
 expected_dynamic_summary = { context_flow = "parameterized", parameter_evaluations = ["P", "Q"], ordered_effects = [], stability = "parameterized" }
 
 [[prelude]]
 name = "MoreThan"
 type_parameters = ["T"]
-complete_signature_schema = "(Fn (Natural (Fn ((TypeParam \"T\")) Content)) (GQ (TypeParam \"T\")))"
+complete_signature_schema = "(Fn (Natural (PureProperty (TypeParam \"T\"))) (Fn ((PureProperty (TypeParam \"T\"))) Content))"
 direct_dependencies = [">"]
 expected_dynamic_summary = { context_flow = "parameterized", parameter_evaluations = ["P", "Q"], ordered_effects = [], stability = "parameterized" }
 
 [[prelude]]
 name = "FewerThan"
 type_parameters = ["T"]
-complete_signature_schema = "(Fn (Natural (Fn ((TypeParam \"T\")) Content)) (GQ (TypeParam \"T\")))"
+complete_signature_schema = "(Fn (Natural (PureProperty (TypeParam \"T\"))) (Fn ((PureProperty (TypeParam \"T\"))) Content))"
 direct_dependencies = []
 expected_dynamic_summary = { context_flow = "parameterized", parameter_evaluations = ["P", "Q"], ordered_effects = [], stability = "parameterized" }
 

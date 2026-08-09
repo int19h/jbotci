@@ -3527,7 +3527,10 @@ fn function_parameter_datums(signature: &str) -> Result<Vec<Datum>, BundleError>
             "equation-defined prelude needs at least one parameter",
         ));
     }
-    Ok(parameters.to_vec())
+    parameters
+        .iter()
+        .map(|parameter| StaticType::parse(parameter, true).map(|value| value.to_erased_datum()))
+        .collect()
 }
 
 #[requires(true)]
@@ -4897,6 +4900,13 @@ fn canonical_prelude_type_schema(
     validate_type_parameter_declarations(declared_type_parameters)?;
     let canonical = canonical_type_schema_impl(source, true)?;
     let datum = parse_document(&canonical).expect("canonical type was just parsed");
+    let parsed = StaticType::parse(&datum, true)?;
+    if !pure_property_positions_are_valid(&parsed, false) {
+        return Err(BundleError::new(
+            BundleErrorKind::Type,
+            "PureProperty is allowed only in a PreludeRow function-parameter position",
+        ));
+    }
     let used = collect_type_parameter_names(&datum)?;
     let declared = declared_type_parameters
         .iter()
@@ -4959,13 +4969,28 @@ fn canonical_type_for_comparison(source: &str) -> Result<String, BundleError> {
         )
     })?;
     let parsed = StaticType::parse(&datum, true)?;
-    Ok(canonical_datum(&parsed.to_datum()))
+    Ok(canonical_datum(&parsed.to_erased_datum()))
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|datum| !contains_form(datum, "TypeParam")) || ret.is_err())]
 fn replace_type_parameters_for_syntax_validation(datum: &Datum) -> Result<Datum, BundleError> {
     match datum {
+        Datum::List(values) if datum.form_head() == Some("PureProperty") => {
+            let [_, element] = values.as_slice() else {
+                return Err(BundleError::new(
+                    BundleErrorKind::Type,
+                    "PureProperty requires exactly one element type",
+                ));
+            };
+            Ok(Datum::form(
+                "Fn",
+                [
+                    Datum::list([replace_type_parameters_for_syntax_validation(element)?]),
+                    Datum::atom("Content"),
+                ],
+            ))
+        }
         Datum::List(values) if datum.form_head() == Some("TypeParam") => {
             StaticType::parse(datum, true)?;
             debug_assert_eq!(values.len(), 2);
@@ -5004,6 +5029,7 @@ struct TypeParameterName {
 #[invariant(::Query(_) => true)]
 #[invariant(::AnswerSelection(_) => true)]
 #[invariant(::GeneralizedQuantifier(_) => true)]
+#[invariant(::PureProperty(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum StaticType {
     Concrete(TypeExpr),
@@ -5023,6 +5049,8 @@ enum StaticType {
     Query(Vec<StaticType>),
     AnswerSelection(Vec<StaticType>),
     GeneralizedQuantifier(Box<StaticType>),
+    /// Registry-only section-3.2 refinement, erased to `Fn<(T), Content>`.
+    PureProperty(Box<StaticType>),
 }
 
 impl StaticType {
@@ -5057,6 +5085,22 @@ impl StaticType {
             return Ok(Self::TypeParameter(new!(TypeParameterName {
                 name: name.to_owned(),
             })));
+        }
+        if datum.form_head() == Some("PureProperty") {
+            if !allow_type_parameters {
+                return Err(BundleError::new(
+                    BundleErrorKind::Type,
+                    "PureProperty is allowed only in a PreludeRow schema",
+                ));
+            }
+            let items = datum.as_list().expect("a form head belongs to a list");
+            let [_, element] = items else {
+                return Err(BundleError::new(
+                    BundleErrorKind::Type,
+                    "PureProperty requires exactly one element type",
+                ));
+            };
+            return Ok(Self::PureProperty(Box::new(Self::parse(element, true)?)));
         }
         if !contains_form(datum, "TypeParam") {
             return parse_type(datum).map(Self::from_concrete).map_err(|error| {
@@ -5201,6 +5245,56 @@ impl StaticType {
                 [Datum::list(elements.iter().map(Self::to_datum))],
             ),
             Self::GeneralizedQuantifier(inner) => Datum::form("GQ", [inner.to_datum()]),
+            Self::PureProperty(inner) => Datum::form("PureProperty", [inner.to_datum()]),
+        }
+    }
+
+    /// Return the ordinary surface type obtained by structurally erasing every
+    /// registry-only purity refinement.
+    #[requires(true)]
+    #[ensures(!contains_form(&ret, "PureProperty"))]
+    fn to_erased_datum(&self) -> Datum {
+        match self {
+            Self::Concrete(value) => type_to_datum(value),
+            Self::TypeParameter(name) => {
+                Datum::form("TypeParam", [Datum::string(name.name.clone())])
+            }
+            Self::Referents(inner) => Datum::form("Referents", [inner.to_erased_datum()]),
+            Self::Set(inner) => Datum::form("Set", [inner.to_erased_datum()]),
+            Self::Group(inner) => Datum::form("Group", [inner.to_erased_datum()]),
+            Self::List(inner) => Datum::form("List", [inner.to_erased_datum()]),
+            Self::Interval(inner) => Datum::form("Interval", [inner.to_erased_datum()]),
+            Self::Tuple(elements) => Datum::form(
+                "Tuple",
+                [Datum::list(elements.iter().map(Self::to_erased_datum))],
+            ),
+            Self::Function { parameters, result } => Datum::form(
+                "Fn",
+                [
+                    Datum::list(parameters.iter().map(Self::to_erased_datum)),
+                    result.to_erased_datum(),
+                ],
+            ),
+            Self::Predicate(predicate) => {
+                type_to_datum(&TypeExpr::Predicate(predicate.row.clone()))
+            }
+            Self::ReferenceComputation(inner) => Datum::form("RefComp", [inner.to_erased_datum()]),
+            Self::Query(elements) => Datum::form(
+                "Query",
+                [Datum::list(elements.iter().map(Self::to_erased_datum))],
+            ),
+            Self::AnswerSelection(elements) => Datum::form(
+                "AnswerSelection",
+                [Datum::list(elements.iter().map(Self::to_erased_datum))],
+            ),
+            Self::GeneralizedQuantifier(inner) => Datum::form("GQ", [inner.to_erased_datum()]),
+            Self::PureProperty(inner) => Datum::form(
+                "Fn",
+                [
+                    Datum::list([inner.to_erased_datum()]),
+                    Datum::atom("Content"),
+                ],
+            ),
         }
     }
 
@@ -5247,7 +5341,43 @@ impl StaticType {
             Self::GeneralizedQuantifier(inner) => {
                 TypeExpr::GeneralizedQuantifier(Box::new(inner.to_concrete()?))
             }
+            Self::PureProperty(inner) => TypeExpr::Function {
+                parameters: vec![inner.to_concrete()?],
+                result: Box::new(TypeExpr::Atom(TypeAtom::Content)),
+            },
         })
+    }
+}
+
+/// Enforce section 14.2's placement rule for the registry-only refinement.
+#[requires(true)]
+#[ensures(true)]
+fn pure_property_positions_are_valid(value: &StaticType, parameter_position: bool) -> bool {
+    match value {
+        StaticType::PureProperty(inner) => {
+            parameter_position && pure_property_positions_are_valid(inner, false)
+        }
+        StaticType::Function { parameters, result } => {
+            parameters
+                .iter()
+                .all(|parameter| pure_property_positions_are_valid(parameter, true))
+                && pure_property_positions_are_valid(result, false)
+        }
+        StaticType::Referents(inner)
+        | StaticType::Set(inner)
+        | StaticType::Group(inner)
+        | StaticType::List(inner)
+        | StaticType::Interval(inner)
+        | StaticType::ReferenceComputation(inner)
+        | StaticType::GeneralizedQuantifier(inner) => {
+            pure_property_positions_are_valid(inner, false)
+        }
+        StaticType::Tuple(elements)
+        | StaticType::Query(elements)
+        | StaticType::AnswerSelection(elements) => elements
+            .iter()
+            .all(|element| pure_property_positions_are_valid(element, false)),
+        StaticType::Concrete(_) | StaticType::TypeParameter(_) | StaticType::Predicate(_) => true,
     }
 }
 
@@ -5312,7 +5442,8 @@ fn static_type_contains_parameter(value: &StaticType) -> bool {
         | StaticType::List(inner)
         | StaticType::Interval(inner)
         | StaticType::ReferenceComputation(inner)
-        | StaticType::GeneralizedQuantifier(inner) => static_type_contains_parameter(inner),
+        | StaticType::GeneralizedQuantifier(inner)
+        | StaticType::PureProperty(inner) => static_type_contains_parameter(inner),
         StaticType::Tuple(elements)
         | StaticType::Query(elements)
         | StaticType::AnswerSelection(elements) => {
@@ -5377,6 +5508,15 @@ fn unify_static_types(
                 && unify_static_types(left_result, right_result, substitutions),
         ),
         (StaticType::Predicate(left), StaticType::Predicate(right)) => Some(left.row == right.row),
+        (StaticType::PureProperty(left), StaticType::PureProperty(right)) => {
+            Some(unify_static_types(left, right, substitutions))
+        }
+        (StaticType::PureProperty(element), StaticType::Function { parameters, result })
+        | (StaticType::Function { parameters, result }, StaticType::PureProperty(element)) => Some(
+            parameters.len() == 1
+                && result.as_ref() == &static_atom(TypeAtom::Content)
+                && unify_static_types(&parameters[0], element, substitutions),
+        ),
         _ => None,
     };
     if let Some(result) = structural {
@@ -5449,6 +5589,9 @@ fn substitute_static_type(
         StaticType::GeneralizedQuantifier(inner) => StaticType::GeneralizedQuantifier(Box::new(
             substitute_static_type(inner, substitutions),
         )),
+        StaticType::PureProperty(inner) => {
+            StaticType::PureProperty(Box::new(substitute_static_type(inner, substitutions)))
+        }
         StaticType::Tuple(elements) => StaticType::Tuple(
             elements
                 .iter()
@@ -5586,6 +5729,18 @@ fn check_expression_with_substitutions(
             datum,
             parameters,
             result,
+            environment,
+            registry,
+            substitutions,
+        );
+    }
+    if let StaticType::PureProperty(element) = expected
+        && datum.form_head() == Some("λ")
+    {
+        return check_lambda(
+            datum,
+            &[element.as_ref().clone()],
+            &static_atom(TypeAtom::Content),
             environment,
             registry,
             substitutions,
@@ -6577,7 +6732,7 @@ fn validate_prelude_body_result(
     })?;
     let valid = if result.as_atom() == Some("Content") {
         expression_is_content(body)
-    } else if result.form_head() == Some("GQ") {
+    } else if matches!(result.form_head(), Some("GQ" | "Fn")) {
         body.form_head() == Some("λ")
             && body
                 .as_list()

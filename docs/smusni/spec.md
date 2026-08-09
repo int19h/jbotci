@@ -2220,6 +2220,14 @@ otherwise. Missing source information that is not semantically a contextual
 default is rejected with a registered invalid-graph reason rather than using
 this sugar.
 
+For `Abstract`, the trailing operand is the categorizing referent —
+CLL 11.9's 'type x2' — and its contextual default is declared at
+`Referents<Entity>`: an omitted categorizer is a contextually
+understood kind, and kinds enter the graph as entity referents (11.59's
+`lo fasnu` is one). An explicit graph operand carries its own type as
+usual. This declaration is the spec choosing the omitted operand's
+type; a projector must not infer it from context.
+
 Thus `Measure content` is not a second overload or primitive. It elaborates as:
 
 ```lisp

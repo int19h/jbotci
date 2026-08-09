@@ -2194,7 +2194,8 @@ impl SemanticObject {
                 AbstractionTrailingPlace::Actions => node.with_data(data! { actions: Some(value) }),
                 AbstractionTrailingPlace::Epistemology
                 | AbstractionTrailingPlace::ExpressedBy
-                | AbstractionTrailingPlace::Mind => node,
+                | AbstractionTrailingPlace::Mind
+                | AbstractionTrailingPlace::Categorizer => node,
             });
         } else if self.as_referent().is_some() {
             self.update_referent(|node| match place {
@@ -2206,6 +2207,9 @@ impl SemanticObject {
                     node.with_data(data! { expressed_by: Some(value) })
                 }
                 AbstractionTrailingPlace::Mind => node.with_data(data! { mind: Some(value) }),
+                AbstractionTrailingPlace::Categorizer => {
+                    node.with_data(data! { target: Some(value) })
+                }
                 AbstractionTrailingPlace::Experiencer => {
                     node.with_data(data! { experiencer: Some(value) })
                 }
