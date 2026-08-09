@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Run release tooling tests
-        run: python3 -m unittest tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow -v
+        run: python3 -m unittest tools.tests.test_cli_release tools.tests.test_prepare_cli_release_workflow tools.tests.test_release_draft_script -v
 
   cargo-test:
     name: Cargo tests

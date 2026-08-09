@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import stat
 import unittest
 from pathlib import Path
 
@@ -11,13 +12,17 @@ PREPARE_WORKFLOW = (
     REPOSITORY_ROOT / ".github" / "workflows" / "prepare-cli-release.yml"
 )
 TEST_WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "test.yml"
+RELEASE_DRAFT_SCRIPT = (
+    REPOSITORY_ROOT / ".github" / "scripts" / "prepare_release_draft.sh"
+)
 CARGO_COMMAND = (
     'RUSTFLAGS="-C target-feature=-crt-static" cargo rustc --release --locked '
     "-p jbotci --bin jbotci -- -C target-feature=+crt-static"
 )
 COMBINED_TEST_COMMAND = (
     "python3 -m unittest tools.tests.test_cli_release "
-    "tools.tests.test_prepare_cli_release_workflow -v"
+    "tools.tests.test_prepare_cli_release_workflow "
+    "tools.tests.test_release_draft_script -v"
 )
 
 
@@ -26,6 +31,7 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.workflow = PREPARE_WORKFLOW.read_text(encoding="utf-8")
         cls.test_workflow = TEST_WORKFLOW.read_text(encoding="utf-8")
+        cls.release_draft_script = RELEASE_DRAFT_SCRIPT.read_text(encoding="utf-8")
         cls.linux_job = cls.workflow.split("  build-linux:\n", 1)[1].split(
             "  build-macos:\n", 1
         )[0]
@@ -138,6 +144,54 @@ class PrepareCliReleaseWorkflowTest(unittest.TestCase):
 
     def test_normal_ci_runs_this_module_with_the_release_tool_tests(self) -> None:
         self.assertEqual(self.test_workflow.count(COMBINED_TEST_COMMAND), 1)
+
+    def test_draft_state_machine_is_an_executable_repository_script(self) -> None:
+        mode = stat.S_IMODE(RELEASE_DRAFT_SCRIPT.stat().st_mode)
+        self.assertEqual(mode, 0o755)
+        self.assertTrue(self.release_draft_script.startswith("#!/usr/bin/env bash\n"))
+        self.assertIn("set -euo pipefail", self.release_draft_script)
+
+    def test_workflow_draft_step_is_only_explicit_script_wiring(self) -> None:
+        draft_step = self.workflow.split(
+            "      - name: Create or safely resume the exact draft\n", 1
+        )[1]
+        expected_invocation = (
+            '          .github/scripts/prepare_release_draft.sh \\\n'
+            '            --repository "${GITHUB_REPOSITORY}" \\\n'
+            '            --sha "${RELEASE_SHA}" \\\n'
+            '            --tag "${RELEASE_TAG}" \\\n'
+            '            --version "${RELEASE_VERSION}" \\\n'
+            '            --release-dir "${RUNNER_TEMP}/release" \\\n'
+            '            --state-dir "${RUNNER_TEMP}/release-state" \\\n'
+            '            --summary "${GITHUB_STEP_SUMMARY}"\n'
+        )
+        self.assertEqual(draft_step.count(expected_invocation), 1)
+        self.assertNotIn("gh api", draft_step)
+        self.assertNotIn("gh release", draft_step)
+
+    def test_script_uses_validated_raw_write_responses_and_release_ids(self) -> None:
+        script = self.release_draft_script
+        self.assertNotIn("gh release", script)
+        self.assertNotIn("--method PATCH", script)
+        self.assertIn('"repos/${repository}/git/refs"', script)
+        self.assertIn('"repos/${repository}/releases"', script)
+        self.assertIn(
+            '"https://uploads.github.com/repos/${repository}/releases/'
+            '${release_id}/assets?name=${encoded_asset_name}"',
+            script,
+        )
+        self.assertIn(
+            '"repos/${repository}/releases/assets/${asset_id}"', script
+        )
+        self.assertIn("created-tag.json", script)
+        self.assertIn("created-release.json", script)
+        self.assertIn("(.assets | length == 0)", script)
+
+    def test_script_keeps_full_pagination_and_explicit_state_outputs(self) -> None:
+        script = self.release_draft_script
+        self.assertEqual(script.count("gh api --paginate --slurp"), 3)
+        self.assertNotIn("$(select_release)", script)
+        self.assertNotIn("$(verify_tag", script)
 
 
 if __name__ == "__main__":
