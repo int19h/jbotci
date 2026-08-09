@@ -3257,15 +3257,15 @@ mod tests {
     }
 
     #[invariant(
-        state.borrow().0.position() <= state.borrow().0.get_ref().len() as u64,
+        cursor.borrow().position() <= cursor.borrow().get_ref().len() as u64,
         "scripted reader cursor must stay within its input"
     )]
     #[derive(Debug)]
     struct ScriptedReader {
-        state: std::cell::RefCell<(
-            std::io::Cursor<Vec<u8>>,
+        cursor: std::cell::RefCell<std::io::Cursor<Vec<u8>>>,
+        steps: std::cell::RefCell<
             std::collections::VecDeque<Result<NonZeroUsize, std::io::ErrorKind>>,
-        )>,
+        >,
     }
 
     impl Read for ScriptedReader {
@@ -3275,18 +3275,20 @@ mod tests {
             if buffer.is_empty() {
                 return Ok(0);
             }
-            let mut state = self.state.borrow_mut();
-            let Some(step) = state.1.pop_front() else {
+            let Some(step) = self.steps.borrow_mut().pop_front() else {
                 return Ok(0);
             };
             match step {
                 Ok(count) => {
                     let count = count.get();
                     let read_limit = count.min(buffer.len());
-                    let read = state.0.read(&mut buffer[..read_limit])?;
-                    if read < count && state.0.position() < state.0.get_ref().len() as u64 {
-                        state.1.push_front(Ok(NonZeroUsize::new(count - read)
-                            .expect("remaining scripted read count is nonzero")));
+                    let mut cursor = self.cursor.borrow_mut();
+                    let read = cursor.read(&mut buffer[..read_limit])?;
+                    if read < count && cursor.position() < cursor.get_ref().len() as u64 {
+                        self.steps
+                            .borrow_mut()
+                            .push_front(Ok(NonZeroUsize::new(count - read)
+                                .expect("remaining scripted read count is nonzero")));
                     }
                     Ok(read)
                 }
@@ -3458,15 +3460,15 @@ mod tests {
             sibling_path_with_suffix(&destination, "downloadInProgress").expect("partial path");
         let input = b"abcdefghij".to_vec();
         let mut reader = new!(ScriptedReader {
-            state: std::cell::RefCell::new((
-                std::io::Cursor::new(input.clone()),
+            cursor: std::cell::RefCell::new(std::io::Cursor::new(input.clone())),
+            steps: std::cell::RefCell::new(
                 [2, 1, 4, 3]
                     .into_iter()
                     .map(|count| {
                         Ok(NonZeroUsize::new(count).expect("nonzero scripted read count"))
                     })
                     .collect(),
-            )),
+            ),
         });
         let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
         let mut progress_events = Vec::new();
@@ -3540,15 +3542,15 @@ mod tests {
             sibling_path_with_suffix(&destination, "downloadInProgress").expect("partial path");
         std::fs::write(&destination, b"previous publication").expect("existing destination");
         let mut reader = new!(ScriptedReader {
-            state: std::cell::RefCell::new((
-                std::io::Cursor::new(b"partial data".to_vec()),
+            cursor: std::cell::RefCell::new(std::io::Cursor::new(b"partial data".to_vec())),
+            steps: std::cell::RefCell::new(
                 [
                     Ok(NonZeroUsize::new(7).expect("nonzero scripted read count")),
                     Err(std::io::ErrorKind::ConnectionReset),
                 ]
                 .into_iter()
                 .collect(),
-            )),
+            ),
         });
         let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
         let mut progress = |_| {};
