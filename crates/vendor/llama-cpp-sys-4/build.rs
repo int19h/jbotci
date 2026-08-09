@@ -908,6 +908,59 @@ fn command_exists(cmd: &str) -> bool {
         .unwrap_or(false)
 }
 
+fn link_linux_cpp_runtime(target: &str) {
+    if !target.contains("linux") {
+        return;
+    }
+
+    // A musl target is expected to produce a self-contained executable. A
+    // dynamic libstdc++ request makes rustc add a dynamic ELF interpreter even
+    // when crt-static is enabled, leaving the binary unusable on a clean musl
+    // system. GNU targets retain their conventional dynamic C++ runtime.
+    let link_kind = if target.contains("musl") {
+        let compiler = cc::Build::new()
+            .cpp(true)
+            .cargo_metadata(false)
+            .get_compiler();
+        let output = Command::new(compiler.path())
+            .arg("-print-file-name=libstdc++.a")
+            .output()
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to ask C++ compiler '{}' for libstdc++.a: {error}",
+                    compiler.path().display()
+                )
+            });
+        assert!(
+            output.status.success(),
+            "C++ compiler '{}' could not locate libstdc++.a",
+            compiler.path().display()
+        );
+        let runtime = PathBuf::from(
+            String::from_utf8(output.stdout)
+                .expect("C++ compiler returned a non-UTF-8 libstdc++.a path")
+                .trim(),
+        );
+        assert!(
+            runtime.is_file(),
+            "C++ compiler '{}' reported missing static runtime '{}'",
+            compiler.path().display(),
+            runtime.display()
+        );
+        println!(
+            "cargo:rustc-link-search=native={}",
+            runtime
+                .parent()
+                .expect("libstdc++.a path has no parent directory")
+                .display()
+        );
+        "static"
+    } else {
+        "dylib"
+    };
+    println!("cargo:rustc-link-lib={link_kind}=stdc++");
+}
+
 /// Compile the MTP C++ shim (stable C linkage for `mtp_session_*`).
 ///
 /// Required on both the CMake and prebuilt paths: prebuilt tarballs ship
@@ -1644,9 +1697,7 @@ fn main() {
                 println!("cargo:rustc-link-lib=framework=Accelerate");
                 println!("cargo:rustc-link-lib=c++");
             }
-            if target.contains("linux") {
-                println!("cargo:rustc-link-lib=dylib=stdc++");
-            }
+            link_linux_cpp_runtime(&target);
             if target.contains("windows") && !target.contains("msvc") {
                 println!("cargo:rustc-link-lib=static=stdc++");
                 println!("cargo:rustc-link-lib=static=winpthread");
@@ -2479,9 +2530,7 @@ fn main() {
     }
 
     // Linux libstdc++
-    if target.contains("linux") {
-        println!("cargo:rustc-link-lib=dylib=stdc++");
-    }
+    link_linux_cpp_runtime(&target);
 
     // Windows MinGW (GCC-based, not MSVC): link the C++ and threading runtimes.
     // MSVC handles its own C++ runtime via the CRT; MinGW needs explicit flags
