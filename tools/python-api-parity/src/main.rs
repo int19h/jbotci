@@ -250,10 +250,7 @@ fn workspace_root() -> Result<PathBuf, String> {
 #[ensures(ret.as_ref().is_ok_and(|items| !items.is_empty()) || ret.is_err())]
 fn rust_inventory(workspace: &Path) -> Result<Vec<ApiItem>, String> {
     let syntax_source = workspace.join("crates/jbotci-syntax/src");
-    let syntax_files = ["lib.rs", "tree.rs", "grammar/mod.rs"]
-        .into_iter()
-        .map(|path| syntax_source.join(path))
-        .collect::<BTreeSet<_>>();
+    let syntax_files = syntax_inventory_files(&syntax_source);
     let scopes = [
         scope(workspace, "jbotci_source", "crates/jbotci-source/src", None),
         scope(
@@ -332,6 +329,30 @@ fn rust_inventory(workspace: &Path) -> Result<Vec<ApiItem>, String> {
         ));
     }
     filter_reachable_api(workspace, items)
+}
+
+/// The `jbotci_syntax` sources whose hand-written public items are inventoried.
+///
+/// This scope is a file list rather than a whole-crate walk because the crate's
+/// bulk is the generated syntax model, which enters the inventory through
+/// `GENERATED_SYNTAX_API` from the binding schema instead of by parsing. Every
+/// hand-written module that is publicly reachable must still be listed: parsing
+/// a `pub mod name;` declaration contributes exactly one `module` row and none
+/// of the module's own items, so an unlisted module's public API silently
+/// carries no parity disposition. `syntax_inventory_covers_public_modules`
+/// holds this list closed under the public modules the listed files declare.
+#[requires(syntax_source.is_absolute())]
+#[ensures(!ret.is_empty())]
+fn syntax_inventory_files(syntax_source: &Path) -> BTreeSet<PathBuf> {
+    [
+        "lib.rs",
+        "tree.rs",
+        "grammar/mod.rs",
+        "grammar/baseline_quantifier.rs",
+    ]
+    .into_iter()
+    .map(|path| syntax_source.join(path))
+    .collect()
 }
 
 #[requires(path.is_absolute())]
@@ -1477,5 +1498,66 @@ mod tests {
         let tokens: TokenStream = syn::parse_str("Alpha => \"a\", Beta => (\"BETA\", \"b\")")
             .expect("valid token stream");
         assert_eq!(parse_arrow_variants(&tokens), ["Alpha", "Beta"]);
+    }
+
+    /// The `jbotci_syntax` file list must be closed under its public modules.
+    ///
+    /// A `pub mod name;` in a scanned file yields one `module` row whatever the
+    /// module contains, so leaving the module's own file out of the scope hides
+    /// its entire public API from `--check` while the matrix still looks
+    /// complete. Nothing else in the workspace notices: the module row is
+    /// classified, the parity check is green, and the items are simply absent.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn syntax_inventory_covers_public_modules() {
+        let syntax_source = workspace_root()
+            .expect("workspace root resolves")
+            .join("crates/jbotci-syntax/src");
+        let selected = syntax_inventory_files(&syntax_source);
+        for file in &selected {
+            let source = fs::read_to_string(file)
+                .unwrap_or_else(|error| panic!("failed to read {}: {error}", file.display()));
+            let parsed = syn::parse_file(&source)
+                .unwrap_or_else(|error| panic!("failed to parse {}: {error}", file.display()));
+            // A file's submodules live beside it for `lib.rs`/`mod.rs`, and in a
+            // directory named after the file otherwise.
+            let stem = file.file_stem().expect("source file has a stem");
+            let parent = file.parent().expect("source file has a parent directory");
+            let directory = match stem.to_string_lossy().as_ref() {
+                "lib" | "mod" => parent.to_path_buf(),
+                stem => parent.join(stem),
+            };
+            for item in parsed.items {
+                let Item::Mod(module) = item else {
+                    continue;
+                };
+                // An inline `pub mod name { .. }` is already scanned in place.
+                if !is_public(&module.vis) || module.content.is_some() {
+                    continue;
+                }
+                let name = module.ident.to_string();
+                let declared = [
+                    directory.join(format!("{name}.rs")),
+                    directory.join(&name).join("mod.rs"),
+                ]
+                .into_iter()
+                .find(|candidate| candidate.exists())
+                .unwrap_or_else(|| {
+                    panic!(
+                        "no source file found for `pub mod {name};` declared in {}",
+                        file.display()
+                    )
+                });
+                assert!(
+                    selected.contains(&declared),
+                    "{} declares `pub mod {name};` but {} is not in the jbotci_syntax parity \
+                     inventory scope, so none of that module's public items are classified; add \
+                     it to syntax_inventory_files and regenerate bindings/python/docs/api-parity.tsv",
+                    file.display(),
+                    declared.display(),
+                );
+            }
+        }
     }
 }
