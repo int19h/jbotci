@@ -1988,6 +1988,73 @@ where
     .boxed()
 }
 
+/// A refinement that can reject an otherwise successful parser output.
+///
+/// Implementations classify a *completed* typed output, so a grammar route can
+/// decline ownership of a surface it would otherwise capture without inspecting
+/// source text or consulting mutable parser state. Each implementation is
+/// written for one concrete parser output type, which is why the same marker can
+/// implement the trait separately for the strict and recovered generated models.
+#[contract_trait]
+pub(crate) trait OutputRejection<O> {
+    /// The rejected shape's name, reported as `not <name>` when it is refused.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn rejected_name(&self) -> &'static str;
+
+    /// Whether `value` must be refused at the route carrying this refinement.
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects(&self, value: &O) -> bool;
+}
+
+/// Refines `inner` by rejecting completed outputs the refinement declines.
+///
+/// Acceptance is fully transparent: the inner output is returned unchanged, so
+/// the enclosing rule's model type is unaffected. Rejection behaves like a
+/// negative lookahead over the whole inner match: the input is rewound to the
+/// position the inner parser started from, which restores warnings and recovery
+/// state through the ordinary checkpoint path, and the diagnostic candidates the
+/// abandoned attempt recorded are discarded so a route that never appears in the
+/// final tree cannot outrank a real error. The failure is therefore anchored at
+/// the start of the enclosing alternative rather than at the end of the match.
+///
+/// The predicate runs on the value the inner parser yields, including a value
+/// replayed from the syntax memo, because memo replay happens strictly inside
+/// `inner`.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reject_output<'tokens, O, P, R>(inner: P, rejection: R) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+    R: OutputRejection<O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let before = input.save();
+        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let value = match input.parse(&inner) {
+            Ok(value) => value,
+            Err(error) => {
+                input.rewind(before);
+                return Err(error);
+            }
+        };
+        if !rejection.rejects(&value) {
+            return Ok(value);
+        }
+        input.rewind(before);
+        input
+            .state()
+            .restore_diagnostic_candidates(diagnostic_snapshot);
+        Err(expected_found_named_at_current(
+            input,
+            format!("not {}", rejection.rejected_name()),
+        ))
+    })
+    .boxed()
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn not<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>

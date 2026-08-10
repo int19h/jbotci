@@ -2112,21 +2112,10 @@ pub(super) fn generated_simple_mekso_operand_number_words_text(
 pub(super) fn generated_forethought_mekso_operand_from_mekso(
     expression: &MeksoSyntax,
 ) -> Option<&ForethoughtMeksoOperandSyntax> {
-    let MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) =
-        generated_single_mekso_operand_from_mekso(expression)?
-    else {
-        return None;
-    };
-    if !operand.0.links.is_empty() {
-        return None;
+    match single_simple_mekso_operand(expression)? {
+        SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand) => Some(operand),
+        _ => None,
     }
-    let BoundOrSimpleMeksoOperandSyntax::SimpleMeksoOperand(
-        SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand),
-    ) = &*operand.0.first
-    else {
-        return None;
-    };
-    Some(operand)
 }
 
 #[requires(true)]
@@ -2134,21 +2123,10 @@ pub(super) fn generated_forethought_mekso_operand_from_mekso(
 pub(super) fn generated_parenthesized_mekso_operand_from_mekso(
     expression: &MeksoSyntax,
 ) -> Option<&ParenthesizedMeksoOperandSyntax> {
-    let MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) =
-        generated_single_mekso_operand_from_mekso(expression)?
-    else {
-        return None;
-    };
-    if !operand.0.links.is_empty() {
-        return None;
+    match baseline_quantifier_surface(expression)? {
+        BaselineQuantifierSurface::Parenthesized(operand) => Some(operand),
+        BaselineQuantifierSurface::PaRun(_) => None,
     }
-    let BoundOrSimpleMeksoOperandSyntax::SimpleMeksoOperand(
-        SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand),
-    ) = &*operand.0.first
-    else {
-        return None;
-    };
-    Some(operand)
 }
 
 #[requires(true)]
@@ -2156,34 +2134,7 @@ pub(super) fn generated_parenthesized_mekso_operand_from_mekso(
 pub(super) fn generated_single_mekso_operand_from_mekso(
     expression: &MeksoSyntax,
 ) -> Option<&MeksoOperandSyntax> {
-    let first_expression = match expression {
-        MeksoSyntax::InfixMekso(infix) => {
-            if !infix.continuations.is_empty() {
-                return None;
-            }
-            &infix.first_expression
-        }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            if !infix.continuations.is_empty() {
-                return None;
-            }
-            &infix.first_expression
-        }
-        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => {
-            return None;
-        }
-    };
-    let MeksoPrecedenceSyntax {
-        left_expression,
-        tail,
-    } = &**first_expression;
-    if tail.is_some() {
-        return None;
-    }
-    let MeksoBaseSyntax::MeksoOperand(operand) = left_expression.as_ref() else {
-        return None;
-    };
-    Some(operand)
+    single_mekso_operand(expression)
 }
 
 #[requires(true)]
