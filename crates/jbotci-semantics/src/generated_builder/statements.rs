@@ -158,6 +158,55 @@ impl<'builder, 'a, 'dict, 'tree> TreeWalker<'tree>
 
     #[requires(true)]
     #[ensures(true)]
+    fn walk_bound_term(&mut self, node: &'tree BoundTermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        let Some(term) = GeneratedSimpleTermRef::from_bound(node) else {
+            self.error = Some(undefined_semantics(
+                "a grouped direct term connection in the term-hierarchy dialect",
+            ));
+            return;
+        };
+        match term {
+            GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
+                self.push_sumti(sumti, true);
+            }
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
+                if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.push_sumti(sumti, false);
+                }
+            }
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.push_sumti(sumti, false);
+                }
+            }
+            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
+                self.events.push(GeneratedPrenexTermEvent::Negation {
+                    source: self.builder.source_for_node(node, "prenex-negation"),
+                });
+            }
+            GeneratedSimpleTermRef::NuhiTermset(termset) => {
+                self.start_group(termset);
+                for term in &termset.termset {
+                    TreeWalkable::walk_with(term.as_ref(), self);
+                }
+                self.end_group();
+            }
+            GeneratedSimpleTermRef::KeTermset(termset) => {
+                self.start_group(termset);
+                for term in &termset.termset {
+                    TreeWalkable::walk_with(term.as_ref(), self);
+                }
+                self.end_group();
+            }
+            _ => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn walk_simple_term_nuhi_termset(&mut self, node: &'tree NuhiTermsetSyntax) {
         self.start_group(node);
         jbotci_syntax::generated_model::walk::simple_term_nuhi_termset(self, node);
@@ -1607,29 +1656,40 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             TermSyntax::TermsetGroup(termset) => {
                 self.collect_generated_reciprocal_exchanges_from_simple_term(
                     predication,
-                    termset.leading_term.as_ref(),
+                    GeneratedSimpleTermRef::from_simple(termset.leading_term.as_ref()),
                     out,
                 )?;
                 for continuation in &termset.continuations {
                     self.collect_generated_reciprocal_exchanges_from_simple_term(
                         predication,
-                        continuation.trailing_term.as_ref(),
+                        GeneratedSimpleTermRef::from_simple(continuation.trailing_term.as_ref()),
                         out,
                     )?;
                 }
                 Ok(())
             }
             TermSyntax::SimpleTerm(simple) => self
-                .collect_generated_reciprocal_exchanges_from_simple_term(predication, simple, out),
+                .collect_generated_reciprocal_exchanges_from_simple_term(
+                    predication,
+                    GeneratedSimpleTermRef::from_simple(simple),
+                    out,
+                ),
             TermSyntax::ConnectedTerm(ConnectedTermSyntax {
                 leading_term,
                 continuations,
-            }) if continuations.is_empty() => self
-                .collect_generated_reciprocal_exchanges_from_simple_term(
+            }) if continuations.is_empty() => {
+                let simple =
+                    GeneratedSimpleTermRef::from_bound(leading_term.as_ref()).ok_or_else(|| {
+                        undefined_semantics(
+                            "a grouped direct term connection in the term-hierarchy dialect",
+                        )
+                    })?;
+                self.collect_generated_reciprocal_exchanges_from_simple_term(
                     predication,
-                    leading_term.as_ref(),
+                    simple,
                     out,
-                ),
+                )
+            }
             _ => Ok(()),
         }
     }
@@ -1639,14 +1699,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn collect_generated_reciprocal_exchanges_from_simple_term(
         &mut self,
         predication: SemanticObjectId,
-        simple: &'tree SimpleTermSyntax,
+        simple: GeneratedSimpleTermRef<'tree>,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
         match simple {
-            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+            GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
                 self.collect_generated_reciprocal_exchanges_from_sumti(predication, sumti, out)
             }
-            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                 if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
                     self.collect_generated_reciprocal_exchanges_from_sumti(
                         predication,
@@ -1656,7 +1716,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 Ok(())
             }
-            SimpleTermSyntax::TaggedSumtiTerm(term) => {
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
                     self.collect_generated_reciprocal_exchanges_from_sumti(
                         predication,
@@ -1666,13 +1726,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 Ok(())
             }
-            SimpleTermSyntax::NuhiTermset(termset) => {
+            GeneratedSimpleTermRef::NuhiTermset(termset) => {
                 for term in &termset.termset {
                     self.collect_generated_reciprocal_exchanges_from_term(predication, term, out)?;
                 }
                 Ok(())
             }
-            SimpleTermSyntax::KeTermset(termset) => {
+            GeneratedSimpleTermRef::KeTermset(termset) => {
                 for term in &termset.termset {
                     self.collect_generated_reciprocal_exchanges_from_term(predication, term, out)?;
                 }

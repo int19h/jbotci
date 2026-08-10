@@ -18,6 +18,8 @@ use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::generated_term_view::{GeneratedLinkedSumtiRef, GeneratedSimpleTermRef};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
 pub struct RawSyntaxNodeId(pub usize);
@@ -2415,25 +2417,36 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     ) {
         match term {
             generated::TermSyntax::SimpleTerm(simple) => {
-                self.assign_simple_term(cursors, term, simple, source);
+                self.assign_simple_term(
+                    cursors,
+                    term,
+                    GeneratedSimpleTermRef::from_simple(simple),
+                    source,
+                );
             }
             generated::TermSyntax::ConnectedTerm(connected) => {
-                self.assign_simple_term(cursors, term, &connected.leading_term, source);
+                if let Some(leading) = GeneratedSimpleTermRef::from_bound(&connected.leading_term) {
+                    self.assign_simple_term(cursors, term, leading, source);
+                }
                 for continuation in &connected.continuations {
-                    self.assign_simple_term(cursors, term, &continuation.trailing_term, source);
+                    if let Some(trailing) =
+                        GeneratedSimpleTermRef::from_bound(&continuation.trailing_term)
+                    {
+                        self.assign_simple_term(cursors, term, trailing, source);
+                    }
                 }
             }
             generated::TermSyntax::BoundTermConnection(bound) => {
                 self.assign_simple_term(
                     cursors,
                     term,
-                    &bound.leading_term,
+                    GeneratedSimpleTermRef::from_simple(&bound.leading_term),
                     AssignmentSource::TermsetBranch,
                 );
                 self.assign_simple_term(
                     cursors,
                     term,
-                    &bound.trailing_term,
+                    GeneratedSimpleTermRef::from_simple(&bound.trailing_term),
                     AssignmentSource::TermsetBranch,
                 );
             }
@@ -2441,14 +2454,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_simple_term(
                     cursors,
                     term,
-                    &group.leading_term,
+                    GeneratedSimpleTermRef::from_simple(&group.leading_term),
                     AssignmentSource::TermsetBranch,
                 );
                 for continuation in &group.continuations {
                     self.assign_simple_term(
                         cursors,
                         term,
-                        &continuation.trailing_term,
+                        GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
                         AssignmentSource::TermsetBranch,
                     );
                 }
@@ -2475,7 +2488,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_simple_term(
                     cursors,
                     outer_term,
-                    simple,
+                    GeneratedSimpleTermRef::from_simple(simple),
                     AssignmentSource::TermsetBranch,
                 );
             }
@@ -2483,14 +2496,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_simple_term(
                     cursors,
                     outer_term,
-                    &group.leading_term,
+                    GeneratedSimpleTermRef::from_simple(&group.leading_term),
                     AssignmentSource::TermsetBranch,
                 );
                 for continuation in &group.continuations {
                     self.assign_simple_term(
                         cursors,
                         outer_term,
-                        &continuation.trailing_term,
+                        GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
                         AssignmentSource::TermsetBranch,
                     );
                 }
@@ -2499,16 +2512,17 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 self.assign_simple_term(
                     cursors,
                     outer_term,
-                    &bound.leading_term,
+                    GeneratedSimpleTermRef::from_simple(&bound.leading_term),
                     AssignmentSource::TermsetBranch,
                 );
                 self.assign_simple_term(
                     cursors,
                     outer_term,
-                    &bound.trailing_term,
+                    GeneratedSimpleTermRef::from_simple(&bound.trailing_term),
                     AssignmentSource::TermsetBranch,
                 );
             }
+            generated::PeheTermsetOperandSyntax::StagBoundTermConnection(_) => {}
         }
     }
 
@@ -2518,14 +2532,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         cursors: &mut Vec<PlaceCursor>,
         outer_term: &'tree generated::TermSyntax,
-        term: &'tree generated::SimpleTermSyntax,
+        term: GeneratedSimpleTermRef<'tree>,
         source: AssignmentSource,
     ) {
         match term {
-            generated::SimpleTermSyntax::SumtiTerm(term) => {
+            GeneratedSimpleTermRef::SumtiTerm(term) => {
                 self.assign_argument_term_to_cursors(cursors, outer_term, &term.0, source);
             }
-            generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                 let slot = generated_fa_place_slot(&term.fa);
                 self.assign_tagged_or_elided_argument_to_cursors(
                     cursors,
@@ -2535,7 +2549,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     AssignmentSource::FaTerm,
                 );
             }
-            generated::SimpleTermSyntax::TaggedSumtiTerm(term) => {
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 self.walk_node(&term.tense_modal);
                 let slot = Some(modal_slot(Some(
                     self.raw_for_node(term.tense_modal.as_ref()),
@@ -2548,7 +2562,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     AssignmentSource::ModalTerm,
                 );
             }
-            generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
+            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
                 if let Some(tense_modal) = term.tag.as_deref() {
                     self.walk_node(tense_modal);
                 }
@@ -2560,17 +2574,23 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     AssignmentSource::FaTerm,
                 );
             }
-            generated::SimpleTermSyntax::NuhiTermset(term) => {
+            GeneratedSimpleTermRef::NuhiTermset(term) => {
                 for term in &term.termset {
                     self.assign_term(cursors, term, AssignmentSource::TermsetBranch);
                 }
             }
-            generated::SimpleTermSyntax::KeTermset(term) => {
+            GeneratedSimpleTermRef::KeTermset(term) => {
                 for term in &term.termset {
                     self.assign_term(cursors, term, AssignmentSource::TermsetBranch);
                 }
             }
-            _ => self.walk_node(term),
+            GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::NaKuTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::BareNaTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::ForethoughtTermset(term) => self.walk_node(term),
         }
     }
 
@@ -2662,9 +2682,11 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     ) {
         let mut cursor = PlaceCursor::new_at(frame, 2);
         let mut assigned_any = false;
-        assigned_any |= self.assign_linked_sumti(&mut cursor, &linkargs.first_link);
+        assigned_any |= GeneratedLinkedSumtiRef::from_linked_term(&linkargs.first_link)
+            .is_some_and(|link| self.assign_linked_sumti(&mut cursor, link));
         for link in &linkargs.bei_links {
-            assigned_any |= self.assign_linked_sumti(&mut cursor, &link.link);
+            assigned_any |= GeneratedLinkedSumtiRef::from_linked_term(&link.link)
+                .is_some_and(|link| self.assign_linked_sumti(&mut cursor, link));
         }
         if assigned_any {
             self.next_place_after_linked_arguments_by_frame
@@ -2677,20 +2699,20 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     fn assign_linked_sumti(
         &mut self,
         cursor: &mut PlaceCursor,
-        link: &'tree generated::LinkedSumtiSyntax,
+        link: GeneratedLinkedSumtiRef<'tree>,
     ) -> bool {
         match link {
-            generated::LinkedSumtiSyntax::PlainLinkedSumti(link) => {
+            GeneratedLinkedSumtiRef::Plain(link) => {
                 self.assign_link_argument(cursor, &link.0, None);
                 true
             }
-            generated::LinkedSumtiSyntax::PlaceTaggedLinkedSumti(link) => self
+            GeneratedLinkedSumtiRef::PlaceTagged(link) => self
                 .assign_tagged_or_elided_link_argument(
                     cursor,
                     &link.sumti,
                     generated_fa_place_slot(&link.fa),
                 ),
-            generated::LinkedSumtiSyntax::TenseTaggedLinkedSumti(link) => {
+            GeneratedLinkedSumtiRef::TenseTagged(link) => {
                 self.walk_node(&link.tense_modal);
                 self.assign_tagged_or_elided_link_argument(
                     cursor,
@@ -2700,7 +2722,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     ))),
                 )
             }
-            generated::LinkedSumtiSyntax::EmptyLinkedSumti(_) => false,
+            GeneratedLinkedSumtiRef::Empty => false,
         }
     }
 
@@ -3570,6 +3592,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 }
             }
             generated::PeheTermsetOperandSyntax::SimpleTerm(term) => self.walk_node(term),
+            generated::PeheTermsetOperandSyntax::StagBoundTermConnection(term) => {
+                self.walk_node(term)
+            }
         }
     }
 
@@ -3638,6 +3663,70 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             }
             generated::SimpleTermSyntax::NaKuTerm(_)
             | generated::SimpleTermSyntax::BareNaTerm(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_bound_term(&mut self, node: &'tree generated::BoundTermSyntax) {
+        let Some(node) = GeneratedSimpleTermRef::from_bound(node) else {
+            return;
+        };
+        match node {
+            GeneratedSimpleTermRef::SumtiTerm(term) => self.walk_node(&term.0),
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
+                if let Some(tense_modal) = term.tag.as_deref() {
+                    self.walk_node(tense_modal);
+                }
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
+                self.walk_node(&term.statement);
+            }
+            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
+                self.walk_node(&term.statement);
+            }
+            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
+                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
+                    for free_modifier in &term.free_modifiers {
+                        self.walk_node(free_modifier);
+                    }
+                    self.analyze_relation(&term.selbri);
+                }
+                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
+                    self.analyze_relation(&term.selbri);
+                }
+            },
+            GeneratedSimpleTermRef::ForethoughtTermset(term) => {
+                for term in &term.terms {
+                    self.walk_node(term);
+                }
+                for term in &term.first_branch.terms {
+                    self.walk_node(term);
+                }
+                for branch in &term.additional_branches {
+                    for term in &branch.terms {
+                        self.walk_node(term);
+                    }
+                }
+            }
+            GeneratedSimpleTermRef::NuhiTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term);
+                }
+            }
+            GeneratedSimpleTermRef::KeTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term);
+                }
+            }
+            GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(&term.0),
+            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}
         }
     }
 
@@ -7033,6 +7122,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 self.walk_node(&term.leading_term);
                 self.walk_node(&term.trailing_term);
             }
+            generated::PeheTermsetOperandSyntax::StagBoundTermConnection(term) => {
+                self.walk_node(term)
+            }
         }
     }
 
@@ -7099,6 +7191,70 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             }
             generated::SimpleTermSyntax::NaKuTerm(_)
             | generated::SimpleTermSyntax::BareNaTerm(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_bound_term(&mut self, node: &'tree generated::BoundTermSyntax) {
+        let Some(node) = GeneratedSimpleTermRef::from_bound(node) else {
+            return;
+        };
+        match node {
+            GeneratedSimpleTermRef::SumtiTerm(term) => self.visit_argument(&term.0),
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
+                if let Some(tense_modal) = term.tag.as_deref() {
+                    self.walk_node(tense_modal);
+                }
+                self.visit_argument(&term.sumti);
+            }
+            GeneratedSimpleTermRef::ForethoughtTermset(term) => {
+                for term in &term.terms {
+                    self.walk_node(term.as_ref());
+                }
+                for term in &term.first_branch.terms {
+                    self.walk_node(term.as_ref());
+                }
+                for branch in &term.additional_branches {
+                    for term in &branch.terms {
+                        self.walk_node(term.as_ref());
+                    }
+                }
+            }
+            GeneratedSimpleTermRef::NuhiTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term.as_ref());
+                }
+            }
+            GeneratedSimpleTermRef::KeTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term.as_ref());
+                }
+            }
+            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
+                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
+                    for free_modifier in &term.free_modifiers {
+                        self.walk_node(free_modifier);
+                    }
+                    self.visit_relation(&term.selbri);
+                }
+                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
+                    self.visit_relation(&term.selbri);
+                }
+            },
+            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
+                self.visit_statement(&term.statement);
+            }
+            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
+                self.visit_statement(&term.statement);
+            }
+            GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(&term.0),
+            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}
         }
     }
 
@@ -7447,22 +7603,43 @@ fn next_generated_place_after_common_terms(start: u8, terms: &[generated::TermSy
 fn advance_cursor_for_generated_term_shape(cursor: &mut PlaceCursor, term: &generated::TermSyntax) {
     match term {
         generated::TermSyntax::SimpleTerm(simple) => {
-            advance_cursor_for_generated_simple_term_shape(cursor, simple);
+            advance_cursor_for_generated_simple_term_shape(
+                cursor,
+                GeneratedSimpleTermRef::from_simple(simple),
+            );
         }
         generated::TermSyntax::ConnectedTerm(connected) => {
-            advance_cursor_for_generated_simple_term_shape(cursor, &connected.leading_term);
+            if let Some(leading) = GeneratedSimpleTermRef::from_bound(&connected.leading_term) {
+                advance_cursor_for_generated_simple_term_shape(cursor, leading);
+            }
             for continuation in &connected.continuations {
-                advance_cursor_for_generated_simple_term_shape(cursor, &continuation.trailing_term);
+                if let Some(trailing) =
+                    GeneratedSimpleTermRef::from_bound(&continuation.trailing_term)
+                {
+                    advance_cursor_for_generated_simple_term_shape(cursor, trailing);
+                }
             }
         }
         generated::TermSyntax::BoundTermConnection(bound) => {
-            advance_cursor_for_generated_simple_term_shape(cursor, &bound.leading_term);
-            advance_cursor_for_generated_simple_term_shape(cursor, &bound.trailing_term);
+            advance_cursor_for_generated_simple_term_shape(
+                cursor,
+                GeneratedSimpleTermRef::from_simple(&bound.leading_term),
+            );
+            advance_cursor_for_generated_simple_term_shape(
+                cursor,
+                GeneratedSimpleTermRef::from_simple(&bound.trailing_term),
+            );
         }
         generated::TermSyntax::TermsetGroup(group) => {
-            advance_cursor_for_generated_simple_term_shape(cursor, &group.leading_term);
+            advance_cursor_for_generated_simple_term_shape(
+                cursor,
+                GeneratedSimpleTermRef::from_simple(&group.leading_term),
+            );
             for continuation in &group.continuations {
-                advance_cursor_for_generated_simple_term_shape(cursor, &continuation.trailing_term);
+                advance_cursor_for_generated_simple_term_shape(
+                    cursor,
+                    GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
+                );
             }
         }
         generated::TermSyntax::PeheTermsetConnection(connection) => {
@@ -7485,18 +7662,34 @@ fn advance_cursor_for_generated_pehe_operand_shape(
 ) {
     match term {
         generated::PeheTermsetOperandSyntax::SimpleTerm(simple) => {
-            advance_cursor_for_generated_simple_term_shape(cursor, simple);
+            advance_cursor_for_generated_simple_term_shape(
+                cursor,
+                GeneratedSimpleTermRef::from_simple(simple),
+            );
         }
         generated::PeheTermsetOperandSyntax::TermsetGroup(group) => {
-            advance_cursor_for_generated_simple_term_shape(cursor, &group.leading_term);
+            advance_cursor_for_generated_simple_term_shape(
+                cursor,
+                GeneratedSimpleTermRef::from_simple(&group.leading_term),
+            );
             for continuation in &group.continuations {
-                advance_cursor_for_generated_simple_term_shape(cursor, &continuation.trailing_term);
+                advance_cursor_for_generated_simple_term_shape(
+                    cursor,
+                    GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
+                );
             }
         }
         generated::PeheTermsetOperandSyntax::BoundTermConnection(bound) => {
-            advance_cursor_for_generated_simple_term_shape(cursor, &bound.leading_term);
-            advance_cursor_for_generated_simple_term_shape(cursor, &bound.trailing_term);
+            advance_cursor_for_generated_simple_term_shape(
+                cursor,
+                GeneratedSimpleTermRef::from_simple(&bound.leading_term),
+            );
+            advance_cursor_for_generated_simple_term_shape(
+                cursor,
+                GeneratedSimpleTermRef::from_simple(&bound.trailing_term),
+            );
         }
+        generated::PeheTermsetOperandSyntax::StagBoundTermConnection(_) => {}
     }
 }
 
@@ -7504,18 +7697,18 @@ fn advance_cursor_for_generated_pehe_operand_shape(
 #[ensures(true)]
 fn advance_cursor_for_generated_simple_term_shape(
     cursor: &mut PlaceCursor,
-    term: &generated::SimpleTermSyntax,
+    term: GeneratedSimpleTermRef<'_>,
 ) {
     match term {
-        generated::SimpleTermSyntax::SumtiTerm(term) => {
+        GeneratedSimpleTermRef::SumtiTerm(term) => {
             advance_cursor_for_generated_argument_term_shape(cursor, &term.0);
         }
-        generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+        GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
             let slot =
                 generated_fa_place_slot(&term.fa).unwrap_or_else(|| cursor.next_numbered_slot());
             cursor.record_slot(slot);
         }
-        generated::SimpleTermSyntax::TaggedSumtiTerm(term) => {
+        GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
             if matches!(
                 term.sumti.as_ref(),
                 generated::TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_)
@@ -7524,20 +7717,20 @@ fn advance_cursor_for_generated_simple_term_shape(
             }
             cursor.record_slot(modal_slot(None));
         }
-        generated::SimpleTermSyntax::JaiTaggedSumtiTerm(_) => {
+        GeneratedSimpleTermRef::JaiTaggedSumtiTerm(_) => {
             cursor.record_slot(fai_slot());
         }
-        generated::SimpleTermSyntax::ForethoughtTermset(term) => {
+        GeneratedSimpleTermRef::ForethoughtTermset(term) => {
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.terms);
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.first_branch.terms);
             for branch in &term.additional_branches {
                 advance_cursor_for_generated_boxed_terms_shape(cursor, &branch.terms);
             }
         }
-        generated::SimpleTermSyntax::NuhiTermset(term) => {
+        GeneratedSimpleTermRef::NuhiTermset(term) => {
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.termset);
         }
-        generated::SimpleTermSyntax::KeTermset(term) => {
+        GeneratedSimpleTermRef::KeTermset(term) => {
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.termset);
         }
         _ => {}

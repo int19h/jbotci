@@ -61,22 +61,29 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 term_formula_scopes,
                 next_visible_place,
                 term,
-                simple,
+                GeneratedSimpleTermRef::from_simple(simple),
             ),
             TermSyntax::ConnectedTerm(ConnectedTermSyntax {
                 leading_term,
                 continuations,
-            }) if continuations.is_empty() => self.insert_generated_simple_term_assignment(
-                visible_arguments,
-                place_questions,
-                modal_terms,
-                formula_scopes,
-                coequal_scope_groups,
-                term_formula_scopes,
-                next_visible_place,
-                term,
-                leading_term.as_ref(),
-            ),
+            }) if continuations.is_empty() => {
+                let Some(simple) = GeneratedSimpleTermRef::from_bound(leading_term) else {
+                    return Err(undefined_semantics(
+                        "a grouped direct term connection in the term-hierarchy dialect",
+                    ));
+                };
+                self.insert_generated_simple_term_assignment(
+                    visible_arguments,
+                    place_questions,
+                    modal_terms,
+                    formula_scopes,
+                    coequal_scope_groups,
+                    term_formula_scopes,
+                    next_visible_place,
+                    term,
+                    simple,
+                )
+            }
             // Shared choke point: a direct term connection (a `ConnectedTerm` with continuations or
             // a `BoundTermConnection`) reaches here only on lowering paths that no upstream guard
             // could build (e.g. terms shared across a `gi'e` bridi connection, which carry
@@ -120,7 +127,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             term_formula_scopes,
             next_visible_place,
             termset.leading_term.as_ref(),
-            termset.leading_term.as_ref(),
+            GeneratedSimpleTermRef::from_simple(&termset.leading_term),
         )?;
         for continuation in &termset.continuations {
             self.insert_generated_simple_term_assignment(
@@ -132,7 +139,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 term_formula_scopes,
                 next_visible_place,
                 continuation.trailing_term.as_ref(),
-                continuation.trailing_term.as_ref(),
+                GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
             )?;
         }
         push_generated_coequal_scope_group_or_individual_scopes(
@@ -157,13 +164,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
         next_visible_place: &mut usize,
         node: &N,
-        simple: &'syntax SimpleTermSyntax,
+        simple: GeneratedSimpleTermRef<'syntax>,
     ) -> Result<(), SemanticsError> {
-        if let Some(description) = generated_undefined_experimental_term_description(simple) {
+        if let Some(description) = simple.undefined_experimental_description() {
             return Err(undefined_semantics(description));
         }
         match simple {
-            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+            GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
                 if self.insert_generated_termset_sumti_assignment(
                     visible_arguments,
                     formula_scopes,
@@ -193,7 +200,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 );
                 Ok(())
             }
-            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                 if term.fa.value.cmavo() == Some(Cmavo::Fai) {
                     return Err(undefined_semantics(
                         "a fai term without a local JAI conversion target",
@@ -244,21 +251,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 );
                 Ok(())
             }
-            SimpleTermSyntax::TaggedSumtiTerm(term) => {
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                 modal_terms.push(self.prepare_generated_modal_term(term, formula_scopes)?);
                 Ok(())
             }
-            SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+            GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => {
                 modal_terms.push(self.prepare_generated_bare_modal_term(term));
                 Ok(())
             }
-            SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
+            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                 term_formula_scopes.push(GeneratedTermFormulaScope::Negation {
                     source: self.source_for_node(node, "bridi-negation-boundary"),
                 });
                 Ok(())
             }
-            SimpleTermSyntax::NuhiTermset(termset) => {
+            GeneratedSimpleTermRef::NuhiTermset(termset) => {
                 let mut local_formula_scopes = Vec::new();
                 let mut local_coequal_scope_groups = Vec::new();
                 for term in &termset.termset {
@@ -282,7 +289,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 coequal_scope_groups.extend(local_coequal_scope_groups);
                 Ok(())
             }
-            SimpleTermSyntax::KeTermset(termset) => {
+            GeneratedSimpleTermRef::KeTermset(termset) => {
                 let mut local_formula_scopes = Vec::new();
                 let mut local_coequal_scope_groups = Vec::new();
                 for term in &termset.termset {
@@ -1443,7 +1450,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let governed_termsets = builder.build_generated_governed_termsets_for_terms(terms)?;
             for (index, term) in terms.iter().enumerate() {
                 match generated_simple_term_for_assignment(term) {
-                    Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) => {
+                    Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) => {
                         if let Some(governed) = governed_termsets.get(&index) {
                             builder
                                 .apply_generated_tagged_term_event_modifier_with_governed_termset(
@@ -1456,7 +1463,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                                 .apply_generated_tagged_term_event_modifier(eventuality, term)?;
                         }
                     }
-                    Ok(SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term)) => {
+                    Ok(GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term)) => {
                         builder.record_generated_leading_term_tag_event_modifier(
                             eventuality,
                             term.0.as_ref(),
@@ -1482,7 +1489,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         terms: &[&TermSyntax],
     ) -> Result<bool, SemanticsError> {
         for term in terms {
-            let Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) =
+            let Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) =
                 generated_simple_term_for_assignment(term)
             else {
                 continue;
@@ -1599,13 +1606,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         match term {
             TermSyntax::TermsetGroup(termset) => {
                 self.collect_generated_governed_termset_simple_member(
-                    termset.leading_term.as_ref(),
+                    GeneratedSimpleTermRef::from_simple(termset.leading_term.as_ref()),
                     anchor,
                     magnitude,
                 )?;
                 for continuation in &termset.continuations {
                     self.collect_generated_governed_termset_simple_member(
-                        continuation.trailing_term.as_ref(),
+                        GeneratedSimpleTermRef::from_simple(continuation.trailing_term.as_ref()),
                         anchor,
                         magnitude,
                     )?;
@@ -1625,15 +1632,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn collect_generated_governed_termset_simple_member<'syntax: 'tree>(
         &mut self,
-        simple: &'syntax SimpleTermSyntax,
+        simple: GeneratedSimpleTermRef<'syntax>,
         anchor: &mut Option<SemanticObjectId>,
         magnitude: &mut Option<AnchorMagnitude>,
     ) -> Result<(), SemanticsError> {
         match simple {
-            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) if anchor.is_none() => {
+            GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) if anchor.is_none() => {
                 *anchor = self.build_argument_for_generated_sumti(sumti)?.value;
             }
-            SimpleTermSyntax::TaggedSumtiTerm(term)
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term)
                 if magnitude.is_none()
                     && generated_tense_modal_is_lahu_modal(term.tense_modal.as_ref()) =>
             {
@@ -1648,7 +1655,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     ));
                 }
             }
-            SimpleTermSyntax::NuhiTermset(termset) => {
+            GeneratedSimpleTermRef::NuhiTermset(termset) => {
                 for term in &termset.termset {
                     self.collect_generated_governed_termset_members(
                         term.as_ref(),
@@ -1657,7 +1664,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     )?;
                 }
             }
-            SimpleTermSyntax::KeTermset(termset) => {
+            GeneratedSimpleTermRef::KeTermset(termset) => {
                 for term in &termset.termset {
                     self.collect_generated_governed_termset_members(
                         term.as_ref(),
@@ -2012,7 +2019,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if matches!(term, TermSyntax::TermsetGroup(_))
             || matches!(
                 generated_simple_term_for_assignment(term),
-                Ok(SimpleTermSyntax::ForethoughtTermset(_))
+                Ok(GeneratedSimpleTermRef::ForethoughtTermset(_))
             )
         {
             return Err(requires_discourse_context(&format!(
@@ -2021,7 +2028,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         if matches!(
             generated_simple_term_for_assignment(term),
-            Ok(SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_))
+            Ok(GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_))
         ) {
             return Err(requires_discourse_context(&format!(
                 "the missing bridi proposition scoped by standalone term fragment `{fragment_text}`"
@@ -2029,7 +2036,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         if matches!(
             generated_simple_term_for_assignment(term),
-            Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(term))
+            Ok(GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term))
                 if matches!(
                     term.sumti.as_ref(),
                     TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_)
@@ -2039,7 +2046,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "the bridi argument selected by standalone place-tag fragment `{fragment_text}`"
             )));
         }
-        if let Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) =
+        if let Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) =
             generated_simple_term_for_assignment(term)
         {
             return self
@@ -2050,7 +2057,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 .map(Some);
         }
         match generated_simple_term_for_assignment(term) {
-            Ok(SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti))) => {
+            Ok(GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti))) => {
                 if let Some(sign) = self.build_generated_letteral_sign_for_sumti(sumti)? {
                     return Ok(Some(sign));
                 }
@@ -2058,7 +2065,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .build_generated_sumti_fragment_argument_object(sumti)
                     .map(Some);
             }
-            Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(term)) => {
+            Ok(GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term)) => {
                 if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
                     if let Some(sign) = self.build_generated_letteral_sign_for_sumti(sumti)? {
                         return Ok(Some(sign));
@@ -2536,7 +2543,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut ordinary_terms = Vec::new();
         let mut fai_sumti = Vec::new();
         for term in terms {
-            if let Ok(SimpleTermSyntax::PlaceTaggedSumtiTerm(place_tagged)) =
+            if let Ok(GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(place_tagged)) =
                 generated_simple_term_for_assignment(term)
                 && place_tagged.fa.value.cmavo() == Some(Cmavo::Fai)
             {
@@ -8386,10 +8393,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let (Some(place), Some(linkargs)) = (kind.trailing_place(), linkargs) else {
             return Ok(());
         };
-        let sumti = match &linkargs.first_link {
-            LinkedSumtiSyntax::PlainLinkedSumti(sumti) => Some(sumti.0.as_ref()),
+        let sumti = match generated_linked_term_leaf(&linkargs.first_link)? {
+            GeneratedLinkedSumtiRef::Plain(sumti) => Some(sumti.0.as_ref()),
             // `be fe <sumti>` states the same single trailing place explicitly.
-            LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti)
+            GeneratedLinkedSumtiRef::PlaceTagged(sumti)
                 if linked_sumti_place(&sumti.fa.value)? == 2 =>
             {
                 match sumti.sumti.as_ref() {

@@ -1,5 +1,22 @@
 use super::*;
 
+/// A direct-connection operand at either the legacy flat or hierarchy bound level.
+#[invariant(::Simple(_) => true)]
+#[invariant(::Bound(_) => true)]
+#[derive(Debug, Clone, Copy)]
+enum GeneratedDirectTermOperand<'syntax> {
+    Simple(&'syntax SimpleTermSyntax),
+    Bound(&'syntax BoundTermSyntax),
+}
+
+impl<'syntax> GeneratedDirectTermOperand<'syntax> {
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Bound(term) if GeneratedSimpleTermRef::from_bound(term).is_none()))]
+    fn is_grouped_connection(self) -> bool {
+        matches!(self, Self::Bound(term) if GeneratedSimpleTermRef::from_bound(term).is_none())
+    }
+}
+
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(true)]
     #[ensures(true)]
@@ -187,31 +204,47 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             TermSyntax::TermsetGroup(termset) => {
                 self.collect_generated_term_formula_scopes_for_simple_term(
                     termset.leading_term.as_ref(),
-                    termset.leading_term.as_ref(),
+                    GeneratedSimpleTermRef::from_simple(&termset.leading_term),
                     scopes,
                 )?;
                 for continuation in &termset.continuations {
                     self.collect_generated_term_formula_scopes_for_simple_term(
                         continuation.trailing_term.as_ref(),
-                        continuation.trailing_term.as_ref(),
+                        GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
                         scopes,
                     )?;
                 }
                 Ok(())
             }
-            TermSyntax::SimpleTerm(simple) => {
-                self.collect_generated_term_formula_scopes_for_simple_term(term, simple, scopes)
-            }
+            TermSyntax::SimpleTerm(simple) => self
+                .collect_generated_term_formula_scopes_for_simple_term(
+                    term,
+                    GeneratedSimpleTermRef::from_simple(simple),
+                    scopes,
+                ),
             TermSyntax::ConnectedTerm(connection) => {
+                let Some(leading) = GeneratedSimpleTermRef::from_bound(&connection.leading_term)
+                else {
+                    return Err(undefined_semantics(
+                        "a grouped direct term connection in the term-hierarchy dialect",
+                    ));
+                };
                 self.collect_generated_term_formula_scopes_for_simple_term(
                     connection.leading_term.as_ref(),
-                    connection.leading_term.as_ref(),
+                    leading,
                     scopes,
                 )?;
                 for continuation in &connection.continuations {
+                    let Some(trailing) =
+                        GeneratedSimpleTermRef::from_bound(&continuation.trailing_term)
+                    else {
+                        return Err(undefined_semantics(
+                            "a grouped direct term connection in the term-hierarchy dialect",
+                        ));
+                    };
                     self.collect_generated_term_formula_scopes_for_simple_term(
                         continuation.trailing_term.as_ref(),
-                        continuation.trailing_term.as_ref(),
+                        trailing,
                         scopes,
                     )?;
                 }
@@ -220,12 +253,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             TermSyntax::BoundTermConnection(connection) => {
                 self.collect_generated_term_formula_scopes_for_simple_term(
                     &connection.leading_term,
-                    &connection.leading_term,
+                    GeneratedSimpleTermRef::from_simple(&connection.leading_term),
                     scopes,
                 )?;
                 self.collect_generated_term_formula_scopes_for_simple_term(
                     &connection.trailing_term,
-                    &connection.trailing_term,
+                    GeneratedSimpleTermRef::from_simple(&connection.trailing_term),
                     scopes,
                 )
             }
@@ -253,19 +286,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         match operand {
-            PeheTermsetOperandSyntax::SimpleTerm(simple) => {
-                self.collect_generated_term_formula_scopes_for_simple_term(simple, simple, scopes)
-            }
+            PeheTermsetOperandSyntax::SimpleTerm(simple) => self
+                .collect_generated_term_formula_scopes_for_simple_term(
+                    simple,
+                    GeneratedSimpleTermRef::from_simple(simple),
+                    scopes,
+                ),
             PeheTermsetOperandSyntax::TermsetGroup(termset) => {
                 self.collect_generated_term_formula_scopes_for_simple_term(
                     termset.leading_term.as_ref(),
-                    termset.leading_term.as_ref(),
+                    GeneratedSimpleTermRef::from_simple(&termset.leading_term),
                     scopes,
                 )?;
                 for continuation in &termset.continuations {
                     self.collect_generated_term_formula_scopes_for_simple_term(
                         continuation.trailing_term.as_ref(),
-                        continuation.trailing_term.as_ref(),
+                        GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
                         scopes,
                     )?;
                 }
@@ -274,15 +310,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             PeheTermsetOperandSyntax::BoundTermConnection(connection) => {
                 self.collect_generated_term_formula_scopes_for_simple_term(
                     &connection.leading_term,
-                    &connection.leading_term,
+                    GeneratedSimpleTermRef::from_simple(&connection.leading_term),
                     scopes,
                 )?;
                 self.collect_generated_term_formula_scopes_for_simple_term(
                     &connection.trailing_term,
-                    &connection.trailing_term,
+                    GeneratedSimpleTermRef::from_simple(&connection.trailing_term),
                     scopes,
                 )
             }
+            PeheTermsetOperandSyntax::StagBoundTermConnection(_) => Err(undefined_semantics(
+                "a grouped direct term connection in the term-hierarchy dialect",
+            )),
         }
     }
 
@@ -291,21 +330,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn collect_generated_term_formula_scopes_for_simple_term<N: TreeNode>(
         &self,
         node: &N,
-        simple: &'tree SimpleTermSyntax,
+        simple: GeneratedSimpleTermRef<'tree>,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         match simple {
-            SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
+            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                 scopes.push(GeneratedTermFormulaScope::Negation {
                     source: self.source_for_node(node, "bridi-negation-boundary"),
                 });
             }
-            SimpleTermSyntax::NuhiTermset(termset) => {
+            GeneratedSimpleTermRef::NuhiTermset(termset) => {
                 for term in &termset.termset {
                     self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
                 }
             }
-            SimpleTermSyntax::KeTermset(termset) => {
+            GeneratedSimpleTermRef::KeTermset(termset) => {
                 for term in &termset.termset {
                     self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
                 }
@@ -940,34 +979,44 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let connection = *connection;
 
         let (leading_term, continuations): (
-            &'syntax SimpleTermSyntax,
+            GeneratedDirectTermOperand<'syntax>,
             Vec<(
                 GeneratedDirectTermConnective<'syntax>,
-                &'syntax SimpleTermSyntax,
+                GeneratedDirectTermOperand<'syntax>,
             )>,
         ) = match connection {
             TermSyntax::ConnectedTerm(connection) => (
-                &connection.leading_term,
+                GeneratedDirectTermOperand::Bound(&connection.leading_term),
                 connection
                     .continuations
                     .iter()
                     .map(|continuation| {
                         (
                             GeneratedDirectTermConnective::Connected(&continuation.connective),
-                            continuation.trailing_term.as_ref(),
+                            GeneratedDirectTermOperand::Bound(&continuation.trailing_term),
                         )
                     })
                     .collect(),
             ),
             TermSyntax::BoundTermConnection(connection) => (
-                &connection.leading_term,
+                GeneratedDirectTermOperand::Simple(&connection.leading_term),
                 vec![(
                     GeneratedDirectTermConnective::Bound(&connection.connective),
-                    connection.trailing_term.as_ref(),
+                    GeneratedDirectTermOperand::Simple(&connection.trailing_term),
                 )],
             ),
             _ => unreachable!("the direct term connection search returned another term kind"),
         };
+
+        if leading_term.is_grouped_connection()
+            || continuations
+                .iter()
+                .any(|(_, term)| term.is_grouped_connection())
+        {
+            return Err(undefined_semantics(
+                "a grouped direct term connection in the term-hierarchy dialect",
+            ));
+        }
 
         // Nonlogical direct term connections (e.g. `bi'o`) are unsupported in every context.
         // Detect them here, before any context-specific gating, so that all lowering paths that
@@ -1028,11 +1077,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(first_visible_place > 0)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
-    pub(super) fn build_generated_direct_term_branch_formula_in_mode<'syntax: 'tree>(
+    fn build_generated_direct_term_branch_formula_in_mode<'syntax: 'tree>(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         prefix_assignments: &GeneratedTermAssignments<'syntax>,
-        term: &'syntax SimpleTermSyntax,
+        term: GeneratedDirectTermOperand<'syntax>,
         suffix_assignments: &GeneratedTermAssignments<'syntax>,
         first_visible_place: usize,
         mode: PredicationMode,
@@ -1042,17 +1091,38 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut next_visible_place =
             next_visible_place_after_generated_assignments(&assignments).max(first_visible_place);
         let existential_start = self.implicit_existential_variables.len();
-        self.insert_generated_simple_term_assignment(
-            &mut assignments.visible_arguments,
-            &mut assignments.place_questions,
-            &mut assignments.modal_terms,
-            &mut assignments.formula_scopes,
-            &mut assignments.coequal_scope_groups,
-            &mut assignments.term_formula_scopes,
-            &mut next_visible_place,
-            term,
-            term,
-        )?;
+        match term {
+            GeneratedDirectTermOperand::Simple(term) => self
+                .insert_generated_simple_term_assignment(
+                    &mut assignments.visible_arguments,
+                    &mut assignments.place_questions,
+                    &mut assignments.modal_terms,
+                    &mut assignments.formula_scopes,
+                    &mut assignments.coequal_scope_groups,
+                    &mut assignments.term_formula_scopes,
+                    &mut next_visible_place,
+                    term,
+                    GeneratedSimpleTermRef::from_simple(term),
+                )?,
+            GeneratedDirectTermOperand::Bound(term) => {
+                let Some(simple) = GeneratedSimpleTermRef::from_bound(term) else {
+                    return Err(undefined_semantics(
+                        "a grouped direct term connection in the term-hierarchy dialect",
+                    ));
+                };
+                self.insert_generated_simple_term_assignment(
+                    &mut assignments.visible_arguments,
+                    &mut assignments.place_questions,
+                    &mut assignments.modal_terms,
+                    &mut assignments.formula_scopes,
+                    &mut assignments.coequal_scope_groups,
+                    &mut assignments.term_formula_scopes,
+                    &mut next_visible_place,
+                    term,
+                    simple,
+                )?;
+            }
+        }
         assignments.implicit_existentials.extend(
             self.implicit_existential_variables
                 .split_off(existential_start),
@@ -1235,7 +1305,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         leading_term,
                         continuations,
                     }) if continuations.is_empty() => match leading_term.as_ref() {
-                        SimpleTermSyntax::ForethoughtTermset(termset) => Some((position, termset)),
+                        BoundTermSyntax::ForethoughtTermset(termset) => Some((position, termset)),
                         _ => None,
                     },
                     _ => None,
@@ -2090,10 +2160,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     term_formula_scopes,
                     next_visible_place,
                     operand,
-                    simple,
+                    GeneratedSimpleTermRef::from_simple(simple),
                 ),
             PeheTermsetOperandSyntax::BoundTermConnection(_) => Err(invalid_graph(
                 "bound PEhE operand reached simple operand assignment lowering".to_owned(),
+            )),
+            PeheTermsetOperandSyntax::StagBoundTermConnection(_) => Err(undefined_semantics(
+                "a grouped direct term connection in the term-hierarchy dialect",
             )),
         }
     }
@@ -5292,7 +5365,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         continuations.is_empty()
                             && matches!(
                                 leading_term.as_ref(),
-                                SimpleTermSyntax::ForethoughtTermset(_)
+                                BoundTermSyntax::ForethoughtTermset(_)
                             )
                     }
                     _ => false,

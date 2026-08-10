@@ -1077,6 +1077,16 @@ fn field_names(fields: &[FieldSchema]) -> Vec<&str> {
         .collect()
 }
 
+#[bityzba::requires(matches!(model.kind.as_data(), data!(ModelKind::Sum)))]
+#[bityzba::ensures(ret.len() == model.variants.len())]
+fn variant_names(model: &ModelSchema) -> BTreeSet<&str> {
+    model
+        .variants
+        .iter()
+        .map(|variant| variant.name.as_str())
+        .collect()
+}
+
 #[bityzba::requires(true)]
 #[bityzba::ensures(true)]
 fn syntax_token() -> BindingType {
@@ -1117,12 +1127,28 @@ pub fn consume_syntax_binding_schema(input: TokenStream) -> TokenStream {
         })
         .sum::<usize>();
 
+    // These hierarchy levels deliberately repeat their leaf variants. Derive both sides from the
+    // exported grammar schema so adding a new leaf cannot silently introduce a nested wrapper or
+    // leave the experimental hierarchy behind.
+    let mut expected_bound_terms = variant_names(model_by_name(&summary, "SimpleTermSyntax"));
+    expected_bound_terms.insert("StagBoundTermConnection");
+    let bound_terms_match =
+        variant_names(model_by_name(&summary, "BoundTermSyntax")) == expected_bound_terms;
+
+    let mut expected_linked_terms = variant_names(model_by_name(&summary, "LinkedSumtiSyntax"));
+    expected_linked_terms.insert("ConnectedLinkedTerm");
+    expected_linked_terms.insert("BoundLinkedTermConnection");
+    let linked_terms_match =
+        variant_names(model_by_name(&summary, "LinkedTermSyntax")) == expected_linked_terms;
+    let term_hierarchy_variants_valid = bound_terms_match && linked_terms_match;
+
     format!(
         "const EXTERNAL_SCHEMA_PRODUCT_COUNT: usize = {products};\n\
          const EXTERNAL_SCHEMA_SUM_COUNT: usize = {sums};\n\
          const EXTERNAL_SCHEMA_VARIANT_COUNT: usize = {variants};\n\
          const EXTERNAL_SCHEMA_FIELD_COUNT: usize = {fields};\n\
-         const EXTERNAL_SCHEMA_REPRESENTATIVE_RECORDS_VALID: bool = true;",
+         const EXTERNAL_SCHEMA_REPRESENTATIVE_RECORDS_VALID: bool = true;\n\
+         const EXTERNAL_SCHEMA_TERM_HIERARCHY_VARIANTS_VALID: bool = {term_hierarchy_variants_valid};",
     )
     .parse()
     .expect("generated schema summary constants must parse")

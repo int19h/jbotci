@@ -1073,11 +1073,17 @@ pub(super) fn linkargs_assign_visible_place_before(
     linkargs: &LinkargsSyntax,
     first_visible_place: usize,
 ) -> Result<bool, SemanticsError> {
-    if linked_sumti_assigns_visible_place_before(&linkargs.first_link, first_visible_place)? {
+    if linked_sumti_assigns_visible_place_before(
+        generated_linked_term_leaf(&linkargs.first_link)?,
+        first_visible_place,
+    )? {
         return Ok(true);
     }
     for link in &linkargs.bei_links {
-        if linked_sumti_assigns_visible_place_before(&link.link, first_visible_place)? {
+        if linked_sumti_assigns_visible_place_before(
+            generated_linked_term_leaf(&link.link)?,
+            first_visible_place,
+        )? {
             return Ok(true);
         }
     }
@@ -1087,17 +1093,27 @@ pub(super) fn linkargs_assign_visible_place_before(
 #[requires(first_visible_place > 0)]
 #[ensures(true)]
 pub(super) fn linked_sumti_assigns_visible_place_before(
-    link: &LinkedSumtiSyntax,
+    link: GeneratedLinkedSumtiRef<'_>,
     first_visible_place: usize,
 ) -> Result<bool, SemanticsError> {
     match link {
-        LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
+        GeneratedLinkedSumtiRef::PlaceTagged(sumti) => {
             Ok(linked_sumti_place(&sumti.fa.value)? < first_visible_place)
         }
-        LinkedSumtiSyntax::PlainLinkedSumti(_)
-        | LinkedSumtiSyntax::TenseTaggedLinkedSumti(_)
-        | LinkedSumtiSyntax::EmptyLinkedSumti(_) => Ok(false),
+        GeneratedLinkedSumtiRef::Plain(_)
+        | GeneratedLinkedSumtiRef::TenseTagged(_)
+        | GeneratedLinkedSumtiRef::Empty => Ok(false),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() == GeneratedLinkedSumtiRef::from_linked_term(link).is_some())]
+pub(super) fn generated_linked_term_leaf(
+    link: &LinkedTermSyntax,
+) -> Result<GeneratedLinkedSumtiRef<'_>, SemanticsError> {
+    GeneratedLinkedSumtiRef::from_linked_term(link).ok_or_else(|| {
+        undefined_semantics("a grouped linked-term connection in the term-hierarchy dialect")
+    })
 }
 
 #[requires(occupied_places.iter().all(|place| *place > 0))]
@@ -1107,10 +1123,10 @@ pub(super) fn linked_sumti_assigns_visible_place_before(
 pub(super) fn generated_linked_sumti_numbered_place(
     occupied_places: &BTreeSet<usize>,
     next_visible_place: &mut usize,
-    link: &LinkedSumtiSyntax,
+    link: GeneratedLinkedSumtiRef<'_>,
 ) -> Result<Option<usize>, SemanticsError> {
     match link {
-        LinkedSumtiSyntax::PlainLinkedSumti(_) => {
+        GeneratedLinkedSumtiRef::Plain(_) => {
             while occupied_places.contains(next_visible_place) {
                 *next_visible_place += 1;
             }
@@ -1118,14 +1134,12 @@ pub(super) fn generated_linked_sumti_numbered_place(
             *next_visible_place = place + 1;
             Ok(Some(place))
         }
-        LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
+        GeneratedLinkedSumtiRef::PlaceTagged(sumti) => {
             let place = linked_sumti_place(&sumti.fa.value)?;
             *next_visible_place = place + 1;
             Ok(Some(place))
         }
-        LinkedSumtiSyntax::TenseTaggedLinkedSumti(_) | LinkedSumtiSyntax::EmptyLinkedSumti(_) => {
-            Ok(None)
-        }
+        GeneratedLinkedSumtiRef::TenseTagged(_) | GeneratedLinkedSumtiRef::Empty => Ok(None),
     }
 }
 
@@ -1781,13 +1795,13 @@ pub(super) fn generated_linkargs_visible_places(
     add_generated_linked_sumti_visible_places(
         &mut places,
         &mut next_visible_place,
-        &linkargs.first_link,
+        generated_linked_term_leaf(&linkargs.first_link)?,
     )?;
     for link in &linkargs.bei_links {
         add_generated_linked_sumti_visible_places(
             &mut places,
             &mut next_visible_place,
-            &link.link,
+            generated_linked_term_leaf(&link.link)?,
         )?;
     }
     Ok(places)
@@ -1989,19 +2003,20 @@ pub(super) fn add_generated_linked_tanru_unit_visible_linkarg_places(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_linkargs_provide_scalar_scale_context(linkargs: &LinkargsSyntax) -> bool {
-    generated_linked_sumti_provides_scalar_scale_context(&linkargs.first_link)
-        || linkargs
-            .bei_links
-            .iter()
-            .any(|link| generated_linked_sumti_provides_scalar_scale_context(&link.link))
+    GeneratedLinkedSumtiRef::from_linked_term(&linkargs.first_link)
+        .is_some_and(generated_linked_sumti_provides_scalar_scale_context)
+        || linkargs.bei_links.iter().any(|link| {
+            GeneratedLinkedSumtiRef::from_linked_term(&link.link)
+                .is_some_and(generated_linked_sumti_provides_scalar_scale_context)
+        })
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_linked_sumti_provides_scalar_scale_context(
-    link: &LinkedSumtiSyntax,
+    link: GeneratedLinkedSumtiRef<'_>,
 ) -> bool {
-    let LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) = link else {
+    let GeneratedLinkedSumtiRef::TenseTagged(sumti) = link else {
         return false;
     };
     generated_modal_relation_spec_for_tense_modal(sumti.tense_modal.as_ref())
@@ -2015,9 +2030,9 @@ pub(super) fn generated_linked_sumti_provides_scalar_scale_context(
 pub(super) fn add_generated_linked_sumti_visible_places(
     places: &mut BTreeSet<usize>,
     next_visible_place: &mut usize,
-    link: &LinkedSumtiSyntax,
+    link: GeneratedLinkedSumtiRef<'_>,
 ) -> Result<(), SemanticsError> {
-    if matches!(link, LinkedSumtiSyntax::EmptyLinkedSumti(_)) {
+    if matches!(link, GeneratedLinkedSumtiRef::Empty) {
         return Err(invalid_graph(
             "generated empty linked sumti has no visible place".to_owned(),
         ));

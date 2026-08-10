@@ -1882,8 +1882,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for (position, term) in terms.iter().enumerate() {
             let simple = generated_simple_term_for_assignment(term)?;
             let (place_tag, sumti) = match simple {
-                SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => (None, sumti.as_ref()),
-                SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => (None, sumti.as_ref()),
+                GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                     let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() else {
                         continue;
                     };
@@ -6185,7 +6185,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref()).is_none()
             && let Some(linkargs) = linkargs
             && linkargs.bei_links.is_empty()
-            && let LinkedSumtiSyntax::PlainLinkedSumti(linked_sumti) = &linkargs.first_link
+            && let Some(GeneratedLinkedSumtiRef::Plain(linked_sumti)) =
+                GeneratedLinkedSumtiRef::from_linked_term(&linkargs.first_link)
         {
             let branch = GeneratedDistributedSumtiBranch::Sumti(&linked_sumti.0);
             if generated_logical_sumti_connection_for_branch(branch)?.is_some() {
@@ -6421,9 +6422,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             explicit_multi_claim_places: BTreeSet::new(),
             contains_unbound_explicit_cehu: false,
         });
-        assignments = self.add_linked_sumti_assignment(assignments, &linkargs.first_link)?;
+        assignments = self.add_linked_sumti_assignment(
+            assignments,
+            generated_linked_term_leaf(&linkargs.first_link)?,
+        )?;
         for link in &linkargs.bei_links {
-            assignments = self.add_linked_sumti_assignment(assignments, &link.link)?;
+            assignments = self.add_linked_sumti_assignment(
+                assignments,
+                generated_linked_term_leaf(&link.link)?,
+            )?;
         }
         Ok(assignments)
     }
@@ -6855,7 +6862,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn add_linked_sumti_assignment<'syntax: 'tree>(
         &mut self,
         assignments: GeneratedLinkargsAssignments<'syntax>,
-        link: &'syntax LinkedSumtiSyntax,
+        link: GeneratedLinkedSumtiRef<'syntax>,
     ) -> Result<GeneratedLinkargsAssignments<'syntax>, SemanticsError> {
         let mut assignments = assignments.into_data();
         let occupied_places = assignments
@@ -6869,7 +6876,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             link,
         )?;
         match link {
-            LinkedSumtiSyntax::PlainLinkedSumti(sumti) => {
+            GeneratedLinkedSumtiRef::Plain(sumti) => {
                 let argument = self.build_argument_for_generated_sumti_with_formula_scopes(
                     &sumti.0,
                     &mut assignments.formula_scopes,
@@ -6881,7 +6888,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .numbered_argument_choices
                     .insert(place, vec![argument]);
             }
-            LinkedSumtiSyntax::PlaceTaggedLinkedSumti(sumti) => {
+            GeneratedLinkedSumtiRef::PlaceTagged(sumti) => {
                 let place = numbered_place.expect("FA-tagged linked sumti has a numbered place");
                 let argument = match sumti.sumti.as_ref() {
                     TaggedOrElidedSumtiSyntax::Sumti(sumti) => self
@@ -6904,7 +6911,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 choices.push(argument);
             }
-            LinkedSumtiSyntax::TenseTaggedLinkedSumti(sumti) => {
+            GeneratedLinkedSumtiRef::TenseTagged(sumti) => {
                 let argument = match sumti.sumti.as_ref() {
                     TaggedOrElidedSumtiSyntax::Sumti(sumti) => self
                         .build_argument_for_generated_sumti_with_formula_scopes(
@@ -6933,7 +6940,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     assignments.adjuncts.push(adjunct);
                 }
             }
-            LinkedSumtiSyntax::EmptyLinkedSumti(_) => {}
+            GeneratedLinkedSumtiRef::Empty => {}
         }
         Ok(GeneratedLinkargsAssignments::from_data(assignments))
     }

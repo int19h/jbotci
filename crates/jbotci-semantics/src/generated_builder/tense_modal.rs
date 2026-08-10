@@ -175,7 +175,7 @@ pub(super) fn generated_logical_modal_connection_assignment_in_terms<'syntax>(
 > {
     let mut connection = None;
     for (index, term) in terms.iter().enumerate() {
-        let Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) =
+        let Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) =
             generated_simple_term_for_assignment(term)
         else {
             continue;
@@ -207,7 +207,7 @@ pub(super) fn generated_logical_event_tense_connection_assignment_in_terms<'synt
 )> {
     let mut connection = None;
     for (index, term) in terms.iter().enumerate() {
-        let Ok(SimpleTermSyntax::TaggedSumtiTerm(term)) =
+        let Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) =
             generated_simple_term_for_assignment(term)
         else {
             continue;
@@ -618,7 +618,7 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_term(
     term: &TermSyntax,
 ) -> Option<&TenseModalSyntax> {
     match generated_simple_term_for_assignment(term).ok()? {
-        SimpleTermSyntax::TaggedSumtiTerm(term) => {
+        GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
             let tense_modal = match term.tense_modal.as_ref() {
                 LeadingTermTagTenseModalSyntax::TenseModal(tense_modal) => Some(tense_modal),
                 _ => None,
@@ -627,7 +627,7 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_term(
                 generated_tense_modal_has_contradictory_event_negation(tense_modal)
             })
         }
-        SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+        GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => {
             let tense_modal = match term.0.as_ref() {
                 LeadingTermTagTenseModalSyntax::TenseModal(tense_modal) => Some(tense_modal),
                 _ => None,
@@ -636,7 +636,7 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_term(
                 generated_tense_modal_has_contradictory_event_negation(tense_modal)
             })
         }
-        SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
+        GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
             let Some(tag) = &term.tag else {
                 return None;
             };
@@ -649,10 +649,10 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_term(
                 _ => None,
             }
         }
-        SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+        GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
             first_generated_contradictory_event_tense_modal_for_sumti(sumti)
         }
-        SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => match term.sumti.as_ref() {
+        GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => match term.sumti.as_ref() {
             TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
                 first_generated_contradictory_event_tense_modal_for_sumti(sumti)
             }
