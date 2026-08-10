@@ -1,0 +1,13 @@
+id = "adhoc.issues.issue-791.09-bound-link-missing-operand"
+lojban = "mi broda be ba ko'a .e bo be'o"
+dialect = "(term-hierarchy)"
+tags = ["issue-791", "recovery", "syntax", "term-hierarchy"]
+# camxes-exp 778ea13: @26 "…be'o…": Expected [,], [gG], [mM], [nN], [rR] or [vV] but "b" found.
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 30], source-text = "be'o", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [26, 30], source-text = "be'o", message = "unexpected cmavo" }]

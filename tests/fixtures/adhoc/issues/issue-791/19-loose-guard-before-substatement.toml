@@ -1,0 +1,14 @@
+id = "adhoc.issues.issue-791.19-loose-guard-before-substatement"
+lojban = "broda ba ko'a .e ba bo i brode"
+dialect = "(term-hierarchy)"
+tags = ["issue-791", "recovery", "syntax", "term-hierarchy"]
+# camxes-exp 778ea13: (BRIDI [SELBRI:broda {ba SUMTI:ko'a}] [e {ba bo} i {BRIDI: SELBRI:brode}])
+# v1 now rejects at `i`, pinning the guard's redirected error boundary.
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 24], source-text = "i", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 24], source-text = "i", message = "unexpected cmavo" }]

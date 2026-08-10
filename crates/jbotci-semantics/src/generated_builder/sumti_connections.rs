@@ -160,11 +160,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut highest_assigned_place = 0usize;
         for term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
-            if let Some(description) = generated_undefined_experimental_term_description(simple) {
+            if let Some(description) = simple.undefined_experimental_description() {
                 return Err(undefined_semantics(description));
             }
             match simple {
-                SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+                GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
                     let place = next_visible_place;
                     next_visible_place += 1;
                     highest_assigned_place = highest_assigned_place.max(place);
@@ -212,7 +212,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         )?;
                     }
                 }
-                SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                     let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() else {
                         let place = fa_place(&term.fa.value)?;
                         insert_generated_alternative_argument(
@@ -277,14 +277,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         )?;
                     }
                 }
-                SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                     modal_terms
                         .push(self.prepare_generated_modal_term(term, &mut modal_formula_scopes)?);
                 }
-                SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => {
                     modal_terms.push(self.prepare_generated_bare_modal_term(term));
                 }
-                SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
+                GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
                         *term,
                         simple,
@@ -714,11 +714,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
         for term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
-            if let Some(description) = generated_undefined_experimental_term_description(simple) {
+            if let Some(description) = simple.undefined_experimental_description() {
                 return Err(undefined_semantics(description));
             }
             match simple {
-                SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+                GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
                     let place = next_visible_place;
                     next_visible_place += 1;
                     highest_assigned_place = highest_assigned_place.max(place);
@@ -741,7 +741,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         }
                     }
                 }
-                SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                     if term.fa.value.cmavo() == Some(Cmavo::Fai) {
                         return Err(undefined_semantics(
                             "FAI without a local JAI conversion whose displaced argument it can restore",
@@ -780,7 +780,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         }
                     }
                 }
-                SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                     let connected_sumti = match term.sumti.as_ref() {
                         TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
                             let branch = GeneratedDistributedSumtiBranch::Sumti(sumti);
@@ -802,10 +802,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                             .push(self.prepare_generated_modal_term(term, &mut outer_scopes)?);
                     }
                 }
-                SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => {
                     modal_terms.push(self.prepare_generated_bare_modal_term(term));
                 }
-                SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
+                GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
                         *term,
                         simple,
@@ -896,11 +896,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut highest_assigned_place = arguments.keys().copied().max().unwrap_or(0);
         for term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
-            if let Some(description) = generated_undefined_experimental_term_description(simple) {
+            if let Some(description) = simple.undefined_experimental_description() {
                 return Err(undefined_semantics(description));
             }
             match simple {
-                SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
+                GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
                     let place = next_visible_place;
                     next_visible_place += 1;
                     highest_assigned_place = highest_assigned_place.max(place);
@@ -927,7 +927,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         }
                     }
                 }
-                SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
                     let place = fa_place(&term.fa.value)?;
                     next_visible_place = next_visible_place.max(place + 1);
                     highest_assigned_place = highest_assigned_place.max(place);
@@ -967,13 +967,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         }
                     }
                 }
-                SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
                     modal_terms.push(self.prepare_generated_modal_term(term, &mut outer_scopes)?);
                 }
-                SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => {
                     modal_terms.push(self.prepare_generated_bare_modal_term(term));
                 }
-                SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
+                GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
                         *term,
                         simple,

@@ -1684,6 +1684,22 @@ fn documentation(lines: &[String]) -> String {
         .join("\n")
 }
 
+#[requires(lines.iter().any(|line| !line.trim().is_empty()))]
+#[ensures(ret.split('\n').all(|line| line == "#" || line.starts_with("# ")))]
+fn commented_documentation(lines: &[String]) -> String {
+    documentation(lines)
+        .split('\n')
+        .map(|line| {
+            if line.is_empty() {
+                "#".to_owned()
+            } else {
+                format!("# {line}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[requires(!owner.is_empty() && !variant.is_empty())]
 #[ensures(ret.starts_with(owner) && ret.ends_with(variant))]
 fn variant_class_name(owner: &str, variant: &str) -> String {
@@ -1910,8 +1926,8 @@ fn render_namespace(schema: &Schema, mode: ProjectionMode) -> RenderedNamespace 
                     .expect("writing to String cannot fail");
                 writeln!(
                     stub,
-                    "# {}\n{owner}: TypeAlias = {union}\n",
-                    documentation(&common.docs)
+                    "{}\n{owner}: TypeAlias = {union}\n",
+                    commented_documentation(&common.docs)
                 )
                 .expect("writing to String cannot fail");
                 inventory.push(owner.to_owned());
@@ -4169,7 +4185,11 @@ mod tests {
                         strict_name: "ChoiceSyntax".to_owned(),
                         recovered_name: "ChoiceSyntax".to_owned(),
                         rule: "choice".to_owned(),
-                        docs: vec!["A synthetic choice.".to_owned()],
+                        docs: vec![
+                            "A synthetic choice.".to_owned(),
+                            String::new(),
+                            "Its alias documentation spans paragraphs.".to_owned(),
+                        ],
                         constructor: new!(Constructor {
                             name: "Choice".to_owned(),
                             label: None,
@@ -4216,6 +4236,17 @@ mod tests {
         assert!(extended.runtime.contains("class ChoiceSyntaxUnit"));
         assert!(extended.runtime.contains("__match_args__ = ()"));
         assert!(extended.stub.contains("class ChoiceSyntaxUnit"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn multiline_sum_documentation_is_fully_commented_in_stubs() {
+        let rendered = render_namespace(&synthetic_schema(false), ProjectionMode::Strict);
+
+        assert!(rendered.stub.contains(
+            "# A synthetic choice.\n#\n# Its alias documentation spans paragraphs.\nChoiceSyntax: TypeAlias"
+        ));
     }
 
     #[test]

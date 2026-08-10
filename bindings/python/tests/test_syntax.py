@@ -459,7 +459,7 @@ def test_with_free_modifiers_and_generated_token_projection_remain_typed() -> No
         syntax.WithFreeModifiers(bei, [])
     )
     empty = strict.EmptyLinkedSumtiSyntax()
-    linked = strict.LinkedSumtiSyntaxEmptyLinkedSumti(empty)
+    linked = strict.LinkedTermSyntaxEmptyLinkedSumti(empty)
     bei_link = strict.BeiLinkSyntax(decorated, linked)
 
     assert isinstance(bei_link.bei, syntax.WithFreeModifiers)

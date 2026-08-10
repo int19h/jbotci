@@ -3,6 +3,7 @@
 pub mod completeness;
 pub mod facade;
 pub mod generated_builder;
+mod generated_term_view;
 pub mod model;
 pub mod notation;
 pub mod references;

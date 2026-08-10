@@ -1428,6 +1428,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "unit expectation asserting the coordinate is populated (present and non-null); no payload to constrain",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/formulas.rs:GeneratedDirectTermOperand::Bound",
+        "borrowed hierarchy operand delegates validity to the invariant-bearing BoundTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/formulas.rs:GeneratedDirectTermOperand::Simple",
+        "borrowed legacy operand delegates validity to the invariant-bearing SimpleTermSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::Built",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1750,6 +1758,74 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedTextRoot::ZantufaStatementTerms",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::Empty",
+        "the empty linked-sumti leaf is a closed marker with no payload state to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::PlaceTagged",
+        "borrowed leaf validity is owned by the invariant-bearing PlaceTaggedLinkedSumtiSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::Plain",
+        "borrowed leaf validity is owned by the invariant-bearing PlainLinkedSumtiSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::TenseTagged",
+        "borrowed leaf validity is owned by the invariant-bearing TenseTaggedLinkedSumtiSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::BareNaTerm",
+        "borrowed leaf validity is owned by the invariant-bearing BareNaTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::FihoiAdverbialTerm",
+        "borrowed leaf validity is owned by the invariant-bearing FihoiAdverbialTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ForethoughtTermset",
+        "borrowed leaf validity is owned by the invariant-bearing ForethoughtTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::JaiTaggedSumtiTerm",
+        "borrowed leaf validity is owned by the invariant-bearing JaiTaggedSumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::KeTermset",
+        "borrowed leaf validity is owned by the invariant-bearing KeTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::NaKuTerm",
+        "borrowed leaf validity is owned by the invariant-bearing NaKuTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::NoihaAdverbialTerm",
+        "borrowed leaf validity is owned by the invariant-bearing NoihaAdverbialTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::NuhiTermset",
+        "borrowed leaf validity is owned by the invariant-bearing NuhiTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::PlaceTaggedSumtiTerm",
+        "borrowed leaf validity is owned by the invariant-bearing PlaceTaggedSumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::SoiAdverbialTerm",
+        "borrowed leaf validity is owned by the invariant-bearing SoiAdverbialTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::SumtiTerm",
+        "borrowed leaf validity is owned by the invariant-bearing SumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm",
+        "borrowed leaf validity is owned by the invariant-bearing TaggedSumtiBeforeTagTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::TaggedSumtiTerm",
+        "borrowed leaf validity is owned by the invariant-bearing TaggedSumtiTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:MathLiteralValue::Integer",
