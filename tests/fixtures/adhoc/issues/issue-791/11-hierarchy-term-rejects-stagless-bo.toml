@@ -1,0 +1,13 @@
+id = "adhoc.issues.issue-791.11-hierarchy-term-rejects-stagless-bo"
+lojban = "pu ko'a .e bo ba ko'e broda"
+dialect = "(term-hierarchy)"
+tags = ["issue-791", "recovery", "syntax", "term-hierarchy"]
+# camxes-exp 778ea13: @22 "…broda…": Expected [,] but "b" found.
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [17, 21], source-text = "ko'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [17, 21], source-text = "ko'e", message = "unexpected cmavo" }]

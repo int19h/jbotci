@@ -1,0 +1,13 @@
+id = "adhoc.issues.issue-791.03-bound-term-requires-stag"
+lojban = "ba ko'a .a ca ko'e .e bo vi ko'i broda"
+dialect = "(term-hierarchy)"
+tags = ["issue-791", "recovery", "syntax", "term-hierarchy"]
+# camxes-exp 778ea13: @33 "…broda…": Expected [,] but "b" found.
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 32], source-text = "ko'i", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [28, 32], source-text = "ko'i", message = "unexpected cmavo" }]
