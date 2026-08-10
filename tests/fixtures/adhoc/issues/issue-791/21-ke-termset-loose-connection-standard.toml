@@ -1,0 +1,36 @@
+id = "adhoc.issues.issue-791.21-ke-termset-loose-connection-standard"
+lojban = "na ku .e ke ko'e ko'i broda"
+tags = ["issue-791", "syntax"]
+# camxes-exp 778ea13: @22 "…broda…": Expected [,] but "b" found.
+# camxes-exp deliberately has no KE-termsets. V1's `ke_termset` is an experimental
+# extension, not a parity target, so this fixture pins v1 behavior rather than oracle parity.
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-ke-termset", byte-span = [9, 11], source-text = "ke", message = "experimental syntax: KE/KEhE termset grouping", word-index = 3 }]
+
+[expectations.output.gentufa]
+tree = """
+BridiWithLeadingTerms @[0‥27) {
+  leading_terms: [
+    ConnectedTerm @[0‥21) {
+      leading_term: NaKuTerm @[0‥5) {
+        na: Cmavo @[0‥2) "na",
+        na_ku: Cmavo @[3‥5) "ku",
+      },
+      continuations: [
+        ConnectedTermContinuation @[7‥21) {
+          connective: Cmavo @[7‥8) "e",
+          trailing_term: KeTermset @[9‥21) {
+            ke: Cmavo @[9‥11) "ke",
+            termset: [
+              Cmavo @[12‥16) "ko'e",
+              Cmavo @[17‥21) "ko'i",
+            ],
+          },
+        },
+      ],
+    },
+  ],
+  bridi_tail: Gismu @[22‥27) "bróda",
+}"""

@@ -8,12 +8,12 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use jbotci_syntax::generated_model::{
-    BareNaTermSyntax, BoundLinkedTermOperandSyntax, BoundLinkedTermSyntax, BoundTermSyntax,
-    FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax,
-    LinkedSumtiSyntax, LinkedTermSyntax, NaKuTermSyntax, NoihaAdverbialTermSyntax,
-    NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
-    PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax, SumtiTermSyntax,
-    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax,
+    BareNaTermSyntax, BoundTermSyntax, FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax,
+    JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LinkedTermSyntax, NaKuTermSyntax,
+    NoihaAdverbialTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
+    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
+    SumtiTermSyntax, TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax,
+    TenseTaggedLinkedSumtiSyntax,
 };
 
 /// A borrowed simple-term leaf shared by `SimpleTermSyntax` and `BoundTermSyntax`.
@@ -123,18 +123,6 @@ pub(crate) enum GeneratedLinkedSumtiRef<'syntax> {
 }
 
 impl<'syntax> GeneratedLinkedSumtiRef<'syntax> {
-    /// Borrow a leaf from the original flat linked-sumti sum.
-    #[requires(true)]
-    #[ensures(true)]
-    pub(crate) fn from_linked_sumti(link: &'syntax LinkedSumtiSyntax) -> Self {
-        match link {
-            LinkedSumtiSyntax::PlaceTaggedLinkedSumti(link) => Self::PlaceTagged(link),
-            LinkedSumtiSyntax::TenseTaggedLinkedSumti(link) => Self::TenseTagged(link),
-            LinkedSumtiSyntax::PlainLinkedSumti(link) => Self::Plain(link),
-            LinkedSumtiSyntax::EmptyLinkedSumti(_) => Self::Empty,
-        }
-    }
-
     /// Borrow a leaf from the loose link level, or report a grouped link connection.
     #[requires(true)]
     #[ensures(ret.is_none() == matches!(link, LinkedTermSyntax::ConnectedLinkedTerm(_) | LinkedTermSyntax::BoundLinkedTermConnection(_)))]
@@ -146,29 +134,6 @@ impl<'syntax> GeneratedLinkedSumtiRef<'syntax> {
             LinkedTermSyntax::TenseTaggedLinkedSumti(link) => Some(Self::TenseTagged(link)),
             LinkedTermSyntax::PlainLinkedSumti(link) => Some(Self::Plain(link)),
             LinkedTermSyntax::EmptyLinkedSumti(_) => Some(Self::Empty),
-        }
-    }
-
-    /// Borrow a nonempty leaf from the BO-bound link level, or report its grouped connection.
-    #[requires(true)]
-    #[ensures(ret.is_none() == matches!(link, BoundLinkedTermSyntax::BoundLinkedTermConnection(_)))]
-    pub(crate) fn from_bound_linked_term(link: &'syntax BoundLinkedTermSyntax) -> Option<Self> {
-        match link {
-            BoundLinkedTermSyntax::BoundLinkedTermConnection(_) => None,
-            BoundLinkedTermSyntax::PlaceTaggedLinkedSumti(link) => Some(Self::PlaceTagged(link)),
-            BoundLinkedTermSyntax::TenseTaggedLinkedSumti(link) => Some(Self::TenseTagged(link)),
-            BoundLinkedTermSyntax::PlainLinkedSumti(link) => Some(Self::Plain(link)),
-        }
-    }
-
-    /// Borrow one of the nonempty operands permitted inside a BO-bound link connection.
-    #[requires(true)]
-    #[ensures(!matches!(ret, Self::Empty))]
-    pub(crate) fn from_bound_operand(link: &'syntax BoundLinkedTermOperandSyntax) -> Self {
-        match link {
-            BoundLinkedTermOperandSyntax::PlaceTaggedLinkedSumti(link) => Self::PlaceTagged(link),
-            BoundLinkedTermOperandSyntax::TenseTaggedLinkedSumti(link) => Self::TenseTagged(link),
-            BoundLinkedTermOperandSyntax::PlainLinkedSumti(link) => Self::Plain(link),
         }
     }
 }

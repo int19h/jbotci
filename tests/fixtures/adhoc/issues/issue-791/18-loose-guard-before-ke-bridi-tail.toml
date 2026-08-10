@@ -3,12 +3,16 @@ lojban = "broda ba ko'a .e ba ke brode ke'e"
 dialect = "(term-hierarchy)"
 tags = ["issue-791", "recovery", "syntax", "term-hierarchy"]
 # camxes-exp 778ea13: (BRIDI [{SELBRI:broda <ba SUMTI:ko'a>} {e ba ke SELBRI:brode ke'e}])
-# v1 still rejects at `brode`; the deferred context gap remains after the loose-level guard.
+# Tightening the guard to camxes's exact rule moved the recovery diagnostic from `brode` to
+# `ke'e`: the lookahead now recognizes the trailing selbri, so this failing path advances
+# through `brode` before diagnosing the unattached terminator. Both coordinates are recovery
+# artifacts, not parity claims. Camxes-exp accepts this input, while v1 has no path that
+# produces its parse whether or not the guard fires; the remaining gaps are #792-#795.
 
 [expectations.syntax]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [23, 28], source-text = "brode", message = "unexpected brivla" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [29, 33], source-text = "ke'e", message = "unexpected cmavo" }]
 
 [expectations.syntax.recovered]
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [23, 28], source-text = "brode", message = "unexpected brivla" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [29, 33], source-text = "ke'e", message = "unexpected cmavo" }]
