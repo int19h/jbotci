@@ -2114,7 +2114,15 @@ pub(super) fn generated_forethought_mekso_operand_from_mekso(
 ) -> Option<&ForethoughtMeksoOperandSyntax> {
     match single_simple_mekso_operand(expression)? {
         SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand) => Some(operand),
-        _ => None,
+        SimpleMeksoOperandSyntax::NumberMekso(_)
+        | SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::QualifiedMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::ArrayMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::LerfuStringMekso(_)
+        | SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(_)
+        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_) => None,
     }
 }
 

@@ -7356,12 +7356,12 @@ mod tests {
 
     #[requires(true)]
     #[ensures(true)]
-    fn recovered_quantifier_form_names(
+    fn recovered_quantifier_forms(
         parse_tree: &generated::generated_model::recovered::TextSyntax,
-    ) -> Vec<&'static str> {
+    ) -> Vec<QuantifierForm> {
         #[invariant(true)]
         struct RecoveredVisitor {
-            names: Vec<&'static str>,
+            forms: Vec<QuantifierForm>,
         }
 
         impl<'tree> TreeVisitor<'tree> for RecoveredVisitor {
@@ -7372,22 +7372,24 @@ mod tests {
             #[ensures(true)]
             fn enter_node(&mut self, node: Self::Node) {
                 use generated::generated_model::recovered::NodeRef;
-                let name = match node {
-                    NodeRef::QuantifierSyntaxPaRunQuantifier(_) => "PaRun",
-                    NodeRef::QuantifierSyntaxMeksoQuantifier(_) => "Mekso",
+                let form = match node {
+                    NodeRef::QuantifierSyntaxPaRunQuantifier(_) => QuantifierForm::PaRun,
+                    NodeRef::QuantifierSyntaxMeksoQuantifier(_) => QuantifierForm::Mekso,
                     NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(_) => {
-                        "ZantufaPriorityRaw"
+                        QuantifierForm::ZantufaPriorityRaw
                     }
-                    NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(_) => "ZantufaRaw",
+                    NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(_) => {
+                        QuantifierForm::ZantufaRaw
+                    }
                     _ => return,
                 };
-                self.names.push(name);
+                self.forms.push(form);
             }
         }
 
-        let mut visitor = RecoveredVisitor { names: Vec::new() };
+        let mut visitor = RecoveredVisitor { forms: Vec::new() };
         generated::generated_model::recovered::TreeNode::visit_in_order(parse_tree, &mut visitor);
-        visitor.names
+        visitor.forms
     }
 
     /// Both ways of enabling the extended mex grammar, since the builtin
@@ -7554,8 +7556,8 @@ mod tests {
                     "recovery repaired the stray ku"
                 );
                 assert_eq!(
-                    recovered_quantifier_form_names(&recovered.parse_tree),
-                    ["PaRun"]
+                    recovered_quantifier_forms(&recovered.parse_tree),
+                    [QuantifierForm::PaRun]
                 );
                 assert!(
                     !recovered.warnings.iter().any(
@@ -7598,8 +7600,8 @@ mod tests {
                     &words, source, &options,
                 );
                 assert_eq!(
-                    recovered_quantifier_form_names(&recovered.parse_tree),
-                    ["PaRun", "PaRun"]
+                    recovered_quantifier_forms(&recovered.parse_tree),
+                    [QuantifierForm::PaRun, QuantifierForm::PaRun]
                 );
             }
         });

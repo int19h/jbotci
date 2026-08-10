@@ -1648,6 +1648,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_quantifier.rs:BaselineQuantifierRejection",
+        "stateless unit marker naming the baseline-quantifier output refinement; it holds no state, and the surfaces it rejects are a pure function of the parsed mex it is handed",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarDialect",
         "generated grammar dialect flags are independent booleans projected from ParseOptions",
     ),
@@ -1678,6 +1682,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:QuantifierFormVisitor",
+        "test traversal accumulator over the strict model; the closed QuantifierForm enum already excludes every non-quantifier node, and each prefix of the source-ordered form sequence is a valid intermediate visit state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveredVisitor",
+        "test traversal accumulator over the recovered model; it collects the same closed QuantifierForm values, so every prefix of the source-ordered form sequence is a valid intermediate visit state",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointCollection",
