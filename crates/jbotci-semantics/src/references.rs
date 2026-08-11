@@ -3873,23 +3873,16 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_mekso_operand(&mut self, node: &'tree generated::MeksoOperandSyntax) {
-        match node {
-            generated::MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-                self.walk_node(&operand.0.first);
-                for continuation in &operand.0.links {
-                    self.walk_node(&continuation.trailing_expression);
-                }
+        let connected = &node.connected_expression.0;
+        self.walk_node(&connected.first);
+        for continuation in &connected.links {
+            self.walk_node(&continuation.trailing_expression);
+        }
+        if let Some(group) = &node.grouped_continuation {
+            if let Some(tense_modal) = group.tense_modal.as_deref() {
+                self.walk_node(tense_modal);
             }
-            generated::MeksoOperandSyntax::BoundMeksoOperand(operand) => {
-                self.walk_node(&operand.left_expression);
-                if let Some(tense_modal) = operand.tense_modal.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                self.walk_node(&operand.right_expression);
-            }
-            generated::MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
-                self.walk_node(operand);
-            }
+            self.walk_node(&group.inner_expression);
         }
     }
 
@@ -3922,6 +3915,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 self.walk_node(&operand.right_expression);
             }
             generated::SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
+                self.walk_node(&operand.inner_expression);
+            }
+            generated::SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
                 self.walk_node(&operand.inner_expression);
             }
             generated::SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
@@ -7987,11 +7983,18 @@ fn generated_mekso_base_to_usize(expression: &generated::MeksoBaseSyntax) -> Opt
 #[requires(true)]
 #[ensures(true)]
 fn generated_mekso_operand_to_usize(operand: &generated::MeksoOperandSyntax) -> Option<usize> {
-    match operand {
-        generated::MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
+    if operand.grouped_continuation.is_some() {
+        return None;
+    }
+    let connected = &operand.connected_expression.0;
+    if !connected.links.is_empty() {
+        return None;
+    }
+    match connected.first.as_ref() {
+        generated::BoundOrSimpleMeksoOperandSyntax::SimpleMeksoOperand(operand) => {
             generated_simple_mekso_operand_to_usize(operand)
         }
-        _ => None,
+        generated::BoundOrSimpleMeksoOperandSyntax::BoundMeksoOperand(_) => None,
     }
 }
 

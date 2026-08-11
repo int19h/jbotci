@@ -2973,9 +2973,6 @@ fn generated_operand_connective_source(
         jbotci_syntax::generated_model::OperandConnectiveSyntax::EkConnective(connective) => {
             token_text(&connective.a.value)
         }
-        jbotci_syntax::generated_model::OperandConnectiveSyntax::JekConnective(connective) => {
-            token_text(&connective.ja.value)
-        }
     }
 }
 

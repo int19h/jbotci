@@ -64,6 +64,8 @@ pub mod generated_model {
         mekso_base: MeksoBaseSyntax;
         mekso_precedence: MeksoPrecedenceSyntax;
         mekso_operand: MeksoOperandSyntax;
+        bound_or_simple_mekso_operand: BoundOrSimpleMeksoOperandSyntax;
+        simple_mekso_operand: SimpleMeksoOperandSyntax;
         mekso_operator: MeksoOperatorSyntax;
         reverse_polish_parts: ReversePolishPartsSyntax;
         letter_string: LetterStringSyntax;
@@ -1972,36 +1974,48 @@ pub mod generated_model {
         assert !cmavo(Cu);
     }
 
-    /// Sum node for operand; selects among the `afterthought_mekso_operand`, `bound_mekso_operand`, and `simple_mekso_operand` forms.
-    rule "operand" mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
-        /// Uses the `afterthought_mekso_operand` product form, whose payload preserves `operands`.
-        afterthought_mekso_operand,
-        /// Uses the `bound_mekso_operand` product form, whose payload preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression`.
-        bound_mekso_operand,
-        /// Uses the nested `simple_mekso_operand` sum form and preserves its selected alternative.
-        simple_mekso_operand,
+    /// Product node for operand; preserves `connected_expression` and `grouped_continuation` in source order.
+    rule "operand" mekso_operand(mekso, mekso_operand, bound_or_simple_mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
+        /// The operand_1-width connected expression at the start of the operand.
+        field connected_expression <- arc(afterthought_mekso_operand(bound_or_simple_mekso_operand));
+        /// The optional joik/EK plus KE-grouped continuation at operand_0 width.
+        field grouped_continuation <- opt(grouped_mekso_operand_continuation(mekso_operand, tense_modal));
+    }
+
+    /// Product node for grouped operand continuation; preserves `operand_connective`, `tense_modal`, `ke`, `inner_expression`, and `kehe` in source order.
+    rule "grouped operand continuation" grouped_mekso_operand_continuation(mekso_operand, tense_modal) -> struct {
+        /// The joik/EK connective introducing the grouped continuation.
+        field operand_connective <- operand_connective;
+        /// The optional tense modal component.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The `Ke` cmavo marker.
+        field ke <- cmavo(Ke).wf();
+        /// The full-width inner operand.
+        field inner_expression <- arc(mekso_operand);
+        /// The optional `Kehe` cmavo marker.
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Transparent product node for operand connective; preserves the `operands` component.
-    rule "operand connective" afterthought_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
+    rule "operand connective" afterthought_mekso_operand(bound_or_simple_mekso_operand) -> struct {
         /// The source-ordered `operands` chain assembled by the `afterthought_mekso_operand` production.
         field operands <- chain(
-            first: arc(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier)),
-            zero_or_more: afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier),
+            first: arc(bound_or_simple_mekso_operand),
+            zero_or_more: afterthought_mekso_operand_continuation(bound_or_simple_mekso_operand),
             element: trailing_expression,
         );
     }
 
     /// Product node for operand continuation; preserves `operand_connective` and `trailing_expression` in source order.
-    rule "operand continuation" afterthought_mekso_operand_continuation(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
+    rule "operand continuation" afterthought_mekso_operand_continuation(bound_or_simple_mekso_operand) -> struct {
         /// The `operand_connective` connective joining the adjacent constituents of the `afterthought_mekso_operand_continuation` production.
         field operand_connective <- operand_connective;
         /// The shared trailing expression child syntax node.
-        field trailing_expression <- arc(bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
+        field trailing_expression <- arc(bound_or_simple_mekso_operand);
     }
 
     /// Sum node for operand; selects among the `bound_mekso_operand` and `simple_mekso_operand` forms.
-    rule "operand" bound_or_simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
+    rule "operand" bound_or_simple_mekso_operand(bound_or_simple_mekso_operand, simple_mekso_operand, tense_modal) -> enum {
         /// Uses the `bound_mekso_operand` product form, whose payload preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression`.
         bound_mekso_operand,
         /// Uses the nested `simple_mekso_operand` sum form and preserves its selected alternative.
@@ -2009,25 +2023,27 @@ pub mod generated_model {
     }
 
     /// Product node for operand connective; preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression` in source order.
-    rule "operand connective" bound_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> struct {
+    rule "operand connective" bound_mekso_operand(bound_or_simple_mekso_operand, simple_mekso_operand, tense_modal) -> struct {
         /// The shared left expression child syntax node.
-        field left_expression <- arc(simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier));
+        field left_expression <- arc(simple_mekso_operand);
         /// The `operand_connective` connective joining the adjacent constituents of the `bound_mekso_operand` production.
         field operand_connective <- operand_connective;
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
-        /// The shared right expression child syntax node.
-        field right_expression <- arc(mekso_operand);
+        /// The operand_2-width right expression child syntax node.
+        field right_expression <- arc(bound_or_simple_mekso_operand);
     }
 
-    /// Sum node for operand; selects among 10 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, and `parenthesized_mekso_operand`.
-    rule "operand" simple_mekso_operand(mekso, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
+    /// Sum node for operand; selects among 11 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
+    rule "operand" simple_mekso_operand(mekso, mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
         /// Uses the `forethought_mekso_operand` product form, whose payload preserves `gek`, `left_expression`, `gik`, and `right_expression`.
         forethought_mekso_operand,
         /// Uses the `qualified_mekso_operand` product form, whose payload preserves `nahe`, `bo`, `inner_expression`, and `luhu`.
         qualified_mekso_operand,
+        /// Uses the `lahe_qualified_mekso_operand` product form, whose payload preserves `lahe`, `inner_expression`, and `luhu`.
+        lahe_qualified_mekso_operand,
         /// Uses the `parenthesized_mekso_operand` product form, whose payload preserves `vei`, `inner_expression`, and `veho`.
         parenthesized_mekso_operand,
         /// Uses the `sumti_mekso_operand` product form, whose payload preserves `mohe`, `sumti`, and `tehu`.
@@ -2066,16 +2082,26 @@ pub mod generated_model {
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
+    /// Product node for LAhE-qualified operand; preserves `lahe`, `inner_expression`, and `luhu` in source order.
+    rule "LAhE-qualified operand" lahe_qualified_mekso_operand(mekso_operand) -> struct {
+        /// A word from selmaho `Lahe`.
+        field lahe <- selmaho(Lahe).wf();
+        /// The shared inner expression child syntax node.
+        field inner_expression <- arc(mekso_operand);
+        /// The optional `Luhu` cmavo marker.
+        field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
+    }
+
     /// Product node for forethought mex; preserves `gek`, `left_expression`, `gik`, and `right_expression` in source order.
-    rule "forethought mex" forethought_mekso_operand(mekso_operand, tense_modal) -> struct {
+    rule "forethought mex" forethought_mekso_operand(mekso_operand, simple_mekso_operand, tense_modal) -> struct {
         /// The `modal_forethought_connective` forethought connective opening the paired branches of the `forethought_mekso_operand` production.
         field gek <- modal_forethought_connective(tense_modal);
         /// The shared left expression child syntax node.
         field left_expression <- arc(mekso_operand);
         /// The GI-family `gik_connective` connective separating the forethought branches of the `forethought_mekso_operand` production.
         field gik <- gik_connective;
-        /// The shared right expression child syntax node.
-        field right_expression <- arc(mekso_operand);
+        /// The operand_3-width right expression child syntax node.
+        field right_expression <- arc(simple_mekso_operand);
     }
 
     /// Product node for sumti operand; preserves `mohe`, `sumti`, and `tehu` in source order.
@@ -3235,14 +3261,12 @@ pub mod generated_model {
         vuhu_nonlogical_connective,
     }
 
-    /// Sum node for operand connective; selects among the `joik_connective`, `ek_connective`, and `jek_connective` forms.
+    /// Sum node for operand connective; selects among the `joik_connective` and `ek_connective` forms.
     rule "operand connective" operand_connective -> enum {
         /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
         joik_connective,
         /// Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.
         ek_connective,
-        /// Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.
-        jek_connective,
     }
 
     /// Sum node for selbri connective; selects among the `joik_connective`, `jek_connective`, `ek_connective`, and `vuhu_nonlogical_connective` forms.

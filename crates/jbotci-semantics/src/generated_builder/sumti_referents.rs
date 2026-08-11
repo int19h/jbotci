@@ -5641,47 +5641,64 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         replacement_operator: &MeksoOperatorSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<(SemanticObjectId, bool), SemanticsError> {
-        match operand {
-            MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-                let chain = &operand.0;
-                let mut expression = self
-                    .build_generated_bound_or_simple_mekso_operand_with_connected_operator_replacement(
-                        &chain.first,
-                        replacement_operator,
-                        if chain.links.is_empty() { source.clone() } else { None },
-                    )?;
-                if chain.links.is_empty() {
-                    return Ok(expression);
-                }
-                let replaced = expression.1;
-                let last_index = chain.links.len() - 1;
-                for (index, link) in chain.links.iter().enumerate() {
-                    let right = self.build_generated_bound_or_simple_mekso_operand(
+        let chain = &operand.connected_expression.0;
+        let has_group = operand.grouped_continuation.is_some();
+        let mut expression = self
+            .build_generated_bound_or_simple_mekso_operand_with_connected_operator_replacement(
+                &chain.first,
+                replacement_operator,
+                (chain.links.is_empty() && !has_group)
+                    .then(|| source.clone())
+                    .flatten(),
+            )?;
+        let mut replaced = expression.1;
+        let last_link_index = chain.links.len().checked_sub(1);
+        for (index, link) in chain.links.iter().enumerate() {
+            let (right, right_replaced) = if replaced {
+                (
+                    self.build_generated_bound_or_simple_mekso_operand(
                         &link.trailing_expression,
                         None,
-                    )?;
-                    let expression_source = (index == last_index).then(|| source.clone()).flatten();
-                    expression.0 = self.build_generated_operand_connective_math_expression(
-                        &link.operand_connective,
-                        vec![expression.0, right],
-                        expression_source,
-                    )?;
-                }
-                Ok((expression.0, replaced))
-            }
-            MeksoOperandSyntax::BoundMeksoOperand(operand) => self
-                .build_generated_bound_mekso_operand_with_connected_operator_replacement(
-                    operand,
+                    )?,
+                    false,
+                )
+            } else {
+                self.build_generated_bound_or_simple_mekso_operand_with_connected_operator_replacement(
+                    &link.trailing_expression,
                     replacement_operator,
-                    source,
-                ),
-            MeksoOperandSyntax::SimpleMeksoOperand(operand) => self
-                .build_generated_simple_mekso_operand_with_connected_operator_replacement(
-                    operand,
-                    replacement_operator,
-                    source,
-                ),
+                    None,
+                )?
+            };
+            replaced |= right_replaced;
+            expression.0 = self.build_generated_operand_connective_math_expression(
+                &link.operand_connective,
+                vec![expression.0, right],
+                (Some(index) == last_link_index && !has_group)
+                    .then(|| source.clone())
+                    .flatten(),
+            )?;
         }
+        if let Some(group) = &operand.grouped_continuation {
+            let (right, right_replaced) = if replaced {
+                (
+                    self.build_generated_mekso_operand(&group.inner_expression, None)?,
+                    false,
+                )
+            } else {
+                self.build_generated_mekso_operand_with_connected_operator_replacement(
+                    &group.inner_expression,
+                    replacement_operator,
+                    None,
+                )?
+            };
+            replaced |= right_replaced;
+            expression.0 = self.build_generated_operand_connective_math_expression(
+                &group.operand_connective,
+                vec![expression.0, right],
+                source,
+            )?;
+        }
+        Ok((expression.0, replaced))
     }
 
     #[requires(true)]
@@ -5724,11 +5741,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
         let (right, right_replaced) = if left_replaced {
             (
-                self.build_generated_mekso_operand(&operand.right_expression, None)?,
+                self.build_generated_bound_or_simple_mekso_operand(
+                    &operand.right_expression,
+                    None,
+                )?,
                 false,
             )
         } else {
-            self.build_generated_mekso_operand_with_connected_operator_replacement(
+            self.build_generated_bound_or_simple_mekso_operand_with_connected_operator_replacement(
                 &operand.right_expression,
                 replacement_operator,
                 None,
@@ -5760,11 +5780,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     )?;
                 let (right, right_replaced) = if left_replaced {
                     (
-                        self.build_generated_mekso_operand(&operand.right_expression, None)?,
+                        self.build_generated_simple_mekso_operand(&operand.right_expression, None)?,
                         false,
                     )
                 } else {
-                    self.build_generated_mekso_operand_with_connected_operator_replacement(
+                    self.build_generated_simple_mekso_operand_with_connected_operator_replacement(
                         &operand.right_expression,
                         replacement_operator,
                         None,
@@ -5966,37 +5986,35 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         operand: &'tree MeksoOperandSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        match operand {
-            MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-                let chain = &operand.0;
-                if chain.links.is_empty() {
-                    return self
-                        .build_generated_bound_or_simple_mekso_operand(&chain.first, source);
-                }
-                let mut expression =
-                    self.build_generated_bound_or_simple_mekso_operand(&chain.first, None)?;
-                let last_index = chain.links.len() - 1;
-                for (index, link) in chain.links.iter().enumerate() {
-                    let right = self.build_generated_bound_or_simple_mekso_operand(
-                        &link.trailing_expression,
-                        None,
-                    )?;
-                    let expression_source = (index == last_index).then(|| source.clone()).flatten();
-                    expression = self.build_generated_operand_connective_math_expression(
-                        &link.operand_connective,
-                        vec![expression, right],
-                        expression_source,
-                    )?;
-                }
-                Ok(expression)
-            }
-            MeksoOperandSyntax::BoundMeksoOperand(operand) => {
-                self.build_generated_bound_mekso_operand(operand, source)
-            }
-            MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
-                self.build_generated_simple_mekso_operand(operand, source)
-            }
+        let chain = &operand.connected_expression.0;
+        let has_group = operand.grouped_continuation.is_some();
+        let mut expression = self.build_generated_bound_or_simple_mekso_operand(
+            &chain.first,
+            (chain.links.is_empty() && !has_group)
+                .then(|| source.clone())
+                .flatten(),
+        )?;
+        let last_link_index = chain.links.len().checked_sub(1);
+        for (index, link) in chain.links.iter().enumerate() {
+            let right = self
+                .build_generated_bound_or_simple_mekso_operand(&link.trailing_expression, None)?;
+            expression = self.build_generated_operand_connective_math_expression(
+                &link.operand_connective,
+                vec![expression, right],
+                (Some(index) == last_link_index && !has_group)
+                    .then(|| source.clone())
+                    .flatten(),
+            )?;
         }
+        if let Some(group) = &operand.grouped_continuation {
+            let right = self.build_generated_mekso_operand(&group.inner_expression, None)?;
+            expression = self.build_generated_operand_connective_math_expression(
+                &group.operand_connective,
+                vec![expression, right],
+                source,
+            )?;
+        }
+        Ok(expression)
     }
 
     #[requires(true)]
@@ -6024,7 +6042,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let left = self.build_generated_simple_mekso_operand(&operand.left_expression, None)?;
-        let right = self.build_generated_mekso_operand(&operand.right_expression, None)?;
+        let right =
+            self.build_generated_bound_or_simple_mekso_operand(&operand.right_expression, None)?;
         self.build_generated_operand_connective_math_expression(
             &operand.operand_connective,
             vec![left, right],
@@ -6045,6 +6064,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
                 self.build_generated_qualified_mekso_operand(operand, source)
+            }
+            SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
+                self.build_generated_mekso_operand(&operand.inner_expression, source)
             }
             SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
                 let id = self.build_generated_mekso_operand(&operand.inner_expression, source)?;
@@ -6103,7 +6125,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let left = self.build_generated_mekso_operand(&operand.left_expression, None)?;
-        let right = self.build_generated_mekso_operand(&operand.right_expression, None)?;
+        let right = self.build_generated_simple_mekso_operand(&operand.right_expression, None)?;
         self.build_generated_math_operator_expression(
             MathOperator::from_label(generated_modal_forethought_connective_source(&operand.gek)),
             vec![left, right],
@@ -9299,12 +9321,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )
                 .map(Some);
         }
-        let Some(MeksoOperandSyntax::AfterthoughtMeksoOperand(operand)) =
-            generated_single_mekso_operand_from_mekso(expression)
-        else {
+        let Some(operand) = generated_single_mekso_operand_from_mekso(expression) else {
             return Ok(None);
         };
-        let chain = &operand.0;
+        if operand.grouped_continuation.is_some() {
+            return Ok(None);
+        }
+        let chain = &operand.connected_expression.0;
         let [link] = chain.links.as_slice() else {
             return Ok(None);
         };
@@ -9337,7 +9360,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &operand.left_expression,
             self.source_for_node(&operand.left_expression, "quantity"),
         )?;
-        let right_quantity = self.build_quantity_for_generated_mekso_operand(
+        let right_quantity = self.build_quantity_for_generated_simple_mekso_operand(
             &operand.right_expression,
             self.source_for_node(&operand.right_expression, "quantity"),
         )?;
