@@ -7946,7 +7946,7 @@ fn generated_koha_subscript_index(
         .find_map(|free_modifier| match free_modifier {
             generated::FreeModifierSyntax::XiFreeModifier(
                 generated::XiFreeModifierSyntax::XiNumberFreeModifier(subscript),
-            ) => generated_number_words_to_usize(&subscript.expression.0.number.value),
+            ) => generated_number_words_to_usize(&subscript.expression.0.number),
             generated::FreeModifierSyntax::XiFreeModifier(
                 generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(subscript),
             ) => generated_math_expression_to_usize(&subscript.expression.inner_expression),
@@ -8019,7 +8019,7 @@ fn generated_simple_mekso_operand_to_usize(
 ) -> Option<usize> {
     match operand {
         generated::SimpleMeksoOperandSyntax::NumberMekso(number) => {
-            generated_number_words_to_usize(&number.0.number.value)
+            generated_number_words_to_usize(&number.0.number)
         }
         generated::SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_math_expression_to_usize(&operand.inner_expression)

@@ -268,7 +268,7 @@ pub mod generated_model {
     }
 
     /// Sum node for paragraph statement; selects among the `zantufa_statement_terms_statement`, `statement_or_fragment_statement`, and `fragment_statement` forms.
-    rule "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, forethought_bridi_connection) -> enum {
+    rule "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection) -> enum {
         /// Uses the `zantufa_statement_terms_statement` product form, whose payload preserves `statement` and `tail`.
         when feature(ZantufaTerms) zantufa_statement_terms_statement,
         /// Uses the `statement_or_fragment_statement` product form, whose payload preserves `statement`.
@@ -315,7 +315,7 @@ pub mod generated_model {
     }
 
     /// Sum node for fragment; selects among 12 forms including `prenex_fragment`, `selbri_fragment`, and `ek_fragment`.
-    rule "fragment" fragment_statement(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, forethought_bridi_connection) -> enum {
+    rule "fragment" fragment_statement(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection) -> enum {
         /// Uses the `prenex_fragment` product form, whose payload preserves `terms` and `zohu`.
         prenex_fragment,
         /// Uses the `selbri_fragment` product form, whose payload preserves `selbri`.
@@ -567,10 +567,10 @@ pub mod generated_model {
     }
 
     /// Transparent product node for mex; preserves the `quantifier` component.
-    rule "mex" mekso_fragment(mekso, letter_tokens) -> struct {
+    rule "mex" mekso_fragment(mekso, letter_tokens, free_modifier) -> struct {
         #[tree_child(primary)]
         /// The shared quantifier child syntax node.
-        field quantifier <- arc(quantifier(mekso, letter_tokens));
+        field quantifier <- arc(quantifier(mekso, letter_tokens, free_modifier));
     }
 
     /// Transparent product node for mex; preserves the `expression` component.
@@ -1051,7 +1051,7 @@ pub mod generated_model {
     ));
 
     /// Sum node for term; selects among the `pehe_termset_connection`, `bound_term_connection`, `termset_group`, `connected_term`, and `simple_term` forms.
-    rule "term" term(statement, term, sumti, tense_modal, subbridi, selbri, free_modifier, forethought_bridi_connection) -> enum {
+    rule "term" term(statement, term, sumti, tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
         /// Uses the `bound_term_connection` product form, whose payload preserves `leading_term`, `connective`, `bo`, and `trailing_term`.
@@ -1065,26 +1065,26 @@ pub mod generated_model {
     }
 
     /// Product node for termset connection; preserves `leading_term` and `continuations` in source order.
-    rule "termset connection" pehe_termset_connection(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
+    rule "termset connection" pehe_termset_connection(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
-        field leading_term <- arc(pehe_termset_operand(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field leading_term <- arc(pehe_termset_operand(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more pehe_termset_connection_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier)];
+        field continuations <- [one_or_more pehe_termset_connection_continuation(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier)];
     }
 
     /// Product node for termset connection continuation; preserves `pehe`, `connective`, and `trailing_term` in source order.
-    rule "termset connection continuation" pehe_termset_connection_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
+    rule "termset connection continuation" pehe_termset_connection_continuation(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
         /// The `Pehe` cmavo marker.
         field pehe <- cmavo(Pehe).wf();
         /// The `statement_connective` connective joining the adjacent constituents of the `pehe_termset_connection_continuation` production.
         field connective <- statement_connective;
         /// The shared trailing term child syntax node.
-        field trailing_term <- arc(pehe_termset_operand(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field trailing_term <- arc(pehe_termset_operand(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
     }
 
     /// Sum node for term; selects among the `bound_term_connection`, `termset_group`, and `simple_term` forms.
-    rule "term" pehe_termset_operand(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> enum {
+    rule "term" pehe_termset_operand(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> enum {
         /// Uses the `bound_term_connection` product form, whose payload preserves `leading_term`, `connective`, `bo`, and `trailing_term`.
         bound_term_connection,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1096,7 +1096,7 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> enum {
+    rule "term" simple_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
@@ -1130,7 +1130,7 @@ pub mod generated_model {
     /// The leaf rules are deliberately listed directly rather than through `simple_term`: a
     /// nested sum branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-    rule "term" bound_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> enum {
+    rule "term" bound_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> enum {
         /// Uses a hierarchy-only BO-bound connection with the mandatory absorption-safe stag.
         when feature(TermHierarchy) stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1166,16 +1166,16 @@ pub mod generated_model {
     /// camxes-exp's absorption-safe `abs_term_2` requires the stag before BO. The operands
     /// intentionally remain `simple_term`: sumti greediness must continue to own chains whose
     /// trailing operand is a bare sumti, rather than silently changing their term-level grouping.
-    rule "term connection" stag_bound_term_connection(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
+    rule "term connection" stag_bound_term_connection(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
         assert term_guard();
         /// The first simple term at the BO-bound precedence level.
-        field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more stag_bound_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier)];
+        field continuations <- [one_or_more stag_bound_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier)];
     }
 
     /// One mandatory-stag BO continuation at the absorption-safe term level.
-    rule "term connection continuation" stag_bound_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
+    rule "term connection continuation" stag_bound_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
         /// The connective joining the adjacent simple terms.
         field connective <- bound_term_connective;
         /// The mandatory camxes-exp `stag` before BO.
@@ -1183,22 +1183,22 @@ pub mod generated_model {
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         /// The simple term following BO.
-        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
     }
 
     /// Product node for term connection; preserves `leading_term`, `connective`, `bo`, and `trailing_term` in source order.
-    rule "term connection" bound_term_connection(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
+    rule "term connection" bound_term_connection(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
         assert feature(TermHierarchy).not();
         assert term_guard();
         /// The shared leading term child syntax node.
-        field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
         /// The shared connective child syntax node.
         field connective <- arc(bound_term_connective);
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         assert sumti.not();
         /// The shared trailing term child syntax node.
-        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
         assert sumti.not();
     }
 
@@ -1211,21 +1211,21 @@ pub mod generated_model {
     }
 
     /// Product node for term connection; preserves `leading_term` and `continuations` in source order.
-    rule "term connection" connected_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier, forethought_bridi_connection) -> struct {
+    rule "term connection" connected_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
-        field leading_term <- arc(bound_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field leading_term <- arc(bound_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
         /// Ordered sequence of zero or more continuations components.
-        field continuations <- [zero_or_more connected_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier, forethought_bridi_connection)];
+        field continuations <- [zero_or_more connected_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection)];
     }
 
     /// Product node for term connection continuation; preserves `connective` and `trailing_term` in source order.
-    rule "term connection continuation" connected_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier, forethought_bridi_connection) -> struct {
+    rule "term connection continuation" connected_term_continuation(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection) -> struct {
         assert term_hierarchy_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
         /// The `connected_term_connective` connective joining the adjacent constituents of the `connected_term_continuation` production.
         field connective <- connected_term_connective;
         /// The shared trailing term child syntax node.
-        field trailing_term <- arc(bound_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field trailing_term <- arc(bound_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
     }
 
     /// Sum node for term connective; selects among the `joik_connective`, `jek_connective`, `ek_connective`, and `vuhu_nonlogical_connective` forms.
@@ -1241,20 +1241,20 @@ pub mod generated_model {
     }
 
     /// Product node for termset; preserves `leading_term` and `continuations` in source order.
-    rule "termset" termset_group(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
+    rule "termset" termset_group(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
-        field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field leading_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more termset_group_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier)];
+        field continuations <- [one_or_more termset_group_continuation(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier)];
     }
 
     /// Product node for termset continuation; preserves `cehe` and `trailing_term` in source order.
-    rule "termset continuation" termset_group_continuation(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier) -> struct {
+    rule "termset continuation" termset_group_continuation(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier) -> struct {
         /// The `Cehe` cmavo marker.
         field cehe <- cmavo(Cehe).wf();
         /// The shared trailing term child syntax node.
-        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, free_modifier));
+        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier));
     }
 
     /// Product node for termset; preserves `m_nuhi`, `gek`, `terms`, and 4 other fields in source order.
@@ -1408,18 +1408,18 @@ pub mod generated_model {
     }
 
     /// Transparent product node for tag; preserves the `tense_modal` component.
-    rule "tag" tagged_sumti_before_tag_term(tense_modal, selbri) -> struct {
+    rule "tag" tagged_sumti_before_tag_term(tense_modal, selbri, letter_tokens, letter_string) -> struct {
         assert !modal_forethought_connective(tense_modal);
         /// The shared tense modal child syntax node.
-        field tense_modal <- arc(leading_term_tag_tense_modal(tense_modal, selbri));
+        field tense_modal <- arc(leading_term_tag_tense_modal(tense_modal, selbri, letter_tokens, letter_string));
         assert tense_modal.lookahead();
     }
 
     /// Product node for tag; preserves `tense_modal` and `sumti` in source order.
-    rule "tag" tagged_sumti_term(tense_modal, sumti, selbri) -> struct {
+    rule "tag" tagged_sumti_term(tense_modal, sumti, selbri, letter_tokens, letter_string) -> struct {
         assert !modal_forethought_connective(tense_modal);
         /// The shared tense modal child syntax node.
-        field tense_modal <- arc(leading_term_tag_tense_modal(tense_modal, selbri));
+        field tense_modal <- arc(leading_term_tag_tense_modal(tense_modal, selbri, letter_tokens, letter_string));
         assert !selbri;
         /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti));
@@ -1437,7 +1437,7 @@ pub mod generated_model {
     }
 
     /// Sum node for tag; selects among 8 forms including `pu_before_nahe_leading_term_tag_tense`, `pu_distance_before_tag_leading_term_tag_tense`, and `zi_before_zi_leading_term_tag_tense`.
-    rule "tag" leading_term_tag_tense_modal(tense_modal, selbri) -> enum {
+    rule "tag" leading_term_tag_tense_modal(tense_modal, selbri, letter_tokens, letter_string) -> enum {
         /// Uses the `pu_before_nahe_leading_term_tag_tense` product form, whose payload preserves `pu` and `nai`.
         pu_before_nahe_leading_term_tag_tense,
         /// Uses the `pu_distance_before_tag_leading_term_tag_tense` product form, whose payload preserves `pu`, `nai`, and `distance`.
@@ -1510,9 +1510,9 @@ pub mod generated_model {
     }
 
     /// Transparent product node for interval property; preserves the `property` component.
-    rule "interval property" interval_property_leading_term_tag_tense(selbri) -> struct {
+    rule "interval property" interval_property_leading_term_tag_tense(selbri, letter_tokens, letter_string) -> struct {
         /// The shared property child syntax node.
-        field property <- arc(interval_property_tense().followed_by(choice((
+        field property <- arc(interval_property_tense(letter_tokens, letter_string).followed_by(choice((
             selmaho(Pu).ignored(),
             selmaho(Zi).ignored(),
             selmaho(Zeha).ignored(),
@@ -1572,7 +1572,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among the `forethought_sumti` and `simple_sumti` forms.
-    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement) -> enum {
+    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement) -> enum {
         /// Uses the `forethought_sumti` product form, whose payload preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi`.
         forethought_sumti,
         /// Uses the `simple_sumti` product form, whose payload preserves `base_sumti` and `relative_clauses`.
@@ -1671,15 +1671,15 @@ pub mod generated_model {
     }
 
     /// Product node for sumti; preserves `base_sumti` and `relative_clauses` in source order.
-    rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement) -> struct {
+    rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement) -> struct {
         /// The shared base sumti child syntax node.
-        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement));
+        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement));
         /// The optional relative clauses component.
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
     }
 
     /// Sum node for sumti; selects among the `sumti_base` and `quantified_sumti` forms.
-    rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, statement) -> enum {
+    rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement) -> enum {
         /// Uses the nested `sumti_base` sum form and preserves its selected alternative.
         sumti_base,
         /// Uses the `quantified_sumti` product form, whose payload preserves `quantifier` and `inner_sumti`.
@@ -1723,9 +1723,9 @@ pub mod generated_model {
     }
 
     /// Product node for quantified sumti; preserves `quantifier` and `inner_sumti` in source order.
-    rule "quantified sumti" quantified_sumti(sumti_base, mekso, letter_tokens) -> struct {
+    rule "quantified sumti" quantified_sumti(sumti_base, mekso, letter_tokens, free_modifier) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `quantified_sumti` production.
-        field quantifier <- quantifier(mekso, letter_tokens);
+        field quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti_base);
     }
@@ -1738,12 +1738,15 @@ pub mod generated_model {
         field sumti <- arc(sumti);
     }
 
-    /// Product node for quantifier; preserves `number` and `boi` in source order.
-    rule "quantifier" pa_run_quantifier(letter_tokens) -> struct {
+    /// Product node for quantifier; preserves `number`, `boi`, and `free_modifiers` in source order.
+    rule "quantifier" pa_run_quantifier(letter_tokens, free_modifier) -> struct {
         /// The `number_words` grammar result in the `number` structural role of the `pa_run_quantifier` production.
-        field number <- number_words(letter_tokens).wf();
+        field number <- number_words(letter_tokens);
+        assert !selmaho(Moi);
         /// The optional `Boi` cmavo marker.
         field boi <- opt(cmavo(Boi).wf()).elidable_terminator(Boi);
+        /// Free modifiers following the optional BOI terminator.
+        field free_modifiers <- [zero_or_more free_modifier];
     }
 
     /// Product node for quantifier; preserves `vei`, `mekso`, and `veho` in source order.
@@ -1796,7 +1799,7 @@ pub mod generated_model {
     }
 
     /// Sum node for quantifier; selects among the `zantufa_priority_raw_mekso_quantifier`, `mekso_quantifier`, `pa_run_quantifier`, and `zantufa_raw_mekso_quantifier` forms.
-    rule "quantifier" quantifier(mekso, letter_tokens) -> enum {
+    rule "quantifier" quantifier(mekso, letter_tokens, free_modifier) -> enum {
         /// Uses the `zantufa_priority_raw_mekso_quantifier` product form, whose payload preserves `mekso`.
         when feature(ZantufaMex) zantufa_priority_raw_mekso_quantifier,
         /// Uses the `mekso_quantifier` product form, whose payload preserves `vei`, `mekso`, and `veho`.
@@ -1808,9 +1811,9 @@ pub mod generated_model {
     }
 
     /// Transparent product node for number mex; preserves the `quantifier` component.
-    rule "number mex" number_mekso(letter_tokens) -> struct {
+    rule "number mex" number_mekso(letter_tokens, free_modifier) -> struct {
         /// The shared quantifier child syntax node.
-        field quantifier <- arc(pa_run_quantifier(letter_tokens));
+        field quantifier <- arc(pa_run_quantifier(letter_tokens, free_modifier));
     }
 
     /// Transparent product node for VUhU operator; preserves the `vuhu` component.
@@ -2078,7 +2081,7 @@ pub mod generated_model {
     }
 
     /// Sum node for operand; selects among 11 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
-    rule "operand" simple_mekso_operand(mekso, mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier) -> enum {
+    rule "operand" simple_mekso_operand(mekso, mekso_base, mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator) -> enum {
         /// Uses the `forethought_mekso_operand` product form, whose payload preserves `gek`, `left_expression`, `gik`, and `right_expression`.
         forethought_mekso_operand,
         /// Uses the `qualified_mekso_operand` product form, whose payload preserves `nahe`, `bo`, `inner_expression`, and `luhu`.
@@ -2186,13 +2189,21 @@ pub mod generated_model {
     }
 
     /// Product node for mekso array; preserves `johi`, `expressions`, and `tehu` in source order.
-    rule "mekso array" array_mekso_operand(mekso) -> struct {
+    rule "mekso array" array_mekso_operand(mekso_base, mekso_operand, mekso_operator) -> struct {
         /// The `Johi` cmavo marker.
         field johi <- cmavo(Johi).wf();
         /// Non-empty ordered sequence of expressions components.
-        field expressions <- [one_or_more mekso];
+        field expressions <- [one_or_more standard_mekso_array_element(mekso_base, mekso_operand, mekso_operator)];
         /// The optional `Tehu` cmavo marker.
         field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
+    }
+
+    /// Sum node for one standard-width JOhI array element.
+    rule "mekso array element" standard_mekso_array_element(mekso_base, mekso_operand, mekso_operator) -> enum {
+        /// A standard operand element.
+        mekso_operand,
+        /// An operator-led forethought element.
+        forethought_call_mekso,
     }
 
     /// Product node for lerfu string; preserves `first_letter` and `continuations` in source order.
@@ -2297,6 +2308,7 @@ pub mod generated_model {
     rule "lerfu string" lerfu_string_mekso(letter_string, free_modifier) -> struct {
         /// The `letter_string` grammar result in the `letters` structural role of the `lerfu_string_mekso` production.
         field letters <- letter_string;
+        assert !selmaho(Moi);
         /// The optional `Boi` cmavo marker.
         field boi <- opt(cmavo(Boi)).elidable_terminator(Boi);
         /// Ordered sequence of zero or more free modifiers components.
@@ -2623,7 +2635,7 @@ pub mod generated_model {
     }
 
     /// Product node for description; preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku` in source order.
-    rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
+    rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement, free_modifier) -> struct {
         /// The shared leading description head child syntax node.
         field leading_description_head <- arc(description_head());
         /// The `description_head_connective` connective joining the adjacent constituents of the `description_connection_sumti` production.
@@ -2631,37 +2643,37 @@ pub mod generated_model {
         /// The shared trailing description head child syntax node.
         field trailing_description_head <- arc(description_head());
         /// The `description_tail` grammar result in the `tail` structural role of the `description_connection_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `description`, `tail`, and `ku` in source order.
-    rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
+    rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement, free_modifier) -> struct {
         /// The `description_head` grammar result in the `description` structural role of the `descriptor_with_gadri_sumti` production.
         field description <- description_head();
         /// The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_gadri_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `outer_quantifier`, `description`, `tail`, and `ku` in source order.
-    rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement) -> struct {
+    rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, text, mekso, tense_modal, letter_tokens, statement, free_modifier) -> struct {
         /// The `quantifier` grammar result in the `outer_quantifier` structural role of the `descriptor_with_outer_quantifier_sumti` production.
-        field outer_quantifier <- quantifier(mekso, letter_tokens);
+        field outer_quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         /// The `description_head` grammar result in the `description` structural role of the `descriptor_with_outer_quantifier_sumti` production.
         field description <- description_head();
         /// The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_outer_quantifier_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `quantifier`, `selbri`, `ku`, and `relative_clauses` in source order.
-    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
+    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `descriptor_without_gadri_sumti` production.
-        field quantifier <- quantifier(mekso, letter_tokens);
+        field quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         assert !selmaho(Roi);
         #[tree_child(primary)]
         /// The shared selbri child syntax node.
@@ -2673,15 +2685,15 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `leading_tail_elements` and `tail` in source order.
-    rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
+    rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier) -> struct {
         /// The `leading_description_tail_elements` grammar result in the `leading_tail_elements` structural role of the `description_tail` production.
         field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement);
         /// The shared tail child syntax node.
-        field tail <- arc(description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement));
+        field tail <- arc(description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier));
     }
 
     /// Sum node for description tail; selects among the `quantifier_relation_description_tail`, `quantifier_sumti_description_tail`, and `relation_description_tail` forms.
-    rule "description tail" description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> enum {
+    rule "description tail" description_tail_body(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier) -> enum {
         /// Uses the `quantifier_relation_description_tail` product form, whose payload preserves `quantifier`, `selbri`, and `relative_clauses`.
         quantifier_relation_description_tail,
         /// Uses the `quantifier_sumti_description_tail` product form, whose payload preserves `quantifier` and `sumti`.
@@ -2714,9 +2726,9 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `quantifier`, `selbri`, and `relative_clauses` in source order.
-    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement) -> struct {
+    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, tense_modal, mekso, letter_tokens, statement, free_modifier) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `quantifier_relation_description_tail` production.
-        field quantifier <- quantifier(mekso, letter_tokens);
+        field quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         assert !selmaho(Roi);
         /// The shared selbri child syntax node.
         field selbri <- arc(selbri);
@@ -2725,9 +2737,9 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `quantifier` and `sumti` in source order.
-    rule "description tail" quantifier_sumti_description_tail(sumti, mekso, letter_tokens) -> struct {
+    rule "description tail" quantifier_sumti_description_tail(sumti, mekso, letter_tokens, free_modifier) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `quantifier_sumti_description_tail` production.
-        field quantifier <- quantifier(mekso, letter_tokens);
+        field quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
     }
@@ -2945,11 +2957,11 @@ pub mod generated_model {
     }
 
     /// Product node for subscript; preserves `xi` and `expression` in source order.
-    rule "subscript" xi_number_free_modifier(letter_tokens) -> struct {
+    rule "subscript" xi_number_free_modifier(letter_tokens, free_modifier) -> struct {
         /// A word from selmaho `Xi`.
         field xi <- selmaho(Xi).wf();
         /// The shared expression child syntax node.
-        field expression <- arc(number_mekso(letter_tokens));
+        field expression <- arc(number_mekso(letter_tokens, free_modifier));
     }
 
     /// Product node for subscript; preserves `xi` and `expression` in source order.
@@ -3603,7 +3615,7 @@ pub mod generated_model {
     }
 
     /// Transparent product node for tag; preserves the `body` component.
-    rule "tag" tense_modal(selbri) -> struct {
+    rule "tag" tense_modal(selbri, letter_tokens, letter_string) -> struct {
         assert choice((
             cmavo(Fiho),
             selmaho(Bai),
@@ -3628,11 +3640,11 @@ pub mod generated_model {
         ));
         #[tree_child(primary)]
         /// The `tense_modal_body` grammar result in the `body` structural role of the `tense_modal` production.
-        field body <- tense_modal_body(selbri);
+        field body <- tense_modal_body(selbri, letter_tokens, letter_string);
     }
 
     /// Sum node for tag; selects among the `connected_tense_modal` and `tense_modal_atom` forms.
-    rule "tag" tense_modal_body(selbri) -> enum {
+    rule "tag" tense_modal_body(selbri, letter_tokens, letter_string) -> enum {
         /// Uses the `connected_tense_modal` product form, whose payload preserves `first` and `continuations`.
         connected_tense_modal,
         /// Uses the nested `tense_modal_atom` sum form and preserves its selected alternative.
@@ -3640,19 +3652,19 @@ pub mod generated_model {
     }
 
     /// Product node for connected tag; preserves `first` and `continuations` in source order.
-    rule "connected tag" connected_tense_modal(selbri) -> struct {
+    rule "connected tag" connected_tense_modal(selbri, letter_tokens, letter_string) -> struct {
         /// The shared first child syntax node.
-        field first <- arc(tense_modal_atom(selbri));
+        field first <- arc(tense_modal_atom(selbri, letter_tokens, letter_string));
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more connected_tense_modal_continuation(selbri)];
+        field continuations <- [one_or_more connected_tense_modal_continuation(selbri, letter_tokens, letter_string)];
     }
 
     /// Product node for connected tag continuation; preserves `connective` and `tense_modal` in source order.
-    rule "connected tag continuation" connected_tense_modal_continuation(selbri) -> struct {
+    rule "connected tag continuation" connected_tense_modal_continuation(selbri, letter_tokens, letter_string) -> struct {
         /// The `tense_modal_connective` connective joining the adjacent constituents of the `connected_tense_modal_continuation` production.
         field connective <- tense_modal_connective;
         /// The shared tense modal child syntax node.
-        field tense_modal <- arc(tense_modal_atom(selbri));
+        field tense_modal <- arc(tense_modal_atom(selbri, letter_tokens, letter_string));
     }
 
     /// Sum node for tag connective; selects among the `joik_connective` and `jek_connective` forms.
@@ -3664,7 +3676,7 @@ pub mod generated_model {
     }
 
     /// Sum node for tag; selects among 8 forms including `composite_tense`, `fiho_tense`, and `modal_tense`.
-    rule "tag" tense_modal_atom(selbri) -> enum {
+    rule "tag" tense_modal_atom(selbri, letter_tokens, letter_string) -> enum {
         /// Uses the nested `composite_tense` sum form and preserves its selected alternative.
         composite_tense,
         /// Uses the `fiho_tense` product form, whose payload preserves `fiho`, `selbri`, and `fehu`.
@@ -3700,7 +3712,7 @@ pub mod generated_model {
     }
 
     /// Sum node for tag; selects among the `fa_flat_tag_atom`, `modal_flat_tag_atom`, and `composite_flat_tag_atom` forms.
-    rule "tag" flat_tag_atom -> enum {
+    rule "tag" flat_tag_atom(letter_tokens, letter_string) -> enum {
         /// Uses the `fa_flat_tag_atom` product form, whose payload preserves `fa`.
         fa_flat_tag_atom,
         /// Uses the `modal_flat_tag_atom` product form, whose payload preserves `modal`.
@@ -3722,27 +3734,27 @@ pub mod generated_model {
     }
 
     /// Transparent product node for tag; preserves the `composite` component.
-    rule "tag" composite_flat_tag_atom -> struct {
+    rule "tag" composite_flat_tag_atom(letter_tokens, letter_string) -> struct {
         /// The shared composite child syntax node.
-        field composite <- arc(composite_tense());
+        field composite <- arc(composite_tense(letter_tokens, letter_string));
     }
 
     /// Product node for tag; preserves `nahe`, `se`, and `atom` in source order.
-    rule "tag" nahe_se_flat_prefixed_tense -> struct {
+    rule "tag" nahe_se_flat_prefixed_tense(letter_tokens, letter_string) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).warn(ExperimentalFlattenedTag).wf();
         /// The optional se component.
         field se <- opt(selmaho(Se).wf());
         /// The `flat_tag_atom` grammar result in the `atom` structural role of the `nahe_se_flat_prefixed_tense` production.
-        field atom <- flat_tag_atom();
+        field atom <- flat_tag_atom(letter_tokens, letter_string);
     }
 
     /// Product node for tag; preserves `se` and `atom` in source order.
-    rule "tag" se_flat_prefixed_tense -> struct {
+    rule "tag" se_flat_prefixed_tense(letter_tokens, letter_string) -> struct {
         /// A word from selmaho `Se`.
         field se <- selmaho(Se).warn(ExperimentalFlattenedTag).wf();
         /// The `flat_tag_atom` grammar result in the `atom` structural role of the `se_flat_prefixed_tense` production.
-        field atom <- flat_tag_atom();
+        field atom <- flat_tag_atom(letter_tokens, letter_string);
     }
 
     /// Product node for tag; preserves `first_prefix`, `additional_prefixes`, and `atom` in source order.
@@ -3775,7 +3787,7 @@ pub mod generated_model {
     }
 
     /// Sum node for tag; selects among the `prefixed_time_space_caha_tense`, `time_space_caha_ki_tense`, and `cuhe_tense` forms.
-    rule "tag" composite_tense -> enum {
+    rule "tag" composite_tense(letter_tokens, letter_string) -> enum {
         /// Uses the `prefixed_time_space_caha_tense` product form, whose payload preserves `nahe`, `tense`, and `ki`.
         prefixed_time_space_caha_tense,
         /// Uses the `time_space_caha_ki_tense` product form, whose payload preserves `tense` and `ki`.
@@ -3785,25 +3797,25 @@ pub mod generated_model {
     }
 
     /// Product node for tag; preserves `nahe`, `tense`, and `ki` in source order.
-    rule "tag" prefixed_time_space_caha_tense -> struct {
+    rule "tag" prefixed_time_space_caha_tense(letter_tokens, letter_string) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         /// The shared tense child syntax node.
-        field tense <- arc(time_space_caha_tense);
+        field tense <- arc(time_space_caha_tense(letter_tokens, letter_string));
         /// The optional ki component.
         field ki <- opt(arc(ki_composite_tense()));
     }
 
     /// Product node for tag; preserves `tense` and `ki` in source order.
-    rule "tag" time_space_caha_ki_tense -> struct {
+    rule "tag" time_space_caha_ki_tense(letter_tokens, letter_string) -> struct {
         /// The shared tense child syntax node.
-        field tense <- arc(time_space_caha_tense);
+        field tense <- arc(time_space_caha_tense(letter_tokens, letter_string));
         /// The optional ki component.
         field ki <- opt(arc(ki_composite_tense()));
     }
 
     /// Sum node for tag; selects among the `time_then_space_caha_tense`, `space_then_time_caha_tense`, and `caha_tense` forms.
-    rule "tag" time_space_caha_tense -> enum {
+    rule "tag" time_space_caha_tense(letter_tokens, letter_string) -> enum {
         /// Uses the `time_then_space_caha_tense` product form, whose payload preserves `time`, `space`, and `caha`.
         time_then_space_caha_tense,
         /// Uses the `space_then_time_caha_tense` product form, whose payload preserves `space`, `time`, and `caha`.
@@ -3813,27 +3825,27 @@ pub mod generated_model {
     }
 
     /// Product node for time tense; preserves `time`, `space`, and `caha` in source order.
-    rule "time tense" time_then_space_caha_tense -> struct {
+    rule "time tense" time_then_space_caha_tense(letter_tokens, letter_string) -> struct {
         /// The shared time child syntax node.
-        field time <- arc(time_tense);
+        field time <- arc(time_tense(letter_tokens, letter_string));
         /// The optional space component.
-        field space <- opt(arc(space_tense));
+        field space <- opt(arc(space_tense(letter_tokens, letter_string)));
         /// The optional caha component.
         field caha <- opt(arc(caha_tense()));
     }
 
     /// Product node for space tense; preserves `space`, `time`, and `caha` in source order.
-    rule "space tense" space_then_time_caha_tense -> struct {
+    rule "space tense" space_then_time_caha_tense(letter_tokens, letter_string) -> struct {
         /// The shared space child syntax node.
-        field space <- arc(space_tense);
+        field space <- arc(space_tense(letter_tokens, letter_string));
         /// The optional time component.
-        field time <- opt(arc(time_tense));
+        field time <- opt(arc(time_tense(letter_tokens, letter_string)));
         /// The optional caha component.
         field caha <- opt(arc(caha_tense()));
     }
 
     /// Sum node for time tense; selects among the `time_tense_with_zi`, `time_tense_with_offset`, `time_tense_with_interval`, and `time_tense_with_properties` forms.
-    rule "time tense" time_tense -> enum {
+    rule "time tense" time_tense(letter_tokens, letter_string) -> enum {
         /// Uses the `time_tense_with_zi` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.
         time_tense_with_zi,
         /// Uses the `time_tense_with_offset` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.
@@ -3845,7 +3857,7 @@ pub mod generated_model {
     }
 
     /// Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.
-    rule "time tense" time_tense_with_zi -> struct {
+    rule "time tense" time_tense_with_zi(letter_tokens, letter_string) -> struct {
         /// The shared zi child syntax node.
         field zi <- arc(zi_time_distance_tense());
         /// Ordered sequence of zero or more offsets components.
@@ -3853,11 +3865,11 @@ pub mod generated_model {
         /// The optional zeha component.
         field zeha <- opt(arc(zeha_time_interval_tense()));
         /// Ordered sequence of zero or more properties components.
-        field properties <- [zero_or_more arc(interval_property_tense)];
+        field properties <- [zero_or_more arc(interval_property_tense(letter_tokens, letter_string))];
     }
 
     /// Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.
-    rule "time tense" time_tense_with_offset -> struct {
+    rule "time tense" time_tense_with_offset(letter_tokens, letter_string) -> struct {
         /// The optional zi component.
         field zi <- opt(arc(zi_time_distance_tense()));
         /// Non-empty ordered sequence of offsets components.
@@ -3865,11 +3877,11 @@ pub mod generated_model {
         /// The optional zeha component.
         field zeha <- opt(arc(zeha_time_interval_tense()));
         /// Ordered sequence of zero or more properties components.
-        field properties <- [zero_or_more arc(interval_property_tense)];
+        field properties <- [zero_or_more arc(interval_property_tense(letter_tokens, letter_string))];
     }
 
     /// Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.
-    rule "time tense" time_tense_with_interval -> struct {
+    rule "time tense" time_tense_with_interval(letter_tokens, letter_string) -> struct {
         /// The optional zi component.
         field zi <- opt(arc(zi_time_distance_tense()));
         /// Ordered sequence of zero or more offsets components.
@@ -3877,11 +3889,11 @@ pub mod generated_model {
         /// The shared zeha child syntax node.
         field zeha <- arc(zeha_time_interval_tense());
         /// Ordered sequence of zero or more properties components.
-        field properties <- [zero_or_more arc(interval_property_tense)];
+        field properties <- [zero_or_more arc(interval_property_tense(letter_tokens, letter_string))];
     }
 
     /// Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.
-    rule "time tense" time_tense_with_properties -> struct {
+    rule "time tense" time_tense_with_properties(letter_tokens, letter_string) -> struct {
         /// The optional zi component.
         field zi <- opt(arc(zi_time_distance_tense()));
         /// Ordered sequence of zero or more offsets components.
@@ -3889,11 +3901,11 @@ pub mod generated_model {
         /// The optional zeha component.
         field zeha <- opt(arc(zeha_time_interval_tense()));
         /// Non-empty ordered sequence of properties components.
-        field properties <- [one_or_more arc(interval_property_tense)];
+        field properties <- [one_or_more arc(interval_property_tense(letter_tokens, letter_string))];
     }
 
     /// Sum node for interval property; selects among the `numbered_interval_property_tense`, `tahe_interval_property_tense`, and `zaho_interval_property_tense` forms.
-    rule "interval property" interval_property_tense -> enum {
+    rule "interval property" interval_property_tense(letter_tokens, letter_string) -> enum {
         /// Uses the `numbered_interval_property_tense` product form, whose payload preserves `number`, `roi`, and `nai`.
         numbered_interval_property_tense,
         /// Uses the `tahe_interval_property_tense` product form, whose payload preserves `tahe` and `nai`.
@@ -3903,41 +3915,13 @@ pub mod generated_model {
     }
 
     /// Product node for interval property; preserves `number`, `roi`, and `nai` in source order.
-    rule "interval property" numbered_interval_property_tense -> struct {
-        /// The `interval_property_number_words` grammar result in the `number` structural role of the `numbered_interval_property_tense` production.
-        field number <- interval_property_number_words().wf();
+    rule "interval property" numbered_interval_property_tense(letter_tokens) -> struct {
+        /// The shared `number_words` grammar result in the `number` structural role of the `numbered_interval_property_tense` production.
+        field number <- number_words(letter_tokens).wf();
         /// A word from selmaho `Roi`.
         field roi <- selmaho(Roi).wf();
         /// The optional `Nai` cmavo marker.
         field nai <- opt(cmavo(Nai).wf());
-    }
-
-    /// Product node for number; preserves `first_number` and `continuations` in source order.
-    rule "number" interval_property_number_words -> struct {
-        /// The initial `pa_word` constituent before the continuations of the `interval_property_number_words` production.
-        field first_number <- pa_word();
-        /// Ordered sequence of zero or more continuations components.
-        field continuations <- [zero_or_more interval_property_number_word_continuation];
-    }
-
-    /// Sum node for number continuation; selects among the `interval_property_number_pa_continuation` and `interval_property_number_letter_continuation` forms.
-    rule "number continuation" interval_property_number_word_continuation -> enum {
-        /// Uses the `interval_property_number_pa_continuation` product form, whose payload preserves `pa`.
-        interval_property_number_pa_continuation,
-        /// Uses the `interval_property_number_letter_continuation` product form, whose payload preserves `letter`.
-        interval_property_number_letter_continuation,
-    }
-
-    /// Transparent product node for number continuation; preserves the `pa` component.
-    rule "number continuation" interval_property_number_pa_continuation -> struct {
-        /// The `pa_word` grammar result in the `pa` structural role of the `interval_property_number_pa_continuation` production.
-        field pa <- pa_word();
-    }
-
-    /// Transparent product node for number continuation; preserves the `letter` component.
-    rule "number continuation" interval_property_number_letter_continuation -> struct {
-        /// The `word_category` grammar result in the `letter` structural role of the `interval_property_number_letter_continuation` production.
-        field letter <- word_category(LetterWord);
     }
 
     /// Product node for interval property; preserves `tahe` and `nai` in source order.
@@ -3981,7 +3965,7 @@ pub mod generated_model {
     }
 
     /// Sum node for space tense; selects among the `space_tense_with_va`, `space_tense_with_offset`, `space_tense_with_interval`, and `space_tense_with_mohi` forms.
-    rule "space tense" space_tense -> enum {
+    rule "space tense" space_tense(letter_tokens, letter_string) -> enum {
         /// Uses the `space_tense_with_va` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.
         space_tense_with_va,
         /// Uses the `space_tense_with_offset` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.
@@ -3993,49 +3977,49 @@ pub mod generated_model {
     }
 
     /// Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.
-    rule "space tense" space_tense_with_va -> struct {
+    rule "space tense" space_tense_with_va(letter_tokens, letter_string) -> struct {
         /// The shared va child syntax node.
         field va <- arc(va_space_distance_tense());
         /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(faha_space_offset_tense())];
         /// The optional interval component.
-        field interval <- opt(arc(space_interval_tense));
+        field interval <- opt(arc(space_interval_tense(letter_tokens, letter_string)));
         /// The optional mohi component.
         field mohi <- opt(arc(mohi_space_offset_tense()));
     }
 
     /// Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.
-    rule "space tense" space_tense_with_offset -> struct {
+    rule "space tense" space_tense_with_offset(letter_tokens, letter_string) -> struct {
         /// The optional va component.
         field va <- opt(arc(va_space_distance_tense()));
         /// Non-empty ordered sequence of offsets components.
         field offsets <- [one_or_more arc(faha_space_offset_tense())];
         /// The optional interval component.
-        field interval <- opt(arc(space_interval_tense));
+        field interval <- opt(arc(space_interval_tense(letter_tokens, letter_string)));
         /// The optional mohi component.
         field mohi <- opt(arc(mohi_space_offset_tense()));
     }
 
     /// Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.
-    rule "space tense" space_tense_with_interval -> struct {
+    rule "space tense" space_tense_with_interval(letter_tokens, letter_string) -> struct {
         /// The optional va component.
         field va <- opt(arc(va_space_distance_tense()));
         /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(faha_space_offset_tense())];
         /// The shared interval child syntax node.
-        field interval <- arc(space_interval_tense);
+        field interval <- arc(space_interval_tense(letter_tokens, letter_string));
         /// The optional mohi component.
         field mohi <- opt(arc(mohi_space_offset_tense()));
     }
 
     /// Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.
-    rule "space tense" space_tense_with_mohi -> struct {
+    rule "space tense" space_tense_with_mohi(letter_tokens, letter_string) -> struct {
         /// The optional va component.
         field va <- opt(arc(va_space_distance_tense()));
         /// Ordered sequence of zero or more offsets components.
         field offsets <- [zero_or_more arc(faha_space_offset_tense())];
         /// The optional interval component.
-        field interval <- opt(arc(space_interval_tense));
+        field interval <- opt(arc(space_interval_tense(letter_tokens, letter_string)));
         /// The shared mohi child syntax node.
         field mohi <- arc(mohi_space_offset_tense());
     }
@@ -4065,7 +4049,7 @@ pub mod generated_model {
     }
 
     /// Sum node for space interval; selects among the `space_interval_with_extent_tense` and `space_interval_properties_tense` forms.
-    rule "space interval" space_interval_tense -> enum {
+    rule "space interval" space_interval_tense(letter_tokens, letter_string) -> enum {
         /// Uses the `space_interval_with_extent_tense` product form, whose payload preserves `extent`, `direction`, and `properties`.
         space_interval_with_extent_tense,
         /// Uses the `space_interval_properties_tense` product form, whose payload preserves `first` and `additional`.
@@ -4073,13 +4057,13 @@ pub mod generated_model {
     }
 
     /// Product node for space interval; preserves `extent`, `direction`, and `properties` in source order.
-    rule "space interval" space_interval_with_extent_tense -> struct {
+    rule "space interval" space_interval_with_extent_tense(letter_tokens, letter_string) -> struct {
         /// The shared extent child syntax node.
         field extent <- arc(space_interval_extent_tense);
         /// The optional direction component.
         field direction <- opt(arc(faha_interval_direction_tense()));
         /// The optional properties component.
-        field properties <- opt(arc(space_interval_properties_tense()));
+        field properties <- opt(arc(space_interval_properties_tense(letter_tokens, letter_string)));
     }
 
     /// Sum node for space interval; selects among the `veha_space_interval_tense` and `viha_space_interval_tense` forms.
@@ -4091,11 +4075,11 @@ pub mod generated_model {
     }
 
     /// Product node for space interval; preserves `first` and `additional` in source order.
-    rule "space interval" space_interval_properties_tense -> struct {
+    rule "space interval" space_interval_properties_tense(letter_tokens, letter_string) -> struct {
         /// The shared first child syntax node.
-        field first <- arc(fehe_interval_property_tense());
+        field first <- arc(fehe_interval_property_tense(letter_tokens, letter_string));
         /// Ordered sequence of zero or more additional components.
-        field additional <- [zero_or_more arc(fehe_interval_property_tense())];
+        field additional <- [zero_or_more arc(fehe_interval_property_tense(letter_tokens, letter_string))];
     }
 
     /// Product node for space interval; preserves `veha` and `viha` in source order.
@@ -4113,11 +4097,11 @@ pub mod generated_model {
     }
 
     /// Product node for space interval property; preserves `fehe` and `property` in source order.
-    rule "space interval property" fehe_interval_property_tense -> struct {
+    rule "space interval property" fehe_interval_property_tense(letter_tokens, letter_string) -> struct {
         /// The `Fehe` cmavo marker.
         field fehe <- cmavo(Fehe).wf();
         /// The shared property child syntax node.
-        field property <- arc(interval_property_tense);
+        field property <- arc(interval_property_tense(letter_tokens, letter_string));
     }
 
     /// Product node for space tense; preserves `mohi` and `offset` in source order.

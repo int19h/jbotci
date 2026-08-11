@@ -5514,44 +5514,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     replacement_operator,
                     source,
                 ),
-            MeksoBaseSyntax::ForethoughtCallMekso(call) => {
-                if connected_generated_mekso_operator(&call.operator)?.is_some() {
-                    let operands = call
-                        .operands
-                        .iter()
-                        .map(|operand| self.build_generated_mekso_base(operand, None))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    return self
-                        .build_generated_math_operator_expression_for_temporary_operator(
-                            replacement_operator,
-                            operands,
-                            source,
-                        )
-                        .map(|id| (id, true));
-                }
-                let mut built_operands = Vec::with_capacity(call.operands.len());
-                let mut replaced = false;
-                for operand in &call.operands {
-                    if replaced {
-                        built_operands.push(self.build_generated_mekso_base(operand, None)?);
-                    } else {
-                        let (id, operand_replaced) = self
-                            .build_generated_mekso_base_with_connected_operator_replacement(
-                                operand,
-                                replacement_operator,
-                                None,
-                            )?;
-                        replaced = operand_replaced;
-                        built_operands.push(id);
-                    }
-                }
-                self.build_generated_math_operator_expression_for_operator(
-                    &call.operator,
-                    built_operands,
+            MeksoBaseSyntax::ForethoughtCallMekso(call) => self
+                .build_generated_forethought_call_mekso_with_connected_operator_replacement(
+                    call,
+                    replacement_operator,
                     source,
-                )
-                .map(|id| (id, replaced))
-            }
+                ),
             MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => self
                 .build_generated_zantufa_bo_grouped_mekso_base_with_connected_operator_replacement(
                     group,
@@ -5565,6 +5533,52 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source,
                 ),
         }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_forethought_call_mekso_with_connected_operator_replacement(
+        &mut self,
+        call: &'tree ForethoughtCallMeksoSyntax,
+        replacement_operator: &MeksoOperatorSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
+        if connected_generated_mekso_operator(&call.operator)?.is_some() {
+            let operands = call
+                .operands
+                .iter()
+                .map(|operand| self.build_generated_mekso_base(operand, None))
+                .collect::<Result<Vec<_>, _>>()?;
+            return self
+                .build_generated_math_operator_expression_for_temporary_operator(
+                    replacement_operator,
+                    operands,
+                    source,
+                )
+                .map(|id| (id, true));
+        }
+        let mut built_operands = Vec::with_capacity(call.operands.len());
+        let mut replaced = false;
+        for operand in &call.operands {
+            if replaced {
+                built_operands.push(self.build_generated_mekso_base(operand, None)?);
+            } else {
+                let (id, operand_replaced) = self
+                    .build_generated_mekso_base_with_connected_operator_replacement(
+                        operand,
+                        replacement_operator,
+                        None,
+                    )?;
+                replaced = operand_replaced;
+                built_operands.push(id);
+            }
+        }
+        self.build_generated_math_operator_expression_for_operator(
+            &call.operator,
+            built_operands,
+            source,
+        )
+        .map(|id| (id, replaced))
     }
 
     #[requires(true)]
@@ -5820,11 +5834,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 let mut replaced = false;
                 for expression in &operand.expressions {
                     if replaced {
-                        built_expressions
-                            .push(self.build_generated_math_expression(expression, None)?);
+                        built_expressions.push(
+                            self.build_generated_standard_mekso_array_element(expression, None)?,
+                        );
                     } else {
                         let (id, expression_replaced) = self
-                            .build_generated_math_expression_with_connected_operator_replacement(
+                            .build_generated_standard_mekso_array_element_with_connected_operator_replacement(
                                 expression,
                                 replacement_operator,
                                 None,
@@ -6287,9 +6302,50 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let operands = operand
             .expressions
             .iter()
-            .map(|expression| self.build_generated_math_expression(expression, None))
+            .map(|expression| self.build_generated_standard_mekso_array_element(expression, None))
             .collect::<Result<Vec<_>, _>>()?;
         self.build_generated_math_operator_expression(new!(MathOperator::Array), operands, source)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_standard_mekso_array_element(
+        &mut self,
+        expression: &'tree StandardMeksoArrayElementSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match expression {
+            StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+                self.build_generated_mekso_operand(operand, source)
+            }
+            StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => {
+                self.build_generated_forethought_call_mekso(call, source)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_standard_mekso_array_element_with_connected_operator_replacement(
+        &mut self,
+        expression: &'tree StandardMeksoArrayElementSyntax,
+        replacement_operator: &MeksoOperatorSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
+        match expression {
+            StandardMeksoArrayElementSyntax::MeksoOperand(operand) => self
+                .build_generated_mekso_operand_with_connected_operator_replacement(
+                    operand,
+                    replacement_operator,
+                    source,
+                ),
+            StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => self
+                .build_generated_forethought_call_mekso_with_connected_operator_replacement(
+                    call,
+                    replacement_operator,
+                    source,
+                ),
+        }
     }
 
     #[requires(true)]
@@ -6406,7 +6462,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         number: &'tree NumberMeksoSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let text = generated_number_words_text(&number.0.number.value);
+        let text = generated_number_words_text(&number.0.number);
         self.build_generated_math_literal(math_literal_for_pa_text(text), source)
     }
 
@@ -6783,7 +6839,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 subscript,
             ) => (
                 &subscript.xi,
-                generated_number_words_text(&subscript.expression.0.number.value),
+                generated_number_words_text(&subscript.expression.0.number),
             ),
             jbotci_syntax::generated_model::XiFreeModifierSyntax::XiLerfuStringFreeModifier(
                 subscript,

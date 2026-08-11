@@ -70,11 +70,12 @@ use jbotci_syntax::generated_model::{
     SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
     SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
     SimpleTermSyntax, SingleNaFragmentSyntax, SoiFreeModifierSyntax,
-    StandardStatementConnectiveSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
-    StatementConnectiveSyntax, StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax,
-    StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax, SumtiAssociationRelativeClauseSyntax,
-    SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax,
-    SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
+    StandardMeksoArrayElementSyntax, StandardStatementConnectiveSyntax,
+    StatementAfterIConnectiveSyntax, StatementBaseSyntax, StatementConnectiveSyntax,
+    StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax, StatementSyntax, SubbridiSyntax,
+    SumtiAfterthoughtSyntax, SumtiAssociationRelativeClauseSyntax, SumtiAtomSyntax,
+    SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax, SumtiForethoughtSyntax,
+    SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
     SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
     TaggedSelbriSyntax, TaggedSumtiTermSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
@@ -4102,7 +4103,7 @@ fn generated_pro_sumti_positive_xi_offset(pro_sumti: &ProSumtiSyntax) -> Option<
     else {
         return None;
     };
-    let text = generated_number_words_text(&subscript.expression.0.number.value);
+    let text = generated_number_words_text(&subscript.expression.0.number);
     let value = parse_generated_simple_pa_integer(&text)?;
     usize::try_from(value).ok().filter(|offset| *offset > 0)
 }

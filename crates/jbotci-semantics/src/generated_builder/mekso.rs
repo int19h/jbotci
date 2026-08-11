@@ -388,6 +388,43 @@ pub(super) fn generated_mekso_surface_text_with_connected_operator_replacement(
 }
 
 #[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub(super) fn generated_standard_mekso_array_element_surface_text(
+    expression: &StandardMeksoArrayElementSyntax,
+) -> Result<String, SemanticsError> {
+    match expression {
+        StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+            generated_mekso_operand_surface_text(operand)
+        }
+        StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => {
+            generated_forethought_call_mekso_surface_text(call)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
+pub(super) fn generated_standard_mekso_array_element_surface_text_with_connected_operator_replacement(
+    expression: &StandardMeksoArrayElementSyntax,
+    replacement_operator: &MeksoOperatorSyntax,
+) -> Result<Option<String>, SemanticsError> {
+    match expression {
+        StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                operand,
+                replacement_operator,
+            )
+        }
+        StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => {
+            generated_forethought_call_mekso_surface_text_with_connected_operator_replacement(
+                call,
+                replacement_operator,
+            )
+        }
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
 pub(super) fn generated_infix_mekso_surface_text_with_connected_operator_replacement(
     infix: &InfixMeksoSyntax,
@@ -561,35 +598,10 @@ pub(super) fn generated_mekso_base_surface_text_with_connected_operator_replacem
             )
         }
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
-            if connected_generated_mekso_operator(&call.operator)?.is_some() {
-                let mut parts = Vec::with_capacity(call.operands.len() + 1);
-                parts.push(generated_mekso_operator_surface_label(
-                    replacement_operator,
-                )?);
-                for operand in &call.operands {
-                    parts.push(generated_mekso_base_surface_text(operand)?);
-                }
-                return Ok(Some(parts.join(" ")));
-            }
-            let mut parts = Vec::with_capacity(call.operands.len() + 1);
-            parts.push(generated_mekso_operator_surface_label(&call.operator)?);
-            let mut replaced = false;
-            for operand in &call.operands {
-                if replaced {
-                    parts.push(generated_mekso_base_surface_text(operand)?);
-                } else if let Some(text) =
-                    generated_mekso_base_surface_text_with_connected_operator_replacement(
-                        operand,
-                        replacement_operator,
-                    )?
-                {
-                    replaced = true;
-                    parts.push(text);
-                } else {
-                    parts.push(generated_mekso_base_surface_text(operand)?);
-                }
-            }
-            Ok(replaced.then(|| parts.join(" ")))
+            generated_forethought_call_mekso_surface_text_with_connected_operator_replacement(
+                call,
+                replacement_operator,
+            )
         }
         MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
             generated_zantufa_bo_grouped_mekso_base_surface_text_with_connected_operator_replacement(
@@ -604,6 +616,43 @@ pub(super) fn generated_mekso_base_surface_text_with_connected_operator_replacem
             )
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
+pub(super) fn generated_forethought_call_mekso_surface_text_with_connected_operator_replacement(
+    call: &ForethoughtCallMeksoSyntax,
+    replacement_operator: &MeksoOperatorSyntax,
+) -> Result<Option<String>, SemanticsError> {
+    if connected_generated_mekso_operator(&call.operator)?.is_some() {
+        let mut parts = Vec::with_capacity(call.operands.len() + 1);
+        parts.push(generated_mekso_operator_surface_label(
+            replacement_operator,
+        )?);
+        for operand in &call.operands {
+            parts.push(generated_mekso_base_surface_text(operand)?);
+        }
+        return Ok(Some(parts.join(" ")));
+    }
+    let mut parts = Vec::with_capacity(call.operands.len() + 1);
+    parts.push(generated_mekso_operator_surface_label(&call.operator)?);
+    let mut replaced = false;
+    for operand in &call.operands {
+        if replaced {
+            parts.push(generated_mekso_base_surface_text(operand)?);
+        } else if let Some(text) =
+            generated_mekso_base_surface_text_with_connected_operator_replacement(
+                operand,
+                replacement_operator,
+            )?
+        {
+            replaced = true;
+            parts.push(text);
+        } else {
+            parts.push(generated_mekso_base_surface_text(operand)?);
+        }
+    }
+    Ok(replaced.then(|| parts.join(" ")))
 }
 
 #[requires(true)]
@@ -854,9 +903,9 @@ pub(super) fn generated_simple_mekso_operand_surface_text_with_connected_operato
             let mut replaced = false;
             for expression in &operand.expressions {
                 if replaced {
-                    parts.push(generated_mekso_surface_text(expression)?);
+                    parts.push(generated_standard_mekso_array_element_surface_text(expression)?);
                 } else if let Some(text) =
-                    generated_mekso_surface_text_with_connected_operator_replacement(
+                    generated_standard_mekso_array_element_surface_text_with_connected_operator_replacement(
                         expression,
                         replacement_operator,
                     )?
@@ -864,7 +913,7 @@ pub(super) fn generated_simple_mekso_operand_surface_text_with_connected_operato
                     replaced = true;
                     parts.push(text);
                 } else {
-                    parts.push(generated_mekso_surface_text(expression)?);
+                    parts.push(generated_standard_mekso_array_element_surface_text(expression)?);
                 }
             }
             Ok(replaced.then(|| parts.join(" ")))
@@ -1037,6 +1086,21 @@ pub(super) fn first_generated_connected_mekso_operator(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
+pub(super) fn first_generated_connected_mekso_operator_in_standard_array_element(
+    expression: &StandardMeksoArrayElementSyntax,
+) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
+    match expression {
+        StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+            first_generated_connected_mekso_operator_in_operand(operand)
+        }
+        StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => {
+            first_generated_connected_mekso_operator_in_forethought_call(call)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
 pub(super) fn first_generated_connected_mekso_operator_in_zantufa_infix(
     infix: &ZantufaInfixMeksoSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
@@ -1117,16 +1181,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_base(
             first_generated_connected_mekso_operator_in_operand(operand)
         }
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
-            if let Some(expansion) = connected_generated_mekso_operator(&call.operator)? {
-                return Ok(Some(expansion));
-            }
-            for operand in &call.operands {
-                if let Some(expansion) = first_generated_connected_mekso_operator_in_base(operand)?
-                {
-                    return Ok(Some(expansion));
-                }
-            }
-            Ok(None)
+            first_generated_connected_mekso_operator_in_forethought_call(call)
         }
         MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
             for operand in &group.operands {
@@ -1154,6 +1209,22 @@ pub(super) fn first_generated_connected_mekso_operator_in_base(
             Ok(None)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
+pub(super) fn first_generated_connected_mekso_operator_in_forethought_call(
+    call: &ForethoughtCallMeksoSyntax,
+) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
+    if let Some(expansion) = connected_generated_mekso_operator(&call.operator)? {
+        return Ok(Some(expansion));
+    }
+    for operand in &call.operands {
+        if let Some(expansion) = first_generated_connected_mekso_operator_in_base(operand)? {
+            return Ok(Some(expansion));
+        }
+    }
+    Ok(None)
 }
 
 #[requires(true)]
@@ -1246,7 +1317,9 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
         }
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => {
             for expression in &operand.expressions {
-                if let Some(expansion) = first_generated_connected_mekso_operator(expression)? {
+                if let Some(expansion) =
+                    first_generated_connected_mekso_operator_in_standard_array_element(expression)?
+                {
                     return Ok(Some(expansion));
                 }
             }
@@ -1529,6 +1602,22 @@ pub(super) fn generated_mekso_base_contains_operand_connection(
 
 #[requires(true)]
 #[ensures(true)]
+pub(super) fn generated_standard_mekso_array_element_contains_operand_connection(
+    expression: &StandardMeksoArrayElementSyntax,
+) -> bool {
+    match expression {
+        StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+            generated_mekso_operand_contains_operand_connection(operand)
+        }
+        StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => call
+            .operands
+            .iter()
+            .any(generated_mekso_base_contains_operand_connection),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 pub(super) fn generated_mekso_operand_contains_operand_connection(
     operand: &MeksoOperandSyntax,
 ) -> bool {
@@ -1598,7 +1687,7 @@ pub(super) fn generated_simple_mekso_operand_contains_operand_connection(
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => operand
             .expressions
             .iter()
-            .any(generated_mekso_contains_operand_connection),
+            .any(generated_standard_mekso_array_element_contains_operand_connection),
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
         | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
@@ -1668,11 +1757,7 @@ pub(super) fn generated_mekso_base_surface_text(
     match expression {
         MeksoBaseSyntax::MeksoOperand(operand) => generated_mekso_operand_surface_text(operand),
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
-            let mut parts = vec![generated_mekso_operator_surface_label(&call.operator)?];
-            for operand in call.operands.iter() {
-                parts.push(generated_mekso_base_surface_text(operand)?);
-            }
-            Ok(parts.join(" "))
+            generated_forethought_call_mekso_surface_text(call)
         }
         MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
             generated_zantufa_bo_grouped_mekso_base_surface_text(group)
@@ -1689,6 +1774,18 @@ pub(super) fn generated_mekso_base_surface_text(
             Ok(parts.join(" "))
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub(super) fn generated_forethought_call_mekso_surface_text(
+    call: &ForethoughtCallMeksoSyntax,
+) -> Result<String, SemanticsError> {
+    let mut parts = vec![generated_mekso_operator_surface_label(&call.operator)?];
+    for operand in &call.operands {
+        parts.push(generated_mekso_base_surface_text(operand)?);
+    }
+    Ok(parts.join(" "))
 }
 
 #[requires(true)]
@@ -1810,11 +1907,11 @@ pub(super) fn generated_simple_mekso_operand_surface_text(
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => operand
             .expressions
             .iter()
-            .map(generated_mekso_surface_text)
+            .map(generated_standard_mekso_array_element_surface_text)
             .collect::<Result<Vec<_>, _>>()
             .map(|parts| parts.join(" ")),
         SimpleMeksoOperandSyntax::NumberMekso(number) => {
-            Ok(generated_number_words_text(&number.0.number.value))
+            Ok(generated_number_words_text(&number.0.number))
         }
         SimpleMeksoOperandSyntax::LerfuStringMekso(letter) => {
             Ok(generated_letter_string_text(&letter.letters))
@@ -2220,7 +2317,7 @@ pub(super) fn generated_simple_mekso_operand_number_words_text(
 ) -> Option<String> {
     match operand {
         SimpleMeksoOperandSyntax::NumberMekso(number) => {
-            Some(generated_number_words_text(&number.0.number.value))
+            Some(generated_number_words_text(&number.0.number))
         }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_number_words_text(&operand.inner_expression)

@@ -1116,6 +1116,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "mekso array element",
+        parent: Some("mekso array"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "qualified operand",
         parent: Some("operand"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
