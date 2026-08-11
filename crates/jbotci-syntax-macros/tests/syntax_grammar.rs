@@ -376,6 +376,63 @@ mod recovery_classification {
     }
 }
 
+mod output_rejection {
+    use crate::{Cmavo, Selmaho};
+
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct SyntaxGrammarEnv;
+    #[bityzba::invariant(true)]
+    #[allow(dead_code)]
+    struct ItemSyntax;
+
+    jbotci_syntax_macros::syntax_grammar! {
+        env SyntaxGrammarEnv;
+
+        recursive {
+            item: ItemSyntax;
+        }
+
+        /// Syntax model for refined items parsed by the `refined_items` grammar rule.
+        rule "refined items" refined_items(item) -> struct {
+            /// The `Bo` cmavo marker.
+            field bo <- cmavo(Bo).reject_output(ExampleRejection);
+            /// A word from selmaho `Pa`.
+            field pa <- selmaho(Pa).reject_output(ExampleRejection).wf();
+            /// The shared inner item child syntax node.
+            field inner <- arc(item.reject_output(module::path::ExampleRejection));
+        }
+    }
+
+    #[bityzba::requires(true)]
+    #[bityzba::ensures(true)]
+    #[test]
+    fn grammar_macro_treats_output_rejection_as_recovery_transparent() {
+        // Output refinement decides only whether a completed match survives, so
+        // every FIRST-set and anchor consumer must see straight through it.
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[0].recovery,
+            SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo)
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[1].recovery,
+            SyntaxGrammarRecoveryExpr::WithFreeModifiers(&SyntaxGrammarRecoveryExpr::Selmaho(
+                Selmaho::Pa
+            ))
+        );
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[2].recovery,
+            SyntaxGrammarRecoveryExpr::Arc(&SyntaxGrammarRecoveryExpr::Rule("item"))
+        );
+
+        // The declaration itself stays visible in the recorded parser text.
+        assert_eq!(
+            SYNTAX_GRAMMAR_RULES[0].fields[0].parser,
+            "cmavo(Bo).reject_output(ExampleRejection)"
+        );
+    }
+}
+
 mod anchor_metadata {
     use crate::{Cmavo, Selmaho};
 

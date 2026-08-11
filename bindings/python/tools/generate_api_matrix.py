@@ -52,6 +52,10 @@ RUST_ONLY_CONCEPTS: dict[tuple[str, str], tuple[str, str]] = {
         "implementation-representation",
         "Compile-time metadata used to register exact Python StrEnum classes, not a consumer domain value.",
     ),
+    ("jbotci_syntax", "baseline_quantifier"): (
+        "implementation-representation",
+        "Grammar-internal classifier that decides whether a parsed Zantufa mex is exactly a baseline quantifier surface, re-exported doc-hidden only so the semantics crate reuses the syntax-owned descent instead of duplicating it; Python receives the resulting typed PaRunQuantifier or MeksoQuantifier node, not the parser's ownership decision helper.",
+    ),
     ("jbotci_syntax", "RecoveryReachabilityKindTelemetry"): (
         "implementation-representation",
         "Test-harness counters for cross-checking internal recovery reachability branches under expensive contracts; they are not parser output or consumer configuration.",

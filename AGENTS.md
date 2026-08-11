@@ -82,34 +82,13 @@ For every implementation request in scope, the Codex PM must:
    tests and CI are green once at that candidate. Any implementation change
    makes earlier exact-HEAD approvals stale and requires review of the new
    commit.
-5. Merge only the accepted exact commit from a clean worktree. After merge,
-   deploy the result to the **test** environment and verify that the test
-   deployment completed successfully. Test deployment is part of this standard
-   flow; production deployment is not.
+5. Merge only the accepted exact commit from a clean worktree.
 
 A production deployment requires a new, explicit instruction from the human
 owner naming production on every individual occasion. Never infer production
 authorization from an implementation request, merge approval, release language,
 a prior production deployment, or this standing protocol, and never carry such
 authorization forward to another change.
-
-
-# Porting guide
-
-We're going to be working on jbotci v1.
-
-You can find jbotci v0 in ~/git/jbotci.v0. It is written in Haskell. There's ~/git/jbotci.v0/AGENTS.md that describes some of the things in that repo, but note that this file is *not* to be treated as your guidance, only as reference material. Only the AGENTS.md in this repo is your guidance when working on things in this repo.
-
-jbotci v1 is aiming to be a Rust port of everything that is in jbotci v0.
-
-Our end goal is full feature parity, but we will build it up gradually, although accounting for future requirements when designing current architecture (meaning that e.g. the core libraries should account for being used in a wasm environment for a web SPA in the future).
-
-Unlike the Haskell codebase, we want to separate the CLI app from the web app (the latter including API endpoints for MCP and Discord). jbotci will be the CLI app, and jbotci-server will be the web app. Shared code - parser, semantics etc - will be in shared crates.
-
-We also eventually want to package jbotci as a pure GUI app for iOS, Android, macOS, and Linux. Dioxus should take care of most of this, but do bear this in mind when it comes to repo organization.
-
-~/git/jbotci.0 is your own private copy of the original codebase so you can go wild there and change the code as you see fit as part of the porting work, e.g. to add the test export scripts. It's already on a separate branch so that whatever you do, you can always just revert to main or compare to it. 
-
 
 # Coding style
 
@@ -141,15 +120,9 @@ Commit periodically in well-defined logical units while working, not only at the
 
 Before reverting any commit, always inspect it carefully (`git show` + surrounding history), verify the commit message and nature of changes, and only revert after explicit reasoning confirms the revert is correct.
 
-When working on a Codeberg work item, assign it to yourself, and reference it in your commit message so that it is properly linked. If your commit _fully_ resolves the issue, then - and only then - reference the work item in such a way that it is automatically closed.
-
-For corpus Lean typecheck failures, do not assume the renderer is wrong by default: inspect the original Lojban carefully and decide whether the corpus example is semantically/type-correct or whether the corpus itself contains a genuinely ill-typed example.
-
-For real semantic divergences in Lean output, investigate them carefully before changing expectations: consult the relevant CLL section, use jbotci MCP and other reference materials to understand the example.
+When working on a GitHub work item, assign it to yourself, and reference it in your commit message so that it is properly linked. If your commit _fully_ resolves the issue, then - and only then - reference the work item in such a way that it is automatically closed.
 
 When intended behavior is unclear or a semantic question is in doubt, use jbotci cukta MCP to consult the CLL and clarify the intended reading before deciding on a fix or expectation change.
-
-Be conservative about adding AST-comparison normalizations for Lean expectations: every such normalization can hide bugs. If only a small number of cases differ, prefer updating the affected expectations after careful semantic verification instead of teaching the comparer to treat the outputs as equivalent.
 
 If you add debug logging that is broadly useful beyond a one-off investigation, gate it behind an environment variable and document what it traces, how to enable it, and when it is useful. Do not leave ad hoc always-on debug output in the tree.
 
@@ -410,7 +383,7 @@ On the dev box, all transient artifacts live on the dedicated `/build` partition
 
 # Test suite
 
-If you've made any product changes, always run at least `cargo test -r`.
+If you've made any product changes, always run at least `cargo test -r` before creating a PR.
 
 If you've changed morphology or syntax parsing logic or output formats, always run the fixture tests with the full fixture profile in release mode:
 `cargo run -r -p xtask-full -- fixture-test --profile all`.

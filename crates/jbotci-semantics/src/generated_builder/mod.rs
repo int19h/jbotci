@@ -13,6 +13,10 @@ use jbotci_morphology::{
     strip_diacritics,
 };
 use jbotci_source::SourceSpan;
+use jbotci_syntax::baseline_quantifier::{
+    BaselineQuantifierSurface, baseline_quantifier_surface, single_mekso_operand,
+    single_simple_mekso_operand,
+};
 use jbotci_syntax::generated_model::{
     AbstractionTanruUnitSyntax, AbstractorConnectionSyntax, AfterthoughtBridiTailSyntax,
     AfterthoughtBridiTailWithoutTailTermsSyntax, AfterthoughtMeksoOperatorSyntax,
@@ -10062,6 +10066,38 @@ mod tests {
             scoped.objects[&inner.body].formula_predication(),
             Some(dunda_id)
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_vei_takes_the_baseline_semantic_route() {
+        // Under the extended mex grammar a `VEI mex VEhO` quantifier is owned by
+        // the baseline `mekso_quantifier` variant, so it must reach exactly the
+        // semantic route the same text takes without the dialect. Connected
+        // quantifier operands are the observable case: the connected-quantity
+        // scope is keyed on the baseline variant, so a raw-mex quantifier used
+        // to take the single-quantity route instead. This asserts routing
+        // equivalence only; it makes no claim about the mex semantics that
+        // route already produces.
+        let dialect =
+            jbotci_dialect::parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
+        let options = jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        for source in [
+            "tirna vei pa .e re ve'o cmalu",
+            "mi viska vei pa .e re ve'o lo cmalu",
+            "tirna vei pa su'i re ve'o cmalu",
+        ] {
+            let baseline = semantic_result_for(source)
+                .expect("baseline VEI quantifier has semantics")
+                .to_json_string(0)
+                .expect("serialize baseline semantic graph");
+            let zantufa = semantic_result_for_with_parse_options(source, &options)
+                .expect("Zantufa VEI quantifier has semantics")
+                .to_json_string(0)
+                .expect("serialize Zantufa semantic graph");
+            assert_eq!(zantufa, baseline, "{source}");
+        }
     }
 
     #[test]

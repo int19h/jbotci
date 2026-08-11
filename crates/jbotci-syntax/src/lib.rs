@@ -9,6 +9,8 @@ pub use tree::{
 };
 
 mod grammar;
+#[doc(hidden)]
+pub use grammar::baseline_quantifier;
 #[cfg(feature = "expensive_contracts")]
 #[doc(hidden)]
 pub use grammar::with_recovery_reachability_instrumentation;
