@@ -3958,35 +3958,42 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_mekso_operator(&mut self, node: &'tree generated::MeksoOperatorSyntax) {
-        match node {
-            generated::MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
-                self.walk_node(&operator.0.first);
-                for continuation in &operator.0.links {
+        self.walk_node(&node.leading_operator);
+        for continuation in &node.continuations {
+            match continuation {
+                generated::MeksoOperatorContinuationSyntax::AfterthoughtMeksoOperatorContinuation(
+                    continuation,
+                ) => {
                     self.walk_node(&continuation.trailing_operator);
                 }
-            }
-            generated::MeksoOperatorSyntax::BoundMeksoOperator(operator) => {
-                self.walk_node(&operator.left_operator);
-                self.walk_node(&operator.right_operator);
-            }
-            generated::MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
-                self.walk_node(operator);
+                generated::MeksoOperatorContinuationSyntax::GroupedMeksoOperatorContinuation(
+                    continuation,
+                ) => {
+                    if let Some(tense_modal) = &continuation.tense_modal {
+                        self.walk_node(tense_modal);
+                    }
+                    self.walk_node(&continuation.inner_operator);
+                }
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_bound_or_atom_mekso_operator(
-        &mut self,
-        node: &'tree generated::BoundOrAtomMeksoOperatorSyntax,
-    ) {
+    fn walk_inner_mekso_operator(&mut self, node: &'tree generated::InnerMeksoOperatorSyntax) {
         match node {
-            generated::BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
+            generated::InnerMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => {
                 self.walk_node(&operator.left_operator);
                 self.walk_node(&operator.right_operator);
             }
-            generated::BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+            generated::InnerMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
+                self.walk_node(&operator.left_operator);
+                if let Some(tense_modal) = &operator.tense_modal {
+                    self.walk_node(tense_modal);
+                }
+                self.walk_node(&operator.right_operator);
+            }
+            generated::InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
                 self.walk_node(operator);
             }
         }
@@ -3996,33 +4003,40 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_simple_mekso_operator(&mut self, node: &'tree generated::SimpleMeksoOperatorSyntax) {
         match node {
-            generated::SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
-                self.walk_node(&operator.inner_operator);
-            }
-            generated::SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
-                self.walk_node(&operator.inner_operator);
-            }
-            generated::SimpleMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => {
-                self.walk_node(&operator.left_operator);
-                self.walk_node(&operator.right_operator);
+            generated::SimpleMeksoOperatorSyntax::AtomicMeksoOperator(operator) => {
+                self.walk_node(operator);
             }
             generated::SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
                 self.walk_node(&operator.inner_operator);
             }
-            generated::SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_atomic_mekso_operator(&mut self, node: &'tree generated::AtomicMeksoOperatorSyntax) {
+        match node {
+            generated::AtomicMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+                self.walk_node(&operator.inner_operator);
+            }
+            generated::AtomicMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+                self.walk_node(&operator.inner_operator);
+            }
+            generated::AtomicMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
                 self.analyze_relation(&operator.selbri);
             }
-            generated::SimpleMeksoOperatorSyntax::OperandMeksoOperator(operator) => {
+            generated::AtomicMeksoOperatorSyntax::OperandMeksoOperator(operator) => {
                 self.walk_node(&operator.mekso);
             }
-            generated::SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
+            generated::AtomicMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
                 self.analyze_relation(&operator.selbri);
             }
-            generated::SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
+            generated::AtomicMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
                 self.walk_node(&operator.sumti);
             }
-            generated::SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(_)
-            | generated::SimpleMeksoOperatorSyntax::PrimitiveMeksoOperator(_) => {}
+            generated::AtomicMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(_)
+            | generated::AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(_)
+            | generated::AtomicMeksoOperatorSyntax::PrimitiveMeksoOperator(_) => {}
         }
     }
 

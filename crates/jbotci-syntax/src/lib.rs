@@ -1644,6 +1644,42 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "grouped operator continuation",
+        parent: Some("operator continuation"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "inner operator",
+        parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "simple operator",
+        parent: Some("inner operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "atomic operator",
+        parent: Some("simple operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "experimental connective operator",
+        parent: Some("atomic operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "forethought operator connective",
+        parent: Some("inner operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "grouped operator",
         parent: Some("operator"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -2691,6 +2727,7 @@ pub enum ExperimentalConstruct {
     ExperimentalSimplerForethoughtConnective,
     ExperimentalSimplerTermConnective,
     ExperimentalSimplerMexOperandConnective,
+    ExperimentalMexOperator,
     ExperimentalSimplerDescriptorHeadConnective,
     ExperimentalJiAsJaConnective,
     ExperimentalGadganzuGadri,
@@ -2795,6 +2832,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalSimplerMexOperandConnective => {
                 "syntax.warning.experimental-simpler-mex-operand-connective"
             }
+            Self::ExperimentalMexOperator => "syntax.warning.experimental-mex-operator",
             Self::ExperimentalSimplerDescriptorHeadConnective => {
                 "syntax.warning.experimental-simpler-description-head-connective"
             }
@@ -2943,6 +2981,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalSimplerMexOperandConnective => {
                 "JA connective used between MEX operands"
             }
+            Self::ExperimentalMexOperator => "camxes-exp BO-bound or connective-atom MEX operator",
             Self::ExperimentalSimplerDescriptorHeadConnective => {
                 "JA connective used between description heads"
             }

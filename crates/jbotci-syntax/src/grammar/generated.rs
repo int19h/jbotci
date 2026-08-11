@@ -67,6 +67,8 @@ pub mod generated_model {
         bound_or_simple_mekso_operand: BoundOrSimpleMeksoOperandSyntax;
         simple_mekso_operand: SimpleMeksoOperandSyntax;
         mekso_operator: MeksoOperatorSyntax;
+        inner_mekso_operator: InnerMeksoOperatorSyntax;
+        atomic_mekso_operator: AtomicMeksoOperatorSyntax;
         reverse_polish_parts: ReversePolishPartsSyntax;
         letter_string: LetterStringSyntax;
         letter_tokens: LetterTokensSyntax;
@@ -1817,64 +1819,83 @@ pub mod generated_model {
         field vuhu <- selmaho(Vuhu).wf();
     }
 
-    /// Sum node for operator; selects among the `afterthought_mekso_operator`, `bound_mekso_operator`, and `simple_mekso_operator` forms.
-    rule "operator" mekso_operator(mekso, mekso_operator, sumti, selbri) -> enum {
-        /// Uses the `afterthought_mekso_operator` product form, whose payload preserves `operators`.
-        afterthought_mekso_operator,
-        /// Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.
-        bound_mekso_operator,
-        /// Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.
-        simple_mekso_operator,
+    /// Product node for operator; preserves the operator_1-width head and heterogeneous continuations in source order.
+    rule "operator" mekso_operator(mekso_operator, inner_mekso_operator, tense_modal) -> struct {
+        /// The operator_1-width operator at the start of the chain.
+        field leading_operator <- arc(inner_mekso_operator);
+        /// Freely interleaved afterthought and KE-grouped continuations.
+        field continuations <- [zero_or_more mekso_operator_continuation(mekso_operator, inner_mekso_operator, tense_modal)];
     }
 
-    /// Transparent product node for operator; preserves the `operators` component.
-    rule "operator" afterthought_mekso_operator(mekso, mekso_operator, sumti, selbri) -> struct {
-        /// The source-ordered `operators` chain assembled by the `afterthought_mekso_operator` production.
-        field operators <- chain(
-            first: arc(bound_or_atom_mekso_operator(mekso, mekso_operator, sumti, selbri)),
-            zero_or_more: afterthought_mekso_operator_continuation(mekso, mekso_operator, sumti, selbri),
-            element: trailing_operator,
-        );
+    /// Sum node for an operator continuation; distinguishes afterthought and KE-grouped forms.
+    rule "operator continuation" mekso_operator_continuation(mekso_operator, inner_mekso_operator, tense_modal) -> enum {
+        /// A joik/jek continuation followed by an operator_1-width operator.
+        afterthought_mekso_operator_continuation,
+        /// A joik-only continuation containing a full KE-grouped operator.
+        grouped_mekso_operator_continuation,
     }
 
     /// Product node for operator continuation; preserves `connective` and `trailing_operator` in source order.
-    rule "operator continuation" afterthought_mekso_operator_continuation(mekso, mekso_operator, sumti, selbri) -> struct {
+    rule "operator continuation" afterthought_mekso_operator_continuation(inner_mekso_operator) -> struct {
         /// The `standard_statement_connective` connective joining the adjacent constituents of the `afterthought_mekso_operator_continuation` production.
         field connective <- standard_statement_connective;
-        /// The shared trailing operator child syntax node.
-        field trailing_operator <- arc(bound_or_atom_mekso_operator(mekso, mekso_operator, sumti, selbri));
+        /// The operator_1-width trailing operator.
+        field trailing_operator <- arc(inner_mekso_operator);
     }
 
-    /// Sum node for operator; selects among the `bound_mekso_operator` and `simple_mekso_operator` forms.
-    rule "operator" bound_or_atom_mekso_operator(mekso, mekso_operator, sumti, selbri) -> enum {
-        /// Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.
+    /// Product node for a joik-only KE-grouped continuation.
+    rule "grouped operator continuation" grouped_mekso_operator_continuation(mekso_operator, tense_modal) -> struct {
+        /// The joik connective introducing the group.
+        field connective <- arc(joik_connective);
+        /// The optional tense modal between the connective and KE.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The `Ke` cmavo marker.
+        field ke <- cmavo(Ke).wf();
+        /// The full-width grouped operator.
+        field inner_operator <- arc(mekso_operator);
+        /// The optional `Kehe` cmavo marker.
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
+    }
+
+    /// Sum node for operator_1; selects forethought, experimental BO-bound, or operator_2 forms.
+    rule "inner operator" inner_mekso_operator(mekso, mekso_operator, inner_mekso_operator, atomic_mekso_operator, sumti, selbri, tense_modal) -> enum {
+        /// Uses the forethought operator form.
+        forethought_mekso_operator,
+        /// Uses the camxes-exp BO-bound operator form.
         bound_mekso_operator,
-        /// Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.
+        /// Uses the nested operator_2 sum form.
         simple_mekso_operator,
     }
 
     /// Product node for operator; preserves `left_operator`, `connective`, `bo`, and `right_operator` in source order.
-    rule "operator" bound_mekso_operator(mekso, mekso_operator, sumti, selbri) -> struct {
-        /// The shared left operator child syntax node.
-        field left_operator <- arc(simple_mekso_operator(mekso, mekso_operator, sumti, selbri));
+    rule "operator" bound_mekso_operator(mekso, mekso_operator, inner_mekso_operator, atomic_mekso_operator, sumti, selbri, tense_modal) -> struct {
+        assert feature(ZantufaMex).not();
+        /// The operator_2-width left operator.
+        field left_operator <- arc(simple_mekso_operator(atomic_mekso_operator, mekso_operator));
         /// The `standard_statement_connective` connective joining the adjacent constituents of the `bound_mekso_operator` production.
         field connective <- standard_statement_connective;
+        /// The optional tense modal between the connective and BO.
+        field tense_modal <- opt(arc(tense_modal));
         /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo).wf();
-        /// The shared right operator child syntax node.
-        field right_operator <- arc(mekso_operator);
+        field bo <- cmavo(Bo).warn(ExperimentalMexOperator).wf();
+        /// The operator_1-width right operator.
+        field right_operator <- arc(inner_mekso_operator);
     }
 
-    /// Sum node for operator; selects among 10 forms including `converted_mekso_operator`, `scalar_negated_mekso_operator`, and `forethought_mekso_operator`.
-    rule "operator" simple_mekso_operator(mekso, mekso_operator, sumti, selbri) -> enum {
+    /// Sum node for operator_2; selects an atomic operator or a KE-grouped full operator.
+    rule "simple operator" simple_mekso_operator(atomic_mekso_operator, mekso_operator) -> enum {
+        /// Uses the nested atomic operator sum form.
+        atomic_mekso_operator,
+        /// Uses the `grouped_mekso_operator` product form.
+        grouped_mekso_operator,
+    }
+
+    /// Sum node for an atomic operator.
+    rule "atomic operator" atomic_mekso_operator(atomic_mekso_operator, mekso, sumti, selbri) -> enum {
         /// Uses the `converted_mekso_operator` product form, whose payload preserves `se` and `inner_operator`.
         converted_mekso_operator,
         /// Uses the `scalar_negated_mekso_operator` product form, whose payload preserves `nahe` and `inner_operator`.
         scalar_negated_mekso_operator,
-        /// Uses the `forethought_mekso_operator` product form, whose payload preserves `guhek`, `left_operator`, `gik`, and `right_operator`.
-        forethought_mekso_operator,
-        /// Uses the `grouped_mekso_operator` product form, whose payload preserves `ke`, `inner_operator`, and `kehe`.
-        grouped_mekso_operator,
         /// Uses the `selbri_mekso_operator` product form, whose payload preserves `nahu`, `selbri`, and `tehu`.
         selbri_mekso_operator,
         /// Uses the `operand_mekso_operator` product form, whose payload preserves `maho`, `mekso`, and `tehu`.
@@ -1885,36 +1906,48 @@ pub mod generated_model {
         when feature(ZantufaMex) zantufa_maho_sumti_mekso_operator,
         /// Uses the `zantufa_connective_mekso_operator` product form, whose payload preserves `connective`.
         when feature(ZantufaMex) zantufa_connective_mekso_operator,
+        /// Uses a camxes-exp connective as an atomic operator.
+        experimental_connective_mekso_operator,
         /// Uses the `primitive_mekso_operator` product form, whose payload preserves `vuhu`.
         primitive_mekso_operator,
     }
 
     /// Product node for converted operator; preserves `se` and `inner_operator` in source order.
-    rule "converted operator" converted_mekso_operator(mekso_operator) -> struct {
+    rule "converted operator" converted_mekso_operator(atomic_mekso_operator) -> struct {
         /// A word from selmaho `Se`.
         field se <- selmaho(Se).wf();
         /// The shared inner operator child syntax node.
-        field inner_operator <- arc(mekso_operator);
+        field inner_operator <- arc(atomic_mekso_operator);
     }
 
     /// Product node for converted operator; preserves `nahe` and `inner_operator` in source order.
-    rule "converted operator" scalar_negated_mekso_operator(mekso_operator) -> struct {
+    rule "converted operator" scalar_negated_mekso_operator(atomic_mekso_operator) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         /// The shared inner operator child syntax node.
-        field inner_operator <- arc(mekso_operator);
+        field inner_operator <- arc(atomic_mekso_operator);
     }
 
     /// Product node for operator; preserves `guhek`, `left_operator`, `gik`, and `right_operator` in source order.
-    rule "operator" forethought_mekso_operator(mekso_operator) -> struct {
-        /// The `guhek_connective` forethought connective opening the paired branches of the `forethought_mekso_operator` production.
-        field guhek <- guhek_connective;
-        /// The shared left operator child syntax node.
-        field left_operator <- arc(mekso_operator);
+    rule "operator" forethought_mekso_operator(inner_mekso_operator, atomic_mekso_operator, mekso_operator) -> struct {
+        /// The operator-context forethought connective.
+        field guhek <- operator_guhek_connective;
+        /// The operator_1-width left operator.
+        field left_operator <- arc(inner_mekso_operator);
         /// The GI-family `gik_connective` connective separating the forethought branches of the `forethought_mekso_operator` production.
         field gik <- gik_connective;
-        /// The shared right operator child syntax node.
-        field right_operator <- arc(mekso_operator);
+        /// The operator_2-width right operator.
+        field right_operator <- arc(simple_mekso_operator(atomic_mekso_operator, mekso_operator));
+    }
+
+    /// Product node for an operator-context GUhEK, which permits SE but not NAhE.
+    rule "forethought operator connective" operator_guhek_connective -> struct {
+        /// The optional SE conversion.
+        field se <- opt(selmaho(Se));
+        /// A word from selmaho `Guha`.
+        field guha <- selmaho(Guha).wf();
+        /// The optional `Nai` cmavo marker.
+        field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Product node for grouped operator; preserves `ke`, `inner_operator`, and `kehe` in source order.
@@ -1972,6 +2005,14 @@ pub mod generated_model {
         /// The shared connective child syntax node.
         field connective <- arc(operand_connective);
         assert !cmavo(Cu);
+    }
+
+    /// Sum node for a camxes-exp connective operator.
+    rule "experimental connective operator" experimental_connective_mekso_operator -> enum {
+        /// A joik or jek connective.
+        standard_statement_connective,
+        /// An ek connective.
+        ek_connective,
     }
 
     /// Product node for operand; preserves `connected_expression` and `grouped_continuation` in source order.
@@ -4249,7 +4290,7 @@ pub mod generated_model {
     }
 
     /// Sum node for tanru unit; selects among the `forethought_selbri_group_tanru_unit`, `bound_tanru_unit`, `assigned_pro_bridi_tanru_unit`, and `linked_tanru_unit` forms.
-    rule "tanru unit" bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
+    rule "tanru unit" bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
         /// Uses the `forethought_selbri_group_tanru_unit` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.
         forethought_selbri_group_tanru_unit,
         /// Uses the `bound_tanru_unit` product form, whose payload preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit`.
@@ -4306,19 +4347,19 @@ pub mod generated_model {
     }
 
     /// Product node for pro-bridi assignment; preserves `base` and `assignments` in source order.
-    rule "pro-bridi assignment" assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
+    rule "pro-bridi assignment" assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
         /// The shared base child syntax node.
-        field base <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
+        field base <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
         /// Non-empty ordered sequence of assignments components.
-        field assignments <- [one_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection)];
+        field assignments <- [one_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection)];
     }
 
     /// Product node for pro-bridi assignment; preserves `cei` and `tanru_unit` in source order.
-    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
+    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
         /// The `Cei` cmavo marker.
         field cei <- cmavo(Cei).wf();
         /// The shared tanru unit child syntax node.
-        field tanru_unit <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
+        field tanru_unit <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
     }
 
     /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
@@ -4330,23 +4371,23 @@ pub mod generated_model {
     }
 
     /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
-    rule "tanru unit" linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
+    rule "tanru unit" linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
+        field base <- arc(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
         /// The optional linkargs component.
         field linkargs <- opt(linkargs(sumti, tense_modal, selbri, forethought_bridi_connection));
     }
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
+    rule "tanru unit" tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
+        field base <- arc(tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
     }
 
     /// Sum node for tanru unit; selects among 18 forms including `pro_bridi_tanru_unit`, `ordinal_tanru_unit`, and `word_tanru_unit`.
-    rule "tanru unit" tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
+    rule "tanru unit" tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
         /// Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.
         pro_bridi_tanru_unit,
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
@@ -4386,15 +4427,15 @@ pub mod generated_model {
     }
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
+    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
+        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
     }
 
     /// Sum node for tanru unit; selects among 18 forms including `ordinal_tanru_unit`, `word_tanru_unit`, and `preposed_linkargs_tanru_unit`.
-    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
         /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
@@ -4478,7 +4519,7 @@ pub mod generated_model {
     }
 
     /// Sum node for modal conversion; selects among 11 forms including `converted_jai_inner_tanru_unit`, `scalar_negated_jai_inner_tanru_unit`, and `sumti_selbri_tanru_unit`.
-    rule "modal conversion" jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, letter_tokens, letter_string) -> enum {
+    rule "modal conversion" jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string) -> enum {
         /// Uses the `converted_jai_inner_tanru_unit` product form, whose payload preserves `se` and `inner_unit`.
         converted_jai_inner_tanru_unit,
         /// Uses the `scalar_negated_jai_inner_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.
@@ -4664,11 +4705,11 @@ pub mod generated_model {
     }
 
     /// Product node for operator-to-selbri; preserves `nuha` and `mekso_operator` in source order.
-    rule "operator-to-selbri" operator_selbri_tanru_unit(mekso_operator) -> struct {
+    rule "operator-to-selbri" operator_selbri_tanru_unit(atomic_mekso_operator) -> struct {
         /// The `Nuha` cmavo marker.
         field nuha <- cmavo(Nuha).wf();
-        /// The shared mekso operator child syntax node.
-        field mekso_operator <- arc(mekso_operator);
+        /// The atomic mekso operator child syntax node.
+        field mekso_operator <- arc(atomic_mekso_operator);
     }
 
     /// Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.

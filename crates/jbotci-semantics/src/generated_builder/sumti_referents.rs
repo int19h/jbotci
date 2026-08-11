@@ -6534,29 +6534,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         operator: &'tree MeksoOperatorSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        match operator {
-            MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
-                if !operator.0.links.is_empty() {
-                    return Ok(None);
-                }
-                self.generated_math_operator_denotation_for_bound_or_atom(operator.0.first.as_ref())
-            }
-            MeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
-            MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
-                self.generated_math_operator_denotation_for_simple_operator(operator)
-            }
+        if !operator.continuations.is_empty() {
+            return Ok(None);
         }
+        self.generated_math_operator_denotation_for_inner_operator(&operator.leading_operator)
     }
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
-    pub(super) fn generated_math_operator_denotation_for_bound_or_atom(
+    pub(super) fn generated_math_operator_denotation_for_inner_operator(
         &mut self,
-        operator: &'tree BoundOrAtomMeksoOperatorSyntax,
+        operator: &'tree InnerMeksoOperatorSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         match operator {
-            BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
-            BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+            InnerMeksoOperatorSyntax::ForethoughtMeksoOperator(_)
+            | InnerMeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
+            InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
                 self.generated_math_operator_denotation_for_simple_operator(operator)
             }
         }
@@ -6569,7 +6562,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         operator: &'tree SimpleMeksoOperatorSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         match operator {
-            SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
+            SimpleMeksoOperatorSyntax::AtomicMeksoOperator(operator) => {
+                self.generated_math_operator_denotation_for_atomic_operator(operator)
+            }
+            SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
+                self.generated_math_operator_denotation_for_operator(&operator.inner_operator)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
+    pub(super) fn generated_math_operator_denotation_for_atomic_operator(
+        &mut self,
+        operator: &'tree AtomicMeksoOperatorSyntax,
+    ) -> Result<Option<SemanticObjectId>, SemanticsError> {
+        match operator {
+            AtomicMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
                 if generated_math_operator_question_token_for_selbri(&operator.selbri)?.is_some() {
                     return Ok(None);
                 }
@@ -6579,15 +6588,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )
                 .map(Some)
             }
-            SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
-                self.generated_math_operator_denotation_for_operator(&operator.inner_operator)
-            }
-            SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
-                self.generated_math_operator_denotation_for_operator(&operator.inner_operator)
-            }
-            SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
-                self.generated_math_operator_denotation_for_operator(&operator.inner_operator)
-            }
+            AtomicMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => self
+                .generated_math_operator_denotation_for_atomic_operator(&operator.inner_operator),
+            AtomicMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => self
+                .generated_math_operator_denotation_for_atomic_operator(&operator.inner_operator),
             _ => Ok(None),
         }
     }

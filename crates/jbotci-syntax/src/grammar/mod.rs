@@ -5021,6 +5021,9 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
             generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
                 quantifier,
             ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
+            generated::generated_model::NodeRef::AtomicMeksoOperatorSyntaxExperimentalConnectiveMeksoOperator(
+                operator,
+            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalMexOperator, operator),
             generated::generated_model::NodeRef::SumtiBaseSyntaxDescriptorWithGadriSumti(base) => {
                 if let generated::generated_model::SumtiBaseSyntax::DescriptorWithGadriSumti(
                     description,
