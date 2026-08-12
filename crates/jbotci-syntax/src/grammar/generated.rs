@@ -2080,12 +2080,14 @@ pub mod generated_model {
         field right_expression <- arc(bound_or_simple_mekso_operand);
     }
 
-    /// Sum node for operand; selects among 11 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
+    /// Sum node for operand; selects among 12 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `scalar_negated_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
     rule "operand" simple_mekso_operand(mekso, mekso_base, mekso_operand, simple_mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator) -> enum {
         /// Uses the `forethought_mekso_operand` product form, whose payload preserves `gek`, `left_expression`, `gik`, and `right_expression`.
         forethought_mekso_operand,
         /// Uses the `qualified_mekso_operand` product form, whose payload preserves `nahe`, `bo`, `inner_expression`, and `luhu`.
         qualified_mekso_operand,
+        /// Uses the `scalar_negated_mekso_operand` product form, whose payload preserves `nahe`, `inner_expression`, and `luhu`.
+        scalar_negated_mekso_operand,
         /// Uses the `lahe_qualified_mekso_operand` product form, whose payload preserves `lahe`, `inner_expression`, and `luhu`.
         lahe_qualified_mekso_operand,
         /// Uses the `parenthesized_mekso_operand` product form, whose payload preserves `vei`, `inner_expression`, and `veho`.
@@ -2108,6 +2110,20 @@ pub mod generated_model {
         field nahe <- selmaho(Nahe);
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo);
+        /// The shared inner expression child syntax node.
+        field inner_expression <- arc(mekso_operand);
+        /// The optional `Luhu` cmavo marker.
+        field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
+    }
+
+    /// Product node for scalar-negated operand; preserves `nahe`, `inner_expression`, and `luhu` in source order.
+    rule "scalar-negated operand" scalar_negated_mekso_operand(mekso_operand) -> struct {
+        /// A word from selmaho `Nahe`.
+        ///
+        /// camxes-exp permits the qualifier without the standard grammar's `bo`.
+        /// The BO-ful sibling remains earlier in the operand choice, preserving
+        /// baseline ownership for surfaces accepted by camxes-standard.
+        field nahe <- selmaho(Nahe).warn(ExperimentalNaheArgumentWithoutBo).wf();
         /// The shared inner expression child syntax node.
         field inner_expression <- arc(mekso_operand);
         /// The optional `Luhu` cmavo marker.

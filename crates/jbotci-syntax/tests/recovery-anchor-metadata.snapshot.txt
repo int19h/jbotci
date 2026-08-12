@@ -1,4 +1,4 @@
-rules: 493
+rules: 494
 rule leading_indicator
   first [Selmaho(Cai), Selmaho(Ui)] conditions []
   field 0 indicator
@@ -5367,6 +5367,21 @@ rule qualified_mekso_operand
     resume 3 origin LiteralRun start [Cmavo(Luhu)] conditions []
   field 3 luhu
     resume 3 origin LiteralRun start [Cmavo(Luhu)] conditions []
+rule scalar_negated_mekso_operand
+  first [Selmaho(Nahe)] conditions []
+  field 0 nahe
+    resume 0 origin LiteralRun start [Selmaho(Nahe)] conditions []
+    resume 1 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Johi), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Tei), Cmavo(Vei), Selmaho(Bai), Selmaho(Bihi), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Ga), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Mohi), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Nahe), Selmaho(Se)] conditions [Feature(ZantufaTags)]
+    resume 1 origin FieldFirst start [Cmavo(Gi)] conditions [Feature(ZantufaConnectives)]
+    resume 2 origin LiteralRun start [Cmavo(Luhu)] conditions []
+  field 1 inner_expression
+    resume 1 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Johi), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Tei), Cmavo(Vei), Selmaho(Bai), Selmaho(Bihi), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Ga), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Mohi), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Nahe), Selmaho(Se)] conditions [Feature(ZantufaTags)]
+    resume 1 origin FieldFirst start [Cmavo(Gi)] conditions [Feature(ZantufaConnectives)]
+    resume 2 origin LiteralRun start [Cmavo(Luhu)] conditions []
+  field 2 luhu
+    resume 2 origin LiteralRun start [Cmavo(Luhu)] conditions []
 rule lahe_qualified_mekso_operand
   first [Selmaho(Lahe)] conditions []
   field 0 lahe

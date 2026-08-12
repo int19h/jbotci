@@ -5720,6 +5720,20 @@ class SimpleMeksoOperandSyntaxQualifiedMeksoOperand:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class SimpleMeksoOperandSyntaxScalarNegatedMeksoOperand:
+    'Uses the `scalar_negated_mekso_operand` product form, whose payload preserves `nahe`, `inner_expression`, and `luhu`.'
+    __match_args__: ClassVar[tuple[Literal['scalar_negated_mekso_operand']]]
+    def __new__(cls, scalar_negated_mekso_operand: RecoveredField[ScalarNegatedMeksoOperandSyntax]) -> SimpleMeksoOperandSyntaxScalarNegatedMeksoOperand: ...
+    @property
+    def scalar_negated_mekso_operand(self) -> RecoveredField[ScalarNegatedMeksoOperandSyntax]:
+        'Uses the `scalar_negated_mekso_operand` product form, whose payload preserves `nahe`, `inner_expression`, and `luhu`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class SimpleMeksoOperandSyntaxLaheQualifiedMeksoOperand:
     'Uses the `lahe_qualified_mekso_operand` product form, whose payload preserves `lahe`, `inner_expression`, and `luhu`.'
     __match_args__: ClassVar[tuple[Literal['lahe_qualified_mekso_operand']]]
@@ -5817,8 +5831,8 @@ class SimpleMeksoOperandSyntaxLerfuStringMekso:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for operand; selects among 11 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
-SimpleMeksoOperandSyntax: TypeAlias = SimpleMeksoOperandSyntaxForethoughtMeksoOperand | SimpleMeksoOperandSyntaxQualifiedMeksoOperand | SimpleMeksoOperandSyntaxLaheQualifiedMeksoOperand | SimpleMeksoOperandSyntaxParenthesizedMeksoOperand | SimpleMeksoOperandSyntaxSumtiMeksoOperand | SimpleMeksoOperandSyntaxSelbriMeksoOperand | SimpleMeksoOperandSyntaxArrayMeksoOperand | SimpleMeksoOperandSyntaxNumberMekso | SimpleMeksoOperandSyntaxLerfuStringMekso
+# Sum node for operand; selects among 12 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `scalar_negated_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
+SimpleMeksoOperandSyntax: TypeAlias = SimpleMeksoOperandSyntaxForethoughtMeksoOperand | SimpleMeksoOperandSyntaxQualifiedMeksoOperand | SimpleMeksoOperandSyntaxScalarNegatedMeksoOperand | SimpleMeksoOperandSyntaxLaheQualifiedMeksoOperand | SimpleMeksoOperandSyntaxParenthesizedMeksoOperand | SimpleMeksoOperandSyntaxSumtiMeksoOperand | SimpleMeksoOperandSyntaxSelbriMeksoOperand | SimpleMeksoOperandSyntaxArrayMeksoOperand | SimpleMeksoOperandSyntaxNumberMekso | SimpleMeksoOperandSyntaxLerfuStringMekso
 
 @final
 class QualifiedMeksoOperandSyntax:
@@ -5838,6 +5852,33 @@ class QualifiedMeksoOperandSyntax:
     @property
     def bo(self) -> RecoveredField[Token]:
         'The `Bo` cmavo marker.'
+        ...
+    @property
+    def inner_expression(self) -> RecoveredField[MeksoOperandSyntax]:
+        'The shared inner expression child syntax node.'
+        ...
+    @property
+    def luhu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Luhu` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ScalarNegatedMeksoOperandSyntax:
+    'Product node for scalar-negated operand; preserves `nahe`, `inner_expression`, and `luhu` in source order.'
+    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['inner_expression'], Literal['luhu']]]
+    def __new__(
+        cls,
+        nahe: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        inner_expression: RecoveredField[MeksoOperandSyntax],
+        luhu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ScalarNegatedMeksoOperandSyntax: ...
+    @property
+    def nahe(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'A word from selmaho `Nahe`.\n\ncamxes-exp permits the qualifier without the standard grammar\'s `bo`.\nThe BO-ful sibling remains earlier in the operand choice, preserving\nbaseline ownership for surfaces accepted by camxes-standard.'
         ...
     @property
     def inner_expression(self) -> RecoveredField[MeksoOperandSyntax]:

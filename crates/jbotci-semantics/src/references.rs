@@ -3890,6 +3890,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
                 self.walk_node(&operand.inner_expression);
             }
+            generated::SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(operand) => {
+                self.walk_node(&operand.inner_expression);
+            }
             generated::SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
                 self.walk_node(&operand.inner_expression);
             }

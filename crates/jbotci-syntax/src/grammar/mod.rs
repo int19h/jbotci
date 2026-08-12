@@ -7282,7 +7282,6 @@ mod tests {
             for source in [
                 "li mo'e broda lo'o",
                 "li ma'o lo broda te'u pa lo'o",
-                "li na'e pa lo'o",
                 "li ke pa re ke'e lo'o",
             ] {
                 let words = segment_words_with_modifiers(source).expect("valid morphology");
