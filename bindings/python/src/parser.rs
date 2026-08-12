@@ -240,7 +240,7 @@ define_syntax_string_enum_binding!(
         ExperimentalConstruct::ExperimentalRelativeClauseConnective => ("EXPERIMENTAL_RELATIVE_CLAUSE_CONNECTIVE", "experimental-relative-clause-connective"),
         ExperimentalConstruct::ExperimentalSimplerForethoughtConnective => ("EXPERIMENTAL_SIMPLER_FORETHOUGHT_CONNECTIVE", "experimental-simpler-forethought-connective"),
         ExperimentalConstruct::ExperimentalSimplerTermConnective => ("EXPERIMENTAL_SIMPLER_TERM_CONNECTIVE", "experimental-simpler-term-connective"),
-        ExperimentalConstruct::ExperimentalSimplerMexOperandConnective => ("EXPERIMENTAL_SIMPLER_MEX_OPERAND_CONNECTIVE", "experimental-simpler-mex-operand-connective"),
+        ExperimentalConstruct::ExperimentalMexOperatorConnective => ("EXPERIMENTAL_MEX_OPERATOR_CONNECTIVE", "experimental-mex-operator-connective"),
         ExperimentalConstruct::ExperimentalSimplerDescriptorHeadConnective => ("EXPERIMENTAL_SIMPLER_DESCRIPTOR_HEAD_CONNECTIVE", "experimental-simpler-descriptor-head-connective"),
         ExperimentalConstruct::ExperimentalJiAsJaConnective => ("EXPERIMENTAL_JI_AS_JA_CONNECTIVE", "experimental-ji-as-ja-connective"),
         ExperimentalConstruct::ExperimentalGadganzuGadri => ("EXPERIMENTAL_GADGANZU_GADRI", "experimental-gadganzu-gadri"),

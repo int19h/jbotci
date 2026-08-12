@@ -45,13 +45,10 @@ fn captured_zantufa_cases_match_parser_policy_on_large_stack() {
             .get("source")
             .and_then(Value::as_str)
             .expect("case has source");
-        assert!(
-            test_case
-                .get("upstreamAccept")
-                .and_then(Value::as_bool)
-                .expect("case has upstreamAccept"),
-            "{id} is not an upstream accept fixture"
-        );
+        let upstream_accept = test_case
+            .get("upstreamAccept")
+            .and_then(Value::as_bool)
+            .expect("case has upstreamAccept");
 
         let default_parse = parse_generated(source, &ParseOptions::default());
         assert_acceptance(
@@ -78,9 +75,18 @@ fn captured_zantufa_cases_match_parser_policy_on_large_stack() {
                 .and_then(Value::as_bool)
                 .expect("case has zantufaAccept"),
         );
-        let parse = zantufa_parse.expect("Zantufa fixture should parse");
-        assert_expected_warnings(id, "zantufa", &parse, &test_case["zantufaWarnings"]);
-        assert_shape_markers(id, &parse, &test_case["shapeMarkers"]);
+        assert_eq!(
+            test_case
+                .get("zantufaAccept")
+                .and_then(Value::as_bool)
+                .expect("case has zantufaAccept"),
+            upstream_accept,
+            "{id} must preserve the pinned upstream acceptance result"
+        );
+        if let Ok(parse) = zantufa_parse {
+            assert_expected_warnings(id, "zantufa", &parse, &test_case["zantufaWarnings"]);
+            assert_shape_markers(id, &parse, &test_case["shapeMarkers"]);
+        }
     }
 }
 

@@ -4790,16 +4790,25 @@ class SumtiConnectionTailSyntax:
 
 @final
 class PaRunQuantifierSyntax:
-    'Product node for quantifier; preserves `number` and `boi` in source order.'
-    __match_args__: ClassVar[tuple[Literal['number'], Literal['boi']]]
-    def __new__(cls, number: WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax], boi: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> PaRunQuantifierSyntax: ...
+    'Product node for quantifier; preserves `number`, `boi`, and `free_modifiers` in source order.'
+    __match_args__: ClassVar[tuple[Literal['number'], Literal['boi'], Literal['free_modifiers']]]
+    def __new__(
+        cls,
+        number: NumberWordsSyntax,
+        boi: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+        free_modifiers: Sequence[FreeModifierSyntax],
+    ) -> PaRunQuantifierSyntax: ...
     @property
-    def number(self) -> WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax]:
+    def number(self) -> NumberWordsSyntax:
         'The `number_words` grammar result in the `number` structural role of the `pa_run_quantifier` production.'
         ...
     @property
     def boi(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
         'The optional `Boi` cmavo marker.'
+        ...
+    @property
+    def free_modifiers(self) -> tuple[FreeModifierSyntax, ...]:
+        'Free modifiers following the optional BOI terminator.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4949,13 +4958,17 @@ class PrimitiveMeksoOperatorSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class MeksoOperatorSyntaxAfterthoughtMeksoOperator:
-    'Uses the `afterthought_mekso_operator` product form, whose payload preserves `operators`.'
-    __match_args__: ClassVar[tuple[Literal['afterthought_mekso_operator']]]
-    def __new__(cls, afterthought_mekso_operator: AfterthoughtMeksoOperatorSyntax) -> MeksoOperatorSyntaxAfterthoughtMeksoOperator: ...
+class MeksoOperatorSyntax:
+    'Product node for operator; preserves the operator_1-width head and heterogeneous continuations in source order.'
+    __match_args__: ClassVar[tuple[Literal['leading_operator'], Literal['continuations']]]
+    def __new__(cls, leading_operator: InnerMeksoOperatorSyntax, continuations: Sequence[MeksoOperatorContinuationSyntax]) -> MeksoOperatorSyntax: ...
     @property
-    def afterthought_mekso_operator(self) -> AfterthoughtMeksoOperatorSyntax:
-        'Uses the `afterthought_mekso_operator` product form, whose payload preserves `operators`.'
+    def leading_operator(self) -> InnerMeksoOperatorSyntax:
+        'The operator_1-width operator at the start of the chain.'
+        ...
+    @property
+    def continuations(self) -> tuple[MeksoOperatorContinuationSyntax, ...]:
+        'Freely interleaved afterthought and KE-grouped continuations.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4963,13 +4976,13 @@ class MeksoOperatorSyntaxAfterthoughtMeksoOperator:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class MeksoOperatorSyntaxBoundMeksoOperator:
-    'Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.'
-    __match_args__: ClassVar[tuple[Literal['bound_mekso_operator']]]
-    def __new__(cls, bound_mekso_operator: BoundMeksoOperatorSyntax) -> MeksoOperatorSyntaxBoundMeksoOperator: ...
+class MeksoOperatorContinuationSyntaxAfterthoughtMeksoOperatorContinuation:
+    'A joik/jek continuation followed by an operator_1-width operator.'
+    __match_args__: ClassVar[tuple[Literal['afterthought_mekso_operator_continuation']]]
+    def __new__(cls, afterthought_mekso_operator_continuation: AfterthoughtMeksoOperatorContinuationSyntax) -> MeksoOperatorContinuationSyntaxAfterthoughtMeksoOperatorContinuation: ...
     @property
-    def bound_mekso_operator(self) -> BoundMeksoOperatorSyntax:
-        'Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.'
+    def afterthought_mekso_operator_continuation(self) -> AfterthoughtMeksoOperatorContinuationSyntax:
+        'A joik/jek continuation followed by an operator_1-width operator.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4977,48 +4990,34 @@ class MeksoOperatorSyntaxBoundMeksoOperator:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class MeksoOperatorSyntaxSimpleMeksoOperator:
-    'Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.'
-    __match_args__: ClassVar[tuple[Literal['simple_mekso_operator']]]
-    def __new__(cls, simple_mekso_operator: SimpleMeksoOperatorSyntax) -> MeksoOperatorSyntaxSimpleMeksoOperator: ...
+class MeksoOperatorContinuationSyntaxGroupedMeksoOperatorContinuation:
+    'A joik-only continuation containing a full KE-grouped operator.'
+    __match_args__: ClassVar[tuple[Literal['grouped_mekso_operator_continuation']]]
+    def __new__(cls, grouped_mekso_operator_continuation: GroupedMeksoOperatorContinuationSyntax) -> MeksoOperatorContinuationSyntaxGroupedMeksoOperatorContinuation: ...
     @property
-    def simple_mekso_operator(self) -> SimpleMeksoOperatorSyntax:
-        'Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.'
+    def grouped_mekso_operator_continuation(self) -> GroupedMeksoOperatorContinuationSyntax:
+        'A joik-only continuation containing a full KE-grouped operator.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for operator; selects among the `afterthought_mekso_operator`, `bound_mekso_operator`, and `simple_mekso_operator` forms.
-MeksoOperatorSyntax: TypeAlias = MeksoOperatorSyntaxAfterthoughtMeksoOperator | MeksoOperatorSyntaxBoundMeksoOperator | MeksoOperatorSyntaxSimpleMeksoOperator
-
-@final
-class AfterthoughtMeksoOperatorSyntax:
-    'Transparent product node for operator; preserves the `operators` component.'
-    __match_args__: ClassVar[tuple[Literal['operators']]]
-    def __new__(cls, operators: Chain[BoundOrAtomMeksoOperatorSyntax, AfterthoughtMeksoOperatorContinuationSyntax]) -> AfterthoughtMeksoOperatorSyntax: ...
-    @property
-    def operators(self) -> Chain[BoundOrAtomMeksoOperatorSyntax, AfterthoughtMeksoOperatorContinuationSyntax]:
-        'The source-ordered `operators` chain assembled by the `afterthought_mekso_operator` production.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
+# Sum node for an operator continuation; distinguishes afterthought and KE-grouped forms.
+MeksoOperatorContinuationSyntax: TypeAlias = MeksoOperatorContinuationSyntaxAfterthoughtMeksoOperatorContinuation | MeksoOperatorContinuationSyntaxGroupedMeksoOperatorContinuation
 
 @final
 class AfterthoughtMeksoOperatorContinuationSyntax:
     'Product node for operator continuation; preserves `connective` and `trailing_operator` in source order.'
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['trailing_operator']]]
-    def __new__(cls, connective: StandardStatementConnectiveSyntax, trailing_operator: BoundOrAtomMeksoOperatorSyntax) -> AfterthoughtMeksoOperatorContinuationSyntax: ...
+    def __new__(cls, connective: StandardStatementConnectiveSyntax, trailing_operator: InnerMeksoOperatorSyntax) -> AfterthoughtMeksoOperatorContinuationSyntax: ...
     @property
     def connective(self) -> StandardStatementConnectiveSyntax:
         'The `standard_statement_connective` connective joining the adjacent constituents of the `afterthought_mekso_operator_continuation` production.'
         ...
     @property
-    def trailing_operator(self) -> BoundOrAtomMeksoOperatorSyntax:
-        'The shared trailing operator child syntax node.'
+    def trailing_operator(self) -> InnerMeksoOperatorSyntax:
+        'The operator_1-width trailing operator.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5026,13 +5025,64 @@ class AfterthoughtMeksoOperatorContinuationSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator:
-    'Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.'
+class GroupedMeksoOperatorContinuationSyntax:
+    'Product node for a joik-only KE-grouped continuation.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['ke'], Literal['inner_operator'], Literal['kehe']]]
+    def __new__(
+        cls,
+        connective: JoikConnectiveSyntax,
+        tense_modal: TenseModalSyntax | None,
+        ke: WithFreeModifiers[Token, FreeModifierSyntax],
+        inner_operator: MeksoOperatorSyntax,
+        kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> GroupedMeksoOperatorContinuationSyntax: ...
+    @property
+    def connective(self) -> JoikConnectiveSyntax:
+        'The joik connective introducing the group.'
+        ...
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal between the connective and KE.'
+        ...
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        ...
+    @property
+    def inner_operator(self) -> MeksoOperatorSyntax:
+        'The full-width grouped operator.'
+        ...
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class InnerMeksoOperatorSyntaxForethoughtMeksoOperator:
+    'Uses the forethought operator form.'
+    __match_args__: ClassVar[tuple[Literal['forethought_mekso_operator']]]
+    def __new__(cls, forethought_mekso_operator: ForethoughtMeksoOperatorSyntax) -> InnerMeksoOperatorSyntaxForethoughtMeksoOperator: ...
+    @property
+    def forethought_mekso_operator(self) -> ForethoughtMeksoOperatorSyntax:
+        'Uses the forethought operator form.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class InnerMeksoOperatorSyntaxBoundMeksoOperator:
+    'Uses the camxes-exp BO-bound operator form.'
     __match_args__: ClassVar[tuple[Literal['bound_mekso_operator']]]
-    def __new__(cls, bound_mekso_operator: BoundMeksoOperatorSyntax) -> BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator: ...
+    def __new__(cls, bound_mekso_operator: BoundMeksoOperatorSyntax) -> InnerMeksoOperatorSyntaxBoundMeksoOperator: ...
     @property
     def bound_mekso_operator(self) -> BoundMeksoOperatorSyntax:
-        'Uses the `bound_mekso_operator` product form, whose payload preserves `left_operator`, `connective`, `bo`, and `right_operator`.'
+        'Uses the camxes-exp BO-bound operator form.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5040,48 +5090,53 @@ class BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BoundOrAtomMeksoOperatorSyntaxSimpleMeksoOperator:
-    'Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.'
+class InnerMeksoOperatorSyntaxSimpleMeksoOperator:
+    'Uses the nested operator_2 sum form.'
     __match_args__: ClassVar[tuple[Literal['simple_mekso_operator']]]
-    def __new__(cls, simple_mekso_operator: SimpleMeksoOperatorSyntax) -> BoundOrAtomMeksoOperatorSyntaxSimpleMeksoOperator: ...
+    def __new__(cls, simple_mekso_operator: SimpleMeksoOperatorSyntax) -> InnerMeksoOperatorSyntaxSimpleMeksoOperator: ...
     @property
     def simple_mekso_operator(self) -> SimpleMeksoOperatorSyntax:
-        'Uses the nested `simple_mekso_operator` sum form and preserves its selected alternative.'
+        'Uses the nested operator_2 sum form.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for operator; selects among the `bound_mekso_operator` and `simple_mekso_operator` forms.
-BoundOrAtomMeksoOperatorSyntax: TypeAlias = BoundOrAtomMeksoOperatorSyntaxBoundMeksoOperator | BoundOrAtomMeksoOperatorSyntaxSimpleMeksoOperator
+# Sum node for operator_1; selects forethought, experimental BO-bound, or operator_2 forms.
+InnerMeksoOperatorSyntax: TypeAlias = InnerMeksoOperatorSyntaxForethoughtMeksoOperator | InnerMeksoOperatorSyntaxBoundMeksoOperator | InnerMeksoOperatorSyntaxSimpleMeksoOperator
 
 @final
 class BoundMeksoOperatorSyntax:
     'Product node for operator; preserves `left_operator`, `connective`, `bo`, and `right_operator` in source order.'
-    __match_args__: ClassVar[tuple[Literal['left_operator'], Literal['connective'], Literal['bo'], Literal['right_operator']]]
+    __match_args__: ClassVar[tuple[Literal['left_operator'], Literal['connective'], Literal['tense_modal'], Literal['bo'], Literal['right_operator']]]
     def __new__(
         cls,
         left_operator: SimpleMeksoOperatorSyntax,
         connective: StandardStatementConnectiveSyntax,
+        tense_modal: TenseModalSyntax | None,
         bo: WithFreeModifiers[Token, FreeModifierSyntax],
-        right_operator: MeksoOperatorSyntax,
+        right_operator: InnerMeksoOperatorSyntax,
     ) -> BoundMeksoOperatorSyntax: ...
     @property
     def left_operator(self) -> SimpleMeksoOperatorSyntax:
-        'The shared left operator child syntax node.'
+        'The operator_2-width left operator.'
         ...
     @property
     def connective(self) -> StandardStatementConnectiveSyntax:
         'The `standard_statement_connective` connective joining the adjacent constituents of the `bound_mekso_operator` production.'
         ...
     @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal between the connective and BO.'
+        ...
+    @property
     def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
         'The `Bo` cmavo marker.'
         ...
     @property
-    def right_operator(self) -> MeksoOperatorSyntax:
-        'The shared right operator child syntax node.'
+    def right_operator(self) -> InnerMeksoOperatorSyntax:
+        'The operator_1-width right operator.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5089,10 +5144,41 @@ class BoundMeksoOperatorSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SimpleMeksoOperatorSyntaxConvertedMeksoOperator:
+class SimpleMeksoOperatorSyntaxAtomicMeksoOperator:
+    'Uses the nested atomic operator sum form.'
+    __match_args__: ClassVar[tuple[Literal['atomic_mekso_operator']]]
+    def __new__(cls, atomic_mekso_operator: AtomicMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxAtomicMeksoOperator: ...
+    @property
+    def atomic_mekso_operator(self) -> AtomicMeksoOperatorSyntax:
+        'Uses the nested atomic operator sum form.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SimpleMeksoOperatorSyntaxGroupedMeksoOperator:
+    'Uses the `grouped_mekso_operator` product form.'
+    __match_args__: ClassVar[tuple[Literal['grouped_mekso_operator']]]
+    def __new__(cls, grouped_mekso_operator: GroupedMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxGroupedMeksoOperator: ...
+    @property
+    def grouped_mekso_operator(self) -> GroupedMeksoOperatorSyntax:
+        'Uses the `grouped_mekso_operator` product form.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for operator_2; selects an atomic operator or a KE-grouped full operator.
+SimpleMeksoOperatorSyntax: TypeAlias = SimpleMeksoOperatorSyntaxAtomicMeksoOperator | SimpleMeksoOperatorSyntaxGroupedMeksoOperator
+
+@final
+class AtomicMeksoOperatorSyntaxConvertedMeksoOperator:
     'Uses the `converted_mekso_operator` product form, whose payload preserves `se` and `inner_operator`.'
     __match_args__: ClassVar[tuple[Literal['converted_mekso_operator']]]
-    def __new__(cls, converted_mekso_operator: ConvertedMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxConvertedMeksoOperator: ...
+    def __new__(cls, converted_mekso_operator: ConvertedMeksoOperatorSyntax) -> AtomicMeksoOperatorSyntaxConvertedMeksoOperator: ...
     @property
     def converted_mekso_operator(self) -> ConvertedMeksoOperatorSyntax:
         'Uses the `converted_mekso_operator` product form, whose payload preserves `se` and `inner_operator`.'
@@ -5103,10 +5189,10 @@ class SimpleMeksoOperatorSyntaxConvertedMeksoOperator:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator:
+class AtomicMeksoOperatorSyntaxScalarNegatedMeksoOperator:
     'Uses the `scalar_negated_mekso_operator` product form, whose payload preserves `nahe` and `inner_operator`.'
     __match_args__: ClassVar[tuple[Literal['scalar_negated_mekso_operator']]]
-    def __new__(cls, scalar_negated_mekso_operator: ScalarNegatedMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator: ...
+    def __new__(cls, scalar_negated_mekso_operator: ScalarNegatedMeksoOperatorSyntax) -> AtomicMeksoOperatorSyntaxScalarNegatedMeksoOperator: ...
     @property
     def scalar_negated_mekso_operator(self) -> ScalarNegatedMeksoOperatorSyntax:
         'Uses the `scalar_negated_mekso_operator` product form, whose payload preserves `nahe` and `inner_operator`.'
@@ -5117,38 +5203,10 @@ class SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SimpleMeksoOperatorSyntaxForethoughtMeksoOperator:
-    'Uses the `forethought_mekso_operator` product form, whose payload preserves `guhek`, `left_operator`, `gik`, and `right_operator`.'
-    __match_args__: ClassVar[tuple[Literal['forethought_mekso_operator']]]
-    def __new__(cls, forethought_mekso_operator: ForethoughtMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxForethoughtMeksoOperator: ...
-    @property
-    def forethought_mekso_operator(self) -> ForethoughtMeksoOperatorSyntax:
-        'Uses the `forethought_mekso_operator` product form, whose payload preserves `guhek`, `left_operator`, `gik`, and `right_operator`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class SimpleMeksoOperatorSyntaxGroupedMeksoOperator:
-    'Uses the `grouped_mekso_operator` product form, whose payload preserves `ke`, `inner_operator`, and `kehe`.'
-    __match_args__: ClassVar[tuple[Literal['grouped_mekso_operator']]]
-    def __new__(cls, grouped_mekso_operator: GroupedMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxGroupedMeksoOperator: ...
-    @property
-    def grouped_mekso_operator(self) -> GroupedMeksoOperatorSyntax:
-        'Uses the `grouped_mekso_operator` product form, whose payload preserves `ke`, `inner_operator`, and `kehe`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class SimpleMeksoOperatorSyntaxSelbriMeksoOperator:
+class AtomicMeksoOperatorSyntaxSelbriMeksoOperator:
     'Uses the `selbri_mekso_operator` product form, whose payload preserves `nahu`, `selbri`, and `tehu`.'
     __match_args__: ClassVar[tuple[Literal['selbri_mekso_operator']]]
-    def __new__(cls, selbri_mekso_operator: SelbriMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxSelbriMeksoOperator: ...
+    def __new__(cls, selbri_mekso_operator: SelbriMeksoOperatorSyntax) -> AtomicMeksoOperatorSyntaxSelbriMeksoOperator: ...
     @property
     def selbri_mekso_operator(self) -> SelbriMeksoOperatorSyntax:
         'Uses the `selbri_mekso_operator` product form, whose payload preserves `nahu`, `selbri`, and `tehu`.'
@@ -5159,10 +5217,10 @@ class SimpleMeksoOperatorSyntaxSelbriMeksoOperator:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SimpleMeksoOperatorSyntaxOperandMeksoOperator:
+class AtomicMeksoOperatorSyntaxOperandMeksoOperator:
     'Uses the `operand_mekso_operator` product form, whose payload preserves `maho`, `mekso`, and `tehu`.'
     __match_args__: ClassVar[tuple[Literal['operand_mekso_operator']]]
-    def __new__(cls, operand_mekso_operator: OperandMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxOperandMeksoOperator: ...
+    def __new__(cls, operand_mekso_operator: OperandMeksoOperatorSyntax) -> AtomicMeksoOperatorSyntaxOperandMeksoOperator: ...
     @property
     def operand_mekso_operator(self) -> OperandMeksoOperatorSyntax:
         'Uses the `operand_mekso_operator` product form, whose payload preserves `maho`, `mekso`, and `tehu`.'
@@ -5173,13 +5231,13 @@ class SimpleMeksoOperatorSyntaxOperandMeksoOperator:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator:
-    'Uses the `zantufa_maho_selbri_mekso_operator` product form, whose payload preserves `maho`, `selbri`, and `tehu`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_maho_selbri_mekso_operator']]]
-    def __new__(cls, zantufa_maho_selbri_mekso_operator: ZantufaMahoSelbriMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator: ...
+class AtomicMeksoOperatorSyntaxExperimentalConnectiveMeksoOperator:
+    'Uses a camxes-exp connective as an atomic operator.'
+    __match_args__: ClassVar[tuple[Literal['experimental_connective_mekso_operator']]]
+    def __new__(cls, experimental_connective_mekso_operator: ExperimentalConnectiveMeksoOperatorSyntax) -> AtomicMeksoOperatorSyntaxExperimentalConnectiveMeksoOperator: ...
     @property
-    def zantufa_maho_selbri_mekso_operator(self) -> ZantufaMahoSelbriMeksoOperatorSyntax:
-        'Uses the `zantufa_maho_selbri_mekso_operator` product form, whose payload preserves `maho`, `selbri`, and `tehu`.'
+    def experimental_connective_mekso_operator(self) -> ExperimentalConnectiveMeksoOperatorSyntax:
+        'Uses a camxes-exp connective as an atomic operator.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5187,38 +5245,10 @@ class SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SimpleMeksoOperatorSyntaxZantufaMahoSumtiMeksoOperator:
-    'Uses the `zantufa_maho_sumti_mekso_operator` product form, whose payload preserves `maho`, `sumti`, and `tehu`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_maho_sumti_mekso_operator']]]
-    def __new__(cls, zantufa_maho_sumti_mekso_operator: ZantufaMahoSumtiMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxZantufaMahoSumtiMeksoOperator: ...
-    @property
-    def zantufa_maho_sumti_mekso_operator(self) -> ZantufaMahoSumtiMeksoOperatorSyntax:
-        'Uses the `zantufa_maho_sumti_mekso_operator` product form, whose payload preserves `maho`, `sumti`, and `tehu`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class SimpleMeksoOperatorSyntaxZantufaConnectiveMeksoOperator:
-    'Uses the `zantufa_connective_mekso_operator` product form, whose payload preserves `connective`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_connective_mekso_operator']]]
-    def __new__(cls, zantufa_connective_mekso_operator: ZantufaConnectiveMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxZantufaConnectiveMeksoOperator: ...
-    @property
-    def zantufa_connective_mekso_operator(self) -> ZantufaConnectiveMeksoOperatorSyntax:
-        'Uses the `zantufa_connective_mekso_operator` product form, whose payload preserves `connective`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator:
+class AtomicMeksoOperatorSyntaxPrimitiveMeksoOperator:
     'Uses the `primitive_mekso_operator` product form, whose payload preserves `vuhu`.'
     __match_args__: ClassVar[tuple[Literal['primitive_mekso_operator']]]
-    def __new__(cls, primitive_mekso_operator: PrimitiveMeksoOperatorSyntax) -> SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator: ...
+    def __new__(cls, primitive_mekso_operator: PrimitiveMeksoOperatorSyntax) -> AtomicMeksoOperatorSyntaxPrimitiveMeksoOperator: ...
     @property
     def primitive_mekso_operator(self) -> PrimitiveMeksoOperatorSyntax:
         'Uses the `primitive_mekso_operator` product form, whose payload preserves `vuhu`.'
@@ -5228,20 +5258,20 @@ class SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for operator; selects among 10 forms including `converted_mekso_operator`, `scalar_negated_mekso_operator`, and `forethought_mekso_operator`.
-SimpleMeksoOperatorSyntax: TypeAlias = SimpleMeksoOperatorSyntaxConvertedMeksoOperator | SimpleMeksoOperatorSyntaxScalarNegatedMeksoOperator | SimpleMeksoOperatorSyntaxForethoughtMeksoOperator | SimpleMeksoOperatorSyntaxGroupedMeksoOperator | SimpleMeksoOperatorSyntaxSelbriMeksoOperator | SimpleMeksoOperatorSyntaxOperandMeksoOperator | SimpleMeksoOperatorSyntaxZantufaMahoSelbriMeksoOperator | SimpleMeksoOperatorSyntaxZantufaMahoSumtiMeksoOperator | SimpleMeksoOperatorSyntaxZantufaConnectiveMeksoOperator | SimpleMeksoOperatorSyntaxPrimitiveMeksoOperator
+# Sum node for an atomic operator.
+AtomicMeksoOperatorSyntax: TypeAlias = AtomicMeksoOperatorSyntaxConvertedMeksoOperator | AtomicMeksoOperatorSyntaxScalarNegatedMeksoOperator | AtomicMeksoOperatorSyntaxSelbriMeksoOperator | AtomicMeksoOperatorSyntaxOperandMeksoOperator | AtomicMeksoOperatorSyntaxExperimentalConnectiveMeksoOperator | AtomicMeksoOperatorSyntaxPrimitiveMeksoOperator
 
 @final
 class ConvertedMeksoOperatorSyntax:
     'Product node for converted operator; preserves `se` and `inner_operator` in source order.'
     __match_args__: ClassVar[tuple[Literal['se'], Literal['inner_operator']]]
-    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: MeksoOperatorSyntax) -> ConvertedMeksoOperatorSyntax: ...
+    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: AtomicMeksoOperatorSyntax) -> ConvertedMeksoOperatorSyntax: ...
     @property
     def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
         'A word from selmaho `Se`.'
         ...
     @property
-    def inner_operator(self) -> MeksoOperatorSyntax:
+    def inner_operator(self) -> AtomicMeksoOperatorSyntax:
         'The shared inner operator child syntax node.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -5253,13 +5283,13 @@ class ConvertedMeksoOperatorSyntax:
 class ScalarNegatedMeksoOperatorSyntax:
     'Product node for converted operator; preserves `nahe` and `inner_operator` in source order.'
     __match_args__: ClassVar[tuple[Literal['nahe'], Literal['inner_operator']]]
-    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: MeksoOperatorSyntax) -> ScalarNegatedMeksoOperatorSyntax: ...
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: AtomicMeksoOperatorSyntax) -> ScalarNegatedMeksoOperatorSyntax: ...
     @property
     def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
         'A word from selmaho `Nahe`.'
         ...
     @property
-    def inner_operator(self) -> MeksoOperatorSyntax:
+    def inner_operator(self) -> AtomicMeksoOperatorSyntax:
         'The shared inner operator child syntax node.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -5273,26 +5303,53 @@ class ForethoughtMeksoOperatorSyntax:
     __match_args__: ClassVar[tuple[Literal['guhek'], Literal['left_operator'], Literal['gik'], Literal['right_operator']]]
     def __new__(
         cls,
-        guhek: GuhekConnectiveSyntax,
-        left_operator: MeksoOperatorSyntax,
+        guhek: OperatorGuhekConnectiveSyntax,
+        left_operator: InnerMeksoOperatorSyntax,
         gik: GikConnectiveSyntax,
-        right_operator: MeksoOperatorSyntax,
+        right_operator: SimpleMeksoOperatorSyntax,
     ) -> ForethoughtMeksoOperatorSyntax: ...
     @property
-    def guhek(self) -> GuhekConnectiveSyntax:
-        'The `guhek_connective` forethought connective opening the paired branches of the `forethought_mekso_operator` production.'
+    def guhek(self) -> OperatorGuhekConnectiveSyntax:
+        'The operator-context forethought connective.'
         ...
     @property
-    def left_operator(self) -> MeksoOperatorSyntax:
-        'The shared left operator child syntax node.'
+    def left_operator(self) -> InnerMeksoOperatorSyntax:
+        'The operator_1-width left operator.'
         ...
     @property
     def gik(self) -> GikConnectiveSyntax:
         'The GI-family `gik_connective` connective separating the forethought branches of the `forethought_mekso_operator` production.'
         ...
     @property
-    def right_operator(self) -> MeksoOperatorSyntax:
-        'The shared right operator child syntax node.'
+    def right_operator(self) -> SimpleMeksoOperatorSyntax:
+        'The operator_2-width right operator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class OperatorGuhekConnectiveSyntax:
+    'Product node for an operator-context GUhEK, which permits SE but not NAhE.'
+    __match_args__: ClassVar[tuple[Literal['se'], Literal['guha'], Literal['nai']]]
+    def __new__(
+        cls,
+        se: Token | None,
+        guha: WithFreeModifiers[Token, FreeModifierSyntax],
+        nai: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> OperatorGuhekConnectiveSyntax: ...
+    @property
+    def se(self) -> Token | None:
+        'The optional SE conversion.'
+        ...
+    @property
+    def guha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Guha`.'
+        ...
+    @property
+    def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Nai` cmavo marker.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5449,13 +5506,13 @@ class ZantufaConnectiveMeksoOperatorSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class MeksoOperandSyntaxAfterthoughtMeksoOperand:
-    'Uses the `afterthought_mekso_operand` product form, whose payload preserves `operands`.'
-    __match_args__: ClassVar[tuple[Literal['afterthought_mekso_operand']]]
-    def __new__(cls, afterthought_mekso_operand: AfterthoughtMeksoOperandSyntax) -> MeksoOperandSyntaxAfterthoughtMeksoOperand: ...
+class ExperimentalConnectiveMeksoOperatorSyntaxStandardStatementConnective:
+    'A joik or jek connective.'
+    __match_args__: ClassVar[tuple[Literal['standard_statement_connective']]]
+    def __new__(cls, standard_statement_connective: StandardStatementConnectiveSyntax) -> ExperimentalConnectiveMeksoOperatorSyntaxStandardStatementConnective: ...
     @property
-    def afterthought_mekso_operand(self) -> AfterthoughtMeksoOperandSyntax:
-        'Uses the `afterthought_mekso_operand` product form, whose payload preserves `operands`.'
+    def standard_statement_connective(self) -> StandardStatementConnectiveSyntax:
+        'A joik or jek connective.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5463,13 +5520,34 @@ class MeksoOperandSyntaxAfterthoughtMeksoOperand:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class MeksoOperandSyntaxBoundMeksoOperand:
-    'Uses the `bound_mekso_operand` product form, whose payload preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression`.'
-    __match_args__: ClassVar[tuple[Literal['bound_mekso_operand']]]
-    def __new__(cls, bound_mekso_operand: BoundMeksoOperandSyntax) -> MeksoOperandSyntaxBoundMeksoOperand: ...
+class ExperimentalConnectiveMeksoOperatorSyntaxEkConnective:
+    'An ek connective.'
+    __match_args__: ClassVar[tuple[Literal['ek_connective']]]
+    def __new__(cls, ek_connective: EkConnectiveSyntax) -> ExperimentalConnectiveMeksoOperatorSyntaxEkConnective: ...
     @property
-    def bound_mekso_operand(self) -> BoundMeksoOperandSyntax:
-        'Uses the `bound_mekso_operand` product form, whose payload preserves `left_expression`, `operand_connective`, `tense_modal`, `bo`, and `right_expression`.'
+    def ek_connective(self) -> EkConnectiveSyntax:
+        'An ek connective.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for a camxes-exp connective operator.
+ExperimentalConnectiveMeksoOperatorSyntax: TypeAlias = ExperimentalConnectiveMeksoOperatorSyntaxStandardStatementConnective | ExperimentalConnectiveMeksoOperatorSyntaxEkConnective
+
+@final
+class MeksoOperandSyntax:
+    'Product node for operand; preserves `connected_expression` and `grouped_continuation` in source order.'
+    __match_args__: ClassVar[tuple[Literal['connected_expression'], Literal['grouped_continuation']]]
+    def __new__(cls, connected_expression: AfterthoughtMeksoOperandSyntax, grouped_continuation: GroupedMeksoOperandContinuationSyntax | None) -> MeksoOperandSyntax: ...
+    @property
+    def connected_expression(self) -> AfterthoughtMeksoOperandSyntax:
+        'The operand_1-width connected expression at the start of the operand.'
+        ...
+    @property
+    def grouped_continuation(self) -> GroupedMeksoOperandContinuationSyntax | None:
+        'The optional joik/EK plus KE-grouped continuation at operand_0 width.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5477,21 +5555,41 @@ class MeksoOperandSyntaxBoundMeksoOperand:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class MeksoOperandSyntaxSimpleMeksoOperand:
-    'Uses the nested `simple_mekso_operand` sum form and preserves its selected alternative.'
-    __match_args__: ClassVar[tuple[Literal['simple_mekso_operand']]]
-    def __new__(cls, simple_mekso_operand: SimpleMeksoOperandSyntax) -> MeksoOperandSyntaxSimpleMeksoOperand: ...
+class GroupedMeksoOperandContinuationSyntax:
+    'Product node for grouped operand continuation; preserves `operand_connective`, `tense_modal`, `ke`, `inner_expression`, and `kehe` in source order.'
+    __match_args__: ClassVar[tuple[Literal['operand_connective'], Literal['tense_modal'], Literal['ke'], Literal['inner_expression'], Literal['kehe']]]
+    def __new__(
+        cls,
+        operand_connective: OperandConnectiveSyntax,
+        tense_modal: TenseModalSyntax | None,
+        ke: WithFreeModifiers[Token, FreeModifierSyntax],
+        inner_expression: MeksoOperandSyntax,
+        kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> GroupedMeksoOperandContinuationSyntax: ...
     @property
-    def simple_mekso_operand(self) -> SimpleMeksoOperandSyntax:
-        'Uses the nested `simple_mekso_operand` sum form and preserves its selected alternative.'
+    def operand_connective(self) -> OperandConnectiveSyntax:
+        'The joik/EK connective introducing the grouped continuation.'
+        ...
+    @property
+    def tense_modal(self) -> TenseModalSyntax | None:
+        'The optional tense modal component.'
+        ...
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The `Ke` cmavo marker.'
+        ...
+    @property
+    def inner_expression(self) -> MeksoOperandSyntax:
+        'The full-width inner operand.'
+        ...
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Kehe` cmavo marker.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for operand; selects among the `afterthought_mekso_operand`, `bound_mekso_operand`, and `simple_mekso_operand` forms.
-MeksoOperandSyntax: TypeAlias = MeksoOperandSyntaxAfterthoughtMeksoOperand | MeksoOperandSyntaxBoundMeksoOperand | MeksoOperandSyntaxSimpleMeksoOperand
 
 @final
 class AfterthoughtMeksoOperandSyntax:
@@ -5566,7 +5664,7 @@ class BoundMeksoOperandSyntax:
         operand_connective: OperandConnectiveSyntax,
         tense_modal: TenseModalSyntax | None,
         bo: WithFreeModifiers[Token, FreeModifierSyntax],
-        right_expression: MeksoOperandSyntax,
+        right_expression: BoundOrSimpleMeksoOperandSyntax,
     ) -> BoundMeksoOperandSyntax: ...
     @property
     def left_expression(self) -> SimpleMeksoOperandSyntax:
@@ -5585,8 +5683,8 @@ class BoundMeksoOperandSyntax:
         'The `Bo` cmavo marker.'
         ...
     @property
-    def right_expression(self) -> MeksoOperandSyntax:
-        'The shared right expression child syntax node.'
+    def right_expression(self) -> BoundOrSimpleMeksoOperandSyntax:
+        'The operand_2-width right expression child syntax node.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5615,6 +5713,20 @@ class SimpleMeksoOperandSyntaxQualifiedMeksoOperand:
     @property
     def qualified_mekso_operand(self) -> QualifiedMeksoOperandSyntax:
         'Uses the `qualified_mekso_operand` product form, whose payload preserves `nahe`, `bo`, `inner_expression`, and `luhu`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SimpleMeksoOperandSyntaxLaheQualifiedMeksoOperand:
+    'Uses the `lahe_qualified_mekso_operand` product form, whose payload preserves `lahe`, `inner_expression`, and `luhu`.'
+    __match_args__: ClassVar[tuple[Literal['lahe_qualified_mekso_operand']]]
+    def __new__(cls, lahe_qualified_mekso_operand: LaheQualifiedMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxLaheQualifiedMeksoOperand: ...
+    @property
+    def lahe_qualified_mekso_operand(self) -> LaheQualifiedMeksoOperandSyntax:
+        'Uses the `lahe_qualified_mekso_operand` product form, whose payload preserves `lahe`, `inner_expression`, and `luhu`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5705,54 +5817,8 @@ class SimpleMeksoOperandSyntaxLerfuStringMekso:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-@final
-class SimpleMeksoOperandSyntaxZantufaScalarNegatedMeksoOperand:
-    'Uses the `zantufa_scalar_negated_mekso_operand` product form, whose payload preserves `nahe` and `inner_expression`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_scalar_negated_mekso_operand']]]
-    def __new__(cls, zantufa_scalar_negated_mekso_operand: ZantufaScalarNegatedMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxZantufaScalarNegatedMeksoOperand: ...
-    @property
-    def zantufa_scalar_negated_mekso_operand(self) -> ZantufaScalarNegatedMeksoOperandSyntax:
-        'Uses the `zantufa_scalar_negated_mekso_operand` product form, whose payload preserves `nahe` and `inner_expression`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class SimpleMeksoOperandSyntaxZantufaSelbriMoheMeksoOperand:
-    'Uses the `zantufa_selbri_mohe_mekso_operand` product form, whose payload preserves `mohe`, `selbri`, and `tehu`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_selbri_mohe_mekso_operand']]]
-    def __new__(cls, zantufa_selbri_mohe_mekso_operand: ZantufaSelbriMoheMeksoOperandSyntax) -> SimpleMeksoOperandSyntaxZantufaSelbriMoheMeksoOperand: ...
-    @property
-    def zantufa_selbri_mohe_mekso_operand(self) -> ZantufaSelbriMoheMeksoOperandSyntax:
-        'Uses the `zantufa_selbri_mohe_mekso_operand` product form, whose payload preserves `mohe`, `selbri`, and `tehu`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for operand; selects among 10 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, and `parenthesized_mekso_operand`.
-SimpleMeksoOperandSyntax: TypeAlias = SimpleMeksoOperandSyntaxForethoughtMeksoOperand | SimpleMeksoOperandSyntaxQualifiedMeksoOperand | SimpleMeksoOperandSyntaxParenthesizedMeksoOperand | SimpleMeksoOperandSyntaxSumtiMeksoOperand | SimpleMeksoOperandSyntaxSelbriMeksoOperand | SimpleMeksoOperandSyntaxArrayMeksoOperand | SimpleMeksoOperandSyntaxNumberMekso | SimpleMeksoOperandSyntaxLerfuStringMekso | SimpleMeksoOperandSyntaxZantufaScalarNegatedMeksoOperand | SimpleMeksoOperandSyntaxZantufaSelbriMoheMeksoOperand
-
-@final
-class ZantufaScalarNegatedMeksoOperandSyntax:
-    'Product node for scalar-negated operand; preserves `nahe` and `inner_expression` in source order.'
-    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['inner_expression']]]
-    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_expression: MeksoOperandSyntax) -> ZantufaScalarNegatedMeksoOperandSyntax: ...
-    @property
-    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Nahe`.'
-        ...
-    @property
-    def inner_expression(self) -> MeksoOperandSyntax:
-        'The shared inner expression child syntax node.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
+# Sum node for operand; selects among 11 forms including `forethought_mekso_operand`, `qualified_mekso_operand`, `lahe_qualified_mekso_operand`, and `parenthesized_mekso_operand`.
+SimpleMeksoOperandSyntax: TypeAlias = SimpleMeksoOperandSyntaxForethoughtMeksoOperand | SimpleMeksoOperandSyntaxQualifiedMeksoOperand | SimpleMeksoOperandSyntaxLaheQualifiedMeksoOperand | SimpleMeksoOperandSyntaxParenthesizedMeksoOperand | SimpleMeksoOperandSyntaxSumtiMeksoOperand | SimpleMeksoOperandSyntaxSelbriMeksoOperand | SimpleMeksoOperandSyntaxArrayMeksoOperand | SimpleMeksoOperandSyntaxNumberMekso | SimpleMeksoOperandSyntaxLerfuStringMekso
 
 @final
 class QualifiedMeksoOperandSyntax:
@@ -5787,6 +5853,33 @@ class QualifiedMeksoOperandSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class LaheQualifiedMeksoOperandSyntax:
+    'Product node for LAhE-qualified operand; preserves `lahe`, `inner_expression`, and `luhu` in source order.'
+    __match_args__: ClassVar[tuple[Literal['lahe'], Literal['inner_expression'], Literal['luhu']]]
+    def __new__(
+        cls,
+        lahe: WithFreeModifiers[Token, FreeModifierSyntax],
+        inner_expression: MeksoOperandSyntax,
+        luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> LaheQualifiedMeksoOperandSyntax: ...
+    @property
+    def lahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Lahe`.'
+        ...
+    @property
+    def inner_expression(self) -> MeksoOperandSyntax:
+        'The shared inner expression child syntax node.'
+        ...
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional `Luhu` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class ForethoughtMeksoOperandSyntax:
     'Product node for forethought mex; preserves `gek`, `left_expression`, `gik`, and `right_expression` in source order.'
     __match_args__: ClassVar[tuple[Literal['gek'], Literal['left_expression'], Literal['gik'], Literal['right_expression']]]
@@ -5795,7 +5888,7 @@ class ForethoughtMeksoOperandSyntax:
         gek: ModalForethoughtConnectiveSyntax,
         left_expression: MeksoOperandSyntax,
         gik: GikConnectiveSyntax,
-        right_expression: MeksoOperandSyntax,
+        right_expression: SimpleMeksoOperandSyntax,
     ) -> ForethoughtMeksoOperandSyntax: ...
     @property
     def gek(self) -> ModalForethoughtConnectiveSyntax:
@@ -5810,8 +5903,8 @@ class ForethoughtMeksoOperandSyntax:
         'The GI-family `gik_connective` connective separating the forethought branches of the `forethought_mekso_operand` production.'
         ...
     @property
-    def right_expression(self) -> MeksoOperandSyntax:
-        'The shared right expression child syntax node.'
+    def right_expression(self) -> SimpleMeksoOperandSyntax:
+        'The operand_3-width right expression child syntax node.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5933,7 +6026,7 @@ class ArrayMeksoOperandSyntax:
     def __new__(
         cls,
         johi: WithFreeModifiers[Token, FreeModifierSyntax],
-        expressions: Sequence[MeksoSyntax],
+        expressions: Sequence[StandardMeksoArrayElementSyntax],
         tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None,
     ) -> ArrayMeksoOperandSyntax: ...
     @property
@@ -5941,7 +6034,7 @@ class ArrayMeksoOperandSyntax:
         'The `Johi` cmavo marker.'
         ...
     @property
-    def expressions(self) -> tuple[MeksoSyntax, ...]:
+    def expressions(self) -> tuple[StandardMeksoArrayElementSyntax, ...]:
         'Non-empty ordered sequence of expressions components.'
         ...
     @property
@@ -5952,6 +6045,37 @@ class ArrayMeksoOperandSyntax:
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class StandardMeksoArrayElementSyntaxMeksoOperand:
+    'A standard operand element.'
+    __match_args__: ClassVar[tuple[Literal['mekso_operand']]]
+    def __new__(cls, mekso_operand: MeksoOperandSyntax) -> StandardMeksoArrayElementSyntaxMeksoOperand: ...
+    @property
+    def mekso_operand(self) -> MeksoOperandSyntax:
+        'A standard operand element.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class StandardMeksoArrayElementSyntaxForethoughtCallMekso:
+    'An operator-led forethought element.'
+    __match_args__: ClassVar[tuple[Literal['forethought_call_mekso']]]
+    def __new__(cls, forethought_call_mekso: ForethoughtCallMeksoSyntax) -> StandardMeksoArrayElementSyntaxForethoughtCallMekso: ...
+    @property
+    def forethought_call_mekso(self) -> ForethoughtCallMeksoSyntax:
+        'An operator-led forethought element.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for one standard-width JOhI array element.
+StandardMeksoArrayElementSyntax: TypeAlias = StandardMeksoArrayElementSyntaxMeksoOperand | StandardMeksoArrayElementSyntaxForethoughtCallMekso
 
 @final
 class LetterStringSyntax:
@@ -6270,20 +6394,6 @@ class LerfuStringMeksoSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class MeksoBaseSyntaxZantufaBoGroupedMeksoBase:
-    'Uses the `zantufa_bo_grouped_mekso_base` product form, whose payload preserves `first` and `continuations`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_bo_grouped_mekso_base']]]
-    def __new__(cls, zantufa_bo_grouped_mekso_base: ZantufaBoGroupedMeksoBaseSyntax) -> MeksoBaseSyntaxZantufaBoGroupedMeksoBase: ...
-    @property
-    def zantufa_bo_grouped_mekso_base(self) -> ZantufaBoGroupedMeksoBaseSyntax:
-        'Uses the `zantufa_bo_grouped_mekso_base` product form, whose payload preserves `first` and `continuations`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class MeksoBaseSyntaxMeksoOperand:
     'Uses the nested `mekso_operand` sum form and preserves its selected alternative.'
     __match_args__: ClassVar[tuple[Literal['mekso_operand']]]
@@ -6311,85 +6421,8 @@ class MeksoBaseSyntaxForethoughtCallMekso:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-@final
-class MeksoBaseSyntaxZantufaGroupedMeksoOperandSequence:
-    'Uses the `zantufa_grouped_mekso_operand_sequence` product form, whose payload preserves `ke`, `operands`, and `kehe`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_grouped_mekso_operand_sequence']]]
-    def __new__(cls, zantufa_grouped_mekso_operand_sequence: ZantufaGroupedMeksoOperandSequenceSyntax) -> MeksoBaseSyntaxZantufaGroupedMeksoOperandSequence: ...
-    @property
-    def zantufa_grouped_mekso_operand_sequence(self) -> ZantufaGroupedMeksoOperandSequenceSyntax:
-        'Uses the `zantufa_grouped_mekso_operand_sequence` product form, whose payload preserves `ke`, `operands`, and `kehe`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for mex; selects among the `zantufa_bo_grouped_mekso_base`, `mekso_operand`, `forethought_call_mekso`, and `zantufa_grouped_mekso_operand_sequence` forms.
-MeksoBaseSyntax: TypeAlias = MeksoBaseSyntaxZantufaBoGroupedMeksoBase | MeksoBaseSyntaxMeksoOperand | MeksoBaseSyntaxForethoughtCallMekso | MeksoBaseSyntaxZantufaGroupedMeksoOperandSequence
-
-@final
-class ZantufaBoGroupedMeksoBaseSyntax:
-    'Product node for grouped mex; preserves `first` and `continuations` in source order.'
-    __match_args__: ClassVar[tuple[Literal['first'], Literal['continuations']]]
-    def __new__(cls, first: MeksoOperandSyntax, continuations: Sequence[ZantufaBoGroupedMeksoContinuationSyntax]) -> ZantufaBoGroupedMeksoBaseSyntax: ...
-    @property
-    def first(self) -> MeksoOperandSyntax:
-        'The shared first child syntax node.'
-        ...
-    @property
-    def continuations(self) -> tuple[ZantufaBoGroupedMeksoContinuationSyntax, ...]:
-        'Non-empty ordered sequence of continuations components.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ZantufaBoGroupedMeksoContinuationSyntax:
-    'Product node for grouped mex; preserves `bo` and `expression` in source order.'
-    __match_args__: ClassVar[tuple[Literal['bo'], Literal['expression']]]
-    def __new__(cls, bo: WithFreeModifiers[Token, FreeModifierSyntax], expression: MeksoOperandSyntax) -> ZantufaBoGroupedMeksoContinuationSyntax: ...
-    @property
-    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'The `Bo` cmavo marker.'
-        ...
-    @property
-    def expression(self) -> MeksoOperandSyntax:
-        'The shared expression child syntax node.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ZantufaGroupedMeksoOperandSequenceSyntax:
-    'Product node for grouped mex; preserves `ke`, `operands`, and `kehe` in source order.'
-    __match_args__: ClassVar[tuple[Literal['ke'], Literal['operands'], Literal['kehe']]]
-    def __new__(
-        cls,
-        ke: WithFreeModifiers[Token, FreeModifierSyntax],
-        operands: Sequence[MeksoOperandSyntax],
-        kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
-    ) -> ZantufaGroupedMeksoOperandSequenceSyntax: ...
-    @property
-    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'The `Ke` cmavo marker.'
-        ...
-    @property
-    def operands(self) -> tuple[MeksoOperandSyntax, ...]:
-        'Non-empty ordered sequence of operands components.'
-        ...
-    @property
-    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
-        'The optional `Kehe` cmavo marker.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
+# Sum node for a standard mex base.
+MeksoBaseSyntax: TypeAlias = MeksoBaseSyntaxMeksoOperand | MeksoBaseSyntaxForethoughtCallMekso
 
 @final
 class MeksoPrecedenceSyntax:
@@ -6473,42 +6506,6 @@ class InfixMeksoContinuationSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class ZantufaInfixMeksoSyntax:
-    'Product node for mex; preserves `first_expression` and `continuations` in source order.'
-    __match_args__: ClassVar[tuple[Literal['first_expression'], Literal['continuations']]]
-    def __new__(cls, first_expression: MeksoPrecedenceSyntax, continuations: Sequence[ZantufaInfixMeksoContinuationSyntax]) -> ZantufaInfixMeksoSyntax: ...
-    @property
-    def first_expression(self) -> MeksoPrecedenceSyntax:
-        'The shared first expression child syntax node.'
-        ...
-    @property
-    def continuations(self) -> tuple[ZantufaInfixMeksoContinuationSyntax, ...]:
-        'Ordered sequence of zero or more continuations components.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ZantufaInfixMeksoContinuationSyntax:
-    'Product node for mex continuation; preserves `operators` and `right_expression` in source order.'
-    __match_args__: ClassVar[tuple[Literal['operators'], Literal['right_expression']]]
-    def __new__(cls, operators: Sequence[MeksoOperatorSyntax], right_expression: MeksoPrecedenceSyntax | None) -> ZantufaInfixMeksoContinuationSyntax: ...
-    @property
-    def operators(self) -> tuple[MeksoOperatorSyntax, ...]:
-        'Non-empty ordered sequence of operators components.'
-        ...
-    @property
-    def right_expression(self) -> MeksoPrecedenceSyntax | None:
-        'The optional right expression component.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class ForethoughtCallMeksoSyntax:
     'Product node for forethought mex; preserves `peho`, `operator`, `operands`, and `kuhe` in source order.'
     __match_args__: ClassVar[tuple[Literal['peho'], Literal['operator'], Literal['operands'], Literal['kuhe']]]
@@ -6541,27 +6538,13 @@ class ForethoughtCallMeksoSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class MeksoSyntaxZantufaReversePolishMekso:
-    'Uses the `zantufa_reverse_polish_mekso` product form, whose payload preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_reverse_polish_mekso']]]
-    def __new__(cls, zantufa_reverse_polish_mekso: ZantufaReversePolishMeksoSyntax) -> MeksoSyntaxZantufaReversePolishMekso: ...
+class MeksoSyntaxReinterpretZantufaMex:
+    'Gives the faithful Zantufa projection priority only under the meaning-changing flag.'
+    __match_args__: ClassVar[tuple[Literal['reinterpret_zantufa_mex']]]
+    def __new__(cls, reinterpret_zantufa_mex: ReinterpretZantufaMexSyntax) -> MeksoSyntaxReinterpretZantufaMex: ...
     @property
-    def zantufa_reverse_polish_mekso(self) -> ZantufaReversePolishMeksoSyntax:
-        'Uses the `zantufa_reverse_polish_mekso` product form, whose payload preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class MeksoSyntaxZantufaInfixMekso:
-    'Uses the `zantufa_infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_infix_mekso']]]
-    def __new__(cls, zantufa_infix_mekso: ZantufaInfixMeksoSyntax) -> MeksoSyntaxZantufaInfixMekso: ...
-    @property
-    def zantufa_infix_mekso(self) -> ZantufaInfixMeksoSyntax:
-        'Uses the `zantufa_infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.'
+    def reinterpret_zantufa_mex(self) -> ReinterpretZantufaMexSyntax:
+        'Gives the faithful Zantufa projection priority only under the meaning-changing flag.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -6596,18 +6579,266 @@ class MeksoSyntaxReversePolishMekso:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for mex; selects among the `zantufa_reverse_polish_mekso`, `zantufa_infix_mekso`, `infix_mekso`, and `reverse_polish_mekso` forms.
-MeksoSyntax: TypeAlias = MeksoSyntaxZantufaReversePolishMekso | MeksoSyntaxZantufaInfixMekso | MeksoSyntaxInfixMekso | MeksoSyntaxReversePolishMekso
+@final
+class MeksoSyntaxZantufaMex:
+    'Additive fallback for Zantufa-only surfaces in the warning union.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_mex']]]
+    def __new__(cls, zantufa_mex: ZantufaMexSyntax) -> MeksoSyntaxZantufaMex: ...
+    @property
+    def zantufa_mex(self) -> ZantufaMexSyntax:
+        'Additive fallback for Zantufa-only surfaces in the warning union.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for mex, with baseline ownership before the warning-union Zantufa fallback.
+MeksoSyntax: TypeAlias = MeksoSyntaxReinterpretZantufaMex | MeksoSyntaxInfixMekso | MeksoSyntaxReversePolishMekso | MeksoSyntaxZantufaMex
+
+@final
+class ReinterpretZantufaMexSyntax:
+    'Transparent priority wrapper used only by the meaning-changing reinterpretation flag.'
+    __match_args__: ClassVar[tuple[Literal['mex']]]
+    def __new__(cls, mex: ZantufaMexSyntax) -> ReinterpretZantufaMexSyntax: ...
+    @property
+    def mex(self) -> ZantufaMexSyntax:
+        'The faithful Zantufa mex projection.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMexSyntax:
+    'Product node for the complete Zantufa mex expression.'
+    __match_args__: ClassVar[tuple[Literal['first_expression'], Literal['continuations']]]
+    def __new__(cls, first_expression: ZantufaMex1Syntax, continuations: Sequence[ZantufaMexContinuationSyntax]) -> ZantufaMexSyntax: ...
+    @property
+    def first_expression(self) -> ZantufaMex1Syntax:
+        'The first mex_1 group.'
+        ...
+    @property
+    def continuations(self) -> tuple[ZantufaMexContinuationSyntax, ...]:
+        'Source-ordered operator-led continuations.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMexContinuationSyntax:
+    'Product node for a Zantufa mex continuation.'
+    __match_args__: ClassVar[tuple[Literal['operators'], Literal['right_expression']]]
+    def __new__(cls, operators: Sequence[ZantufaOperatorSyntax], right_expression: ZantufaMex1Syntax | None) -> ZantufaMexContinuationSyntax: ...
+    @property
+    def operators(self) -> tuple[ZantufaOperatorSyntax, ...]:
+        'One or more source operators; a connected operator node is intentionally not substituted.'
+        ...
+    @property
+    def right_expression(self) -> ZantufaMex1Syntax | None:
+        'The optional right mex_1 group.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMex1Syntax:
+    'Product node for Zantufa mex_1, including repeated BIhE tails.'
+    __match_args__: ClassVar[tuple[Literal['first_group'], Literal['tails']]]
+    def __new__(cls, first_group: ZantufaMexGroupSyntax, tails: Sequence[ZantufaBiheMeksoTailSyntax]) -> ZantufaMex1Syntax: ...
+    @property
+    def first_group(self) -> ZantufaMexGroupSyntax:
+        'The leading mex_2 group.'
+        ...
+    @property
+    def tails(self) -> tuple[ZantufaBiheMeksoTailSyntax, ...]:
+        'Repeated BIhE operator-sequence tails.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMexGroupSyntaxZantufaKeGroupedMekso:
+    'KE-grouped one-or-more mex_2 expressions.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_ke_grouped_mekso']]]
+    def __new__(cls, zantufa_ke_grouped_mekso: ZantufaKeGroupedMeksoSyntax) -> ZantufaMexGroupSyntaxZantufaKeGroupedMekso: ...
+    @property
+    def zantufa_ke_grouped_mekso(self) -> ZantufaKeGroupedMeksoSyntax:
+        'KE-grouped one-or-more mex_2 expressions.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMexGroupSyntaxZantufaBoGroupedMekso:
+    'A mex_2 expression with zero or more BO-linked expressions.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_bo_grouped_mekso']]]
+    def __new__(cls, zantufa_bo_grouped_mekso: ZantufaBoGroupedMeksoSyntax) -> ZantufaMexGroupSyntaxZantufaBoGroupedMekso: ...
+    @property
+    def zantufa_bo_grouped_mekso(self) -> ZantufaBoGroupedMeksoSyntax:
+        'A mex_2 expression with zero or more BO-linked expressions.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for either Zantufa mex_1 grouping form.
+ZantufaMexGroupSyntax: TypeAlias = ZantufaMexGroupSyntaxZantufaKeGroupedMekso | ZantufaMexGroupSyntaxZantufaBoGroupedMekso
+
+@final
+class ZantufaKeGroupedMeksoSyntax:
+    'Product node for a KE-grouped Zantufa mex_1 group.'
+    __match_args__: ClassVar[tuple[Literal['ke'], Literal['expressions'], Literal['kehe']]]
+    def __new__(
+        cls,
+        ke: WithFreeModifiers[Token, FreeModifierSyntax],
+        expressions: Sequence[ZantufaMex2Syntax],
+        kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaKeGroupedMeksoSyntax: ...
+    @property
+    def ke(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The opening KE marker.'
+        ...
+    @property
+    def expressions(self) -> tuple[ZantufaMex2Syntax, ...]:
+        'Non-empty source-ordered mex_2 expressions.'
+        ...
+    @property
+    def kehe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional KEhE terminator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaBoGroupedMeksoSyntax:
+    'Product node for a BO-grouped Zantufa mex_1 group.'
+    __match_args__: ClassVar[tuple[Literal['first_expression'], Literal['continuations']]]
+    def __new__(cls, first_expression: ZantufaMex2Syntax, continuations: Sequence[ZantufaBoGroupedMeksoContinuationSyntax]) -> ZantufaBoGroupedMeksoSyntax: ...
+    @property
+    def first_expression(self) -> ZantufaMex2Syntax:
+        'The first mex_2 expression.'
+        ...
+    @property
+    def continuations(self) -> tuple[ZantufaBoGroupedMeksoContinuationSyntax, ...]:
+        'Source-ordered BO continuations.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaBoGroupedMeksoContinuationSyntax:
+    'Product node for a Zantufa BO-group continuation.'
+    __match_args__: ClassVar[tuple[Literal['bo'], Literal['expression']]]
+    def __new__(cls, bo: WithFreeModifiers[Token, FreeModifierSyntax], expression: ZantufaMex2Syntax) -> ZantufaBoGroupedMeksoContinuationSyntax: ...
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The BO marker.'
+        ...
+    @property
+    def expression(self) -> ZantufaMex2Syntax:
+        'The following mex_2 expression.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaBiheMeksoTailSyntax:
+    'Product node for one repeated Zantufa BIhE tail.'
+    __match_args__: ClassVar[tuple[Literal['bihe'], Literal['operators'], Literal['right_group']]]
+    def __new__(
+        cls,
+        bihe: WithFreeModifiers[Token, FreeModifierSyntax],
+        operators: Sequence[ZantufaOperatorSyntax],
+        right_group: ZantufaMexGroupSyntax | None,
+    ) -> ZantufaBiheMeksoTailSyntax: ...
+    @property
+    def bihe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The BIhE marker.'
+        ...
+    @property
+    def operators(self) -> tuple[ZantufaOperatorSyntax, ...]:
+        'One or more source operators.'
+        ...
+    @property
+    def right_group(self) -> ZantufaMexGroupSyntax | None:
+        'The optional following group.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMex2SyntaxZantufaOperand:
+    'A Zantufa operand.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_operand']]]
+    def __new__(cls, zantufa_operand: ZantufaOperandSyntax) -> ZantufaMex2SyntaxZantufaOperand: ...
+    @property
+    def zantufa_operand(self) -> ZantufaOperandSyntax:
+        'A Zantufa operand.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMex2SyntaxZantufaReversePolishMekso:
+    'A Zantufa reverse-Polish expression.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_reverse_polish_mekso']]]
+    def __new__(cls, zantufa_reverse_polish_mekso: ZantufaReversePolishMeksoSyntax) -> ZantufaMex2SyntaxZantufaReversePolishMekso: ...
+    @property
+    def zantufa_reverse_polish_mekso(self) -> ZantufaReversePolishMeksoSyntax:
+        'A Zantufa reverse-Polish expression.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMex2SyntaxZantufaForethoughtMekso:
+    'A Zantufa operator-first forethought expression.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_forethought_mekso']]]
+    def __new__(cls, zantufa_forethought_mekso: ZantufaForethoughtMeksoSyntax) -> ZantufaMex2SyntaxZantufaForethoughtMekso: ...
+    @property
+    def zantufa_forethought_mekso(self) -> ZantufaForethoughtMeksoSyntax:
+        'A Zantufa operator-first forethought expression.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for Zantufa mex_2.
+ZantufaMex2Syntax: TypeAlias = ZantufaMex2SyntaxZantufaOperand | ZantufaMex2SyntaxZantufaReversePolishMekso | ZantufaMex2SyntaxZantufaForethoughtMekso
 
 @final
 class ZantufaReversePolishMeksoSyntax:
-    'Product node for reverse Polish mex; preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe` in source order.'
+    'Product node for reverse Polish Zantufa mex.'
     __match_args__: ClassVar[tuple[Literal['fuha'], Literal['operands'], Literal['operator'], Literal['tails'], Literal['kuhe']]]
     def __new__(
         cls,
         fuha: WithFreeModifiers[Token, FreeModifierSyntax],
-        operands: Sequence[MeksoBaseSyntax],
-        operator: MeksoOperatorSyntax,
+        operands: Sequence[ZantufaMex2Syntax],
+        operator: ZantufaOperatorSyntax,
         tails: Sequence[ZantufaReversePolishTailSyntax],
         kuhe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
     ) -> ZantufaReversePolishMeksoSyntax: ...
@@ -6616,16 +6847,16 @@ class ZantufaReversePolishMeksoSyntax:
         'The `Fuha` cmavo marker.'
         ...
     @property
-    def operands(self) -> tuple[MeksoBaseSyntax, ...]:
-        'Non-empty ordered sequence of operands components.'
+    def operands(self) -> tuple[ZantufaMex2Syntax, ...]:
+        'Non-empty ordered sequence of mex_2 expressions.'
         ...
     @property
-    def operator(self) -> MeksoOperatorSyntax:
-        'The shared operator child syntax node.'
+    def operator(self) -> ZantufaOperatorSyntax:
+        'The following Zantufa operator.'
         ...
     @property
     def tails(self) -> tuple[ZantufaReversePolishTailSyntax, ...]:
-        'Ordered sequence of zero or more tails components.'
+        'Ordered reverse-Polish tails.'
         ...
     @property
     def kuhe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
@@ -6638,16 +6869,477 @@ class ZantufaReversePolishMeksoSyntax:
 
 @final
 class ZantufaReversePolishTailSyntax:
-    'Product node for reverse Polish mex tail; preserves `operands` and `operator` in source order.'
+    'Product node for a Zantufa reverse-Polish tail.'
     __match_args__: ClassVar[tuple[Literal['operands'], Literal['operator']]]
-    def __new__(cls, operands: Sequence[MeksoBaseSyntax], operator: MeksoOperatorSyntax) -> ZantufaReversePolishTailSyntax: ...
+    def __new__(cls, operands: Sequence[ZantufaMex2Syntax], operator: ZantufaOperatorSyntax) -> ZantufaReversePolishTailSyntax: ...
     @property
-    def operands(self) -> tuple[MeksoBaseSyntax, ...]:
-        'Ordered sequence of zero or more operands components.'
+    def operands(self) -> tuple[ZantufaMex2Syntax, ...]:
+        'Ordered sequence of zero or more mex_2 expressions.'
         ...
     @property
-    def operator(self) -> MeksoOperatorSyntax:
-        'The shared operator child syntax node.'
+    def operator(self) -> ZantufaOperatorSyntax:
+        'The following Zantufa operator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaForethoughtMeksoSyntax:
+    'Product node for Zantufa operator-first forethought mex.'
+    __match_args__: ClassVar[tuple[Literal['peho'], Literal['operator'], Literal['operands'], Literal['continuation'], Literal['kuhe']]]
+    def __new__(
+        cls,
+        peho: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+        operator: ZantufaOperatorSyntax,
+        operands: Sequence[ZantufaMex2Syntax],
+        continuation: ZantufaForethoughtMeksoSyntax | None,
+        kuhe: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaForethoughtMeksoSyntax: ...
+    @property
+    def peho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional PEhO marker.'
+        ...
+    @property
+    def operator(self) -> ZantufaOperatorSyntax:
+        'The leading Zantufa operator.'
+        ...
+    @property
+    def operands(self) -> tuple[ZantufaMex2Syntax, ...]:
+        'Non-empty source-ordered mex_2 expressions.'
+        ...
+    @property
+    def continuation(self) -> ZantufaForethoughtMeksoSyntax | None:
+        'The optional recursively nested forethought tail.'
+        ...
+    @property
+    def kuhe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional KUhE terminator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperandSyntaxNumberMekso:
+    'A number with its BOI boundary.'
+    __match_args__: ClassVar[tuple[Literal['number_mekso']]]
+    def __new__(cls, number_mekso: NumberMeksoSyntax) -> ZantufaOperandSyntaxNumberMekso: ...
+    @property
+    def number_mekso(self) -> NumberMeksoSyntax:
+        'A number with its BOI boundary.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperandSyntaxLerfuStringMekso:
+    'A lerfu string with its BOI boundary.'
+    __match_args__: ClassVar[tuple[Literal['lerfu_string_mekso']]]
+    def __new__(cls, lerfu_string_mekso: LerfuStringMeksoSyntax) -> ZantufaOperandSyntaxLerfuStringMekso: ...
+    @property
+    def lerfu_string_mekso(self) -> LerfuStringMeksoSyntax:
+        'A lerfu string with its BOI boundary.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperandSyntaxZantufaParenthesizedMeksoOperand:
+    'A VEI-grouped full Zantufa mex.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_parenthesized_mekso_operand']]]
+    def __new__(cls, zantufa_parenthesized_mekso_operand: ZantufaParenthesizedMeksoOperandSyntax) -> ZantufaOperandSyntaxZantufaParenthesizedMeksoOperand: ...
+    @property
+    def zantufa_parenthesized_mekso_operand(self) -> ZantufaParenthesizedMeksoOperandSyntax:
+        'A VEI-grouped full Zantufa mex.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperandSyntaxZantufaSelbriMoheMeksoOperand:
+    'A MOhE selbri operand.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_selbri_mohe_mekso_operand']]]
+    def __new__(cls, zantufa_selbri_mohe_mekso_operand: ZantufaSelbriMoheMeksoOperandSyntax) -> ZantufaOperandSyntaxZantufaSelbriMoheMeksoOperand: ...
+    @property
+    def zantufa_selbri_mohe_mekso_operand(self) -> ZantufaSelbriMoheMeksoOperandSyntax:
+        'A MOhE selbri operand.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperandSyntaxZantufaSumtiMoheMeksoOperand:
+    'A MOhE sumti operand.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_sumti_mohe_mekso_operand']]]
+    def __new__(cls, zantufa_sumti_mohe_mekso_operand: ZantufaSumtiMoheMeksoOperandSyntax) -> ZantufaOperandSyntaxZantufaSumtiMoheMeksoOperand: ...
+    @property
+    def zantufa_sumti_mohe_mekso_operand(self) -> ZantufaSumtiMoheMeksoOperandSyntax:
+        'A MOhE sumti operand.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperandSyntaxZantufaLaheQualifiedMeksoOperand:
+    'A LAhE-qualified full Zantufa mex.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_lahe_qualified_mekso_operand']]]
+    def __new__(cls, zantufa_lahe_qualified_mekso_operand: ZantufaLaheQualifiedMeksoOperandSyntax) -> ZantufaOperandSyntaxZantufaLaheQualifiedMeksoOperand: ...
+    @property
+    def zantufa_lahe_qualified_mekso_operand(self) -> ZantufaLaheQualifiedMeksoOperandSyntax:
+        'A LAhE-qualified full Zantufa mex.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperandSyntaxZantufaNaheBoQualifiedMeksoOperand:
+    'A NAhE BO-qualified full Zantufa mex.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_nahe_bo_qualified_mekso_operand']]]
+    def __new__(cls, zantufa_nahe_bo_qualified_mekso_operand: ZantufaNaheBoQualifiedMeksoOperandSyntax) -> ZantufaOperandSyntaxZantufaNaheBoQualifiedMeksoOperand: ...
+    @property
+    def zantufa_nahe_bo_qualified_mekso_operand(self) -> ZantufaNaheBoQualifiedMeksoOperandSyntax:
+        'A NAhE BO-qualified full Zantufa mex.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperandSyntaxZantufaScalarNegatedMeksoOperand:
+    'Recursive scalar negation.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_scalar_negated_mekso_operand']]]
+    def __new__(cls, zantufa_scalar_negated_mekso_operand: ZantufaScalarNegatedMeksoOperandSyntax) -> ZantufaOperandSyntaxZantufaScalarNegatedMeksoOperand: ...
+    @property
+    def zantufa_scalar_negated_mekso_operand(self) -> ZantufaScalarNegatedMeksoOperandSyntax:
+        'Recursive scalar negation.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for the exact Zantufa operand inventory.
+ZantufaOperandSyntax: TypeAlias = ZantufaOperandSyntaxNumberMekso | ZantufaOperandSyntaxLerfuStringMekso | ZantufaOperandSyntaxZantufaParenthesizedMeksoOperand | ZantufaOperandSyntaxZantufaSelbriMoheMeksoOperand | ZantufaOperandSyntaxZantufaSumtiMoheMeksoOperand | ZantufaOperandSyntaxZantufaLaheQualifiedMeksoOperand | ZantufaOperandSyntaxZantufaNaheBoQualifiedMeksoOperand | ZantufaOperandSyntaxZantufaScalarNegatedMeksoOperand
+
+@final
+class ZantufaParenthesizedMeksoOperandSyntax:
+    'Product node for a VEI-grouped Zantufa operand.'
+    __match_args__: ClassVar[tuple[Literal['vei'], Literal['inner_expression'], Literal['veho']]]
+    def __new__(
+        cls,
+        vei: WithFreeModifiers[Token, FreeModifierSyntax],
+        inner_expression: ZantufaMexSyntax,
+        veho: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaParenthesizedMeksoOperandSyntax: ...
+    @property
+    def vei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The VEI marker.'
+        ...
+    @property
+    def inner_expression(self) -> ZantufaMexSyntax:
+        'The full inner Zantufa mex.'
+        ...
+    @property
+    def veho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional VEhO terminator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaSumtiMoheMeksoOperandSyntax:
+    'Product node for a Zantufa MOhE sumti operand.'
+    __match_args__: ClassVar[tuple[Literal['mohe'], Literal['sumti'], Literal['tehu']]]
+    def __new__(
+        cls,
+        mohe: WithFreeModifiers[Token, FreeModifierSyntax],
+        sumti: SumtiSyntax,
+        tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaSumtiMoheMeksoOperandSyntax: ...
+    @property
+    def mohe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The MOhE marker.'
+        ...
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The wrapped sumti.'
+        ...
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional TEhU terminator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaLaheQualifiedMeksoOperandSyntax:
+    'Product node for a wide Zantufa LAhE-qualified operand.'
+    __match_args__: ClassVar[tuple[Literal['lahe'], Literal['inner_expression'], Literal['luhu']]]
+    def __new__(
+        cls,
+        lahe: WithFreeModifiers[Token, FreeModifierSyntax],
+        inner_expression: ZantufaMexSyntax,
+        luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaLaheQualifiedMeksoOperandSyntax: ...
+    @property
+    def lahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The LAhE marker.'
+        ...
+    @property
+    def inner_expression(self) -> ZantufaMexSyntax:
+        'The full inner Zantufa mex.'
+        ...
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional LUhU terminator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaNaheBoQualifiedMeksoOperandSyntax:
+    'Product node for a wide Zantufa NAhE BO-qualified operand.'
+    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['bo'], Literal['inner_expression'], Literal['luhu']]]
+    def __new__(
+        cls,
+        nahe: WithFreeModifiers[Token, FreeModifierSyntax],
+        bo: WithFreeModifiers[Token, FreeModifierSyntax],
+        inner_expression: ZantufaMexSyntax,
+        luhu: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaNaheBoQualifiedMeksoOperandSyntax: ...
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The NAhE marker.'
+        ...
+    @property
+    def bo(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The mandatory BO marker.'
+        ...
+    @property
+    def inner_expression(self) -> ZantufaMexSyntax:
+        'The full inner Zantufa mex.'
+        ...
+    @property
+    def luhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional LUhU terminator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaScalarNegatedMeksoOperandSyntax:
+    'Product node for recursive Zantufa scalar negation.'
+    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['inner_expression']]]
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_expression: ZantufaOperandSyntax) -> ZantufaScalarNegatedMeksoOperandSyntax: ...
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The NAhE marker.'
+        ...
+    @property
+    def inner_expression(self) -> ZantufaOperandSyntax:
+        'The recursively nested Zantufa operand.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperatorSyntaxZantufaConvertedMeksoOperator:
+    'Recursive SE conversion.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_converted_mekso_operator']]]
+    def __new__(cls, zantufa_converted_mekso_operator: ZantufaConvertedMeksoOperatorSyntax) -> ZantufaOperatorSyntaxZantufaConvertedMeksoOperator: ...
+    @property
+    def zantufa_converted_mekso_operator(self) -> ZantufaConvertedMeksoOperatorSyntax:
+        'Recursive SE conversion.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperatorSyntaxZantufaScalarNegatedMeksoOperator:
+    'Recursive NAhE scalar negation.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_scalar_negated_mekso_operator']]]
+    def __new__(cls, zantufa_scalar_negated_mekso_operator: ZantufaScalarNegatedMeksoOperatorSyntax) -> ZantufaOperatorSyntaxZantufaScalarNegatedMeksoOperator: ...
+    @property
+    def zantufa_scalar_negated_mekso_operator(self) -> ZantufaScalarNegatedMeksoOperatorSyntax:
+        'Recursive NAhE scalar negation.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperatorSyntaxZantufaMahoMeksoOperator:
+    'MAhO wrapping a full Zantufa mex.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_maho_mekso_operator']]]
+    def __new__(cls, zantufa_maho_mekso_operator: ZantufaMahoMeksoOperatorSyntax) -> ZantufaOperatorSyntaxZantufaMahoMeksoOperator: ...
+    @property
+    def zantufa_maho_mekso_operator(self) -> ZantufaMahoMeksoOperatorSyntax:
+        'MAhO wrapping a full Zantufa mex.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperatorSyntaxZantufaMahoSelbriMeksoOperator:
+    'MAhO wrapping a selbri.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_maho_selbri_mekso_operator']]]
+    def __new__(cls, zantufa_maho_selbri_mekso_operator: ZantufaMahoSelbriMeksoOperatorSyntax) -> ZantufaOperatorSyntaxZantufaMahoSelbriMeksoOperator: ...
+    @property
+    def zantufa_maho_selbri_mekso_operator(self) -> ZantufaMahoSelbriMeksoOperatorSyntax:
+        'MAhO wrapping a selbri.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperatorSyntaxZantufaMahoSumtiMeksoOperator:
+    'MAhO wrapping a sumti.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_maho_sumti_mekso_operator']]]
+    def __new__(cls, zantufa_maho_sumti_mekso_operator: ZantufaMahoSumtiMeksoOperatorSyntax) -> ZantufaOperatorSyntaxZantufaMahoSumtiMeksoOperator: ...
+    @property
+    def zantufa_maho_sumti_mekso_operator(self) -> ZantufaMahoSumtiMeksoOperatorSyntax:
+        'MAhO wrapping a sumti.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperatorSyntaxZantufaPrimitiveMeksoOperator:
+    'A primitive VUhU operator.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_primitive_mekso_operator']]]
+    def __new__(cls, zantufa_primitive_mekso_operator: ZantufaPrimitiveMeksoOperatorSyntax) -> ZantufaOperatorSyntaxZantufaPrimitiveMeksoOperator: ...
+    @property
+    def zantufa_primitive_mekso_operator(self) -> ZantufaPrimitiveMeksoOperatorSyntax:
+        'A primitive VUhU operator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaOperatorSyntaxZantufaConnectiveMeksoOperator:
+    'A joik or ek connective operator, excluding CU.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_connective_mekso_operator']]]
+    def __new__(cls, zantufa_connective_mekso_operator: ZantufaConnectiveMeksoOperatorSyntax) -> ZantufaOperatorSyntaxZantufaConnectiveMeksoOperator: ...
+    @property
+    def zantufa_connective_mekso_operator(self) -> ZantufaConnectiveMeksoOperatorSyntax:
+        'A joik or ek connective operator, excluding CU.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for the exact Zantufa operator inventory.
+ZantufaOperatorSyntax: TypeAlias = ZantufaOperatorSyntaxZantufaConvertedMeksoOperator | ZantufaOperatorSyntaxZantufaScalarNegatedMeksoOperator | ZantufaOperatorSyntaxZantufaMahoMeksoOperator | ZantufaOperatorSyntaxZantufaMahoSelbriMeksoOperator | ZantufaOperatorSyntaxZantufaMahoSumtiMeksoOperator | ZantufaOperatorSyntaxZantufaPrimitiveMeksoOperator | ZantufaOperatorSyntaxZantufaConnectiveMeksoOperator
+
+@final
+class ZantufaConvertedMeksoOperatorSyntax:
+    'Product node for recursive Zantufa SE conversion.'
+    __match_args__: ClassVar[tuple[Literal['se'], Literal['inner_operator']]]
+    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: ZantufaOperatorSyntax) -> ZantufaConvertedMeksoOperatorSyntax: ...
+    @property
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The SE marker.'
+        ...
+    @property
+    def inner_operator(self) -> ZantufaOperatorSyntax:
+        'The recursively nested operator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaScalarNegatedMeksoOperatorSyntax:
+    'Product node for recursive Zantufa NAhE negation.'
+    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['inner_operator']]]
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_operator: ZantufaOperatorSyntax) -> ZantufaScalarNegatedMeksoOperatorSyntax: ...
+    @property
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The NAhE marker.'
+        ...
+    @property
+    def inner_operator(self) -> ZantufaOperatorSyntax:
+        'The recursively nested operator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaMahoMeksoOperatorSyntax:
+    'Product node for MAhO wrapping a full Zantufa mex.'
+    __match_args__: ClassVar[tuple[Literal['maho'], Literal['mekso'], Literal['tehu']]]
+    def __new__(
+        cls,
+        maho: WithFreeModifiers[Token, FreeModifierSyntax],
+        mekso: ZantufaMexSyntax,
+        tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+    ) -> ZantufaMahoMeksoOperatorSyntax: ...
+    @property
+    def maho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The MAhO marker.'
+        ...
+    @property
+    def mekso(self) -> ZantufaMexSyntax:
+        'The wrapped full Zantufa mex.'
+        ...
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional TEhU terminator.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaPrimitiveMeksoOperatorSyntax:
+    'Transparent product node for a primitive Zantufa operator.'
+    __match_args__: ClassVar[tuple[Literal['vuhu']]]
+    def __new__(cls, vuhu: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaPrimitiveMeksoOperatorSyntax: ...
+    @property
+    def vuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The VUhU word.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -8025,8 +8717,22 @@ class XiFreeModifierSyntaxXiParenthesizedFreeModifier:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for subscript; selects among the `xi_number_free_modifier`, `xi_lerfu_string_free_modifier`, and `xi_parenthesized_free_modifier` forms.
-XiFreeModifierSyntax: TypeAlias = XiFreeModifierSyntaxXiNumberFreeModifier | XiFreeModifierSyntaxXiLerfuStringFreeModifier | XiFreeModifierSyntaxXiParenthesizedFreeModifier
+@final
+class XiFreeModifierSyntaxZantufaMex2XiFreeModifier:
+    'Uses an exact Zantufa mex_2 subscript only after all standard routes fail.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_mex_2_xi_free_modifier']]]
+    def __new__(cls, zantufa_mex_2_xi_free_modifier: ZantufaMex2XiFreeModifierSyntax) -> XiFreeModifierSyntaxZantufaMex2XiFreeModifier: ...
+    @property
+    def zantufa_mex_2_xi_free_modifier(self) -> ZantufaMex2XiFreeModifierSyntax:
+        'Uses an exact Zantufa mex_2 subscript only after all standard routes fail.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for subscript; preserves standard ownership before the Zantufa mex_2 extension.
+XiFreeModifierSyntax: TypeAlias = XiFreeModifierSyntaxXiNumberFreeModifier | XiFreeModifierSyntaxXiLerfuStringFreeModifier | XiFreeModifierSyntaxXiParenthesizedFreeModifier | XiFreeModifierSyntaxZantufaMex2XiFreeModifier
 
 @final
 class XiNumberFreeModifierSyntax:
@@ -8083,6 +8789,24 @@ class XiParenthesizedFreeModifierSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ZantufaMex2XiFreeModifierSyntax:
+    'Product node for a Zantufa mex_2 subscript.'
+    __match_args__: ClassVar[tuple[Literal['xi'], Literal['expression']]]
+    def __new__(cls, xi: WithFreeModifiers[Token, FreeModifierSyntax], expression: ZantufaMex2Syntax) -> ZantufaMex2XiFreeModifierSyntax: ...
+    @property
+    def xi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'A word from selmaho `Xi`.'
+        ...
+    @property
+    def expression(self) -> ZantufaMex2Syntax:
+        'The exact Zantufa mex_2 payload.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class MaiFreeModifierSyntax:
     'Product node for utterance ordinal; preserves `number` and `mai` in source order.'
     __match_args__: ClassVar[tuple[Literal['number'], Literal['mai']]]
@@ -8104,10 +8828,10 @@ class MaiFreeModifierSyntax:
 class ZantufaMeksoMaiFreeModifierSyntax:
     'Product node for utterance ordinal; preserves `expression` and `mai` in source order.'
     __match_args__: ClassVar[tuple[Literal['expression'], Literal['mai']]]
-    def __new__(cls, expression: MeksoSyntax, mai: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaMeksoMaiFreeModifierSyntax: ...
+    def __new__(cls, expression: ZantufaMex2Syntax, mai: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaMeksoMaiFreeModifierSyntax: ...
     @property
-    def expression(self) -> MeksoSyntax:
-        'The required shared mekso expression parsed by `mekso`, accepted only when immediately followed by a MAI-family word.'
+    def expression(self) -> ZantufaMex2Syntax:
+        'The exact Zantufa mex_2 payload, accepted only when immediately followed by a MAI-family word.'
         ...
     @property
     def mai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
@@ -9038,22 +9762,8 @@ class OperandConnectiveSyntaxEkConnective:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-@final
-class OperandConnectiveSyntaxJekConnective:
-    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
-    __match_args__: ClassVar[tuple[Literal['jek_connective']]]
-    def __new__(cls, jek_connective: JekConnectiveSyntax) -> OperandConnectiveSyntaxJekConnective: ...
-    @property
-    def jek_connective(self) -> JekConnectiveSyntax:
-        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for operand connective; selects among the `joik_connective`, `ek_connective`, and `jek_connective` forms.
-OperandConnectiveSyntax: TypeAlias = OperandConnectiveSyntaxJoikConnective | OperandConnectiveSyntaxEkConnective | OperandConnectiveSyntaxJekConnective
+# Sum node for operand connective; selects among the `joik_connective` and `ek_connective` forms.
+OperandConnectiveSyntax: TypeAlias = OperandConnectiveSyntaxJoikConnective | OperandConnectiveSyntaxEkConnective
 
 @final
 class RelationAfterthoughtConnectiveSyntaxJoikConnective:
@@ -10787,13 +11497,13 @@ class NumberedIntervalPropertyTenseSyntax:
     __match_args__: ClassVar[tuple[Literal['number'], Literal['roi'], Literal['nai']]]
     def __new__(
         cls,
-        number: WithFreeModifiers[IntervalPropertyNumberWordsSyntax, FreeModifierSyntax],
+        number: WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax],
         roi: WithFreeModifiers[Token, FreeModifierSyntax],
         nai: WithFreeModifiers[Token, FreeModifierSyntax] | None,
     ) -> NumberedIntervalPropertyTenseSyntax: ...
     @property
-    def number(self) -> WithFreeModifiers[IntervalPropertyNumberWordsSyntax, FreeModifierSyntax]:
-        'The `interval_property_number_words` grammar result in the `number` structural role of the `numbered_interval_property_tense` production.'
+    def number(self) -> WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax]:
+        'The shared `number_words` grammar result in the `number` structural role of the `numbered_interval_property_tense` production.'
         ...
     @property
     def roi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
@@ -10802,83 +11512,6 @@ class NumberedIntervalPropertyTenseSyntax:
     @property
     def nai(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
         'The optional `Nai` cmavo marker.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class IntervalPropertyNumberWordsSyntax:
-    'Product node for number; preserves `first_number` and `continuations` in source order.'
-    __match_args__: ClassVar[tuple[Literal['first_number'], Literal['continuations']]]
-    def __new__(cls, first_number: Token, continuations: Sequence[IntervalPropertyNumberWordContinuationSyntax]) -> IntervalPropertyNumberWordsSyntax: ...
-    @property
-    def first_number(self) -> Token:
-        'The initial `pa_word` constituent before the continuations of the `interval_property_number_words` production.'
-        ...
-    @property
-    def continuations(self) -> tuple[IntervalPropertyNumberWordContinuationSyntax, ...]:
-        'Ordered sequence of zero or more continuations components.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberPaContinuation:
-    'Uses the `interval_property_number_pa_continuation` product form, whose payload preserves `pa`.'
-    __match_args__: ClassVar[tuple[Literal['interval_property_number_pa_continuation']]]
-    def __new__(cls, interval_property_number_pa_continuation: IntervalPropertyNumberPaContinuationSyntax) -> IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberPaContinuation: ...
-    @property
-    def interval_property_number_pa_continuation(self) -> IntervalPropertyNumberPaContinuationSyntax:
-        'Uses the `interval_property_number_pa_continuation` product form, whose payload preserves `pa`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberLetterContinuation:
-    'Uses the `interval_property_number_letter_continuation` product form, whose payload preserves `letter`.'
-    __match_args__: ClassVar[tuple[Literal['interval_property_number_letter_continuation']]]
-    def __new__(cls, interval_property_number_letter_continuation: IntervalPropertyNumberLetterContinuationSyntax) -> IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberLetterContinuation: ...
-    @property
-    def interval_property_number_letter_continuation(self) -> IntervalPropertyNumberLetterContinuationSyntax:
-        'Uses the `interval_property_number_letter_continuation` product form, whose payload preserves `letter`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for number continuation; selects among the `interval_property_number_pa_continuation` and `interval_property_number_letter_continuation` forms.
-IntervalPropertyNumberWordContinuationSyntax: TypeAlias = IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberPaContinuation | IntervalPropertyNumberWordContinuationSyntaxIntervalPropertyNumberLetterContinuation
-
-@final
-class IntervalPropertyNumberPaContinuationSyntax:
-    'Transparent product node for number continuation; preserves the `pa` component.'
-    __match_args__: ClassVar[tuple[Literal['pa']]]
-    def __new__(cls, pa: Token) -> IntervalPropertyNumberPaContinuationSyntax: ...
-    @property
-    def pa(self) -> Token:
-        'The `pa_word` grammar result in the `pa` structural role of the `interval_property_number_pa_continuation` production.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class IntervalPropertyNumberLetterContinuationSyntax:
-    'Transparent product node for number continuation; preserves the `letter` component.'
-    __match_args__: ClassVar[tuple[Literal['letter']]]
-    def __new__(cls, letter: Token) -> IntervalPropertyNumberLetterContinuationSyntax: ...
-    @property
-    def letter(self) -> Token:
-        'The `word_category` grammar result in the `letter` structural role of the `interval_property_number_letter_continuation` production.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -13262,14 +13895,14 @@ class MeLerfuSumtiSyntax:
 class OperatorSelbriTanruUnitSyntax:
     'Product node for operator-to-selbri; preserves `nuha` and `mekso_operator` in source order.'
     __match_args__: ClassVar[tuple[Literal['nuha'], Literal['mekso_operator']]]
-    def __new__(cls, nuha: WithFreeModifiers[Token, FreeModifierSyntax], mekso_operator: MeksoOperatorSyntax) -> OperatorSelbriTanruUnitSyntax: ...
+    def __new__(cls, nuha: WithFreeModifiers[Token, FreeModifierSyntax], mekso_operator: AtomicMeksoOperatorSyntax) -> OperatorSelbriTanruUnitSyntax: ...
     @property
     def nuha(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
         'The `Nuha` cmavo marker.'
         ...
     @property
-    def mekso_operator(self) -> MeksoOperatorSyntax:
-        'The shared mekso operator child syntax node.'
+    def mekso_operator(self) -> AtomicMeksoOperatorSyntax:
+        'The atomic mekso operator child syntax node.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...

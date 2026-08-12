@@ -11,8 +11,8 @@ status = "success"
 raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ke" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 4, char_start: 2, char_end: 4, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "a" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 7, char_start: 6, char_end: 7, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "by" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })]'
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 7], source-text = "a", message = "unexpected cmavo" }]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-mex-operator-connective", byte-span = [6, 7], source-text = "a", message = "experimental syntax: camxes-exp BO-bound or connective-atom MEX operator", word-index = 2 }]
 
 [expectations.output.vlasei]
 brackets = "(li ke .a by)"

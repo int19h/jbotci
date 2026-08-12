@@ -18,13 +18,17 @@ diagnostics = []
 [expectations.syntax]
 status = "success"
 # The inline syntax debug tree is large; keep this full-text fixture reviewable.
-raw = { sha256 = "29750fe6a13606b5c435ef5a7004a938c09735d2f5e6910fc4f7c3427e20e465" }
+# C3's old/new Alice probe found all 424 PaRun quantifiers with unchanged
+# free-modifier attachments; this hash records the resulting wrapper-only tree change.
+raw = { sha256 = "3979bc41e5b7068a2af4d90cdd60e2f69768da2680a7474ccba9a5f0d2ea1052" }
 diagnostics = []
 
 [expectations.semantics.refs]
 status = "success"
 # The inline semantic reference projection is about 28 MiB; keep this full-text fixture reviewable.
-raw = { sha256 = "76c489e1dd3b48ed06f378b02b504f6a1e7b2be602b21a6aeab193c6f703fa0a" }
+# The syntax ladder rebuild changes generated-node offsets used by this projection;
+# the C3 probe establishes that its 424 quantifier attachments are unchanged.
+raw = { sha256 = "b1665f09f19c4b76b2a8c99e588b4cebf55f0f94d65b3bcd6a708812f205f96f" }
 
 [expectations.output.tersmu]
 status = "success"
