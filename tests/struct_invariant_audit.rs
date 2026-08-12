@@ -1752,6 +1752,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the independent prefix flags and closed atom kind deliberately admit every typed combination",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:PostNaExtensionTagRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ZantufaTagRejection",
         "stateless parser rejection policy has exactly one valid value",
     ),

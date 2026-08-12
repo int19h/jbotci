@@ -26,7 +26,8 @@ use super::generated_model::{
     ExpPrefixedTagAtomSyntax, ExpPuTagAtomSyntax, ExpRoiIntervalSyntax, ExpRoiTagAtomSyntax,
     ExpTagAtomRunBodySyntax, ExpTagAtomSyntax, ExpTaheTagAtomSyntax, ExpVaTagAtomSyntax,
     ExpVehaTagAtomSyntax, ExpVihaTagAtomSyntax, ExpZahoTagAtomSyntax, ExpZehaTagAtomSyntax,
-    ExpZiTagAtomSyntax, TenseModalAtomSyntax, TenseModalBodySyntax, TenseModalSyntax, recovered,
+    ExpZiTagAtomSyntax, SelbriSyntax, TenseModalAtomSyntax, TenseModalBodySyntax, TenseModalSyntax,
+    recovered,
 };
 use super::generated_runtime::OutputRejection;
 
@@ -543,6 +544,8 @@ fn composite_is_baseline(run: &ExpTagAtomRunBodySyntax, start: usize, end: usize
 #[requires(true)]
 #[ensures(true)]
 fn is_baseline_tag(run: &ExpTagAtomRunBodySyntax) -> bool {
+    // Keep this strict-tree predicate in lockstep with `recovered_is_baseline_tag`
+    // below; review changes to either predicate against the other in the same commit.
     let len = run.additional.len() + 1;
     let first = classified(run, 0);
     if first.kind == AtomKind::Fiho {
@@ -577,6 +580,194 @@ pub(crate) struct BaselineTagRejection;
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ZantufaTagRejection;
+
+/// Rejects extension-owned tags immediately after selbri negation, where the
+/// baseline grammar instead owns the surface as a sequence of leading terms.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PostNaExtensionTagRejection;
+
+#[requires(true)]
+#[ensures(true)]
+fn exp_run_starts_with_baseline_term(run: &ExpTagAtomRunBodySyntax) -> bool {
+    let first = classified(run, 0);
+    if first.kind == AtomKind::Fiho {
+        return !first.nahe && !first.se;
+    }
+    if first.kind == AtomKind::Bai {
+        return true;
+    }
+    if matches!(first.kind, AtomKind::Cuhe | AtomKind::Ki) {
+        return !first.nahe && !first.se;
+    }
+    !first.se && composite_is_baseline(run, 0, 1)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn atom_is_extension(atom: &TenseModalAtomSyntax) -> bool {
+    match atom {
+        TenseModalAtomSyntax::ExpTagAtomRun(_) => true,
+        TenseModalAtomSyntax::CompositeTense(_)
+        | TenseModalAtomSyntax::FihoTense(_)
+        | TenseModalAtomSyntax::ModalTense(_)
+        | TenseModalAtomSyntax::StickyTense(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn tense_modal_is_extension(output: &TenseModalSyntax) -> bool {
+    // Keep the recovered-tree mirror `recovered_tense_modal_is_extension` in
+    // lockstep with this strict predicate. This boundary intentionally rejects
+    // a run whenever its first atom is baseline-term-parseable, even if the
+    // complete run has no baseline parse (`mi na pu roi broda`): preserving
+    // baseline ownership without unbounded differing-extent lookahead leaves
+    // that post-NA extension class as the documented gap.
+    let TenseModalSyntax(body) = output;
+    match body {
+        TenseModalBodySyntax::ConnectedTenseModal(connected) => {
+            let starts_with_baseline_term = match connected.first.as_ref() {
+                TenseModalAtomSyntax::ExpTagAtomRun(run) => {
+                    exp_run_starts_with_baseline_term(&run.0)
+                }
+                TenseModalAtomSyntax::CompositeTense(_)
+                | TenseModalAtomSyntax::FihoTense(_)
+                | TenseModalAtomSyntax::ModalTense(_)
+                | TenseModalAtomSyntax::StickyTense(_) => true,
+            };
+            starts_with_baseline_term
+                && (atom_is_extension(&connected.first)
+                    || connected
+                        .continuations
+                        .iter()
+                        .any(|continuation| atom_is_extension(&continuation.tense_modal)))
+        }
+        TenseModalBodySyntax::TenseModalAtom(atom) => match atom {
+            TenseModalAtomSyntax::ExpTagAtomRun(run) => exp_run_starts_with_baseline_term(&run.0),
+            TenseModalAtomSyntax::CompositeTense(_)
+            | TenseModalAtomSyntax::FihoTense(_)
+            | TenseModalAtomSyntax::ModalTense(_)
+            | TenseModalAtomSyntax::StickyTense(_) => false,
+        },
+        // Whole-Zantufa is tried after both baseline and camxes-exp ownership. Any
+        // baseline-prefix stealing surface therefore reaches the exp arm above;
+        // Zantufa-only first atoms such as bare ROI must remain valid after NA.
+        TenseModalBodySyntax::ZantufaTag(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_exp_run_starts_with_baseline_term(run: &recovered::ExpTagAtomRunBodySyntax) -> bool {
+    let Some(first) = recovered_classified(run, 0) else {
+        return false;
+    };
+    if first.kind == AtomKind::Fiho {
+        return !first.nahe && !first.se;
+    }
+    if first.kind == AtomKind::Bai {
+        return true;
+    }
+    if matches!(first.kind, AtomKind::Cuhe | AtomKind::Ki) {
+        return !first.nahe && !first.se;
+    }
+    !first.se && recovered_composite_is_baseline(run, 0, 1)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_atom_is_extension(atom: &recovered::TenseModalAtomSyntax) -> bool {
+    match atom {
+        recovered::TenseModalAtomSyntax::ExpTagAtomRun(_) => true,
+        recovered::TenseModalAtomSyntax::CompositeTense(_)
+        | recovered::TenseModalAtomSyntax::FihoTense(_)
+        | recovered::TenseModalAtomSyntax::ModalTense(_)
+        | recovered::TenseModalAtomSyntax::StickyTense(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_tense_modal_is_extension(output: &recovered::TenseModalSyntax) -> bool {
+    // Recovered-tree mirror of `tense_modal_is_extension`; review changes to
+    // either predicate against the other in the same commit.
+    let recovered::TenseModalSyntax(body) = output;
+    let Some(body) = valid(body) else {
+        return false;
+    };
+    match body {
+        recovered::TenseModalBodySyntax::ConnectedTenseModal(connected) => valid(connected)
+            .is_some_and(|connected| {
+                let starts_with_baseline_term =
+                    valid(&connected.first).is_some_and(|first| match first {
+                        recovered::TenseModalAtomSyntax::ExpTagAtomRun(run) => valid(run)
+                            .and_then(|run| valid(&run.0))
+                            .is_some_and(recovered_exp_run_starts_with_baseline_term),
+                        recovered::TenseModalAtomSyntax::CompositeTense(_)
+                        | recovered::TenseModalAtomSyntax::FihoTense(_)
+                        | recovered::TenseModalAtomSyntax::ModalTense(_)
+                        | recovered::TenseModalAtomSyntax::StickyTense(_) => true,
+                    });
+                starts_with_baseline_term
+                    && (valid(&connected.first).is_some_and(recovered_atom_is_extension)
+                        || connected.continuations.iter().any(|continuation| {
+                            valid(continuation).is_some_and(|continuation| {
+                                valid(&continuation.tense_modal)
+                                    .is_some_and(recovered_atom_is_extension)
+                            })
+                        }))
+            }),
+        recovered::TenseModalBodySyntax::TenseModalAtom(atom) => {
+            valid(atom).is_some_and(|atom| match atom {
+                recovered::TenseModalAtomSyntax::ExpTagAtomRun(run) => valid(run)
+                    .and_then(|run| valid(&run.0))
+                    .is_some_and(recovered_exp_run_starts_with_baseline_term),
+                recovered::TenseModalAtomSyntax::CompositeTense(_)
+                | recovered::TenseModalAtomSyntax::FihoTense(_)
+                | recovered::TenseModalAtomSyntax::ModalTense(_)
+                | recovered::TenseModalAtomSyntax::StickyTense(_) => false,
+            })
+        }
+        // Keep this disposition identical to the strict predicate above.
+        recovered::TenseModalBodySyntax::ZantufaTag(_) => false,
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<SelbriSyntax> for PostNaExtensionTagRejection {
+    fn rejected_name(&self) -> &'static str {
+        "extension tag immediately after selbri negation"
+    }
+
+    fn rejects(&self, output: &SelbriSyntax) -> bool {
+        match output {
+            SelbriSyntax::TaggedSelbri(tagged) => tense_modal_is_extension(&tagged.tense_modal),
+            SelbriSyntax::UntaggedSelbri(_) => false,
+        }
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::SelbriSyntax>>
+    for PostNaExtensionTagRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "extension tag immediately after selbri negation"
+    }
+
+    fn rejects(&self, output: &recovered::Recovered<recovered::SelbriSyntax>) -> bool {
+        let Some(output) = valid(output) else {
+            return false;
+        };
+        match output {
+            recovered::SelbriSyntax::TaggedSelbri(tagged) => valid(tagged).is_some_and(|tagged| {
+                valid(&tagged.tense_modal).is_some_and(recovered_tense_modal_is_extension)
+            }),
+            recovered::SelbriSyntax::UntaggedSelbri(_) => false,
+        }
+    }
+}
 
 #[contract_trait]
 impl OutputRejection<TenseModalSyntax> for ZantufaTagRejection {
@@ -1000,6 +1191,9 @@ fn recovered_composite_is_baseline(
 #[requires(true)]
 #[ensures(true)]
 fn recovered_is_baseline_tag(run: &recovered::ExpTagAtomRunBodySyntax) -> bool {
+    // Keep this recovered-tree mirror in lockstep with `is_baseline_tag` above. The two
+    // syntax models deliberately cannot share their concrete node types, so review every
+    // strict-predicate change against this function as part of the same change.
     let len = run.additional.len() + 1;
     let Some(first) = recovered_classified(run, 0) else {
         return false;

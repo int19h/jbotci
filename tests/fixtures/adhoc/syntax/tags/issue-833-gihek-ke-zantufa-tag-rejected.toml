@@ -1,0 +1,12 @@
+id = "adhoc.syntax.tags.issue-833-gihek-ke-zantufa-tag-rejected"
+lojban = "mi klama gi'e roi ke tavla ke'e"
+dialect = "(+zantufa-tags)"
+tags = ["adhoc", "syntax", "tag", "issue-833", "zantufa", "ke", "negative", "consumer"]
+
+[[provenance]]
+kind = "other"
+name = "Zantufa running-parser bridi-tail tag-before-KE exclusion probe"
+description = '''`node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse(\"mi klama gi'e roi ke tavla ke'e\")"` accepts only by routing `roi` into the following CU/selbri-KE path; `bridi_tail_1` explicitly excludes `tag? KE_clause`, so jbotci must not construct a ZantufaTag-before-KE continuation.'''
+
+[expectations.syntax]
+status = "failure"

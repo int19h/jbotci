@@ -920,7 +920,7 @@ pub mod generated_model {
         /// The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_ke_continuation` production.
         field connective <- bridi_tail_connective;
         /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The shared bridi tail child syntax node.
@@ -938,7 +938,7 @@ pub mod generated_model {
         /// The `gihek_connective` connective joining the adjacent constituents of the `gihek_bridi_tail_ke_continuation` production.
         field connective <- gihek_connective();
         /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The shared bridi tail child syntax node.
@@ -1401,7 +1401,9 @@ pub mod generated_model {
         /// A word from selmaho `Na`.
         field na <- selmaho(Na).wf();
         assert !choice((
-            selbri.ignored(),
+            selbri
+                .reject_output(crate::grammar::baseline_tag::PostNaExtensionTagRejection)
+                .ignored(),
             modal_forethought_connective(tense_modal).ignored(),
             selmaho(Ja).ignored(),
             (
@@ -4724,7 +4726,11 @@ pub mod generated_model {
         /// A word from selmaho `Na`.
         field na <- selmaho(Na).not_next_selmaho(Ku).wf();
         /// The shared inner selbri child syntax node.
-        field inner_selbri <- arc(selbri);
+        // Post-NA is another extension-free entry boundary: an experimental run here
+        // can otherwise steal a successful baseline reading in which NA and following
+        // tag atoms are separate terms. Filtering the completed recursive result is the
+        // recursive equivalent of the D2b baseline-parser mapping at term entry.
+        field inner_selbri <- arc(selbri.reject_output(crate::grammar::baseline_tag::PostNaExtensionTagRejection));
     }
 
     /// Product node for selbri; preserves `leading_selbri` and `co_tail` in source order.
@@ -4866,7 +4872,7 @@ pub mod generated_model {
         /// The optional bo connective component.
         field bo_connective <- opt(arc(relation_afterthought_connective));
         /// The optional bo tense modal component.
-        field bo_tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
+        field bo_tense_modal <- opt(arc(tense_modal));
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         /// The shared trailing unit child syntax node.
