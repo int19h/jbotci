@@ -2357,8 +2357,15 @@ pub mod generated_model {
         field kuhe <- opt(cmavo(Kuhe).wf()).elidable_terminator(Kuhe);
     }
 
+    // A right-less Zantufa connective can otherwise commit the priority choice
+    // before the baseline operand parser sees its optional stag plus BO. Zantufa
+    // itself rejects that continuation, so handing it back removes no sourced
+    // parse and preserves the baseline grammar included in the union profile.
+    alias "Zantufa priority mex bound-operand guard" zantufa_priority_mex_bound_operand_guard(tense_modal) =
+        (opt(arc(tense_modal)), cmavo(Bo)).not();
+
     /// Sum node for mex, with baseline ownership before the warning-union Zantufa fallback.
-    rule "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts, zantufa_mex) -> enum {
+    rule "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts, zantufa_mex, tense_modal) -> enum {
         /// Gives the faithful Zantufa projection priority only under the meaning-changing flag.
         when feature(ZantufaMexReinterpretation) reinterpret_zantufa_mex,
         /// Gives Zantufa-only continuations priority while handing baseline surfaces back.
@@ -2372,11 +2379,12 @@ pub mod generated_model {
     }
 
     /// Transparent priority route for a Zantufa-only mex surface.
-    rule "Zantufa priority mex" zantufa_priority_mex(zantufa_mex) -> struct {
+    rule "Zantufa priority mex" zantufa_priority_mex(zantufa_mex, tense_modal) -> struct {
         /// The completed Zantufa tree, rejected here when the baseline grammar owns its surface.
         field mex <- arc(
             zantufa_mex.reject_output(crate::grammar::baseline_mex::BaselineMexRejection)
         );
+        assert zantufa_priority_mex_bound_operand_guard(tense_modal);
     }
 
     /// Transparent priority wrapper used only by the meaning-changing reinterpretation flag.

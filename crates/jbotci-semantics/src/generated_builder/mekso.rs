@@ -1991,13 +1991,12 @@ fn generated_zantufa_mex_number_words_text(expression: &ZantufaMexSyntax) -> Opt
         ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
             generated_zantufa_mex_number_words_text(&operand.inner_expression)
         }
-        ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
-            generated_zantufa_mex_number_words_text(&operand.inner_expression)
-        }
-        ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
-            generated_zantufa_mex_number_words_text(&operand.inner_expression)
-        }
-        _ => None,
+        ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(_)
+        | ZantufaOperandSyntax::LerfuStringMekso(_)
+        | ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => None,
     }
 }
 

@@ -1,0 +1,31 @@
+id = "adhoc.syntax.mekso.issue-835-zantufa-priority-nahe-connected-no-steal"
+lojban = "li na'e bo pa .e re lu'u"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-835", "zantufa", "no-steal"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #835"
+url = "https://github.com/int19h/jbotci/issues/835"
+description = "A wide Zantufa NAhE-BO projection whose full inner operand is baseline-shaped reparses through the baseline operand and remains warning-free."
+
+[expectations.syntax]
+status = "success"
+raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(TermsFragment(TermsFragmentSyntax { terms: [ConnectedTerm(ConnectedTermSyntax { leading_term: SumtiTerm(SumtiTermSyntax(SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: SumtiBase(NumberSumti(NumberSumtiSyntax { li: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, expression: InfixMekso(InfixMeksoSyntax { first_expression: MeksoPrecedenceSyntax { left_expression: MeksoOperand(MeksoOperandSyntax { connected_expression: AfterthoughtMeksoOperandSyntax(Chain { first: SimpleMeksoOperand(QualifiedMeksoOperand(QualifiedMeksoOperandSyntax { nahe: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "na'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), bo: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "bo" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 10, char_start: 8, char_end: 10, start: None, end: None } })), inner_expression: MeksoOperandSyntax { connected_expression: AfterthoughtMeksoOperandSyntax(Chain { first: SimpleMeksoOperand(NumberMekso(NumberMeksoSyntax(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 13, char_start: 11, char_end: 13, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }))), links: [AfterthoughtMeksoOperandContinuationSyntax { operand_connective: EkConnective(EkConnectiveSyntax { na: None, se: None, a: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 15, byte_end: 16, char_start: 15, char_end: 16, start: None, end: None } })), free_modifiers: [] }, nai: None }), trailing_expression: SimpleMeksoOperand(NumberMekso(NumberMeksoSyntax(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 19, char_start: 17, char_end: 19, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }))) }] }), grouped_continuation: None }, luhu: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "lu'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 20, byte_end: 24, char_start: 20, char_end: 24, start: None, end: None } })), free_modifiers: [] }) })), links: [] }), grouped_continuation: None }), tail: None }, continuations: [] }), loho: None })), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None })), continuations: [] })], vau: None }))), following: [], trailing: [] })), additional_niho: [] })) })"""
+
+[expectations.output.gentufa]
+tree = """
+NumberSumti @[0‥24) {
+  li: Cmavo @[0‥2) "li",
+  QualifiedMeksoOperand @[3‥24) {
+    nahe: Cmavo @[3‥7) "na'e",
+    bo: Cmavo @[8‥10) "bo",
+    inner_expression: AfterthoughtMeksoOperand @[11‥19) {
+      Cmavo @[11‥13) "pa",
+      Cmavo @[15‥16) "e",
+      Cmavo @[17‥19) "re",
+    },
+    luhu: Cmavo @[20‥24) "lu'u",
+  },
+}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"InfixMekso":{"first_expression":{"left_expression":{"MeksoOperand":{"connected_expression":{"first":{"SimpleMeksoOperand":{"QualifiedMeksoOperand":{"nahe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"na'e","span":[3,7]}}}},"bo":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"bo","span":[8,10]}}}},"inner_expression":{"connected_expression":{"first":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[11,13]}}}}}}}},"links":[{"operand_connective":{"EkConnective":{"a":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"e","span":[15,16]}}}}}},"trailing_expression":{"SimpleMeksoOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[17,19]}}}}}}}}}]}},"luhu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lu'u","span":[20,24]}}}}}}}}}}}}}}}}}}}}}}}}}]}}}}}}}}}"""

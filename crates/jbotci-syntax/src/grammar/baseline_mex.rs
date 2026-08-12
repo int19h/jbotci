@@ -7,8 +7,12 @@
 //! without `..`: adding a token-consuming field must force this proof to be
 //! revisited. A rejected tree is composed exclusively from the same terminal
 //! surfaces and greedy infix extent as the baseline rules, so its baseline
-//! reparse consumes the identical extent. Rejection therefore changes only
-//! ownership and cannot change the accepted language.
+//! reparse consumes the identical extent. The one deliberate exception is a
+//! wide-qualified head whose inner expression starts with a baseline operand:
+//! owner policy rejects that Zantufa reading so an elided `LUhU` reparses with
+//! the narrower baseline qualifier. With explicit `LUhU`, that rejection can
+//! leave an upstream-accepted surface unavailable in the warning union; the
+//! reinterpretation feature retains the faithful wide reading.
 
 use bityzba::{contract_trait, invariant, requires};
 
@@ -27,7 +31,10 @@ fn is_baseline_mex(expression: &ZantufaMexSyntax) -> bool {
         first_expression,
         continuations,
     } = expression;
-    if continuations.is_empty() && baseline_root_reverse_polish(first_expression) {
+    if baseline_operand_mex(expression)
+        || wide_qualified_head_starts_with_baseline_operand(first_expression)
+        || continuations.is_empty() && baseline_root_reverse_polish(first_expression)
+    {
         return true;
     }
     baseline_precedence(first_expression)
@@ -146,28 +153,158 @@ fn baseline_operand_mex(expression: &ZantufaMexSyntax) -> bool {
         first_expression,
         continuations,
     } = expression;
-    if !continuations.is_empty() {
-        return false;
+    baseline_operand_precedence(first_expression)
+        && continuations
+            .iter()
+            .enumerate()
+            .all(|(index, continuation)| {
+                let ZantufaMexContinuationSyntax {
+                    operators,
+                    right_expression,
+                } = continuation;
+                operators.len() == 1
+                    && baseline_operand_connective(&operators[0])
+                    && right_expression.as_deref().is_some_and(|right| {
+                        baseline_operand_precedence(right)
+                            || index + 1 == continuations.len()
+                                && baseline_grouped_operand_continuation_right(right)
+                    })
+            })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn baseline_operand_precedence(expression: &ZantufaMex1Syntax) -> bool {
+    let ZantufaMex1Syntax { first_group, tails } = expression;
+    tails.is_empty() && baseline_operand_group(first_group)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn baseline_operand_group(group: &ZantufaMexGroupSyntax) -> bool {
+    match group {
+        ZantufaMexGroupSyntax::ZantufaKeGroupedMekso(_) => false,
+        ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) => {
+            let ZantufaBoGroupedMeksoSyntax {
+                first_expression,
+                continuations,
+            } = group;
+            continuations.is_empty() && baseline_operand_atom(first_expression)
+        }
     }
-    let ZantufaMex1Syntax { first_group, tails } = &**first_expression;
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn baseline_grouped_operand_continuation_right(expression: &ZantufaMex1Syntax) -> bool {
+    let ZantufaMex1Syntax { first_group, tails } = expression;
     if !tails.is_empty() {
         return false;
     }
-    let ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) = &**first_group else {
-        return false;
-    };
-    let ZantufaBoGroupedMeksoSyntax {
-        first_expression,
-        continuations,
-    } = group;
-    if !continuations.is_empty() {
-        return false;
+    match first_group.as_ref() {
+        ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(_) => false,
+        ZantufaMexGroupSyntax::ZantufaKeGroupedMekso(group) => {
+            let super::generated_model::ZantufaKeGroupedMeksoSyntax {
+                ke: _,
+                expressions,
+                kehe: _,
+            } = group;
+            expressions.len() == 1 && baseline_operand_atom(&expressions[0])
+        }
     }
-    match first_expression.as_ref() {
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn baseline_operand_atom(expression: &ZantufaMex2Syntax) -> bool {
+    match expression {
         ZantufaMex2Syntax::ZantufaOperand(operand) => baseline_operand(operand),
         ZantufaMex2Syntax::ZantufaReversePolishMekso(_)
         | ZantufaMex2Syntax::ZantufaForethoughtMekso(_) => false,
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn baseline_operand_connective(operator: &ZantufaOperatorSyntax) -> bool {
+    match operator {
+        ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
+            let super::generated_model::ZantufaConnectiveMeksoOperatorSyntax(_) = operator;
+            true
+        }
+        ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaMahoMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaPrimitiveMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn wide_qualified_head_starts_with_baseline_operand(expression: &ZantufaMex1Syntax) -> bool {
+    let ZantufaMex1Syntax {
+        first_group,
+        tails: _,
+    } = expression;
+    let ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) = first_group.as_ref() else {
+        return false;
+    };
+    let ZantufaBoGroupedMeksoSyntax {
+        first_expression,
+        continuations: _,
+    } = group;
+    let ZantufaMex2Syntax::ZantufaOperand(operand) = first_expression.as_ref() else {
+        return false;
+    };
+    let inner = match operand {
+        ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
+            let super::generated_model::ZantufaLaheQualifiedMeksoOperandSyntax {
+                lahe: _,
+                inner_expression,
+                luhu: _,
+            } = operand;
+            inner_expression.as_ref()
+        }
+        ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
+            let super::generated_model::ZantufaNaheBoQualifiedMeksoOperandSyntax {
+                nahe: _,
+                bo: _,
+                inner_expression,
+                luhu: _,
+            } = operand;
+            inner_expression.as_ref()
+        }
+        ZantufaOperandSyntax::NumberMekso(_)
+        | ZantufaOperandSyntax::LerfuStringMekso(_)
+        | ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => return false,
+    };
+    zantufa_mex_starts_with_baseline_operand(inner)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn zantufa_mex_starts_with_baseline_operand(expression: &ZantufaMexSyntax) -> bool {
+    let ZantufaMexSyntax {
+        first_expression,
+        continuations: _,
+    } = expression;
+    let ZantufaMex1Syntax {
+        first_group,
+        tails: _,
+    } = first_expression.as_ref();
+    let ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) = first_group.as_ref() else {
+        return false;
+    };
+    let ZantufaBoGroupedMeksoSyntax {
+        first_expression,
+        continuations: _,
+    } = group;
+    baseline_operand_atom(first_expression)
 }
 
 #[requires(true)]
@@ -333,7 +470,10 @@ fn recovered_is_baseline_mex(expression: &recovered::ZantufaMexSyntax) -> bool {
     let Some(first_expression) = valid(first_expression) else {
         return false;
     };
-    if continuations.is_empty() && recovered_baseline_root_reverse_polish(first_expression) {
+    if recovered_baseline_operand_mex(expression)
+        || recovered_wide_qualified_head_starts_with_baseline_operand(first_expression)
+        || continuations.is_empty() && recovered_baseline_root_reverse_polish(first_expression)
+    {
         return true;
     }
     recovered_baseline_precedence(first_expression)
@@ -488,39 +628,204 @@ fn recovered_baseline_operand_mex(expression: &recovered::ZantufaMexSyntax) -> b
         first_expression,
         continuations,
     } = expression;
-    if !continuations.is_empty() {
-        return false;
+    valid(first_expression).is_some_and(recovered_baseline_operand_precedence)
+        && continuations
+            .iter()
+            .enumerate()
+            .all(|(index, continuation)| {
+                let Some(recovered::ZantufaMexContinuationSyntax {
+                    operators,
+                    right_expression,
+                }) = valid(continuation)
+                else {
+                    return false;
+                };
+                operators.len() == 1
+                    && valid(&operators[0]).is_some_and(recovered_baseline_operand_connective)
+                    && right_expression
+                        .as_ref()
+                        .and_then(|value| valid(value.as_ref()))
+                        .is_some_and(|right| {
+                            recovered_baseline_operand_precedence(right)
+                                || index + 1 == continuations.len()
+                                    && recovered_baseline_grouped_operand_continuation_right(right)
+                        })
+            })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_baseline_operand_precedence(expression: &recovered::ZantufaMex1Syntax) -> bool {
+    let recovered::ZantufaMex1Syntax { first_group, tails } = expression;
+    tails.is_empty() && valid(first_group).is_some_and(recovered_baseline_operand_group)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_baseline_operand_group(group: &recovered::ZantufaMexGroupSyntax) -> bool {
+    match group {
+        recovered::ZantufaMexGroupSyntax::ZantufaKeGroupedMekso(_) => false,
+        recovered::ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) => valid(group).is_some_and(
+            |recovered::ZantufaBoGroupedMeksoSyntax {
+                 first_expression,
+                 continuations,
+             }| {
+                continuations.is_empty()
+                    && valid(first_expression).is_some_and(recovered_baseline_operand_atom)
+            },
+        ),
     }
-    let Some(recovered::ZantufaMex1Syntax { first_group, tails }) = valid(first_expression) else {
-        return false;
-    };
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_baseline_grouped_operand_continuation_right(
+    expression: &recovered::ZantufaMex1Syntax,
+) -> bool {
+    let recovered::ZantufaMex1Syntax { first_group, tails } = expression;
     if !tails.is_empty() {
         return false;
     }
+    match valid(first_group) {
+        Some(recovered::ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(_)) => false,
+        Some(recovered::ZantufaMexGroupSyntax::ZantufaKeGroupedMekso(group)) => valid(group)
+            .is_some_and(
+                |recovered::ZantufaKeGroupedMeksoSyntax {
+                     ke,
+                     expressions,
+                     kehe,
+                 }| {
+                    valid_wf(ke)
+                        && expressions.len() == 1
+                        && valid(&expressions[0]).is_some_and(recovered_baseline_operand_atom)
+                        && kehe.as_ref().is_none_or(valid_wf)
+                },
+            ),
+        None => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_baseline_operand_atom(expression: &recovered::ZantufaMex2Syntax) -> bool {
+    match expression {
+        recovered::ZantufaMex2Syntax::ZantufaOperand(operand) => {
+            valid(operand).is_some_and(recovered_baseline_operand)
+        }
+        recovered::ZantufaMex2Syntax::ZantufaReversePolishMekso(_)
+        | recovered::ZantufaMex2Syntax::ZantufaForethoughtMekso(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_baseline_operand_connective(operator: &recovered::ZantufaOperatorSyntax) -> bool {
+    match operator {
+        recovered::ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
+            valid(operator).is_some_and(
+                |recovered::ZantufaConnectiveMeksoOperatorSyntax(connective)| {
+                    valid(connective).is_some()
+                },
+            )
+        }
+        recovered::ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(_)
+        | recovered::ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(_)
+        | recovered::ZantufaOperatorSyntax::ZantufaMahoMeksoOperator(_)
+        | recovered::ZantufaOperatorSyntax::ZantufaPrimitiveMeksoOperator(_)
+        | recovered::ZantufaOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
+        | recovered::ZantufaOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_) => false,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_wide_qualified_head_starts_with_baseline_operand(
+    expression: &recovered::ZantufaMex1Syntax,
+) -> bool {
+    let recovered::ZantufaMex1Syntax {
+        first_group,
+        tails: _,
+    } = expression;
     let Some(recovered::ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group)) = valid(first_group)
     else {
         return false;
     };
     let Some(recovered::ZantufaBoGroupedMeksoSyntax {
         first_expression,
-        continuations,
+        continuations: _,
     }) = valid(group)
     else {
         return false;
     };
-    if !continuations.is_empty() {
+    let Some(recovered::ZantufaMex2Syntax::ZantufaOperand(operand)) = valid(first_expression)
+    else {
         return false;
-    }
-    match valid(first_expression) {
-        Some(recovered::ZantufaMex2Syntax::ZantufaOperand(operand)) => {
-            valid(operand).is_some_and(recovered_baseline_operand)
+    };
+    let Some(operand) = valid(operand) else {
+        return false;
+    };
+    let inner = match operand {
+        recovered::ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
+            let Some(recovered::ZantufaLaheQualifiedMeksoOperandSyntax {
+                lahe: _,
+                inner_expression,
+                luhu: _,
+            }) = valid(operand)
+            else {
+                return false;
+            };
+            valid(inner_expression)
         }
-        Some(
-            recovered::ZantufaMex2Syntax::ZantufaReversePolishMekso(_)
-            | recovered::ZantufaMex2Syntax::ZantufaForethoughtMekso(_),
-        )
-        | None => false,
-    }
+        recovered::ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
+            let Some(recovered::ZantufaNaheBoQualifiedMeksoOperandSyntax {
+                nahe: _,
+                bo: _,
+                inner_expression,
+                luhu: _,
+            }) = valid(operand)
+            else {
+                return false;
+            };
+            valid(inner_expression)
+        }
+        recovered::ZantufaOperandSyntax::NumberMekso(_)
+        | recovered::ZantufaOperandSyntax::LerfuStringMekso(_)
+        | recovered::ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(_)
+        | recovered::ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
+        | recovered::ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_)
+        | recovered::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => return false,
+    };
+    inner.is_some_and(recovered_zantufa_mex_starts_with_baseline_operand)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_zantufa_mex_starts_with_baseline_operand(
+    expression: &recovered::ZantufaMexSyntax,
+) -> bool {
+    let recovered::ZantufaMexSyntax {
+        first_expression,
+        continuations: _,
+    } = expression;
+    let Some(recovered::ZantufaMex1Syntax {
+        first_group,
+        tails: _,
+    }) = valid(first_expression)
+    else {
+        return false;
+    };
+    let Some(recovered::ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group)) = valid(first_group)
+    else {
+        return false;
+    };
+    let Some(recovered::ZantufaBoGroupedMeksoSyntax {
+        first_expression,
+        continuations: _,
+    }) = valid(group)
+    else {
+        return false;
+    };
+    valid(first_expression).is_some_and(recovered_baseline_operand_atom)
 }
 
 #[requires(true)]

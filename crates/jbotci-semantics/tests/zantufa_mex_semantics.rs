@@ -117,3 +117,22 @@ fn zantufa_bare_number_quantifier_remains_an_integer() {
             .any(|object| object["type"] == "quantity" && object["value"]["integer"] == 1)
     );
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn zantufa_wide_qualified_quantifier_remains_an_opaque_math_expression() {
+    for source in ["li la'e pa lu'u lo'o", "li na'e bo pa lu'u lo'o"] {
+        let graph = build_graph(source, "(zantufa +zantufa-mex-reinterpretation)");
+        let value = serde_json::to_value(graph).expect("serialize graph");
+        assert!(
+            value["objects"]
+                .as_object()
+                .expect("object map")
+                .values()
+                .filter(|object| object["type"] == "quantity")
+                .all(|object| object["value"].get("integer").is_none()),
+            "wide qualifier must prevent integer unwrapping: {source}"
+        );
+    }
+}
