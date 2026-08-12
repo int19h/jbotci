@@ -75,6 +75,7 @@ define_dialect_features! {
     PermissiveLexer => "permissive-lexer",
     SoiAdverbials => "soi-adverbials",
     TermHierarchy => "term-hierarchy",
+    UnrestrictedFree => "unrestricted-free",
     ZantufaAdverbials => "zantufa-adverbials",
     ZantufaConnectives => "zantufa-connectives",
     ZantufaMex => "zantufa-mex",

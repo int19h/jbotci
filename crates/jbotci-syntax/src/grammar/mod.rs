@@ -4672,6 +4672,7 @@ fn recovery_feature_condition_matches(
     match name {
         "TermHierarchy" => dialect.term_hierarchy_enabled,
         "Cbm" => dialect.cbm_enabled,
+        "UnrestrictedFree" => dialect.unrestricted_free_enabled,
         "ZantufaAdverbials" => dialect.zantufa_adverbials_enabled,
         "ZantufaConnectives" => dialect.zantufa_connectives_enabled,
         "ZantufaMex" => dialect.zantufa_mex_enabled,

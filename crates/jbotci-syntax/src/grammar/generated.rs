@@ -3100,7 +3100,7 @@ pub mod generated_model {
     /// Product node for vocative phrase; preserves `vocative_markers`, `sumti`, and `dohu` in source order.
     rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, tense_modal, statement) -> struct {
         /// The `vocative_marker_words` grammar result in the `vocative_markers` structural role of the `vocative_free_modifier` production.
-        field vocative_markers <- vocative_marker_words().wf();
+        field vocative_markers <- vocative_marker_words().wf_when(UnrestrictedFree);
         /// The optional sumti component.
         field sumti <- opt(arc(vocative_sumti(sumti, subbridi, selbri, tense_modal, statement)));
         /// The optional `Dohu` cmavo marker.

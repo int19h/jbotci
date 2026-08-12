@@ -75,6 +75,7 @@ class _dialect_DialectFeature(StrEnum):
     PERMISSIVE_LEXER = 'permissive-lexer'
     SOI_ADVERBIALS = 'soi-adverbials'
     TERM_HIERARCHY = 'term-hierarchy'
+    UNRESTRICTED_FREE = 'unrestricted-free'
     ZANTUFA_ADVERBIALS = 'zantufa-adverbials'
     ZANTUFA_CONNECTIVES = 'zantufa-connectives'
     ZANTUFA_MEX = 'zantufa-mex'

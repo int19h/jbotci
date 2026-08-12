@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: CoiVocativeMarkerWords(CoiVocativeMarkerWordsSyntax { first_coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), first_nai: None, additional_coi: [], doi: None }), free_modifiers: [SoiFreeModifier(SoiFreeModifierSyntax { soi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "soĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } })), free_modifiers: [] }, leading_sumti: SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: QuantifiedSumti(QuantifiedSumtiSyntax { quantifier: PaRunQuantifier(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }), inner_sumti: ProSumti(ProSumtiSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })), free_modifiers: [] })) }), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None }, trailing_sumti: None, sehu: None })] }, sumti: None, dohu: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: CoiVocativeMarkerWords(CoiVocativeMarkerWordsSyntax { first_coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), first_nai: None, additional_coi: [], doi: None }), free_modifiers: [] }, sumti: None, dohu: None }), SoiFreeModifier(SoiFreeModifierSyntax { soi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "soĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 6, char_start: 3, char_end: 6, start: None, end: None } })), free_modifiers: [] }, leading_sumti: SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: QuantifiedSumti(QuantifiedSumtiSyntax { quantifier: PaRunQuantifier(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ro" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }), inner_sumti: ProSumti(ProSumtiSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "do" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })), free_modifiers: [] })) }), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None }, trailing_sumti: None, sehu: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
 
 [expectations.semantics.refs]
 status = "success"
@@ -31,16 +31,14 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-VocativeFreeModifier @[0‥11) {
-  vocative_markers: Cmavo @[0‥3) "coĭ",
-  free_modifiers: [
-    SoiFreeModifier @[3‥11) {
-      soi: Cmavo @[3‥6) "soĭ",
-      leading_sumti: QuantifiedSumti @[7‥11) {
-        quantifier: Cmavo @[7‥9) "ro",
-        inner_sumti: Cmavo @[9‥11) "do",
-      },
+[
+  Cmavo @[0‥3) "coĭ",
+  SoiFreeModifier @[3‥11) {
+    soi: Cmavo @[3‥6) "soĭ",
+    leading_sumti: QuantifiedSumti @[7‥11) {
+      quantifier: Cmavo @[7‥9) "ro",
+      inner_sumti: Cmavo @[9‥11) "do",
     },
-  ],
-}"""
-json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":[{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},{"SoiFreeModifier":{"soi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"soĭ","span":[3,6]}}}},"leading_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[7,9]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}}}}}}}]}}]}}'
+  },
+]"""
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}}}},{"SoiFreeModifier":{"soi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"soĭ","span":[3,6]}}}},"leading_sumti":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"QuantifiedSumti":{"quantifier":{"PaRunQuantifier":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ro","span":[7,9]}}}}}}},"inner_sumti":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do","span":[9,11]}}}}}}}}}}}}}}}]}}'

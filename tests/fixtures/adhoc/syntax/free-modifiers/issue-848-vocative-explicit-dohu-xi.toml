@@ -1,0 +1,28 @@
+id = "adhoc.syntax.free-modifiers.issue-848-vocative-explicit-dohu-xi"
+lojban = "coi do'u xi pa"
+tags = ["adhoc", "syntax", "free-modifiers", "issue-848", "regression"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #848"
+url = "https://github.com/int19h/jbotci/issues/848"
+description = "An explicit DOhU keeps XI as a sibling and reports the established CLL-placement warning."
+
+[expectations.syntax]
+status = "success"
+raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: CoiVocativeMarkerWords(CoiVocativeMarkerWordsSyntax { first_coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), first_nai: None, additional_coi: [], doi: None }), free_modifiers: [] }, sumti: None, dohu: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "do'u" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 8, char_start: 4, char_end: 8, start: None, end: None } })), free_modifiers: [XiFreeModifier(XiNumberFreeModifier(XiNumberFreeModifierSyntax { xi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "xi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 11, char_start: 9, char_end: 11, start: None, end: None } })), free_modifiers: [] }, expression: NumberMeksoSyntax(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 14, char_start: 12, char_end: 14, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }) }))] }) })], leading_connective: None, leading_i_statements: [], paragraphs: None })"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.cll-prohibited-free-modifier-placement", byte-span = [9, 11], source-text = "xi", message = "experimental syntax: free modifier placement prohibited by CLL grammar", word-index = 2 }]
+
+[expectations.output.gentufa]
+tree = """
+VocativeFreeModifier @[0‥14) {
+  vocative_markers: Cmavo @[0‥3) "coĭ",
+  dohu: Cmavo @[4‥8) "do'u",
+  free_modifiers: [
+    XiNumberFreeModifier @[9‥14) {
+      xi: Cmavo @[9‥11) "xi",
+      expression: Cmavo @[12‥14) "pa",
+    },
+  ],
+}"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}},"dohu":[{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"do'u","span":[4,8]}}}},{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[9,11]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[12,14]}}}}}}}}}]}}]}}"""

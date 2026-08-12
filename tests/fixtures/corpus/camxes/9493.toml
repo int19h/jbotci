@@ -12,7 +12,7 @@ raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan 
 
 [expectations.syntax]
 status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: DoiVocativeMarkerWords(DoiVocativeMarkerWordsSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })))), free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: DoiVocativeMarkerWords(DoiVocativeMarkerWordsSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } })))), free_modifiers: [] }, sumti: None, dohu: None })] }, sumti: None, dohu: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: DoiVocativeMarkerWords(DoiVocativeMarkerWordsSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })))), free_modifiers: [] }, sumti: None, dohu: None }), VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: DoiVocativeMarkerWords(DoiVocativeMarkerWordsSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "doĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 7, char_start: 4, char_end: 7, start: None, end: None } })))), free_modifiers: [] }, sumti: None, dohu: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })'
 
 [expectations.semantics.refs]
 status = "success"
@@ -29,10 +29,8 @@ json = '[{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}},{"PlainWord":{
 
 [expectations.output.gentufa]
 tree = """
-VocativeFreeModifier @[0‥7) {
-  vocative_markers: Cmavo @[0‥3) "doĭ",
-  free_modifiers: [
-    Cmavo @[4‥7) "doĭ",
-  ],
-}"""
-json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":[{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}},{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}}}}}}]}}]}}'
+[
+  Cmavo @[0‥3) "doĭ",
+  Cmavo @[4‥7) "doĭ",
+]"""
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[0,3]}}}}}}},{"VocativeFreeModifier":{"vocative_markers":{"DoiVocativeMarkerWords":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"doĭ","span":[4,7]}}}}}}}]}}'
