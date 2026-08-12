@@ -854,6 +854,7 @@ impl SyntaxConstructContext {
 #[invariant(true)]
 enum SyntaxConstructWiring {
     Parser,
+    ParserInternal,
     Synthetic,
 }
 
@@ -872,6 +873,17 @@ struct SyntaxConstructMetadata {
     parent: Option<&'static str>,
     incomplete_attribution: SyntaxConstructIncompleteAttribution,
     wiring: SyntaxConstructWiring,
+}
+
+macro_rules! parser_construct_metadata {
+    ($name:literal, $parent:literal) => {
+        SyntaxConstructMetadata {
+            name: $name,
+            parent: Some($parent),
+            incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+            wiring: SyntaxConstructWiring::ParserInternal,
+        }
+    };
 }
 
 const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
@@ -1283,6 +1295,46 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
+    parser_construct_metadata!("baseline term tag", "tag"),
+    parser_construct_metadata!("baseline term tag atom", "baseline term tag"),
+    parser_construct_metadata!("baseline term connected tag", "baseline term tag"),
+    parser_construct_metadata!(
+        "baseline term connected tag continuation",
+        "baseline term connected tag"
+    ),
+    parser_construct_metadata!("experimental tag atom run", "tag"),
+    parser_construct_metadata!(
+        "experimental tag atom run body",
+        "experimental tag atom run"
+    ),
+    parser_construct_metadata!("experimental tag atom", "experimental tag atom run body"),
+    parser_construct_metadata!("experimental BAI tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental CAhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental CUhE tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental FA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental FAhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental FIhO tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental KI tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental PU tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental ROI tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental TAhE tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental VA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental VEhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental VIhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental ZAhO tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental ZEhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental ZI tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental number", "experimental ROI tag atom"),
+    parser_construct_metadata!("experimental number atom", "experimental number"),
+    parser_construct_metadata!("experimental PA number atom", "experimental number atom"),
+    parser_construct_metadata!("experimental MOhE number atom", "experimental number atom"),
+    parser_construct_metadata!("experimental NIhE number atom", "experimental number atom"),
+    parser_construct_metadata!("experimental ROI interval", "experimental ROI tag atom"),
+    parser_construct_metadata!(
+        "experimental parenthesized ROI interval",
+        "experimental ROI interval"
+    ),
+    parser_construct_metadata!("experimental prefixed tag atom", "experimental tag atom"),
     SyntaxConstructMetadata {
         name: "modal tag",
         parent: Some("simple tense/modal"),
@@ -2115,6 +2167,13 @@ pub(crate) fn syntax_construct_depth(construct: &str) -> usize {
 #[ensures(ret -> !construct.is_empty())]
 pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
     syntax_construct_metadata(construct).is_some()
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(ret -> syntax_construct_is_known(construct))]
+pub(crate) fn syntax_construct_is_diagnostic_context(construct: &str) -> bool {
+    syntax_construct_metadata(construct)
+        .is_some_and(|metadata| metadata.wiring != SyntaxConstructWiring::ParserInternal)
 }
 
 #[requires(!construct.is_empty())]

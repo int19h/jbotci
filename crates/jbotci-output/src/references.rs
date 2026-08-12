@@ -1075,17 +1075,8 @@ fn generated_tense_modal_atom_node_ref(
         generated::TenseModalAtomSyntax::ModalTense(_) => {
             GeneratedSyntaxNodeRef::TenseModalAtomSyntaxModalTense(atom)
         }
-        generated::TenseModalAtomSyntax::NaheSeFlatPrefixedTense(_) => {
-            GeneratedSyntaxNodeRef::TenseModalAtomSyntaxNaheSeFlatPrefixedTense(atom)
-        }
-        generated::TenseModalAtomSyntax::SeFlatPrefixedTense(_) => {
-            GeneratedSyntaxNodeRef::TenseModalAtomSyntaxSeFlatPrefixedTense(atom)
-        }
-        generated::TenseModalAtomSyntax::FaFlatTagTense(_) => {
-            GeneratedSyntaxNodeRef::TenseModalAtomSyntaxFaFlatTagTense(atom)
-        }
-        generated::TenseModalAtomSyntax::ZantufaRecursiveTagTense(_) => {
-            GeneratedSyntaxNodeRef::TenseModalAtomSyntaxZantufaRecursiveTagTense(atom)
+        generated::TenseModalAtomSyntax::ExpTagAtomRun(_) => {
+            GeneratedSyntaxNodeRef::TenseModalAtomSyntaxExpTagAtomRun(atom)
         }
         generated::TenseModalAtomSyntax::StickyTense(_) => {
             GeneratedSyntaxNodeRef::TenseModalAtomSyntaxStickyTense(atom)
@@ -1154,10 +1145,7 @@ fn generated_words_for_node(
         GeneratedSyntaxNodeRef::TenseModalAtomSyntaxCompositeTense(value)
         | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxFihoTense(value)
         | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxModalTense(value)
-        | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxNaheSeFlatPrefixedTense(value)
-        | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxSeFlatPrefixedTense(value)
-        | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxFaFlatTagTense(value)
-        | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxZantufaRecursiveTagTense(value)
+        | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxExpTagAtomRun(value)
         | GeneratedSyntaxNodeRef::TenseModalAtomSyntaxStickyTense(value) => {
             value.visit_in_order(&mut collector)
         }
@@ -1168,14 +1156,7 @@ fn generated_words_for_node(
             value.visit_in_order(&mut collector)
         }
         GeneratedSyntaxNodeRef::ModalTenseSyntax(value) => value.visit_in_order(&mut collector),
-        GeneratedSyntaxNodeRef::NaheSeFlatPrefixedTenseSyntax(value) => {
-            value.visit_in_order(&mut collector)
-        }
-        GeneratedSyntaxNodeRef::SeFlatPrefixedTenseSyntax(value) => {
-            value.visit_in_order(&mut collector)
-        }
-        GeneratedSyntaxNodeRef::FaFlatTagTenseSyntax(value) => value.visit_in_order(&mut collector),
-        GeneratedSyntaxNodeRef::ZantufaRecursiveTagTenseSyntax(value) => {
+        GeneratedSyntaxNodeRef::ExpTagAtomRunSyntax(value) => {
             value.visit_in_order(&mut collector)
         }
         GeneratedSyntaxNodeRef::StickyTenseSyntax(value) => value.visit_in_order(&mut collector),

@@ -258,7 +258,10 @@ impl SyntaxGrammar {
                 Many1(&'static SyntaxGrammarRecoveryExpr),
                 Boxed(&'static SyntaxGrammarRecoveryExpr),
                 Arc(&'static SyntaxGrammarRecoveryExpr),
-                WithFreeModifiers(&'static SyntaxGrammarRecoveryExpr),
+                WithFreeModifiers {
+                    inner: &'static SyntaxGrammarRecoveryExpr,
+                    condition: Option<SyntaxGrammarCondition>,
+                },
                 PayloadStart(&'static SyntaxGrammarRecoveryExpr),
                 Ignored(&'static SyntaxGrammarRecoveryExpr),
                 NotNextSelmaho(Selmaho),
@@ -5288,6 +5291,19 @@ fn strict_postfix_parser_expr_tokens(
             let rejection = output_rejection_argument(args.first().expect("length checked"))?;
             Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
         }
+        ("map_to", 1) => {
+            let target = required_path_expr_last_segment(
+                args.first().expect("length checked"),
+                "map_to() requires a grammar rule path",
+            )?;
+            if !generation.type_env.rules.contains_key(&target) {
+                return Err(syn::Error::new_spanned(
+                    args.first().expect("length checked"),
+                    "map_to() names an unknown grammar rule",
+                ));
+            }
+            Ok(quote!(#inner.map(Into::into)))
+        }
         ("ignore_then", 1) => {
             let parser = strict_rust_parser_expr_tokens(
                 args.first().expect("length checked"),
@@ -5591,6 +5607,19 @@ fn recovered_postfix_parser_expr_tokens(
         ("reject_output", 1) => {
             let rejection = output_rejection_argument(args.first().expect("length checked"))?;
             Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+        }
+        ("map_to", 1) => {
+            let target = required_path_expr_last_segment(
+                args.first().expect("length checked"),
+                "map_to() requires a grammar rule path",
+            )?;
+            if !generation.type_env.rules.contains_key(&target) {
+                return Err(syn::Error::new_spanned(
+                    args.first().expect("length checked"),
+                    "map_to() names an unknown grammar rule",
+                ));
+            }
+            Ok(quote!(#inner.map(Into::into)))
         }
         ("ignore_then", 1) => {
             let parser = recovered_rust_parser_expr_tokens(
@@ -6063,6 +6092,25 @@ fn strict_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+    } else if method.method == "map_to" && method.args.len() == 1 {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let target = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "map_to() requires a grammar rule path",
+        )?;
+        if !generation.type_env.rules.contains_key(&target) {
+            return Err(syn::Error::new_spanned(
+                method.args.first().expect("length checked"),
+                "map_to() names an unknown grammar rule",
+            ));
+        }
+        Ok(quote!(#inner.map(Into::into)))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -6869,6 +6917,25 @@ fn recovered_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+    } else if method.method == "map_to" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let target = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "map_to() requires a grammar rule path",
+        )?;
+        if !generation.type_env.rules.contains_key(&target) {
+            return Err(syn::Error::new_spanned(
+                method.args.first().expect("length checked"),
+                "map_to() names an unknown grammar rule",
+            ));
+        }
+        Ok(quote!(#inner.map(Into::into)))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -7573,6 +7640,10 @@ fn postfix_parser_output_type(
         ("elidable_terminator", 1) => parser_output_type(receiver, type_env, arguments),
         ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
         ("reject_output", 1) => parser_output_type(receiver, type_env, arguments),
+        ("map_to", 1) => {
+            let target = required_path_expr_last_segment(&args[0], "map_to target").ok()?;
+            type_env.rules.get(&target).map(|ty| quote!(#ty))
+        }
         ("not" | "ignored", 0) => Some(quote!(())),
         ("ignore_then", 1) => {
             rust_parser_output_type(args.first().expect("length checked"), type_env, arguments)
@@ -7766,6 +7837,13 @@ fn method_rust_parser_output_type(
         || method.method == "reject_output"
     {
         rust_parser_output_type(&method.receiver, type_env, arguments)
+    } else if method.method == "map_to" && method.args.len() == 1 {
+        let target = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "map_to target",
+        )
+        .ok()?;
+        type_env.rules.get(&target).map(|ty| quote!(#ty))
     } else if method.method == "not" || method.method == "ignored" {
         Some(quote!(()))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
@@ -8860,7 +8938,7 @@ enum ConditionKind {
 #[invariant(::Rule(_) => true)]
 #[invariant(::Selmaho(_) => true)]
 #[invariant(::Sequence(_) => true)]
-#[invariant(::WithFreeModifiers(_) => true)]
+#[invariant(::WithFreeModifiers => true)]
 #[invariant(::WordCategory(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum RecoveryExpr {
@@ -8872,7 +8950,10 @@ enum RecoveryExpr {
     Many1(Box<RecoveryExpr>),
     Boxed(Box<RecoveryExpr>),
     Arc(Box<RecoveryExpr>),
-    WithFreeModifiers(Box<RecoveryExpr>),
+    WithFreeModifiers {
+        inner: Box<RecoveryExpr>,
+        condition: Option<AnchorCondition>,
+    },
     PayloadStart(Box<RecoveryExpr>),
     Ignored(Box<RecoveryExpr>),
     NotNextSelmaho(String),
@@ -8926,9 +9007,19 @@ impl RecoveryExpr {
                 let inner = inner.expand();
                 quote!(SyntaxGrammarRecoveryExpr::Arc(&#inner))
             }
-            RecoveryExpr::WithFreeModifiers(inner) => {
+            RecoveryExpr::WithFreeModifiers { inner, condition } => {
                 let inner = inner.expand();
-                quote!(SyntaxGrammarRecoveryExpr::WithFreeModifiers(&#inner))
+                let condition = condition.map_or_else(
+                    || quote!(None),
+                    |condition| {
+                        let condition = condition.expand();
+                        quote!(Some(#condition))
+                    },
+                );
+                quote!(SyntaxGrammarRecoveryExpr::WithFreeModifiers {
+                    inner: &#inner,
+                    condition: #condition,
+                })
             }
             RecoveryExpr::PayloadStart(inner) => {
                 let inner = inner.expand();
@@ -9045,10 +9136,19 @@ fn classify_postfix_recovery_expr(
 ) -> Result<RecoveryExpr> {
     let inner = || classify_parser_expr(receiver, arguments, type_env).map(Box::new);
     match (method.to_string().as_str(), args.len()) {
-        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) | ("wf_when", 1) => {
-            Ok(RecoveryExpr::WithFreeModifiers(inner()?))
+        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
+            Ok(RecoveryExpr::WithFreeModifiers {
+                inner: inner()?,
+                condition: None,
+            })
         }
-        ("warn", 1) | ("elidable_terminator", 1) | ("reject_output", 1) => {
+        ("wf_when", 1) => Ok(RecoveryExpr::WithFreeModifiers {
+            inner: inner()?,
+            condition: Some(wf_when_anchor_condition(
+                args.first().expect("length checked"),
+            )?),
+        }),
+        ("warn", 1) | ("elidable_terminator", 1) | ("reject_output", 1) | ("map_to", 1) => {
             classify_parser_expr(receiver, arguments, type_env)
         }
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
@@ -9123,10 +9223,19 @@ fn classify_method_recovery_expr(
     let inner = || classify_recovery_expr(&method.receiver, arguments, type_env).map(Box::new);
     match (method.method.to_string().as_str(), method.args.len()) {
         ("elidable_terminator", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
-        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) | ("wf_when", 1) => {
-            Ok(RecoveryExpr::WithFreeModifiers(inner()?))
+        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
+            Ok(RecoveryExpr::WithFreeModifiers {
+                inner: inner()?,
+                condition: None,
+            })
         }
-        ("warn", 1) | ("reject_output", 1) => {
+        ("wf_when", 1) => Ok(RecoveryExpr::WithFreeModifiers {
+            inner: inner()?,
+            condition: Some(wf_when_anchor_condition(
+                method.args.first().expect("length checked"),
+            )?),
+        }),
+        ("warn", 1) | ("reject_output", 1) | ("map_to", 1) => {
             classify_recovery_expr(&method.receiver, arguments, type_env)
         }
         ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
@@ -9308,6 +9417,16 @@ fn path_expr_last_segment(expr: &Expr) -> Option<String> {
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|segment| !segment.is_empty()))]
 fn required_path_expr_last_segment(expr: &Expr, message: &'static str) -> Result<String> {
     path_expr_last_segment(expr).ok_or_else(|| syn::Error::new_spanned(expr, message))
+}
+
+#[requires(true)]
+#[ensures(ret.is_err() || ret.as_ref().is_ok_and(|condition| condition.kind == ConditionKind::Feature && !condition.name.is_empty()))]
+fn wf_when_anchor_condition(expr: &Expr) -> Result<AnchorCondition> {
+    let name = required_path_expr_last_segment(expr, "wf_when() requires a feature path")?;
+    Ok(AnchorCondition::from_data(data!(AnchorCondition {
+        kind: ConditionKind::Feature,
+        name,
+    })))
 }
 
 /// The refinement value passed to `reject_output()`.
@@ -9795,13 +9914,13 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
                 break;
             }
             let expr = classify_parser_expr(&field.parser, argument_names, self.type_env)?;
-            let Some(tokens) = literal_start_tokens(&expr) else {
+            if literal_start_tokens(&expr).is_none() {
                 break;
-            };
-            push_first_entry(
-                &mut entries,
-                FirstEntry::new(tokens, anchor_conditions_from(&field.conditions)),
-            );
+            }
+            let field_conditions = anchor_conditions_from(&field.conditions);
+            for entry in self.expr_first_entries(&expr)? {
+                push_first_entry(&mut entries, entry.with_conditions(&field_conditions));
+            }
             field_index += 1;
             if !self.expr_nullable(&expr)? {
                 break;
@@ -9908,10 +10027,15 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             | RecoveryExpr::Many1(inner)
             | RecoveryExpr::Boxed(inner)
             | RecoveryExpr::Arc(inner)
-            | RecoveryExpr::WithFreeModifiers(inner)
             | RecoveryExpr::PayloadStart(inner)
             | RecoveryExpr::Ignored(inner) => {
                 entries.extend(self.expr_first_entries(inner)?);
+            }
+            RecoveryExpr::WithFreeModifiers { inner, condition } => {
+                let conditions = condition.iter().cloned().collect::<Vec<_>>();
+                for entry in self.expr_first_entries(inner)? {
+                    push_first_entry(&mut entries, entry.with_conditions(&conditions));
+                }
             }
             RecoveryExpr::Choice(alternatives) => {
                 for alternative in alternatives {
@@ -9954,7 +10078,7 @@ impl<'a> RecoveryAnchorAnalyzer<'a> {
             RecoveryExpr::Opt(_) | RecoveryExpr::Many(_) => true,
             RecoveryExpr::Boxed(inner)
             | RecoveryExpr::Arc(inner)
-            | RecoveryExpr::WithFreeModifiers(inner)
+            | RecoveryExpr::WithFreeModifiers { inner, .. }
             | RecoveryExpr::PayloadStart(inner)
             | RecoveryExpr::Ignored(inner)
             | RecoveryExpr::Many1(inner) => self.expr_nullable(inner)?,
@@ -10111,7 +10235,7 @@ fn literal_start_tokens(expr: &RecoveryExpr) -> Option<BTreeSet<AnchorToken>> {
         RecoveryExpr::Opt(inner)
         | RecoveryExpr::Boxed(inner)
         | RecoveryExpr::Arc(inner)
-        | RecoveryExpr::WithFreeModifiers(inner)
+        | RecoveryExpr::WithFreeModifiers { inner, .. }
         | RecoveryExpr::PayloadStart(inner)
         | RecoveryExpr::Ignored(inner) => literal_start_tokens(inner),
         RecoveryExpr::Choice(alternatives) => {
@@ -10146,7 +10270,7 @@ fn anchor_origin_for_non_literal_expr(expr: &RecoveryExpr) -> AnchorRunOrigin {
     match expr {
         RecoveryExpr::Boxed(inner)
         | RecoveryExpr::Arc(inner)
-        | RecoveryExpr::WithFreeModifiers(inner)
+        | RecoveryExpr::WithFreeModifiers { inner, .. }
         | RecoveryExpr::PayloadStart(inner)
         | RecoveryExpr::Ignored(inner) => anchor_origin_for_non_literal_expr(inner),
         RecoveryExpr::Sequence(parts) if parts.len() == 1 => {
@@ -10164,7 +10288,7 @@ fn expr_is_rule_reference(expr: &RecoveryExpr, rule_name: &str) -> bool {
         RecoveryExpr::Rule(rule) => rule == rule_name,
         RecoveryExpr::Boxed(inner)
         | RecoveryExpr::Arc(inner)
-        | RecoveryExpr::WithFreeModifiers(inner)
+        | RecoveryExpr::WithFreeModifiers { inner, .. }
         | RecoveryExpr::PayloadStart(inner)
         | RecoveryExpr::Ignored(inner)
         | RecoveryExpr::Opt(inner) => expr_is_rule_reference(inner, rule_name),
@@ -10679,10 +10803,13 @@ mod tests {
         .expect("feature-controlled free-modifier suffix parses");
 
         let expanded = grammar.expand().to_string();
+        let feature_condition_count = expanded.matches("name : \"UnrestrictedFree\"").count();
         assert!(
             expanded.contains("cmavo(Be).wf_when(UnrestrictedFree)")
-                && expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers"),
-            "`.wf_when(feature)` should preserve its feature argument and model wrapper in grammar metadata: {expanded}"
+                && expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers")
+                && expanded.contains("condition : Some")
+                && feature_condition_count >= 3,
+            "`.wf_when(feature)` should preserve its feature argument, model wrapper, and recovery-metadata condition: {expanded}"
         );
     }
 

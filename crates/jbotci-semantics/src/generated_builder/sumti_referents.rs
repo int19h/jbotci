@@ -488,13 +488,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if matches!(
             tense_modal,
             LeadingTermTagTenseModalSyntax::TenseModal(TenseModalSyntax(
-                TenseModalBodySyntax::TenseModalAtom(
-                    TenseModalAtomSyntax::NaheSeFlatPrefixedTense(prefix)
-                )
-            )) if matches!(
-                prefix.atom,
-                jbotci_syntax::generated_model::FlatTagAtomSyntax::FaFlatTagAtom(_)
-            )
+                TenseModalBodySyntax::TenseModalAtom(TenseModalAtomSyntax::ExpTagAtomRun(run))
+            )) if generated_single_fa_exp_tag_prefixes(run)
+                .is_some_and(|(nahe, _se)| nahe)
         ) {
             return Err(undefined_semantics("an experimental NAhE-prefixed FA tag"));
         }

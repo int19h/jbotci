@@ -32,6 +32,7 @@ use crate::{
 };
 
 mod baseline_mex;
+mod baseline_tag;
 mod generated;
 mod generated_runtime;
 mod parse_error;
@@ -4952,6 +4953,10 @@ fn add_generated_construct_warnings(
         warnings: RefCell::new(warnings),
     });
     generated::generated_model::TreeNode::visit_in_order(text, &mut visitor);
+    drop(visitor);
+    // Parser-attached warnings are collected before structural warnings. Restore source order
+    // after combining both streams; the stable sort preserves their existing order at one token.
+    warnings.sort_by_key(|warning| warning.anchor_index);
 }
 
 #[invariant(
@@ -5007,6 +5012,23 @@ impl GeneratedConstructWarningVisitor<'_> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn generated_exp_run_is_single_unprefixed_fa(
+    run: &generated::generated_model::ExpTagAtomRunSyntax,
+) -> bool {
+    let generated::generated_model::ExpTagAtomRunSyntax(run) = run;
+    let generated::generated_model::ExpTagAtomRunBodySyntax { first, additional } = run.as_ref();
+    let generated::generated_model::ExpPrefixedTagAtomSyntax { nahe, se, atom } = first.as_ref();
+    additional.is_empty()
+        && nahe.is_none()
+        && se.is_none()
+        && matches!(
+            atom.value.as_ref(),
+            generated::generated_model::ExpTagAtomSyntax::ExpFaTagAtom(_)
+        )
+}
+
 impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     type Node = generated::generated_model::NodeRef<'tree>;
     type Atom = generated::generated_model::AtomRef<'tree>;
@@ -5015,6 +5037,11 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
         match node {
+            generated::generated_model::NodeRef::ExpTagAtomRunSyntax(run)
+                if !generated_exp_run_is_single_unprefixed_fa(run) =>
+            {
+                self.warn_first_token(ExperimentalConstruct::ExperimentalFlattenedTag, run);
+            }
             generated::generated_model::NodeRef::FragmentStatementSyntaxZantufaMeksoFragment(
                 fragment,
             ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, fragment),
@@ -7629,7 +7656,7 @@ mod tests {
     fn warns_for_flat_tag_forms() {
         run_on_normal_stack(|| {
             let words =
-                segment_words_with_modifiers("na'e fa mi cu klama").expect("valid morphology");
+                segment_words_with_modifiers("mi cu na'e fa klama").expect("valid morphology");
 
             let parsed = parse_syntax_tree(&words, &ParseOptions::default())
                 .expect("valid flattened FA tag");
