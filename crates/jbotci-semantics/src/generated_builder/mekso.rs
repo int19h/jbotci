@@ -777,6 +777,12 @@ pub(super) fn generated_simple_mekso_operand_surface_text_with_connected_operato
                 replacement_operator,
             )
         }
+        SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(operand) => {
+            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                &operand.inner_expression,
+                replacement_operator,
+            )
+        }
         SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
             generated_mekso_operand_surface_text_with_connected_operator_replacement(
                 &operand.inner_expression,
@@ -1103,6 +1109,9 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
                 )
         }
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
+            first_generated_connected_mekso_operator_in_operand(&operand.inner_expression)
+        }
+        SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(operand) => {
             first_generated_connected_mekso_operator_in_operand(&operand.inner_expression)
         }
         SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
@@ -1433,6 +1442,9 @@ pub(super) fn generated_simple_mekso_operand_contains_operand_connection(
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
             generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
         }
+        SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(operand) => {
+            generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
+        }
         SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
             generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
         }
@@ -1577,6 +1589,9 @@ pub(super) fn generated_simple_mekso_operand_surface_text(
             generated_simple_mekso_operand_surface_text(&operand.right_expression)?
         )),
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
+            generated_mekso_operand_surface_text(&operand.inner_expression)
+        }
+        SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(operand) => {
             generated_mekso_operand_surface_text(&operand.inner_expression)
         }
         SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {

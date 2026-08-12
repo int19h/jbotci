@@ -12,11 +12,11 @@ raw = """[PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpa
 
 [expectations.syntax]
 status = "success"
-raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: CoiVocativeMarkerWords(CoiVocativeMarkerWordsSyntax { first_coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), first_nai: None, additional_coi: [AdditionalCoiVocativeMarkerSyntax { coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), nai: None }], doi: None }), free_modifiers: [SeiFreeModifier(SeiFreeModifierSyntax { sei: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } })), free_modifiers: [] }, terms: [], cu: None, selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: ConnectedSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_unit: TanruUnitSyntax(Chain { first: LinkedTanruUnit(LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "kréfu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }), links: [] }), additional_units: [] }, continuations: [] }, co_tail: None })), sehu: None })] }, sumti: None, dohu: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })"""
+raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: CoiVocativeMarkerWords(CoiVocativeMarkerWordsSyntax { first_coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), first_nai: None, additional_coi: [AdditionalCoiVocativeMarkerSyntax { coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "co'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 7, char_start: 3, char_end: 7, start: None, end: None } })), nai: None }], doi: None }), free_modifiers: [] }, sumti: None, dohu: None }), SeiFreeModifier(SeiFreeModifierSyntax { sei: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "seĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 8, byte_end: 11, char_start: 8, char_end: 11, start: None, end: None } })), free_modifiers: [] }, terms: [], cu: None, selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: ConnectedSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_unit: TanruUnitSyntax(Chain { first: LinkedTanruUnit(LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "kréfu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 12, byte_end: 17, char_start: 12, char_end: 17, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }), links: [] }), additional_units: [] }, continuations: [] }, co_tail: None })), sehu: None })], leading_connective: None, leading_i_statements: [], paragraphs: None })"""
 
 [expectations.semantics.refs]
 status = "success"
-raw = '{"frames":[],"assignments":[],"selbri-places":[],"references":[]}'
+raw = '{"frames":[{"index":0,"node":{"offset":12,"length":5},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":12,"length":5},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":12,"length":5},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":12,"length":5},"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":12,"length":5},"kind":"compound","selbri":{"offset":12,"length":5},"tanru-unit":null,"propagation":{"kind":"compound","head":1,"modifiers":[]}},{"index":3,"node":{"offset":12,"length":5},"kind":"forwarding","selbri":{"offset":12,"length":5},"tanru-unit":null,"propagation":{"kind":"forward","inner":2}}],"assignments":[],"selbri-places":[],"references":[]}'
 
 [expectations.output.vlasei]
 brackets = "(coĭ co'o seĭ kréfu)"
@@ -31,18 +31,16 @@ json = """[{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}},{"PlainWord"
 
 [expectations.output.gentufa]
 tree = """
-VocativeFreeModifier @[0‥17) {
-  vocative_markers: CoiVocativeMarkerWords @[0‥7) {
+[
+  CoiVocativeMarkerWords @[0‥7) {
     first_coi: Cmavo @[0‥3) "coĭ",
     additional_coi: [
       Cmavo @[3‥7) "co'o",
     ],
   },
-  free_modifiers: [
-    SeiFreeModifier @[8‥17) {
-      sei: Cmavo @[8‥11) "seĭ",
-      selbri: Gismu @[12‥17) "kréfu",
-    },
-  ],
-}"""
-json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":[{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},"additional_coi":[{"coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}}}]}},{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[8,11]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kréfu","span":[12,17]}}}}}}}}}}}}}}}}]}}]}}"""
+  SeiFreeModifier @[8‥17) {
+    sei: Cmavo @[8‥11) "seĭ",
+    selbri: Gismu @[12‥17) "kréfu",
+  },
+]"""
+json = """{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}},"additional_coi":[{"coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"co'o","span":[3,7]}}}}}]}}}},{"SeiFreeModifier":{"sei":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"seĭ","span":[8,11]}}}},"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kréfu","span":[12,17]}}}}}}}}}}}}}}}}]}}"""

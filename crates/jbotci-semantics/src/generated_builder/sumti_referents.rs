@@ -5639,6 +5639,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self.set_math_scalar_negation(id, scalar_negation_for_token(&operand.nahe));
                 Ok((id, replaced))
             }
+            SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(operand) => {
+                let (id, replaced) = self
+                    .build_generated_mekso_operand_with_connected_operator_replacement(
+                        &operand.inner_expression,
+                        replacement_operator,
+                        source,
+                    )?;
+                self.set_math_scalar_negation(id, scalar_negation_for_token(&operand.nahe.value));
+                Ok((id, replaced))
+            }
             SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => self
                 .build_generated_math_expression_with_connected_operator_replacement(
                     &operand.inner_expression,
@@ -5999,6 +6009,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
                 self.build_generated_qualified_mekso_operand(operand, source)
+            }
+            SimpleMeksoOperandSyntax::ScalarNegatedMeksoOperand(operand) => {
+                let id = self.build_generated_mekso_operand(&operand.inner_expression, source)?;
+                self.set_math_scalar_negation(id, scalar_negation_for_token(&operand.nahe.value));
+                Ok(id)
             }
             SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
                 self.build_generated_mekso_operand(&operand.inner_expression, source)

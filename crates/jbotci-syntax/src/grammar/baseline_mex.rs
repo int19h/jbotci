@@ -144,8 +144,16 @@ fn baseline_operand(expression: &ZantufaOperandSyntax) -> bool {
             } = operand;
             baseline_operand_mex(inner_expression.as_ref())
         }
-        ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
-        | ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => false,
+        ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_) => false,
+        ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+            let super::generated_model::ZantufaScalarNegatedMeksoOperandSyntax {
+                nahe: _,
+                inner_expression: _,
+            } = operand;
+            // The adopted camxes-exp warning route is intentionally not a
+            // baseline surface. Keep the Zantufa recursive arm Zantufa-owned.
+            false
+        }
     }
 }
 
@@ -283,8 +291,14 @@ fn wide_qualified_head_has_baseline_inner(expression: &ZantufaMex1Syntax) -> boo
         | ZantufaOperandSyntax::LerfuStringMekso(_)
         | ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(_)
         | ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
-        | ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_)
-        | ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => return false,
+        | ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_) => return false,
+        ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+            let super::generated_model::ZantufaScalarNegatedMeksoOperandSyntax {
+                nahe: _,
+                inner_expression: _,
+            } = operand;
+            return false;
+        }
     };
     // A fully baseline-shaped inner MEX has a same-extent narrow reading:
     // qualifier(first operand), followed by its remainder as outer infix syntax.
@@ -602,8 +616,20 @@ fn recovered_baseline_operand(expression: &recovered::ZantufaOperandSyntax) -> b
                 },
             )
         }
-        recovered::ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
-        | recovered::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => false,
+        recovered::ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_) => false,
+        recovered::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+            valid(operand).is_some_and(
+                |recovered::ZantufaScalarNegatedMeksoOperandSyntax {
+                     nahe,
+                     inner_expression,
+                 }| {
+                    // Validate the complete recovered shape while retaining
+                    // Zantufa ownership for this non-baseline surface.
+                    let _ = valid_wf(nahe) && valid(inner_expression).is_some();
+                    false
+                },
+            )
+        }
     }
 }
 
@@ -778,8 +804,17 @@ fn recovered_wide_qualified_head_has_baseline_inner(
         | recovered::ZantufaOperandSyntax::LerfuStringMekso(_)
         | recovered::ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(_)
         | recovered::ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
-        | recovered::ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_)
-        | recovered::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => return false,
+        | recovered::ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_) => return false,
+        recovered::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+            let Some(recovered::ZantufaScalarNegatedMeksoOperandSyntax {
+                nahe: _,
+                inner_expression: _,
+            }) = valid(operand)
+            else {
+                return false;
+            };
+            return false;
+        }
     };
     // Mirror the strict classifier's complete-inner proof. A recovered tree with
     // any invalid component cannot establish baseline ownership and stays kept.

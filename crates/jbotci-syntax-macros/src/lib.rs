@@ -5298,6 +5298,24 @@ fn strict_postfix_parser_expr_tokens(
             )?;
             Ok(quote!(#inner.ignore_then(#parser)))
         }
+        ("wf_when", 1) => {
+            let feature = required_path_expr_last_segment(
+                args.first().expect("length checked"),
+                "wf_when() requires a feature path",
+            )?;
+            let feature = format_ident!("{feature}");
+            let free_modifier =
+                strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+            Ok(quote! {
+                generated_runtime::with_free_modifier_list(
+                    #inner,
+                    generated_runtime::feature_free_modifier_list_parser(
+                        generated_runtime::SyntaxGrammarFeature::#feature,
+                        generated_runtime::strict_free_modifier_list_parser(#free_modifier),
+                    ),
+                )
+            })
+        }
         ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
             let free_modifier =
                 strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
@@ -5583,6 +5601,27 @@ fn recovered_postfix_parser_expr_tokens(
                 mode,
             )?;
             Ok(quote!(#inner.ignore_then(#parser)))
+        }
+        ("wf_when", 1) => {
+            let feature = required_path_expr_last_segment(
+                args.first().expect("length checked"),
+                "wf_when() requires a feature path",
+            )?;
+            let feature = format_ident!("{feature}");
+            let free_modifier =
+                recovered_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+            let recovered_module = generation.recovered_module;
+            Ok(quote! {
+                #inner
+                    .then(generated_runtime::feature_free_modifier_list_parser(
+                        generated_runtime::SyntaxGrammarFeature::#feature,
+                        generated_runtime::recovered_free_modifier_list_parser(#free_modifier),
+                    ))
+                    .map(|(value, free_modifiers)| #recovered_module::WithFreeModifiers {
+                        value,
+                        free_modifiers,
+                    })
+            })
         }
         ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
             let free_modifier =
@@ -6040,6 +6079,30 @@ fn strict_method_parser_expr_tokens(
             mode,
         )?;
         Ok(quote!(#inner.ignore_then(#parser)))
+    } else if method.method == "wf_when" && method.args.len() == 1 {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let feature = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "wf_when() requires a feature path",
+        )?;
+        let feature = format_ident!("{feature}");
+        let free_modifier =
+            strict_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+        Ok(quote! {
+            generated_runtime::with_free_modifier_list(
+                #inner,
+                generated_runtime::feature_free_modifier_list_parser(
+                    generated_runtime::SyntaxGrammarFeature::#feature,
+                    generated_runtime::strict_free_modifier_list_parser(#free_modifier),
+                ),
+            )
+        })
     } else if (method.method == "wf"
         || method.method == "with_free_modifiers"
         || method.method == "prohibited_wf")
@@ -6822,6 +6885,33 @@ fn recovered_method_parser_expr_tokens(
             mode,
         )?;
         Ok(quote!(#inner.ignore_then(#parser)))
+    } else if method.method == "wf_when" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let feature = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "wf_when() requires a feature path",
+        )?;
+        let feature = format_ident!("{feature}");
+        let free_modifier =
+            recovered_free_modifier_argument_tokens(generation, free_modifier_parser, mode);
+        let recovered_module = generation.recovered_module;
+        Ok(quote! {
+            #inner
+                .then(generated_runtime::feature_free_modifier_list_parser(
+                    generated_runtime::SyntaxGrammarFeature::#feature,
+                    generated_runtime::recovered_free_modifier_list_parser(#free_modifier),
+                ))
+                .map(|(value, free_modifiers)| #recovered_module::WithFreeModifiers {
+                    value,
+                    free_modifiers,
+                })
+        })
     } else if (method.method == "wf"
         || method.method == "with_free_modifiers"
         || method.method == "prohibited_wf")
@@ -7487,7 +7577,7 @@ fn postfix_parser_output_type(
         ("ignore_then", 1) => {
             rust_parser_output_type(args.first().expect("length checked"), type_env, arguments)
         }
-        ("wf" | "with_free_modifiers" | "prohibited_wf", 0) => {
+        ("wf" | "with_free_modifiers" | "prohibited_wf", 0) | ("wf_when", 1) => {
             let inner = parser_output_type(receiver, type_env, arguments)?;
             Some(quote!(WithFreeModifiers<#inner, FreeModifierSyntax>))
         }
@@ -7684,10 +7774,11 @@ fn method_rust_parser_output_type(
             type_env,
             arguments,
         )
-    } else if (method.method == "wf"
+    } else if ((method.method == "wf"
         || method.method == "with_free_modifiers"
         || method.method == "prohibited_wf")
-        && method.args.is_empty()
+        && method.args.is_empty())
+        || (method.method == "wf_when" && method.args.len() == 1)
     {
         let inner = rust_parser_output_type(&method.receiver, type_env, arguments)?;
         Some(quote!(WithFreeModifiers<#inner, FreeModifierSyntax>))
@@ -8643,6 +8734,7 @@ fn elidable_terminator_terminal_cmavo(expr: &Expr) -> Option<String> {
         }
         Expr::MethodCall(method) => match (method.method.to_string().as_str(), method.args.len()) {
             ("wf" | "with_free_modifiers" | "prohibited_wf" | "payload_start" | "lookahead", 0)
+            | ("wf_when", 1)
             | ("warn" | "reject_output", 1) => elidable_terminator_terminal_cmavo(&method.receiver),
             _ => None,
         },
@@ -8953,7 +9045,7 @@ fn classify_postfix_recovery_expr(
 ) -> Result<RecoveryExpr> {
     let inner = || classify_parser_expr(receiver, arguments, type_env).map(Box::new);
     match (method.to_string().as_str(), args.len()) {
-        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
+        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) | ("wf_when", 1) => {
             Ok(RecoveryExpr::WithFreeModifiers(inner()?))
         }
         ("warn", 1) | ("elidable_terminator", 1) | ("reject_output", 1) => {
@@ -9031,7 +9123,7 @@ fn classify_method_recovery_expr(
     let inner = || classify_recovery_expr(&method.receiver, arguments, type_env).map(Box::new);
     match (method.method.to_string().as_str(), method.args.len()) {
         ("elidable_terminator", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
-        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
+        ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) | ("wf_when", 1) => {
             Ok(RecoveryExpr::WithFreeModifiers(inner()?))
         }
         ("warn", 1) | ("reject_output", 1) => {
@@ -10568,6 +10660,29 @@ mod tests {
         assert!(
             expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers"),
             "vector `.wf()` should be represented as a normal parser suffix: {expanded}"
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    #[test]
+    fn grammar_accepts_feature_controlled_free_modifier_suffixes() {
+        let grammar = syn::parse2::<SyntaxGrammar>(quote! {
+            env SyntaxGrammarEnv;
+
+            /// Syntax model for item parsed by the `item` grammar rule.
+            rule "item" item -> struct {
+                /// The token and its feature-controlled free-modifier slot.
+                field token <- cmavo(Be).wf_when(UnrestrictedFree);
+            }
+        })
+        .expect("feature-controlled free-modifier suffix parses");
+
+        let expanded = grammar.expand().to_string();
+        assert!(
+            expanded.contains("cmavo(Be).wf_when(UnrestrictedFree)")
+                && expanded.contains("SyntaxGrammarRecoveryExpr :: WithFreeModifiers"),
+            "`.wf_when(feature)` should preserve its feature argument and model wrapper in grammar metadata: {expanded}"
         );
     }
 

@@ -63,6 +63,7 @@ impl Default for SyntaxGrammarEnv {
 pub(crate) struct SyntaxGrammarDialect {
     pub term_hierarchy_enabled: bool,
     pub cbm_enabled: bool,
+    pub unrestricted_free_enabled: bool,
     pub zantufa_adverbials_enabled: bool,
     pub zantufa_connectives_enabled: bool,
     pub zantufa_mex_enabled: bool,
@@ -80,6 +81,7 @@ impl SyntaxGrammarDialect {
         Self {
             term_hierarchy_enabled: features.contains(&DialectFeature::TermHierarchy),
             cbm_enabled: features.contains(&DialectFeature::Cbm),
+            unrestricted_free_enabled: features.contains(&DialectFeature::UnrestrictedFree),
             zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
             zantufa_connectives_enabled: features.contains(&DialectFeature::ZantufaConnectives),
             zantufa_mex_enabled: features.contains(&DialectFeature::ZantufaMex),
@@ -98,6 +100,7 @@ impl SyntaxGrammarDialect {
 pub(crate) enum SyntaxGrammarFeature {
     TermHierarchy,
     Cbm,
+    UnrestrictedFree,
     ZantufaAdverbials,
     ZantufaConnectives,
     ZantufaMex,
@@ -114,6 +117,7 @@ impl SyntaxGrammarFeature {
         match self {
             Self::TermHierarchy => dialect.term_hierarchy_enabled,
             Self::Cbm => dialect.cbm_enabled,
+            Self::UnrestrictedFree => dialect.unrestricted_free_enabled,
             Self::ZantufaAdverbials => dialect.zantufa_adverbials_enabled,
             Self::ZantufaConnectives => dialect.zantufa_connectives_enabled,
             Self::ZantufaMex => dialect.zantufa_mex_enabled,
@@ -130,6 +134,7 @@ impl SyntaxGrammarFeature {
         match self {
             Self::TermHierarchy => "TERM-HIERARCHY feature",
             Self::Cbm => "CBM feature",
+            Self::UnrestrictedFree => "UNRESTRICTED-FREE feature",
             Self::ZantufaAdverbials => "ZANTUFA-ADVERBIALS feature",
             Self::ZantufaConnectives => "ZANTUFA-CONNECTIVES feature",
             Self::ZantufaMex => "ZANTUFA-MEX feature",
@@ -951,6 +956,30 @@ where
     F: 'tokens,
 {
     strict_greedy_many_parser_without_diagnostics(free_modifier)
+}
+
+/// Parses the supplied free-modifier list only when `feature` is enabled.
+///
+/// The disabled branch succeeds without touching the input, so callers can retain a
+/// `WithFreeModifiers` model field while making the corresponding grammar slot absent.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn feature_free_modifier_list_parser<'tokens, F>(
+    feature: SyntaxGrammarFeature,
+    enabled_parser: BoxedParser<'tokens, Vec<F>>,
+) -> BoxedParser<'tokens, Vec<F>>
+where
+    F: 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let env = input.state().syntax_grammar_env();
+        if feature.enabled(env.dialect) {
+            input.parse(&enabled_parser)
+        } else {
+            Ok(Vec::new())
+        }
+    })
+    .boxed()
 }
 
 #[contract_trait]

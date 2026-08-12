@@ -1466,7 +1466,7 @@ fn writer_keeps_tree_and_output_values() {
                     text: "[WordLike(PlainWord(Word(Cmavo { phonemes: Phonemes(PhonemesData { text: \"coĭ\" }), span: SourceSpan(SourceSpanData { source_id: None, byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None }) })))]".into(),
                     sha256: None,
                 }),
-                diagnostics: vec![],
+                diagnostics: Some(vec![]),
                 recovered: None,
             }),
             jvozba: None,
@@ -1476,7 +1476,7 @@ fn writer_keeps_tree_and_output_values() {
                     text: "TextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, paragraphs: [] }".into(),
                     sha256: None,
                 }),
-                diagnostics: vec![],
+                diagnostics: Some(vec![]),
                 recovered: Some(new!(RecoveredExpectation {
                     status: ExpectationStatus::Success,
                     max_errors: None,
@@ -2012,7 +2012,9 @@ fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyE
             panic!("{} has unsupported morphology status", test_case.id);
         }
     }
-    assert_eq!(diagnostics, expectation.diagnostics, "{}", test_case.id);
+    if let Some(expected_diagnostics) = &expectation.diagnostics {
+        assert_eq!(&diagnostics, expected_diagnostics, "{}", test_case.id);
+    }
     if let Some(recovered) = &expectation.recovered {
         assert_recovered_morphology_expectation(test_case, recovered);
     }

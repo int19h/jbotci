@@ -4672,6 +4672,7 @@ fn recovery_feature_condition_matches(
     match name {
         "TermHierarchy" => dialect.term_hierarchy_enabled,
         "Cbm" => dialect.cbm_enabled,
+        "UnrestrictedFree" => dialect.unrestricted_free_enabled,
         "ZantufaAdverbials" => dialect.zantufa_adverbials_enabled,
         "ZantufaConnectives" => dialect.zantufa_connectives_enabled,
         "ZantufaMex" => dialect.zantufa_mex_enabled,
@@ -7282,7 +7283,6 @@ mod tests {
             for source in [
                 "li mo'e broda lo'o",
                 "li ma'o lo broda te'u pa lo'o",
-                "li na'e pa lo'o",
                 "li ke pa re ke'e lo'o",
             ] {
                 let words = segment_words_with_modifiers(source).expect("valid morphology");

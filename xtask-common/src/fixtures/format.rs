@@ -109,8 +109,8 @@ fn push_expectations_toml(
         output.push_str("\n[expectations.morphology]\n");
         push_field(output, "status", &morphology.status)?;
         push_optional_field(output, "raw", &morphology.raw)?;
-        if !morphology.diagnostics.is_empty() {
-            push_field(output, "diagnostics", &morphology.diagnostics)?;
+        if let Some(diagnostics) = &morphology.diagnostics {
+            push_field(output, "diagnostics", diagnostics)?;
         }
         if let Some(recovered) = &morphology.recovered {
             output.push_str("\n[expectations.morphology.recovered]\n");
@@ -134,8 +134,8 @@ fn push_expectations_toml(
         output.push_str("\n[expectations.syntax]\n");
         push_field(output, "status", &syntax.status)?;
         push_optional_field(output, "raw", &syntax.raw)?;
-        if !syntax.diagnostics.is_empty() {
-            push_field(output, "diagnostics", &syntax.diagnostics)?;
+        if let Some(diagnostics) = &syntax.diagnostics {
+            push_field(output, "diagnostics", diagnostics)?;
         }
         push_optional_field(output, "xfail", &syntax.xfail)?;
         if let Some(recovered) = &syntax.recovered {
@@ -322,6 +322,82 @@ mod tests {
                 .and_then(|recovered| recovered.tree.clone()),
             expected_tree
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[bityzba::ensures(true)]
+    fn explicit_empty_success_diagnostics_survive_fixture_formatting() {
+        let fixture: TestCase = toml::from_str(
+            r#"
+id = "format.explicit-empty-diagnostics"
+lojban = "coi"
+
+[expectations.morphology]
+status = "success"
+diagnostics = []
+
+[expectations.syntax]
+status = "success"
+diagnostics = []
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            fixture
+                .expectations
+                .morphology
+                .as_ref()
+                .and_then(|expectation| expectation.diagnostics.as_ref()),
+            Some(&Vec::new())
+        );
+        assert_eq!(
+            fixture
+                .expectations
+                .syntax
+                .as_ref()
+                .and_then(|expectation| expectation.diagnostics.as_ref()),
+            Some(&Vec::new())
+        );
+        let formatted = format_test_case_toml(&fixture).unwrap();
+        assert!(formatted.contains("diagnostics = []"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[bityzba::ensures(true)]
+    fn omitted_success_diagnostics_remain_unspecified_after_formatting() {
+        let fixture: TestCase = toml::from_str(
+            r#"
+id = "format.omitted-diagnostics"
+lojban = "coi"
+
+[expectations.morphology]
+status = "success"
+
+[expectations.syntax]
+status = "success"
+"#,
+        )
+        .unwrap();
+
+        assert!(
+            fixture
+                .expectations
+                .morphology
+                .as_ref()
+                .is_some_and(|expectation| expectation.diagnostics.is_none())
+        );
+        assert!(
+            fixture
+                .expectations
+                .syntax
+                .as_ref()
+                .is_some_and(|expectation| expectation.diagnostics.is_none())
+        );
+        let formatted = format_test_case_toml(&fixture).unwrap();
+        assert!(!formatted.contains("diagnostics ="));
     }
 
     #[requires(!Path::new(relative).is_absolute())]

@@ -1,0 +1,25 @@
+id = "adhoc.syntax.free-modifiers.issue-848-vocative-xi-default"
+lojban = "coi xi pa"
+tags = ["adhoc", "syntax", "free-modifiers", "issue-848", "baseline-ownership"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #848"
+url = "https://github.com/int19h/jbotci/issues/848"
+description = "The default profile closes the vocative before XI, matching camxes sibling attachment."
+
+[expectations.syntax]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [VocativeFreeModifier(VocativeFreeModifierSyntax { vocative_markers: WithFreeModifiers { value: CoiVocativeMarkerWords(CoiVocativeMarkerWordsSyntax { first_coi: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "coĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } })), first_nai: None, additional_coi: [], doi: None }), free_modifiers: [] }, sumti: None, dohu: None }), XiFreeModifier(XiNumberFreeModifier(XiNumberFreeModifierSyntax { xi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "xi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } })), free_modifiers: [] }, expression: NumberMeksoSyntax(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 7, byte_end: 9, char_start: 7, char_end: 9, start: None, end: None } })), continuations: [] }, boi: None, free_modifiers: [] }) }))], leading_connective: None, leading_i_statements: [], paragraphs: None })'
+diagnostics = []
+
+[expectations.output.gentufa]
+tree = """
+[
+  Cmavo @[0‥3) "coĭ",
+  XiNumberFreeModifier @[4‥9) {
+    xi: Cmavo @[4‥6) "xi",
+    expression: Cmavo @[7‥9) "pa",
+  },
+]"""
+json = '{"RegularText":{"leading_free_modifiers":[{"VocativeFreeModifier":{"vocative_markers":{"CoiVocativeMarkerWords":{"first_coi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"coĭ","span":[0,3]}}}}}}}},{"XiFreeModifier":{"XiNumberFreeModifier":{"xi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"xi","span":[4,6]}}}},"expression":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[7,9]}}}}}}}}}]}}'

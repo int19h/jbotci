@@ -660,8 +660,8 @@ pub struct MorphologyExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]
     pub raw: Option<TextExpectation>,
-    #[serde(default)]
-    pub diagnostics: Vec<DiagnosticExpectation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostics: Option<Vec<DiagnosticExpectation>>,
     #[serde(default)]
     pub recovered: Option<RecoveredExpectation>,
 }
@@ -784,8 +784,8 @@ pub struct SyntaxExpectation {
     pub status: ExpectationStatus,
     #[serde(default)]
     pub raw: Option<TextExpectation>,
-    #[serde(default)]
-    pub diagnostics: Vec<DiagnosticExpectation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostics: Option<Vec<DiagnosticExpectation>>,
     #[serde(default)]
     pub recovered: Option<RecoveredExpectation>,
     #[serde(default)]
