@@ -1,0 +1,14 @@
+id = "adhoc.syntax.mekso.issue-836-mai-qualified-gap-union"
+lojban = "mi lu'e pa su'i re mai broda"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-836", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #836"
+url = "https://github.com/int19h/jbotci/issues/836"
+description = "The priority Zantufa MEX route closes the former wide-qualified MAI union gap."
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-mex", byte-span = [11, 15], source-text = "su'i", message = "experimental syntax: Zantufa mex grammar form", word-index = 3 }, { severity = "warning", code = "syntax.warning.experimental-zantufa-mex", byte-span = [8, 10], source-text = "pa", message = "experimental syntax: Zantufa mex grammar form", word-index = 2 }]

@@ -1,0 +1,13 @@
+id = "adhoc.syntax.mekso.issue-812-nahe-ke-width-rejected"
+lojban = "li pa bi'e na'e ke su'i ke'e re lo'o"
+tags = ["adhoc", "syntax", "mekso", "issue-812"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #812"
+url = "https://github.com/int19h/jbotci/issues/812"
+description = "NAhE cannot absorb a KE-grouped operator because it recurses only through the atomic tier."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [16, 18], source-text = "ke", message = "unexpected cmavo" }]

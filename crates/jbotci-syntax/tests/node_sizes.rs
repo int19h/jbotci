@@ -7,11 +7,14 @@ use jbotci_source::SourceSpan;
 use jbotci_syntax::{
     Token, WithIndicators,
     generated_model::{
-        BridiStatementSyntax, BridiSyntax, BridiTailSyntax, DescriptionHeadSyntax,
-        FreeModifierSyntax, InitialParagraphStatementSyntax, LetterStringSyntax,
+        AtomicMeksoOperatorSyntax, BoundOrSimpleMeksoOperandSyntax, BridiStatementSyntax,
+        BridiSyntax, BridiTailSyntax, DescriptionHeadSyntax, FreeModifierSyntax,
+        InitialParagraphStatementSyntax, InnerMeksoOperatorSyntax, LetterStringSyntax,
         MeksoOperandSyntax, MeksoOperatorSyntax, MeksoSyntax, NumberWordsSyntax, ParagraphSyntax,
-        QuoteSyntax, SelbriSyntax, StatementSyntax, SumtiSyntax, TanruUnitSyntax, TenseModalSyntax,
-        TermSyntax, TextSyntax,
+        QuoteSyntax, SelbriSyntax, SimpleMeksoOperandSyntax, StatementSyntax, SumtiSyntax,
+        TanruUnitSyntax, TenseModalSyntax, TermSyntax, TextSyntax, ZantufaForethoughtMeksoSyntax,
+        ZantufaMex1Syntax, ZantufaMex2Syntax, ZantufaMexSyntax, ZantufaOperandSyntax,
+        ZantufaOperatorSyntax, ZantufaPriorityMexSyntax,
     },
     tree::WithFreeModifiers,
 };
@@ -57,6 +60,35 @@ fn ast_node_sizes_stay_within_stack_budget() {
         ("MeksoSyntax", size_of::<MeksoSyntax>()),
         ("MeksoOperandSyntax", size_of::<MeksoOperandSyntax>()),
         ("MeksoOperatorSyntax", size_of::<MeksoOperatorSyntax>()),
+        (
+            "BoundOrSimpleMeksoOperandSyntax",
+            size_of::<BoundOrSimpleMeksoOperandSyntax>(),
+        ),
+        (
+            "SimpleMeksoOperandSyntax",
+            size_of::<SimpleMeksoOperandSyntax>(),
+        ),
+        (
+            "InnerMeksoOperatorSyntax",
+            size_of::<InnerMeksoOperatorSyntax>(),
+        ),
+        (
+            "AtomicMeksoOperatorSyntax",
+            size_of::<AtomicMeksoOperatorSyntax>(),
+        ),
+        ("ZantufaMexSyntax", size_of::<ZantufaMexSyntax>()),
+        (
+            "ZantufaPriorityMexSyntax",
+            size_of::<ZantufaPriorityMexSyntax>(),
+        ),
+        ("ZantufaMex1Syntax", size_of::<ZantufaMex1Syntax>()),
+        ("ZantufaMex2Syntax", size_of::<ZantufaMex2Syntax>()),
+        ("ZantufaOperandSyntax", size_of::<ZantufaOperandSyntax>()),
+        ("ZantufaOperatorSyntax", size_of::<ZantufaOperatorSyntax>()),
+        (
+            "ZantufaForethoughtMeksoSyntax",
+            size_of::<ZantufaForethoughtMeksoSyntax>(),
+        ),
         ("SelbriSyntax", size_of::<SelbriSyntax>()),
         ("TenseModalSyntax", size_of::<TenseModalSyntax>()),
         ("TanruUnitSyntax", size_of::<TanruUnitSyntax>()),

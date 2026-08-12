@@ -3590,7 +3590,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 number,
                 source.clone(),
             )?;
-            let right = self.build_generated_connected_mekso_identity_branch_formula(
+            let right = self.build_generated_connected_simple_mekso_identity_branch_formula(
                 &assignments,
                 connected_index,
                 *connected_place,
@@ -3693,6 +3693,48 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let branch_referent =
             self.build_number_referent_for_generated_mekso_operand(expression, number)?;
+        arguments.insert(
+            argument_key(connected_place),
+            ArgumentValue::filled(branch_referent, None),
+        );
+        let predication = self.build_generated_predication_from_arguments(
+            "identity".to_owned(),
+            source.clone(),
+            arguments,
+            Vec::new(),
+        )?;
+        let formula = self.next_formula_id();
+        self.insert(
+            formula,
+            SemanticObject::atom_formula(predication, source, Vec::new()),
+        )?;
+        Ok(formula)
+    }
+
+    #[requires(connected_place > 0)]
+    #[requires(connected_index < assignments.len())]
+    #[ensures(ret.as_ref().is_ok_and(|formula| formula.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
+    pub(super) fn build_generated_connected_simple_mekso_identity_branch_formula(
+        &mut self,
+        assignments: &[(usize, &'tree SumtiSyntax)],
+        connected_index: usize,
+        connected_place: usize,
+        expression: &'tree SimpleMeksoOperandSyntax,
+        number: &'tree NumberSumtiSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut arguments = BTreeMap::new();
+        for (index, (place, sumti)) in assignments.iter().enumerate() {
+            if index == connected_index {
+                continue;
+            }
+            arguments.insert(
+                argument_key(*place),
+                self.build_argument_for_generated_sumti(sumti)?,
+            );
+        }
+        let branch_referent =
+            self.build_number_referent_for_generated_simple_mekso_operand(expression, number)?;
         arguments.insert(
             argument_key(connected_place),
             ArgumentValue::filled(branch_referent, None),
@@ -3824,6 +3866,26 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     }
 
     #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Referent && id.referent_sort() == Some(SemanticSort::Number)) || ret.is_err())]
+    pub(super) fn build_number_referent_for_generated_simple_mekso_operand(
+        &mut self,
+        expression: &'tree SimpleMeksoOperandSyntax,
+        number: &'tree NumberSumtiSyntax,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let text = generated_simple_mekso_operand_surface_text(expression)?;
+        let quantity = self.build_quantity_for_generated_simple_mekso_operand(
+            expression,
+            self.source_for_node(number, "quantity"),
+        )?;
+        self.build_number_referent_with_quantity(
+            &number.li,
+            text,
+            quantity,
+            self.source_for_node(number, "number-sumti"),
+        )
+    }
+
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Quantity) || ret.is_err())]
     pub(super) fn build_quantity_for_generated_mekso_operand(
         &mut self,
@@ -3835,6 +3897,46 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .map_or_else(
                 || {
                     self.build_generated_mekso_operand(
+                        expression,
+                        source.clone().map(|source| crate::model::SemanticSource {
+                            construct: Some("math-expression".to_owned()),
+                            ..source
+                        }),
+                    )
+                    .map(QuantityValue::math_expression)
+                },
+                Ok,
+            )?;
+        let question_parameters =
+            self.build_quantity_question_parameters_for_generated_node(expression)?;
+        if !question_parameters.is_empty() {
+            value = value.with_question_parameters(question_parameters);
+        }
+        let quantity = self.next_quantity_id();
+        self.insert(
+            quantity,
+            SemanticObject::quantity(
+                quantity_form_for_text(&text),
+                value,
+                QuantityScale::Count,
+                source,
+            ),
+        )?;
+        Ok(quantity)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Quantity) || ret.is_err())]
+    pub(super) fn build_quantity_for_generated_simple_mekso_operand(
+        &mut self,
+        expression: &'tree SimpleMeksoOperandSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let text = generated_simple_mekso_operand_surface_text(expression)?;
+        let mut value = generated_simple_pa_quantity_value_for_simple_mekso_operand(expression)
+            .map_or_else(
+                || {
+                    self.build_generated_simple_mekso_operand(
                         expression,
                         source.clone().map(|source| crate::model::SemanticSource {
                             construct: Some("math-expression".to_owned()),

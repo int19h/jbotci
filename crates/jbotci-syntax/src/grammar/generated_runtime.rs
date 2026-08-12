@@ -66,6 +66,7 @@ pub(crate) struct SyntaxGrammarDialect {
     pub zantufa_adverbials_enabled: bool,
     pub zantufa_connectives_enabled: bool,
     pub zantufa_mex_enabled: bool,
+    pub zantufa_mex_reinterpretation_enabled: bool,
     pub zantufa_quotes_enabled: bool,
     pub zantufa_tags_enabled: bool,
     pub zantufa_terms_enabled: bool,
@@ -82,6 +83,8 @@ impl SyntaxGrammarDialect {
             zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
             zantufa_connectives_enabled: features.contains(&DialectFeature::ZantufaConnectives),
             zantufa_mex_enabled: features.contains(&DialectFeature::ZantufaMex),
+            zantufa_mex_reinterpretation_enabled: features
+                .contains(&DialectFeature::ZantufaMexReinterpretation),
             zantufa_quotes_enabled: features.contains(&DialectFeature::ZantufaQuotes),
             zantufa_tags_enabled: features.contains(&DialectFeature::ZantufaTags),
             zantufa_terms_enabled: features.contains(&DialectFeature::ZantufaTerms),
@@ -98,6 +101,7 @@ pub(crate) enum SyntaxGrammarFeature {
     ZantufaAdverbials,
     ZantufaConnectives,
     ZantufaMex,
+    ZantufaMexReinterpretation,
     ZantufaQuotes,
     ZantufaTags,
     ZantufaTerms,
@@ -113,6 +117,7 @@ impl SyntaxGrammarFeature {
             Self::ZantufaAdverbials => dialect.zantufa_adverbials_enabled,
             Self::ZantufaConnectives => dialect.zantufa_connectives_enabled,
             Self::ZantufaMex => dialect.zantufa_mex_enabled,
+            Self::ZantufaMexReinterpretation => dialect.zantufa_mex_reinterpretation_enabled,
             Self::ZantufaQuotes => dialect.zantufa_quotes_enabled,
             Self::ZantufaTags => dialect.zantufa_tags_enabled,
             Self::ZantufaTerms => dialect.zantufa_terms_enabled,
@@ -128,6 +133,7 @@ impl SyntaxGrammarFeature {
             Self::ZantufaAdverbials => "ZANTUFA-ADVERBIALS feature",
             Self::ZantufaConnectives => "ZANTUFA-CONNECTIVES feature",
             Self::ZantufaMex => "ZANTUFA-MEX feature",
+            Self::ZantufaMexReinterpretation => "ZANTUFA-MEX-REINTERPRETATION feature",
             Self::ZantufaQuotes => "ZANTUFA-QUOTES feature",
             Self::ZantufaTags => "ZANTUFA-TAGS feature",
             Self::ZantufaTerms => "ZANTUFA-TERMS feature",
@@ -1984,6 +1990,52 @@ where
         };
         input.rewind(before);
         Ok(value)
+    })
+    .boxed()
+}
+
+/// A typed refinement that can reject an otherwise successful parser output.
+#[contract_trait]
+pub(crate) trait OutputRejection<O> {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn rejected_name(&self) -> &'static str;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects(&self, value: &O) -> bool;
+}
+
+/// Rejects a completed typed match and rewinds all state to the route's start.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reject_output<'tokens, O, P, R>(inner: P, rejection: R) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+    R: OutputRejection<O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let before = input.save();
+        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let value = match input.parse(&inner) {
+            Ok(value) => value,
+            Err(error) => {
+                input.rewind(before);
+                return Err(error);
+            }
+        };
+        if !rejection.rejects(&value) {
+            return Ok(value);
+        }
+        input.rewind(before);
+        input
+            .state()
+            .restore_diagnostic_candidates(diagnostic_snapshot);
+        Err(expected_found_named_at_current(
+            input,
+            format!("not {}", rejection.rejected_name()),
+        ))
     })
     .boxed()
 }

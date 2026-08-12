@@ -67,17 +67,13 @@
     {
       "id": "trailing-operator-mex-quantifier",
       "source": "pa su'i re mai mi broda",
-      "provenance": "zantufa-1.9999.peg mex <- mex_1 (operator+ mex_1?)* with mex_2 MAI free",
+      "provenance": "Verified with node -e 'const z=require(\"/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js\"); z.parse(\"pa su\\'i re mai mi broda\")': upstream attaches re mai as a mex_2-MAI post_clause free on su'i and omits the trailing mex_1",
       "upstreamAccept": true,
       "defaultAccept": false,
       "zantufaAccept": true,
       "defaultWarnings": [],
       "zantufaWarnings": ["ExperimentalZantufaMex"],
-      "shapeMarkers": [
-        "ZantufaPriorityRawMeksoQuantifier",
-        "ZantufaInfixMekso",
-        "right_expression\":null"
-      ]
+      "shapeMarkers": ["ZantufaPriorityRawMeksoQuantifier", "ZantufaPriorityMex", "MaiFreeModifier"]
     },
     {
       "id": "xi-mex-free-with-statement-terms",

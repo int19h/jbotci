@@ -1,0 +1,13 @@
+id = "adhoc.syntax.mekso.issue-812-nuha-connected-rejected"
+lojban = "mi nu'a su'i ja pi'i do"
+tags = ["adhoc", "syntax", "mekso", "issue-812"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #812"
+url = "https://github.com/int19h/jbotci/issues/812"
+description = "NUhA does not consume a connected full operator."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [16, 20], source-text = "pi'i", message = "unexpected cmavo" }]

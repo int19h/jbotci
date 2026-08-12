@@ -5,45 +5,36 @@ use super::*;
 pub(super) fn generated_mekso_operator_label(
     operator: &MeksoOperatorSyntax,
 ) -> Result<String, SemanticsError> {
-    match operator {
-        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
-            generated_afterthought_mekso_operator_label(operator)
-        }
-        MeksoOperatorSyntax::BoundMeksoOperator(operator) => {
-            generated_bound_mekso_operator_label(operator)
-        }
-        MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
-            generated_simple_mekso_operator_label(operator)
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-pub(super) fn generated_afterthought_mekso_operator_label(
-    operator: &AfterthoughtMeksoOperatorSyntax,
-) -> Result<String, SemanticsError> {
-    let mut label = generated_bound_or_atom_mekso_operator_label(operator.0.first.as_ref())?;
-    for link in &operator.0.links {
-        label = format!(
-            "{} {}",
-            label,
-            generated_bound_or_atom_mekso_operator_label(&link.trailing_operator)?
-        );
+    let mut label = generated_inner_mekso_operator_label(&operator.leading_operator)?;
+    for continuation in &operator.continuations {
+        let trailing = match continuation {
+            MeksoOperatorContinuationSyntax::AfterthoughtMeksoOperatorContinuation(
+                continuation,
+            ) => generated_inner_mekso_operator_label(&continuation.trailing_operator)?,
+            MeksoOperatorContinuationSyntax::GroupedMeksoOperatorContinuation(continuation) => {
+                generated_mekso_operator_label(&continuation.inner_operator)?
+            }
+        };
+        label = format!("{label} {trailing}");
     }
     Ok(label)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-pub(super) fn generated_bound_or_atom_mekso_operator_label(
-    operator: &BoundOrAtomMeksoOperatorSyntax,
+pub(super) fn generated_inner_mekso_operator_label(
+    operator: &InnerMeksoOperatorSyntax,
 ) -> Result<String, SemanticsError> {
     match operator {
-        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => Ok(format!(
+            "{} {}",
+            generated_inner_mekso_operator_label(&operator.left_operator)?,
+            generated_simple_mekso_operator_label(&operator.right_operator)?
+        )),
+        InnerMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
             generated_bound_mekso_operator_label(operator)
         }
-        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
             generated_simple_mekso_operator_label(operator)
         }
     }
@@ -57,7 +48,7 @@ pub(super) fn generated_bound_mekso_operator_label(
     Ok(format!(
         "{} {}",
         generated_simple_mekso_operator_label(&operator.left_operator)?,
-        generated_mekso_operator_label(&operator.right_operator)?
+        generated_inner_mekso_operator_label(&operator.right_operator)?
     ))
 }
 
@@ -67,35 +58,36 @@ pub(super) fn generated_simple_mekso_operator_label(
     operator: &SimpleMeksoOperatorSyntax,
 ) -> Result<String, SemanticsError> {
     match operator {
-        SimpleMeksoOperatorSyntax::PrimitiveMeksoOperator(operator) => {
-            Ok(token_text(&operator.0.value))
-        }
-        SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
-            generated_mekso_operator_label(&operator.inner_operator)
-        }
-        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
-            generated_mekso_operator_label(&operator.inner_operator)
+        SimpleMeksoOperatorSyntax::AtomicMeksoOperator(operator) => {
+            generated_atomic_mekso_operator_label(operator)
         }
         SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
             generated_mekso_operator_label(&operator.inner_operator)
         }
-        SimpleMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => Ok(format!(
-            "{} {}",
-            generated_mekso_operator_label(&operator.left_operator)?,
-            generated_mekso_operator_label(&operator.right_operator)?
-        )),
-        SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+pub(super) fn generated_atomic_mekso_operator_label(
+    operator: &AtomicMeksoOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    match operator {
+        AtomicMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+            generated_atomic_mekso_operator_label(&operator.inner_operator)
+        }
+        AtomicMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+            generated_atomic_mekso_operator_label(&operator.inner_operator)
+        }
+        AtomicMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
             relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
         }
-        SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
-        SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
-            relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
+        AtomicMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
+        AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(operator) => {
+            generated_experimental_connective_mekso_operator_source(operator)
         }
-        SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_) => {
-            Ok("sumti-operator".to_owned())
-        }
-        SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
-            Ok(generated_operand_connective_source(&operator.0))
+        AtomicMeksoOperatorSyntax::PrimitiveMeksoOperator(operator) => {
+            Ok(token_text(&operator.0.value))
         }
     }
 }
@@ -105,84 +97,63 @@ pub(super) fn generated_simple_mekso_operator_label(
 pub(super) fn generated_mekso_operator_surface_label(
     operator: &MeksoOperatorSyntax,
 ) -> Result<String, SemanticsError> {
-    match operator {
-        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
-            generated_afterthought_mekso_operator_surface_label(operator)
+    let mut label = generated_inner_mekso_operator_surface_label(&operator.leading_operator)?;
+    for continuation in &operator.continuations {
+        match continuation {
+            MeksoOperatorContinuationSyntax::AfterthoughtMeksoOperatorContinuation(
+                continuation,
+            ) => {
+                label = format!(
+                    "{} {} {}",
+                    label,
+                    generated_statement_connective_core_source(
+                        &statement_connective_from_standard(&continuation.connective,)
+                    )?,
+                    generated_inner_mekso_operator_surface_label(&continuation.trailing_operator,)?
+                );
+            }
+            MeksoOperatorContinuationSyntax::GroupedMeksoOperatorContinuation(continuation) => {
+                label = format!(
+                    "{} {} {} {}",
+                    label,
+                    generated_joik_connective_source(&continuation.connective),
+                    token_text(&continuation.ke.value),
+                    generated_mekso_operator_surface_label(&continuation.inner_operator)?
+                );
+            }
         }
-        MeksoOperatorSyntax::BoundMeksoOperator(operator) => {
-            generated_bound_mekso_operator_surface_label(operator)
-        }
-        MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
-            generated_simple_mekso_operator_surface_label(operator)
-        }
-    }
-}
-
-#[requires(!operators.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-pub(super) fn generated_zantufa_mekso_operator_sequence_label<O: AsRef<MeksoOperatorSyntax>>(
-    operators: &[O],
-) -> Result<String, SemanticsError> {
-    operators
-        .iter()
-        .map(|operator| generated_mekso_operator_surface_label(operator.as_ref()))
-        .collect::<Result<Vec<_>, _>>()
-        .map(|parts| parts.join(" "))
-}
-
-#[requires(!operators.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|(label, _)| !label.is_empty()) || ret.is_err())]
-pub(super) fn generated_zantufa_mekso_operator_sequence_label_with_replacement<
-    O: AsRef<MeksoOperatorSyntax>,
->(
-    operators: &[O],
-    replacement_operator: &MeksoOperatorSyntax,
-) -> Result<(String, bool), SemanticsError> {
-    let mut replaced = false;
-    let mut parts = Vec::with_capacity(operators.len());
-    for operator in operators {
-        if !replaced && connected_generated_mekso_operator(operator.as_ref())?.is_some() {
-            parts.push(generated_mekso_operator_surface_label(
-                replacement_operator,
-            )?);
-            replaced = true;
-        } else {
-            parts.push(generated_mekso_operator_surface_label(operator.as_ref())?);
-        }
-    }
-    Ok((parts.join(" "), replaced))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-pub(super) fn generated_afterthought_mekso_operator_surface_label(
-    operator: &AfterthoughtMeksoOperatorSyntax,
-) -> Result<String, SemanticsError> {
-    let mut label =
-        generated_bound_or_atom_mekso_operator_surface_label(operator.0.first.as_ref())?;
-    for link in &operator.0.links {
-        label = format!(
-            "{} {} {}",
-            label,
-            generated_statement_connective_core_source(&statement_connective_from_standard(
-                &link.connective,
-            ))?,
-            generated_bound_or_atom_mekso_operator_surface_label(&link.trailing_operator)?
-        );
     }
     Ok(label)
 }
 
+#[requires(!operators.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+pub(super) fn generated_zantufa_mekso_operator_sequence_label<O: AsRef<ZantufaOperatorSyntax>>(
+    operators: &[O],
+) -> Result<String, SemanticsError> {
+    operators
+        .iter()
+        .map(|operator| generated_zantufa_operator_surface_label(operator.as_ref()))
+        .collect::<Result<Vec<_>, _>>()
+        .map(|parts| parts.join(" "))
+}
+
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-pub(super) fn generated_bound_or_atom_mekso_operator_surface_label(
-    operator: &BoundOrAtomMeksoOperatorSyntax,
+pub(super) fn generated_inner_mekso_operator_surface_label(
+    operator: &InnerMeksoOperatorSyntax,
 ) -> Result<String, SemanticsError> {
     match operator {
-        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => Ok(format!(
+            "{} {} {}",
+            generated_operator_guhek_gik_connective_source(&operator.guhek, &operator.gik),
+            generated_inner_mekso_operator_surface_label(&operator.left_operator)?,
+            generated_simple_mekso_operator_surface_label(&operator.right_operator)?
+        )),
+        InnerMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
             generated_bound_mekso_operator_surface_label(operator)
         }
-        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
             generated_simple_mekso_operator_surface_label(operator)
         }
     }
@@ -199,7 +170,7 @@ pub(super) fn generated_bound_mekso_operator_surface_label(
         generated_statement_connective_core_source(&statement_connective_from_standard(
             &operator.connective,
         ))?,
-        generated_mekso_operator_surface_label(&operator.right_operator)?
+        generated_inner_mekso_operator_surface_label(&operator.right_operator)?
     ))
 }
 
@@ -209,50 +180,202 @@ pub(super) fn generated_simple_mekso_operator_surface_label(
     operator: &SimpleMeksoOperatorSyntax,
 ) -> Result<String, SemanticsError> {
     match operator {
-        SimpleMeksoOperatorSyntax::PrimitiveMeksoOperator(operator) => {
-            Ok(token_text(&operator.0.value))
+        SimpleMeksoOperatorSyntax::AtomicMeksoOperator(operator) => {
+            generated_atomic_mekso_operator_surface_label(operator)
         }
-        SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => Ok(format!(
-            "{} {}",
-            token_text(&operator.se.value),
-            generated_mekso_operator_surface_label(&operator.inner_operator)?
-        )),
-        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => Ok(format!(
-            "{} {}",
-            token_text(&operator.nahe.value),
-            generated_mekso_operator_surface_label(&operator.inner_operator)?
-        )),
         SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
             generated_mekso_operator_surface_label(&operator.inner_operator)
         }
-        SimpleMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => Ok(format!(
-            "{} {} {}",
-            generated_guhek_gik_connective_source(&operator.guhek, &operator.gik),
-            generated_mekso_operator_surface_label(&operator.left_operator)?,
-            generated_mekso_operator_surface_label(&operator.right_operator)?
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+pub(super) fn generated_atomic_mekso_operator_surface_label(
+    operator: &AtomicMeksoOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    match operator {
+        AtomicMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => Ok(format!(
+            "{} {}",
+            token_text(&operator.se.value),
+            generated_atomic_mekso_operator_surface_label(&operator.inner_operator)?
         )),
-        SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
+        AtomicMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => Ok(format!(
+            "{} {}",
+            token_text(&operator.nahe.value),
+            generated_atomic_mekso_operator_surface_label(&operator.inner_operator)?
+        )),
+        AtomicMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
             relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
         }
-        SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
-        SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => Ok(format!(
-            "{} {}",
-            token_text(&operator.maho.value),
-            relation_label_from_selbri(&operator.selbri)?.display_text()
-        )),
-        SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
-            let mut visitor = GeneratedSpanCollector::default();
-            operator.sumti.visit_in_order(&mut visitor);
-            Ok(format!(
-                "{} {}",
-                token_text(&operator.maho.value),
-                token_list_text(visitor.tokens.iter().copied())
-            ))
+        AtomicMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
+        AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(operator) => {
+            generated_experimental_connective_mekso_operator_source(operator)
         }
-        SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
-            Ok(generated_operand_connective_source(&operator.0))
+        AtomicMeksoOperatorSyntax::PrimitiveMeksoOperator(operator) => {
+            Ok(token_text(&operator.0.value))
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|source| !source.is_empty()) || ret.is_err())]
+fn generated_experimental_connective_mekso_operator_source(
+    operator: &ExperimentalConnectiveMeksoOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    match operator {
+        ExperimentalConnectiveMeksoOperatorSyntax::StandardStatementConnective(connective) => {
+            generated_statement_connective_core_source(&statement_connective_from_standard(
+                connective,
+            ))
+        }
+        ExperimentalConnectiveMeksoOperatorSyntax::EkConnective(connective) => {
+            Ok(token_text(&connective.a.value))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+pub(super) fn generated_zantufa_operator_surface_label(
+    operator: &ZantufaOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    generated_node_surface_text(operator)
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(super) fn generated_zantufa_math_operator_label(
+    operator: &ZantufaOperatorSyntax,
+) -> Result<MathOperator, SemanticsError> {
+    let source = generated_zantufa_operator_surface_label(operator)?;
+    Ok(match generated_zantufa_operator_base(operator) {
+        ZantufaOperatorSyntax::ZantufaPrimitiveMeksoOperator(operator) => {
+            match token_text(&operator.0.value).as_str() {
+                "su'i" => new!(MathOperator::Add),
+                "pi'i" => new!(MathOperator::Multiply),
+                "te'a" => new!(MathOperator::Power),
+                "vu'u" => new!(MathOperator::Subtract),
+                "fe'i" => new!(MathOperator::Divide),
+                "ju'u" => new!(MathOperator::Base),
+                _ => MathOperator::from_label(source),
+            }
+        }
+        _ => MathOperator::from_label(source),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_zantufa_operator_base(operator: &ZantufaOperatorSyntax) -> &ZantufaOperatorSyntax {
+    match operator {
+        ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(operator) => {
+            generated_zantufa_operator_base(&operator.inner_operator)
+        }
+        ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(operator) => {
+            generated_zantufa_operator_base(&operator.inner_operator)
+        }
+        ZantufaOperatorSyntax::ZantufaMahoMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaPrimitiveMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(_) => operator,
+    }
+}
+
+#[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+#[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+pub(super) fn generated_math_operands_for_zantufa_operator(
+    operator: &ZantufaOperatorSyntax,
+    operands: Vec<SemanticObjectId>,
+) -> Vec<SemanticObjectId> {
+    match operator {
+        ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(operator) => {
+            converted_math_operands_for_generated(operator.se.value.cmavo(), operands)
+        }
+        ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(operator) => {
+            generated_math_operands_for_zantufa_operator(&operator.inner_operator, operands)
+        }
+        _ => operands,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+pub(super) fn scalar_negation_for_generated_zantufa_operator(
+    operator: &ZantufaOperatorSyntax,
+) -> Option<ScalarNegation> {
+    match operator {
+        ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(operator) => {
+            Some(scalar_negation_for_token(&operator.nahe.value))
+        }
+        ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(operator) => {
+            scalar_negation_for_generated_zantufa_operator(&operator.inner_operator)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn generated_operator_guhek_gik_connective_source(
+    guhek: &OperatorGuhekConnectiveSyntax,
+    gik: &GikConnectiveSyntax,
+) -> String {
+    let mut parts = Vec::new();
+    if let Some(se) = &guhek.se {
+        parts.push(token_text(se));
+    }
+    parts.push(token_text(&guhek.guha.value));
+    if let Some(nai) = &guhek.nai {
+        parts.push(token_text(&nai.value));
+    }
+    parts.push(token_text(&gik.gi.value));
+    if let Some(nai) = &gik.nai {
+        parts.push(token_text(&nai.value));
+    }
+    parts.join(" ")
+}
+
+#[requires(true)]
+#[ensures(matches!(ret, FormulaOperator::And | FormulaOperator::Or | FormulaOperator::Iff | FormulaOperator::WhetherOrNot))]
+fn generated_operator_guhek_connective_formula_operator(
+    connective: &OperatorGuhekConnectiveSyntax,
+) -> FormulaOperator {
+    match connective.guha.value.cmavo() {
+        Some(Cmavo::Guha) => FormulaOperator::Or,
+        Some(Cmavo::Guhe) => FormulaOperator::And,
+        Some(Cmavo::Guho) => FormulaOperator::Iff,
+        Some(Cmavo::Guhu) => FormulaOperator::WhetherOrNot,
+        _ => FormulaOperator::And,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_some_and(|table| table.len() == 4))]
+fn generated_operator_guhek_gik_connective_truth_table(
+    guhek: &OperatorGuhekConnectiveSyntax,
+    gik: &GikConnectiveSyntax,
+) -> Option<String> {
+    let operator = generated_operator_guhek_connective_formula_operator(guhek);
+    let se = guhek.se.is_some();
+    let left_negated = guhek.nai.is_some();
+    let right_negated = gik.nai.is_some();
+    Some(
+        [(true, true), (true, false), (false, true), (false, false)]
+            .into_iter()
+            .map(|(left, right)| {
+                let left = if left_negated { !left } else { left };
+                let right = if right_negated { !right } else { right };
+                let result = if se {
+                    connective_truth_value_for_operator(operator, right, left)
+                } else {
+                    connective_truth_value_for_operator(operator, left, right)
+                };
+                if result { 'T' } else { 'F' }
+            })
+            .collect(),
+    )
 }
 
 #[requires(true)]
@@ -261,10 +384,11 @@ pub(super) fn generated_mekso_surface_text(
     expression: &MeksoSyntax,
 ) -> Result<String, SemanticsError> {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
-            generated_zantufa_reverse_polish_surface_text(reverse_polish)
+        MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_node_surface_text(&expression.0)
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => generated_zantufa_infix_mekso_surface_text(infix),
+        MeksoSyntax::ZantufaPriorityMex(expression) => generated_node_surface_text(&expression.0),
+        MeksoSyntax::ZantufaMex(expression) => generated_node_surface_text(expression),
         MeksoSyntax::InfixMekso(infix) => generated_infix_mekso_surface_text(infix),
         MeksoSyntax::ReversePolishMekso(reverse_polish) => {
             generated_reverse_polish_surface_text(reverse_polish)
@@ -279,13 +403,9 @@ pub(super) fn generated_mekso_surface_text_with_connected_operator_replacement(
     replacement_operator: &MeksoOperatorSyntax,
 ) -> Result<Option<String>, SemanticsError> {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(_) => Ok(None),
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            generated_zantufa_infix_mekso_surface_text_with_connected_operator_replacement(
-                infix,
-                replacement_operator,
-            )
-        }
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaPriorityMex(_)
+        | MeksoSyntax::ZantufaMex(_) => Ok(None),
         MeksoSyntax::InfixMekso(infix) => {
             generated_infix_mekso_surface_text_with_connected_operator_replacement(
                 infix,
@@ -293,6 +413,43 @@ pub(super) fn generated_mekso_surface_text_with_connected_operator_replacement(
             )
         }
         MeksoSyntax::ReversePolishMekso(_) => Ok(None),
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+pub(super) fn generated_standard_mekso_array_element_surface_text(
+    expression: &StandardMeksoArrayElementSyntax,
+) -> Result<String, SemanticsError> {
+    match expression {
+        StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+            generated_mekso_operand_surface_text(operand)
+        }
+        StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => {
+            generated_forethought_call_mekso_surface_text(call)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
+pub(super) fn generated_standard_mekso_array_element_surface_text_with_connected_operator_replacement(
+    expression: &StandardMeksoArrayElementSyntax,
+    replacement_operator: &MeksoOperatorSyntax,
+) -> Result<Option<String>, SemanticsError> {
+    match expression {
+        StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                operand,
+                replacement_operator,
+            )
+        }
+        StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => {
+            generated_forethought_call_mekso_surface_text_with_connected_operator_replacement(
+                call,
+                replacement_operator,
+            )
+        }
     }
 }
 
@@ -349,62 +506,6 @@ pub(super) fn generated_infix_mekso_surface_text_with_connected_operator_replace
                 generated_mekso_operator_surface_label(&continuation.operator)?,
                 right
             );
-        }
-    }
-    Ok(replaced.then_some(text))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
-pub(super) fn generated_zantufa_infix_mekso_surface_text_with_connected_operator_replacement(
-    infix: &ZantufaInfixMeksoSyntax,
-    replacement_operator: &MeksoOperatorSyntax,
-) -> Result<Option<String>, SemanticsError> {
-    if infix.continuations.is_empty() {
-        return generated_mekso_precedence_surface_text_with_connected_operator_replacement(
-            &infix.first_expression,
-            replacement_operator,
-        );
-    }
-    let mut replaced = false;
-    let mut text = if let Some(first) =
-        generated_mekso_precedence_surface_text_with_connected_operator_replacement(
-            &infix.first_expression,
-            replacement_operator,
-        )? {
-        replaced = true;
-        first
-    } else {
-        generated_mekso_precedence_surface_text(&infix.first_expression)?
-    };
-    for continuation in &infix.continuations {
-        let mut operator_texts = Vec::with_capacity(continuation.operators.len());
-        for operator in &continuation.operators {
-            if !replaced && connected_generated_mekso_operator(operator)?.is_some() {
-                replaced = true;
-                operator_texts.push(generated_mekso_operator_surface_label(
-                    replacement_operator,
-                )?);
-            } else {
-                operator_texts.push(generated_mekso_operator_surface_label(operator)?);
-            }
-        }
-        text = format!("{} {}", text, operator_texts.join(" "));
-        if let Some(right_expression) = &continuation.right_expression {
-            let right = if replaced {
-                generated_mekso_precedence_surface_text(right_expression)?
-            } else if let Some(right) =
-                generated_mekso_precedence_surface_text_with_connected_operator_replacement(
-                    right_expression,
-                    replacement_operator,
-                )?
-            {
-                replaced = true;
-                right
-            } else {
-                generated_mekso_precedence_surface_text(right_expression)?
-            };
-            text = format!("{text} {right}");
         }
     }
     Ok(replaced.then_some(text))
@@ -470,45 +571,8 @@ pub(super) fn generated_mekso_base_surface_text_with_connected_operator_replacem
             )
         }
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
-            if connected_generated_mekso_operator(&call.operator)?.is_some() {
-                let mut parts = Vec::with_capacity(call.operands.len() + 1);
-                parts.push(generated_mekso_operator_surface_label(
-                    replacement_operator,
-                )?);
-                for operand in &call.operands {
-                    parts.push(generated_mekso_base_surface_text(operand)?);
-                }
-                return Ok(Some(parts.join(" ")));
-            }
-            let mut parts = Vec::with_capacity(call.operands.len() + 1);
-            parts.push(generated_mekso_operator_surface_label(&call.operator)?);
-            let mut replaced = false;
-            for operand in &call.operands {
-                if replaced {
-                    parts.push(generated_mekso_base_surface_text(operand)?);
-                } else if let Some(text) =
-                    generated_mekso_base_surface_text_with_connected_operator_replacement(
-                        operand,
-                        replacement_operator,
-                    )?
-                {
-                    replaced = true;
-                    parts.push(text);
-                } else {
-                    parts.push(generated_mekso_base_surface_text(operand)?);
-                }
-            }
-            Ok(replaced.then(|| parts.join(" ")))
-        }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            generated_zantufa_bo_grouped_mekso_base_surface_text_with_connected_operator_replacement(
-                group,
-                replacement_operator,
-            )
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
-            generated_zantufa_grouped_mekso_operand_sequence_surface_text_with_connected_operator_replacement(
-                group,
+            generated_forethought_call_mekso_surface_text_with_connected_operator_replacement(
+                call,
                 replacement_operator,
             )
         }
@@ -517,58 +581,28 @@ pub(super) fn generated_mekso_base_surface_text_with_connected_operator_replacem
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
-pub(super) fn generated_zantufa_bo_grouped_mekso_base_surface_text_with_connected_operator_replacement(
-    group: &ZantufaBoGroupedMeksoBaseSyntax,
+pub(super) fn generated_forethought_call_mekso_surface_text_with_connected_operator_replacement(
+    call: &ForethoughtCallMeksoSyntax,
     replacement_operator: &MeksoOperatorSyntax,
 ) -> Result<Option<String>, SemanticsError> {
-    let mut replaced = false;
-    let mut parts = Vec::with_capacity(1 + group.continuations.len() * 2);
-    if let Some(first) = generated_mekso_operand_surface_text_with_connected_operator_replacement(
-        &group.first,
-        replacement_operator,
-    )? {
-        replaced = true;
-        parts.push(first);
-    } else {
-        parts.push(generated_mekso_operand_surface_text(&group.first)?);
-    }
-    for continuation in &group.continuations {
-        parts.push(token_text(&continuation.bo.value));
-        if replaced {
-            parts.push(generated_mekso_operand_surface_text(
-                &continuation.expression,
-            )?);
-        } else if let Some(expression) =
-            generated_mekso_operand_surface_text_with_connected_operator_replacement(
-                &continuation.expression,
-                replacement_operator,
-            )?
-        {
-            replaced = true;
-            parts.push(expression);
-        } else {
-            parts.push(generated_mekso_operand_surface_text(
-                &continuation.expression,
-            )?);
+    if connected_generated_mekso_operator(&call.operator)?.is_some() {
+        let mut parts = Vec::with_capacity(call.operands.len() + 1);
+        parts.push(generated_mekso_operator_surface_label(
+            replacement_operator,
+        )?);
+        for operand in &call.operands {
+            parts.push(generated_mekso_base_surface_text(operand)?);
         }
+        return Ok(Some(parts.join(" ")));
     }
-    Ok(replaced.then(|| parts.join(" ")))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
-pub(super) fn generated_zantufa_grouped_mekso_operand_sequence_surface_text_with_connected_operator_replacement(
-    group: &ZantufaGroupedMeksoOperandSequenceSyntax,
-    replacement_operator: &MeksoOperatorSyntax,
-) -> Result<Option<String>, SemanticsError> {
+    let mut parts = Vec::with_capacity(call.operands.len() + 1);
+    parts.push(generated_mekso_operator_surface_label(&call.operator)?);
     let mut replaced = false;
-    let mut parts = Vec::with_capacity(group.operands.len() + 2);
-    parts.push(token_text(&group.ke.value));
-    for operand in &group.operands {
+    for operand in &call.operands {
         if replaced {
-            parts.push(generated_mekso_operand_surface_text(operand)?);
+            parts.push(generated_mekso_base_surface_text(operand)?);
         } else if let Some(text) =
-            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+            generated_mekso_base_surface_text_with_connected_operator_replacement(
                 operand,
                 replacement_operator,
             )?
@@ -576,11 +610,8 @@ pub(super) fn generated_zantufa_grouped_mekso_operand_sequence_surface_text_with
             replaced = true;
             parts.push(text);
         } else {
-            parts.push(generated_mekso_operand_surface_text(operand)?);
+            parts.push(generated_mekso_base_surface_text(operand)?);
         }
-    }
-    if let Some(kehe) = &group.kehe {
-        parts.push(token_text(&kehe.value));
     }
     Ok(replaced.then(|| parts.join(" ")))
 }
@@ -591,60 +622,62 @@ pub(super) fn generated_mekso_operand_surface_text_with_connected_operator_repla
     operand: &MeksoOperandSyntax,
     replacement_operator: &MeksoOperatorSyntax,
 ) -> Result<Option<String>, SemanticsError> {
-    match operand {
-        MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-            let chain = &operand.0;
-            let mut text = generated_bound_or_simple_mekso_operand_surface_text(&chain.first)?;
-            let mut replaced = false;
-            if let Some(first) =
-                generated_bound_or_simple_mekso_operand_surface_text_with_connected_operator_replacement(
-                    &chain.first,
-                    replacement_operator,
-                )?
-            {
-                text = first;
-                replaced = true;
-            }
-            for link in &chain.links {
-                let trailing = if replaced {
-                    generated_bound_or_simple_mekso_operand_surface_text(
-                        &link.trailing_expression,
-                    )?
-                } else if let Some(replaced_trailing) =
-                    generated_bound_or_simple_mekso_operand_surface_text_with_connected_operator_replacement(
-                        &link.trailing_expression,
-                        replacement_operator,
-                    )?
-                {
-                    replaced = true;
-                    replaced_trailing
-                } else {
-                    generated_bound_or_simple_mekso_operand_surface_text(
-                        &link.trailing_expression,
-                    )?
-                };
-                text = format!(
-                    "{} {} {}",
-                    text,
-                    generated_operand_connective_source(&link.operand_connective),
-                    trailing
-                );
-            }
-            Ok(replaced.then_some(text))
-        }
-        MeksoOperandSyntax::BoundMeksoOperand(operand) => {
-            generated_bound_mekso_operand_surface_text_with_connected_operator_replacement(
-                operand,
-                replacement_operator,
-            )
-        }
-        MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
-            generated_simple_mekso_operand_surface_text_with_connected_operator_replacement(
-                operand,
-                replacement_operator,
-            )
-        }
+    let chain = &operand.connected_expression.0;
+    let mut text = generated_bound_or_simple_mekso_operand_surface_text(&chain.first)?;
+    let mut replaced = false;
+    if let Some(first) =
+        generated_bound_or_simple_mekso_operand_surface_text_with_connected_operator_replacement(
+            &chain.first,
+            replacement_operator,
+        )?
+    {
+        text = first;
+        replaced = true;
     }
+    for link in &chain.links {
+        let trailing = if replaced {
+            generated_bound_or_simple_mekso_operand_surface_text(&link.trailing_expression)?
+        } else if let Some(replaced_trailing) =
+            generated_bound_or_simple_mekso_operand_surface_text_with_connected_operator_replacement(
+                &link.trailing_expression,
+                replacement_operator,
+            )?
+        {
+            replaced = true;
+            replaced_trailing
+        } else {
+            generated_bound_or_simple_mekso_operand_surface_text(&link.trailing_expression)?
+        };
+        text = format!(
+            "{} {} {}",
+            text,
+            generated_operand_connective_source(&link.operand_connective),
+            trailing
+        );
+    }
+    if let Some(group) = &operand.grouped_continuation {
+        let inner = if replaced {
+            generated_mekso_operand_surface_text(&group.inner_expression)?
+        } else if let Some(inner) =
+            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                &group.inner_expression,
+                replacement_operator,
+            )?
+        {
+            replaced = true;
+            inner
+        } else {
+            generated_mekso_operand_surface_text(&group.inner_expression)?
+        };
+        text = format!(
+            "{} {} {} {}",
+            text,
+            generated_operand_connective_source(&group.operand_connective),
+            token_text(&group.ke.value),
+            inner
+        );
+    }
+    Ok(replaced.then_some(text))
 }
 
 #[requires(true)]
@@ -685,10 +718,10 @@ pub(super) fn generated_bound_mekso_operand_surface_text_with_connected_operator
             "{} {} {}",
             left,
             generated_operand_connective_source(&operand.operand_connective),
-            generated_mekso_operand_surface_text(&operand.right_expression)?
+            generated_bound_or_simple_mekso_operand_surface_text(&operand.right_expression)?
         )));
     }
-    generated_mekso_operand_surface_text_with_connected_operator_replacement(
+    generated_bound_or_simple_mekso_operand_surface_text_with_connected_operator_replacement(
         &operand.right_expression,
         replacement_operator,
     )?
@@ -721,10 +754,10 @@ pub(super) fn generated_simple_mekso_operand_surface_text_with_connected_operato
                     "{} {} {}",
                     generated_modal_forethought_connective_source(&operand.gek),
                     left,
-                    generated_mekso_operand_surface_text(&operand.right_expression)?
+                    generated_simple_mekso_operand_surface_text(&operand.right_expression)?
                 )));
             }
-            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+            generated_simple_mekso_operand_surface_text_with_connected_operator_replacement(
                 &operand.right_expression,
                 replacement_operator,
             )?
@@ -744,6 +777,12 @@ pub(super) fn generated_simple_mekso_operand_surface_text_with_connected_operato
                 replacement_operator,
             )
         }
+        SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
+            generated_mekso_operand_surface_text_with_connected_operator_replacement(
+                &operand.inner_expression,
+                replacement_operator,
+            )
+        }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_surface_text_with_connected_operator_replacement(
                 &operand.inner_expression,
@@ -755,9 +794,9 @@ pub(super) fn generated_simple_mekso_operand_surface_text_with_connected_operato
             let mut replaced = false;
             for expression in &operand.expressions {
                 if replaced {
-                    parts.push(generated_mekso_surface_text(expression)?);
+                    parts.push(generated_standard_mekso_array_element_surface_text(expression)?);
                 } else if let Some(text) =
-                    generated_mekso_surface_text_with_connected_operator_replacement(
+                    generated_standard_mekso_array_element_surface_text_with_connected_operator_replacement(
                         expression,
                         replacement_operator,
                     )?
@@ -765,22 +804,15 @@ pub(super) fn generated_simple_mekso_operand_surface_text_with_connected_operato
                     replaced = true;
                     parts.push(text);
                 } else {
-                    parts.push(generated_mekso_surface_text(expression)?);
+                    parts.push(generated_standard_mekso_array_element_surface_text(expression)?);
                 }
             }
             Ok(replaced.then(|| parts.join(" ")))
         }
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
-        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => Ok(None),
-        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
-            generated_mekso_operand_surface_text_with_connected_operator_replacement(
-                &operand.inner_expression,
-                replacement_operator,
-            )
-        }
     }
 }
 
@@ -801,16 +833,11 @@ pub(super) fn generated_number_descriptor_mekso_surface_text(
     expression: &MeksoSyntax,
 ) -> Result<String, SemanticsError> {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
-            if generated_zantufa_reverse_polish_contains_operand_connection(reverse_polish) {
-                Ok("mekso".to_owned())
-            } else {
-                generated_zantufa_reverse_polish_surface_text(reverse_polish)
-            }
+        MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_node_surface_text(&expression.0)
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            generated_number_descriptor_zantufa_infix_mekso_surface_text(infix)
-        }
+        MeksoSyntax::ZantufaPriorityMex(expression) => generated_node_surface_text(&expression.0),
+        MeksoSyntax::ZantufaMex(expression) => generated_node_surface_text(expression),
         MeksoSyntax::InfixMekso(infix) => {
             generated_number_descriptor_infix_mekso_surface_text(infix)
         }
@@ -840,28 +867,6 @@ pub(super) fn generated_number_descriptor_infix_mekso_surface_text(
                 &continuation.right_expression,
             )?
         );
-    }
-    Ok(text)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub(super) fn generated_number_descriptor_zantufa_infix_mekso_surface_text(
-    infix: &ZantufaInfixMeksoSyntax,
-) -> Result<String, SemanticsError> {
-    let mut text =
-        generated_number_descriptor_mekso_precedence_surface_text(&infix.first_expression)?;
-    for continuation in &infix.continuations {
-        let mut parts = Vec::with_capacity(continuation.operators.len() + 1);
-        for operator in &continuation.operators {
-            parts.push(generated_mekso_operator_surface_label(operator)?);
-        }
-        if let Some(right_expression) = &continuation.right_expression {
-            parts.push(generated_number_descriptor_mekso_precedence_surface_text(
-                right_expression,
-            )?);
-        }
-        text = format!("{} {}", text, parts.join(" "));
     }
     Ok(text)
 }
@@ -902,10 +907,6 @@ pub(super) fn generated_number_descriptor_mekso_base_surface_text(
             }
             Ok(parts.join(" "))
         }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            generated_zantufa_bo_grouped_mekso_base_surface_text(group)
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Ok("mekso".to_owned()),
     }
 }
 
@@ -927,10 +928,9 @@ pub(super) fn first_generated_connected_mekso_operator(
     expression: &MeksoSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(_) => Ok(None),
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            first_generated_connected_mekso_operator_in_zantufa_infix(infix)
-        }
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaPriorityMex(_)
+        | MeksoSyntax::ZantufaMex(_) => Ok(None),
         MeksoSyntax::InfixMekso(infix) => first_generated_connected_mekso_operator_in_infix(infix),
         MeksoSyntax::ReversePolishMekso(_) => Ok(None),
     }
@@ -938,30 +938,17 @@ pub(super) fn first_generated_connected_mekso_operator(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
-pub(super) fn first_generated_connected_mekso_operator_in_zantufa_infix(
-    infix: &ZantufaInfixMeksoSyntax,
+pub(super) fn first_generated_connected_mekso_operator_in_standard_array_element(
+    expression: &StandardMeksoArrayElementSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
-    for continuation in &infix.continuations {
-        for operator in &continuation.operators {
-            if let Some(expansion) = connected_generated_mekso_operator(operator)? {
-                return Ok(Some(expansion));
-            }
+    match expression {
+        StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+            first_generated_connected_mekso_operator_in_operand(operand)
+        }
+        StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => {
+            first_generated_connected_mekso_operator_in_forethought_call(call)
         }
     }
-    if let Some(expansion) =
-        first_generated_connected_mekso_operator_in_precedence(&infix.first_expression)?
-    {
-        return Ok(Some(expansion));
-    }
-    for continuation in &infix.continuations {
-        if let Some(right_expression) = &continuation.right_expression
-            && let Some(expansion) =
-                first_generated_connected_mekso_operator_in_precedence(right_expression)?
-        {
-            return Ok(Some(expansion));
-        }
-    }
-    Ok(None)
 }
 
 #[requires(true)]
@@ -1018,43 +1005,25 @@ pub(super) fn first_generated_connected_mekso_operator_in_base(
             first_generated_connected_mekso_operator_in_operand(operand)
         }
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
-            if let Some(expansion) = connected_generated_mekso_operator(&call.operator)? {
-                return Ok(Some(expansion));
-            }
-            for operand in &call.operands {
-                if let Some(expansion) = first_generated_connected_mekso_operator_in_base(operand)?
-                {
-                    return Ok(Some(expansion));
-                }
-            }
-            Ok(None)
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
-            for operand in &group.operands {
-                if let Some(expansion) =
-                    first_generated_connected_mekso_operator_in_operand(operand)?
-                {
-                    return Ok(Some(expansion));
-                }
-            }
-            Ok(None)
-        }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            if let Some(expansion) =
-                first_generated_connected_mekso_operator_in_operand(&group.first)?
-            {
-                return Ok(Some(expansion));
-            }
-            for continuation in &group.continuations {
-                if let Some(expansion) =
-                    first_generated_connected_mekso_operator_in_operand(&continuation.expression)?
-                {
-                    return Ok(Some(expansion));
-                }
-            }
-            Ok(None)
+            first_generated_connected_mekso_operator_in_forethought_call(call)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
+pub(super) fn first_generated_connected_mekso_operator_in_forethought_call(
+    call: &ForethoughtCallMeksoSyntax,
+) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
+    if let Some(expansion) = connected_generated_mekso_operator(&call.operator)? {
+        return Ok(Some(expansion));
+    }
+    for operand in &call.operands {
+        if let Some(expansion) = first_generated_connected_mekso_operator_in_base(operand)? {
+            return Ok(Some(expansion));
+        }
+    }
+    Ok(None)
 }
 
 #[requires(true)]
@@ -1062,32 +1031,27 @@ pub(super) fn first_generated_connected_mekso_operator_in_base(
 pub(super) fn first_generated_connected_mekso_operator_in_operand(
     operand: &MeksoOperandSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
-    match operand {
-        MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-            let chain = &operand.0;
-            if let Some(expansion) =
-                first_generated_connected_mekso_operator_in_bound_or_simple_operand(&chain.first)?
-            {
-                return Ok(Some(expansion));
-            }
-            for link in &chain.links {
-                if let Some(expansion) =
-                    first_generated_connected_mekso_operator_in_bound_or_simple_operand(
-                        &link.trailing_expression,
-                    )?
-                {
-                    return Ok(Some(expansion));
-                }
-            }
-            Ok(None)
-        }
-        MeksoOperandSyntax::BoundMeksoOperand(operand) => {
-            first_generated_connected_mekso_operator_in_bound_operand(operand)
-        }
-        MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
-            first_generated_connected_mekso_operator_in_simple_operand(operand)
+    let chain = &operand.connected_expression.0;
+    if let Some(expansion) =
+        first_generated_connected_mekso_operator_in_bound_or_simple_operand(&chain.first)?
+    {
+        return Ok(Some(expansion));
+    }
+    for link in &chain.links {
+        if let Some(expansion) =
+            first_generated_connected_mekso_operator_in_bound_or_simple_operand(
+                &link.trailing_expression,
+            )?
+        {
+            return Ok(Some(expansion));
         }
     }
+    operand
+        .grouped_continuation
+        .as_ref()
+        .map_or(Ok(None), |group| {
+            first_generated_connected_mekso_operator_in_operand(&group.inner_expression)
+        })
 }
 
 #[requires(true)]
@@ -1112,7 +1076,11 @@ pub(super) fn first_generated_connected_mekso_operator_in_bound_operand(
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     first_generated_connected_mekso_operator_in_simple_operand(&operand.left_expression)?
         .map_or_else(
-            || first_generated_connected_mekso_operator_in_operand(&operand.right_expression),
+            || {
+                first_generated_connected_mekso_operator_in_bound_or_simple_operand(
+                    &operand.right_expression,
+                )
+            },
             |expansion| Ok(Some(expansion)),
         )
 }
@@ -1127,7 +1095,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
             first_generated_connected_mekso_operator_in_operand(&operand.left_expression)?
                 .map_or_else(
                     || {
-                        first_generated_connected_mekso_operator_in_operand(
+                        first_generated_connected_mekso_operator_in_simple_operand(
                             &operand.right_expression,
                         )
                     },
@@ -1137,7 +1105,7 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
             first_generated_connected_mekso_operator_in_operand(&operand.inner_expression)
         }
-        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+        SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
             first_generated_connected_mekso_operator_in_operand(&operand.inner_expression)
         }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
@@ -1145,14 +1113,15 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
         }
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => {
             for expression in &operand.expressions {
-                if let Some(expansion) = first_generated_connected_mekso_operator(expression)? {
+                if let Some(expansion) =
+                    first_generated_connected_mekso_operator_in_standard_array_element(expression)?
+                {
                     return Ok(Some(expansion));
                 }
             }
             Ok(None)
         }
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
-        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => Ok(None),
@@ -1164,45 +1133,45 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
 pub(super) fn connected_generated_mekso_operator(
     operator: &MeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
-    match operator {
-        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
-            connected_generated_afterthought_mekso_operator(operator)
+    let Some(continuation) = operator.continuations.first() else {
+        return connected_generated_inner_mekso_operator(&operator.leading_operator);
+    };
+    match continuation {
+        MeksoOperatorContinuationSyntax::AfterthoughtMeksoOperatorContinuation(continuation) => {
+            connected_generated_standard_mekso_operator(
+                &continuation.connective,
+                generated_mekso_operator_from_inner(operator.leading_operator.as_ref().clone()),
+                generated_mekso_operator_from_inner(
+                    continuation.trailing_operator.as_ref().clone(),
+                ),
+            )
         }
-        MeksoOperatorSyntax::BoundMeksoOperator(operator) => {
-            connected_generated_bound_mekso_operator(operator)
-        }
-        MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
-            connected_generated_simple_mekso_operator(operator)
+        MeksoOperatorContinuationSyntax::GroupedMeksoOperatorContinuation(continuation) => {
+            let connective = StandardStatementConnectiveSyntax::JoikConnective(
+                continuation.connective.as_ref().clone(),
+            );
+            connected_generated_standard_mekso_operator(
+                &connective,
+                generated_mekso_operator_from_inner(operator.leading_operator.as_ref().clone()),
+                continuation.inner_operator.as_ref().clone(),
+            )
         }
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
-pub(super) fn connected_generated_afterthought_mekso_operator(
-    operator: &AfterthoughtMeksoOperatorSyntax,
-) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
-    let chain = &operator.0;
-    let Some(link) = chain.links.first() else {
-        return connected_generated_bound_or_atom_mekso_operator(&chain.first);
-    };
-    connected_generated_standard_mekso_operator(
-        &link.connective,
-        generated_mekso_operator_from_bound_or_atom(&chain.first),
-        generated_mekso_operator_from_bound_or_atom(&link.trailing_operator),
-    )
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
-pub(super) fn connected_generated_bound_or_atom_mekso_operator(
-    operator: &BoundOrAtomMeksoOperatorSyntax,
+pub(super) fn connected_generated_inner_mekso_operator(
+    operator: &InnerMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     match operator {
-        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => {
+            connected_generated_forethought_mekso_operator(operator)
+        }
+        InnerMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
             connected_generated_bound_mekso_operator(operator)
         }
-        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
             connected_generated_simple_mekso_operator(operator)
         }
     }
@@ -1215,8 +1184,8 @@ pub(super) fn connected_generated_bound_mekso_operator(
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     connected_generated_standard_mekso_operator(
         &operator.connective,
-        MeksoOperatorSyntax::SimpleMeksoOperator(operator.left_operator.as_ref().clone()),
-        operator.right_operator.as_ref().clone(),
+        generated_mekso_operator_from_simple(operator.left_operator.as_ref().clone()),
+        generated_mekso_operator_from_inner(operator.right_operator.as_ref().clone()),
     )?
     .map_or_else(
         || connected_generated_simple_mekso_operator(&operator.left_operator),
@@ -1230,24 +1199,31 @@ pub(super) fn connected_generated_simple_mekso_operator(
     operator: &SimpleMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     match operator {
-        SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
-            connected_generated_mekso_operator(&operator.inner_operator)
-        }
-        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
-            connected_generated_mekso_operator(&operator.inner_operator)
+        SimpleMeksoOperatorSyntax::AtomicMeksoOperator(operator) => {
+            connected_generated_atomic_mekso_operator(operator)
         }
         SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
             connected_generated_mekso_operator(&operator.inner_operator)
         }
-        SimpleMeksoOperatorSyntax::ForethoughtMeksoOperator(operator) => {
-            connected_generated_forethought_mekso_operator(operator)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
+pub(super) fn connected_generated_atomic_mekso_operator(
+    operator: &AtomicMeksoOperatorSyntax,
+) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
+    match operator {
+        AtomicMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+            connected_generated_atomic_mekso_operator(&operator.inner_operator)
         }
-        SimpleMeksoOperatorSyntax::PrimitiveMeksoOperator(_)
-        | SimpleMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
-        | SimpleMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_)
-        | SimpleMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(_)
-        | SimpleMeksoOperatorSyntax::SelbriMeksoOperator(_)
-        | SimpleMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok(None),
+        AtomicMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+            connected_generated_atomic_mekso_operator(&operator.inner_operator)
+        }
+        AtomicMeksoOperatorSyntax::PrimitiveMeksoOperator(_)
+        | AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(_)
+        | AtomicMeksoOperatorSyntax::SelbriMeksoOperator(_)
+        | AtomicMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok(None),
     }
 }
 
@@ -1284,51 +1260,52 @@ pub(super) fn connected_generated_forethought_mekso_operator(
     operator: &ForethoughtMeksoOperatorSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     Ok(Some(new!(GeneratedConnectedMeksoOperatorExpansion {
-        left_operator: operator.left_operator.as_ref().clone(),
-        right_operator: operator.right_operator.as_ref().clone(),
-        operator: generated_guhek_connective_formula_operator(&operator.guhek),
+        left_operator: generated_mekso_operator_from_inner(operator.left_operator.as_ref().clone(),),
+        right_operator: generated_mekso_operator_from_simple(
+            operator.right_operator.as_ref().clone(),
+        ),
+        operator: generated_operator_guhek_connective_formula_operator(&operator.guhek),
         connector: new!(Connector {
-            source: ConnectorSource::surface_word(generated_guhek_gik_connective_source(
+            source: ConnectorSource::surface_word(generated_operator_guhek_gik_connective_source(
+                &operator.guhek,
+                &operator.gik
+            ),),
+            locus: ConnectorLocus::MathOperator,
+            truth_table: generated_operator_guhek_gik_connective_truth_table(
                 &operator.guhek,
                 &operator.gik,
-            )),
-            locus: ConnectorLocus::MathOperator,
-            truth_table: generated_guhek_gik_connective_truth_table(&operator.guhek, &operator.gik),
+            ),
             parameter: None,
         }),
     })))
 }
 
 #[requires(true)]
-#[ensures(true)]
-pub(super) fn generated_mekso_operator_from_bound_or_atom(
-    operator: &BoundOrAtomMeksoOperatorSyntax,
+#[ensures(ret.continuations.is_empty())]
+pub(super) fn generated_mekso_operator_from_inner(
+    operator: InnerMeksoOperatorSyntax,
 ) -> MeksoOperatorSyntax {
-    match operator {
-        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(operator) => {
-            MeksoOperatorSyntax::BoundMeksoOperator(operator.clone())
-        }
-        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
-            MeksoOperatorSyntax::SimpleMeksoOperator(operator.clone())
-        }
+    MeksoOperatorSyntax {
+        leading_operator: std::sync::Arc::new(operator),
+        continuations: Vec::new(),
     }
+}
+
+#[requires(true)]
+#[ensures(ret.continuations.is_empty())]
+pub(super) fn generated_mekso_operator_from_simple(
+    operator: SimpleMeksoOperatorSyntax,
+) -> MeksoOperatorSyntax {
+    generated_mekso_operator_from_inner(InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator))
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_mekso_contains_operand_connection(expression: &MeksoSyntax) -> bool {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
-            generated_zantufa_reverse_polish_contains_operand_connection(reverse_polish)
-        }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            generated_mekso_precedence_contains_operand_connection(&infix.first_expression)
-                || infix.continuations.iter().any(|continuation| {
-                    continuation.right_expression.as_ref().is_some_and(|right| {
-                        generated_mekso_precedence_contains_operand_connection(right)
-                    })
-                })
-        }
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaPriorityMex(_)
+        | MeksoSyntax::ZantufaMex(_) => false,
         MeksoSyntax::InfixMekso(infix) => {
             generated_mekso_precedence_contains_operand_connection(&infix.first_expression)
                 || infix.continuations.iter().any(|continuation| {
@@ -1341,22 +1318,6 @@ pub(super) fn generated_mekso_contains_operand_connection(expression: &MeksoSynt
             generated_reverse_polish_parts_contains_operand_connection(&reverse_polish.parts)
         }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn generated_zantufa_reverse_polish_contains_operand_connection(
-    reverse_polish: &ZantufaReversePolishMeksoSyntax,
-) -> bool {
-    reverse_polish
-        .operands
-        .iter()
-        .any(generated_mekso_base_contains_operand_connection)
-        || reverse_polish.tails.iter().any(|tail| {
-            tail.operands
-                .iter()
-                .any(generated_mekso_base_contains_operand_connection)
-        })
 }
 
 #[requires(true)]
@@ -1394,16 +1355,22 @@ pub(super) fn generated_mekso_base_contains_operand_connection(
             .operands
             .iter()
             .any(generated_mekso_base_contains_operand_connection),
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            generated_mekso_operand_contains_operand_connection(&group.first)
-                || group.continuations.iter().any(|continuation| {
-                    generated_mekso_operand_contains_operand_connection(&continuation.expression)
-                })
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn generated_standard_mekso_array_element_contains_operand_connection(
+    expression: &StandardMeksoArrayElementSyntax,
+) -> bool {
+    match expression {
+        StandardMeksoArrayElementSyntax::MeksoOperand(operand) => {
+            generated_mekso_operand_contains_operand_connection(operand)
         }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => group
+        StandardMeksoArrayElementSyntax::ForethoughtCallMekso(call) => call
             .operands
             .iter()
-            .any(|operand| generated_mekso_operand_contains_operand_connection(operand)),
+            .any(generated_mekso_base_contains_operand_connection),
     }
 }
 
@@ -1412,25 +1379,17 @@ pub(super) fn generated_mekso_base_contains_operand_connection(
 pub(super) fn generated_mekso_operand_contains_operand_connection(
     operand: &MeksoOperandSyntax,
 ) -> bool {
-    match operand {
-        MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-            !operand.0.links.is_empty()
-                || generated_bound_or_simple_mekso_operand_contains_operand_connection(
-                    operand.0.first.as_ref(),
-                )
-                || operand.0.links.iter().any(|link| {
-                    generated_bound_or_simple_mekso_operand_contains_operand_connection(
-                        &link.trailing_expression,
-                    )
-                })
-        }
-        MeksoOperandSyntax::BoundMeksoOperand(operand) => {
-            generated_bound_mekso_operand_contains_operand_connection(operand)
-        }
-        MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
-            generated_simple_mekso_operand_contains_operand_connection(operand)
-        }
-    }
+    let connected = &operand.connected_expression.0;
+    operand.grouped_continuation.is_some()
+        || !connected.links.is_empty()
+        || generated_bound_or_simple_mekso_operand_contains_operand_connection(
+            connected.first.as_ref(),
+        )
+        || connected.links.iter().any(|link| {
+            generated_bound_or_simple_mekso_operand_contains_operand_connection(
+                &link.trailing_expression,
+            )
+        })
 }
 
 #[requires(true)]
@@ -1454,7 +1413,9 @@ pub(super) fn generated_bound_mekso_operand_contains_operand_connection(
     operand: &BoundMeksoOperandSyntax,
 ) -> bool {
     generated_simple_mekso_operand_contains_operand_connection(&operand.left_expression)
-        || generated_mekso_operand_contains_operand_connection(&operand.right_expression)
+        || generated_bound_or_simple_mekso_operand_contains_operand_connection(
+            &operand.right_expression,
+        )
 }
 
 #[requires(true)]
@@ -1465,12 +1426,14 @@ pub(super) fn generated_simple_mekso_operand_contains_operand_connection(
     match operand {
         SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand) => {
             generated_mekso_operand_contains_operand_connection(&operand.left_expression)
-                || generated_mekso_operand_contains_operand_connection(&operand.right_expression)
+                || generated_simple_mekso_operand_contains_operand_connection(
+                    &operand.right_expression,
+                )
         }
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
             generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
         }
-        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+        SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
             generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
         }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
@@ -1479,9 +1442,8 @@ pub(super) fn generated_simple_mekso_operand_contains_operand_connection(
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => operand
             .expressions
             .iter()
-            .any(generated_mekso_contains_operand_connection),
+            .any(generated_standard_mekso_array_element_contains_operand_connection),
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
-        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => false,
@@ -1501,25 +1463,6 @@ pub(super) fn generated_infix_mekso_surface_text(
             generated_mekso_operator_surface_label(&continuation.operator)?,
             generated_mekso_precedence_surface_text(&continuation.right_expression)?
         );
-    }
-    Ok(text)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub(super) fn generated_zantufa_infix_mekso_surface_text(
-    infix: &ZantufaInfixMeksoSyntax,
-) -> Result<String, SemanticsError> {
-    let mut text = generated_mekso_precedence_surface_text(&infix.first_expression)?;
-    for continuation in &infix.continuations {
-        let mut parts = Vec::with_capacity(continuation.operators.len() + 1);
-        for operator in &continuation.operators {
-            parts.push(generated_mekso_operator_surface_label(operator)?);
-        }
-        if let Some(right_expression) = &continuation.right_expression {
-            parts.push(generated_mekso_precedence_surface_text(right_expression)?);
-        }
-        text = format!("{} {}", text, parts.join(" "));
     }
     Ok(text)
 }
@@ -1549,41 +1492,19 @@ pub(super) fn generated_mekso_base_surface_text(
     match expression {
         MeksoBaseSyntax::MeksoOperand(operand) => generated_mekso_operand_surface_text(operand),
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
-            let mut parts = vec![generated_mekso_operator_surface_label(&call.operator)?];
-            for operand in call.operands.iter() {
-                parts.push(generated_mekso_base_surface_text(operand)?);
-            }
-            Ok(parts.join(" "))
-        }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            generated_zantufa_bo_grouped_mekso_base_surface_text(group)
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
-            let mut parts = Vec::with_capacity(group.operands.len() + 2);
-            parts.push(token_text(&group.ke.value));
-            for operand in &group.operands {
-                parts.push(generated_mekso_operand_surface_text(operand)?);
-            }
-            if let Some(kehe) = &group.kehe {
-                parts.push(token_text(&kehe.value));
-            }
-            Ok(parts.join(" "))
+            generated_forethought_call_mekso_surface_text(call)
         }
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub(super) fn generated_zantufa_bo_grouped_mekso_base_surface_text(
-    group: &ZantufaBoGroupedMeksoBaseSyntax,
+pub(super) fn generated_forethought_call_mekso_surface_text(
+    call: &ForethoughtCallMeksoSyntax,
 ) -> Result<String, SemanticsError> {
-    let mut parts = Vec::with_capacity(1 + group.continuations.len() * 2);
-    parts.push(generated_mekso_operand_surface_text(&group.first)?);
-    for continuation in &group.continuations {
-        parts.push(token_text(&continuation.bo.value));
-        parts.push(generated_mekso_operand_surface_text(
-            &continuation.expression,
-        )?);
+    let mut parts = vec![generated_mekso_operator_surface_label(&call.operator)?];
+    for operand in &call.operands {
+        parts.push(generated_mekso_base_surface_text(operand)?);
     }
     Ok(parts.join(" "))
 }
@@ -1593,29 +1514,26 @@ pub(super) fn generated_zantufa_bo_grouped_mekso_base_surface_text(
 pub(super) fn generated_mekso_operand_surface_text(
     operand: &MeksoOperandSyntax,
 ) -> Result<String, SemanticsError> {
-    match operand {
-        MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-            let chain = &operand.0;
-            let mut text = generated_bound_or_simple_mekso_operand_surface_text(&chain.first)?;
-            for link in &chain.links {
-                text = format!(
-                    "{} {} {}",
-                    text,
-                    generated_operand_connective_source(&link.operand_connective),
-                    generated_bound_or_simple_mekso_operand_surface_text(
-                        &link.trailing_expression
-                    )?
-                );
-            }
-            Ok(text)
-        }
-        MeksoOperandSyntax::BoundMeksoOperand(operand) => {
-            generated_bound_mekso_operand_surface_text(operand)
-        }
-        MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
-            generated_simple_mekso_operand_surface_text(operand)
-        }
+    let chain = &operand.connected_expression.0;
+    let mut text = generated_bound_or_simple_mekso_operand_surface_text(&chain.first)?;
+    for link in &chain.links {
+        text = format!(
+            "{} {} {}",
+            text,
+            generated_operand_connective_source(&link.operand_connective),
+            generated_bound_or_simple_mekso_operand_surface_text(&link.trailing_expression)?
+        );
     }
+    if let Some(group) = &operand.grouped_continuation {
+        text = format!(
+            "{} {} {} {}",
+            text,
+            generated_operand_connective_source(&group.operand_connective),
+            token_text(&group.ke.value),
+            generated_mekso_operand_surface_text(&group.inner_expression)?
+        );
+    }
+    Ok(text)
 }
 
 #[requires(true)]
@@ -1642,7 +1560,7 @@ pub(super) fn generated_bound_mekso_operand_surface_text(
         "{} {} {}",
         generated_simple_mekso_operand_surface_text(&operand.left_expression)?,
         generated_operand_connective_source(&operand.operand_connective),
-        generated_mekso_operand_surface_text(&operand.right_expression)?
+        generated_bound_or_simple_mekso_operand_surface_text(&operand.right_expression)?
     ))
 }
 
@@ -1656,16 +1574,14 @@ pub(super) fn generated_simple_mekso_operand_surface_text(
             "{} {} {}",
             generated_modal_forethought_connective_source(&operand.gek),
             generated_mekso_operand_surface_text(&operand.left_expression)?,
-            generated_mekso_operand_surface_text(&operand.right_expression)?
+            generated_simple_mekso_operand_surface_text(&operand.right_expression)?
         )),
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
             generated_mekso_operand_surface_text(&operand.inner_expression)
         }
-        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => Ok(format!(
-            "{} {}",
-            token_text(&operand.nahe.value),
-            generated_mekso_operand_surface_text(&operand.inner_expression)?
-        )),
+        SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
+            generated_mekso_operand_surface_text(&operand.inner_expression)
+        }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_surface_text(&operand.inner_expression)
         }
@@ -1683,19 +1599,14 @@ pub(super) fn generated_simple_mekso_operand_surface_text(
             token_text(&operand.nihe.value),
             relation_label_from_selbri(&operand.selbri)?.display_text()
         )),
-        SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => Ok(format!(
-            "{} {}",
-            token_text(&operand.mohe.value),
-            relation_label_from_selbri(&operand.selbri)?.display_text()
-        )),
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => operand
             .expressions
             .iter()
-            .map(generated_mekso_surface_text)
+            .map(generated_standard_mekso_array_element_surface_text)
             .collect::<Result<Vec<_>, _>>()
             .map(|parts| parts.join(" ")),
         SimpleMeksoOperandSyntax::NumberMekso(number) => {
-            Ok(generated_number_words_text(&number.0.number.value))
+            Ok(generated_number_words_text(&number.0.number))
         }
         SimpleMeksoOperandSyntax::LerfuStringMekso(letter) => {
             Ok(generated_letter_string_text(&letter.letters))
@@ -2024,6 +1935,18 @@ pub(super) fn generated_simple_pa_quantity_value_for_bound_or_simple_mekso_opera
 }
 
 #[requires(true)]
+#[ensures(true)]
+pub(super) fn generated_simple_pa_quantity_value_for_simple_mekso_operand(
+    expression: &SimpleMeksoOperandSyntax,
+) -> Option<QuantityValue> {
+    let text = generated_simple_mekso_operand_number_words_text(expression)?;
+    parse_generated_relational_pa_integer(&text)
+        .map(QuantityValue::integer)
+        .or_else(|| parse_generated_simple_pa_integer(&text).map(QuantityValue::integer))
+        .or_else(|| parse_generated_simple_pa_decimal(&text).map(QuantityValue::text))
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
 pub(super) fn generated_mekso_number_words_text(expression: &MeksoSyntax) -> Option<String> {
     match expression {
@@ -2033,13 +1956,47 @@ pub(super) fn generated_mekso_number_words_text(expression: &MeksoSyntax) -> Opt
             }
             generated_mekso_precedence_number_words_text(&infix.first_expression)
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            if !infix.continuations.is_empty() {
-                return None;
-            }
-            generated_mekso_precedence_number_words_text(&infix.first_expression)
+        MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_zantufa_mex_number_words_text(&expression.0)
         }
-        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => None,
+        MeksoSyntax::ZantufaPriorityMex(expression) => {
+            generated_zantufa_mex_number_words_text(&expression.0)
+        }
+        MeksoSyntax::ZantufaMex(expression) => generated_zantufa_mex_number_words_text(expression),
+        MeksoSyntax::ReversePolishMekso(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn generated_zantufa_mex_number_words_text(expression: &ZantufaMexSyntax) -> Option<String> {
+    if !expression.continuations.is_empty() || !expression.first_expression.tails.is_empty() {
+        return None;
+    }
+    let ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) =
+        expression.first_expression.first_group.as_ref()
+    else {
+        return None;
+    };
+    if !group.continuations.is_empty() {
+        return None;
+    }
+    let ZantufaMex2Syntax::ZantufaOperand(operand) = group.first_expression.as_ref() else {
+        return None;
+    };
+    match operand {
+        ZantufaOperandSyntax::NumberMekso(number) => {
+            Some(generated_number_words_text(&number.0.number))
+        }
+        ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
+            generated_zantufa_mex_number_words_text(&operand.inner_expression)
+        }
+        ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(_)
+        | ZantufaOperandSyntax::LerfuStringMekso(_)
+        | ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_)
+        | ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => None,
     }
 }
 
@@ -2062,19 +2019,11 @@ pub(super) fn generated_mekso_precedence_number_words_text(
 pub(super) fn generated_mekso_operand_number_words_text(
     operand: &MeksoOperandSyntax,
 ) -> Option<String> {
-    match operand {
-        MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-            let chain = &operand.0;
-            if !chain.links.is_empty() {
-                return None;
-            }
-            generated_bound_or_simple_mekso_operand_number_words_text(&chain.first)
-        }
-        MeksoOperandSyntax::BoundMeksoOperand(_) => None,
-        MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
-            generated_simple_mekso_operand_number_words_text(operand)
-        }
+    let chain = &operand.connected_expression.0;
+    if operand.grouped_continuation.is_some() || !chain.links.is_empty() {
+        return None;
     }
+    generated_bound_or_simple_mekso_operand_number_words_text(&chain.first)
 }
 
 #[requires(true)]
@@ -2097,7 +2046,7 @@ pub(super) fn generated_simple_mekso_operand_number_words_text(
 ) -> Option<String> {
     match operand {
         SimpleMeksoOperandSyntax::NumberMekso(number) => {
-            Some(generated_number_words_text(&number.0.number.value))
+            Some(generated_number_words_text(&number.0.number))
         }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_number_words_text(&operand.inner_expression)
@@ -2112,17 +2061,17 @@ pub(super) fn generated_simple_mekso_operand_number_words_text(
 pub(super) fn generated_forethought_mekso_operand_from_mekso(
     expression: &MeksoSyntax,
 ) -> Option<&ForethoughtMeksoOperandSyntax> {
-    let MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) =
-        generated_single_mekso_operand_from_mekso(expression)?
-    else {
+    let operand = generated_single_mekso_operand_from_mekso(expression)?;
+    if operand.grouped_continuation.is_some() {
         return None;
-    };
-    if !operand.0.links.is_empty() {
+    }
+    let connected = &operand.connected_expression.0;
+    if !connected.links.is_empty() {
         return None;
     }
     let BoundOrSimpleMeksoOperandSyntax::SimpleMeksoOperand(
         SimpleMeksoOperandSyntax::ForethoughtMeksoOperand(operand),
-    ) = &*operand.0.first
+    ) = &*connected.first
     else {
         return None;
     };
@@ -2134,17 +2083,17 @@ pub(super) fn generated_forethought_mekso_operand_from_mekso(
 pub(super) fn generated_parenthesized_mekso_operand_from_mekso(
     expression: &MeksoSyntax,
 ) -> Option<&ParenthesizedMeksoOperandSyntax> {
-    let MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) =
-        generated_single_mekso_operand_from_mekso(expression)?
-    else {
+    let operand = generated_single_mekso_operand_from_mekso(expression)?;
+    if operand.grouped_continuation.is_some() {
         return None;
-    };
-    if !operand.0.links.is_empty() {
+    }
+    let connected = &operand.connected_expression.0;
+    if !connected.links.is_empty() {
         return None;
     }
     let BoundOrSimpleMeksoOperandSyntax::SimpleMeksoOperand(
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand),
-    ) = &*operand.0.first
+    ) = &*connected.first
     else {
         return None;
     };
@@ -2163,13 +2112,10 @@ pub(super) fn generated_single_mekso_operand_from_mekso(
             }
             &infix.first_expression
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            if !infix.continuations.is_empty() {
-                return None;
-            }
-            &infix.first_expression
-        }
-        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => {
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaPriorityMex(_)
+        | MeksoSyntax::ZantufaMex(_)
+        | MeksoSyntax::ReversePolishMekso(_) => {
             return None;
         }
     };
@@ -2198,13 +2144,51 @@ pub(super) fn generated_mekso_letteral_tokens<'syntax>(
             }
             generated_mekso_precedence_letteral_tokens(&infix.first_expression)
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            if !infix.continuations.is_empty() {
-                return None;
-            }
-            generated_mekso_precedence_letteral_tokens(&infix.first_expression)
+        MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_zantufa_mex_letteral_tokens(&expression.0)
         }
-        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => None,
+        MeksoSyntax::ZantufaPriorityMex(expression) => {
+            generated_zantufa_mex_letteral_tokens(&expression.0)
+        }
+        MeksoSyntax::ZantufaMex(expression) => generated_zantufa_mex_letteral_tokens(expression),
+        MeksoSyntax::ReversePolishMekso(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|tokens| !tokens.0.is_empty()))]
+fn generated_zantufa_mex_letteral_tokens<'syntax>(
+    expression: &'syntax ZantufaMexSyntax,
+) -> Option<(Vec<Token>, Option<&'syntax [FreeModifierSyntax]>)> {
+    if !expression.continuations.is_empty() || !expression.first_expression.tails.is_empty() {
+        return None;
+    }
+    let ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) =
+        expression.first_expression.first_group.as_ref()
+    else {
+        return None;
+    };
+    if !group.continuations.is_empty() {
+        return None;
+    }
+    let ZantufaMex2Syntax::ZantufaOperand(operand) = group.first_expression.as_ref() else {
+        return None;
+    };
+    match operand {
+        ZantufaOperandSyntax::LerfuStringMekso(letter) => Some((
+            generated_letter_string_tokens(&letter.letters),
+            Some(&letter.free_modifiers),
+        )),
+        ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
+            generated_zantufa_mex_letteral_tokens(&operand.inner_expression)
+        }
+        ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
+            generated_zantufa_mex_letteral_tokens(&operand.inner_expression)
+        }
+        ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
+            generated_zantufa_mex_letteral_tokens(&operand.inner_expression)
+        }
+        _ => None,
     }
 }
 
@@ -2234,19 +2218,11 @@ pub(super) fn generated_mekso_precedence_letteral_tokens<'syntax>(
 pub(super) fn generated_mekso_operand_letteral_tokens<'syntax>(
     operand: &'syntax MeksoOperandSyntax,
 ) -> Option<(Vec<Token>, Option<&'syntax [FreeModifierSyntax]>)> {
-    match operand {
-        MeksoOperandSyntax::AfterthoughtMeksoOperand(operand) => {
-            let chain = &operand.0;
-            if !chain.links.is_empty() {
-                return None;
-            }
-            generated_bound_or_simple_mekso_operand_letteral_tokens(&chain.first)
-        }
-        MeksoOperandSyntax::BoundMeksoOperand(_) => None,
-        MeksoOperandSyntax::SimpleMeksoOperand(operand) => {
-            generated_simple_mekso_operand_letteral_tokens(operand)
-        }
+    let chain = &operand.connected_expression.0;
+    if operand.grouped_continuation.is_some() || !chain.links.is_empty() {
+        return None;
     }
+    generated_bound_or_simple_mekso_operand_letteral_tokens(&chain.first)
 }
 
 #[requires(true)]
@@ -2278,6 +2254,9 @@ pub(super) fn generated_simple_mekso_operand_letteral_tokens<'syntax>(
         SimpleMeksoOperandSyntax::QualifiedMeksoOperand(operand) => {
             generated_mekso_operand_letteral_tokens(&operand.inner_expression)
         }
+        SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
+            generated_mekso_operand_letteral_tokens(&operand.inner_expression)
+        }
         _ => None,
     }
 }
@@ -2304,36 +2283,21 @@ pub(super) fn generated_math_operator_label(
 pub(super) fn generated_math_operator_question_token_for_operator(
     operator: &MeksoOperatorSyntax,
 ) -> Result<Option<&Token>, SemanticsError> {
-    match operator {
-        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) => {
-            generated_math_operator_question_token_for_afterthought_operator(operator)
-        }
-        MeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
-        MeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
-            generated_math_operator_question_token_for_simple_operator(operator)
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
-pub(super) fn generated_math_operator_question_token_for_afterthought_operator(
-    operator: &AfterthoughtMeksoOperatorSyntax,
-) -> Result<Option<&Token>, SemanticsError> {
-    if !operator.0.links.is_empty() {
+    if !operator.continuations.is_empty() {
         return Ok(None);
     }
-    generated_math_operator_question_token_for_bound_or_atom(operator.0.first.as_ref())
+    generated_math_operator_question_token_for_inner_operator(&operator.leading_operator)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
-pub(super) fn generated_math_operator_question_token_for_bound_or_atom(
-    operator: &BoundOrAtomMeksoOperatorSyntax,
+pub(super) fn generated_math_operator_question_token_for_inner_operator(
+    operator: &InnerMeksoOperatorSyntax,
 ) -> Result<Option<&Token>, SemanticsError> {
     match operator {
-        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
-        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::ForethoughtMeksoOperator(_)
+        | InnerMeksoOperatorSyntax::BoundMeksoOperator(_) => Ok(None),
+        InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
             generated_math_operator_question_token_for_simple_operator(operator)
         }
     }
@@ -2345,16 +2309,28 @@ pub(super) fn generated_math_operator_question_token_for_simple_operator(
     operator: &SimpleMeksoOperatorSyntax,
 ) -> Result<Option<&Token>, SemanticsError> {
     match operator {
-        SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
-            generated_math_operator_question_token_for_operator(&operator.inner_operator)
-        }
-        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
-            generated_math_operator_question_token_for_operator(&operator.inner_operator)
+        SimpleMeksoOperatorSyntax::AtomicMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_atomic_operator(operator)
         }
         SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
             generated_math_operator_question_token_for_operator(&operator.inner_operator)
         }
-        SimpleMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|token| token.is_none_or(|token| token.cmavo() == Some(Cmavo::Mo))) || ret.is_err())]
+pub(super) fn generated_math_operator_question_token_for_atomic_operator(
+    operator: &AtomicMeksoOperatorSyntax,
+) -> Result<Option<&Token>, SemanticsError> {
+    match operator {
+        AtomicMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_atomic_operator(&operator.inner_operator)
+        }
+        AtomicMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+            generated_math_operator_question_token_for_atomic_operator(&operator.inner_operator)
+        }
+        AtomicMeksoOperatorSyntax::SelbriMeksoOperator(operator) => {
             generated_math_operator_question_token_for_selbri(&operator.selbri)
         }
         _ => Ok(None),
@@ -2396,33 +2372,22 @@ pub(super) fn generated_math_operands_for_operator(
     operator: &MeksoOperatorSyntax,
     operands: Vec<SemanticObjectId>,
 ) -> Vec<SemanticObjectId> {
-    match operator {
-        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) if operator.0.links.is_empty() => {
-            generated_math_operands_for_bound_or_atom_operator(operator.0.first.as_ref(), operands)
-        }
-        MeksoOperatorSyntax::BoundMeksoOperator(_) => operands,
-        MeksoOperatorSyntax::SimpleMeksoOperator(
-            SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator),
-        ) => converted_math_operands_for_generated(operator.se.value.cmavo(), operands),
-        MeksoOperatorSyntax::SimpleMeksoOperator(
-            SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator),
-        ) => generated_math_operands_for_operator(&operator.inner_operator, operands),
-        MeksoOperatorSyntax::SimpleMeksoOperator(
-            SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator),
-        ) => generated_math_operands_for_operator(&operator.inner_operator, operands),
-        _ => operands,
+    if !operator.continuations.is_empty() {
+        return operands;
     }
+    generated_math_operands_for_inner_operator(&operator.leading_operator, operands)
 }
 
 #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
 #[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
-pub(super) fn generated_math_operands_for_bound_or_atom_operator(
-    operator: &BoundOrAtomMeksoOperatorSyntax,
+pub(super) fn generated_math_operands_for_inner_operator(
+    operator: &InnerMeksoOperatorSyntax,
     operands: Vec<SemanticObjectId>,
 ) -> Vec<SemanticObjectId> {
     match operator {
-        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(_) => operands,
-        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::ForethoughtMeksoOperator(_)
+        | InnerMeksoOperatorSyntax::BoundMeksoOperator(_) => operands,
+        InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
             generated_math_operands_for_simple_operator(operator, operands)
         }
     }
@@ -2435,14 +2400,27 @@ pub(super) fn generated_math_operands_for_simple_operator(
     operands: Vec<SemanticObjectId>,
 ) -> Vec<SemanticObjectId> {
     match operator {
-        SimpleMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
-            converted_math_operands_for_generated(operator.se.value.cmavo(), operands)
-        }
-        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
-            generated_math_operands_for_operator(&operator.inner_operator, operands)
+        SimpleMeksoOperatorSyntax::AtomicMeksoOperator(operator) => {
+            generated_math_operands_for_atomic_operator(operator, operands)
         }
         SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
             generated_math_operands_for_operator(&operator.inner_operator, operands)
+        }
+    }
+}
+
+#[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+#[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+pub(super) fn generated_math_operands_for_atomic_operator(
+    operator: &AtomicMeksoOperatorSyntax,
+    operands: Vec<SemanticObjectId>,
+) -> Vec<SemanticObjectId> {
+    match operator {
+        AtomicMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+            converted_math_operands_for_generated(operator.se.value.cmavo(), operands)
+        }
+        AtomicMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+            generated_math_operands_for_atomic_operator(&operator.inner_operator, operands)
         }
         _ => operands,
     }
@@ -2453,29 +2431,21 @@ pub(super) fn generated_math_operands_for_simple_operator(
 pub(super) fn scalar_negation_for_generated_mekso_operator(
     operator: &MeksoOperatorSyntax,
 ) -> Option<ScalarNegation> {
-    match operator {
-        MeksoOperatorSyntax::AfterthoughtMeksoOperator(operator) if operator.0.links.is_empty() => {
-            scalar_negation_for_generated_bound_or_atom_mekso_operator(operator.0.first.as_ref())
-        }
-        MeksoOperatorSyntax::BoundMeksoOperator(_) => None,
-        MeksoOperatorSyntax::SimpleMeksoOperator(
-            SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator),
-        ) => Some(scalar_negation_for_token(&operator.nahe.value)),
-        MeksoOperatorSyntax::SimpleMeksoOperator(
-            SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator),
-        ) => scalar_negation_for_generated_mekso_operator(&operator.inner_operator),
-        _ => None,
+    if !operator.continuations.is_empty() {
+        return None;
     }
+    scalar_negation_for_generated_inner_mekso_operator(&operator.leading_operator)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
-pub(super) fn scalar_negation_for_generated_bound_or_atom_mekso_operator(
-    operator: &BoundOrAtomMeksoOperatorSyntax,
+pub(super) fn scalar_negation_for_generated_inner_mekso_operator(
+    operator: &InnerMeksoOperatorSyntax,
 ) -> Option<ScalarNegation> {
     match operator {
-        BoundOrAtomMeksoOperatorSyntax::BoundMeksoOperator(_) => None,
-        BoundOrAtomMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
+        InnerMeksoOperatorSyntax::ForethoughtMeksoOperator(_)
+        | InnerMeksoOperatorSyntax::BoundMeksoOperator(_) => None,
+        InnerMeksoOperatorSyntax::SimpleMeksoOperator(operator) => {
             scalar_negation_for_generated_simple_mekso_operator(operator)
         }
     }
@@ -2487,11 +2457,26 @@ pub(super) fn scalar_negation_for_generated_simple_mekso_operator(
     operator: &SimpleMeksoOperatorSyntax,
 ) -> Option<ScalarNegation> {
     match operator {
-        SimpleMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
-            Some(scalar_negation_for_token(&operator.nahe.value))
+        SimpleMeksoOperatorSyntax::AtomicMeksoOperator(operator) => {
+            scalar_negation_for_generated_atomic_mekso_operator(operator)
         }
         SimpleMeksoOperatorSyntax::GroupedMeksoOperator(operator) => {
             scalar_negation_for_generated_mekso_operator(&operator.inner_operator)
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+pub(super) fn scalar_negation_for_generated_atomic_mekso_operator(
+    operator: &AtomicMeksoOperatorSyntax,
+) -> Option<ScalarNegation> {
+    match operator {
+        AtomicMeksoOperatorSyntax::ScalarNegatedMeksoOperator(operator) => {
+            Some(scalar_negation_for_token(&operator.nahe.value))
+        }
+        AtomicMeksoOperatorSyntax::ConvertedMeksoOperator(operator) => {
+            scalar_negation_for_generated_atomic_mekso_operator(&operator.inner_operator)
         }
         _ => None,
     }

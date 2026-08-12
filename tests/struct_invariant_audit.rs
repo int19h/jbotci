@@ -1648,6 +1648,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_mex.rs:BaselineMexRejection",
+        "zero-sized grammar refinement policy has no independently invalid state",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarDialect",
         "generated grammar dialect flags are independent booleans projected from ParseOptions",
     ),

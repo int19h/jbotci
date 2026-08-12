@@ -1,0 +1,13 @@
+id = "adhoc.syntax.mekso.issue-813-pa-free-before-boi-rejected"
+lojban = "li pa sei broda se'u boi lo'o"
+tags = ["adhoc", "syntax", "mekso", "issue-813"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #813"
+url = "https://github.com/int19h/jbotci/issues/813"
+description = "A free modifier cannot intervene between a PA-run and a later explicit BOI."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 24], source-text = "boi", message = "unexpected cmavo" }]

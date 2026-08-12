@@ -1,0 +1,14 @@
+id = "adhoc.syntax.mekso.issue-812-bo-bound-operator-zantufa-rejected"
+lojban = "li pa bi'e su'i ja bo pi'i re lo'o"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-812", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #812"
+url = "https://github.com/int19h/jbotci/issues/812"
+description = "The Zantufa MEX operator projection has no BO-bound operator."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 34], source-text = "lo'o", message = "unexpected cmavo" }]

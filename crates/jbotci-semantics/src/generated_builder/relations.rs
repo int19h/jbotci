@@ -2316,7 +2316,7 @@ pub(super) fn relation_label_from_operator_selbri_tanru_unit(
     unit: &OperatorSelbriTanruUnitSyntax,
 ) -> Result<RelationLabel, SemanticsError> {
     Ok(RelationLabel::nuha_operator(
-        generated_mekso_operator_label(&unit.mekso_operator)?,
+        generated_atomic_mekso_operator_label(&unit.mekso_operator)?,
     ))
 }
 

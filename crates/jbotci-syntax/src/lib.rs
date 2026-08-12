@@ -1116,7 +1116,25 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "mekso array element",
+        parent: Some("mekso array"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "qualified operand",
+        parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "LAhE-qualified operand",
+        parent: Some("operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "grouped operand continuation",
         parent: Some("operand"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
@@ -1584,12 +1602,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "grouped mex",
-        parent: Some("mex"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "mex precedence tail",
         parent: Some("mex"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1608,6 +1620,156 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "Zantufa mex",
+        parent: Some("mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa mex reinterpretation",
+        parent: Some("Zantufa mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa priority mex",
+        parent: Some("Zantufa mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa mex precedence",
+        parent: Some("Zantufa mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa mex precedence tail",
+        parent: Some("Zantufa mex precedence"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa mex continuation",
+        parent: Some("Zantufa mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa mex atom",
+        parent: Some("Zantufa mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa operand",
+        parent: Some("Zantufa mex atom"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa operator",
+        parent: Some("Zantufa mex atom"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa mex group",
+        parent: Some("Zantufa mex precedence"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa KE-grouped mex",
+        parent: Some("Zantufa mex group"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa BO-grouped mex",
+        parent: Some("Zantufa mex group"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa BO-grouped mex continuation",
+        parent: Some("Zantufa BO-grouped mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa forethought mex",
+        parent: Some("Zantufa mex atom"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa reverse Polish mex",
+        parent: Some("Zantufa mex atom"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa reverse Polish mex tail",
+        parent: Some("Zantufa reverse Polish mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa parenthesized mex",
+        parent: Some("Zantufa operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa sumti operand",
+        parent: Some("Zantufa operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa scalar-negated operand",
+        parent: Some("Zantufa operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa LAhE-qualified operand",
+        parent: Some("Zantufa operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa NAhE BO-qualified operand",
+        parent: Some("Zantufa operand"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa primitive operator",
+        parent: Some("Zantufa operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa converted operator",
+        parent: Some("Zantufa operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa scalar-negated operator",
+        parent: Some("Zantufa operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa mex-to-operator",
+        parent: Some("Zantufa operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "operand connective",
         parent: Some("operand"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1620,14 +1782,44 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "scalar-negated operand",
-        parent: Some("operand"),
+        name: "operator continuation",
+        parent: Some("operator"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "operator continuation",
+        name: "grouped operator continuation",
+        parent: Some("operator continuation"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "inner operator",
         parent: Some("operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "simple operator",
+        parent: Some("inner operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "atomic operator",
+        parent: Some("simple operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "experimental connective operator",
+        parent: Some("atomic operator"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "forethought operator connective",
+        parent: Some("inner operator"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
@@ -2678,7 +2870,7 @@ pub enum ExperimentalConstruct {
     ExperimentalRelativeClauseConnective,
     ExperimentalSimplerForethoughtConnective,
     ExperimentalSimplerTermConnective,
-    ExperimentalSimplerMexOperandConnective,
+    ExperimentalMexOperatorConnective,
     ExperimentalSimplerDescriptorHeadConnective,
     ExperimentalJiAsJaConnective,
     ExperimentalGadganzuGadri,
@@ -2780,8 +2972,8 @@ impl ExperimentalConstruct {
             Self::ExperimentalSimplerTermConnective => {
                 "syntax.warning.experimental-simpler-term-connective"
             }
-            Self::ExperimentalSimplerMexOperandConnective => {
-                "syntax.warning.experimental-simpler-mex-operand-connective"
+            Self::ExperimentalMexOperatorConnective => {
+                "syntax.warning.experimental-mex-operator-connective"
             }
             Self::ExperimentalSimplerDescriptorHeadConnective => {
                 "syntax.warning.experimental-simpler-description-head-connective"
@@ -2928,8 +3120,8 @@ impl ExperimentalConstruct {
                 "simpler binary forethought connective form"
             }
             Self::ExperimentalSimplerTermConnective => "JA connective used directly between terms",
-            Self::ExperimentalSimplerMexOperandConnective => {
-                "JA connective used between MEX operands"
+            Self::ExperimentalMexOperatorConnective => {
+                "camxes-exp BO-bound or connective-atom MEX operator"
             }
             Self::ExperimentalSimplerDescriptorHeadConnective => {
                 "JA connective used between description heads"

@@ -1,0 +1,41 @@
+id = "adhoc.syntax.mekso.issue-835-ke-group-forethought"
+lojban = "li ke pe'o su'i pa re ci ke'e lo'o"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-835", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #835"
+url = "https://github.com/int19h/jbotci/issues/835"
+description = "A Zantufa KE group contains a forethought mex_2 followed by another element."
+
+[expectations.syntax]
+status = "success"
+raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(FragmentStatement(TermsFragment(TermsFragmentSyntax { terms: [ConnectedTerm(ConnectedTermSyntax { leading_term: SumtiTerm(SumtiTermSyntax(SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: SumtiBase(NumberSumti(NumberSumtiSyntax { li: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "li" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, expression: ZantufaPriorityMex(ZantufaPriorityMexSyntax(ZantufaMexSyntax { first_expression: ZantufaMex1Syntax { first_group: ZantufaKeGroupedMekso(ZantufaKeGroupedMeksoSyntax { ke: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ke" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })), free_modifiers: [] }, expressions: [ZantufaForethoughtMekso(ZantufaForethoughtMeksoSyntax { peho: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pe'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 10, char_start: 6, char_end: 10, start: None, end: None } })), free_modifiers: [] }), operator: ZantufaPrimitiveMeksoOperator(ZantufaPrimitiveMeksoOperatorSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "su'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 11, byte_end: 15, char_start: 11, char_end: 15, start: None, end: None } })), free_modifiers: [] })), operands: [ZantufaOperand(NumberMekso(NumberMeksoSyntax(PaRunQuantifierSyntax { number: NumberWordsSyntax { first_number: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "pa" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None } })), continuations: [NumberWordPaContinuation(NumberWordPaContinuationSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "re" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } })))), NumberWordPaContinuation(NumberWordPaContinuationSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ci" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 22, byte_end: 24, char_start: 22, char_end: 24, start: None, end: None } }))))] }, boi: None, free_modifiers: [] })))], continuation: None, kuhe: None })], kehe: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ke'e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 25, byte_end: 29, char_start: 25, char_end: 29, start: None, end: None } })), free_modifiers: [] }) }), tails: [] }, continuations: [] })), loho: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "lo'o" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 30, byte_end: 34, char_start: 30, char_end: 34, start: None, end: None } })), free_modifiers: [] }) })), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None })), continuations: [] })], vau: None }))), following: [], trailing: [] })), additional_niho: [] })) })"""
+
+[expectations.output.gentufa]
+tree = """
+NumberSumti @[0‥34) {
+  li: Cmavo @[0‥2) "li",
+  ZantufaKeGroupedMekso @[3‥29) {
+    ke: Cmavo @[3‥5) "ke",
+    expressions: [
+      ZantufaForethoughtMekso @[6‥24) {
+        peho: Cmavo @[6‥10) "pe'o",
+        operator: Cmavo @[11‥15) "su'i",
+        operands: [
+          NumberWords @[16‥24) {
+            first_number: Cmavo @[16‥18) "pa",
+            continuations: [
+              Cmavo @[19‥21) "re",
+              Cmavo @[22‥24) "ci",
+            ],
+          },
+        ],
+      },
+    ],
+    kehe: Cmavo @[25‥29) "ke'e",
+  },
+  loho: Cmavo @[30‥34) "lo'o",
+}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"FragmentStatement":{"TermsFragment":{"terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"NumberSumti":{"li":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"li","span":[0,2]}}}},"expression":{"ZantufaPriorityMex":{"first_expression":{"first_group":{"ZantufaKeGroupedMekso":{"ke":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke","span":[3,5]}}}},"expressions":[{"ZantufaForethoughtMekso":{"peho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pe'o","span":[6,10]}}}},"operator":{"ZantufaPrimitiveMeksoOperator":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"su'i","span":[11,15]}}}}},"operands":[{"ZantufaOperand":{"NumberMekso":{"number":{"first_number":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"pa","span":[16,18]}}}},"continuations":[{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"re","span":[19,21]}}}}},{"NumberWordPaContinuation":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ci","span":[22,24]}}}}}]}}}}]}}],"kehe":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ke'e","span":[25,29]}}}}}}}}},"loho":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"lo'o","span":[30,34]}}}}}}}}}}}}}}}}]}}}}}}}}}"""

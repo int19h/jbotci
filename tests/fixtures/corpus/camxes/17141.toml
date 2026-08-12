@@ -11,8 +11,8 @@ status = "success"
 raw = '[PlainWord(Cmevla { phonemes: Phonemes { text: "and" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 3, char_start: 0, char_end: 3, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "so" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 4, byte_end: 6, char_start: 4, char_end: 6, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "me" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "e" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 10, char_start: 9, char_end: 10, start: None, end: None } }), PlainWord(Lujvo { parts: [Rafsi(Phonemes { text: "xám" }), Rafsi(Phonemes { text: "ple" })], span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 16, char_start: 10, char_end: 16, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "brídi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 17, byte_end: 22, char_start: 17, char_end: 22, start: None, end: None } })]'
 
 [expectations.syntax]
-status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 10], source-text = "e", message = "unexpected cmavo" }]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-mex", byte-span = [6, 8], source-text = "me", message = "experimental syntax: Zantufa mex grammar form", word-index = 2 }, { severity = "warning", code = "syntax.warning.experimental-mex-operator-connective", byte-span = [9, 10], source-text = "e", message = "experimental syntax: camxes-exp BO-bound or connective-atom MEX operator", word-index = 3 }]
 
 [expectations.output.vlasei]
 brackets = "(.and. so me .e xámple brídi)"

@@ -1,0 +1,14 @@
+id = "adhoc.syntax.mekso.issue-836-xi-full-infix-rejected"
+lojban = "mi broda xi pa su'i re"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-836", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #836"
+url = "https://github.com/int19h/jbotci/issues/836"
+description = "XI accepts exact Zantufa mex_2 rather than a full infix mex."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-term", byte-span = [22, 22], source-text = "", message = "incomplete term" }]

@@ -15,21 +15,21 @@ use jbotci_morphology::{
 use jbotci_source::SourceSpan;
 use jbotci_syntax::generated_model::{
     AbstractionTanruUnitSyntax, AbstractorConnectionSyntax, AfterthoughtBridiTailSyntax,
-    AfterthoughtBridiTailWithoutTailTermsSyntax, AfterthoughtMeksoOperatorSyntax,
-    ArgumentConnectiveSyntax, ArrayMeksoOperandSyntax, AssignedProBridiTanruUnitSyntax,
-    AtomRef as GeneratedAtomRef, BareCuBridiSyntax, BareCuTermsBridiSyntax,
-    BoGroupedBridiTailSyntax, BoGroupedBridiTailWithoutTailTermsSyntax, BoOrLinkedTanruUnitSyntax,
-    BoundMeksoOperandSyntax, BoundMeksoOperatorSyntax, BoundOrAtomMeksoOperatorSyntax,
-    BoundOrSimpleMeksoOperandSyntax, BoundTanruUnitSyntax, BoundTermSyntax,
-    BridiRelativeClauseSyntax, BridiStatementContinuationSyntax, BridiStatementSyntax,
-    BridiSubbridiSyntax, BridiSyntax, BridiTailConnectiveSyntax, BridiTailSyntax,
-    BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax,
-    ClosedIntervalConnectiveSyntax, CmevlaVocativeSumtiSyntax, CoSelbriSyntax,
-    ConnectedJaiInnerSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
+    AfterthoughtBridiTailWithoutTailTermsSyntax, ArgumentConnectiveSyntax, ArrayMeksoOperandSyntax,
+    AssignedProBridiTanruUnitSyntax, AtomRef as GeneratedAtomRef, AtomicMeksoOperatorSyntax,
+    BareCuBridiSyntax, BareCuTermsBridiSyntax, BoGroupedBridiTailSyntax,
+    BoGroupedBridiTailWithoutTailTermsSyntax, BoOrLinkedTanruUnitSyntax, BoundMeksoOperandSyntax,
+    BoundMeksoOperatorSyntax, BoundOrSimpleMeksoOperandSyntax, BoundTanruUnitSyntax,
+    BoundTermSyntax, BridiRelativeClauseSyntax, BridiStatementContinuationSyntax,
+    BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax, BridiTailConnectiveSyntax,
+    BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax,
+    BridiWithPostCuTermsSyntax, ClosedIntervalConnectiveSyntax, CmevlaVocativeSumtiSyntax,
+    CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
     CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
     DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
-    DirectForethoughtBridiConnectionSyntax, EkFragmentSyntax, ExplicitXauhaLohoiTextSyntax,
+    DirectForethoughtBridiConnectionSyntax, EkFragmentSyntax,
+    ExperimentalConnectiveMeksoOperatorSyntax, ExplicitXauhaLohoiTextSyntax,
     FollowingParagraphStatementSyntax, ForethoughtBridiConnectionSyntax,
     ForethoughtBridiConnectionWithoutTailTermsSyntax, ForethoughtCallMeksoSyntax,
     ForethoughtMeksoOperandSyntax, ForethoughtMeksoOperatorSyntax,
@@ -39,18 +39,19 @@ use jbotci_syntax::generated_model::{
     GikConnectiveSyntax, GohaWordTanruUnitSyntax, GroupedForethoughtBridiConnectionSyntax,
     GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IParagraphStatementConnectiveSyntax,
     IStatementConnectionSyntax, IStatementConnectionTailSyntax, IStatementConnectiveSyntax,
-    InfixMeksoSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax, JekConnectiveSyntax,
-    JoiConnectiveSyntax, JoikConnectiveSyntax, KeTermsetSyntax, LaheSumtiSyntax,
-    LeadingIStatementSyntax, LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax,
-    LerfuStringMeksoSyntax, LerfuStringSumtiSyntax, LetterStringContinuationSyntax,
-    LetterStringSyntax, LetterTokensSyntax, LinkargsSyntax, LinkedSumtiContinuationFragmentSyntax,
-    LinkedSumtiFragmentSyntax, LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax,
-    LinkedTanruUnitSyntax, LinkedTermSyntax, MeksoBaseSyntax, MeksoFragmentSyntax,
-    MeksoOperandSyntax, MeksoOperatorSyntax, MeksoPrecedenceSyntax, MeksoSyntax,
-    ModalForethoughtConnectiveSyntax, ModalTenseSyntax, MultipleNaFragmentSyntax, NameSumtiSyntax,
-    NegatedForethoughtBridiConnectionSyntax, NegatedSelbriSyntax, NihoParagraphSyntax,
-    NodeRef as GeneratedNodeRef, NoihaAdverbialTermSyntax, NuhiTermsetSyntax, NumberMeksoSyntax,
-    NumberSumtiSyntax, NumberWordContinuationSyntax, NumberWordsSyntax,
+    InfixMeksoSyntax, InnerMeksoOperatorSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax,
+    JekConnectiveSyntax, JoiConnectiveSyntax, JoikConnectiveSyntax, KeTermsetSyntax,
+    LaheSumtiSyntax, LeadingIStatementSyntax, LeadingIndicatorSyntax,
+    LeadingTermTagTenseModalSyntax, LerfuStringMeksoSyntax, LerfuStringSumtiSyntax,
+    LetterStringContinuationSyntax, LetterStringSyntax, LetterTokensSyntax, LinkargsSyntax,
+    LinkedSumtiContinuationFragmentSyntax, LinkedSumtiFragmentSyntax, LinkedSumtiSyntax,
+    LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, LinkedTermSyntax, MeksoBaseSyntax,
+    MeksoFragmentSyntax, MeksoOperandSyntax, MeksoOperatorContinuationSyntax, MeksoOperatorSyntax,
+    MeksoPrecedenceSyntax, MeksoSyntax, ModalForethoughtConnectiveSyntax, ModalTenseSyntax,
+    MultipleNaFragmentSyntax, NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax,
+    NegatedSelbriSyntax, NihoParagraphSyntax, NodeRef as GeneratedNodeRef,
+    NoihaAdverbialTermSyntax, NuhiTermsetSyntax, NumberMeksoSyntax, NumberSumtiSyntax,
+    NumberWordContinuationSyntax, NumberWordsSyntax, OperatorGuhekConnectiveSyntax,
     OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
     ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
     ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax,
@@ -69,11 +70,12 @@ use jbotci_syntax::generated_model::{
     SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
     SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
     SimpleTermSyntax, SingleNaFragmentSyntax, SoiFreeModifierSyntax,
-    StandardStatementConnectiveSyntax, StatementAfterIConnectiveSyntax, StatementBaseSyntax,
-    StatementConnectiveSyntax, StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax,
-    StatementSyntax, SubbridiSyntax, SumtiAfterthoughtSyntax, SumtiAssociationRelativeClauseSyntax,
-    SumtiAtomSyntax, SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax,
-    SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
+    StandardMeksoArrayElementSyntax, StandardStatementConnectiveSyntax,
+    StatementAfterIConnectiveSyntax, StatementBaseSyntax, StatementConnectiveSyntax,
+    StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax, StatementSyntax, SubbridiSyntax,
+    SumtiAfterthoughtSyntax, SumtiAssociationRelativeClauseSyntax, SumtiAtomSyntax,
+    SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax, SumtiForethoughtSyntax,
+    SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
     SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
     TaggedSelbriSyntax, TaggedSumtiTermSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
@@ -83,12 +85,12 @@ use jbotci_syntax::generated_model::{
     TextNihoParagraphsSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax,
     TextSyntax, TreeNode, TreeWalkable, TreeWalker, UntaggedSelbriSyntax,
     VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax, VocativeSumtiSyntax,
-    VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax, ZantufaBoGroupedMeksoBaseSyntax,
-    ZantufaExtraGikConnectiveSyntax, ZantufaGroupedMeksoOperandSequenceSyntax,
-    ZantufaInfixMeksoSyntax, ZantufaMeSelbriBodySyntax, ZantufaMeTanruUnitSyntax,
-    ZantufaMeksoFragmentSyntax, ZantufaMexMoiTanruUnitSyntax, ZantufaReversePolishMeksoSyntax,
-    ZantufaStatementAbstractionTanruUnitSyntax, ZantufaStatementTermsStatementSyntax,
-    ZantufaStatementTermsTailSyntax,
+    VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax, ZantufaExtraGikConnectiveSyntax,
+    ZantufaForethoughtMeksoSyntax, ZantufaMeSelbriBodySyntax, ZantufaMeTanruUnitSyntax,
+    ZantufaMeksoFragmentSyntax, ZantufaMex1Syntax, ZantufaMex2Syntax, ZantufaMexGroupSyntax,
+    ZantufaMexMoiTanruUnitSyntax, ZantufaMexSyntax, ZantufaOperandSyntax, ZantufaOperatorSyntax,
+    ZantufaReversePolishMeksoSyntax, ZantufaStatementAbstractionTanruUnitSyntax,
+    ZantufaStatementTermsStatementSyntax, ZantufaStatementTermsTailSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreeVisitor;
@@ -2973,9 +2975,6 @@ fn generated_operand_connective_source(
         jbotci_syntax::generated_model::OperandConnectiveSyntax::EkConnective(connective) => {
             token_text(&connective.a.value)
         }
-        jbotci_syntax::generated_model::OperandConnectiveSyntax::JekConnective(connective) => {
-            token_text(&connective.ja.value)
-        }
     }
 }
 
@@ -4104,7 +4103,7 @@ fn generated_pro_sumti_positive_xi_offset(pro_sumti: &ProSumtiSyntax) -> Option<
     else {
         return None;
     };
-    let text = generated_number_words_text(&subscript.expression.0.number.value);
+    let text = generated_number_words_text(&subscript.expression.0.number);
     let value = parse_generated_simple_pa_integer(&text)?;
     usize::try_from(value).ok().filter(|offset| *offset > 0)
 }
@@ -12865,7 +12864,7 @@ mod tests {
                 "semantic interpretation is undefined for an experimental n-ary modal, nonlogical, or FAhU forethought termset connection",
             ),
             (
-                "li fu'a pa re su'i lo'o cu namcu",
+                "li ke fu'a pa re su'i ku'e ke'e lo'o cu namcu",
                 "semantic graph invariant failed: Zantufa reverse Polish mex operator has fewer than two operands",
             ),
             (

@@ -31,6 +31,7 @@ use crate::{
     WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
+mod baseline_mex;
 mod generated;
 mod generated_runtime;
 mod parse_error;
@@ -4674,6 +4675,7 @@ fn recovery_feature_condition_matches(
         "ZantufaAdverbials" => dialect.zantufa_adverbials_enabled,
         "ZantufaConnectives" => dialect.zantufa_connectives_enabled,
         "ZantufaMex" => dialect.zantufa_mex_enabled,
+        "ZantufaMexReinterpretation" => dialect.zantufa_mex_reinterpretation_enabled,
         "ZantufaQuotes" => dialect.zantufa_quotes_enabled,
         "ZantufaTags" => dialect.zantufa_tags_enabled,
         "ZantufaTerms" => dialect.zantufa_terms_enabled,
@@ -5021,6 +5023,24 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
             generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
                 quantifier,
             ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
+            generated::generated_model::NodeRef::ZantufaMexContinuationSyntax(continuation)
+                if continuation.right_expression.is_none()
+                    && matches!(
+                        continuation.operators.last().as_ref(),
+                        generated::generated_model::ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(_)
+                    ) =>
+            {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaMex,
+                    continuation,
+                );
+            }
+            generated::generated_model::NodeRef::AtomicMeksoOperatorSyntaxExperimentalConnectiveMeksoOperator(
+                operator,
+            ) => self.warn_first_token(
+                ExperimentalConstruct::ExperimentalMexOperatorConnective,
+                operator,
+            ),
             generated::generated_model::NodeRef::SumtiBaseSyntaxDescriptorWithGadriSumti(base) => {
                 if let generated::generated_model::SumtiBaseSyntax::DescriptorWithGadriSumti(
                     description,
@@ -7764,6 +7784,137 @@ mod tests {
     fn parse_source(source: &str, options: &ParseOptions) -> SyntaxParse {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         parse_syntax_tree(&words, options).expect("valid syntax")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_mex_priority_reaches_non_ke_extensions_without_stealing_baseline() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
+            for source in ["li pa su'i", "li pa bo re", "li pa bi'e su'i"] {
+                let parsed = parse_source(source, &zantufa);
+                assert!(
+                    parse_tree_debug(source, &zantufa).contains("ZantufaPriorityMex"),
+                    "{source}"
+                );
+                assert!(
+                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                    "{source}"
+                );
+            }
+
+            let source = "li pa su'i re";
+            let baseline = parse_source(source, &ParseOptions::default());
+            let extended = parse_source(source, &zantufa);
+            assert_eq!(extended.parse_tree, baseline.parse_tree);
+            assert!(
+                !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
+                "baseline-owned MEX must not carry a Zantufa warning"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_mex_priority_preserves_full_baseline_operand_width() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
+            for source in [
+                "li la'e pa .e re lu'u",
+                "li na'e bo pa .e re lu'u",
+                "li pa .e ke re ke'e",
+                "li pa .e bo re",
+                "li pa joi bo re",
+                "li pa .e pu bo re",
+            ] {
+                let baseline = parse_source(source, &ParseOptions::default());
+                let extended = parse_source(source, &zantufa);
+                assert_eq!(extended.parse_tree, baseline.parse_tree, "{source}");
+                assert!(
+                    !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
+                    "baseline-owned operand must not carry a Zantufa warning: {source}"
+                );
+            }
+
+            let trailing = "li pa .e";
+            let parsed = parse_source(trailing, &zantufa);
+            assert!(
+                parse_tree_debug(trailing, &zantufa).contains("ZantufaPriorityMex"),
+                "{trailing}"
+            );
+            assert!(
+                has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                "{trailing}"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_mex_priority_enforces_wide_qualified_union_policy() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
+
+            let elided = "li lu'e pa su'i re lo'o";
+            let baseline = parse_source(elided, &ParseOptions::default());
+            let extended = parse_source(elided, &zantufa);
+            assert_eq!(extended.parse_tree, baseline.parse_tree);
+            assert!(
+                !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
+                "the warning union must retain the narrow baseline reading"
+            );
+
+            let explicit = segment_words_with_modifiers("li lu'e pa su'i re lu'u lo'o")
+                .expect("valid morphology");
+            assert!(parse_syntax_tree(&explicit, &zantufa).is_err());
+
+            let zantufa_first = "li lu'e ke pa ke'e lo'o";
+            let parsed = parse_source(zantufa_first, &zantufa);
+            assert!(
+                parse_tree_debug(zantufa_first, &zantufa).contains("ZantufaPriorityMex"),
+                "{zantufa_first}"
+            );
+            assert!(
+                has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                "wide ownership must remain available when the inner starts Zantufa-only"
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_mex_priority_keeps_wide_qualifiers_with_zantufa_only_inner_material() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
+
+            for source in [
+                "li lu'e pa bo ci lo'o",
+                "li lu'e pa su'i re bo ci lo'o",
+                "li lu'e pa su'i re .e lo'o",
+                "li na'e bo pa bo ci lo'o",
+            ] {
+                let parsed = parse_source(source, &zantufa);
+                let tree = parse_tree_debug(source, &zantufa);
+                assert!(tree.contains("ZantufaPriorityMex"), "{source}: {tree}");
+                assert!(
+                    tree.contains("ZantufaLaheQualifiedMeksoOperand")
+                        || tree.contains("ZantufaNaheBoQualifiedMeksoOperand"),
+                    "wide qualifier must retain ownership: {source}: {tree}"
+                );
+                assert!(
+                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                    "wide Zantufa reading must warn: {source}"
+                );
+            }
+        });
     }
 
     #[test]

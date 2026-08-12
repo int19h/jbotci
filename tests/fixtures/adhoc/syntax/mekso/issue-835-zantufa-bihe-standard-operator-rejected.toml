@@ -1,0 +1,14 @@
+id = "adhoc.syntax.mekso.issue-835-zantufa-bihe-standard-operator-rejected"
+lojban = "li ke pa re ke'e bi'e ke su'i ke'e ci lo'o"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-835", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #835"
+url = "https://github.com/int19h/jbotci/issues/835"
+description = "A standard-only KE-grouped operator cannot leak into a Zantufa BIhE tail."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 24], source-text = "ke", message = "unexpected cmavo" }]
