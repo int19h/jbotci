@@ -11626,13 +11626,178 @@ class TenseModalBodySyntaxTenseModalAtom(_SyntaxNode):
     def __init_subclass__(cls) -> None:
         raise TypeError('TenseModalBodySyntaxTenseModalAtom is final')
 
-TenseModalBodySyntax: TypeAlias = TenseModalBodySyntaxConnectedTenseModal | TenseModalBodySyntaxTenseModalAtom
+@final
+class TenseModalBodySyntaxZantufaTag(_SyntaxNode):
+    'Uses one whole rolling-Zantufa tag only after standard and camxes-exp ownership fail.'
+    __slots__ = ()
+    _schema_id = 568
+    __match_args__ = ('zantufa_tag',)
+    def __new__(cls, zantufa_tag: ZantufaTagSyntax) -> TenseModalBodySyntaxZantufaTag:
+        return cls._from_fields((zantufa_tag,))
+    def __init__(self, zantufa_tag: ZantufaTagSyntax) -> None:
+        pass
+    @property
+    def zantufa_tag(self) -> ZantufaTagSyntax:
+        'Uses one whole rolling-Zantufa tag only after standard and camxes-exp ownership fail.'
+        return cast(ZantufaTagSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalBodySyntaxZantufaTag is final')
+
+TenseModalBodySyntax: TypeAlias = TenseModalBodySyntaxConnectedTenseModal | TenseModalBodySyntaxTenseModalAtom | TenseModalBodySyntaxZantufaTag
+
+@final
+class BaselineTermTenseModalSyntaxBaselineTermConnectedTenseModal(_SyntaxNode):
+    'A baseline connected tag.'
+    __slots__ = ()
+    _schema_id = 569
+    __match_args__ = ('baseline_term_connected_tense_modal',)
+    def __new__(cls, baseline_term_connected_tense_modal: BaselineTermConnectedTenseModalSyntax) -> BaselineTermTenseModalSyntaxBaselineTermConnectedTenseModal:
+        return cls._from_fields((baseline_term_connected_tense_modal,))
+    def __init__(self, baseline_term_connected_tense_modal: BaselineTermConnectedTenseModalSyntax) -> None:
+        pass
+    @property
+    def baseline_term_connected_tense_modal(self) -> BaselineTermConnectedTenseModalSyntax:
+        'A baseline connected tag.'
+        return cast(BaselineTermConnectedTenseModalSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BaselineTermTenseModalSyntaxBaselineTermConnectedTenseModal is final')
+
+@final
+class BaselineTermTenseModalSyntaxBaselineTermTenseModalAtom(_SyntaxNode):
+    'A single baseline tag atom.'
+    __slots__ = ()
+    _schema_id = 570
+    __match_args__ = ('baseline_term_tense_modal_atom',)
+    def __new__(cls, baseline_term_tense_modal_atom: BaselineTermTenseModalAtomSyntax) -> BaselineTermTenseModalSyntaxBaselineTermTenseModalAtom:
+        return cls._from_fields((baseline_term_tense_modal_atom,))
+    def __init__(self, baseline_term_tense_modal_atom: BaselineTermTenseModalAtomSyntax) -> None:
+        pass
+    @property
+    def baseline_term_tense_modal_atom(self) -> BaselineTermTenseModalAtomSyntax:
+        'A single baseline tag atom.'
+        return cast(BaselineTermTenseModalAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BaselineTermTenseModalSyntaxBaselineTermTenseModalAtom is final')
+
+BaselineTermTenseModalSyntax: TypeAlias = BaselineTermTenseModalSyntaxBaselineTermConnectedTenseModal | BaselineTermTenseModalSyntaxBaselineTermTenseModalAtom
+
+@final
+class BaselineTermConnectedTenseModalSyntax(_SyntaxNode):
+    'Baseline-only connected tag used at term entry.'
+    __slots__ = ()
+    _schema_id = 571
+    __match_args__ = ('first', 'continuations')
+    def __new__(cls, first: BaselineTermTenseModalAtomSyntax, continuations: Sequence[BaselineTermConnectedTenseModalContinuationSyntax]) -> BaselineTermConnectedTenseModalSyntax:
+        return cls._from_fields((first, continuations))
+    def __init__(self, first: BaselineTermTenseModalAtomSyntax, continuations: Sequence[BaselineTermConnectedTenseModalContinuationSyntax]) -> None:
+        pass
+    @property
+    def first(self) -> BaselineTermTenseModalAtomSyntax:
+        'The first baseline atom.'
+        return cast(BaselineTermTenseModalAtomSyntax, self._field(0))
+    @property
+    def continuations(self) -> tuple[BaselineTermConnectedTenseModalContinuationSyntax, ...]:
+        'Non-empty source-ordered baseline continuations.'
+        return cast(tuple[BaselineTermConnectedTenseModalContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BaselineTermConnectedTenseModalSyntax is final')
+
+@final
+class BaselineTermConnectedTenseModalContinuationSyntax(_SyntaxNode):
+    'One continuation in a baseline-only connected term tag.'
+    __slots__ = ()
+    _schema_id = 572
+    __match_args__ = ('connective', 'tense_modal')
+    def __new__(cls, connective: TenseModalConnectiveSyntax, tense_modal: BaselineTermTenseModalAtomSyntax) -> BaselineTermConnectedTenseModalContinuationSyntax:
+        return cls._from_fields((connective, tense_modal))
+    def __init__(self, connective: TenseModalConnectiveSyntax, tense_modal: BaselineTermTenseModalAtomSyntax) -> None:
+        pass
+    @property
+    def connective(self) -> TenseModalConnectiveSyntax:
+        'The connective between adjacent baseline atoms.'
+        return cast(TenseModalConnectiveSyntax, self._field(0))
+    @property
+    def tense_modal(self) -> BaselineTermTenseModalAtomSyntax:
+        'The following baseline atom.'
+        return cast(BaselineTermTenseModalAtomSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BaselineTermConnectedTenseModalContinuationSyntax is final')
+
+@final
+class BaselineTermTenseModalAtomSyntaxCompositeTense(_SyntaxNode):
+    'A baseline composite tense.'
+    __slots__ = ()
+    _schema_id = 573
+    __match_args__ = ('composite_tense',)
+    def __new__(cls, composite_tense: CompositeTenseSyntax) -> BaselineTermTenseModalAtomSyntaxCompositeTense:
+        return cls._from_fields((composite_tense,))
+    def __init__(self, composite_tense: CompositeTenseSyntax) -> None:
+        pass
+    @property
+    def composite_tense(self) -> CompositeTenseSyntax:
+        'A baseline composite tense.'
+        return cast(CompositeTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BaselineTermTenseModalAtomSyntaxCompositeTense is final')
+
+@final
+class BaselineTermTenseModalAtomSyntaxFihoTense(_SyntaxNode):
+    'A baseline FIhO modal.'
+    __slots__ = ()
+    _schema_id = 574
+    __match_args__ = ('fiho_tense',)
+    def __new__(cls, fiho_tense: FihoTenseSyntax) -> BaselineTermTenseModalAtomSyntaxFihoTense:
+        return cls._from_fields((fiho_tense,))
+    def __init__(self, fiho_tense: FihoTenseSyntax) -> None:
+        pass
+    @property
+    def fiho_tense(self) -> FihoTenseSyntax:
+        'A baseline FIhO modal.'
+        return cast(FihoTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BaselineTermTenseModalAtomSyntaxFihoTense is final')
+
+@final
+class BaselineTermTenseModalAtomSyntaxModalTense(_SyntaxNode):
+    'A baseline BAI modal.'
+    __slots__ = ()
+    _schema_id = 575
+    __match_args__ = ('modal_tense',)
+    def __new__(cls, modal_tense: ModalTenseSyntax) -> BaselineTermTenseModalAtomSyntaxModalTense:
+        return cls._from_fields((modal_tense,))
+    def __init__(self, modal_tense: ModalTenseSyntax) -> None:
+        pass
+    @property
+    def modal_tense(self) -> ModalTenseSyntax:
+        'A baseline BAI modal.'
+        return cast(ModalTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BaselineTermTenseModalAtomSyntaxModalTense is final')
+
+@final
+class BaselineTermTenseModalAtomSyntaxStickyTense(_SyntaxNode):
+    'A baseline KI marker.'
+    __slots__ = ()
+    _schema_id = 576
+    __match_args__ = ('sticky_tense',)
+    def __new__(cls, sticky_tense: StickyTenseSyntax) -> BaselineTermTenseModalAtomSyntaxStickyTense:
+        return cls._from_fields((sticky_tense,))
+    def __init__(self, sticky_tense: StickyTenseSyntax) -> None:
+        pass
+    @property
+    def sticky_tense(self) -> StickyTenseSyntax:
+        'A baseline KI marker.'
+        return cast(StickyTenseSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('BaselineTermTenseModalAtomSyntaxStickyTense is final')
+
+BaselineTermTenseModalAtomSyntax: TypeAlias = BaselineTermTenseModalAtomSyntaxCompositeTense | BaselineTermTenseModalAtomSyntaxFihoTense | BaselineTermTenseModalAtomSyntaxModalTense | BaselineTermTenseModalAtomSyntaxStickyTense
 
 @final
 class ConnectedTenseModalSyntax(_SyntaxNode):
     'Product node for connected tag; preserves `first` and `continuations` in source order.'
     __slots__ = ()
-    _schema_id = 568
+    _schema_id = 577
     __match_args__ = ('first', 'continuations')
     def __new__(cls, first: TenseModalAtomSyntax, continuations: Sequence[ConnectedTenseModalContinuationSyntax]) -> ConnectedTenseModalSyntax:
         return cls._from_fields((first, continuations))
@@ -11653,7 +11818,7 @@ class ConnectedTenseModalSyntax(_SyntaxNode):
 class ConnectedTenseModalContinuationSyntax(_SyntaxNode):
     'Product node for connected tag continuation; preserves `connective` and `tense_modal` in source order.'
     __slots__ = ()
-    _schema_id = 569
+    _schema_id = 578
     __match_args__ = ('connective', 'tense_modal')
     def __new__(cls, connective: TenseModalConnectiveSyntax, tense_modal: TenseModalAtomSyntax) -> ConnectedTenseModalContinuationSyntax:
         return cls._from_fields((connective, tense_modal))
@@ -11674,7 +11839,7 @@ class ConnectedTenseModalContinuationSyntax(_SyntaxNode):
 class TenseModalConnectiveSyntaxJoikConnective(_SyntaxNode):
     'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
     __slots__ = ()
-    _schema_id = 570
+    _schema_id = 579
     __match_args__ = ('joik_connective',)
     def __new__(cls, joik_connective: JoikConnectiveSyntax) -> TenseModalConnectiveSyntaxJoikConnective:
         return cls._from_fields((joik_connective,))
@@ -11691,7 +11856,7 @@ class TenseModalConnectiveSyntaxJoikConnective(_SyntaxNode):
 class TenseModalConnectiveSyntaxJekConnective(_SyntaxNode):
     'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
     __slots__ = ()
-    _schema_id = 571
+    _schema_id = 580
     __match_args__ = ('jek_connective',)
     def __new__(cls, jek_connective: JekConnectiveSyntax) -> TenseModalConnectiveSyntaxJekConnective:
         return cls._from_fields((jek_connective,))
@@ -11707,10 +11872,27 @@ class TenseModalConnectiveSyntaxJekConnective(_SyntaxNode):
 TenseModalConnectiveSyntax: TypeAlias = TenseModalConnectiveSyntaxJoikConnective | TenseModalConnectiveSyntaxJekConnective
 
 @final
+class TenseModalAtomSyntaxExpTagAtomRun(_SyntaxNode):
+    'Uses one complete corrected camxes-exp atom run when it is not a baseline tag.'
+    __slots__ = ()
+    _schema_id = 581
+    __match_args__ = ('exp_tag_atom_run',)
+    def __new__(cls, exp_tag_atom_run: ExpTagAtomRunSyntax) -> TenseModalAtomSyntaxExpTagAtomRun:
+        return cls._from_fields((exp_tag_atom_run,))
+    def __init__(self, exp_tag_atom_run: ExpTagAtomRunSyntax) -> None:
+        pass
+    @property
+    def exp_tag_atom_run(self) -> ExpTagAtomRunSyntax:
+        'Uses one complete corrected camxes-exp atom run when it is not a baseline tag.'
+        return cast(ExpTagAtomRunSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('TenseModalAtomSyntaxExpTagAtomRun is final')
+
+@final
 class TenseModalAtomSyntaxCompositeTense(_SyntaxNode):
     'Uses the nested `composite_tense` sum form and preserves its selected alternative.'
     __slots__ = ()
-    _schema_id = 572
+    _schema_id = 582
     __match_args__ = ('composite_tense',)
     def __new__(cls, composite_tense: CompositeTenseSyntax) -> TenseModalAtomSyntaxCompositeTense:
         return cls._from_fields((composite_tense,))
@@ -11727,7 +11909,7 @@ class TenseModalAtomSyntaxCompositeTense(_SyntaxNode):
 class TenseModalAtomSyntaxFihoTense(_SyntaxNode):
     'Uses the `fiho_tense` product form, whose payload preserves `fiho`, `selbri`, and `fehu`.'
     __slots__ = ()
-    _schema_id = 573
+    _schema_id = 583
     __match_args__ = ('fiho_tense',)
     def __new__(cls, fiho_tense: FihoTenseSyntax) -> TenseModalAtomSyntaxFihoTense:
         return cls._from_fields((fiho_tense,))
@@ -11744,7 +11926,7 @@ class TenseModalAtomSyntaxFihoTense(_SyntaxNode):
 class TenseModalAtomSyntaxModalTense(_SyntaxNode):
     'Uses the `modal_tense` product form, whose payload preserves `nahe`, `se`, `bai`, `nai`, and `ki`.'
     __slots__ = ()
-    _schema_id = 574
+    _schema_id = 584
     __match_args__ = ('modal_tense',)
     def __new__(cls, modal_tense: ModalTenseSyntax) -> TenseModalAtomSyntaxModalTense:
         return cls._from_fields((modal_tense,))
@@ -11758,78 +11940,10 @@ class TenseModalAtomSyntaxModalTense(_SyntaxNode):
         raise TypeError('TenseModalAtomSyntaxModalTense is final')
 
 @final
-class TenseModalAtomSyntaxNaheSeFlatPrefixedTense(_SyntaxNode):
-    'Uses the `nahe_se_flat_prefixed_tense` product form, whose payload preserves `nahe`, `se`, and `atom`.'
-    __slots__ = ()
-    _schema_id = 575
-    __match_args__ = ('nahe_se_flat_prefixed_tense',)
-    def __new__(cls, nahe_se_flat_prefixed_tense: NaheSeFlatPrefixedTenseSyntax) -> TenseModalAtomSyntaxNaheSeFlatPrefixedTense:
-        return cls._from_fields((nahe_se_flat_prefixed_tense,))
-    def __init__(self, nahe_se_flat_prefixed_tense: NaheSeFlatPrefixedTenseSyntax) -> None:
-        pass
-    @property
-    def nahe_se_flat_prefixed_tense(self) -> NaheSeFlatPrefixedTenseSyntax:
-        'Uses the `nahe_se_flat_prefixed_tense` product form, whose payload preserves `nahe`, `se`, and `atom`.'
-        return cast(NaheSeFlatPrefixedTenseSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('TenseModalAtomSyntaxNaheSeFlatPrefixedTense is final')
-
-@final
-class TenseModalAtomSyntaxSeFlatPrefixedTense(_SyntaxNode):
-    'Uses the `se_flat_prefixed_tense` product form, whose payload preserves `se` and `atom`.'
-    __slots__ = ()
-    _schema_id = 576
-    __match_args__ = ('se_flat_prefixed_tense',)
-    def __new__(cls, se_flat_prefixed_tense: SeFlatPrefixedTenseSyntax) -> TenseModalAtomSyntaxSeFlatPrefixedTense:
-        return cls._from_fields((se_flat_prefixed_tense,))
-    def __init__(self, se_flat_prefixed_tense: SeFlatPrefixedTenseSyntax) -> None:
-        pass
-    @property
-    def se_flat_prefixed_tense(self) -> SeFlatPrefixedTenseSyntax:
-        'Uses the `se_flat_prefixed_tense` product form, whose payload preserves `se` and `atom`.'
-        return cast(SeFlatPrefixedTenseSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('TenseModalAtomSyntaxSeFlatPrefixedTense is final')
-
-@final
-class TenseModalAtomSyntaxFaFlatTagTense(_SyntaxNode):
-    'Uses the `fa_flat_tag_tense` product form, whose payload preserves `fa`.'
-    __slots__ = ()
-    _schema_id = 577
-    __match_args__ = ('fa_flat_tag_tense',)
-    def __new__(cls, fa_flat_tag_tense: FaFlatTagTenseSyntax) -> TenseModalAtomSyntaxFaFlatTagTense:
-        return cls._from_fields((fa_flat_tag_tense,))
-    def __init__(self, fa_flat_tag_tense: FaFlatTagTenseSyntax) -> None:
-        pass
-    @property
-    def fa_flat_tag_tense(self) -> FaFlatTagTenseSyntax:
-        'Uses the `fa_flat_tag_tense` product form, whose payload preserves `fa`.'
-        return cast(FaFlatTagTenseSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('TenseModalAtomSyntaxFaFlatTagTense is final')
-
-@final
-class TenseModalAtomSyntaxZantufaRecursiveTagTense(_SyntaxNode):
-    'Uses the `zantufa_recursive_tag_tense` product form, whose payload preserves `first_prefix`, `additional_prefixes`, and `atom`.'
-    __slots__ = ()
-    _schema_id = 578
-    __match_args__ = ('zantufa_recursive_tag_tense',)
-    def __new__(cls, zantufa_recursive_tag_tense: ZantufaRecursiveTagTenseSyntax) -> TenseModalAtomSyntaxZantufaRecursiveTagTense:
-        return cls._from_fields((zantufa_recursive_tag_tense,))
-    def __init__(self, zantufa_recursive_tag_tense: ZantufaRecursiveTagTenseSyntax) -> None:
-        pass
-    @property
-    def zantufa_recursive_tag_tense(self) -> ZantufaRecursiveTagTenseSyntax:
-        'Uses the `zantufa_recursive_tag_tense` product form, whose payload preserves `first_prefix`, `additional_prefixes`, and `atom`.'
-        return cast(ZantufaRecursiveTagTenseSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('TenseModalAtomSyntaxZantufaRecursiveTagTense is final')
-
-@final
 class TenseModalAtomSyntaxStickyTense(_SyntaxNode):
     'Uses the `sticky_tense` product form, whose payload preserves `ki`.'
     __slots__ = ()
-    _schema_id = 579
+    _schema_id = 585
     __match_args__ = ('sticky_tense',)
     def __new__(cls, sticky_tense: StickyTenseSyntax) -> TenseModalAtomSyntaxStickyTense:
         return cls._from_fields((sticky_tense,))
@@ -11842,13 +11956,13 @@ class TenseModalAtomSyntaxStickyTense(_SyntaxNode):
     def __init_subclass__(cls) -> None:
         raise TypeError('TenseModalAtomSyntaxStickyTense is final')
 
-TenseModalAtomSyntax: TypeAlias = TenseModalAtomSyntaxCompositeTense | TenseModalAtomSyntaxFihoTense | TenseModalAtomSyntaxModalTense | TenseModalAtomSyntaxNaheSeFlatPrefixedTense | TenseModalAtomSyntaxSeFlatPrefixedTense | TenseModalAtomSyntaxFaFlatTagTense | TenseModalAtomSyntaxZantufaRecursiveTagTense | TenseModalAtomSyntaxStickyTense
+TenseModalAtomSyntax: TypeAlias = TenseModalAtomSyntaxExpTagAtomRun | TenseModalAtomSyntaxCompositeTense | TenseModalAtomSyntaxFihoTense | TenseModalAtomSyntaxModalTense | TenseModalAtomSyntaxStickyTense
 
 @final
 class FihoTenseSyntax(_SyntaxNode):
     'Product node for FIhO modal; preserves `fiho`, `selbri`, and `fehu` in source order.'
     __slots__ = ()
-    _schema_id = 580
+    _schema_id = 586
     __match_args__ = ('fiho', 'selbri', 'fehu')
     def __new__(cls, fiho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> FihoTenseSyntax:
         return cls._from_fields((fiho, selbri, fehu))
@@ -11870,202 +11984,1098 @@ class FihoTenseSyntax(_SyntaxNode):
         raise TypeError('FihoTenseSyntax is final')
 
 @final
-class FaFlatTagTenseSyntax(_SyntaxNode):
-    'Transparent product node for tag; preserves the `fa` component.'
-    __slots__ = ()
-    _schema_id = 581
-    __match_args__ = ('fa',)
-    def __new__(cls, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> FaFlatTagTenseSyntax:
-        return cls._from_fields((fa,))
-    def __init__(self, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
-        pass
-    @property
-    def fa(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Fa`.'
-        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('FaFlatTagTenseSyntax is final')
-
-@final
-class FlatTagAtomSyntaxFaFlatTagAtom(_SyntaxNode):
-    'Uses the `fa_flat_tag_atom` product form, whose payload preserves `fa`.'
-    __slots__ = ()
-    _schema_id = 582
-    __match_args__ = ('fa_flat_tag_atom',)
-    def __new__(cls, fa_flat_tag_atom: FaFlatTagAtomSyntax) -> FlatTagAtomSyntaxFaFlatTagAtom:
-        return cls._from_fields((fa_flat_tag_atom,))
-    def __init__(self, fa_flat_tag_atom: FaFlatTagAtomSyntax) -> None:
-        pass
-    @property
-    def fa_flat_tag_atom(self) -> FaFlatTagAtomSyntax:
-        'Uses the `fa_flat_tag_atom` product form, whose payload preserves `fa`.'
-        return cast(FaFlatTagAtomSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('FlatTagAtomSyntaxFaFlatTagAtom is final')
-
-@final
-class FlatTagAtomSyntaxModalFlatTagAtom(_SyntaxNode):
-    'Uses the `modal_flat_tag_atom` product form, whose payload preserves `modal`.'
-    __slots__ = ()
-    _schema_id = 583
-    __match_args__ = ('modal_flat_tag_atom',)
-    def __new__(cls, modal_flat_tag_atom: ModalFlatTagAtomSyntax) -> FlatTagAtomSyntaxModalFlatTagAtom:
-        return cls._from_fields((modal_flat_tag_atom,))
-    def __init__(self, modal_flat_tag_atom: ModalFlatTagAtomSyntax) -> None:
-        pass
-    @property
-    def modal_flat_tag_atom(self) -> ModalFlatTagAtomSyntax:
-        'Uses the `modal_flat_tag_atom` product form, whose payload preserves `modal`.'
-        return cast(ModalFlatTagAtomSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('FlatTagAtomSyntaxModalFlatTagAtom is final')
-
-@final
-class FlatTagAtomSyntaxCompositeFlatTagAtom(_SyntaxNode):
-    'Uses the `composite_flat_tag_atom` product form, whose payload preserves `composite`.'
-    __slots__ = ()
-    _schema_id = 584
-    __match_args__ = ('composite_flat_tag_atom',)
-    def __new__(cls, composite_flat_tag_atom: CompositeFlatTagAtomSyntax) -> FlatTagAtomSyntaxCompositeFlatTagAtom:
-        return cls._from_fields((composite_flat_tag_atom,))
-    def __init__(self, composite_flat_tag_atom: CompositeFlatTagAtomSyntax) -> None:
-        pass
-    @property
-    def composite_flat_tag_atom(self) -> CompositeFlatTagAtomSyntax:
-        'Uses the `composite_flat_tag_atom` product form, whose payload preserves `composite`.'
-        return cast(CompositeFlatTagAtomSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('FlatTagAtomSyntaxCompositeFlatTagAtom is final')
-
-FlatTagAtomSyntax: TypeAlias = FlatTagAtomSyntaxFaFlatTagAtom | FlatTagAtomSyntaxModalFlatTagAtom | FlatTagAtomSyntaxCompositeFlatTagAtom
-
-@final
-class FaFlatTagAtomSyntax(_SyntaxNode):
-    'Transparent product node for tag; preserves the `fa` component.'
-    __slots__ = ()
-    _schema_id = 585
-    __match_args__ = ('fa',)
-    def __new__(cls, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> FaFlatTagAtomSyntax:
-        return cls._from_fields((fa,))
-    def __init__(self, fa: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
-        pass
-    @property
-    def fa(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Fa`.'
-        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('FaFlatTagAtomSyntax is final')
-
-@final
-class ModalFlatTagAtomSyntax(_SyntaxNode):
-    'Transparent product node for modal tag; preserves the `modal` component.'
-    __slots__ = ()
-    _schema_id = 586
-    __match_args__ = ('modal',)
-    def __new__(cls, modal: ModalTenseSyntax) -> ModalFlatTagAtomSyntax:
-        return cls._from_fields((modal,))
-    def __init__(self, modal: ModalTenseSyntax) -> None:
-        pass
-    @property
-    def modal(self) -> ModalTenseSyntax:
-        'The shared modal child syntax node.'
-        return cast(ModalTenseSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('ModalFlatTagAtomSyntax is final')
-
-@final
-class CompositeFlatTagAtomSyntax(_SyntaxNode):
-    'Transparent product node for tag; preserves the `composite` component.'
+class ExpTagAtomRunSyntax(_SyntaxNode):
+    'Transparent ownership-filtered wrapper for one corrected camxes-exp tense-modal.'
     __slots__ = ()
     _schema_id = 587
-    __match_args__ = ('composite',)
-    def __new__(cls, composite: CompositeTenseSyntax) -> CompositeFlatTagAtomSyntax:
-        return cls._from_fields((composite,))
-    def __init__(self, composite: CompositeTenseSyntax) -> None:
+    __match_args__ = ('run',)
+    def __new__(cls, run: ExpTagAtomRunBodySyntax) -> ExpTagAtomRunSyntax:
+        return cls._from_fields((run,))
+    def __init__(self, run: ExpTagAtomRunBodySyntax) -> None:
         pass
     @property
-    def composite(self) -> CompositeTenseSyntax:
-        'The shared composite child syntax node.'
-        return cast(CompositeTenseSyntax, self._field(0))
+    def run(self) -> ExpTagAtomRunBodySyntax:
+        'The complete run, retained only when the baseline grammar does not own its extent.'
+        return cast(ExpTagAtomRunBodySyntax, self._field(0))
     def __init_subclass__(cls) -> None:
-        raise TypeError('CompositeFlatTagAtomSyntax is final')
+        raise TypeError('ExpTagAtomRunSyntax is final')
 
 @final
-class NaheSeFlatPrefixedTenseSyntax(_SyntaxNode):
-    'Product node for tag; preserves `nahe`, `se`, and `atom` in source order.'
+class ExpTagAtomRunBodySyntax(_SyntaxNode):
+    'One corrected camxes-exp tense-modal: a nonempty run of uniformly prefixed atoms.'
     __slots__ = ()
     _schema_id = 588
-    __match_args__ = ('nahe', 'se', 'atom')
-    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], se: WithFreeModifiers[Token, FreeModifierSyntax] | None, atom: FlatTagAtomSyntax) -> NaheSeFlatPrefixedTenseSyntax:
-        return cls._from_fields((nahe, se, atom))
-    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax], se: WithFreeModifiers[Token, FreeModifierSyntax] | None, atom: FlatTagAtomSyntax) -> None:
+    __match_args__ = ('first', 'additional')
+    def __new__(cls, first: ExpPrefixedTagAtomSyntax, additional: Sequence[ExpPrefixedTagAtomSyntax]) -> ExpTagAtomRunBodySyntax:
+        return cls._from_fields((first, additional))
+    def __init__(self, first: ExpPrefixedTagAtomSyntax, additional: Sequence[ExpPrefixedTagAtomSyntax]) -> None:
         pass
     @property
-    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Nahe`.'
-        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def first(self) -> ExpPrefixedTagAtomSyntax:
+        'The first source-ordered atom.'
+        return cast(ExpPrefixedTagAtomSyntax, self._field(0))
     @property
-    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
-        'The optional se component.'
-        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
-    @property
-    def atom(self) -> FlatTagAtomSyntax:
-        'The `flat_tag_atom` grammar result in the `atom` structural role of the `nahe_se_flat_prefixed_tense` production.'
-        return cast(FlatTagAtomSyntax, self._field(2))
+    def additional(self) -> tuple[ExpPrefixedTagAtomSyntax, ...]:
+        'Remaining source-ordered atoms in this same tense-modal arm.'
+        return cast(tuple[ExpPrefixedTagAtomSyntax, ...], self._field(1))
     def __init_subclass__(cls) -> None:
-        raise TypeError('NaheSeFlatPrefixedTenseSyntax is final')
+        raise TypeError('ExpTagAtomRunBodySyntax is final')
 
 @final
-class SeFlatPrefixedTenseSyntax(_SyntaxNode):
-    'Product node for tag; preserves `se` and `atom` in source order.'
+class ExpPrefixedTagAtomSyntax(_SyntaxNode):
+    'One corrected camxes-exp atom with the uniform optional NAhE/SE prefix domain.'
     __slots__ = ()
     _schema_id = 589
-    __match_args__ = ('se', 'atom')
-    def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], atom: FlatTagAtomSyntax) -> SeFlatPrefixedTenseSyntax:
-        return cls._from_fields((se, atom))
-    def __init__(self, se: WithFreeModifiers[Token, FreeModifierSyntax], atom: FlatTagAtomSyntax) -> None:
+    __match_args__ = ('nahe', 'se', 'atom')
+    def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax] | None, se: WithFreeModifiers[Token, FreeModifierSyntax] | None, atom: WithFreeModifiers[ExpTagAtomSyntax, FreeModifierSyntax]) -> ExpPrefixedTagAtomSyntax:
+        return cls._from_fields((nahe, se, atom))
+    def __init__(self, nahe: WithFreeModifiers[Token, FreeModifierSyntax] | None, se: WithFreeModifiers[Token, FreeModifierSyntax] | None, atom: WithFreeModifiers[ExpTagAtomSyntax, FreeModifierSyntax]) -> None:
         pass
     @property
-    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'A word from selmaho `Se`.'
-        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def nahe(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Optional scalar-negation prefix. A free modifier here remains parse-preserving\nthrough the preceding boundary, but camxes-exp does not source it on NAhE itself.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(0))
     @property
-    def atom(self) -> FlatTagAtomSyntax:
-        'The `flat_tag_atom` grammar result in the `atom` structural role of the `se_flat_prefixed_tense` production.'
-        return cast(FlatTagAtomSyntax, self._field(1))
+    def se(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Optional conversion prefix. camxes-exp rejects a free modifier between SE and\nits atom; the explicitly unrestricted policy is the only widening route.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(1))
+    @property
+    def atom(self) -> WithFreeModifiers[ExpTagAtomSyntax, FreeModifierSyntax]:
+        'The exact P08 atom, followed by the atom-local free-modifier boundary.'
+        return cast(WithFreeModifiers[ExpTagAtomSyntax, FreeModifierSyntax], self._field(2))
     def __init_subclass__(cls) -> None:
-        raise TypeError('SeFlatPrefixedTenseSyntax is final')
+        raise TypeError('ExpPrefixedTagAtomSyntax is final')
 
 @final
-class ZantufaRecursiveTagTenseSyntax(_SyntaxNode):
-    'Product node for tag; preserves `first_prefix`, `additional_prefixes`, and `atom` in source order.'
+class ExpTagAtomSyntaxExpBaiTagAtom(_SyntaxNode):
+    'A BAI-family modal atom.'
     __slots__ = ()
     _schema_id = 590
-    __match_args__ = ('first_prefix', 'additional_prefixes', 'atom')
-    def __new__(cls, first_prefix: WithFreeModifiers[Token, FreeModifierSyntax], additional_prefixes: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], atom: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaRecursiveTagTenseSyntax:
-        return cls._from_fields((first_prefix, additional_prefixes, atom))
-    def __init__(self, first_prefix: WithFreeModifiers[Token, FreeModifierSyntax], additional_prefixes: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], atom: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+    __match_args__ = ('exp_bai_tag_atom',)
+    def __new__(cls, exp_bai_tag_atom: ExpBaiTagAtomSyntax) -> ExpTagAtomSyntaxExpBaiTagAtom:
+        return cls._from_fields((exp_bai_tag_atom,))
+    def __init__(self, exp_bai_tag_atom: ExpBaiTagAtomSyntax) -> None:
         pass
     @property
-    def first_prefix(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'The first selected prefix alternative before the recursively nested tag tense.'
+    def exp_bai_tag_atom(self) -> ExpBaiTagAtomSyntax:
+        'A BAI-family modal atom.'
+        return cast(ExpBaiTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpBaiTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpCahaTagAtom(_SyntaxNode):
+    'A CAhA actuality atom.'
+    __slots__ = ()
+    _schema_id = 591
+    __match_args__ = ('exp_caha_tag_atom',)
+    def __new__(cls, exp_caha_tag_atom: ExpCahaTagAtomSyntax) -> ExpTagAtomSyntaxExpCahaTagAtom:
+        return cls._from_fields((exp_caha_tag_atom,))
+    def __init__(self, exp_caha_tag_atom: ExpCahaTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_caha_tag_atom(self) -> ExpCahaTagAtomSyntax:
+        'A CAhA actuality atom.'
+        return cast(ExpCahaTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpCahaTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpCuheTagAtom(_SyntaxNode):
+    'A CUhE tense-question atom.'
+    __slots__ = ()
+    _schema_id = 592
+    __match_args__ = ('exp_cuhe_tag_atom',)
+    def __new__(cls, exp_cuhe_tag_atom: ExpCuheTagAtomSyntax) -> ExpTagAtomSyntaxExpCuheTagAtom:
+        return cls._from_fields((exp_cuhe_tag_atom,))
+    def __init__(self, exp_cuhe_tag_atom: ExpCuheTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_cuhe_tag_atom(self) -> ExpCuheTagAtomSyntax:
+        'A CUhE tense-question atom.'
+        return cast(ExpCuheTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpCuheTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpKiTagAtom(_SyntaxNode):
+    'A KI stickiness atom.'
+    __slots__ = ()
+    _schema_id = 593
+    __match_args__ = ('exp_ki_tag_atom',)
+    def __new__(cls, exp_ki_tag_atom: ExpKiTagAtomSyntax) -> ExpTagAtomSyntaxExpKiTagAtom:
+        return cls._from_fields((exp_ki_tag_atom,))
+    def __init__(self, exp_ki_tag_atom: ExpKiTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_ki_tag_atom(self) -> ExpKiTagAtomSyntax:
+        'A KI stickiness atom.'
+        return cast(ExpKiTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpKiTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpZiTagAtom(_SyntaxNode):
+    'A ZI time-distance atom.'
+    __slots__ = ()
+    _schema_id = 594
+    __match_args__ = ('exp_zi_tag_atom',)
+    def __new__(cls, exp_zi_tag_atom: ExpZiTagAtomSyntax) -> ExpTagAtomSyntaxExpZiTagAtom:
+        return cls._from_fields((exp_zi_tag_atom,))
+    def __init__(self, exp_zi_tag_atom: ExpZiTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_zi_tag_atom(self) -> ExpZiTagAtomSyntax:
+        'A ZI time-distance atom.'
+        return cast(ExpZiTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpZiTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpPuTagAtom(_SyntaxNode):
+    'A PU time-direction atom.'
+    __slots__ = ()
+    _schema_id = 595
+    __match_args__ = ('exp_pu_tag_atom',)
+    def __new__(cls, exp_pu_tag_atom: ExpPuTagAtomSyntax) -> ExpTagAtomSyntaxExpPuTagAtom:
+        return cls._from_fields((exp_pu_tag_atom,))
+    def __init__(self, exp_pu_tag_atom: ExpPuTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_pu_tag_atom(self) -> ExpPuTagAtomSyntax:
+        'A PU time-direction atom.'
+        return cast(ExpPuTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpPuTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpVaTagAtom(_SyntaxNode):
+    'A VA space-distance atom.'
+    __slots__ = ()
+    _schema_id = 596
+    __match_args__ = ('exp_va_tag_atom',)
+    def __new__(cls, exp_va_tag_atom: ExpVaTagAtomSyntax) -> ExpTagAtomSyntaxExpVaTagAtom:
+        return cls._from_fields((exp_va_tag_atom,))
+    def __init__(self, exp_va_tag_atom: ExpVaTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_va_tag_atom(self) -> ExpVaTagAtomSyntax:
+        'A VA space-distance atom.'
+        return cast(ExpVaTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpVaTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpFahaTagAtom(_SyntaxNode):
+    'An optional-MOhI FAhA direction atom.'
+    __slots__ = ()
+    _schema_id = 597
+    __match_args__ = ('exp_faha_tag_atom',)
+    def __new__(cls, exp_faha_tag_atom: ExpFahaTagAtomSyntax) -> ExpTagAtomSyntaxExpFahaTagAtom:
+        return cls._from_fields((exp_faha_tag_atom,))
+    def __init__(self, exp_faha_tag_atom: ExpFahaTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_faha_tag_atom(self) -> ExpFahaTagAtomSyntax:
+        'An optional-MOhI FAhA direction atom.'
+        return cast(ExpFahaTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpFahaTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpZehaTagAtom(_SyntaxNode):
+    'A ZEhA time-interval atom.'
+    __slots__ = ()
+    _schema_id = 598
+    __match_args__ = ('exp_zeha_tag_atom',)
+    def __new__(cls, exp_zeha_tag_atom: ExpZehaTagAtomSyntax) -> ExpTagAtomSyntaxExpZehaTagAtom:
+        return cls._from_fields((exp_zeha_tag_atom,))
+    def __init__(self, exp_zeha_tag_atom: ExpZehaTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_zeha_tag_atom(self) -> ExpZehaTagAtomSyntax:
+        'A ZEhA time-interval atom.'
+        return cast(ExpZehaTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpZehaTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpVehaTagAtom(_SyntaxNode):
+    'A VEhA space-interval atom.'
+    __slots__ = ()
+    _schema_id = 599
+    __match_args__ = ('exp_veha_tag_atom',)
+    def __new__(cls, exp_veha_tag_atom: ExpVehaTagAtomSyntax) -> ExpTagAtomSyntaxExpVehaTagAtom:
+        return cls._from_fields((exp_veha_tag_atom,))
+    def __init__(self, exp_veha_tag_atom: ExpVehaTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_veha_tag_atom(self) -> ExpVehaTagAtomSyntax:
+        'A VEhA space-interval atom.'
+        return cast(ExpVehaTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpVehaTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpVihaTagAtom(_SyntaxNode):
+    'A VIhA space-interval-shape atom.'
+    __slots__ = ()
+    _schema_id = 600
+    __match_args__ = ('exp_viha_tag_atom',)
+    def __new__(cls, exp_viha_tag_atom: ExpVihaTagAtomSyntax) -> ExpTagAtomSyntaxExpVihaTagAtom:
+        return cls._from_fields((exp_viha_tag_atom,))
+    def __init__(self, exp_viha_tag_atom: ExpVihaTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_viha_tag_atom(self) -> ExpVihaTagAtomSyntax:
+        'A VIhA space-interval-shape atom.'
+        return cast(ExpVihaTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpVihaTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpRoiTagAtom(_SyntaxNode):
+    'A numeric or parenthesized-mex ROI atom.'
+    __slots__ = ()
+    _schema_id = 601
+    __match_args__ = ('exp_roi_tag_atom',)
+    def __new__(cls, exp_roi_tag_atom: ExpRoiTagAtomSyntax) -> ExpTagAtomSyntaxExpRoiTagAtom:
+        return cls._from_fields((exp_roi_tag_atom,))
+    def __init__(self, exp_roi_tag_atom: ExpRoiTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_roi_tag_atom(self) -> ExpRoiTagAtomSyntax:
+        'A numeric or parenthesized-mex ROI atom.'
+        return cast(ExpRoiTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpRoiTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpTaheTagAtom(_SyntaxNode):
+    'An optionally FEhE-prefixed TAhE atom.'
+    __slots__ = ()
+    _schema_id = 602
+    __match_args__ = ('exp_tahe_tag_atom',)
+    def __new__(cls, exp_tahe_tag_atom: ExpTaheTagAtomSyntax) -> ExpTagAtomSyntaxExpTaheTagAtom:
+        return cls._from_fields((exp_tahe_tag_atom,))
+    def __init__(self, exp_tahe_tag_atom: ExpTaheTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_tahe_tag_atom(self) -> ExpTaheTagAtomSyntax:
+        'An optionally FEhE-prefixed TAhE atom.'
+        return cast(ExpTaheTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpTaheTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpZahoTagAtom(_SyntaxNode):
+    'An optionally FEhE-prefixed ZAhO atom.'
+    __slots__ = ()
+    _schema_id = 603
+    __match_args__ = ('exp_zaho_tag_atom',)
+    def __new__(cls, exp_zaho_tag_atom: ExpZahoTagAtomSyntax) -> ExpTagAtomSyntaxExpZahoTagAtom:
+        return cls._from_fields((exp_zaho_tag_atom,))
+    def __init__(self, exp_zaho_tag_atom: ExpZahoTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_zaho_tag_atom(self) -> ExpZahoTagAtomSyntax:
+        'An optionally FEhE-prefixed ZAhO atom.'
+        return cast(ExpZahoTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpZahoTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpFihoTagAtom(_SyntaxNode):
+    'A FIhO/selbri/FEhU atom.'
+    __slots__ = ()
+    _schema_id = 604
+    __match_args__ = ('exp_fiho_tag_atom',)
+    def __new__(cls, exp_fiho_tag_atom: ExpFihoTagAtomSyntax) -> ExpTagAtomSyntaxExpFihoTagAtom:
+        return cls._from_fields((exp_fiho_tag_atom,))
+    def __init__(self, exp_fiho_tag_atom: ExpFihoTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_fiho_tag_atom(self) -> ExpFihoTagAtomSyntax:
+        'A FIhO/selbri/FEhU atom.'
+        return cast(ExpFihoTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpFihoTagAtom is final')
+
+@final
+class ExpTagAtomSyntaxExpFaTagAtom(_SyntaxNode):
+    'A FA place atom.'
+    __slots__ = ()
+    _schema_id = 605
+    __match_args__ = ('exp_fa_tag_atom',)
+    def __new__(cls, exp_fa_tag_atom: ExpFaTagAtomSyntax) -> ExpTagAtomSyntaxExpFaTagAtom:
+        return cls._from_fields((exp_fa_tag_atom,))
+    def __init__(self, exp_fa_tag_atom: ExpFaTagAtomSyntax) -> None:
+        pass
+    @property
+    def exp_fa_tag_atom(self) -> ExpFaTagAtomSyntax:
+        'A FA place atom.'
+        return cast(ExpFaTagAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTagAtomSyntaxExpFaTagAtom is final')
+
+ExpTagAtomSyntax: TypeAlias = ExpTagAtomSyntaxExpBaiTagAtom | ExpTagAtomSyntaxExpCahaTagAtom | ExpTagAtomSyntaxExpCuheTagAtom | ExpTagAtomSyntaxExpKiTagAtom | ExpTagAtomSyntaxExpZiTagAtom | ExpTagAtomSyntaxExpPuTagAtom | ExpTagAtomSyntaxExpVaTagAtom | ExpTagAtomSyntaxExpFahaTagAtom | ExpTagAtomSyntaxExpZehaTagAtom | ExpTagAtomSyntaxExpVehaTagAtom | ExpTagAtomSyntaxExpVihaTagAtom | ExpTagAtomSyntaxExpRoiTagAtom | ExpTagAtomSyntaxExpTaheTagAtom | ExpTagAtomSyntaxExpZahoTagAtom | ExpTagAtomSyntaxExpFihoTagAtom | ExpTagAtomSyntaxExpFaTagAtom
+
+@final
+class ExpBaiTagAtomSyntax(_SyntaxNode):
+    'One BAI-family atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 606
+    __match_args__ = ('bai',)
+    def __new__(cls, bai: Token) -> ExpBaiTagAtomSyntax:
+        return cls._from_fields((bai,))
+    def __init__(self, bai: Token) -> None:
+        pass
+    @property
+    def bai(self) -> Token:
+        'The BAI-family modal word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpBaiTagAtomSyntax is final')
+
+@final
+class ExpCahaTagAtomSyntax(_SyntaxNode):
+    'One CAhA-family atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 607
+    __match_args__ = ('caha',)
+    def __new__(cls, caha: Token) -> ExpCahaTagAtomSyntax:
+        return cls._from_fields((caha,))
+    def __init__(self, caha: Token) -> None:
+        pass
+    @property
+    def caha(self) -> Token:
+        'The CAhA-family actuality word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpCahaTagAtomSyntax is final')
+
+@final
+class ExpCuheTagAtomSyntax(_SyntaxNode):
+    'One CUhE atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 608
+    __match_args__ = ('cuhe',)
+    def __new__(cls, cuhe: Token) -> ExpCuheTagAtomSyntax:
+        return cls._from_fields((cuhe,))
+    def __init__(self, cuhe: Token) -> None:
+        pass
+    @property
+    def cuhe(self) -> Token:
+        'The CUhE-family tense question word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpCuheTagAtomSyntax is final')
+
+@final
+class ExpKiTagAtomSyntax(_SyntaxNode):
+    'One KI atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 609
+    __match_args__ = ('ki',)
+    def __new__(cls, ki: Token) -> ExpKiTagAtomSyntax:
+        return cls._from_fields((ki,))
+    def __init__(self, ki: Token) -> None:
+        pass
+    @property
+    def ki(self) -> Token:
+        'The KI stickiness marker.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpKiTagAtomSyntax is final')
+
+@final
+class ExpZiTagAtomSyntax(_SyntaxNode):
+    'One ZI-family atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 610
+    __match_args__ = ('zi',)
+    def __new__(cls, zi: Token) -> ExpZiTagAtomSyntax:
+        return cls._from_fields((zi,))
+    def __init__(self, zi: Token) -> None:
+        pass
+    @property
+    def zi(self) -> Token:
+        'The ZI-family temporal-distance word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpZiTagAtomSyntax is final')
+
+@final
+class ExpPuTagAtomSyntax(_SyntaxNode):
+    'One PU-family atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 611
+    __match_args__ = ('pu',)
+    def __new__(cls, pu: Token) -> ExpPuTagAtomSyntax:
+        return cls._from_fields((pu,))
+    def __init__(self, pu: Token) -> None:
+        pass
+    @property
+    def pu(self) -> Token:
+        'The PU-family temporal-direction word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpPuTagAtomSyntax is final')
+
+@final
+class ExpVaTagAtomSyntax(_SyntaxNode):
+    'One VA-family atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 612
+    __match_args__ = ('va',)
+    def __new__(cls, va: Token) -> ExpVaTagAtomSyntax:
+        return cls._from_fields((va,))
+    def __init__(self, va: Token) -> None:
+        pass
+    @property
+    def va(self) -> Token:
+        'The VA-family spatial-distance word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpVaTagAtomSyntax is final')
+
+@final
+class ExpFahaTagAtomSyntax(_SyntaxNode):
+    'One optionally MOhI-prefixed FAhA atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 613
+    __match_args__ = ('mohi', 'faha')
+    def __new__(cls, mohi: Token | None, faha: Token) -> ExpFahaTagAtomSyntax:
+        return cls._from_fields((mohi, faha))
+    def __init__(self, mohi: Token | None, faha: Token) -> None:
+        pass
+    @property
+    def mohi(self) -> Token | None:
+        'Optional MOhI motion-relative prefix.'
+        return cast(Token | None, self._field(0))
+    @property
+    def faha(self) -> Token:
+        'The FAhA-family spatial-direction word.'
+        return cast(Token, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpFahaTagAtomSyntax is final')
+
+@final
+class ExpZehaTagAtomSyntax(_SyntaxNode):
+    'One ZEhA-family atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 614
+    __match_args__ = ('zeha',)
+    def __new__(cls, zeha: Token) -> ExpZehaTagAtomSyntax:
+        return cls._from_fields((zeha,))
+    def __init__(self, zeha: Token) -> None:
+        pass
+    @property
+    def zeha(self) -> Token:
+        'The ZEhA-family temporal-interval word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpZehaTagAtomSyntax is final')
+
+@final
+class ExpVehaTagAtomSyntax(_SyntaxNode):
+    'One VEhA-family atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 615
+    __match_args__ = ('veha',)
+    def __new__(cls, veha: Token) -> ExpVehaTagAtomSyntax:
+        return cls._from_fields((veha,))
+    def __init__(self, veha: Token) -> None:
+        pass
+    @property
+    def veha(self) -> Token:
+        'The VEhA-family spatial-interval word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpVehaTagAtomSyntax is final')
+
+@final
+class ExpVihaTagAtomSyntax(_SyntaxNode):
+    'One VIhA-family atom in a corrected camxes-exp tag run.'
+    __slots__ = ()
+    _schema_id = 616
+    __match_args__ = ('viha',)
+    def __new__(cls, viha: Token) -> ExpVihaTagAtomSyntax:
+        return cls._from_fields((viha,))
+    def __init__(self, viha: Token) -> None:
+        pass
+    @property
+    def viha(self) -> Token:
+        'The VIhA-family spatial-interval-shape word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpVihaTagAtomSyntax is final')
+
+@final
+class ExpRoiTagAtomSyntax(_SyntaxNode):
+    'One ROI atom with its exact corrected camxes-exp interval payload.'
+    __slots__ = ()
+    _schema_id = 617
+    __match_args__ = ('fehe', 'interval', 'roi')
+    def __new__(cls, fehe: Token | None, interval: ExpRoiIntervalSyntax, roi: Token) -> ExpRoiTagAtomSyntax:
+        return cls._from_fields((fehe, interval, roi))
+    def __init__(self, fehe: Token | None, interval: ExpRoiIntervalSyntax, roi: Token) -> None:
+        pass
+    @property
+    def fehe(self) -> Token | None:
+        'Optional FEhE spatial-aspect prefix.'
+        return cast(Token | None, self._field(0))
+    @property
+    def interval(self) -> ExpRoiIntervalSyntax:
+        'The numeric or parenthesized-mex interval payload.'
+        return cast(ExpRoiIntervalSyntax, self._field(1))
+    @property
+    def roi(self) -> Token:
+        'The ROI interval-property marker.'
+        return cast(Token, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpRoiTagAtomSyntax is final')
+
+@final
+class ExpRoiIntervalSyntaxExpParenthesizedRoiInterval(_SyntaxNode):
+    'A VEI-delimited full mex.'
+    __slots__ = ()
+    _schema_id = 618
+    __match_args__ = ('exp_parenthesized_roi_interval',)
+    def __new__(cls, exp_parenthesized_roi_interval: ExpParenthesizedRoiIntervalSyntax) -> ExpRoiIntervalSyntaxExpParenthesizedRoiInterval:
+        return cls._from_fields((exp_parenthesized_roi_interval,))
+    def __init__(self, exp_parenthesized_roi_interval: ExpParenthesizedRoiIntervalSyntax) -> None:
+        pass
+    @property
+    def exp_parenthesized_roi_interval(self) -> ExpParenthesizedRoiIntervalSyntax:
+        'A VEI-delimited full mex.'
+        return cast(ExpParenthesizedRoiIntervalSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpRoiIntervalSyntaxExpParenthesizedRoiInterval is final')
+
+@final
+class ExpRoiIntervalSyntaxExpNumber(_SyntaxNode):
+    'The exact camxes-exp number language.'
+    __slots__ = ()
+    _schema_id = 619
+    __match_args__ = ('exp_number',)
+    def __new__(cls, exp_number: ExpNumberSyntax) -> ExpRoiIntervalSyntaxExpNumber:
+        return cls._from_fields((exp_number,))
+    def __init__(self, exp_number: ExpNumberSyntax) -> None:
+        pass
+    @property
+    def exp_number(self) -> ExpNumberSyntax:
+        'The exact camxes-exp number language.'
+        return cast(ExpNumberSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpRoiIntervalSyntaxExpNumber is final')
+
+ExpRoiIntervalSyntax: TypeAlias = ExpRoiIntervalSyntaxExpParenthesizedRoiInterval | ExpRoiIntervalSyntaxExpNumber
+
+@final
+class ExpParenthesizedRoiIntervalSyntax(_SyntaxNode):
+    'A parenthesized full mex used as a corrected camxes-exp ROI payload.'
+    __slots__ = ()
+    _schema_id = 620
+    __match_args__ = ('vei', 'expression', 'veho')
+    def __new__(cls, vei: WithFreeModifiers[Token, FreeModifierSyntax], expression: MeksoSyntax, veho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ExpParenthesizedRoiIntervalSyntax:
+        return cls._from_fields((vei, expression, veho))
+    def __init__(self, vei: WithFreeModifiers[Token, FreeModifierSyntax], expression: MeksoSyntax, veho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def vei(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The opening VEI marker.'
         return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
     @property
-    def additional_prefixes(self) -> tuple[WithFreeModifiers[Token, FreeModifierSyntax], ...]:
-        'Ordered sequence of zero or more additional prefixes components.'
-        return cast(tuple[WithFreeModifiers[Token, FreeModifierSyntax], ...], self._field(1))
+    def expression(self) -> MeksoSyntax:
+        'The complete mex payload.'
+        return cast(MeksoSyntax, self._field(1))
     @property
-    def atom(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
-        'The selected grammar alternative in the `atom` structural role of the `zantufa_recursive_tag_tense` production.'
-        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(2))
+    def veho(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable VEhO terminator.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
     def __init_subclass__(cls) -> None:
-        raise TypeError('ZantufaRecursiveTagTenseSyntax is final')
+        raise TypeError('ExpParenthesizedRoiIntervalSyntax is final')
+
+@final
+class ExpNumberSyntax(_SyntaxNode):
+    'The exact nonempty corrected camxes-exp number language used before ROI.'
+    __slots__ = ()
+    _schema_id = 621
+    __match_args__ = ('first', 'additional')
+    def __new__(cls, first: ExpNumberAtomSyntax, additional: Sequence[ExpNumberAtomSyntax]) -> ExpNumberSyntax:
+        return cls._from_fields((first, additional))
+    def __init__(self, first: ExpNumberAtomSyntax, additional: Sequence[ExpNumberAtomSyntax]) -> None:
+        pass
+    @property
+    def first(self) -> ExpNumberAtomSyntax:
+        'The first number element.'
+        return cast(ExpNumberAtomSyntax, self._field(0))
+    @property
+    def additional(self) -> tuple[ExpNumberAtomSyntax, ...]:
+        'Remaining source-ordered number elements.'
+        return cast(tuple[ExpNumberAtomSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpNumberSyntax is final')
+
+@final
+class ExpNumberAtomSyntaxExpPaNumberAtom(_SyntaxNode):
+    'One PA-family digit or number word.'
+    __slots__ = ()
+    _schema_id = 622
+    __match_args__ = ('exp_pa_number_atom',)
+    def __new__(cls, exp_pa_number_atom: ExpPaNumberAtomSyntax) -> ExpNumberAtomSyntaxExpPaNumberAtom:
+        return cls._from_fields((exp_pa_number_atom,))
+    def __init__(self, exp_pa_number_atom: ExpPaNumberAtomSyntax) -> None:
+        pass
+    @property
+    def exp_pa_number_atom(self) -> ExpPaNumberAtomSyntax:
+        'One PA-family digit or number word.'
+        return cast(ExpPaNumberAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpNumberAtomSyntaxExpPaNumberAtom is final')
+
+@final
+class ExpNumberAtomSyntaxExpNiheNumberAtom(_SyntaxNode):
+    'One NIhE/selbri/TEhU number element.'
+    __slots__ = ()
+    _schema_id = 623
+    __match_args__ = ('exp_nihe_number_atom',)
+    def __new__(cls, exp_nihe_number_atom: ExpNiheNumberAtomSyntax) -> ExpNumberAtomSyntaxExpNiheNumberAtom:
+        return cls._from_fields((exp_nihe_number_atom,))
+    def __init__(self, exp_nihe_number_atom: ExpNiheNumberAtomSyntax) -> None:
+        pass
+    @property
+    def exp_nihe_number_atom(self) -> ExpNiheNumberAtomSyntax:
+        'One NIhE/selbri/TEhU number element.'
+        return cast(ExpNiheNumberAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpNumberAtomSyntaxExpNiheNumberAtom is final')
+
+@final
+class ExpNumberAtomSyntaxExpMoheNumberAtom(_SyntaxNode):
+    'One MOhE/sumti/TEhU number element.'
+    __slots__ = ()
+    _schema_id = 624
+    __match_args__ = ('exp_mohe_number_atom',)
+    def __new__(cls, exp_mohe_number_atom: ExpMoheNumberAtomSyntax) -> ExpNumberAtomSyntaxExpMoheNumberAtom:
+        return cls._from_fields((exp_mohe_number_atom,))
+    def __init__(self, exp_mohe_number_atom: ExpMoheNumberAtomSyntax) -> None:
+        pass
+    @property
+    def exp_mohe_number_atom(self) -> ExpMoheNumberAtomSyntax:
+        'One MOhE/sumti/TEhU number element.'
+        return cast(ExpMoheNumberAtomSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpNumberAtomSyntaxExpMoheNumberAtom is final')
+
+ExpNumberAtomSyntax: TypeAlias = ExpNumberAtomSyntaxExpPaNumberAtom | ExpNumberAtomSyntaxExpNiheNumberAtom | ExpNumberAtomSyntaxExpMoheNumberAtom
+
+@final
+class ExpPaNumberAtomSyntax(_SyntaxNode):
+    'One PA-family element of a corrected camxes-exp number.'
+    __slots__ = ()
+    _schema_id = 625
+    __match_args__ = ('pa',)
+    def __new__(cls, pa: Token) -> ExpPaNumberAtomSyntax:
+        return cls._from_fields((pa,))
+    def __init__(self, pa: Token) -> None:
+        pass
+    @property
+    def pa(self) -> Token:
+        'The PA-family number word.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpPaNumberAtomSyntax is final')
+
+@final
+class ExpNiheNumberAtomSyntax(_SyntaxNode):
+    'One NIhE selbri-derived element of a corrected camxes-exp number.'
+    __slots__ = ()
+    _schema_id = 626
+    __match_args__ = ('nihe', 'selbri', 'tehu')
+    def __new__(cls, nihe: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ExpNiheNumberAtomSyntax:
+        return cls._from_fields((nihe, selbri, tehu))
+    def __init__(self, nihe: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def nihe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The NIhE conversion marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The converted selbri.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable TEhU terminator.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpNiheNumberAtomSyntax is final')
+
+@final
+class ExpMoheNumberAtomSyntax(_SyntaxNode):
+    'One MOhE sumti-derived element of a corrected camxes-exp number.'
+    __slots__ = ()
+    _schema_id = 627
+    __match_args__ = ('mohe', 'sumti', 'tehu')
+    def __new__(cls, mohe: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ExpMoheNumberAtomSyntax:
+        return cls._from_fields((mohe, sumti, tehu))
+    def __init__(self, mohe: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSyntax, tehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def mohe(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The MOhE conversion marker.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def sumti(self) -> SumtiSyntax:
+        'The converted sumti.'
+        return cast(SumtiSyntax, self._field(1))
+    @property
+    def tehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable TEhU terminator.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpMoheNumberAtomSyntax is final')
+
+@final
+class ExpTaheTagAtomSyntax(_SyntaxNode):
+    'One optionally FEhE-prefixed TAhE atom.'
+    __slots__ = ()
+    _schema_id = 628
+    __match_args__ = ('fehe', 'tahe')
+    def __new__(cls, fehe: Token | None, tahe: Token) -> ExpTaheTagAtomSyntax:
+        return cls._from_fields((fehe, tahe))
+    def __init__(self, fehe: Token | None, tahe: Token) -> None:
+        pass
+    @property
+    def fehe(self) -> Token | None:
+        'Optional FEhE spatial-aspect prefix.'
+        return cast(Token | None, self._field(0))
+    @property
+    def tahe(self) -> Token:
+        'The TAhE-family interval-property word.'
+        return cast(Token, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpTaheTagAtomSyntax is final')
+
+@final
+class ExpZahoTagAtomSyntax(_SyntaxNode):
+    'One optionally FEhE-prefixed ZAhO atom.'
+    __slots__ = ()
+    _schema_id = 629
+    __match_args__ = ('fehe', 'zaho')
+    def __new__(cls, fehe: Token | None, zaho: Token) -> ExpZahoTagAtomSyntax:
+        return cls._from_fields((fehe, zaho))
+    def __init__(self, fehe: Token | None, zaho: Token) -> None:
+        pass
+    @property
+    def fehe(self) -> Token | None:
+        'Optional FEhE spatial-aspect prefix.'
+        return cast(Token | None, self._field(0))
+    @property
+    def zaho(self) -> Token:
+        'The ZAhO-family interval-property word.'
+        return cast(Token, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpZahoTagAtomSyntax is final')
+
+@final
+class ExpFihoTagAtomSyntax(_SyntaxNode):
+    'One FIhO ad-hoc modal atom with its selbri payload.'
+    __slots__ = ()
+    _schema_id = 630
+    __match_args__ = ('fiho', 'selbri', 'fehu')
+    def __new__(cls, fiho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ExpFihoTagAtomSyntax:
+        return cls._from_fields((fiho, selbri, fehu))
+    def __init__(self, fiho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def fiho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The FIhO marker and its sourced following free-modifier boundary.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'The ad-hoc modal selbri.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def fehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'The optional elidable FEhU terminator.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpFihoTagAtomSyntax is final')
+
+@final
+class ExpFaTagAtomSyntax(_SyntaxNode):
+    'One FA place atom in the corrected camxes-exp tag inventory.'
+    __slots__ = ()
+    _schema_id = 631
+    __match_args__ = ('fa',)
+    def __new__(cls, fa: Token) -> ExpFaTagAtomSyntax:
+        return cls._from_fields((fa,))
+    def __init__(self, fa: Token) -> None:
+        pass
+    @property
+    def fa(self) -> Token:
+        'The FA-family place word, carrying its dedicated warning category.'
+        return cast(Token, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ExpFaTagAtomSyntax is final')
+
+@final
+class ZantufaTagSyntax(_SyntaxNode):
+    'Whole rolling-Zantufa tag: a nonempty tcita run with zero or more JOIK-linked runs.'
+    __slots__ = ()
+    _schema_id = 632
+    __match_args__ = ('first_run', 'continuations')
+    def __new__(cls, first_run: Sequence[ZantufaTcitaSelciSyntax], continuations: Sequence[ZantufaTagContinuationSyntax]) -> ZantufaTagSyntax:
+        return cls._from_fields((first_run, continuations))
+    def __init__(self, first_run: Sequence[ZantufaTcitaSelciSyntax], continuations: Sequence[ZantufaTagContinuationSyntax]) -> None:
+        pass
+    @property
+    def first_run(self) -> tuple[ZantufaTcitaSelciSyntax, ...]:
+        'The first nonempty tcita-selci run.'
+        return cast(tuple[ZantufaTcitaSelciSyntax, ...], self._field(0))
+    @property
+    def continuations(self) -> tuple[ZantufaTagContinuationSyntax, ...]:
+        'Source-ordered JOIK-linked continuation runs.'
+        return cast(tuple[ZantufaTagContinuationSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaTagSyntax is final')
+
+@final
+class ZantufaTagContinuationSyntax(_SyntaxNode):
+    'One JOIK-linked rolling-Zantufa tag run.'
+    __slots__ = ()
+    _schema_id = 633
+    __match_args__ = ('connective', 'run')
+    def __new__(cls, connective: JoikConnectiveSyntax, run: Sequence[ZantufaTcitaSelciSyntax]) -> ZantufaTagContinuationSyntax:
+        return cls._from_fields((connective, run))
+    def __init__(self, connective: JoikConnectiveSyntax, run: Sequence[ZantufaTcitaSelciSyntax]) -> None:
+        pass
+    @property
+    def connective(self) -> JoikConnectiveSyntax:
+        'The rolling JOIK connective between runs.'
+        return cast(JoikConnectiveSyntax, self._field(0))
+    @property
+    def run(self) -> tuple[ZantufaTcitaSelciSyntax, ...]:
+        'The following nonempty tcita-selci run.'
+        return cast(tuple[ZantufaTcitaSelciSyntax, ...], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaTagContinuationSyntax is final')
+
+@final
+class ZantufaTcitaSelciSyntaxZantufaPrefixedTcitaSelci(_SyntaxNode):
+    'A recursive NAhE/SE-prefixed tcita-selci.'
+    __slots__ = ()
+    _schema_id = 634
+    __match_args__ = ('zantufa_prefixed_tcita_selci',)
+    def __new__(cls, zantufa_prefixed_tcita_selci: ZantufaPrefixedTcitaSelciSyntax) -> ZantufaTcitaSelciSyntaxZantufaPrefixedTcitaSelci:
+        return cls._from_fields((zantufa_prefixed_tcita_selci,))
+    def __init__(self, zantufa_prefixed_tcita_selci: ZantufaPrefixedTcitaSelciSyntax) -> None:
+        pass
+    @property
+    def zantufa_prefixed_tcita_selci(self) -> ZantufaPrefixedTcitaSelciSyntax:
+        'A recursive NAhE/SE-prefixed tcita-selci.'
+        return cast(ZantufaPrefixedTcitaSelciSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaTcitaSelciSyntaxZantufaPrefixedTcitaSelci is final')
+
+@final
+class ZantufaTcitaSelciSyntaxZantufaBaiTcitaSelci(_SyntaxNode):
+    'A member of the audited rolling BAI inventory supported by jbotci morphology.'
+    __slots__ = ()
+    _schema_id = 635
+    __match_args__ = ('zantufa_bai_tcita_selci',)
+    def __new__(cls, zantufa_bai_tcita_selci: ZantufaBaiTcitaSelciSyntax) -> ZantufaTcitaSelciSyntaxZantufaBaiTcitaSelci:
+        return cls._from_fields((zantufa_bai_tcita_selci,))
+    def __init__(self, zantufa_bai_tcita_selci: ZantufaBaiTcitaSelciSyntax) -> None:
+        pass
+    @property
+    def zantufa_bai_tcita_selci(self) -> ZantufaBaiTcitaSelciSyntax:
+        'A member of the audited rolling BAI inventory supported by jbotci morphology.'
+        return cast(ZantufaBaiTcitaSelciSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaTcitaSelciSyntaxZantufaBaiTcitaSelci is final')
+
+@final
+class ZantufaTcitaSelciSyntaxZantufaRoiTcitaSelci(_SyntaxNode):
+    'An optional full Zantufa mex followed by ROI.'
+    __slots__ = ()
+    _schema_id = 636
+    __match_args__ = ('zantufa_roi_tcita_selci',)
+    def __new__(cls, zantufa_roi_tcita_selci: ZantufaRoiTcitaSelciSyntax) -> ZantufaTcitaSelciSyntaxZantufaRoiTcitaSelci:
+        return cls._from_fields((zantufa_roi_tcita_selci,))
+    def __init__(self, zantufa_roi_tcita_selci: ZantufaRoiTcitaSelciSyntax) -> None:
+        pass
+    @property
+    def zantufa_roi_tcita_selci(self) -> ZantufaRoiTcitaSelciSyntax:
+        'An optional full Zantufa mex followed by ROI.'
+        return cast(ZantufaRoiTcitaSelciSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaTcitaSelciSyntaxZantufaRoiTcitaSelci is final')
+
+@final
+class ZantufaTcitaSelciSyntaxZantufaFihoTcitaSelci(_SyntaxNode):
+    'A FIhO/selbri/FEhU tcita-selci.'
+    __slots__ = ()
+    _schema_id = 637
+    __match_args__ = ('zantufa_fiho_tcita_selci',)
+    def __new__(cls, zantufa_fiho_tcita_selci: ZantufaFihoTcitaSelciSyntax) -> ZantufaTcitaSelciSyntaxZantufaFihoTcitaSelci:
+        return cls._from_fields((zantufa_fiho_tcita_selci,))
+    def __init__(self, zantufa_fiho_tcita_selci: ZantufaFihoTcitaSelciSyntax) -> None:
+        pass
+    @property
+    def zantufa_fiho_tcita_selci(self) -> ZantufaFihoTcitaSelciSyntax:
+        'A FIhO/selbri/FEhU tcita-selci.'
+        return cast(ZantufaFihoTcitaSelciSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaTcitaSelciSyntaxZantufaFihoTcitaSelci is final')
+
+ZantufaTcitaSelciSyntax: TypeAlias = ZantufaTcitaSelciSyntaxZantufaPrefixedTcitaSelci | ZantufaTcitaSelciSyntaxZantufaBaiTcitaSelci | ZantufaTcitaSelciSyntaxZantufaRoiTcitaSelci | ZantufaTcitaSelciSyntaxZantufaFihoTcitaSelci
+
+@final
+class ZantufaPrefixedTcitaSelciSyntax(_SyntaxNode):
+    'Recursive rolling-Zantufa NAhE/SE prefix form.'
+    __slots__ = ()
+    _schema_id = 638
+    __match_args__ = ('prefix', 'inner')
+    def __new__(cls, prefix: WithFreeModifiers[Token, FreeModifierSyntax], inner: ZantufaTcitaSelciSyntax) -> ZantufaPrefixedTcitaSelciSyntax:
+        return cls._from_fields((prefix, inner))
+    def __init__(self, prefix: WithFreeModifiers[Token, FreeModifierSyntax], inner: ZantufaTcitaSelciSyntax) -> None:
+        pass
+    @property
+    def prefix(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'One recursive prefix followed by rolling grammar\'s `post_clause` boundary.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def inner(self) -> ZantufaTcitaSelciSyntax:
+        'The recursively nested tcita-selci.'
+        return cast(ZantufaTcitaSelciSyntax, self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaPrefixedTcitaSelciSyntax is final')
+
+@final
+class ZantufaRoiTcitaSelciSyntaxZantufaBareRoiTcitaSelci(_SyntaxNode):
+    'Bare ROI with the optional mex absent.'
+    __slots__ = ()
+    _schema_id = 639
+    __match_args__ = ('zantufa_bare_roi_tcita_selci',)
+    def __new__(cls, zantufa_bare_roi_tcita_selci: ZantufaBareRoiTcitaSelciSyntax) -> ZantufaRoiTcitaSelciSyntaxZantufaBareRoiTcitaSelci:
+        return cls._from_fields((zantufa_bare_roi_tcita_selci,))
+    def __init__(self, zantufa_bare_roi_tcita_selci: ZantufaBareRoiTcitaSelciSyntax) -> None:
+        pass
+    @property
+    def zantufa_bare_roi_tcita_selci(self) -> ZantufaBareRoiTcitaSelciSyntax:
+        'Bare ROI with the optional mex absent.'
+        return cast(ZantufaBareRoiTcitaSelciSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaRoiTcitaSelciSyntaxZantufaBareRoiTcitaSelci is final')
+
+@final
+class ZantufaRoiTcitaSelciSyntaxZantufaMexRoiTcitaSelci(_SyntaxNode):
+    'A full epoch-1 Zantufa mex followed by ROI.'
+    __slots__ = ()
+    _schema_id = 640
+    __match_args__ = ('zantufa_mex_roi_tcita_selci',)
+    def __new__(cls, zantufa_mex_roi_tcita_selci: ZantufaMexRoiTcitaSelciSyntax) -> ZantufaRoiTcitaSelciSyntaxZantufaMexRoiTcitaSelci:
+        return cls._from_fields((zantufa_mex_roi_tcita_selci,))
+    def __init__(self, zantufa_mex_roi_tcita_selci: ZantufaMexRoiTcitaSelciSyntax) -> None:
+        pass
+    @property
+    def zantufa_mex_roi_tcita_selci(self) -> ZantufaMexRoiTcitaSelciSyntax:
+        'A full epoch-1 Zantufa mex followed by ROI.'
+        return cast(ZantufaMexRoiTcitaSelciSyntax, self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaRoiTcitaSelciSyntaxZantufaMexRoiTcitaSelci is final')
+
+ZantufaRoiTcitaSelciSyntax: TypeAlias = ZantufaRoiTcitaSelciSyntaxZantufaBareRoiTcitaSelci | ZantufaRoiTcitaSelciSyntaxZantufaMexRoiTcitaSelci
+
+@final
+class ZantufaBareRoiTcitaSelciSyntax(_SyntaxNode):
+    'Bare rolling-Zantufa ROI tcita-selci.'
+    __slots__ = ()
+    _schema_id = 641
+    __match_args__ = ('roi',)
+    def __new__(cls, roi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaBareRoiTcitaSelciSyntax:
+        return cls._from_fields((roi,))
+    def __init__(self, roi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def roi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The ROI marker followed by rolling grammar\'s `post_clause` boundary.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaBareRoiTcitaSelciSyntax is final')
+
+@final
+class ZantufaMexRoiTcitaSelciSyntax(_SyntaxNode):
+    'Full-mex rolling-Zantufa ROI tcita-selci.'
+    __slots__ = ()
+    _schema_id = 642
+    __match_args__ = ('expression', 'roi')
+    def __new__(cls, expression: ZantufaMexSyntax, roi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaMexRoiTcitaSelciSyntax:
+        return cls._from_fields((expression, roi))
+    def __init__(self, expression: ZantufaMexSyntax, roi: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def expression(self) -> ZantufaMexSyntax:
+        'Full epoch-1 Zantufa mex payload.'
+        return cast(ZantufaMexSyntax, self._field(0))
+    @property
+    def roi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The ROI marker followed by rolling grammar\'s `post_clause` boundary.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(1))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaMexRoiTcitaSelciSyntax is final')
+
+@final
+class ZantufaFihoTcitaSelciSyntax(_SyntaxNode):
+    'Rolling-Zantufa FIhO tcita-selci.'
+    __slots__ = ()
+    _schema_id = 643
+    __match_args__ = ('fiho', 'selbri', 'fehu')
+    def __new__(cls, fiho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaFihoTcitaSelciSyntax:
+        return cls._from_fields((fiho, selbri, fehu))
+    def __init__(self, fiho: WithFreeModifiers[Token, FreeModifierSyntax], selbri: SelbriSyntax, fehu: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> None:
+        pass
+    @property
+    def fiho(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'FIhO marker followed by rolling grammar\'s `post_clause` boundary.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    @property
+    def selbri(self) -> SelbriSyntax:
+        'Ad-hoc modal selbri.'
+        return cast(SelbriSyntax, self._field(1))
+    @property
+    def fehu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
+        'Optional elidable FEhU terminator, with its own rolling `post_clause` boundary.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax] | None, self._field(2))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaFihoTcitaSelciSyntax is final')
+
+@final
+class ZantufaBaiTcitaSelciSyntax(_SyntaxNode):
+    'Audited rolling-Zantufa BAI member supported by the pinned jbotci cmavo inventory.'
+    __slots__ = ()
+    _schema_id = 644
+    __match_args__ = ('bai',)
+    def __new__(cls, bai: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaBaiTcitaSelciSyntax:
+        return cls._from_fields((bai,))
+    def __init__(self, bai: WithFreeModifiers[Token, FreeModifierSyntax]) -> None:
+        pass
+    @property
+    def bai(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'Exact lexical member; this intentionally includes rolling repurposings such as GAIhI and DEIhA and excludes FA.'
+        return cast(WithFreeModifiers[Token, FreeModifierSyntax], self._field(0))
+    def __init_subclass__(cls) -> None:
+        raise TypeError('ZantufaBaiTcitaSelciSyntax is final')
 
 @final
 class CompositeTenseSyntaxPrefixedTimeSpaceCahaTense(_SyntaxNode):
     'Uses the `prefixed_time_space_caha_tense` product form, whose payload preserves `nahe`, `tense`, and `ki`.'
     __slots__ = ()
-    _schema_id = 591
+    _schema_id = 645
     __match_args__ = ('prefixed_time_space_caha_tense',)
     def __new__(cls, prefixed_time_space_caha_tense: PrefixedTimeSpaceCahaTenseSyntax) -> CompositeTenseSyntaxPrefixedTimeSpaceCahaTense:
         return cls._from_fields((prefixed_time_space_caha_tense,))
@@ -12082,7 +13092,7 @@ class CompositeTenseSyntaxPrefixedTimeSpaceCahaTense(_SyntaxNode):
 class CompositeTenseSyntaxTimeSpaceCahaKiTense(_SyntaxNode):
     'Uses the `time_space_caha_ki_tense` product form, whose payload preserves `tense` and `ki`.'
     __slots__ = ()
-    _schema_id = 592
+    _schema_id = 646
     __match_args__ = ('time_space_caha_ki_tense',)
     def __new__(cls, time_space_caha_ki_tense: TimeSpaceCahaKiTenseSyntax) -> CompositeTenseSyntaxTimeSpaceCahaKiTense:
         return cls._from_fields((time_space_caha_ki_tense,))
@@ -12099,7 +13109,7 @@ class CompositeTenseSyntaxTimeSpaceCahaKiTense(_SyntaxNode):
 class CompositeTenseSyntaxCuheTense(_SyntaxNode):
     'Uses the `cuhe_tense` product form, whose payload preserves `cuhe`.'
     __slots__ = ()
-    _schema_id = 593
+    _schema_id = 647
     __match_args__ = ('cuhe_tense',)
     def __new__(cls, cuhe_tense: CuheTenseSyntax) -> CompositeTenseSyntaxCuheTense:
         return cls._from_fields((cuhe_tense,))
@@ -12118,7 +13128,7 @@ CompositeTenseSyntax: TypeAlias = CompositeTenseSyntaxPrefixedTimeSpaceCahaTense
 class PrefixedTimeSpaceCahaTenseSyntax(_SyntaxNode):
     'Product node for tag; preserves `nahe`, `tense`, and `ki` in source order.'
     __slots__ = ()
-    _schema_id = 594
+    _schema_id = 648
     __match_args__ = ('nahe', 'tense', 'ki')
     def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], tense: TimeSpaceCahaTenseSyntax, ki: KiCompositeTenseSyntax | None) -> PrefixedTimeSpaceCahaTenseSyntax:
         return cls._from_fields((nahe, tense, ki))
@@ -12143,7 +13153,7 @@ class PrefixedTimeSpaceCahaTenseSyntax(_SyntaxNode):
 class TimeSpaceCahaKiTenseSyntax(_SyntaxNode):
     'Product node for tag; preserves `tense` and `ki` in source order.'
     __slots__ = ()
-    _schema_id = 595
+    _schema_id = 649
     __match_args__ = ('tense', 'ki')
     def __new__(cls, tense: TimeSpaceCahaTenseSyntax, ki: KiCompositeTenseSyntax | None) -> TimeSpaceCahaKiTenseSyntax:
         return cls._from_fields((tense, ki))
@@ -12164,7 +13174,7 @@ class TimeSpaceCahaKiTenseSyntax(_SyntaxNode):
 class TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaTense(_SyntaxNode):
     'Uses the `time_then_space_caha_tense` product form, whose payload preserves `time`, `space`, and `caha`.'
     __slots__ = ()
-    _schema_id = 596
+    _schema_id = 650
     __match_args__ = ('time_then_space_caha_tense',)
     def __new__(cls, time_then_space_caha_tense: TimeThenSpaceCahaTenseSyntax) -> TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaTense:
         return cls._from_fields((time_then_space_caha_tense,))
@@ -12181,7 +13191,7 @@ class TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaTense(_SyntaxNode):
 class TimeSpaceCahaTenseSyntaxSpaceThenTimeCahaTense(_SyntaxNode):
     'Uses the `space_then_time_caha_tense` product form, whose payload preserves `space`, `time`, and `caha`.'
     __slots__ = ()
-    _schema_id = 597
+    _schema_id = 651
     __match_args__ = ('space_then_time_caha_tense',)
     def __new__(cls, space_then_time_caha_tense: SpaceThenTimeCahaTenseSyntax) -> TimeSpaceCahaTenseSyntaxSpaceThenTimeCahaTense:
         return cls._from_fields((space_then_time_caha_tense,))
@@ -12198,7 +13208,7 @@ class TimeSpaceCahaTenseSyntaxSpaceThenTimeCahaTense(_SyntaxNode):
 class TimeSpaceCahaTenseSyntaxCahaTense(_SyntaxNode):
     'Uses the `caha_tense` product form, whose payload preserves `caha`.'
     __slots__ = ()
-    _schema_id = 598
+    _schema_id = 652
     __match_args__ = ('caha_tense',)
     def __new__(cls, caha_tense: CahaTenseSyntax) -> TimeSpaceCahaTenseSyntaxCahaTense:
         return cls._from_fields((caha_tense,))
@@ -12217,7 +13227,7 @@ TimeSpaceCahaTenseSyntax: TypeAlias = TimeSpaceCahaTenseSyntaxTimeThenSpaceCahaT
 class TimeThenSpaceCahaTenseSyntax(_SyntaxNode):
     'Product node for time tense; preserves `time`, `space`, and `caha` in source order.'
     __slots__ = ()
-    _schema_id = 599
+    _schema_id = 653
     __match_args__ = ('time', 'space', 'caha')
     def __new__(cls, time: TimeTenseSyntax, space: SpaceTenseSyntax | None, caha: CahaTenseSyntax | None) -> TimeThenSpaceCahaTenseSyntax:
         return cls._from_fields((time, space, caha))
@@ -12242,7 +13252,7 @@ class TimeThenSpaceCahaTenseSyntax(_SyntaxNode):
 class SpaceThenTimeCahaTenseSyntax(_SyntaxNode):
     'Product node for space tense; preserves `space`, `time`, and `caha` in source order.'
     __slots__ = ()
-    _schema_id = 600
+    _schema_id = 654
     __match_args__ = ('space', 'time', 'caha')
     def __new__(cls, space: SpaceTenseSyntax, time: TimeTenseSyntax | None, caha: CahaTenseSyntax | None) -> SpaceThenTimeCahaTenseSyntax:
         return cls._from_fields((space, time, caha))
@@ -12267,7 +13277,7 @@ class SpaceThenTimeCahaTenseSyntax(_SyntaxNode):
 class TimeTenseSyntaxTimeTenseWithZi(_SyntaxNode):
     'Uses the `time_tense_with_zi` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
     __slots__ = ()
-    _schema_id = 601
+    _schema_id = 655
     __match_args__ = ('time_tense_with_zi',)
     def __new__(cls, time_tense_with_zi: TimeTenseWithZiSyntax) -> TimeTenseSyntaxTimeTenseWithZi:
         return cls._from_fields((time_tense_with_zi,))
@@ -12284,7 +13294,7 @@ class TimeTenseSyntaxTimeTenseWithZi(_SyntaxNode):
 class TimeTenseSyntaxTimeTenseWithOffset(_SyntaxNode):
     'Uses the `time_tense_with_offset` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
     __slots__ = ()
-    _schema_id = 602
+    _schema_id = 656
     __match_args__ = ('time_tense_with_offset',)
     def __new__(cls, time_tense_with_offset: TimeTenseWithOffsetSyntax) -> TimeTenseSyntaxTimeTenseWithOffset:
         return cls._from_fields((time_tense_with_offset,))
@@ -12301,7 +13311,7 @@ class TimeTenseSyntaxTimeTenseWithOffset(_SyntaxNode):
 class TimeTenseSyntaxTimeTenseWithInterval(_SyntaxNode):
     'Uses the `time_tense_with_interval` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
     __slots__ = ()
-    _schema_id = 603
+    _schema_id = 657
     __match_args__ = ('time_tense_with_interval',)
     def __new__(cls, time_tense_with_interval: TimeTenseWithIntervalSyntax) -> TimeTenseSyntaxTimeTenseWithInterval:
         return cls._from_fields((time_tense_with_interval,))
@@ -12318,7 +13328,7 @@ class TimeTenseSyntaxTimeTenseWithInterval(_SyntaxNode):
 class TimeTenseSyntaxTimeTenseWithProperties(_SyntaxNode):
     'Uses the `time_tense_with_properties` product form, whose payload preserves `zi`, `offsets`, `zeha`, and `properties`.'
     __slots__ = ()
-    _schema_id = 604
+    _schema_id = 658
     __match_args__ = ('time_tense_with_properties',)
     def __new__(cls, time_tense_with_properties: TimeTenseWithPropertiesSyntax) -> TimeTenseSyntaxTimeTenseWithProperties:
         return cls._from_fields((time_tense_with_properties,))
@@ -12337,7 +13347,7 @@ TimeTenseSyntax: TypeAlias = TimeTenseSyntaxTimeTenseWithZi | TimeTenseSyntaxTim
 class TimeTenseWithZiSyntax(_SyntaxNode):
     'Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.'
     __slots__ = ()
-    _schema_id = 605
+    _schema_id = 659
     __match_args__ = ('zi', 'offsets', 'zeha', 'properties')
     def __new__(cls, zi: ZiTimeDistanceTenseSyntax, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> TimeTenseWithZiSyntax:
         return cls._from_fields((zi, offsets, zeha, properties))
@@ -12366,7 +13376,7 @@ class TimeTenseWithZiSyntax(_SyntaxNode):
 class TimeTenseWithOffsetSyntax(_SyntaxNode):
     'Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.'
     __slots__ = ()
-    _schema_id = 606
+    _schema_id = 660
     __match_args__ = ('zi', 'offsets', 'zeha', 'properties')
     def __new__(cls, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> TimeTenseWithOffsetSyntax:
         return cls._from_fields((zi, offsets, zeha, properties))
@@ -12395,7 +13405,7 @@ class TimeTenseWithOffsetSyntax(_SyntaxNode):
 class TimeTenseWithIntervalSyntax(_SyntaxNode):
     'Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.'
     __slots__ = ()
-    _schema_id = 607
+    _schema_id = 661
     __match_args__ = ('zi', 'offsets', 'zeha', 'properties')
     def __new__(cls, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax, properties: Sequence[IntervalPropertyTenseSyntax]) -> TimeTenseWithIntervalSyntax:
         return cls._from_fields((zi, offsets, zeha, properties))
@@ -12424,7 +13434,7 @@ class TimeTenseWithIntervalSyntax(_SyntaxNode):
 class TimeTenseWithPropertiesSyntax(_SyntaxNode):
     'Product node for time tense; preserves `zi`, `offsets`, `zeha`, and `properties` in source order.'
     __slots__ = ()
-    _schema_id = 608
+    _schema_id = 662
     __match_args__ = ('zi', 'offsets', 'zeha', 'properties')
     def __new__(cls, zi: ZiTimeDistanceTenseSyntax | None, offsets: Sequence[PuTimeOffsetTenseSyntax], zeha: ZehaTimeIntervalTenseSyntax | None, properties: Sequence[IntervalPropertyTenseSyntax]) -> TimeTenseWithPropertiesSyntax:
         return cls._from_fields((zi, offsets, zeha, properties))
@@ -12453,7 +13463,7 @@ class TimeTenseWithPropertiesSyntax(_SyntaxNode):
 class IntervalPropertyTenseSyntaxNumberedIntervalPropertyTense(_SyntaxNode):
     'Uses the `numbered_interval_property_tense` product form, whose payload preserves `number`, `roi`, and `nai`.'
     __slots__ = ()
-    _schema_id = 609
+    _schema_id = 663
     __match_args__ = ('numbered_interval_property_tense',)
     def __new__(cls, numbered_interval_property_tense: NumberedIntervalPropertyTenseSyntax) -> IntervalPropertyTenseSyntaxNumberedIntervalPropertyTense:
         return cls._from_fields((numbered_interval_property_tense,))
@@ -12470,7 +13480,7 @@ class IntervalPropertyTenseSyntaxNumberedIntervalPropertyTense(_SyntaxNode):
 class IntervalPropertyTenseSyntaxTaheIntervalPropertyTense(_SyntaxNode):
     'Uses the `tahe_interval_property_tense` product form, whose payload preserves `tahe` and `nai`.'
     __slots__ = ()
-    _schema_id = 610
+    _schema_id = 664
     __match_args__ = ('tahe_interval_property_tense',)
     def __new__(cls, tahe_interval_property_tense: TaheIntervalPropertyTenseSyntax) -> IntervalPropertyTenseSyntaxTaheIntervalPropertyTense:
         return cls._from_fields((tahe_interval_property_tense,))
@@ -12487,7 +13497,7 @@ class IntervalPropertyTenseSyntaxTaheIntervalPropertyTense(_SyntaxNode):
 class IntervalPropertyTenseSyntaxZahoIntervalPropertyTense(_SyntaxNode):
     'Uses the `zaho_interval_property_tense` product form, whose payload preserves `zaho` and `nai`.'
     __slots__ = ()
-    _schema_id = 611
+    _schema_id = 665
     __match_args__ = ('zaho_interval_property_tense',)
     def __new__(cls, zaho_interval_property_tense: ZahoIntervalPropertyTenseSyntax) -> IntervalPropertyTenseSyntaxZahoIntervalPropertyTense:
         return cls._from_fields((zaho_interval_property_tense,))
@@ -12506,7 +13516,7 @@ IntervalPropertyTenseSyntax: TypeAlias = IntervalPropertyTenseSyntaxNumberedInte
 class NumberedIntervalPropertyTenseSyntax(_SyntaxNode):
     'Product node for interval property; preserves `number`, `roi`, and `nai` in source order.'
     __slots__ = ()
-    _schema_id = 612
+    _schema_id = 666
     __match_args__ = ('number', 'roi', 'nai')
     def __new__(cls, number: WithFreeModifiers[NumberWordsSyntax, FreeModifierSyntax], roi: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> NumberedIntervalPropertyTenseSyntax:
         return cls._from_fields((number, roi, nai))
@@ -12531,7 +13541,7 @@ class NumberedIntervalPropertyTenseSyntax(_SyntaxNode):
 class TaheIntervalPropertyTenseSyntax(_SyntaxNode):
     'Product node for interval property; preserves `tahe` and `nai` in source order.'
     __slots__ = ()
-    _schema_id = 613
+    _schema_id = 667
     __match_args__ = ('tahe', 'nai')
     def __new__(cls, tahe: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> TaheIntervalPropertyTenseSyntax:
         return cls._from_fields((tahe, nai))
@@ -12552,7 +13562,7 @@ class TaheIntervalPropertyTenseSyntax(_SyntaxNode):
 class ZahoIntervalPropertyTenseSyntax(_SyntaxNode):
     'Product node for interval property; preserves `zaho` and `nai` in source order.'
     __slots__ = ()
-    _schema_id = 614
+    _schema_id = 668
     __match_args__ = ('zaho', 'nai')
     def __new__(cls, zaho: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZahoIntervalPropertyTenseSyntax:
         return cls._from_fields((zaho, nai))
@@ -12573,7 +13583,7 @@ class ZahoIntervalPropertyTenseSyntax(_SyntaxNode):
 class PuTimeOffsetTenseSyntax(_SyntaxNode):
     'Product node for time tense; preserves `pu`, `nai`, and `distance` in source order.'
     __slots__ = ()
-    _schema_id = 615
+    _schema_id = 669
     __match_args__ = ('pu', 'nai', 'distance')
     def __new__(cls, pu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> PuTimeOffsetTenseSyntax:
         return cls._from_fields((pu, nai, distance))
@@ -12598,7 +13608,7 @@ class PuTimeOffsetTenseSyntax(_SyntaxNode):
 class ZiTimeDistanceTenseSyntax(_SyntaxNode):
     'Transparent product node for time tense; preserves the `zi` component.'
     __slots__ = ()
-    _schema_id = 616
+    _schema_id = 670
     __match_args__ = ('zi',)
     def __new__(cls, zi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZiTimeDistanceTenseSyntax:
         return cls._from_fields((zi,))
@@ -12615,7 +13625,7 @@ class ZiTimeDistanceTenseSyntax(_SyntaxNode):
 class ZehaTimeIntervalTenseSyntax(_SyntaxNode):
     'Product node for time interval; preserves `zeha` and `direction` in source order.'
     __slots__ = ()
-    _schema_id = 617
+    _schema_id = 671
     __match_args__ = ('zeha', 'direction')
     def __new__(cls, zeha: WithFreeModifiers[Token, FreeModifierSyntax], direction: tuple[WithFreeModifiers[Token, FreeModifierSyntax], WithFreeModifiers[Token, FreeModifierSyntax] | None] | None) -> ZehaTimeIntervalTenseSyntax:
         return cls._from_fields((zeha, direction))
@@ -12636,7 +13646,7 @@ class ZehaTimeIntervalTenseSyntax(_SyntaxNode):
 class SpaceTenseSyntaxSpaceTenseWithVa(_SyntaxNode):
     'Uses the `space_tense_with_va` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
     __slots__ = ()
-    _schema_id = 618
+    _schema_id = 672
     __match_args__ = ('space_tense_with_va',)
     def __new__(cls, space_tense_with_va: SpaceTenseWithVaSyntax) -> SpaceTenseSyntaxSpaceTenseWithVa:
         return cls._from_fields((space_tense_with_va,))
@@ -12653,7 +13663,7 @@ class SpaceTenseSyntaxSpaceTenseWithVa(_SyntaxNode):
 class SpaceTenseSyntaxSpaceTenseWithOffset(_SyntaxNode):
     'Uses the `space_tense_with_offset` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
     __slots__ = ()
-    _schema_id = 619
+    _schema_id = 673
     __match_args__ = ('space_tense_with_offset',)
     def __new__(cls, space_tense_with_offset: SpaceTenseWithOffsetSyntax) -> SpaceTenseSyntaxSpaceTenseWithOffset:
         return cls._from_fields((space_tense_with_offset,))
@@ -12670,7 +13680,7 @@ class SpaceTenseSyntaxSpaceTenseWithOffset(_SyntaxNode):
 class SpaceTenseSyntaxSpaceTenseWithInterval(_SyntaxNode):
     'Uses the `space_tense_with_interval` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
     __slots__ = ()
-    _schema_id = 620
+    _schema_id = 674
     __match_args__ = ('space_tense_with_interval',)
     def __new__(cls, space_tense_with_interval: SpaceTenseWithIntervalSyntax) -> SpaceTenseSyntaxSpaceTenseWithInterval:
         return cls._from_fields((space_tense_with_interval,))
@@ -12687,7 +13697,7 @@ class SpaceTenseSyntaxSpaceTenseWithInterval(_SyntaxNode):
 class SpaceTenseSyntaxSpaceTenseWithMohi(_SyntaxNode):
     'Uses the `space_tense_with_mohi` product form, whose payload preserves `va`, `offsets`, `interval`, and `mohi`.'
     __slots__ = ()
-    _schema_id = 621
+    _schema_id = 675
     __match_args__ = ('space_tense_with_mohi',)
     def __new__(cls, space_tense_with_mohi: SpaceTenseWithMohiSyntax) -> SpaceTenseSyntaxSpaceTenseWithMohi:
         return cls._from_fields((space_tense_with_mohi,))
@@ -12706,7 +13716,7 @@ SpaceTenseSyntax: TypeAlias = SpaceTenseSyntaxSpaceTenseWithVa | SpaceTenseSynta
 class SpaceTenseWithVaSyntax(_SyntaxNode):
     'Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.'
     __slots__ = ()
-    _schema_id = 622
+    _schema_id = 676
     __match_args__ = ('va', 'offsets', 'interval', 'mohi')
     def __new__(cls, va: VaSpaceDistanceTenseSyntax, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax | None) -> SpaceTenseWithVaSyntax:
         return cls._from_fields((va, offsets, interval, mohi))
@@ -12735,7 +13745,7 @@ class SpaceTenseWithVaSyntax(_SyntaxNode):
 class SpaceTenseWithOffsetSyntax(_SyntaxNode):
     'Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.'
     __slots__ = ()
-    _schema_id = 623
+    _schema_id = 677
     __match_args__ = ('va', 'offsets', 'interval', 'mohi')
     def __new__(cls, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax | None) -> SpaceTenseWithOffsetSyntax:
         return cls._from_fields((va, offsets, interval, mohi))
@@ -12764,7 +13774,7 @@ class SpaceTenseWithOffsetSyntax(_SyntaxNode):
 class SpaceTenseWithIntervalSyntax(_SyntaxNode):
     'Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.'
     __slots__ = ()
-    _schema_id = 624
+    _schema_id = 678
     __match_args__ = ('va', 'offsets', 'interval', 'mohi')
     def __new__(cls, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax, mohi: MohiSpaceOffsetTenseSyntax | None) -> SpaceTenseWithIntervalSyntax:
         return cls._from_fields((va, offsets, interval, mohi))
@@ -12793,7 +13803,7 @@ class SpaceTenseWithIntervalSyntax(_SyntaxNode):
 class SpaceTenseWithMohiSyntax(_SyntaxNode):
     'Product node for space tense; preserves `va`, `offsets`, `interval`, and `mohi` in source order.'
     __slots__ = ()
-    _schema_id = 625
+    _schema_id = 679
     __match_args__ = ('va', 'offsets', 'interval', 'mohi')
     def __new__(cls, va: VaSpaceDistanceTenseSyntax | None, offsets: Sequence[FahaSpaceOffsetTenseSyntax], interval: SpaceIntervalTenseSyntax | None, mohi: MohiSpaceOffsetTenseSyntax) -> SpaceTenseWithMohiSyntax:
         return cls._from_fields((va, offsets, interval, mohi))
@@ -12822,7 +13832,7 @@ class SpaceTenseWithMohiSyntax(_SyntaxNode):
 class VaSpaceDistanceTenseSyntax(_SyntaxNode):
     'Transparent product node for space tense; preserves the `va` component.'
     __slots__ = ()
-    _schema_id = 626
+    _schema_id = 680
     __match_args__ = ('va',)
     def __new__(cls, va: WithFreeModifiers[Token, FreeModifierSyntax]) -> VaSpaceDistanceTenseSyntax:
         return cls._from_fields((va,))
@@ -12839,7 +13849,7 @@ class VaSpaceDistanceTenseSyntax(_SyntaxNode):
 class FahaSpaceOffsetTenseSyntax(_SyntaxNode):
     'Product node for space tense; preserves `faha`, `nai`, and `distance` in source order.'
     __slots__ = ()
-    _schema_id = 627
+    _schema_id = 681
     __match_args__ = ('faha', 'nai', 'distance')
     def __new__(cls, faha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, distance: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> FahaSpaceOffsetTenseSyntax:
         return cls._from_fields((faha, nai, distance))
@@ -12864,7 +13874,7 @@ class FahaSpaceOffsetTenseSyntax(_SyntaxNode):
 class FahaIntervalDirectionTenseSyntax(_SyntaxNode):
     'Product node for space interval; preserves `faha` and `nai` in source order.'
     __slots__ = ()
-    _schema_id = 628
+    _schema_id = 682
     __match_args__ = ('faha', 'nai')
     def __new__(cls, faha: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> FahaIntervalDirectionTenseSyntax:
         return cls._from_fields((faha, nai))
@@ -12885,7 +13895,7 @@ class FahaIntervalDirectionTenseSyntax(_SyntaxNode):
 class SpaceIntervalTenseSyntaxSpaceIntervalWithExtentTense(_SyntaxNode):
     'Uses the `space_interval_with_extent_tense` product form, whose payload preserves `extent`, `direction`, and `properties`.'
     __slots__ = ()
-    _schema_id = 629
+    _schema_id = 683
     __match_args__ = ('space_interval_with_extent_tense',)
     def __new__(cls, space_interval_with_extent_tense: SpaceIntervalWithExtentTenseSyntax) -> SpaceIntervalTenseSyntaxSpaceIntervalWithExtentTense:
         return cls._from_fields((space_interval_with_extent_tense,))
@@ -12902,7 +13912,7 @@ class SpaceIntervalTenseSyntaxSpaceIntervalWithExtentTense(_SyntaxNode):
 class SpaceIntervalTenseSyntaxSpaceIntervalPropertiesTense(_SyntaxNode):
     'Uses the `space_interval_properties_tense` product form, whose payload preserves `first` and `additional`.'
     __slots__ = ()
-    _schema_id = 630
+    _schema_id = 684
     __match_args__ = ('space_interval_properties_tense',)
     def __new__(cls, space_interval_properties_tense: SpaceIntervalPropertiesTenseSyntax) -> SpaceIntervalTenseSyntaxSpaceIntervalPropertiesTense:
         return cls._from_fields((space_interval_properties_tense,))
@@ -12921,7 +13931,7 @@ SpaceIntervalTenseSyntax: TypeAlias = SpaceIntervalTenseSyntaxSpaceIntervalWithE
 class SpaceIntervalWithExtentTenseSyntax(_SyntaxNode):
     'Product node for space interval; preserves `extent`, `direction`, and `properties` in source order.'
     __slots__ = ()
-    _schema_id = 631
+    _schema_id = 685
     __match_args__ = ('extent', 'direction', 'properties')
     def __new__(cls, extent: SpaceIntervalExtentTenseSyntax, direction: FahaIntervalDirectionTenseSyntax | None, properties: SpaceIntervalPropertiesTenseSyntax | None) -> SpaceIntervalWithExtentTenseSyntax:
         return cls._from_fields((extent, direction, properties))
@@ -12946,7 +13956,7 @@ class SpaceIntervalWithExtentTenseSyntax(_SyntaxNode):
 class SpaceIntervalExtentTenseSyntaxVehaSpaceIntervalTense(_SyntaxNode):
     'Uses the `veha_space_interval_tense` product form, whose payload preserves `veha` and `viha`.'
     __slots__ = ()
-    _schema_id = 632
+    _schema_id = 686
     __match_args__ = ('veha_space_interval_tense',)
     def __new__(cls, veha_space_interval_tense: VehaSpaceIntervalTenseSyntax) -> SpaceIntervalExtentTenseSyntaxVehaSpaceIntervalTense:
         return cls._from_fields((veha_space_interval_tense,))
@@ -12963,7 +13973,7 @@ class SpaceIntervalExtentTenseSyntaxVehaSpaceIntervalTense(_SyntaxNode):
 class SpaceIntervalExtentTenseSyntaxVihaSpaceIntervalTense(_SyntaxNode):
     'Uses the `viha_space_interval_tense` product form, whose payload preserves `viha`.'
     __slots__ = ()
-    _schema_id = 633
+    _schema_id = 687
     __match_args__ = ('viha_space_interval_tense',)
     def __new__(cls, viha_space_interval_tense: VihaSpaceIntervalTenseSyntax) -> SpaceIntervalExtentTenseSyntaxVihaSpaceIntervalTense:
         return cls._from_fields((viha_space_interval_tense,))
@@ -12982,7 +13992,7 @@ SpaceIntervalExtentTenseSyntax: TypeAlias = SpaceIntervalExtentTenseSyntaxVehaSp
 class SpaceIntervalPropertiesTenseSyntax(_SyntaxNode):
     'Product node for space interval; preserves `first` and `additional` in source order.'
     __slots__ = ()
-    _schema_id = 634
+    _schema_id = 688
     __match_args__ = ('first', 'additional')
     def __new__(cls, first: FeheIntervalPropertyTenseSyntax, additional: Sequence[FeheIntervalPropertyTenseSyntax]) -> SpaceIntervalPropertiesTenseSyntax:
         return cls._from_fields((first, additional))
@@ -13003,7 +14013,7 @@ class SpaceIntervalPropertiesTenseSyntax(_SyntaxNode):
 class VehaSpaceIntervalTenseSyntax(_SyntaxNode):
     'Product node for space interval; preserves `veha` and `viha` in source order.'
     __slots__ = ()
-    _schema_id = 635
+    _schema_id = 689
     __match_args__ = ('veha', 'viha')
     def __new__(cls, veha: WithFreeModifiers[Token, FreeModifierSyntax], viha: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> VehaSpaceIntervalTenseSyntax:
         return cls._from_fields((veha, viha))
@@ -13024,7 +14034,7 @@ class VehaSpaceIntervalTenseSyntax(_SyntaxNode):
 class VihaSpaceIntervalTenseSyntax(_SyntaxNode):
     'Transparent product node for space interval; preserves the `viha` component.'
     __slots__ = ()
-    _schema_id = 636
+    _schema_id = 690
     __match_args__ = ('viha',)
     def __new__(cls, viha: WithFreeModifiers[Token, FreeModifierSyntax]) -> VihaSpaceIntervalTenseSyntax:
         return cls._from_fields((viha,))
@@ -13041,7 +14051,7 @@ class VihaSpaceIntervalTenseSyntax(_SyntaxNode):
 class FeheIntervalPropertyTenseSyntax(_SyntaxNode):
     'Product node for space interval property; preserves `fehe` and `property` in source order.'
     __slots__ = ()
-    _schema_id = 637
+    _schema_id = 691
     __match_args__ = ('fehe', 'property')
     def __new__(cls, fehe: WithFreeModifiers[Token, FreeModifierSyntax], property: IntervalPropertyTenseSyntax) -> FeheIntervalPropertyTenseSyntax:
         return cls._from_fields((fehe, property))
@@ -13062,7 +14072,7 @@ class FeheIntervalPropertyTenseSyntax(_SyntaxNode):
 class MohiSpaceOffsetTenseSyntax(_SyntaxNode):
     'Product node for space tense; preserves `mohi` and `offset` in source order.'
     __slots__ = ()
-    _schema_id = 638
+    _schema_id = 692
     __match_args__ = ('mohi', 'offset')
     def __new__(cls, mohi: WithFreeModifiers[Token, FreeModifierSyntax], offset: FahaSpaceOffsetTenseSyntax) -> MohiSpaceOffsetTenseSyntax:
         return cls._from_fields((mohi, offset))
@@ -13083,7 +14093,7 @@ class MohiSpaceOffsetTenseSyntax(_SyntaxNode):
 class CahaTenseSyntax(_SyntaxNode):
     'Transparent product node for tag; preserves the `caha` component.'
     __slots__ = ()
-    _schema_id = 639
+    _schema_id = 693
     __match_args__ = ('caha',)
     def __new__(cls, caha: WithFreeModifiers[Token, FreeModifierSyntax]) -> CahaTenseSyntax:
         return cls._from_fields((caha,))
@@ -13100,7 +14110,7 @@ class CahaTenseSyntax(_SyntaxNode):
 class KiCompositeTenseSyntax(_SyntaxNode):
     'Transparent product node for tag; preserves the `ki` component.'
     __slots__ = ()
-    _schema_id = 640
+    _schema_id = 694
     __match_args__ = ('ki',)
     def __new__(cls, ki: WithFreeModifiers[Token, FreeModifierSyntax]) -> KiCompositeTenseSyntax:
         return cls._from_fields((ki,))
@@ -13117,7 +14127,7 @@ class KiCompositeTenseSyntax(_SyntaxNode):
 class CuheTenseSyntax(_SyntaxNode):
     'Transparent product node for tag; preserves the `cuhe` component.'
     __slots__ = ()
-    _schema_id = 641
+    _schema_id = 695
     __match_args__ = ('cuhe',)
     def __new__(cls, cuhe: WithFreeModifiers[Token, FreeModifierSyntax]) -> CuheTenseSyntax:
         return cls._from_fields((cuhe,))
@@ -13134,7 +14144,7 @@ class CuheTenseSyntax(_SyntaxNode):
 class ModalTenseSyntax(_SyntaxNode):
     'Product node for modal tag; preserves `nahe`, `se`, `bai`, `nai`, and `ki` in source order.'
     __slots__ = ()
-    _schema_id = 642
+    _schema_id = 696
     __match_args__ = ('nahe', 'se', 'bai', 'nai', 'ki')
     def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax] | None, se: WithFreeModifiers[Token, FreeModifierSyntax] | None, bai: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, ki: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ModalTenseSyntax:
         return cls._from_fields((nahe, se, bai, nai, ki))
@@ -13167,7 +14177,7 @@ class ModalTenseSyntax(_SyntaxNode):
 class StickyTenseSyntax(_SyntaxNode):
     'Transparent product node for tag; preserves the `ki` component.'
     __slots__ = ()
-    _schema_id = 643
+    _schema_id = 697
     __match_args__ = ('ki',)
     def __new__(cls, ki: WithFreeModifiers[Token, FreeModifierSyntax]) -> StickyTenseSyntax:
         return cls._from_fields((ki,))
@@ -13184,7 +14194,7 @@ class StickyTenseSyntax(_SyntaxNode):
 class SelbriSyntaxTaggedSelbri(_SyntaxNode):
     'Uses the `tagged_selbri` product form, whose payload preserves `tense_modal` and `inner_selbri`.'
     __slots__ = ()
-    _schema_id = 644
+    _schema_id = 698
     __match_args__ = ('tagged_selbri',)
     def __new__(cls, tagged_selbri: TaggedSelbriSyntax) -> SelbriSyntaxTaggedSelbri:
         return cls._from_fields((tagged_selbri,))
@@ -13201,7 +14211,7 @@ class SelbriSyntaxTaggedSelbri(_SyntaxNode):
 class SelbriSyntaxUntaggedSelbri(_SyntaxNode):
     'Uses the nested `untagged_selbri` sum form and preserves its selected alternative.'
     __slots__ = ()
-    _schema_id = 645
+    _schema_id = 699
     __match_args__ = ('untagged_selbri',)
     def __new__(cls, untagged_selbri: UntaggedSelbriSyntax) -> SelbriSyntaxUntaggedSelbri:
         return cls._from_fields((untagged_selbri,))
@@ -13220,7 +14230,7 @@ SelbriSyntax: TypeAlias = SelbriSyntaxTaggedSelbri | SelbriSyntaxUntaggedSelbri
 class UntaggedSelbriSyntaxNegatedSelbri(_SyntaxNode):
     'Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.'
     __slots__ = ()
-    _schema_id = 646
+    _schema_id = 700
     __match_args__ = ('negated_selbri',)
     def __new__(cls, negated_selbri: NegatedSelbriSyntax) -> UntaggedSelbriSyntaxNegatedSelbri:
         return cls._from_fields((negated_selbri,))
@@ -13237,7 +14247,7 @@ class UntaggedSelbriSyntaxNegatedSelbri(_SyntaxNode):
 class UntaggedSelbriSyntaxCoSelbri(_SyntaxNode):
     'Uses the `co_selbri` product form, whose payload preserves `leading_selbri` and `co_tail`.'
     __slots__ = ()
-    _schema_id = 647
+    _schema_id = 701
     __match_args__ = ('co_selbri',)
     def __new__(cls, co_selbri: CoSelbriSyntax) -> UntaggedSelbriSyntaxCoSelbri:
         return cls._from_fields((co_selbri,))
@@ -13254,7 +14264,7 @@ class UntaggedSelbriSyntaxCoSelbri(_SyntaxNode):
 class UntaggedSelbriSyntaxForethoughtSelbriConnection(_SyntaxNode):
     'Uses the `forethought_selbri_connection` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.'
     __slots__ = ()
-    _schema_id = 648
+    _schema_id = 702
     __match_args__ = ('forethought_selbri_connection',)
     def __new__(cls, forethought_selbri_connection: ForethoughtSelbriConnectionSyntax) -> UntaggedSelbriSyntaxForethoughtSelbriConnection:
         return cls._from_fields((forethought_selbri_connection,))
@@ -13273,7 +14283,7 @@ UntaggedSelbriSyntax: TypeAlias = UntaggedSelbriSyntaxNegatedSelbri | UntaggedSe
 class TaggedSelbriSyntax(_SyntaxNode):
     'Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.'
     __slots__ = ()
-    _schema_id = 649
+    _schema_id = 703
     __match_args__ = ('tense_modal', 'inner_selbri')
     def __new__(cls, tense_modal: TenseModalSyntax, inner_selbri: UntaggedSelbriSyntax) -> TaggedSelbriSyntax:
         return cls._from_fields((tense_modal, inner_selbri))
@@ -13294,7 +14304,7 @@ class TaggedSelbriSyntax(_SyntaxNode):
 class NegatedSelbriSyntax(_SyntaxNode):
     'Product node for negated selbri; preserves `na` and `inner_selbri` in source order.'
     __slots__ = ()
-    _schema_id = 650
+    _schema_id = 704
     __match_args__ = ('na', 'inner_selbri')
     def __new__(cls, na: WithFreeModifiers[Token, FreeModifierSyntax], inner_selbri: SelbriSyntax) -> NegatedSelbriSyntax:
         return cls._from_fields((na, inner_selbri))
@@ -13315,7 +14325,7 @@ class NegatedSelbriSyntax(_SyntaxNode):
 class CoSelbriSyntax(_SyntaxNode):
     'Product node for selbri; preserves `leading_selbri` and `co_tail` in source order.'
     __slots__ = ()
-    _schema_id = 651
+    _schema_id = 705
     __match_args__ = ('leading_selbri', 'co_tail')
     def __new__(cls, leading_selbri: ConnectedSelbriSyntax, co_tail: CoSelbriTailSyntax | None) -> CoSelbriSyntax:
         return cls._from_fields((leading_selbri, co_tail))
@@ -13336,7 +14346,7 @@ class CoSelbriSyntax(_SyntaxNode):
 class CoSelbriTailSyntax(_SyntaxNode):
     'Product node for selbri; preserves `co` and `trailing_selbri` in source order.'
     __slots__ = ()
-    _schema_id = 652
+    _schema_id = 706
     __match_args__ = ('co', 'trailing_selbri')
     def __new__(cls, co: WithFreeModifiers[Token, FreeModifierSyntax], trailing_selbri: CoSelbriSyntax) -> CoSelbriTailSyntax:
         return cls._from_fields((co, trailing_selbri))
@@ -13357,7 +14367,7 @@ class CoSelbriTailSyntax(_SyntaxNode):
 class ForethoughtSelbriConnectionSyntax(_SyntaxNode):
     'Product node for forethought selbri connection; preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi` in source order.'
     __slots__ = ()
-    _schema_id = 653
+    _schema_id = 707
     __match_args__ = ('guhek', 'leading_selbri', 'first_branch', 'additional_branches', 'gihi')
     def __new__(cls, guhek: GuhekConnectiveSyntax, leading_selbri: SelbriSyntax, first_branch: ForethoughtSelbriBranchSyntax, additional_branches: Sequence[ZantufaForethoughtSelbriBranchSyntax], gihi: Token | None) -> ForethoughtSelbriConnectionSyntax:
         return cls._from_fields((guhek, leading_selbri, first_branch, additional_branches, gihi))
@@ -13390,7 +14400,7 @@ class ForethoughtSelbriConnectionSyntax(_SyntaxNode):
 class ForethoughtSelbriBranchSyntax(_SyntaxNode):
     'Product node for forethought selbri connection; preserves `gik` and `selbri` in source order.'
     __slots__ = ()
-    _schema_id = 654
+    _schema_id = 708
     __match_args__ = ('gik', 'selbri')
     def __new__(cls, gik: GikConnectiveSyntax, selbri: SelbriSyntax) -> ForethoughtSelbriBranchSyntax:
         return cls._from_fields((gik, selbri))
@@ -13411,7 +14421,7 @@ class ForethoughtSelbriBranchSyntax(_SyntaxNode):
 class ZantufaForethoughtSelbriBranchSyntax(_SyntaxNode):
     'Product node for forethought selbri connection; preserves `gik` and `selbri` in source order.'
     __slots__ = ()
-    _schema_id = 655
+    _schema_id = 709
     __match_args__ = ('gik', 'selbri')
     def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, selbri: SelbriSyntax) -> ZantufaForethoughtSelbriBranchSyntax:
         return cls._from_fields((gik, selbri))
@@ -13432,7 +14442,7 @@ class ZantufaForethoughtSelbriBranchSyntax(_SyntaxNode):
 class ConnectedSelbriSyntax(_SyntaxNode):
     'Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.'
     __slots__ = ()
-    _schema_id = 656
+    _schema_id = 710
     __match_args__ = ('leading_selbri', 'continuations')
     def __new__(cls, leading_selbri: TanruSelbriSyntax, continuations: Sequence[ConnectedSelbriContinuationSyntax]) -> ConnectedSelbriSyntax:
         return cls._from_fields((leading_selbri, continuations))
@@ -13453,7 +14463,7 @@ class ConnectedSelbriSyntax(_SyntaxNode):
 class ConnectedSelbriContinuationSyntax(_SyntaxNode):
     'Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.'
     __slots__ = ()
-    _schema_id = 657
+    _schema_id = 711
     __match_args__ = ('connective', 'trailing_selbri')
     def __new__(cls, connective: RelationAfterthoughtConnectiveSyntax, trailing_selbri: TanruSelbriSyntax) -> ConnectedSelbriContinuationSyntax:
         return cls._from_fields((connective, trailing_selbri))
@@ -13474,7 +14484,7 @@ class ConnectedSelbriContinuationSyntax(_SyntaxNode):
 class TanruSelbriSyntax(_SyntaxNode):
     'Product node for tanru; preserves `first_unit` and `additional_units` in source order.'
     __slots__ = ()
-    _schema_id = 658
+    _schema_id = 712
     __match_args__ = ('first_unit', 'additional_units')
     def __new__(cls, first_unit: TanruUnitSyntax, additional_units: Sequence[TanruUnitSyntax]) -> TanruSelbriSyntax:
         return cls._from_fields((first_unit, additional_units))
@@ -13495,7 +14505,7 @@ class TanruSelbriSyntax(_SyntaxNode):
 class TanruUnitSyntax(_SyntaxNode):
     'Transparent product node for tanru unit; preserves the `units` component.'
     __slots__ = ()
-    _schema_id = 659
+    _schema_id = 713
     __match_args__ = ('units',)
     def __new__(cls, units: Chain[BoOrLinkedTanruUnitSyntax, TanruUnitContinuationSyntax]) -> TanruUnitSyntax:
         return cls._from_fields((units,))
@@ -13512,7 +14522,7 @@ class TanruUnitSyntax(_SyntaxNode):
 class TanruUnitContinuationSyntax(_SyntaxNode):
     'Product node for tanru unit continuation; preserves `connective` and `trailing_unit` in source order.'
     __slots__ = ()
-    _schema_id = 660
+    _schema_id = 714
     __match_args__ = ('connective', 'trailing_unit')
     def __new__(cls, connective: RelationAfterthoughtConnectiveSyntax, trailing_unit: BoOrLinkedTanruUnitSyntax) -> TanruUnitContinuationSyntax:
         return cls._from_fields((connective, trailing_unit))
@@ -13533,7 +14543,7 @@ class TanruUnitContinuationSyntax(_SyntaxNode):
 class BoOrLinkedTanruUnitSyntaxForethoughtSelbriGroupTanruUnit(_SyntaxNode):
     'Uses the `forethought_selbri_group_tanru_unit` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.'
     __slots__ = ()
-    _schema_id = 661
+    _schema_id = 715
     __match_args__ = ('forethought_selbri_group_tanru_unit',)
     def __new__(cls, forethought_selbri_group_tanru_unit: ForethoughtSelbriGroupTanruUnitSyntax) -> BoOrLinkedTanruUnitSyntaxForethoughtSelbriGroupTanruUnit:
         return cls._from_fields((forethought_selbri_group_tanru_unit,))
@@ -13550,7 +14560,7 @@ class BoOrLinkedTanruUnitSyntaxForethoughtSelbriGroupTanruUnit(_SyntaxNode):
 class BoOrLinkedTanruUnitSyntaxBoundTanruUnit(_SyntaxNode):
     'Uses the `bound_tanru_unit` product form, whose payload preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit`.'
     __slots__ = ()
-    _schema_id = 662
+    _schema_id = 716
     __match_args__ = ('bound_tanru_unit',)
     def __new__(cls, bound_tanru_unit: BoundTanruUnitSyntax) -> BoOrLinkedTanruUnitSyntaxBoundTanruUnit:
         return cls._from_fields((bound_tanru_unit,))
@@ -13567,7 +14577,7 @@ class BoOrLinkedTanruUnitSyntaxBoundTanruUnit(_SyntaxNode):
 class BoOrLinkedTanruUnitSyntaxAssignedProBridiTanruUnit(_SyntaxNode):
     'Uses the `assigned_pro_bridi_tanru_unit` product form, whose payload preserves `base` and `assignments`.'
     __slots__ = ()
-    _schema_id = 663
+    _schema_id = 717
     __match_args__ = ('assigned_pro_bridi_tanru_unit',)
     def __new__(cls, assigned_pro_bridi_tanru_unit: AssignedProBridiTanruUnitSyntax) -> BoOrLinkedTanruUnitSyntaxAssignedProBridiTanruUnit:
         return cls._from_fields((assigned_pro_bridi_tanru_unit,))
@@ -13584,7 +14594,7 @@ class BoOrLinkedTanruUnitSyntaxAssignedProBridiTanruUnit(_SyntaxNode):
 class BoOrLinkedTanruUnitSyntaxLinkedTanruUnit(_SyntaxNode):
     'Uses the `linked_tanru_unit` product form, whose payload preserves `base` and `linkargs`.'
     __slots__ = ()
-    _schema_id = 664
+    _schema_id = 718
     __match_args__ = ('linked_tanru_unit',)
     def __new__(cls, linked_tanru_unit: LinkedTanruUnitSyntax) -> BoOrLinkedTanruUnitSyntaxLinkedTanruUnit:
         return cls._from_fields((linked_tanru_unit,))
@@ -13603,7 +14613,7 @@ BoOrLinkedTanruUnitSyntax: TypeAlias = BoOrLinkedTanruUnitSyntaxForethoughtSelbr
 class ForethoughtSelbriGroupTanruUnitSyntax(_SyntaxNode):
     'Product node for forethought selbri connection; preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi` in source order.'
     __slots__ = ()
-    _schema_id = 665
+    _schema_id = 719
     __match_args__ = ('guhek', 'leading_selbri', 'first_branch', 'additional_branches', 'gihi')
     def __new__(cls, guhek: GuhekConnectiveSyntax, leading_selbri: SelbriSyntax, first_branch: ForethoughtSelbriGroupBranchSyntax, additional_branches: Sequence[ZantufaForethoughtSelbriGroupBranchSyntax], gihi: Token | None) -> ForethoughtSelbriGroupTanruUnitSyntax:
         return cls._from_fields((guhek, leading_selbri, first_branch, additional_branches, gihi))
@@ -13636,7 +14646,7 @@ class ForethoughtSelbriGroupTanruUnitSyntax(_SyntaxNode):
 class ForethoughtSelbriGroupBranchSyntax(_SyntaxNode):
     'Product node for forethought selbri connection; preserves `gik` and `unit` in source order.'
     __slots__ = ()
-    _schema_id = 666
+    _schema_id = 720
     __match_args__ = ('gik', 'unit')
     def __new__(cls, gik: GikConnectiveSyntax, unit: BoOrLinkedTanruUnitSyntax) -> ForethoughtSelbriGroupBranchSyntax:
         return cls._from_fields((gik, unit))
@@ -13657,7 +14667,7 @@ class ForethoughtSelbriGroupBranchSyntax(_SyntaxNode):
 class ZantufaForethoughtSelbriGroupBranchSyntax(_SyntaxNode):
     'Product node for forethought selbri connection; preserves `gik` and `unit` in source order.'
     __slots__ = ()
-    _schema_id = 667
+    _schema_id = 721
     __match_args__ = ('gik', 'unit')
     def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, unit: BoOrLinkedTanruUnitSyntax) -> ZantufaForethoughtSelbriGroupBranchSyntax:
         return cls._from_fields((gik, unit))
@@ -13678,7 +14688,7 @@ class ZantufaForethoughtSelbriGroupBranchSyntax(_SyntaxNode):
 class BoundTanruUnitSyntax(_SyntaxNode):
     'Product node for BO-grouped tanru unit; preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit` in source order.'
     __slots__ = ()
-    _schema_id = 668
+    _schema_id = 722
     __match_args__ = ('leading_unit', 'bo_connective', 'bo_tense_modal', 'bo', 'trailing_unit')
     def __new__(cls, leading_unit: LinkedTanruUnitSyntax, bo_connective: RelationAfterthoughtConnectiveSyntax | None, bo_tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_unit: BoOrLinkedTanruUnitSyntax) -> BoundTanruUnitSyntax:
         return cls._from_fields((leading_unit, bo_connective, bo_tense_modal, bo, trailing_unit))
@@ -13711,7 +14721,7 @@ class BoundTanruUnitSyntax(_SyntaxNode):
 class AssignedProBridiTanruUnitSyntax(_SyntaxNode):
     'Product node for pro-bridi assignment; preserves `base` and `assignments` in source order.'
     __slots__ = ()
-    _schema_id = 669
+    _schema_id = 723
     __match_args__ = ('base', 'assignments')
     def __new__(cls, base: LinkedTanruUnitForCeiSyntax, assignments: Sequence[ProBridiTanruUnitAssignmentSyntax]) -> AssignedProBridiTanruUnitSyntax:
         return cls._from_fields((base, assignments))
@@ -13732,7 +14742,7 @@ class AssignedProBridiTanruUnitSyntax(_SyntaxNode):
 class ProBridiTanruUnitAssignmentSyntax(_SyntaxNode):
     'Product node for pro-bridi assignment; preserves `cei` and `tanru_unit` in source order.'
     __slots__ = ()
-    _schema_id = 670
+    _schema_id = 724
     __match_args__ = ('cei', 'tanru_unit')
     def __new__(cls, cei: WithFreeModifiers[Token, FreeModifierSyntax], tanru_unit: LinkedTanruUnitForCeiSyntax) -> ProBridiTanruUnitAssignmentSyntax:
         return cls._from_fields((cei, tanru_unit))
@@ -13753,7 +14763,7 @@ class ProBridiTanruUnitAssignmentSyntax(_SyntaxNode):
 class LinkedTanruUnitSyntax(_SyntaxNode):
     'Product node for tanru unit; preserves `base` and `linkargs` in source order.'
     __slots__ = ()
-    _schema_id = 671
+    _schema_id = 725
     __match_args__ = ('base', 'linkargs')
     def __new__(cls, base: TanruUnitAtomSyntax, linkargs: LinkargsSyntax | None) -> LinkedTanruUnitSyntax:
         return cls._from_fields((base, linkargs))
@@ -13774,7 +14784,7 @@ class LinkedTanruUnitSyntax(_SyntaxNode):
 class LinkedTanruUnitForCeiSyntax(_SyntaxNode):
     'Product node for tanru unit; preserves `base` and `linkargs` in source order.'
     __slots__ = ()
-    _schema_id = 672
+    _schema_id = 726
     __match_args__ = ('base', 'linkargs')
     def __new__(cls, base: TanruUnitAtomForCeiSyntax, linkargs: LinkargsSyntax | None) -> LinkedTanruUnitForCeiSyntax:
         return cls._from_fields((base, linkargs))
@@ -13795,7 +14805,7 @@ class LinkedTanruUnitForCeiSyntax(_SyntaxNode):
 class TanruUnitAtomForCeiSyntax(_SyntaxNode):
     'Product node for tanru unit; preserves `conversions` and `base` in source order.'
     __slots__ = ()
-    _schema_id = 673
+    _schema_id = 727
     __match_args__ = ('conversions', 'base')
     def __new__(cls, conversions: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], base: TanruUnitAtomBaseForCeiSyntax) -> TanruUnitAtomForCeiSyntax:
         return cls._from_fields((conversions, base))
@@ -13816,7 +14826,7 @@ class TanruUnitAtomForCeiSyntax(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit(_SyntaxNode):
     'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
     __slots__ = ()
-    _schema_id = 674
+    _schema_id = 728
     __match_args__ = ('pro_bridi_tanru_unit',)
     def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit:
         return cls._from_fields((pro_bridi_tanru_unit,))
@@ -13833,7 +14843,7 @@ class TanruUnitAtomBaseForCeiSyntaxProBridiTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxOrdinalTanruUnit(_SyntaxNode):
     'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
     __slots__ = ()
-    _schema_id = 675
+    _schema_id = 729
     __match_args__ = ('ordinal_tanru_unit',)
     def __new__(cls, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxOrdinalTanruUnit:
         return cls._from_fields((ordinal_tanru_unit,))
@@ -13850,7 +14860,7 @@ class TanruUnitAtomBaseForCeiSyntaxOrdinalTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxWordTanruUnit(_SyntaxNode):
     'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
     __slots__ = ()
-    _schema_id = 676
+    _schema_id = 730
     __match_args__ = ('word_tanru_unit',)
     def __new__(cls, word_tanru_unit: WordTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxWordTanruUnit:
         return cls._from_fields((word_tanru_unit,))
@@ -13867,7 +14877,7 @@ class TanruUnitAtomBaseForCeiSyntaxWordTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxPreposedLinkargsTanruUnit(_SyntaxNode):
     'Uses the `preposed_linkargs_tanru_unit` product form, whose payload preserves `linkargs` and `base`.'
     __slots__ = ()
-    _schema_id = 677
+    _schema_id = 731
     __match_args__ = ('preposed_linkargs_tanru_unit',)
     def __new__(cls, preposed_linkargs_tanru_unit: PreposedLinkargsTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxPreposedLinkargsTanruUnit:
         return cls._from_fields((preposed_linkargs_tanru_unit,))
@@ -13884,7 +14894,7 @@ class TanruUnitAtomBaseForCeiSyntaxPreposedLinkargsTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxJaiModalTanruUnit(_SyntaxNode):
     'Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.'
     __slots__ = ()
-    _schema_id = 678
+    _schema_id = 732
     __match_args__ = ('jai_modal_tanru_unit',)
     def __new__(cls, jai_modal_tanru_unit: JaiModalTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxJaiModalTanruUnit:
         return cls._from_fields((jai_modal_tanru_unit,))
@@ -13901,7 +14911,7 @@ class TanruUnitAtomBaseForCeiSyntaxJaiModalTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxScalarNegatedTanruUnit(_SyntaxNode):
     'Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
     __slots__ = ()
-    _schema_id = 679
+    _schema_id = 733
     __match_args__ = ('scalar_negated_tanru_unit',)
     def __new__(cls, scalar_negated_tanru_unit: ScalarNegatedTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxScalarNegatedTanruUnit:
         return cls._from_fields((scalar_negated_tanru_unit,))
@@ -13918,7 +14928,7 @@ class TanruUnitAtomBaseForCeiSyntaxScalarNegatedTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxZantufaStatementAbstractionTanruUnit(_SyntaxNode):
     'Uses the `zantufa_statement_abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei`.'
     __slots__ = ()
-    _schema_id = 680
+    _schema_id = 734
     __match_args__ = ('zantufa_statement_abstraction_tanru_unit',)
     def __new__(cls, zantufa_statement_abstraction_tanru_unit: ZantufaStatementAbstractionTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxZantufaStatementAbstractionTanruUnit:
         return cls._from_fields((zantufa_statement_abstraction_tanru_unit,))
@@ -13935,7 +14945,7 @@ class TanruUnitAtomBaseForCeiSyntaxZantufaStatementAbstractionTanruUnit(_SyntaxN
 class TanruUnitAtomBaseForCeiSyntaxAbstractionTanruUnit(_SyntaxNode):
     'Uses the `abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei`.'
     __slots__ = ()
-    _schema_id = 681
+    _schema_id = 735
     __match_args__ = ('abstraction_tanru_unit',)
     def __new__(cls, abstraction_tanru_unit: AbstractionTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxAbstractionTanruUnit:
         return cls._from_fields((abstraction_tanru_unit,))
@@ -13952,7 +14962,7 @@ class TanruUnitAtomBaseForCeiSyntaxAbstractionTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
     'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
     __slots__ = ()
-    _schema_id = 682
+    _schema_id = 736
     __match_args__ = ('sumti_selbri_tanru_unit',)
     def __new__(cls, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxSumtiSelbriTanruUnit:
         return cls._from_fields((sumti_selbri_tanru_unit,))
@@ -13969,7 +14979,7 @@ class TanruUnitAtomBaseForCeiSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxZantufaMeTanruUnit(_SyntaxNode):
     'Uses the `zantufa_me_tanru_unit` product form, whose payload preserves `me`, `body`, `mehu`, and `moi_marker`.'
     __slots__ = ()
-    _schema_id = 683
+    _schema_id = 737
     __match_args__ = ('zantufa_me_tanru_unit',)
     def __new__(cls, zantufa_me_tanru_unit: ZantufaMeTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxZantufaMeTanruUnit:
         return cls._from_fields((zantufa_me_tanru_unit,))
@@ -13986,7 +14996,7 @@ class TanruUnitAtomBaseForCeiSyntaxZantufaMeTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxZantufaMexMoiTanruUnit(_SyntaxNode):
     'Uses the `zantufa_mex_moi_tanru_unit` product form, whose payload preserves `expression` and `moi`.'
     __slots__ = ()
-    _schema_id = 684
+    _schema_id = 738
     __match_args__ = ('zantufa_mex_moi_tanru_unit',)
     def __new__(cls, zantufa_mex_moi_tanru_unit: ZantufaMexMoiTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxZantufaMexMoiTanruUnit:
         return cls._from_fields((zantufa_mex_moi_tanru_unit,))
@@ -14003,7 +15013,7 @@ class TanruUnitAtomBaseForCeiSyntaxZantufaMexMoiTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
     'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
     __slots__ = ()
-    _schema_id = 685
+    _schema_id = 739
     __match_args__ = ('operator_selbri_tanru_unit',)
     def __new__(cls, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxOperatorSelbriTanruUnit:
         return cls._from_fields((operator_selbri_tanru_unit,))
@@ -14020,7 +15030,7 @@ class TanruUnitAtomBaseForCeiSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
     'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
     __slots__ = ()
-    _schema_id = 686
+    _schema_id = 740
     __match_args__ = ('quoted_bridi_selbri_tanru_unit',)
     def __new__(cls, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxQuotedBridiSelbriTanruUnit:
         return cls._from_fields((quoted_bridi_selbri_tanru_unit,))
@@ -14037,7 +15047,7 @@ class TanruUnitAtomBaseForCeiSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
     'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
     __slots__ = ()
-    _schema_id = 687
+    _schema_id = 741
     __match_args__ = ('quoted_text_selbri_tanru_unit',)
     def __new__(cls, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxQuotedTextSelbriTanruUnit:
         return cls._from_fields((quoted_text_selbri_tanru_unit,))
@@ -14054,7 +15064,7 @@ class TanruUnitAtomBaseForCeiSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxTextSelbriTanruUnit(_SyntaxNode):
     'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
     __slots__ = ()
-    _schema_id = 688
+    _schema_id = 742
     __match_args__ = ('text_selbri_tanru_unit',)
     def __new__(cls, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxTextSelbriTanruUnit:
         return cls._from_fields((text_selbri_tanru_unit,))
@@ -14071,7 +15081,7 @@ class TanruUnitAtomBaseForCeiSyntaxTextSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxTagSelbriTanruUnit(_SyntaxNode):
     'Uses the `tag_selbri_tanru_unit` product form, whose payload preserves `xohi` and `tag`.'
     __slots__ = ()
-    _schema_id = 689
+    _schema_id = 743
     __match_args__ = ('tag_selbri_tanru_unit',)
     def __new__(cls, tag_selbri_tanru_unit: TagSelbriTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxTagSelbriTanruUnit:
         return cls._from_fields((tag_selbri_tanru_unit,))
@@ -14088,7 +15098,7 @@ class TanruUnitAtomBaseForCeiSyntaxTagSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit(_SyntaxNode):
     'Uses the `goha_word_tanru_unit` product form, whose payload preserves `word`.'
     __slots__ = ()
-    _schema_id = 690
+    _schema_id = 744
     __match_args__ = ('goha_word_tanru_unit',)
     def __new__(cls, goha_word_tanru_unit: GohaWordTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit:
         return cls._from_fields((goha_word_tanru_unit,))
@@ -14105,7 +15115,7 @@ class TanruUnitAtomBaseForCeiSyntaxGohaWordTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseForCeiSyntaxGroupedTanruUnit(_SyntaxNode):
     'Uses the `grouped_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
     __slots__ = ()
-    _schema_id = 691
+    _schema_id = 745
     __match_args__ = ('grouped_tanru_unit',)
     def __new__(cls, grouped_tanru_unit: GroupedTanruUnitSyntax) -> TanruUnitAtomBaseForCeiSyntaxGroupedTanruUnit:
         return cls._from_fields((grouped_tanru_unit,))
@@ -14124,7 +15134,7 @@ TanruUnitAtomBaseForCeiSyntax: TypeAlias = TanruUnitAtomBaseForCeiSyntaxProBridi
 class TanruUnitAtomSyntax(_SyntaxNode):
     'Product node for tanru unit; preserves `conversions` and `base` in source order.'
     __slots__ = ()
-    _schema_id = 692
+    _schema_id = 746
     __match_args__ = ('conversions', 'base')
     def __new__(cls, conversions: Sequence[WithFreeModifiers[Token, FreeModifierSyntax]], base: TanruUnitAtomBaseSyntax) -> TanruUnitAtomSyntax:
         return cls._from_fields((conversions, base))
@@ -14145,7 +15155,7 @@ class TanruUnitAtomSyntax(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxOrdinalTanruUnit(_SyntaxNode):
     'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
     __slots__ = ()
-    _schema_id = 693
+    _schema_id = 747
     __match_args__ = ('ordinal_tanru_unit',)
     def __new__(cls, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxOrdinalTanruUnit:
         return cls._from_fields((ordinal_tanru_unit,))
@@ -14162,7 +15172,7 @@ class TanruUnitAtomBaseSyntaxOrdinalTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxWordTanruUnit(_SyntaxNode):
     'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
     __slots__ = ()
-    _schema_id = 694
+    _schema_id = 748
     __match_args__ = ('word_tanru_unit',)
     def __new__(cls, word_tanru_unit: WordTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxWordTanruUnit:
         return cls._from_fields((word_tanru_unit,))
@@ -14179,7 +15189,7 @@ class TanruUnitAtomBaseSyntaxWordTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit(_SyntaxNode):
     'Uses the `preposed_linkargs_tanru_unit` product form, whose payload preserves `linkargs` and `base`.'
     __slots__ = ()
-    _schema_id = 695
+    _schema_id = 749
     __match_args__ = ('preposed_linkargs_tanru_unit',)
     def __new__(cls, preposed_linkargs_tanru_unit: PreposedLinkargsTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit:
         return cls._from_fields((preposed_linkargs_tanru_unit,))
@@ -14196,7 +15206,7 @@ class TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxJaiModalTanruUnit(_SyntaxNode):
     'Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.'
     __slots__ = ()
-    _schema_id = 696
+    _schema_id = 750
     __match_args__ = ('jai_modal_tanru_unit',)
     def __new__(cls, jai_modal_tanru_unit: JaiModalTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxJaiModalTanruUnit:
         return cls._from_fields((jai_modal_tanru_unit,))
@@ -14213,7 +15223,7 @@ class TanruUnitAtomBaseSyntaxJaiModalTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit(_SyntaxNode):
     'Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
     __slots__ = ()
-    _schema_id = 697
+    _schema_id = 751
     __match_args__ = ('scalar_negated_tanru_unit',)
     def __new__(cls, scalar_negated_tanru_unit: ScalarNegatedTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit:
         return cls._from_fields((scalar_negated_tanru_unit,))
@@ -14230,7 +15240,7 @@ class TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit(_SyntaxNode):
     'Uses the `zantufa_statement_abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei`.'
     __slots__ = ()
-    _schema_id = 698
+    _schema_id = 752
     __match_args__ = ('zantufa_statement_abstraction_tanru_unit',)
     def __new__(cls, zantufa_statement_abstraction_tanru_unit: ZantufaStatementAbstractionTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit:
         return cls._from_fields((zantufa_statement_abstraction_tanru_unit,))
@@ -14247,7 +15257,7 @@ class TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxAbstractionTanruUnit(_SyntaxNode):
     'Uses the `abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei`.'
     __slots__ = ()
-    _schema_id = 699
+    _schema_id = 753
     __match_args__ = ('abstraction_tanru_unit',)
     def __new__(cls, abstraction_tanru_unit: AbstractionTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxAbstractionTanruUnit:
         return cls._from_fields((abstraction_tanru_unit,))
@@ -14264,7 +15274,7 @@ class TanruUnitAtomBaseSyntaxAbstractionTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
     'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
     __slots__ = ()
-    _schema_id = 700
+    _schema_id = 754
     __match_args__ = ('sumti_selbri_tanru_unit',)
     def __new__(cls, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit:
         return cls._from_fields((sumti_selbri_tanru_unit,))
@@ -14281,7 +15291,7 @@ class TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxZantufaMeTanruUnit(_SyntaxNode):
     'Uses the `zantufa_me_tanru_unit` product form, whose payload preserves `me`, `body`, `mehu`, and `moi_marker`.'
     __slots__ = ()
-    _schema_id = 701
+    _schema_id = 755
     __match_args__ = ('zantufa_me_tanru_unit',)
     def __new__(cls, zantufa_me_tanru_unit: ZantufaMeTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxZantufaMeTanruUnit:
         return cls._from_fields((zantufa_me_tanru_unit,))
@@ -14298,7 +15308,7 @@ class TanruUnitAtomBaseSyntaxZantufaMeTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit(_SyntaxNode):
     'Uses the `zantufa_mex_moi_tanru_unit` product form, whose payload preserves `expression` and `moi`.'
     __slots__ = ()
-    _schema_id = 702
+    _schema_id = 756
     __match_args__ = ('zantufa_mex_moi_tanru_unit',)
     def __new__(cls, zantufa_mex_moi_tanru_unit: ZantufaMexMoiTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit:
         return cls._from_fields((zantufa_mex_moi_tanru_unit,))
@@ -14315,7 +15325,7 @@ class TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
     'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
     __slots__ = ()
-    _schema_id = 703
+    _schema_id = 757
     __match_args__ = ('operator_selbri_tanru_unit',)
     def __new__(cls, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit:
         return cls._from_fields((operator_selbri_tanru_unit,))
@@ -14332,7 +15342,7 @@ class TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
     'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
     __slots__ = ()
-    _schema_id = 704
+    _schema_id = 758
     __match_args__ = ('quoted_bridi_selbri_tanru_unit',)
     def __new__(cls, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit:
         return cls._from_fields((quoted_bridi_selbri_tanru_unit,))
@@ -14349,7 +15359,7 @@ class TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
     'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
     __slots__ = ()
-    _schema_id = 705
+    _schema_id = 759
     __match_args__ = ('quoted_text_selbri_tanru_unit',)
     def __new__(cls, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit:
         return cls._from_fields((quoted_text_selbri_tanru_unit,))
@@ -14366,7 +15376,7 @@ class TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxTextSelbriTanruUnit(_SyntaxNode):
     'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
     __slots__ = ()
-    _schema_id = 706
+    _schema_id = 760
     __match_args__ = ('text_selbri_tanru_unit',)
     def __new__(cls, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxTextSelbriTanruUnit:
         return cls._from_fields((text_selbri_tanru_unit,))
@@ -14383,7 +15393,7 @@ class TanruUnitAtomBaseSyntaxTextSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxTagSelbriTanruUnit(_SyntaxNode):
     'Uses the `tag_selbri_tanru_unit` product form, whose payload preserves `xohi` and `tag`.'
     __slots__ = ()
-    _schema_id = 707
+    _schema_id = 761
     __match_args__ = ('tag_selbri_tanru_unit',)
     def __new__(cls, tag_selbri_tanru_unit: TagSelbriTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxTagSelbriTanruUnit:
         return cls._from_fields((tag_selbri_tanru_unit,))
@@ -14400,7 +15410,7 @@ class TanruUnitAtomBaseSyntaxTagSelbriTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxGohaWordTanruUnit(_SyntaxNode):
     'Uses the `goha_word_tanru_unit` product form, whose payload preserves `word`.'
     __slots__ = ()
-    _schema_id = 708
+    _schema_id = 762
     __match_args__ = ('goha_word_tanru_unit',)
     def __new__(cls, goha_word_tanru_unit: GohaWordTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxGohaWordTanruUnit:
         return cls._from_fields((goha_word_tanru_unit,))
@@ -14417,7 +15427,7 @@ class TanruUnitAtomBaseSyntaxGohaWordTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxProBridiTanruUnit(_SyntaxNode):
     'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
     __slots__ = ()
-    _schema_id = 709
+    _schema_id = 763
     __match_args__ = ('pro_bridi_tanru_unit',)
     def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxProBridiTanruUnit:
         return cls._from_fields((pro_bridi_tanru_unit,))
@@ -14434,7 +15444,7 @@ class TanruUnitAtomBaseSyntaxProBridiTanruUnit(_SyntaxNode):
 class TanruUnitAtomBaseSyntaxGroupedTanruUnit(_SyntaxNode):
     'Uses the `grouped_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
     __slots__ = ()
-    _schema_id = 710
+    _schema_id = 764
     __match_args__ = ('grouped_tanru_unit',)
     def __new__(cls, grouped_tanru_unit: GroupedTanruUnitSyntax) -> TanruUnitAtomBaseSyntaxGroupedTanruUnit:
         return cls._from_fields((grouped_tanru_unit,))
@@ -14453,7 +15463,7 @@ TanruUnitAtomBaseSyntax: TypeAlias = TanruUnitAtomBaseSyntaxOrdinalTanruUnit | T
 class TaggedSelbriGroupTanruUnitSyntax(_SyntaxNode):
     'Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.'
     __slots__ = ()
-    _schema_id = 711
+    _schema_id = 765
     __match_args__ = ('tense_modal', 'inner_selbri')
     def __new__(cls, tense_modal: TenseModalSyntax, inner_selbri: ConnectedSelbriSyntax) -> TaggedSelbriGroupTanruUnitSyntax:
         return cls._from_fields((tense_modal, inner_selbri))
@@ -14474,7 +15484,7 @@ class TaggedSelbriGroupTanruUnitSyntax(_SyntaxNode):
 class PreposedLinkargsTanruUnitSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `linkargs` and `base` in source order.'
     __slots__ = ()
-    _schema_id = 712
+    _schema_id = 766
     __match_args__ = ('linkargs', 'base')
     def __new__(cls, linkargs: LinkargsSyntax, base: TanruUnitSyntax) -> PreposedLinkargsTanruUnitSyntax:
         return cls._from_fields((linkargs, base))
@@ -14495,7 +15505,7 @@ class PreposedLinkargsTanruUnitSyntax(_SyntaxNode):
 class ScalarNegatedTanruUnitSyntax(_SyntaxNode):
     'Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.'
     __slots__ = ()
-    _schema_id = 713
+    _schema_id = 767
     __match_args__ = ('nahe', 'inner_unit')
     def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: ScalarNegatedTanruInnerUnitSyntax) -> ScalarNegatedTanruUnitSyntax:
         return cls._from_fields((nahe, inner_unit))
@@ -14516,7 +15526,7 @@ class ScalarNegatedTanruUnitSyntax(_SyntaxNode):
 class ScalarNegatedTanruInnerUnitSyntaxTaggedSelbriGroupTanruUnit(_SyntaxNode):
     'Uses the `tagged_selbri_group_tanru_unit` product form, whose payload preserves `tense_modal` and `inner_selbri`.'
     __slots__ = ()
-    _schema_id = 714
+    _schema_id = 768
     __match_args__ = ('tagged_selbri_group_tanru_unit',)
     def __new__(cls, tagged_selbri_group_tanru_unit: TaggedSelbriGroupTanruUnitSyntax) -> ScalarNegatedTanruInnerUnitSyntaxTaggedSelbriGroupTanruUnit:
         return cls._from_fields((tagged_selbri_group_tanru_unit,))
@@ -14533,7 +15543,7 @@ class ScalarNegatedTanruInnerUnitSyntaxTaggedSelbriGroupTanruUnit(_SyntaxNode):
 class ScalarNegatedTanruInnerUnitSyntaxProBridiTanruUnit(_SyntaxNode):
     'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
     __slots__ = ()
-    _schema_id = 715
+    _schema_id = 769
     __match_args__ = ('pro_bridi_tanru_unit',)
     def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> ScalarNegatedTanruInnerUnitSyntaxProBridiTanruUnit:
         return cls._from_fields((pro_bridi_tanru_unit,))
@@ -14550,7 +15560,7 @@ class ScalarNegatedTanruInnerUnitSyntaxProBridiTanruUnit(_SyntaxNode):
 class ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom(_SyntaxNode):
     'Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.'
     __slots__ = ()
-    _schema_id = 716
+    _schema_id = 770
     __match_args__ = ('tanru_unit_atom',)
     def __new__(cls, tanru_unit_atom: TanruUnitAtomSyntax) -> ScalarNegatedTanruInnerUnitSyntaxTanruUnitAtom:
         return cls._from_fields((tanru_unit_atom,))
@@ -14569,7 +15579,7 @@ ScalarNegatedTanruInnerUnitSyntax: TypeAlias = ScalarNegatedTanruInnerUnitSyntax
 class JaiModalTanruUnitSyntax(_SyntaxNode):
     'Product node for modal conversion; preserves `jai`, `tense_modal`, and `inner_unit` in source order.'
     __slots__ = ()
-    _schema_id = 717
+    _schema_id = 771
     __match_args__ = ('jai', 'tense_modal', 'inner_unit')
     def __new__(cls, jai: WithFreeModifiers[Token, FreeModifierSyntax], tense_modal: TenseModalSyntax | None, inner_unit: JaiInnerTanruUnitSyntax) -> JaiModalTanruUnitSyntax:
         return cls._from_fields((jai, tense_modal, inner_unit))
@@ -14594,7 +15604,7 @@ class JaiModalTanruUnitSyntax(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit(_SyntaxNode):
     'Uses the `converted_jai_inner_tanru_unit` product form, whose payload preserves `se` and `inner_unit`.'
     __slots__ = ()
-    _schema_id = 718
+    _schema_id = 772
     __match_args__ = ('converted_jai_inner_tanru_unit',)
     def __new__(cls, converted_jai_inner_tanru_unit: ConvertedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit:
         return cls._from_fields((converted_jai_inner_tanru_unit,))
@@ -14611,7 +15621,7 @@ class JaiInnerTanruUnitSyntaxConvertedJaiInnerTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit(_SyntaxNode):
     'Uses the `scalar_negated_jai_inner_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.'
     __slots__ = ()
-    _schema_id = 719
+    _schema_id = 773
     __match_args__ = ('scalar_negated_jai_inner_tanru_unit',)
     def __new__(cls, scalar_negated_jai_inner_tanru_unit: ScalarNegatedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit:
         return cls._from_fields((scalar_negated_jai_inner_tanru_unit,))
@@ -14628,7 +15638,7 @@ class JaiInnerTanruUnitSyntaxScalarNegatedJaiInnerTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
     'Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.'
     __slots__ = ()
-    _schema_id = 720
+    _schema_id = 774
     __match_args__ = ('sumti_selbri_tanru_unit',)
     def __new__(cls, sumti_selbri_tanru_unit: SumtiSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit:
         return cls._from_fields((sumti_selbri_tanru_unit,))
@@ -14645,7 +15655,7 @@ class JaiInnerTanruUnitSyntaxSumtiSelbriTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
     'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
     __slots__ = ()
-    _schema_id = 721
+    _schema_id = 775
     __match_args__ = ('quoted_bridi_selbri_tanru_unit',)
     def __new__(cls, quoted_bridi_selbri_tanru_unit: QuotedBridiSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit:
         return cls._from_fields((quoted_bridi_selbri_tanru_unit,))
@@ -14662,7 +15672,7 @@ class JaiInnerTanruUnitSyntaxQuotedBridiSelbriTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
     'Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.'
     __slots__ = ()
-    _schema_id = 722
+    _schema_id = 776
     __match_args__ = ('quoted_text_selbri_tanru_unit',)
     def __new__(cls, quoted_text_selbri_tanru_unit: QuotedTextSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit:
         return cls._from_fields((quoted_text_selbri_tanru_unit,))
@@ -14679,7 +15689,7 @@ class JaiInnerTanruUnitSyntaxQuotedTextSelbriTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxTextSelbriTanruUnit(_SyntaxNode):
     'Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.'
     __slots__ = ()
-    _schema_id = 723
+    _schema_id = 777
     __match_args__ = ('text_selbri_tanru_unit',)
     def __new__(cls, text_selbri_tanru_unit: TextSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxTextSelbriTanruUnit:
         return cls._from_fields((text_selbri_tanru_unit,))
@@ -14696,7 +15706,7 @@ class JaiInnerTanruUnitSyntaxTextSelbriTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit(_SyntaxNode):
     'Uses the `grouped_jai_inner_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.'
     __slots__ = ()
-    _schema_id = 724
+    _schema_id = 778
     __match_args__ = ('grouped_jai_inner_tanru_unit',)
     def __new__(cls, grouped_jai_inner_tanru_unit: GroupedJaiInnerTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit:
         return cls._from_fields((grouped_jai_inner_tanru_unit,))
@@ -14713,7 +15723,7 @@ class JaiInnerTanruUnitSyntaxGroupedJaiInnerTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxOrdinalTanruUnit(_SyntaxNode):
     'Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.'
     __slots__ = ()
-    _schema_id = 725
+    _schema_id = 779
     __match_args__ = ('ordinal_tanru_unit',)
     def __new__(cls, ordinal_tanru_unit: OrdinalTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxOrdinalTanruUnit:
         return cls._from_fields((ordinal_tanru_unit,))
@@ -14730,7 +15740,7 @@ class JaiInnerTanruUnitSyntaxOrdinalTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
     'Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.'
     __slots__ = ()
-    _schema_id = 726
+    _schema_id = 780
     __match_args__ = ('operator_selbri_tanru_unit',)
     def __new__(cls, operator_selbri_tanru_unit: OperatorSelbriTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit:
         return cls._from_fields((operator_selbri_tanru_unit,))
@@ -14747,7 +15757,7 @@ class JaiInnerTanruUnitSyntaxOperatorSelbriTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxProBridiTanruUnit(_SyntaxNode):
     'Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.'
     __slots__ = ()
-    _schema_id = 727
+    _schema_id = 781
     __match_args__ = ('pro_bridi_tanru_unit',)
     def __new__(cls, pro_bridi_tanru_unit: ProBridiTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxProBridiTanruUnit:
         return cls._from_fields((pro_bridi_tanru_unit,))
@@ -14764,7 +15774,7 @@ class JaiInnerTanruUnitSyntaxProBridiTanruUnit(_SyntaxNode):
 class JaiInnerTanruUnitSyntaxWordTanruUnit(_SyntaxNode):
     'Uses the `word_tanru_unit` product form, whose payload preserves `word`.'
     __slots__ = ()
-    _schema_id = 728
+    _schema_id = 782
     __match_args__ = ('word_tanru_unit',)
     def __new__(cls, word_tanru_unit: WordTanruUnitSyntax) -> JaiInnerTanruUnitSyntaxWordTanruUnit:
         return cls._from_fields((word_tanru_unit,))
@@ -14783,7 +15793,7 @@ JaiInnerTanruUnitSyntax: TypeAlias = JaiInnerTanruUnitSyntaxConvertedJaiInnerTan
 class ConvertedJaiInnerTanruUnitSyntax(_SyntaxNode):
     'Product node for converted tanru unit; preserves `se` and `inner_unit` in source order.'
     __slots__ = ()
-    _schema_id = 729
+    _schema_id = 783
     __match_args__ = ('se', 'inner_unit')
     def __new__(cls, se: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: JaiInnerTanruUnitSyntax) -> ConvertedJaiInnerTanruUnitSyntax:
         return cls._from_fields((se, inner_unit))
@@ -14804,7 +15814,7 @@ class ConvertedJaiInnerTanruUnitSyntax(_SyntaxNode):
 class ScalarNegatedJaiInnerTanruUnitSyntax(_SyntaxNode):
     'Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.'
     __slots__ = ()
-    _schema_id = 730
+    _schema_id = 784
     __match_args__ = ('nahe', 'inner_unit')
     def __new__(cls, nahe: WithFreeModifiers[Token, FreeModifierSyntax], inner_unit: JaiInnerTanruUnitSyntax) -> ScalarNegatedJaiInnerTanruUnitSyntax:
         return cls._from_fields((nahe, inner_unit))
@@ -14825,7 +15835,7 @@ class ScalarNegatedJaiInnerTanruUnitSyntax(_SyntaxNode):
 class QuotedBridiSelbriTanruUnitSyntax(_SyntaxNode):
     'Transparent product node for quoted bridi selbri; preserves the `quote` component.'
     __slots__ = ()
-    _schema_id = 731
+    _schema_id = 785
     __match_args__ = ('quote',)
     def __new__(cls, quote: WithFreeModifiers[Token, FreeModifierSyntax]) -> QuotedBridiSelbriTanruUnitSyntax:
         return cls._from_fields((quote,))
@@ -14842,7 +15852,7 @@ class QuotedBridiSelbriTanruUnitSyntax(_SyntaxNode):
 class TextSelbriTanruUnitSyntax(_SyntaxNode):
     'Product node for text selbri; preserves `luhei`, `text`, and `lihau` in source order.'
     __slots__ = ()
-    _schema_id = 732
+    _schema_id = 786
     __match_args__ = ('luhei', 'text', 'lihau')
     def __new__(cls, luhei: WithFreeModifiers[Token, FreeModifierSyntax], text: TextSyntax, lihau: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> TextSelbriTanruUnitSyntax:
         return cls._from_fields((luhei, text, lihau))
@@ -14867,7 +15877,7 @@ class TextSelbriTanruUnitSyntax(_SyntaxNode):
 class QuotedTextSelbriTanruUnitSyntax(_SyntaxNode):
     'Transparent product node for quoted text selbri; preserves the `muhoi` component.'
     __slots__ = ()
-    _schema_id = 733
+    _schema_id = 787
     __match_args__ = ('muhoi',)
     def __new__(cls, muhoi: WithFreeModifiers[Token, FreeModifierSyntax]) -> QuotedTextSelbriTanruUnitSyntax:
         return cls._from_fields((muhoi,))
@@ -14884,7 +15894,7 @@ class QuotedTextSelbriTanruUnitSyntax(_SyntaxNode):
 class TagSelbriTanruUnitSyntax(_SyntaxNode):
     'Product node for tag selbri; preserves `xohi` and `tag` in source order.'
     __slots__ = ()
-    _schema_id = 734
+    _schema_id = 788
     __match_args__ = ('xohi', 'tag')
     def __new__(cls, xohi: WithFreeModifiers[Token, FreeModifierSyntax], tag: TenseModalSyntax) -> TagSelbriTanruUnitSyntax:
         return cls._from_fields((xohi, tag))
@@ -14905,7 +15915,7 @@ class TagSelbriTanruUnitSyntax(_SyntaxNode):
 class OrdinalTanruUnitSyntax(_SyntaxNode):
     'Product node for ordinal selbri; preserves `number` and `moi` in source order.'
     __slots__ = ()
-    _schema_id = 735
+    _schema_id = 789
     __match_args__ = ('number', 'moi')
     def __new__(cls, number: NumberOrLetterWordsSyntax, moi: WithFreeModifiers[Token, FreeModifierSyntax]) -> OrdinalTanruUnitSyntax:
         return cls._from_fields((number, moi))
@@ -14926,7 +15936,7 @@ class OrdinalTanruUnitSyntax(_SyntaxNode):
 class WordTanruUnitSyntax(_SyntaxNode):
     'Transparent product node for tanru unit; preserves the `word` component.'
     __slots__ = ()
-    _schema_id = 736
+    _schema_id = 790
     __match_args__ = ('word',)
     def __new__(cls, word: WithFreeModifiers[Token, FreeModifierSyntax]) -> WordTanruUnitSyntax:
         return cls._from_fields((word,))
@@ -14943,7 +15953,7 @@ class WordTanruUnitSyntax(_SyntaxNode):
 class GohaWordTanruUnitSyntax(_SyntaxNode):
     'Transparent product node for tanru unit; preserves the `word` component.'
     __slots__ = ()
-    _schema_id = 737
+    _schema_id = 791
     __match_args__ = ('word',)
     def __new__(cls, word: WithFreeModifiers[Token, FreeModifierSyntax]) -> GohaWordTanruUnitSyntax:
         return cls._from_fields((word,))
@@ -14960,7 +15970,7 @@ class GohaWordTanruUnitSyntax(_SyntaxNode):
 class ProBridiTanruUnitSyntax(_SyntaxNode):
     'Product node for pro-bridi; preserves `goha` and `raho` in source order.'
     __slots__ = ()
-    _schema_id = 738
+    _schema_id = 792
     __match_args__ = ('goha', 'raho')
     def __new__(cls, goha: WithFreeModifiers[Token, FreeModifierSyntax], raho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ProBridiTanruUnitSyntax:
         return cls._from_fields((goha, raho))
@@ -14981,7 +15991,7 @@ class ProBridiTanruUnitSyntax(_SyntaxNode):
 class SumtiSelbriTanruUnitSyntax(_SyntaxNode):
     'Product node for sumti-to-selbri; preserves `me`, `sumti`, `mehu`, and `moi_marker` in source order.'
     __slots__ = ()
-    _schema_id = 739
+    _schema_id = 793
     __match_args__ = ('me', 'sumti', 'mehu', 'moi_marker')
     def __new__(cls, me: WithFreeModifiers[Token, FreeModifierSyntax], sumti: SumtiSelbriSumtiSyntax, mehu: WithFreeModifiers[Token, FreeModifierSyntax] | None, moi_marker: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> SumtiSelbriTanruUnitSyntax:
         return cls._from_fields((me, sumti, mehu, moi_marker))
@@ -15010,7 +16020,7 @@ class SumtiSelbriTanruUnitSyntax(_SyntaxNode):
 class ZantufaMeTanruUnitSyntax(_SyntaxNode):
     'Product node for sumti-to-selbri; preserves `me`, `body`, `mehu`, and `moi_marker` in source order.'
     __slots__ = ()
-    _schema_id = 740
+    _schema_id = 794
     __match_args__ = ('me', 'body', 'mehu', 'moi_marker')
     def __new__(cls, me: WithFreeModifiers[Token, FreeModifierSyntax], body: ZantufaMeSelbriBodySyntax, mehu: WithFreeModifiers[Token, FreeModifierSyntax] | None, moi_marker: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaMeTanruUnitSyntax:
         return cls._from_fields((me, body, mehu, moi_marker))
@@ -15039,7 +16049,7 @@ class ZantufaMeTanruUnitSyntax(_SyntaxNode):
 class ZantufaMeSelbriBodySyntaxZantufaMeOperatorSelbriBody(_SyntaxNode):
     'Uses the `zantufa_me_operator_selbri_body` product form, whose payload preserves `operators`.'
     __slots__ = ()
-    _schema_id = 741
+    _schema_id = 795
     __match_args__ = ('zantufa_me_operator_selbri_body',)
     def __new__(cls, zantufa_me_operator_selbri_body: ZantufaMeOperatorSelbriBodySyntax) -> ZantufaMeSelbriBodySyntaxZantufaMeOperatorSelbriBody:
         return cls._from_fields((zantufa_me_operator_selbri_body,))
@@ -15056,7 +16066,7 @@ class ZantufaMeSelbriBodySyntaxZantufaMeOperatorSelbriBody(_SyntaxNode):
 class ZantufaMeSelbriBodySyntaxZantufaMeMeksoSelbriBody(_SyntaxNode):
     'Uses the `zantufa_me_mekso_selbri_body` product form, whose payload preserves `expression`.'
     __slots__ = ()
-    _schema_id = 742
+    _schema_id = 796
     __match_args__ = ('zantufa_me_mekso_selbri_body',)
     def __new__(cls, zantufa_me_mekso_selbri_body: ZantufaMeMeksoSelbriBodySyntax) -> ZantufaMeSelbriBodySyntaxZantufaMeMeksoSelbriBody:
         return cls._from_fields((zantufa_me_mekso_selbri_body,))
@@ -15073,7 +16083,7 @@ class ZantufaMeSelbriBodySyntaxZantufaMeMeksoSelbriBody(_SyntaxNode):
 class ZantufaMeSelbriBodySyntaxZantufaMeTagSelbriBody(_SyntaxNode):
     'Uses the `zantufa_me_tag_selbri_body` product form, whose payload preserves `tag`.'
     __slots__ = ()
-    _schema_id = 743
+    _schema_id = 797
     __match_args__ = ('zantufa_me_tag_selbri_body',)
     def __new__(cls, zantufa_me_tag_selbri_body: ZantufaMeTagSelbriBodySyntax) -> ZantufaMeSelbriBodySyntaxZantufaMeTagSelbriBody:
         return cls._from_fields((zantufa_me_tag_selbri_body,))
@@ -15092,7 +16102,7 @@ ZantufaMeSelbriBodySyntax: TypeAlias = ZantufaMeSelbriBodySyntaxZantufaMeOperato
 class ZantufaMeOperatorSelbriBodySyntax(_SyntaxNode):
     'Transparent product node for sumti-to-selbri; preserves the `operators` component.'
     __slots__ = ()
-    _schema_id = 744
+    _schema_id = 798
     __match_args__ = ('operators',)
     def __new__(cls, operators: Sequence[MeksoOperatorSyntax]) -> ZantufaMeOperatorSelbriBodySyntax:
         return cls._from_fields((operators,))
@@ -15109,7 +16119,7 @@ class ZantufaMeOperatorSelbriBodySyntax(_SyntaxNode):
 class ZantufaMeMeksoSelbriBodySyntax(_SyntaxNode):
     'Transparent product node for sumti-to-selbri; preserves the `expression` component.'
     __slots__ = ()
-    _schema_id = 745
+    _schema_id = 799
     __match_args__ = ('expression',)
     def __new__(cls, expression: MeksoSyntax) -> ZantufaMeMeksoSelbriBodySyntax:
         return cls._from_fields((expression,))
@@ -15126,7 +16136,7 @@ class ZantufaMeMeksoSelbriBodySyntax(_SyntaxNode):
 class ZantufaMeTagSelbriBodySyntax(_SyntaxNode):
     'Transparent product node for sumti-to-selbri; preserves the `tag` component.'
     __slots__ = ()
-    _schema_id = 746
+    _schema_id = 800
     __match_args__ = ('tag',)
     def __new__(cls, tag: TenseModalSyntax) -> ZantufaMeTagSelbriBodySyntax:
         return cls._from_fields((tag,))
@@ -15143,7 +16153,7 @@ class ZantufaMeTagSelbriBodySyntax(_SyntaxNode):
 class ZantufaMexMoiTanruUnitSyntax(_SyntaxNode):
     'Product node for mex selbri; preserves `expression` and `moi` in source order.'
     __slots__ = ()
-    _schema_id = 747
+    _schema_id = 801
     __match_args__ = ('expression', 'moi')
     def __new__(cls, expression: MeksoSyntax, moi: WithFreeModifiers[Token, FreeModifierSyntax]) -> ZantufaMexMoiTanruUnitSyntax:
         return cls._from_fields((expression, moi))
@@ -15164,7 +16174,7 @@ class ZantufaMexMoiTanruUnitSyntax(_SyntaxNode):
 class SumtiSelbriSumtiSyntaxSumti(_SyntaxNode):
     'Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.'
     __slots__ = ()
-    _schema_id = 748
+    _schema_id = 802
     __match_args__ = ('sumti',)
     def __new__(cls, sumti: SumtiSyntax) -> SumtiSelbriSumtiSyntaxSumti:
         return cls._from_fields((sumti,))
@@ -15181,7 +16191,7 @@ class SumtiSelbriSumtiSyntaxSumti(_SyntaxNode):
 class SumtiSelbriSumtiSyntaxMeLerfuSumti(_SyntaxNode):
     'Uses the `me_lerfu_sumti` product form, whose payload preserves `words`.'
     __slots__ = ()
-    _schema_id = 749
+    _schema_id = 803
     __match_args__ = ('me_lerfu_sumti',)
     def __new__(cls, me_lerfu_sumti: MeLerfuSumtiSyntax) -> SumtiSelbriSumtiSyntaxMeLerfuSumti:
         return cls._from_fields((me_lerfu_sumti,))
@@ -15200,7 +16210,7 @@ SumtiSelbriSumtiSyntax: TypeAlias = SumtiSelbriSumtiSyntaxSumti | SumtiSelbriSum
 class MeLerfuSumtiSyntax(_SyntaxNode):
     'Transparent product node for lerfu string; preserves the `words` component.'
     __slots__ = ()
-    _schema_id = 750
+    _schema_id = 804
     __match_args__ = ('words',)
     def __new__(cls, words: LetterStringSyntax) -> MeLerfuSumtiSyntax:
         return cls._from_fields((words,))
@@ -15217,7 +16227,7 @@ class MeLerfuSumtiSyntax(_SyntaxNode):
 class OperatorSelbriTanruUnitSyntax(_SyntaxNode):
     'Product node for operator-to-selbri; preserves `nuha` and `mekso_operator` in source order.'
     __slots__ = ()
-    _schema_id = 751
+    _schema_id = 805
     __match_args__ = ('nuha', 'mekso_operator')
     def __new__(cls, nuha: WithFreeModifiers[Token, FreeModifierSyntax], mekso_operator: AtomicMeksoOperatorSyntax) -> OperatorSelbriTanruUnitSyntax:
         return cls._from_fields((nuha, mekso_operator))
@@ -15238,7 +16248,7 @@ class OperatorSelbriTanruUnitSyntax(_SyntaxNode):
 class GroupedTanruUnitSyntax(_SyntaxNode):
     'Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.'
     __slots__ = ()
-    _schema_id = 752
+    _schema_id = 806
     __match_args__ = ('ke', 'selbri', 'kehe')
     def __new__(cls, ke: WithFreeModifiers[Token, FreeModifierSyntax], selbri: ConnectedSelbriSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GroupedTanruUnitSyntax:
         return cls._from_fields((ke, selbri, kehe))
@@ -15263,7 +16273,7 @@ class GroupedTanruUnitSyntax(_SyntaxNode):
 class GroupedJaiInnerTanruUnitSyntax(_SyntaxNode):
     'Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.'
     __slots__ = ()
-    _schema_id = 753
+    _schema_id = 807
     __match_args__ = ('ke', 'selbri', 'kehe')
     def __new__(cls, ke: WithFreeModifiers[Token, FreeModifierSyntax], selbri: ConnectedJaiInnerSelbriSyntax, kehe: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> GroupedJaiInnerTanruUnitSyntax:
         return cls._from_fields((ke, selbri, kehe))
@@ -15288,7 +16298,7 @@ class GroupedJaiInnerTanruUnitSyntax(_SyntaxNode):
 class ConnectedJaiInnerSelbriSyntax(_SyntaxNode):
     'Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.'
     __slots__ = ()
-    _schema_id = 754
+    _schema_id = 808
     __match_args__ = ('leading_selbri', 'continuations')
     def __new__(cls, leading_selbri: TanruJaiInnerSelbriSyntax, continuations: Sequence[ConnectedJaiInnerSelbriContinuationSyntax]) -> ConnectedJaiInnerSelbriSyntax:
         return cls._from_fields((leading_selbri, continuations))
@@ -15309,7 +16319,7 @@ class ConnectedJaiInnerSelbriSyntax(_SyntaxNode):
 class ConnectedJaiInnerSelbriContinuationSyntax(_SyntaxNode):
     'Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.'
     __slots__ = ()
-    _schema_id = 755
+    _schema_id = 809
     __match_args__ = ('connective', 'trailing_selbri')
     def __new__(cls, connective: RelationAfterthoughtConnectiveSyntax, trailing_selbri: TanruJaiInnerSelbriSyntax) -> ConnectedJaiInnerSelbriContinuationSyntax:
         return cls._from_fields((connective, trailing_selbri))
@@ -15330,7 +16340,7 @@ class ConnectedJaiInnerSelbriContinuationSyntax(_SyntaxNode):
 class TanruJaiInnerSelbriSyntax(_SyntaxNode):
     'Product node for selbri; preserves `first_unit` and `additional_units` in source order.'
     __slots__ = ()
-    _schema_id = 756
+    _schema_id = 810
     __match_args__ = ('first_unit', 'additional_units')
     def __new__(cls, first_unit: JaiInnerTanruUnitSyntax, additional_units: Sequence[JaiInnerTanruUnitSyntax]) -> TanruJaiInnerSelbriSyntax:
         return cls._from_fields((first_unit, additional_units))
@@ -15351,7 +16361,7 @@ class TanruJaiInnerSelbriSyntax(_SyntaxNode):
 class LinkedSumtiSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
     'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
     __slots__ = ()
-    _schema_id = 757
+    _schema_id = 811
     __match_args__ = ('place_tagged_linked_sumti',)
     def __new__(cls, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> LinkedSumtiSyntaxPlaceTaggedLinkedSumti:
         return cls._from_fields((place_tagged_linked_sumti,))
@@ -15368,7 +16378,7 @@ class LinkedSumtiSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
 class LinkedSumtiSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
     'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
     __slots__ = ()
-    _schema_id = 758
+    _schema_id = 812
     __match_args__ = ('tense_tagged_linked_sumti',)
     def __new__(cls, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> LinkedSumtiSyntaxTenseTaggedLinkedSumti:
         return cls._from_fields((tense_tagged_linked_sumti,))
@@ -15385,7 +16395,7 @@ class LinkedSumtiSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
 class LinkedSumtiSyntaxPlainLinkedSumti(_SyntaxNode):
     'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
     __slots__ = ()
-    _schema_id = 759
+    _schema_id = 813
     __match_args__ = ('plain_linked_sumti',)
     def __new__(cls, plain_linked_sumti: PlainLinkedSumtiSyntax) -> LinkedSumtiSyntaxPlainLinkedSumti:
         return cls._from_fields((plain_linked_sumti,))
@@ -15402,7 +16412,7 @@ class LinkedSumtiSyntaxPlainLinkedSumti(_SyntaxNode):
 class LinkedSumtiSyntaxEmptyLinkedSumti(_SyntaxNode):
     'Uses the marker-only `empty_linked_sumti` product form.'
     __slots__ = ()
-    _schema_id = 760
+    _schema_id = 814
     __match_args__ = ('empty_linked_sumti',)
     def __new__(cls, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> LinkedSumtiSyntaxEmptyLinkedSumti:
         return cls._from_fields((empty_linked_sumti,))
@@ -15421,7 +16431,7 @@ LinkedSumtiSyntax: TypeAlias = LinkedSumtiSyntaxPlaceTaggedLinkedSumti | LinkedS
 class LinkedTermSyntaxConnectedLinkedTerm(_SyntaxNode):
     'Uses a hierarchy-only loose connection over BO-bound linked terms.'
     __slots__ = ()
-    _schema_id = 761
+    _schema_id = 815
     __match_args__ = ('connected_linked_term',)
     def __new__(cls, connected_linked_term: ConnectedLinkedTermSyntax) -> LinkedTermSyntaxConnectedLinkedTerm:
         return cls._from_fields((connected_linked_term,))
@@ -15438,7 +16448,7 @@ class LinkedTermSyntaxConnectedLinkedTerm(_SyntaxNode):
 class LinkedTermSyntaxBoundLinkedTermConnection(_SyntaxNode):
     'Uses a hierarchy-only BO-bound linked-term connection.'
     __slots__ = ()
-    _schema_id = 762
+    _schema_id = 816
     __match_args__ = ('bound_linked_term_connection',)
     def __new__(cls, bound_linked_term_connection: BoundLinkedTermConnectionSyntax) -> LinkedTermSyntaxBoundLinkedTermConnection:
         return cls._from_fields((bound_linked_term_connection,))
@@ -15455,7 +16465,7 @@ class LinkedTermSyntaxBoundLinkedTermConnection(_SyntaxNode):
 class LinkedTermSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
     'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
     __slots__ = ()
-    _schema_id = 763
+    _schema_id = 817
     __match_args__ = ('place_tagged_linked_sumti',)
     def __new__(cls, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> LinkedTermSyntaxPlaceTaggedLinkedSumti:
         return cls._from_fields((place_tagged_linked_sumti,))
@@ -15472,7 +16482,7 @@ class LinkedTermSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
 class LinkedTermSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
     'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
     __slots__ = ()
-    _schema_id = 764
+    _schema_id = 818
     __match_args__ = ('tense_tagged_linked_sumti',)
     def __new__(cls, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> LinkedTermSyntaxTenseTaggedLinkedSumti:
         return cls._from_fields((tense_tagged_linked_sumti,))
@@ -15489,7 +16499,7 @@ class LinkedTermSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
 class LinkedTermSyntaxPlainLinkedSumti(_SyntaxNode):
     'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
     __slots__ = ()
-    _schema_id = 765
+    _schema_id = 819
     __match_args__ = ('plain_linked_sumti',)
     def __new__(cls, plain_linked_sumti: PlainLinkedSumtiSyntax) -> LinkedTermSyntaxPlainLinkedSumti:
         return cls._from_fields((plain_linked_sumti,))
@@ -15506,7 +16516,7 @@ class LinkedTermSyntaxPlainLinkedSumti(_SyntaxNode):
 class LinkedTermSyntaxEmptyLinkedSumti(_SyntaxNode):
     'Uses the marker-only `empty_linked_sumti` product form.'
     __slots__ = ()
-    _schema_id = 766
+    _schema_id = 820
     __match_args__ = ('empty_linked_sumti',)
     def __new__(cls, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> LinkedTermSyntaxEmptyLinkedSumti:
         return cls._from_fields((empty_linked_sumti,))
@@ -15525,7 +16535,7 @@ LinkedTermSyntax: TypeAlias = LinkedTermSyntaxConnectedLinkedTerm | LinkedTermSy
 class ConnectedLinkedTermSyntax(_SyntaxNode):
     'A hierarchy-only loose connection over linked terms with one or more continuations.'
     __slots__ = ()
-    _schema_id = 767
+    _schema_id = 821
     __match_args__ = ('leading_link', 'continuations')
     def __new__(cls, leading_link: BoundLinkedTermSyntax, continuations: Sequence[ConnectedLinkedTermContinuationSyntax]) -> ConnectedLinkedTermSyntax:
         return cls._from_fields((leading_link, continuations))
@@ -15546,7 +16556,7 @@ class ConnectedLinkedTermSyntax(_SyntaxNode):
 class ConnectedLinkedTermContinuationSyntax(_SyntaxNode):
     'One loose linked-term continuation.'
     __slots__ = ()
-    _schema_id = 768
+    _schema_id = 822
     __match_args__ = ('connective', 'trailing_link')
     def __new__(cls, connective: ConnectedTermConnectiveSyntax, trailing_link: BoundLinkedTermSyntax) -> ConnectedLinkedTermContinuationSyntax:
         return cls._from_fields((connective, trailing_link))
@@ -15567,7 +16577,7 @@ class ConnectedLinkedTermContinuationSyntax(_SyntaxNode):
 class BoundLinkedTermSyntaxBoundLinkedTermConnection(_SyntaxNode):
     'Uses a hierarchy-only BO-bound linked-term connection.'
     __slots__ = ()
-    _schema_id = 769
+    _schema_id = 823
     __match_args__ = ('bound_linked_term_connection',)
     def __new__(cls, bound_linked_term_connection: BoundLinkedTermConnectionSyntax) -> BoundLinkedTermSyntaxBoundLinkedTermConnection:
         return cls._from_fields((bound_linked_term_connection,))
@@ -15584,7 +16594,7 @@ class BoundLinkedTermSyntaxBoundLinkedTermConnection(_SyntaxNode):
 class BoundLinkedTermSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
     'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
     __slots__ = ()
-    _schema_id = 770
+    _schema_id = 824
     __match_args__ = ('place_tagged_linked_sumti',)
     def __new__(cls, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> BoundLinkedTermSyntaxPlaceTaggedLinkedSumti:
         return cls._from_fields((place_tagged_linked_sumti,))
@@ -15601,7 +16611,7 @@ class BoundLinkedTermSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
 class BoundLinkedTermSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
     'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
     __slots__ = ()
-    _schema_id = 771
+    _schema_id = 825
     __match_args__ = ('tense_tagged_linked_sumti',)
     def __new__(cls, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> BoundLinkedTermSyntaxTenseTaggedLinkedSumti:
         return cls._from_fields((tense_tagged_linked_sumti,))
@@ -15618,7 +16628,7 @@ class BoundLinkedTermSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
 class BoundLinkedTermSyntaxPlainLinkedSumti(_SyntaxNode):
     'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
     __slots__ = ()
-    _schema_id = 772
+    _schema_id = 826
     __match_args__ = ('plain_linked_sumti',)
     def __new__(cls, plain_linked_sumti: PlainLinkedSumtiSyntax) -> BoundLinkedTermSyntaxPlainLinkedSumti:
         return cls._from_fields((plain_linked_sumti,))
@@ -15637,7 +16647,7 @@ BoundLinkedTermSyntax: TypeAlias = BoundLinkedTermSyntaxBoundLinkedTermConnectio
 class BoundLinkedTermOperandSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
     'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
     __slots__ = ()
-    _schema_id = 773
+    _schema_id = 827
     __match_args__ = ('place_tagged_linked_sumti',)
     def __new__(cls, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> BoundLinkedTermOperandSyntaxPlaceTaggedLinkedSumti:
         return cls._from_fields((place_tagged_linked_sumti,))
@@ -15654,7 +16664,7 @@ class BoundLinkedTermOperandSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
 class BoundLinkedTermOperandSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
     'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
     __slots__ = ()
-    _schema_id = 774
+    _schema_id = 828
     __match_args__ = ('tense_tagged_linked_sumti',)
     def __new__(cls, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> BoundLinkedTermOperandSyntaxTenseTaggedLinkedSumti:
         return cls._from_fields((tense_tagged_linked_sumti,))
@@ -15671,7 +16681,7 @@ class BoundLinkedTermOperandSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
 class BoundLinkedTermOperandSyntaxPlainLinkedSumti(_SyntaxNode):
     'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
     __slots__ = ()
-    _schema_id = 775
+    _schema_id = 829
     __match_args__ = ('plain_linked_sumti',)
     def __new__(cls, plain_linked_sumti: PlainLinkedSumtiSyntax) -> BoundLinkedTermOperandSyntaxPlainLinkedSumti:
         return cls._from_fields((plain_linked_sumti,))
@@ -15690,7 +16700,7 @@ BoundLinkedTermOperandSyntax: TypeAlias = BoundLinkedTermOperandSyntaxPlaceTagge
 class BoundLinkedTermConnectionSyntax(_SyntaxNode):
     'A hierarchy-only BO-bound BE/BEI connection with one or more continuations.'
     __slots__ = ()
-    _schema_id = 776
+    _schema_id = 830
     __match_args__ = ('leading_link', 'continuations')
     def __new__(cls, leading_link: BoundLinkedTermOperandSyntax, continuations: Sequence[BoundLinkedTermContinuationSyntax]) -> BoundLinkedTermConnectionSyntax:
         return cls._from_fields((leading_link, continuations))
@@ -15711,7 +16721,7 @@ class BoundLinkedTermConnectionSyntax(_SyntaxNode):
 class BoundLinkedTermContinuationSyntax(_SyntaxNode):
     'One optional-stag BO continuation in a BE/BEI argument connection.'
     __slots__ = ()
-    _schema_id = 777
+    _schema_id = 831
     __match_args__ = ('connective', 'tense_modal', 'bo', 'trailing_link')
     def __new__(cls, connective: BoundTermConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_link: BoundLinkedTermOperandSyntax) -> BoundLinkedTermContinuationSyntax:
         return cls._from_fields((connective, tense_modal, bo, trailing_link))
@@ -15740,7 +16750,7 @@ class BoundLinkedTermContinuationSyntax(_SyntaxNode):
 class PlaceTaggedLinkedSumtiSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `fa` and `sumti` in source order.'
     __slots__ = ()
-    _schema_id = 778
+    _schema_id = 832
     __match_args__ = ('fa', 'sumti')
     def __new__(cls, fa: WithFreeModifiers[Token, FreeModifierSyntax], sumti: TaggedOrElidedSumtiSyntax) -> PlaceTaggedLinkedSumtiSyntax:
         return cls._from_fields((fa, sumti))
@@ -15761,7 +16771,7 @@ class PlaceTaggedLinkedSumtiSyntax(_SyntaxNode):
 class TenseTaggedLinkedSumtiSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `tense_modal` and `sumti` in source order.'
     __slots__ = ()
-    _schema_id = 779
+    _schema_id = 833
     __match_args__ = ('tense_modal', 'sumti')
     def __new__(cls, tense_modal: TenseModalSyntax, sumti: TaggedOrElidedSumtiSyntax) -> TenseTaggedLinkedSumtiSyntax:
         return cls._from_fields((tense_modal, sumti))
@@ -15782,7 +16792,7 @@ class TenseTaggedLinkedSumtiSyntax(_SyntaxNode):
 class PlainLinkedSumtiSyntax(_SyntaxNode):
     'Transparent product node for linked arguments; preserves the `sumti` component.'
     __slots__ = ()
-    _schema_id = 780
+    _schema_id = 834
     __match_args__ = ('sumti',)
     def __new__(cls, sumti: SumtiSyntax) -> PlainLinkedSumtiSyntax:
         return cls._from_fields((sumti,))
@@ -15799,7 +16809,7 @@ class PlainLinkedSumtiSyntax(_SyntaxNode):
 class EmptyLinkedSumtiSyntax(_SyntaxNode):
     'Marker-only product node for linked arguments; the parser retains no public fields.'
     __slots__ = ()
-    _schema_id = 781
+    _schema_id = 835
     __match_args__ = ()
     def __new__(cls) -> EmptyLinkedSumtiSyntax:
         return cls._from_fields(())
@@ -15812,7 +16822,7 @@ class EmptyLinkedSumtiSyntax(_SyntaxNode):
 class BeiLinkSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `bei` and `link` in source order.'
     __slots__ = ()
-    _schema_id = 782
+    _schema_id = 836
     __match_args__ = ('bei', 'link')
     def __new__(cls, bei: WithFreeModifiers[Token, FreeModifierSyntax], link: LinkedTermSyntax) -> BeiLinkSyntax:
         return cls._from_fields((bei, link))
@@ -15833,7 +16843,7 @@ class BeiLinkSyntax(_SyntaxNode):
 class LinkargsSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `be`, `first_link`, `bei_links`, and `beho` in source order.'
     __slots__ = ()
-    _schema_id = 783
+    _schema_id = 837
     __match_args__ = ('be', 'first_link', 'bei_links', 'beho')
     def __new__(cls, be: WithFreeModifiers[Token, FreeModifierSyntax], first_link: LinkedTermSyntax, bei_links: Sequence[BeiLinkSyntax], beho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> LinkargsSyntax:
         return cls._from_fields((be, first_link, bei_links, beho))
@@ -15862,7 +16872,7 @@ class LinkargsSyntax(_SyntaxNode):
 class AbstractionTanruUnitSyntax(_SyntaxNode):
     'Product node for abstraction; preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei` in source order.'
     __slots__ = ()
-    _schema_id = 784
+    _schema_id = 838
     __match_args__ = ('nu', 'nai', 'abstractor_connections', 'subbridi', 'kei')
     def __new__(cls, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, abstractor_connections: Sequence[AbstractorConnectionSyntax], subbridi: SubbridiSyntax, kei: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> AbstractionTanruUnitSyntax:
         return cls._from_fields((nu, nai, abstractor_connections, subbridi, kei))
@@ -15895,7 +16905,7 @@ class AbstractionTanruUnitSyntax(_SyntaxNode):
 class AbstractorConnectionSyntax(_SyntaxNode):
     'Product node for abstractor connection; preserves `connective`, `nu`, and `nai` in source order.'
     __slots__ = ()
-    _schema_id = 785
+    _schema_id = 839
     __match_args__ = ('connective', 'nu', 'nai')
     def __new__(cls, connective: StandardStatementConnectiveSyntax, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> AbstractorConnectionSyntax:
         return cls._from_fields((connective, nu, nai))
@@ -15920,7 +16930,7 @@ class AbstractorConnectionSyntax(_SyntaxNode):
 class ZantufaStatementAbstractionTanruUnitSyntax(_SyntaxNode):
     'Product node for abstraction; preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei` in source order.'
     __slots__ = ()
-    _schema_id = 786
+    _schema_id = 840
     __match_args__ = ('nu', 'nai', 'abstractor_connections', 'statement', 'kei')
     def __new__(cls, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, abstractor_connections: Sequence[ZantufaAbstractorConnectionSyntax], statement: StatementSyntax, kei: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaStatementAbstractionTanruUnitSyntax:
         return cls._from_fields((nu, nai, abstractor_connections, statement, kei))
@@ -15953,7 +16963,7 @@ class ZantufaStatementAbstractionTanruUnitSyntax(_SyntaxNode):
 class ZantufaAbstractorConnectionSyntax(_SyntaxNode):
     'Product node for abstractor connection; preserves `connective`, `nu`, and `nai` in source order.'
     __slots__ = ()
-    _schema_id = 787
+    _schema_id = 841
     __match_args__ = ('connective', 'nu', 'nai')
     def __new__(cls, connective: JoikConnectiveSyntax, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaAbstractorConnectionSyntax:
         return cls._from_fields((connective, nu, nai))
@@ -16617,33 +17627,93 @@ __all__ = (
     'TenseModalSyntax',
     'TenseModalBodySyntaxConnectedTenseModal',
     'TenseModalBodySyntaxTenseModalAtom',
+    'TenseModalBodySyntaxZantufaTag',
     'TenseModalBodySyntax',
+    'BaselineTermTenseModalSyntaxBaselineTermConnectedTenseModal',
+    'BaselineTermTenseModalSyntaxBaselineTermTenseModalAtom',
+    'BaselineTermTenseModalSyntax',
+    'BaselineTermConnectedTenseModalSyntax',
+    'BaselineTermConnectedTenseModalContinuationSyntax',
+    'BaselineTermTenseModalAtomSyntaxCompositeTense',
+    'BaselineTermTenseModalAtomSyntaxFihoTense',
+    'BaselineTermTenseModalAtomSyntaxModalTense',
+    'BaselineTermTenseModalAtomSyntaxStickyTense',
+    'BaselineTermTenseModalAtomSyntax',
     'ConnectedTenseModalSyntax',
     'ConnectedTenseModalContinuationSyntax',
     'TenseModalConnectiveSyntaxJoikConnective',
     'TenseModalConnectiveSyntaxJekConnective',
     'TenseModalConnectiveSyntax',
+    'TenseModalAtomSyntaxExpTagAtomRun',
     'TenseModalAtomSyntaxCompositeTense',
     'TenseModalAtomSyntaxFihoTense',
     'TenseModalAtomSyntaxModalTense',
-    'TenseModalAtomSyntaxNaheSeFlatPrefixedTense',
-    'TenseModalAtomSyntaxSeFlatPrefixedTense',
-    'TenseModalAtomSyntaxFaFlatTagTense',
-    'TenseModalAtomSyntaxZantufaRecursiveTagTense',
     'TenseModalAtomSyntaxStickyTense',
     'TenseModalAtomSyntax',
     'FihoTenseSyntax',
-    'FaFlatTagTenseSyntax',
-    'FlatTagAtomSyntaxFaFlatTagAtom',
-    'FlatTagAtomSyntaxModalFlatTagAtom',
-    'FlatTagAtomSyntaxCompositeFlatTagAtom',
-    'FlatTagAtomSyntax',
-    'FaFlatTagAtomSyntax',
-    'ModalFlatTagAtomSyntax',
-    'CompositeFlatTagAtomSyntax',
-    'NaheSeFlatPrefixedTenseSyntax',
-    'SeFlatPrefixedTenseSyntax',
-    'ZantufaRecursiveTagTenseSyntax',
+    'ExpTagAtomRunSyntax',
+    'ExpTagAtomRunBodySyntax',
+    'ExpPrefixedTagAtomSyntax',
+    'ExpTagAtomSyntaxExpBaiTagAtom',
+    'ExpTagAtomSyntaxExpCahaTagAtom',
+    'ExpTagAtomSyntaxExpCuheTagAtom',
+    'ExpTagAtomSyntaxExpKiTagAtom',
+    'ExpTagAtomSyntaxExpZiTagAtom',
+    'ExpTagAtomSyntaxExpPuTagAtom',
+    'ExpTagAtomSyntaxExpVaTagAtom',
+    'ExpTagAtomSyntaxExpFahaTagAtom',
+    'ExpTagAtomSyntaxExpZehaTagAtom',
+    'ExpTagAtomSyntaxExpVehaTagAtom',
+    'ExpTagAtomSyntaxExpVihaTagAtom',
+    'ExpTagAtomSyntaxExpRoiTagAtom',
+    'ExpTagAtomSyntaxExpTaheTagAtom',
+    'ExpTagAtomSyntaxExpZahoTagAtom',
+    'ExpTagAtomSyntaxExpFihoTagAtom',
+    'ExpTagAtomSyntaxExpFaTagAtom',
+    'ExpTagAtomSyntax',
+    'ExpBaiTagAtomSyntax',
+    'ExpCahaTagAtomSyntax',
+    'ExpCuheTagAtomSyntax',
+    'ExpKiTagAtomSyntax',
+    'ExpZiTagAtomSyntax',
+    'ExpPuTagAtomSyntax',
+    'ExpVaTagAtomSyntax',
+    'ExpFahaTagAtomSyntax',
+    'ExpZehaTagAtomSyntax',
+    'ExpVehaTagAtomSyntax',
+    'ExpVihaTagAtomSyntax',
+    'ExpRoiTagAtomSyntax',
+    'ExpRoiIntervalSyntaxExpParenthesizedRoiInterval',
+    'ExpRoiIntervalSyntaxExpNumber',
+    'ExpRoiIntervalSyntax',
+    'ExpParenthesizedRoiIntervalSyntax',
+    'ExpNumberSyntax',
+    'ExpNumberAtomSyntaxExpPaNumberAtom',
+    'ExpNumberAtomSyntaxExpNiheNumberAtom',
+    'ExpNumberAtomSyntaxExpMoheNumberAtom',
+    'ExpNumberAtomSyntax',
+    'ExpPaNumberAtomSyntax',
+    'ExpNiheNumberAtomSyntax',
+    'ExpMoheNumberAtomSyntax',
+    'ExpTaheTagAtomSyntax',
+    'ExpZahoTagAtomSyntax',
+    'ExpFihoTagAtomSyntax',
+    'ExpFaTagAtomSyntax',
+    'ZantufaTagSyntax',
+    'ZantufaTagContinuationSyntax',
+    'ZantufaTcitaSelciSyntaxZantufaPrefixedTcitaSelci',
+    'ZantufaTcitaSelciSyntaxZantufaBaiTcitaSelci',
+    'ZantufaTcitaSelciSyntaxZantufaRoiTcitaSelci',
+    'ZantufaTcitaSelciSyntaxZantufaFihoTcitaSelci',
+    'ZantufaTcitaSelciSyntax',
+    'ZantufaPrefixedTcitaSelciSyntax',
+    'ZantufaRoiTcitaSelciSyntaxZantufaBareRoiTcitaSelci',
+    'ZantufaRoiTcitaSelciSyntaxZantufaMexRoiTcitaSelci',
+    'ZantufaRoiTcitaSelciSyntax',
+    'ZantufaBareRoiTcitaSelciSyntax',
+    'ZantufaMexRoiTcitaSelciSyntax',
+    'ZantufaFihoTcitaSelciSyntax',
+    'ZantufaBaiTcitaSelciSyntax',
     'CompositeTenseSyntaxPrefixedTimeSpaceCahaTense',
     'CompositeTenseSyntaxTimeSpaceCahaKiTense',
     'CompositeTenseSyntaxCuheTense',

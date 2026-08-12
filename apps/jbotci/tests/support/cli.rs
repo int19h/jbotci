@@ -2850,7 +2850,7 @@ fn gentufa_bare_nahe_sumti_without_bo_warning_goes_to_stderr() {
             stderr.contains("syntax.warning.experimental-nahe-sumti-without-bo"),
             "{stderr}"
         );
-        assert!(stderr.contains("NAhE before sumti without BO"), "{stderr}");
+        assert!(stderr.contains("NAhE argument without BO"), "{stderr}");
         assert!(stderr.contains("na'e"), "{stderr}");
     });
 }
@@ -2875,7 +2875,7 @@ fn gentufa_syntax_errors_go_to_stderr() {
         assert!(stderr.contains("unexpected cmavo"));
         assert!(
             stderr.contains(
-                "expected: free modifier, joik, linked arguments, forethought selbri connective",
+                "expected: free modifier, space interval, time interval, space tense, time tense, joik, linked arguments, forethought selbri connective",
             ),
             "{stderr}"
         );

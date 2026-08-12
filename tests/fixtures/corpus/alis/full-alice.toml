@@ -18,24 +18,19 @@ diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-c
 [expectations.syntax]
 status = "success"
 # The inline syntax debug tree is large; keep this full-text fixture reviewable.
-# C3's old/new Alice probe found all 424 PaRun quantifiers with unchanged
-# free-modifier attachments; this hash records the resulting wrapper-only tree change.
-# The round-2 priority-arm comparer also proves identical ordered sequences of
-# 33,765 source spans and 31,823 phoneme leaves across the two priority wrappers.
-raw = { sha256 = "c268a1e679591e2139a1af55c7a0c9498b456ad63af758bf476cf973266f5c13" }
-# Syntax warnings remain deliberately unpinned during epic #801 because each
-# grammar-parity epoch can change the inventory; revisit after epoch 11.
+# The epoch-2 exact-base/current comparer found identical ordered streams of all
+# 104,928 phoneme-text and byte-endpoint lines. Seven corrected camxes-exp runs
+# re-associated only their tag-bearing syntax regions; all source leaves and spans remain fixed.
+raw = { sha256 = "df80e412fc5b681cca446da50eea1fbd271cf15a8a5ed46ba34fe5b92a2a7d5a" }
 
 [expectations.semantics.refs]
 status = "success"
-# The inline semantic reference projection is about 28 MiB; keep this full-text fixture reviewable.
-# The syntax ladder rebuild changes generated-node offsets used by this projection;
-# the C3 probe establishes that its 424 quantifier attachments are unchanged.
-# Round 2 changes only two Zantufa ownership wrappers; the ordered-span/leaf
-# proof above justifies the corresponding generated-node identity refresh.
-raw = { sha256 = "76c489e1dd3b48ed06f378b02b504f6a1e7b2be602b21a6aeab193c6f703fa0a" }
+# The inline semantic reference projection is about 28 MiB. Its refreshed hash follows the
+# manually reviewed seven tag-run re-associations covered by the syntax comparison above.
+raw = { sha256 = "57cf3d01677ad31c010a8dc2ae58c53d12e455be1f1bffee3ee377f71dd5cc7c" }
 
 [expectations.output.tersmu]
 status = "success"
-# The canonical JSON graph is about 14 MiB; keep this full-text fixture reviewable.
-json = { sha256 = "b9f3a10edf4775742cab1024557c94e4a752b18b6d6b3ef6becbf36a5efbd167" }
+# The canonical JSON graph is about 14 MiB. Its refreshed hash follows the same seven reviewed
+# tag-run re-associations; the full fixture gate checks the complete graph exactly.
+json = { sha256 = "28447eefa507ed73e8834efab9df09570f98a2b0a8cf42287c7fb107598cd395" }

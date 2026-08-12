@@ -12822,7 +12822,7 @@ mod tests {
             ),
             (
                 "mi tavla na'e fa do",
-                "an experimental NAhE-prefixed FA tag",
+                "an experimental LAhE/NAhE term wrapper",
             ),
             (
                 "lo'oi mi klama ku'au cu melbi",
