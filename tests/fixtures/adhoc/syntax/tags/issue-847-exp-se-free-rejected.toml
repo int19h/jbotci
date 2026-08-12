@@ -1,0 +1,12 @@
+id = "adhoc.syntax.tags.issue-847-exp-se-free-rejected"
+lojban = "mi cu na'e se to do broda toi pu broda"
+tags = ["adhoc", "syntax", "tag", "issue-847", "free-modifiers", "camxes-exp", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "camxes-exp running-parser SE-boundary rejection probe"
+description = """`node -e "require('/home/int19h.linux/git/ilmentufa/camxes-exp.js').parse("mi cu na'e se to do broda toi pu broda")"` throws a parse error; accepting the free modifier between SE and its atom changes the source language."""
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "pu", message = "unexpected cmavo" }]

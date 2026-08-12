@@ -3980,10 +3980,12 @@ pub mod generated_model {
 
     /// One corrected camxes-exp atom with the uniform optional NAhE/SE prefix domain.
     rule "experimental prefixed tag atom" exp_prefixed_tag_atom(selbri, sumti, mekso) -> struct {
-        /// Optional scalar-negation prefix.
-        field nahe <- opt(selmaho(Nahe));
-        /// Optional conversion prefix.
-        field se <- opt(selmaho(Se));
+        /// Optional scalar-negation prefix. A free modifier here remains parse-preserving
+        /// through the preceding boundary, but camxes-exp does not source it on NAhE itself.
+        field nahe <- opt(selmaho(Nahe).prohibited_wf());
+        /// Optional conversion prefix. camxes-exp rejects a free modifier between SE and
+        /// its atom; the explicitly unrestricted policy is the only widening route.
+        field se <- opt(selmaho(Se).wf_when(UnrestrictedFree));
         /// The exact P08 atom, followed by the atom-local free-modifier boundary.
         field atom <- arc(exp_tag_atom(selbri, sumti, mekso)).wf();
     }
@@ -4226,8 +4228,8 @@ pub mod generated_model {
 
     /// Recursive rolling-Zantufa NAhE/SE prefix form.
     rule "Zantufa prefixed tag atom" zantufa_prefixed_tcita_selci(zantufa_tcita_selci) -> struct {
-        /// One recursive NAhE/SE prefix.
-        field prefix <- choice((selmaho(Nahe), selmaho(Se)));
+        /// One recursive prefix followed by rolling grammar's `post_clause` boundary.
+        field prefix <- choice((selmaho(Nahe), selmaho(Se))).wf();
         /// The recursively nested tcita-selci.
         field inner <- arc(zantufa_tcita_selci);
     }
@@ -4242,8 +4244,8 @@ pub mod generated_model {
 
     /// Bare rolling-Zantufa ROI tcita-selci.
     rule "Zantufa bare ROI tag atom" zantufa_bare_roi_tcita_selci -> struct {
-        /// The ROI marker.
-        field roi <- selmaho(Roi);
+        /// The ROI marker followed by rolling grammar's `post_clause` boundary.
+        field roi <- selmaho(Roi).wf();
     }
 
     /// Full-mex rolling-Zantufa ROI tcita-selci.
@@ -4275,18 +4277,18 @@ pub mod generated_model {
         assert (zantufa_mex, selmaho(Roi)).lookahead();
         /// Full epoch-1 Zantufa mex payload.
         field expression <- arc(zantufa_mex);
-        /// The ROI marker.
-        field roi <- selmaho(Roi);
+        /// The ROI marker followed by rolling grammar's `post_clause` boundary.
+        field roi <- selmaho(Roi).wf();
     }
 
     /// Rolling-Zantufa FIhO tcita-selci.
     rule "Zantufa FIhO tag atom" zantufa_fiho_tcita_selci(selbri) -> struct {
-        /// FIhO marker.
-        field fiho <- cmavo(Fiho);
+        /// FIhO marker followed by rolling grammar's `post_clause` boundary.
+        field fiho <- cmavo(Fiho).wf();
         /// Ad-hoc modal selbri.
         field selbri <- arc(selbri);
-        /// Optional elidable FEhU terminator.
-        field fehu <- opt(cmavo(Fehu)).elidable_terminator(Fehu);
+        /// Optional elidable FEhU terminator, with its own rolling `post_clause` boundary.
+        field fehu <- opt(cmavo(Fehu).wf()).elidable_terminator(Fehu);
     }
 
     /// Audited rolling-Zantufa BAI member supported by the pinned jbotci cmavo inventory.
@@ -4324,7 +4326,7 @@ pub mod generated_model {
             cmavo(Cahu), cmavo(Caho), cmavo(Cahi), cmavo(Ca), cmavo(Buhu),
             cmavo(Behi), cmavo(Behei), cmavo(Behau), cmavo(Beha), cmavo(Bau),
             cmavo(Bai), cmavo(Baho), cmavo(Bahi), cmavo(Bahau), cmavo(Ba),
-        ));
+        )).wf();
     }
 
     /// Sum node for tag; selects among the `prefixed_time_space_caha_tense`, `time_space_caha_ki_tense`, and `cuhe_tense` forms.

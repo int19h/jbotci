@@ -674,12 +674,12 @@ fn recovered_exp_number_atom_is_pa(atom: &recovered::ExpNumberAtomSyntax) -> boo
 fn recovered_classify_atom(atom: &recovered::ExpPrefixedTagAtomSyntax) -> Option<ClassifiedAtom> {
     let recovered::ExpPrefixedTagAtomSyntax { nahe, se, atom } = atom;
     let nahe = match nahe {
-        Some(nahe) if valid(nahe).is_some() => true,
+        Some(nahe) if valid_wf(nahe) => true,
         Some(_) => return None,
         None => false,
     };
     let se = match se {
-        Some(se) if valid(se).is_some() => true,
+        Some(se) if valid_wf(se) => true,
         Some(_) => return None,
         None => false,
     };
