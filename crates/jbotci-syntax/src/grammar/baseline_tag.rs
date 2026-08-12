@@ -570,6 +570,52 @@ fn is_baseline_tag(run: &ExpTagAtomRunBodySyntax) -> bool {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BaselineTagRejection;
 
+/// Rejects only the whole rolling-Zantufa tag arm at source positions that are
+/// camxes `stag` consumers but have no rolling `tag` counterpart. This match is
+/// deliberately exhaustive and contains no catch-all arm: extending the shared
+/// body enum must force every context guard to be audited again.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ZantufaTagRejection;
+
+#[contract_trait]
+impl OutputRejection<TenseModalSyntax> for ZantufaTagRejection {
+    fn rejected_name(&self) -> &'static str {
+        "Zantufa tag at a camxes-only stag position"
+    }
+
+    fn rejects(&self, output: &TenseModalSyntax) -> bool {
+        let TenseModalSyntax(body) = output;
+        match body {
+            TenseModalBodySyntax::ConnectedTenseModal(_) => false,
+            TenseModalBodySyntax::TenseModalAtom(_) => false,
+            TenseModalBodySyntax::ZantufaTag(_) => true,
+        }
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::TenseModalSyntax>> for ZantufaTagRejection {
+    fn rejected_name(&self) -> &'static str {
+        "Zantufa tag at a camxes-only stag position"
+    }
+
+    fn rejects(&self, output: &recovered::Recovered<recovered::TenseModalSyntax>) -> bool {
+        let Some(output) = valid(output) else {
+            return false;
+        };
+        let recovered::TenseModalSyntax(body) = output;
+        let Some(body) = valid(body) else {
+            return false;
+        };
+        match body {
+            recovered::TenseModalBodySyntax::ConnectedTenseModal(_) => false,
+            recovered::TenseModalBodySyntax::TenseModalAtom(_) => false,
+            recovered::TenseModalBodySyntax::ZantufaTag(_) => true,
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {

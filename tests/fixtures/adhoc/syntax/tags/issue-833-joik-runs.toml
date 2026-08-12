@@ -1,0 +1,40 @@
+id = "adhoc.syntax.tags.issue-833-joik-runs"
+lojban = "mi cu roi joi mu'i broda"
+dialect = "(+zantufa-tags)"
+tags = ["adhoc", "syntax", "tag", "issue-833", "zantufa", "joik"]
+
+[[provenance]]
+kind = "other"
+name = "Zantufa running-parser joik-run probe"
+description = '''`node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse(\"mi cu roi joi mu'i broda\")"` exits successfully with two nonempty tcita-selci runs joined by rolling JOIK `joi`.'''
+
+[expectations.syntax]
+status = "success"
+raw = """RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(BridiStatement(BridiStatementSyntax { bridi: BridiWithLeadingTerms(BridiWithLeadingTermsSyntax { leading_terms: [ConnectedTerm(ConnectedTermSyntax { leading_term: SumtiTerm(SumtiTermSyntax(SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: SumtiBase(ProSumti(ProSumtiSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }))), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None })), continuations: [] })], cu: Some(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "cu" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })), free_modifiers: [] }), bridi_tail: BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax { first: AfterthoughtBridiTailSyntax(Chain { first: BoGroupedBridiTailSyntax { first: SelbriSimpleBridiTail(SelbriSimpleBridiTailSyntax { selbri: TaggedSelbri(TaggedSelbriSyntax { tense_modal: TenseModalSyntax(ZantufaTag(ZantufaTagSyntax { first_run: [ZantufaRoiTcitaSelci(ZantufaBareRoiTcitaSelci(ZantufaBareRoiTcitaSelciSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "roĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None } })))))], continuations: [ZantufaTagContinuationSyntax { connective: JoiConnective(JoiConnectiveSyntax { se: None, joi: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "joĭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 13, char_start: 10, char_end: 13, start: None, end: None } })), free_modifiers: [] }, nai: None }), run: [ZantufaBaiTcitaSelci(ZantufaBaiTcitaSelciSyntax(Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mu'i" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 14, byte_end: 18, char_start: 14, char_end: 18, start: None, end: None } }))))] }] })), inner_selbri: CoSelbri(CoSelbriSyntax { leading_selbri: ConnectedSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_unit: TanruUnitSyntax(Chain { first: LinkedTanruUnit(LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "bróda" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 24, char_start: 19, char_end: 24, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }), links: [] }), additional_units: [] }, continuations: [] }, co_tail: None }) }), terms: [], vau: None }), bo_continuation: None }, links: [] }), ke_continuation: None }) }), continuations: [] }))))), following: [], trailing: [] })), additional_niho: [] })) })"""
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-tag", byte-span = [6, 9], source-text = "roi", message = "experimental syntax: experimental Zantufa tag form", word-index = 2 }]
+
+[expectations.output.gentufa]
+tree = """
+BridiWithLeadingTerms @[0‥24) {
+  leading_terms: [
+    Cmavo @[0‥2) "mi",
+  ],
+  cu: Cmavo @[3‥5) "cu",
+  bridi_tail: TaggedSelbri @[6‥24) {
+    tense_modal: ZantufaTag @[6‥18) {
+      first_run: [
+        Cmavo @[6‥9) "roĭ",
+      ],
+      continuations: [
+        ZantufaTagContinuation @[10‥18) {
+          connective: Cmavo @[10‥13) "joĭ",
+          run: [
+            Cmavo @[14‥18) "mu'i",
+          ],
+        },
+      ],
+    },
+    inner_selbri: Gismu @[19‥24) "bróda",
+  },
+}"""
+json = """{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[0,2]}}}}}}}}}}}}}}}],"cu":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"cu","span":[3,5]}}}},"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"TaggedSelbri":{"tense_modal":{"ZantufaTag":{"first_run":[{"ZantufaRoiTcitaSelci":{"ZantufaBareRoiTcitaSelci":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"roĭ","span":[6,9]}}}}}}],"continuations":[{"connective":{"JoiConnective":{"joi":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"joĭ","span":[10,13]}}}}}},"run":[{"ZantufaBaiTcitaSelci":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mu'i","span":[14,18]}}}}}]}]}},"inner_selbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"bróda","span":[19,24]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}"""

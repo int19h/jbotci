@@ -1,0 +1,12 @@
+id = "adhoc.syntax.tags.issue-833-stag-position-zantufa-rejected"
+lojban = "li pa .e se na'e se pu bo re"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "tag", "issue-833", "zantufa", "stag", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "Zantufa running-parser mex BO-position probe"
+description = "`node -e \"require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse(\"li pa .e se na'e se pu bo re\")\"` throws a parse error: rolling mex has no tag/stag slot between an operand connective and BO. The recursive surface discriminates the ZantufaTag arm from standard or camxes-exp tags."
+
+[expectations.syntax]
+status = "failure"

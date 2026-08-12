@@ -76,6 +76,7 @@ pub mod generated_model {
         zantufa_operand: ZantufaOperandSyntax;
         zantufa_operator: ZantufaOperatorSyntax;
         zantufa_forethought_mekso: ZantufaForethoughtMeksoSyntax;
+        zantufa_tcita_selci: ZantufaTcitaSelciSyntax;
         reverse_polish_parts: ReversePolishPartsSyntax;
         letter_string: LetterStringSyntax;
         letter_tokens: LetterTokensSyntax;
@@ -1186,7 +1187,7 @@ pub mod generated_model {
         /// The connective joining the adjacent simple terms.
         field connective <- bound_term_connective;
         /// The mandatory camxes-exp `stag` before BO.
-        field tense_modal <- arc(tense_modal);
+        field tense_modal <- arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection));
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         /// The simple term following BO.
@@ -1652,7 +1653,7 @@ pub mod generated_model {
         /// The `argument_connective` connective joining the adjacent constituents of the `grouped_sumti_tail` production.
         field connective <- argument_connective;
         /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The shared inner sumti child syntax node.
@@ -1868,7 +1869,7 @@ pub mod generated_model {
         /// The joik connective introducing the group.
         field connective <- arc(joik_connective);
         /// The optional tense modal between the connective and KE.
-        field tense_modal <- opt(arc(tense_modal));
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The full-width grouped operator.
@@ -1895,7 +1896,7 @@ pub mod generated_model {
         /// The `standard_statement_connective` connective joining the adjacent constituents of the `bound_mekso_operator` production.
         field connective <- standard_statement_connective;
         /// The optional tense modal between the connective and BO.
-        field tense_modal <- opt(arc(tense_modal));
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).warn(ExperimentalMexOperatorConnective).wf();
         /// The operator_1-width right operator.
@@ -2042,7 +2043,7 @@ pub mod generated_model {
         /// The joik/EK connective introducing the grouped continuation.
         field operand_connective <- operand_connective;
         /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The full-width inner operand.
@@ -2084,7 +2085,7 @@ pub mod generated_model {
         /// The `operand_connective` connective joining the adjacent constituents of the `bound_mekso_operand` production.
         field operand_connective <- operand_connective;
         /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         /// The operand_2-width right expression child syntax node.
@@ -3831,7 +3832,7 @@ pub mod generated_model {
     }
 
     /// Transparent product node for tag; preserves the `body` component.
-    rule "tag" tense_modal(selbri, sumti, mekso, letter_tokens, letter_string) -> struct {
+    rule "tag" tense_modal(selbri, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string) -> struct {
         assert choice((
             cmavo(Fiho),
             selmaho(Bai),
@@ -3857,18 +3858,22 @@ pub mod generated_model {
             cmavo(Vei),
             pa_word(),
             selmaho(Roi),
+            cmavo(Gaihi),
+            cmavo(Deiha),
         ));
         #[tree_child(primary)]
         /// The `tense_modal_body` grammar result in the `body` structural role of the `tense_modal` production.
-        field body <- tense_modal_body(selbri, sumti, mekso, letter_tokens, letter_string);
+        field body <- tense_modal_body(selbri, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string);
     }
 
-    /// Sum node for tag; selects among the baseline and corrected camxes-exp arms.
-    rule "tag" tense_modal_body(selbri, sumti, mekso, letter_tokens, letter_string) -> enum {
+    /// Sum node for tag; selects among baseline/experimental arms and the whole Zantufa tag form.
+    rule "tag" tense_modal_body(selbri, sumti, mekso, zantufa_mex, zantufa_tcita_selci, letter_tokens, letter_string) -> enum {
         /// Uses the `connected_tense_modal` product form, whose payload preserves `first` and `continuations`.
         connected_tense_modal,
         /// Uses the nested `tense_modal_atom` sum form and preserves its selected alternative.
         tense_modal_atom,
+        /// Uses one whole rolling-Zantufa tag only after standard and camxes-exp ownership fail.
+        when feature(ZantufaTags) zantufa_tag,
     }
 
     /// Baseline-only tag body used at term entry, where extension tags are not in the source grammar.
@@ -3979,7 +3984,7 @@ pub mod generated_model {
         field nahe <- opt(selmaho(Nahe));
         /// Optional conversion prefix.
         field se <- opt(selmaho(Se));
-        /// The exact P08 atom, followed by its sourced free-modifier boundary.
+        /// The exact P08 atom, followed by the atom-local free-modifier boundary.
         field atom <- arc(exp_tag_atom(selbri, sumti, mekso)).wf();
     }
 
@@ -4189,6 +4194,137 @@ pub mod generated_model {
     rule "experimental FA tag atom" exp_fa_tag_atom -> struct {
         /// The FA-family place word, carrying its dedicated warning category.
         field fa <- selmaho(Fa).warn(ExperimentalFaAsTag);
+    }
+
+    /// Whole rolling-Zantufa tag: a nonempty tcita run with zero or more JOIK-linked runs.
+    rule "Zantufa tag" zantufa_tag(selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+        /// The first nonempty tcita-selci run.
+        field first_run <- [one_or_more arc(zantufa_tcita_selci)];
+        /// Source-ordered JOIK-linked continuation runs.
+        field continuations <- [zero_or_more zantufa_tag_continuation(zantufa_tcita_selci)];
+    }
+
+    /// One JOIK-linked rolling-Zantufa tag run.
+    rule "Zantufa tag continuation" zantufa_tag_continuation(zantufa_tcita_selci) -> struct {
+        /// The rolling JOIK connective between runs.
+        field connective <- joik_connective;
+        /// The following nonempty tcita-selci run.
+        field run <- [one_or_more arc(zantufa_tcita_selci)];
+    }
+
+    /// Exact recursive rolling-Zantufa tcita-selci.
+    rule "Zantufa tag atom" zantufa_tcita_selci(selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+        /// A recursive NAhE/SE-prefixed tcita-selci.
+        zantufa_prefixed_tcita_selci,
+        /// A member of the audited rolling BAI inventory supported by jbotci morphology.
+        zantufa_bai_tcita_selci,
+        /// An optional full Zantufa mex followed by ROI.
+        zantufa_roi_tcita_selci,
+        /// A FIhO/selbri/FEhU tcita-selci.
+        zantufa_fiho_tcita_selci,
+    }
+
+    /// Recursive rolling-Zantufa NAhE/SE prefix form.
+    rule "Zantufa prefixed tag atom" zantufa_prefixed_tcita_selci(zantufa_tcita_selci) -> struct {
+        /// One recursive NAhE/SE prefix.
+        field prefix <- choice((selmaho(Nahe), selmaho(Se)));
+        /// The recursively nested tcita-selci.
+        field inner <- arc(zantufa_tcita_selci);
+    }
+
+    /// Rolling-Zantufa optional-mex ROI tcita-selci, split to avoid a nullable recursive cycle.
+    rule "Zantufa ROI tag atom" zantufa_roi_tcita_selci(zantufa_mex, letter_tokens) -> enum {
+        /// Bare ROI with the optional mex absent.
+        zantufa_bare_roi_tcita_selci,
+        /// A full epoch-1 Zantufa mex followed by ROI.
+        zantufa_mex_roi_tcita_selci,
+    }
+
+    /// Bare rolling-Zantufa ROI tcita-selci.
+    rule "Zantufa bare ROI tag atom" zantufa_bare_roi_tcita_selci -> struct {
+        /// The ROI marker.
+        field roi <- selmaho(Roi);
+    }
+
+    /// Full-mex rolling-Zantufa ROI tcita-selci.
+    rule "Zantufa mex ROI tag atom" zantufa_mex_roi_tcita_selci(zantufa_mex, letter_tokens) -> struct {
+        // The optional-mex source production is factored into bare and present
+        // arms. Require the entire present arm in strict lookahead before the
+        // recovery parser enters the mutually recursive mex/tag graph; this
+        // preserves the source language while preventing missing-token recovery
+        // from making the mex arm nullable at a tcita boundary.
+        assert choice((
+            cmavo(Ke).ignored(),
+            pa_word().ignored(),
+            letter_tokens.ignored(),
+            cmavo(Vei).ignored(),
+            cmavo(Mohe).ignored(),
+            selmaho(Lahe).ignored(),
+            selmaho(Nahe).ignored(),
+            cmavo(Fuha).ignored(),
+            cmavo(Peho).ignored(),
+            selmaho(Se).ignored(),
+            cmavo(Maho).ignored(),
+            selmaho(Vuhu).ignored(),
+            selmaho(Na).ignored(),
+            selmaho(Joi).ignored(),
+            selmaho(Bihi).ignored(),
+            selmaho(Gaho).ignored(),
+            selmaho(A).ignored(),
+        )).lookahead();
+        assert (zantufa_mex, selmaho(Roi)).lookahead();
+        /// Full epoch-1 Zantufa mex payload.
+        field expression <- arc(zantufa_mex);
+        /// The ROI marker.
+        field roi <- selmaho(Roi);
+    }
+
+    /// Rolling-Zantufa FIhO tcita-selci.
+    rule "Zantufa FIhO tag atom" zantufa_fiho_tcita_selci(selbri) -> struct {
+        /// FIhO marker.
+        field fiho <- cmavo(Fiho);
+        /// Ad-hoc modal selbri.
+        field selbri <- arc(selbri);
+        /// Optional elidable FEhU terminator.
+        field fehu <- opt(cmavo(Fehu)).elidable_terminator(Fehu);
+    }
+
+    /// Audited rolling-Zantufa BAI member supported by the pinned jbotci cmavo inventory.
+    rule "Zantufa BAI tag atom" zantufa_bai_tcita_selci -> struct {
+        /// Exact lexical member; this intentionally includes rolling repurposings such as GAIhI and DEIhA and excludes FA.
+        field bai <- choice((
+            cmavo(Pu), cmavo(Zi), cmavo(Zeha), cmavo(Va), cmavo(Faha),
+            cmavo(Veha), cmavo(Viha), cmavo(Zaho), cmavo(Tahe),
+            cmavo(Cuhe), cmavo(Ki),
+            cmavo(Gaihi), cmavo(Deiha),
+            cmavo(Zuhe), cmavo(Zuhau), cmavo(Zuha), cmavo(Zu), cmavo(Zohi),
+            cmavo(Zoha), cmavo(Zehu), cmavo(Zeho), cmavo(Zehi), cmavo(Zehe),
+            cmavo(Zau), cmavo(Zahai), cmavo(Za), cmavo(Xohu), cmavo(Xaho),
+            cmavo(Vuha), cmavo(Vu), cmavo(Vihu), cmavo(Vihi), cmavo(Vihe),
+            cmavo(Vi), cmavo(Vehu), cmavo(Vehi), cmavo(Vehe), cmavo(Vahu),
+            cmavo(Vaho), cmavo(Tuhi), cmavo(Toho), cmavo(Tihuhi), cmavo(Tihuha),
+            cmavo(Tihu), cmavo(Tihi), cmavo(Tiha), cmavo(Tehe), cmavo(Tai),
+            cmavo(Tahi), cmavo(Sihu), cmavo(Sau), cmavo(Ruhu), cmavo(Ruhi),
+            cmavo(Rihu), cmavo(Rihi), cmavo(Riha), cmavo(Reho), cmavo(Rai),
+            cmavo(Rahi), cmavo(Raha), cmavo(Puho), cmavo(Puhe), cmavo(Puhau),
+            cmavo(Puha), cmavo(Pohi), cmavo(Piho), cmavo(Pahu), cmavo(Paho),
+            cmavo(Paha), cmavo(Nihi), cmavo(Niha), cmavo(Nehu), cmavo(Nehi),
+            cmavo(Neha), cmavo(Nau), cmavo(Naho), cmavo(Muhu), cmavo(Muhai),
+            cmavo(Muhi), cmavo(Mohu), cmavo(Mehe), cmavo(Meha), cmavo(Mau),
+            cmavo(Mahi), cmavo(Mahe), cmavo(Lihe), cmavo(Leha), cmavo(Lahu),
+            cmavo(Kuhu), cmavo(Koi), cmavo(Kohau), cmavo(Kihu), cmavo(Kihoi),
+            cmavo(Kihi), cmavo(Kai), cmavo(Kahi), cmavo(Kahai), cmavo(Kaha),
+            cmavo(Jihu), cmavo(Jiho), cmavo(Jihe), cmavo(Jahi), cmavo(Jahe),
+            cmavo(Gau), cmavo(Gahu), cmavo(Gaha), cmavo(Fihe), cmavo(Fau),
+            cmavo(Fahe), cmavo(Duhoi), cmavo(Duho), cmavo(Duhi), cmavo(Duha),
+            cmavo(Dohe), cmavo(Diho), cmavo(Dihi), cmavo(Diha), cmavo(Dehihu),
+            cmavo(Dehiho), cmavo(Dehihi), cmavo(Dehihe), cmavo(Dehiha),
+            cmavo(Dehi), cmavo(Deha), cmavo(Cuhu), cmavo(Cohu), cmavo(Cohi),
+            cmavo(Coha), cmavo(Cihu), cmavo(Ciho), cmavo(Cihe), cmavo(Cau),
+            cmavo(Cahu), cmavo(Caho), cmavo(Cahi), cmavo(Ca), cmavo(Buhu),
+            cmavo(Behi), cmavo(Behei), cmavo(Behau), cmavo(Beha), cmavo(Bau),
+            cmavo(Bai), cmavo(Baho), cmavo(Bahi), cmavo(Bahau), cmavo(Ba),
+        ));
     }
 
     /// Sum node for tag; selects among the `prefixed_time_space_caha_tense`, `time_space_caha_ki_tense`, and `cuhe_tense` forms.
@@ -4728,7 +4864,7 @@ pub mod generated_model {
         /// The optional bo connective component.
         field bo_connective <- opt(arc(relation_afterthought_connective));
         /// The optional bo tense modal component.
-        field bo_tense_modal <- opt(arc(tense_modal));
+        field bo_tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         /// The shared trailing unit child syntax node.
@@ -5228,7 +5364,7 @@ pub mod generated_model {
         /// The connective joining the adjacent linked arguments.
         field connective <- bound_term_connective;
         /// The optional camxes-exp `stag`; unlike ordinary terms, links use the `term` flavor.
-        field tense_modal <- opt(arc(tense_modal));
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         /// The nonempty linked argument following BO.

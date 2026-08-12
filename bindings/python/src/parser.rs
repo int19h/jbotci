@@ -279,7 +279,7 @@ define_syntax_string_enum_binding!(
         ExperimentalConstruct::ExperimentalZantufaGek => ("EXPERIMENTAL_ZANTUFA_GEK", "experimental-zantufa-gek"),
         ExperimentalConstruct::ExperimentalZantufaPoihaBrigahi => ("EXPERIMENTAL_ZANTUFA_POIHA_BRIGAHI", "experimental-zantufa-poiha-brigahi"),
         ExperimentalConstruct::ExperimentalZantufaJaiTagTerm => ("EXPERIMENTAL_ZANTUFA_JAI_TAG_TERM", "experimental-zantufa-jai-tag-term"),
-        ExperimentalConstruct::ExperimentalZantufaRecursiveTag => ("EXPERIMENTAL_ZANTUFA_RECURSIVE_TAG", "experimental-zantufa-recursive-tag"),
+        ExperimentalConstruct::ExperimentalZantufaTag => ("EXPERIMENTAL_ZANTUFA_TAG", "experimental-zantufa-tag"),
         ExperimentalConstruct::ExperimentalZantufaGroupedBridiTail => ("EXPERIMENTAL_ZANTUFA_GROUPED_BRIDI_TAIL", "experimental-zantufa-grouped-bridi-tail"),
         ExperimentalConstruct::ExperimentalZantufaStatementTerms => ("EXPERIMENTAL_ZANTUFA_STATEMENT_TERMS", "experimental-zantufa-statement-terms"),
         ExperimentalConstruct::ExperimentalZantufaStatementRelativeClause => ("EXPERIMENTAL_ZANTUFA_STATEMENT_RELATIVE_CLAUSE", "experimental-zantufa-statement-relative-clause"),

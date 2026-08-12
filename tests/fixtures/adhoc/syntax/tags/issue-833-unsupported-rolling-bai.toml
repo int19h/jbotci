@@ -1,0 +1,13 @@
+id = "adhoc.syntax.tags.issue-833-unsupported-rolling-bai"
+lojban = "mi cu zei'a broda"
+dialect = "(+zantufa-tags)"
+tags = ["adhoc", "syntax", "tag", "issue-833", "zantufa", "bai-inventory", "negative", "waiver"]
+
+[[provenance]]
+kind = "other"
+name = "Zantufa running-parser unsupported rolling-BAI probe"
+description = '''`node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse('mi cu zei\'a broda')"` accepts; `zei'a` is one of nine pinned rolling-BAI words absent from jbotci's cmavo inventory and is explicitly waived pending morphology support.'''
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 11], source-text = "zei'a", message = "unexpected cmavo" }]

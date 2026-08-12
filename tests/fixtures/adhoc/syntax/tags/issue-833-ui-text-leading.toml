@@ -1,0 +1,31 @@
+id = "adhoc.syntax.tags.issue-833-ui-text-leading"
+lojban = "ui ui mi klama"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "tag", "issue-833", "zantufa", "ui"]
+
+[[provenance]]
+kind = "other"
+name = "Zantufa running-parser text-leading UI probe"
+description = """`node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse('ui ui mi klama')"` exits successfully; the returned tree begins `text,free,UI_clause,UI,ui,post_clause,free,UI_clause,UI,ui` before the paragraph."""
+
+[expectations.syntax]
+status = "success"
+raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [LeadingIndicatorSyntax { indicator: WithIndicator { base: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "ŭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), indicator_bahe: [], indicator: Cmavo { phonemes: Phonemes { text: "ŭi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }, nai_bahe: [], nai: None }, nai: None }], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(BridiStatement(BridiStatementSyntax { bridi: BridiWithLeadingTerms(BridiWithLeadingTermsSyntax { leading_terms: [ConnectedTerm(ConnectedTermSyntax { leading_term: SumtiTerm(SumtiTermSyntax(SumtiSyntax { base_sumti: SumtiGroupedSyntax { leading_sumti: SumtiAfterthoughtSyntax { leading_sumti: SumtiBoundSyntax { leading_sumti: SimpleSumti(SimpleSumtiSyntax { base_sumti: SumtiBase(ProSumti(ProSumtiSyntax(WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "mi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 8, char_start: 6, char_end: 8, start: None, end: None } })), free_modifiers: [] }))), relative_clauses: None }), bound_tail: None }, continuations: [] }, grouped_tail: None }, vuho_attachment: None })), continuations: [] })], cu: None, bridi_tail: BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax { first: AfterthoughtBridiTailSyntax(Chain { first: BoGroupedBridiTailSyntax { first: SelbriSimpleBridiTail(SelbriSimpleBridiTailSyntax { selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: ConnectedSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_unit: TanruUnitSyntax(Chain { first: LinkedTanruUnit(LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "kláma" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 9, byte_end: 14, char_start: 9, char_end: 14, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }), links: [] }), additional_units: [] }, continuations: [] }, co_tail: None })), terms: [], vau: None }), bo_continuation: None }, links: [] }), ke_continuation: None }) }), continuations: [] }))))), following: [], trailing: [] })), additional_niho: [] })) })'
+
+[expectations.output.gentufa]
+tree = """
+Text @[0‥14) {
+  leading_indicators: [
+    WithIndicator @[0‥5) {
+      Cmavo @[0‥2) "ŭi",
+      indicator: Cmavo @[3‥5) "ŭi",
+    },
+  ],
+  BridiWithLeadingTerms @[6‥14) {
+    leading_terms: [
+      Cmavo @[6‥8) "mi",
+    ],
+    bridi_tail: Gismu @[9‥14) "kláma",
+  },
+}"""
+json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"bridi":{"BridiWithLeadingTerms":{"leading_terms":[{"ConnectedTerm":{"leading_term":{"SumtiTerm":{"base_sumti":{"leading_sumti":{"leading_sumti":{"leading_sumti":{"SimpleSumti":{"base_sumti":{"SumtiBase":{"ProSumti":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"mi","span":[6,8]}}}}}}}}}}}}}}}],"bridi_tail":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"leading_selbri":{"first_unit":{"first":{"LinkedTanruUnit":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"kláma","span":[9,14]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}},"leading_indicators":[{"indicator":{"WithIndicator":{"base":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"ŭi","span":[0,2]}}}},"indicator":{"Cmavo":{"phonemes":"ŭi","span":[3,5]}}}}}]}}'

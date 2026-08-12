@@ -4033,6 +4033,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::TenseModalBodySyntax::TenseModalAtom(tense_modal) => {
                 self.walk_node(tense_modal);
             }
+            generated::TenseModalBodySyntax::ZantufaTag(tag) => self.walk_node(tag),
         }
     }
 
@@ -7320,6 +7321,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::TenseModalBodySyntax::TenseModalAtom(tense_modal) => {
                 self.walk_node(tense_modal);
             }
+            generated::TenseModalBodySyntax::ZantufaTag(tag) => self.walk_node(tag),
         }
     }
 

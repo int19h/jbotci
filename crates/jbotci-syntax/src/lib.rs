@@ -1335,6 +1335,15 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         "experimental ROI interval"
     ),
     parser_construct_metadata!("experimental prefixed tag atom", "experimental tag atom"),
+    parser_construct_metadata!("Zantufa tag", "tag"),
+    parser_construct_metadata!("Zantufa tag continuation", "Zantufa tag"),
+    parser_construct_metadata!("Zantufa tag atom", "Zantufa tag"),
+    parser_construct_metadata!("Zantufa BAI tag atom", "Zantufa tag atom"),
+    parser_construct_metadata!("Zantufa FIhO tag atom", "Zantufa tag atom"),
+    parser_construct_metadata!("Zantufa ROI tag atom", "Zantufa tag atom"),
+    parser_construct_metadata!("Zantufa bare ROI tag atom", "Zantufa ROI tag atom"),
+    parser_construct_metadata!("Zantufa mex ROI tag atom", "Zantufa ROI tag atom"),
+    parser_construct_metadata!("Zantufa prefixed tag atom", "Zantufa tag atom"),
     SyntaxConstructMetadata {
         name: "modal tag",
         parent: Some("simple tense/modal"),
@@ -2974,7 +2983,7 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaGek,
     ExperimentalZantufaPoihaBrigahi,
     ExperimentalZantufaJaiTagTerm,
-    ExperimentalZantufaRecursiveTag,
+    ExperimentalZantufaTag,
     ExperimentalZantufaGroupedBridiTail,
     ExperimentalZantufaStatementTerms,
     ExperimentalZantufaStatementRelativeClause,
@@ -3116,9 +3125,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaJaiTagTerm => {
                 "syntax.warning.experimental-zantufa-jai-tag-term"
             }
-            Self::ExperimentalZantufaRecursiveTag => {
-                "syntax.warning.experimental-zantufa-recursive-tag"
-            }
+            Self::ExperimentalZantufaTag => "syntax.warning.experimental-zantufa-tag",
             Self::ExperimentalZantufaGroupedBridiTail => {
                 "syntax.warning.experimental-zantufa-grouped-bridi-tail"
             }
@@ -3169,7 +3176,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalMultipleNaFragment => "multiple NA fragment sequence",
             Self::ExperimentalEmptyPrenex => "empty prenex",
             Self::ExperimentalBareCuPredicate => "bare CU before the main selbri",
-            Self::ExperimentalNaheArgumentWithoutBo => "NAhE before sumti without BO",
+            Self::ExperimentalNaheArgumentWithoutBo => "NAhE argument without BO",
             Self::ExperimentalVuhoScopedAttachment => "VUhO scoped attachment enhancement",
             Self::ExperimentalNohoiSelbriRelativeClause => "NOhOI/KUhOI selbri relative clause",
             Self::ExperimentalSimplerSumtiConnective => {
@@ -3248,7 +3255,7 @@ impl ExperimentalConstruct {
                 "Zantufa POIhA briga'i term with KU terminator"
             }
             Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
-            Self::ExperimentalZantufaRecursiveTag => "Zantufa recursive SE/NAhE tag prefix",
+            Self::ExperimentalZantufaTag => "experimental Zantufa tag form",
             Self::ExperimentalZantufaGroupedBridiTail => "Zantufa KE bridi-tail grouping",
             Self::ExperimentalZantufaStatementTerms => "Zantufa statement-level trailing terms",
             Self::ExperimentalZantufaStatementRelativeClause => {
