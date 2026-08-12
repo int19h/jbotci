@@ -3042,7 +3042,7 @@ pub mod generated_model {
     }
 
     /// Sum node for free modifier; selects among 9 forms including `text_replacement_free_modifier`, `zantufa_sei_statement_free_modifier`, and `sei_free_modifier`.
-    rule "free modifier" free_modifier(sumti, subbridi, selbri, text, mekso, term, tense_modal, letter_tokens, letter_string, free_modifier, statement) -> enum {
+    rule "free modifier" free_modifier(sumti, subbridi, selbri, text, mekso, zantufa_mex_2, term, tense_modal, letter_tokens, letter_string, free_modifier, statement) -> enum {
         /// Uses the nested `text_replacement_free_modifier` sum form and preserves its selected alternative.
         text_replacement_free_modifier,
         /// Uses the `zantufa_sei_statement_free_modifier` product form, whose payload preserves `sei`, `statement`, and `sehu`.
@@ -3107,14 +3107,16 @@ pub mod generated_model {
         field sehu <- opt(cmavo(Sehu).prohibited_wf()).elidable_terminator(Sehu);
     }
 
-    /// Sum node for subscript; selects among the `xi_number_free_modifier`, `xi_lerfu_string_free_modifier`, and `xi_parenthesized_free_modifier` forms.
-    rule "subscript" xi_free_modifier(mekso, letter_tokens, letter_string, free_modifier) -> enum {
+    /// Sum node for subscript; preserves standard ownership before the Zantufa mex_2 extension.
+    rule "subscript" xi_free_modifier(mekso, zantufa_mex_2, letter_tokens, letter_string, free_modifier) -> enum {
         /// Uses the `xi_number_free_modifier` product form, whose payload preserves `xi` and `expression`.
         xi_number_free_modifier,
         /// Uses the `xi_lerfu_string_free_modifier` product form, whose payload preserves `xi` and `expression`.
         xi_lerfu_string_free_modifier,
         /// Uses the `xi_parenthesized_free_modifier` product form, whose payload preserves `xi` and `expression`.
         xi_parenthesized_free_modifier,
+        /// Uses an exact Zantufa mex_2 subscript only after all standard routes fail.
+        when feature(ZantufaMex) zantufa_mex_2_xi_free_modifier,
     }
 
     /// Product node for subscript; preserves `xi` and `expression` in source order.
@@ -3141,6 +3143,14 @@ pub mod generated_model {
         field expression <- arc(parenthesized_mekso_operand(mekso));
     }
 
+    /// Product node for a Zantufa mex_2 subscript.
+    rule "subscript" zantufa_mex_2_xi_free_modifier(zantufa_mex_2) -> struct {
+        /// A word from selmaho `Xi`.
+        field xi <- selmaho(Xi).wf();
+        /// The exact Zantufa mex_2 payload.
+        field expression <- arc(zantufa_mex_2);
+    }
+
     /// Product node for utterance ordinal; preserves `number` and `mai` in source order.
     rule "utterance ordinal" mai_free_modifier(letter_tokens, letter_string) -> struct {
         /// The `number_or_letter_words` grammar result in the `number` structural role of the `mai_free_modifier` production.
@@ -3151,9 +3161,9 @@ pub mod generated_model {
     }
 
     /// Product node for utterance ordinal; preserves `expression` and `mai` in source order.
-    rule "utterance ordinal" zantufa_mekso_mai_free_modifier(mekso) -> struct {
-        /// The required shared mekso expression parsed by `mekso`, accepted only when immediately followed by a MAI-family word.
-        field expression <- arc(mekso.followed_by(selmaho(Mai).ignored()));
+    rule "utterance ordinal" zantufa_mekso_mai_free_modifier(zantufa_mex_2) -> struct {
+        /// The exact Zantufa mex_2 payload, accepted only when immediately followed by a MAI-family word.
+        field expression <- arc(zantufa_mex_2.followed_by(selmaho(Mai).ignored()));
         /// A word from selmaho `Mai`.
         field mai <- selmaho(Mai).warn(ExperimentalZantufaMex).wf();
     }

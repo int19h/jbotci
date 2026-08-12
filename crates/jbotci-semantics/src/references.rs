@@ -4058,6 +4058,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
                     self.walk_node(&free_modifier.expression.inner_expression);
                 }
+                generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(free_modifier) => {
+                    self.walk_node(&free_modifier.expression);
+                }
                 generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
                 | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}
             },
@@ -7341,6 +7344,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::FreeModifierSyntax::XiFreeModifier(free_modifier) => match free_modifier {
                 generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(free_modifier) => {
                     self.walk_node(&free_modifier.expression.inner_expression);
+                }
+                generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(free_modifier) => {
+                    self.walk_node(&free_modifier.expression);
                 }
                 generated::XiFreeModifierSyntax::XiNumberFreeModifier(_)
                 | generated::XiFreeModifierSyntax::XiLerfuStringFreeModifier(_) => {}

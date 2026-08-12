@@ -1,0 +1,14 @@
+id = "adhoc.syntax.mekso.issue-836-mai-qualified-gap-union"
+lojban = "mi lu'e pa su'i re mai broda"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-836", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #836"
+url = "https://github.com/int19h/jbotci/issues/836"
+description = "Baseline-first union ownership documents the wide-qualified MAI gap."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [23, 28], source-text = "broda", message = "unexpected brivla" }]

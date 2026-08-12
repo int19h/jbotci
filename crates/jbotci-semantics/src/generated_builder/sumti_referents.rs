@@ -6770,28 +6770,44 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let Some(free_modifier) = free_modifiers.iter().find_map(generated_xi_free_modifier) else {
             return Ok(None);
         };
-        let (xi, expression_text) = match free_modifier {
+        let (xi, expression_text, zantufa_expression) = match free_modifier {
             jbotci_syntax::generated_model::XiFreeModifierSyntax::XiNumberFreeModifier(
                 subscript,
             ) => (
                 &subscript.xi,
-                generated_number_words_text(&subscript.expression.0.number),
+                Some(generated_number_words_text(&subscript.expression.0.number)),
+                None,
             ),
             jbotci_syntax::generated_model::XiFreeModifierSyntax::XiLerfuStringFreeModifier(
                 subscript,
             ) => (
                 &subscript.xi,
-                generated_letter_string_text(&subscript.expression.letters),
+                Some(generated_letter_string_text(&subscript.expression.letters)),
+                None,
             ),
             jbotci_syntax::generated_model::XiFreeModifierSyntax::XiParenthesizedFreeModifier(
                 subscript,
             ) => (
                 &subscript.xi,
-                generated_subscript_mekso_surface_text(&subscript.expression.inner_expression)?,
+                Some(generated_subscript_mekso_surface_text(
+                    &subscript.expression.inner_expression,
+                )?),
+                None,
             ),
+            jbotci_syntax::generated_model::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(
+                subscript,
+            ) => (&subscript.xi, None, Some(&subscript.expression)),
+        };
+        let literal = match (expression_text, zantufa_expression) {
+            (Some(expression_text), None) => math_literal_for_pa_text(expression_text),
+            (None, Some(expression)) => MathLiteral::text(
+                MathLiteralKind::Expression,
+                generated_node_surface_text(expression)?,
+            ),
+            _ => unreachable!("subscript syntax supplies exactly one expression representation"),
         };
         let value = self.build_generated_math_literal(
-            math_literal_for_pa_text(expression_text),
+            literal,
             self.exact_source_for_node(free_modifier, "subscript-value"),
         )?;
         Ok(Some(Subscript::new(
