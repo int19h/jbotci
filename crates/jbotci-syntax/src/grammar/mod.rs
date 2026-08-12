@@ -4674,6 +4674,7 @@ fn recovery_feature_condition_matches(
         "ZantufaAdverbials" => dialect.zantufa_adverbials_enabled,
         "ZantufaConnectives" => dialect.zantufa_connectives_enabled,
         "ZantufaMex" => dialect.zantufa_mex_enabled,
+        "ZantufaMexReinterpretation" => dialect.zantufa_mex_reinterpretation_enabled,
         "ZantufaQuotes" => dialect.zantufa_quotes_enabled,
         "ZantufaTags" => dialect.zantufa_tags_enabled,
         "ZantufaTerms" => dialect.zantufa_terms_enabled,

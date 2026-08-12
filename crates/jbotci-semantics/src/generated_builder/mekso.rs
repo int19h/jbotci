@@ -83,15 +83,6 @@ pub(super) fn generated_atomic_mekso_operator_label(
             relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
         }
         AtomicMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
-        AtomicMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
-            relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
-        }
-        AtomicMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_) => {
-            Ok("sumti-operator".to_owned())
-        }
-        AtomicMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
-            Ok(generated_operand_connective_source(&operator.0))
-        }
         AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(operator) => {
             generated_experimental_connective_mekso_operator_source(operator)
         }
@@ -137,12 +128,12 @@ pub(super) fn generated_mekso_operator_surface_label(
 
 #[requires(!operators.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
-pub(super) fn generated_zantufa_mekso_operator_sequence_label<O: AsRef<MeksoOperatorSyntax>>(
+pub(super) fn generated_zantufa_mekso_operator_sequence_label<O: AsRef<ZantufaOperatorSyntax>>(
     operators: &[O],
 ) -> Result<String, SemanticsError> {
     operators
         .iter()
-        .map(|operator| generated_mekso_operator_surface_label(operator.as_ref()))
+        .map(|operator| generated_zantufa_operator_surface_label(operator.as_ref()))
         .collect::<Result<Vec<_>, _>>()
         .map(|parts| parts.join(" "))
 }
@@ -150,7 +141,7 @@ pub(super) fn generated_zantufa_mekso_operator_sequence_label<O: AsRef<MeksoOper
 #[requires(!operators.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|(label, _)| !label.is_empty()) || ret.is_err())]
 pub(super) fn generated_zantufa_mekso_operator_sequence_label_with_replacement<
-    O: AsRef<MeksoOperatorSyntax>,
+    O: AsRef<ZantufaOperatorSyntax>,
 >(
     operators: &[O],
     replacement_operator: &MeksoOperatorSyntax,
@@ -158,13 +149,13 @@ pub(super) fn generated_zantufa_mekso_operator_sequence_label_with_replacement<
     let mut replaced = false;
     let mut parts = Vec::with_capacity(operators.len());
     for operator in operators {
-        if !replaced && connected_generated_mekso_operator(operator.as_ref())?.is_some() {
+        if !replaced && connected_generated_zantufa_operator(operator.as_ref())?.is_some() {
             parts.push(generated_mekso_operator_surface_label(
                 replacement_operator,
             )?);
             replaced = true;
         } else {
-            parts.push(generated_mekso_operator_surface_label(operator.as_ref())?);
+            parts.push(generated_zantufa_operator_surface_label(operator.as_ref())?);
         }
     }
     Ok((parts.join(" "), replaced))
@@ -241,23 +232,6 @@ pub(super) fn generated_atomic_mekso_operator_surface_label(
             relation_label_from_selbri(&operator.selbri).map(|label| label.display_text())
         }
         AtomicMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok("operand-operator".to_owned()),
-        AtomicMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => Ok(format!(
-            "{} {}",
-            token_text(&operator.maho.value),
-            relation_label_from_selbri(&operator.selbri)?.display_text()
-        )),
-        AtomicMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
-            let mut visitor = GeneratedSpanCollector::default();
-            operator.sumti.visit_in_order(&mut visitor);
-            Ok(format!(
-                "{} {}",
-                token_text(&operator.maho.value),
-                token_list_text(visitor.tokens.iter().copied())
-            ))
-        }
-        AtomicMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(operator) => {
-            Ok(generated_operand_connective_source(&operator.0))
-        }
         AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(operator) => {
             generated_experimental_connective_mekso_operator_source(operator)
         }
@@ -281,6 +255,34 @@ fn generated_experimental_connective_mekso_operator_source(
         ExperimentalConnectiveMeksoOperatorSyntax::EkConnective(connective) => {
             Ok(token_text(&connective.a.value))
         }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
+pub(super) fn generated_zantufa_operator_surface_label(
+    operator: &ZantufaOperatorSyntax,
+) -> Result<String, SemanticsError> {
+    generated_node_surface_text(operator)
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
+pub(super) fn connected_generated_zantufa_operator(
+    operator: &ZantufaOperatorSyntax,
+) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
+    match operator {
+        ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(operator) => {
+            connected_generated_zantufa_operator(&operator.inner_operator)
+        }
+        ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(operator) => {
+            connected_generated_zantufa_operator(&operator.inner_operator)
+        }
+        ZantufaOperatorSyntax::ZantufaMahoMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaPrimitiveMeksoOperator(_)
+        | ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(_) => Ok(None),
     }
 }
 
@@ -352,10 +354,10 @@ pub(super) fn generated_mekso_surface_text(
     expression: &MeksoSyntax,
 ) -> Result<String, SemanticsError> {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
-            generated_zantufa_reverse_polish_surface_text(reverse_polish)
+        MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_node_surface_text(&expression.0)
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => generated_zantufa_infix_mekso_surface_text(infix),
+        MeksoSyntax::ZantufaMex(expression) => generated_node_surface_text(expression),
         MeksoSyntax::InfixMekso(infix) => generated_infix_mekso_surface_text(infix),
         MeksoSyntax::ReversePolishMekso(reverse_polish) => {
             generated_reverse_polish_surface_text(reverse_polish)
@@ -370,13 +372,7 @@ pub(super) fn generated_mekso_surface_text_with_connected_operator_replacement(
     replacement_operator: &MeksoOperatorSyntax,
 ) -> Result<Option<String>, SemanticsError> {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(_) => Ok(None),
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            generated_zantufa_infix_mekso_surface_text_with_connected_operator_replacement(
-                infix,
-                replacement_operator,
-            )
-        }
+        MeksoSyntax::ReinterpretZantufaMex(_) | MeksoSyntax::ZantufaMex(_) => Ok(None),
         MeksoSyntax::InfixMekso(infix) => {
             generated_infix_mekso_surface_text_with_connected_operator_replacement(
                 infix,
@@ -484,62 +480,6 @@ pub(super) fn generated_infix_mekso_surface_text_with_connected_operator_replace
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
-pub(super) fn generated_zantufa_infix_mekso_surface_text_with_connected_operator_replacement(
-    infix: &ZantufaInfixMeksoSyntax,
-    replacement_operator: &MeksoOperatorSyntax,
-) -> Result<Option<String>, SemanticsError> {
-    if infix.continuations.is_empty() {
-        return generated_mekso_precedence_surface_text_with_connected_operator_replacement(
-            &infix.first_expression,
-            replacement_operator,
-        );
-    }
-    let mut replaced = false;
-    let mut text = if let Some(first) =
-        generated_mekso_precedence_surface_text_with_connected_operator_replacement(
-            &infix.first_expression,
-            replacement_operator,
-        )? {
-        replaced = true;
-        first
-    } else {
-        generated_mekso_precedence_surface_text(&infix.first_expression)?
-    };
-    for continuation in &infix.continuations {
-        let mut operator_texts = Vec::with_capacity(continuation.operators.len());
-        for operator in &continuation.operators {
-            if !replaced && connected_generated_mekso_operator(operator)?.is_some() {
-                replaced = true;
-                operator_texts.push(generated_mekso_operator_surface_label(
-                    replacement_operator,
-                )?);
-            } else {
-                operator_texts.push(generated_mekso_operator_surface_label(operator)?);
-            }
-        }
-        text = format!("{} {}", text, operator_texts.join(" "));
-        if let Some(right_expression) = &continuation.right_expression {
-            let right = if replaced {
-                generated_mekso_precedence_surface_text(right_expression)?
-            } else if let Some(right) =
-                generated_mekso_precedence_surface_text_with_connected_operator_replacement(
-                    right_expression,
-                    replacement_operator,
-                )?
-            {
-                replaced = true;
-                right
-            } else {
-                generated_mekso_precedence_surface_text(right_expression)?
-            };
-            text = format!("{text} {right}");
-        }
-    }
-    Ok(replaced.then_some(text))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
 pub(super) fn generated_mekso_precedence_surface_text_with_connected_operator_replacement(
     expression: &MeksoPrecedenceSyntax,
     replacement_operator: &MeksoOperatorSyntax,
@@ -603,18 +543,6 @@ pub(super) fn generated_mekso_base_surface_text_with_connected_operator_replacem
                 replacement_operator,
             )
         }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            generated_zantufa_bo_grouped_mekso_base_surface_text_with_connected_operator_replacement(
-                group,
-                replacement_operator,
-            )
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
-            generated_zantufa_grouped_mekso_operand_sequence_surface_text_with_connected_operator_replacement(
-                group,
-                replacement_operator,
-            )
-        }
     }
 }
 
@@ -651,76 +579,6 @@ pub(super) fn generated_forethought_call_mekso_surface_text_with_connected_opera
         } else {
             parts.push(generated_mekso_base_surface_text(operand)?);
         }
-    }
-    Ok(replaced.then(|| parts.join(" ")))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
-pub(super) fn generated_zantufa_bo_grouped_mekso_base_surface_text_with_connected_operator_replacement(
-    group: &ZantufaBoGroupedMeksoBaseSyntax,
-    replacement_operator: &MeksoOperatorSyntax,
-) -> Result<Option<String>, SemanticsError> {
-    let mut replaced = false;
-    let mut parts = Vec::with_capacity(1 + group.continuations.len() * 2);
-    if let Some(first) = generated_mekso_operand_surface_text_with_connected_operator_replacement(
-        &group.first,
-        replacement_operator,
-    )? {
-        replaced = true;
-        parts.push(first);
-    } else {
-        parts.push(generated_mekso_operand_surface_text(&group.first)?);
-    }
-    for continuation in &group.continuations {
-        parts.push(token_text(&continuation.bo.value));
-        if replaced {
-            parts.push(generated_mekso_operand_surface_text(
-                &continuation.expression,
-            )?);
-        } else if let Some(expression) =
-            generated_mekso_operand_surface_text_with_connected_operator_replacement(
-                &continuation.expression,
-                replacement_operator,
-            )?
-        {
-            replaced = true;
-            parts.push(expression);
-        } else {
-            parts.push(generated_mekso_operand_surface_text(
-                &continuation.expression,
-            )?);
-        }
-    }
-    Ok(replaced.then(|| parts.join(" ")))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| text.as_ref().is_none_or(|text| !text.is_empty())) || ret.is_err())]
-pub(super) fn generated_zantufa_grouped_mekso_operand_sequence_surface_text_with_connected_operator_replacement(
-    group: &ZantufaGroupedMeksoOperandSequenceSyntax,
-    replacement_operator: &MeksoOperatorSyntax,
-) -> Result<Option<String>, SemanticsError> {
-    let mut replaced = false;
-    let mut parts = Vec::with_capacity(group.operands.len() + 2);
-    parts.push(token_text(&group.ke.value));
-    for operand in &group.operands {
-        if replaced {
-            parts.push(generated_mekso_operand_surface_text(operand)?);
-        } else if let Some(text) =
-            generated_mekso_operand_surface_text_with_connected_operator_replacement(
-                operand,
-                replacement_operator,
-            )?
-        {
-            replaced = true;
-            parts.push(text);
-        } else {
-            parts.push(generated_mekso_operand_surface_text(operand)?);
-        }
-    }
-    if let Some(kehe) = &group.kehe {
-        parts.push(token_text(&kehe.value));
     }
     Ok(replaced.then(|| parts.join(" ")))
 }
@@ -919,16 +777,9 @@ pub(super) fn generated_simple_mekso_operand_surface_text_with_connected_operato
             Ok(replaced.then(|| parts.join(" ")))
         }
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
-        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => Ok(None),
-        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
-            generated_mekso_operand_surface_text_with_connected_operator_replacement(
-                &operand.inner_expression,
-                replacement_operator,
-            )
-        }
     }
 }
 
@@ -949,16 +800,10 @@ pub(super) fn generated_number_descriptor_mekso_surface_text(
     expression: &MeksoSyntax,
 ) -> Result<String, SemanticsError> {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
-            if generated_zantufa_reverse_polish_contains_operand_connection(reverse_polish) {
-                Ok("mekso".to_owned())
-            } else {
-                generated_zantufa_reverse_polish_surface_text(reverse_polish)
-            }
+        MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_node_surface_text(&expression.0)
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            generated_number_descriptor_zantufa_infix_mekso_surface_text(infix)
-        }
+        MeksoSyntax::ZantufaMex(expression) => generated_node_surface_text(expression),
         MeksoSyntax::InfixMekso(infix) => {
             generated_number_descriptor_infix_mekso_surface_text(infix)
         }
@@ -988,28 +833,6 @@ pub(super) fn generated_number_descriptor_infix_mekso_surface_text(
                 &continuation.right_expression,
             )?
         );
-    }
-    Ok(text)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub(super) fn generated_number_descriptor_zantufa_infix_mekso_surface_text(
-    infix: &ZantufaInfixMeksoSyntax,
-) -> Result<String, SemanticsError> {
-    let mut text =
-        generated_number_descriptor_mekso_precedence_surface_text(&infix.first_expression)?;
-    for continuation in &infix.continuations {
-        let mut parts = Vec::with_capacity(continuation.operators.len() + 1);
-        for operator in &continuation.operators {
-            parts.push(generated_mekso_operator_surface_label(operator)?);
-        }
-        if let Some(right_expression) = &continuation.right_expression {
-            parts.push(generated_number_descriptor_mekso_precedence_surface_text(
-                right_expression,
-            )?);
-        }
-        text = format!("{} {}", text, parts.join(" "));
     }
     Ok(text)
 }
@@ -1050,10 +873,6 @@ pub(super) fn generated_number_descriptor_mekso_base_surface_text(
             }
             Ok(parts.join(" "))
         }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            generated_zantufa_bo_grouped_mekso_base_surface_text(group)
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => Ok("mekso".to_owned()),
     }
 }
 
@@ -1075,10 +894,7 @@ pub(super) fn first_generated_connected_mekso_operator(
     expression: &MeksoSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(_) => Ok(None),
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            first_generated_connected_mekso_operator_in_zantufa_infix(infix)
-        }
+        MeksoSyntax::ReinterpretZantufaMex(_) | MeksoSyntax::ZantufaMex(_) => Ok(None),
         MeksoSyntax::InfixMekso(infix) => first_generated_connected_mekso_operator_in_infix(infix),
         MeksoSyntax::ReversePolishMekso(_) => Ok(None),
     }
@@ -1097,34 +913,6 @@ pub(super) fn first_generated_connected_mekso_operator_in_standard_array_element
             first_generated_connected_mekso_operator_in_forethought_call(call)
         }
     }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
-pub(super) fn first_generated_connected_mekso_operator_in_zantufa_infix(
-    infix: &ZantufaInfixMeksoSyntax,
-) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
-    for continuation in &infix.continuations {
-        for operator in &continuation.operators {
-            if let Some(expansion) = connected_generated_mekso_operator(operator)? {
-                return Ok(Some(expansion));
-            }
-        }
-    }
-    if let Some(expansion) =
-        first_generated_connected_mekso_operator_in_precedence(&infix.first_expression)?
-    {
-        return Ok(Some(expansion));
-    }
-    for continuation in &infix.continuations {
-        if let Some(right_expression) = &continuation.right_expression
-            && let Some(expansion) =
-                first_generated_connected_mekso_operator_in_precedence(right_expression)?
-        {
-            return Ok(Some(expansion));
-        }
-    }
-    Ok(None)
 }
 
 #[requires(true)]
@@ -1182,31 +970,6 @@ pub(super) fn first_generated_connected_mekso_operator_in_base(
         }
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
             first_generated_connected_mekso_operator_in_forethought_call(call)
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
-            for operand in &group.operands {
-                if let Some(expansion) =
-                    first_generated_connected_mekso_operator_in_operand(operand)?
-                {
-                    return Ok(Some(expansion));
-                }
-            }
-            Ok(None)
-        }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            if let Some(expansion) =
-                first_generated_connected_mekso_operator_in_operand(&group.first)?
-            {
-                return Ok(Some(expansion));
-            }
-            for continuation in &group.continuations {
-                if let Some(expansion) =
-                    first_generated_connected_mekso_operator_in_operand(&continuation.expression)?
-                {
-                    return Ok(Some(expansion));
-                }
-            }
-            Ok(None)
         }
     }
 }
@@ -1309,9 +1072,6 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
         SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
             first_generated_connected_mekso_operator_in_operand(&operand.inner_expression)
         }
-        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
-            first_generated_connected_mekso_operator_in_operand(&operand.inner_expression)
-        }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             first_generated_connected_mekso_operator(&operand.inner_expression)
         }
@@ -1326,7 +1086,6 @@ pub(super) fn first_generated_connected_mekso_operator_in_simple_operand(
             Ok(None)
         }
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
-        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => Ok(None),
@@ -1426,9 +1185,6 @@ pub(super) fn connected_generated_atomic_mekso_operator(
             connected_generated_atomic_mekso_operator(&operator.inner_operator)
         }
         AtomicMeksoOperatorSyntax::PrimitiveMeksoOperator(_)
-        | AtomicMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
-        | AtomicMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_)
-        | AtomicMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(_)
         | AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(_)
         | AtomicMeksoOperatorSyntax::SelbriMeksoOperator(_)
         | AtomicMeksoOperatorSyntax::OperandMeksoOperator(_) => Ok(None),
@@ -1511,17 +1267,7 @@ pub(super) fn generated_mekso_operator_from_simple(
 #[ensures(true)]
 pub(super) fn generated_mekso_contains_operand_connection(expression: &MeksoSyntax) -> bool {
     match expression {
-        MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
-            generated_zantufa_reverse_polish_contains_operand_connection(reverse_polish)
-        }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            generated_mekso_precedence_contains_operand_connection(&infix.first_expression)
-                || infix.continuations.iter().any(|continuation| {
-                    continuation.right_expression.as_ref().is_some_and(|right| {
-                        generated_mekso_precedence_contains_operand_connection(right)
-                    })
-                })
-        }
+        MeksoSyntax::ReinterpretZantufaMex(_) | MeksoSyntax::ZantufaMex(_) => false,
         MeksoSyntax::InfixMekso(infix) => {
             generated_mekso_precedence_contains_operand_connection(&infix.first_expression)
                 || infix.continuations.iter().any(|continuation| {
@@ -1534,22 +1280,6 @@ pub(super) fn generated_mekso_contains_operand_connection(expression: &MeksoSynt
             generated_reverse_polish_parts_contains_operand_connection(&reverse_polish.parts)
         }
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-pub(super) fn generated_zantufa_reverse_polish_contains_operand_connection(
-    reverse_polish: &ZantufaReversePolishMeksoSyntax,
-) -> bool {
-    reverse_polish
-        .operands
-        .iter()
-        .any(generated_mekso_base_contains_operand_connection)
-        || reverse_polish.tails.iter().any(|tail| {
-            tail.operands
-                .iter()
-                .any(generated_mekso_base_contains_operand_connection)
-        })
 }
 
 #[requires(true)]
@@ -1587,16 +1317,6 @@ pub(super) fn generated_mekso_base_contains_operand_connection(
             .operands
             .iter()
             .any(generated_mekso_base_contains_operand_connection),
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            generated_mekso_operand_contains_operand_connection(&group.first)
-                || group.continuations.iter().any(|continuation| {
-                    generated_mekso_operand_contains_operand_connection(&continuation.expression)
-                })
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => group
-            .operands
-            .iter()
-            .any(|operand| generated_mekso_operand_contains_operand_connection(operand)),
     }
 }
 
@@ -1678,9 +1398,6 @@ pub(super) fn generated_simple_mekso_operand_contains_operand_connection(
         SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
             generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
         }
-        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
-            generated_mekso_operand_contains_operand_connection(&operand.inner_expression)
-        }
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_contains_operand_connection(&operand.inner_expression)
         }
@@ -1689,7 +1406,6 @@ pub(super) fn generated_simple_mekso_operand_contains_operand_connection(
             .iter()
             .any(generated_standard_mekso_array_element_contains_operand_connection),
         SimpleMeksoOperandSyntax::SumtiMeksoOperand(_)
-        | SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(_)
         | SimpleMeksoOperandSyntax::SelbriMeksoOperand(_)
         | SimpleMeksoOperandSyntax::NumberMekso(_)
         | SimpleMeksoOperandSyntax::LerfuStringMekso(_) => false,
@@ -1709,25 +1425,6 @@ pub(super) fn generated_infix_mekso_surface_text(
             generated_mekso_operator_surface_label(&continuation.operator)?,
             generated_mekso_precedence_surface_text(&continuation.right_expression)?
         );
-    }
-    Ok(text)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub(super) fn generated_zantufa_infix_mekso_surface_text(
-    infix: &ZantufaInfixMeksoSyntax,
-) -> Result<String, SemanticsError> {
-    let mut text = generated_mekso_precedence_surface_text(&infix.first_expression)?;
-    for continuation in &infix.continuations {
-        let mut parts = Vec::with_capacity(continuation.operators.len() + 1);
-        for operator in &continuation.operators {
-            parts.push(generated_mekso_operator_surface_label(operator)?);
-        }
-        if let Some(right_expression) = &continuation.right_expression {
-            parts.push(generated_mekso_precedence_surface_text(right_expression)?);
-        }
-        text = format!("{} {}", text, parts.join(" "));
     }
     Ok(text)
 }
@@ -1759,20 +1456,6 @@ pub(super) fn generated_mekso_base_surface_text(
         MeksoBaseSyntax::ForethoughtCallMekso(call) => {
             generated_forethought_call_mekso_surface_text(call)
         }
-        MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-            generated_zantufa_bo_grouped_mekso_base_surface_text(group)
-        }
-        MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
-            let mut parts = Vec::with_capacity(group.operands.len() + 2);
-            parts.push(token_text(&group.ke.value));
-            for operand in &group.operands {
-                parts.push(generated_mekso_operand_surface_text(operand)?);
-            }
-            if let Some(kehe) = &group.kehe {
-                parts.push(token_text(&kehe.value));
-            }
-            Ok(parts.join(" "))
-        }
     }
 }
 
@@ -1784,22 +1467,6 @@ pub(super) fn generated_forethought_call_mekso_surface_text(
     let mut parts = vec![generated_mekso_operator_surface_label(&call.operator)?];
     for operand in &call.operands {
         parts.push(generated_mekso_base_surface_text(operand)?);
-    }
-    Ok(parts.join(" "))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub(super) fn generated_zantufa_bo_grouped_mekso_base_surface_text(
-    group: &ZantufaBoGroupedMeksoBaseSyntax,
-) -> Result<String, SemanticsError> {
-    let mut parts = Vec::with_capacity(1 + group.continuations.len() * 2);
-    parts.push(generated_mekso_operand_surface_text(&group.first)?);
-    for continuation in &group.continuations {
-        parts.push(token_text(&continuation.bo.value));
-        parts.push(generated_mekso_operand_surface_text(
-            &continuation.expression,
-        )?);
     }
     Ok(parts.join(" "))
 }
@@ -1877,11 +1544,6 @@ pub(super) fn generated_simple_mekso_operand_surface_text(
         SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
             generated_mekso_operand_surface_text(&operand.inner_expression)
         }
-        SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => Ok(format!(
-            "{} {}",
-            token_text(&operand.nahe.value),
-            generated_mekso_operand_surface_text(&operand.inner_expression)?
-        )),
         SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
             generated_mekso_surface_text(&operand.inner_expression)
         }
@@ -1897,11 +1559,6 @@ pub(super) fn generated_simple_mekso_operand_surface_text(
         SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => Ok(format!(
             "{} {}",
             token_text(&operand.nihe.value),
-            relation_label_from_selbri(&operand.selbri)?.display_text()
-        )),
-        SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => Ok(format!(
-            "{} {}",
-            token_text(&operand.mohe.value),
             relation_label_from_selbri(&operand.selbri)?.display_text()
         )),
         SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => operand
@@ -2261,13 +1918,9 @@ pub(super) fn generated_mekso_number_words_text(expression: &MeksoSyntax) -> Opt
             }
             generated_mekso_precedence_number_words_text(&infix.first_expression)
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            if !infix.continuations.is_empty() {
-                return None;
-            }
-            generated_mekso_precedence_number_words_text(&infix.first_expression)
-        }
-        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => None,
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaMex(_)
+        | MeksoSyntax::ReversePolishMekso(_) => None,
     }
 }
 
@@ -2383,13 +2036,9 @@ pub(super) fn generated_single_mekso_operand_from_mekso(
             }
             &infix.first_expression
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            if !infix.continuations.is_empty() {
-                return None;
-            }
-            &infix.first_expression
-        }
-        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => {
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaMex(_)
+        | MeksoSyntax::ReversePolishMekso(_) => {
             return None;
         }
     };
@@ -2418,13 +2067,9 @@ pub(super) fn generated_mekso_letteral_tokens<'syntax>(
             }
             generated_mekso_precedence_letteral_tokens(&infix.first_expression)
         }
-        MeksoSyntax::ZantufaInfixMekso(infix) => {
-            if !infix.continuations.is_empty() {
-                return None;
-            }
-            generated_mekso_precedence_letteral_tokens(&infix.first_expression)
-        }
-        MeksoSyntax::ZantufaReversePolishMekso(_) | MeksoSyntax::ReversePolishMekso(_) => None,
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaMex(_)
+        | MeksoSyntax::ReversePolishMekso(_) => None,
     }
 }
 

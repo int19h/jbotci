@@ -1,0 +1,14 @@
+id = "adhoc.syntax.mekso.issue-835-lahe-explicit-union-gap"
+lojban = "li lu'e pa su'i re lu'u lo'o"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-835", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #835"
+url = "https://github.com/int19h/jbotci/issues/835"
+description = "Baseline local ownership makes the explicit-LUhU wide-reading gap reject in the warning union."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [19, 23], source-text = "lu'u", message = "unexpected cmavo" }]

@@ -3797,29 +3797,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_mekso(&mut self, node: &'tree generated::MeksoSyntax) {
         match node {
-            generated::MeksoSyntax::ZantufaReversePolishMekso(expression) => {
-                for operand in &expression.operands {
-                    self.walk_node(operand);
-                }
-                self.walk_node(&expression.operator);
-                for tail in &expression.tails {
-                    for operand in &tail.operands {
-                        self.walk_node(operand);
-                    }
-                    self.walk_node(&tail.operator);
-                }
+            generated::MeksoSyntax::ReinterpretZantufaMex(expression) => {
+                self.walk_node(&expression.0);
             }
-            generated::MeksoSyntax::ZantufaInfixMekso(expression) => {
-                self.walk_node(&expression.first_expression);
-                for continuation in &expression.continuations {
-                    for operator in &continuation.operators {
-                        self.walk_node(operator);
-                    }
-                    if let Some(right_expression) = &continuation.right_expression {
-                        self.walk_node(right_expression);
-                    }
-                }
-            }
+            generated::MeksoSyntax::ZantufaMex(expression) => self.walk_node(expression),
             generated::MeksoSyntax::InfixMekso(expression) => {
                 self.walk_node(&expression.first_expression);
                 for continuation in &expression.continuations {
@@ -3853,17 +3834,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::MeksoBaseSyntax::ForethoughtCallMekso(call) => {
                 self.walk_node(&call.operator);
                 for operand in &call.operands {
-                    self.walk_node(operand);
-                }
-            }
-            generated::MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-                self.walk_node(&group.first);
-                for continuation in &group.continuations {
-                    self.walk_node(&continuation.expression);
-                }
-            }
-            generated::MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
-                for operand in &group.operands {
                     self.walk_node(operand);
                 }
             }
@@ -3920,9 +3890,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
                 self.walk_node(&operand.inner_expression);
             }
-            generated::SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
-                self.walk_node(&operand.inner_expression);
-            }
             generated::SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
                 self.walk_node(&operand.inner_expression);
             }
@@ -3930,9 +3897,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 self.walk_node(&operand.sumti);
             }
             generated::SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => {
-                self.analyze_relation(&operand.selbri);
-            }
-            generated::SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => {
                 self.analyze_relation(&operand.selbri);
             }
             generated::SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => {
@@ -4028,14 +3992,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::AtomicMeksoOperatorSyntax::OperandMeksoOperator(operator) => {
                 self.walk_node(&operator.mekso);
             }
-            generated::AtomicMeksoOperatorSyntax::ZantufaMahoSelbriMeksoOperator(operator) => {
-                self.analyze_relation(&operator.selbri);
-            }
-            generated::AtomicMeksoOperatorSyntax::ZantufaMahoSumtiMeksoOperator(operator) => {
-                self.walk_node(&operator.sumti);
-            }
-            generated::AtomicMeksoOperatorSyntax::ZantufaConnectiveMeksoOperator(_)
-            | generated::AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(_)
+            generated::AtomicMeksoOperatorSyntax::ExperimentalConnectiveMeksoOperator(_)
             | generated::AtomicMeksoOperatorSyntax::PrimitiveMeksoOperator(_) => {}
         }
     }
@@ -7961,11 +7918,6 @@ fn generated_math_expression_to_usize(expression: &generated::MeksoSyntax) -> Op
         generated::MeksoSyntax::InfixMekso(expression) if expression.continuations.is_empty() => {
             generated_mekso_precedence_to_usize(&expression.first_expression)
         }
-        generated::MeksoSyntax::ZantufaInfixMekso(expression)
-            if expression.continuations.is_empty() =>
-        {
-            generated_mekso_precedence_to_usize(&expression.first_expression)
-        }
         _ => None,
     }
 }
@@ -7989,8 +7941,6 @@ fn generated_mekso_base_to_usize(expression: &generated::MeksoBaseSyntax) -> Opt
             generated_mekso_operand_to_usize(operand)
         }
         generated::MeksoBaseSyntax::ForethoughtCallMekso(_) => None,
-        generated::MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(_) => None,
-        generated::MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(_) => None,
     }
 }
 

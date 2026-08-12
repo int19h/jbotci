@@ -5209,11 +5209,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match expression {
-            MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => {
-                self.build_generated_zantufa_reverse_polish_mekso(reverse_polish, source)
+            MeksoSyntax::ReinterpretZantufaMex(expression) => {
+                self.build_generated_zantufa_mex(&expression.0, source)
             }
-            MeksoSyntax::ZantufaInfixMekso(infix) => {
-                self.build_generated_zantufa_infix_mekso(infix, source)
+            MeksoSyntax::ZantufaMex(expression) => {
+                self.build_generated_zantufa_mex(expression, source)
             }
             MeksoSyntax::InfixMekso(infix) => self.build_generated_infix_mekso(infix, source),
             MeksoSyntax::ReversePolishMekso(reverse_polish) => {
@@ -5231,15 +5231,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<(SemanticObjectId, bool), SemanticsError> {
         match expression {
-            MeksoSyntax::ZantufaReversePolishMekso(reverse_polish) => self
-                .build_generated_zantufa_reverse_polish_mekso(reverse_polish, source)
+            MeksoSyntax::ReinterpretZantufaMex(expression) => self
+                .build_generated_zantufa_mex(&expression.0, source)
                 .map(|id| (id, false)),
-            MeksoSyntax::ZantufaInfixMekso(infix) => self
-                .build_generated_zantufa_infix_mekso_with_connected_operator_replacement(
-                    infix,
-                    replacement_operator,
-                    source,
-                ),
+            MeksoSyntax::ZantufaMex(expression) => self
+                .build_generated_zantufa_mex(expression, source)
+                .map(|id| (id, false)),
             MeksoSyntax::InfixMekso(infix) => self
                 .build_generated_infix_mekso_with_connected_operator_replacement(
                     infix,
@@ -5314,68 +5311,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
-    pub(super) fn build_generated_zantufa_infix_mekso_with_connected_operator_replacement(
+    pub(super) fn build_generated_zantufa_mex_with_connected_operator_replacement(
         &mut self,
-        infix: &'tree ZantufaInfixMeksoSyntax,
-        replacement_operator: &MeksoOperatorSyntax,
+        expression: &'tree ZantufaMexSyntax,
+        _replacement_operator: &MeksoOperatorSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<(SemanticObjectId, bool), SemanticsError> {
-        if infix.continuations.is_empty() {
-            return self.build_generated_mekso_precedence_with_connected_operator_replacement(
-                &infix.first_expression,
-                replacement_operator,
-                source,
-            );
-        }
-        let (mut expression, mut replaced) = self
-            .build_generated_mekso_precedence_with_connected_operator_replacement(
-                &infix.first_expression,
-                replacement_operator,
-                None,
-            )?;
-        let last_index = infix.continuations.len() - 1;
-        for (index, continuation) in infix.continuations.iter().enumerate() {
-            let expression_source = (index == last_index).then(|| source.clone()).flatten();
-            let (operands, operand_replaced) = match &continuation.right_expression {
-                Some(right_expression) if replaced => (
-                    vec![
-                        expression,
-                        self.build_generated_mekso_precedence(right_expression, None)?,
-                    ],
-                    false,
-                ),
-                Some(right_expression) => {
-                    let (right, right_replaced) = self
-                        .build_generated_mekso_precedence_with_connected_operator_replacement(
-                            right_expression,
-                            replacement_operator,
-                            None,
-                        )?;
-                    (vec![expression, right], right_replaced)
-                }
-                None => (vec![expression], false),
-            };
-            let (next_expression, operator_replaced) = if replaced {
-                (
-                    self.build_generated_zantufa_operator_sequence_expression(
-                        &continuation.operators,
-                        operands,
-                        expression_source,
-                    )?,
-                    false,
-                )
-            } else {
-                self.build_generated_zantufa_operator_sequence_expression_with_connected_operator_replacement(
-                    &continuation.operators,
-                    replacement_operator,
-                    operands,
-                    expression_source,
-                )?
-            };
-            expression = next_expression;
-            replaced |= operand_replaced || operator_replaced;
-        }
-        Ok((expression, replaced))
+        self.build_generated_zantufa_mex(expression, source)
+            .map(|id| (id, false))
     }
 
     #[requires(!operators.is_empty())]
@@ -5383,20 +5326,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
     pub(super) fn build_generated_zantufa_operator_sequence_expression<
-        O: AsRef<MeksoOperatorSyntax>,
+        O: AsRef<ZantufaOperatorSyntax>,
     >(
         &mut self,
         operators: &'tree [O],
         operands: Vec<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if let [operator] = operators {
-            return self.build_generated_math_operator_expression_for_operator(
-                operator.as_ref(),
-                operands,
-                source,
-            );
-        }
         self.build_generated_math_operator_expression(
             MathOperator::from_label(generated_zantufa_mekso_operator_sequence_label(operators)?),
             operands,
@@ -5409,7 +5345,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
     #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
     pub(super) fn build_generated_zantufa_operator_sequence_expression_with_connected_operator_replacement<
-        O: AsRef<MeksoOperatorSyntax>,
+        O: AsRef<ZantufaOperatorSyntax>,
     >(
         &mut self,
         operators: &'tree [O],
@@ -5417,24 +5353,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         operands: Vec<SemanticObjectId>,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<(SemanticObjectId, bool), SemanticsError> {
-        if let [operator] = operators {
-            if connected_generated_mekso_operator(operator.as_ref())?.is_some() {
-                return self
-                    .build_generated_math_operator_expression_for_temporary_operator(
-                        replacement_operator,
-                        operands,
-                        source,
-                    )
-                    .map(|id| (id, true));
-            }
-            return self
-                .build_generated_math_operator_expression_for_operator(
-                    operator.as_ref(),
-                    operands,
-                    source,
-                )
-                .map(|id| (id, false));
-        }
         let (label, replaced) = generated_zantufa_mekso_operator_sequence_label_with_replacement(
             operators,
             replacement_operator,
@@ -5520,18 +5438,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     replacement_operator,
                     source,
                 ),
-            MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => self
-                .build_generated_zantufa_bo_grouped_mekso_base_with_connected_operator_replacement(
-                    group,
-                    replacement_operator,
-                    source,
-                ),
-            MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => self
-                .build_generated_zantufa_grouped_mekso_operand_sequence_with_connected_operator_replacement(
-                    group,
-                    replacement_operator,
-                    source,
-                ),
         }
     }
 
@@ -5576,72 +5482,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         self.build_generated_math_operator_expression_for_operator(
             &call.operator,
             built_operands,
-            source,
-        )
-        .map(|id| (id, replaced))
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
-    pub(super) fn build_generated_zantufa_bo_grouped_mekso_base_with_connected_operator_replacement(
-        &mut self,
-        group: &'tree ZantufaBoGroupedMeksoBaseSyntax,
-        replacement_operator: &MeksoOperatorSyntax,
-        source: Option<crate::model::SemanticSource>,
-    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
-        let (first, mut replaced) = self
-            .build_generated_mekso_operand_with_connected_operator_replacement(
-                &group.first,
-                replacement_operator,
-                None,
-            )?;
-        let mut operands = Vec::with_capacity(group.continuations.len() + 1);
-        operands.push(first);
-        for continuation in &group.continuations {
-            if replaced {
-                operands.push(self.build_generated_mekso_operand(&continuation.expression, None)?);
-            } else {
-                let (operand, operand_replaced) = self
-                    .build_generated_mekso_operand_with_connected_operator_replacement(
-                        &continuation.expression,
-                        replacement_operator,
-                        None,
-                    )?;
-                replaced = operand_replaced;
-                operands.push(operand);
-            }
-        }
-        self.build_generated_math_operator_expression(new!(MathOperator::BoGroup), operands, source)
-            .map(|id| (id, replaced))
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|(id, _)| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
-    pub(super) fn build_generated_zantufa_grouped_mekso_operand_sequence_with_connected_operator_replacement(
-        &mut self,
-        group: &'tree ZantufaGroupedMeksoOperandSequenceSyntax,
-        replacement_operator: &MeksoOperatorSyntax,
-        source: Option<crate::model::SemanticSource>,
-    ) -> Result<(SemanticObjectId, bool), SemanticsError> {
-        let mut operands = Vec::with_capacity(group.operands.len());
-        let mut replaced = false;
-        for operand in &group.operands {
-            if replaced {
-                operands.push(self.build_generated_mekso_operand(operand, None)?);
-            } else {
-                let (operand, operand_replaced) = self
-                    .build_generated_mekso_operand_with_connected_operator_replacement(
-                        operand,
-                        replacement_operator,
-                        None,
-                    )?;
-                replaced = operand_replaced;
-                operands.push(operand);
-            }
-        }
-        self.build_generated_math_operator_expression(
-            new!(MathOperator::OperandGroup),
-            operands,
             source,
         )
         .map(|id| (id, replaced))
@@ -5889,33 +5729,177 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
-    pub(super) fn build_generated_zantufa_infix_mekso(
+    pub(super) fn build_generated_zantufa_mex(
         &mut self,
-        infix: &'tree ZantufaInfixMeksoSyntax,
+        expression: &'tree ZantufaMexSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        if infix.continuations.is_empty() {
-            return self.build_generated_mekso_precedence(&infix.first_expression, source);
+        if expression.continuations.is_empty() {
+            return self.build_generated_zantufa_mex_1(&expression.first_expression, source);
         }
-        let mut expression =
-            self.build_generated_mekso_precedence(&infix.first_expression, None)?;
-        let last_index = infix.continuations.len() - 1;
-        for (index, continuation) in infix.continuations.iter().enumerate() {
+        let mut built = self.build_generated_zantufa_mex_1(&expression.first_expression, None)?;
+        let last_index = expression.continuations.len() - 1;
+        for (index, continuation) in expression.continuations.iter().enumerate() {
             let expression_source = (index == last_index).then(|| source.clone()).flatten();
-            let operands = match &continuation.right_expression {
-                Some(right_expression) => vec![
-                    expression,
-                    self.build_generated_mekso_precedence(right_expression, None)?,
-                ],
-                None => vec![expression],
-            };
-            expression = self.build_generated_zantufa_operator_sequence_expression(
+            let mut operands = vec![built];
+            if let Some(right) = &continuation.right_expression {
+                operands.push(self.build_generated_zantufa_mex_1(right, None)?);
+            }
+            built = self.build_generated_zantufa_operator_sequence_expression(
                 &continuation.operators,
                 operands,
                 expression_source,
             )?;
         }
-        Ok(expression)
+        Ok(built)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_zantufa_mex_1(
+        &mut self,
+        expression: &'tree ZantufaMex1Syntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        if expression.tails.is_empty() {
+            return self.build_generated_zantufa_mex_group(&expression.first_group, source);
+        }
+        let mut built = self.build_generated_zantufa_mex_group(&expression.first_group, None)?;
+        let last_index = expression.tails.len() - 1;
+        for (index, tail) in expression.tails.iter().enumerate() {
+            let mut operands = vec![built];
+            if let Some(right) = &tail.right_group {
+                operands.push(self.build_generated_zantufa_mex_group(right, None)?);
+            }
+            built = self.build_generated_zantufa_operator_sequence_expression(
+                &tail.operators,
+                operands,
+                (index == last_index).then(|| source.clone()).flatten(),
+            )?;
+        }
+        Ok(built)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_zantufa_mex_group(
+        &mut self,
+        group: &'tree ZantufaMexGroupSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match group {
+            ZantufaMexGroupSyntax::ZantufaKeGroupedMekso(group) => {
+                let operands = group
+                    .expressions
+                    .iter()
+                    .map(|expression| self.build_generated_zantufa_mex_2(expression, None))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.build_generated_math_operator_expression(
+                    new!(MathOperator::OperandGroup),
+                    operands,
+                    source,
+                )
+            }
+            ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) => {
+                if group.continuations.is_empty() {
+                    return self.build_generated_zantufa_mex_2(&group.first_expression, source);
+                }
+                let mut operands = Vec::with_capacity(group.continuations.len() + 1);
+                operands.push(self.build_generated_zantufa_mex_2(&group.first_expression, None)?);
+                for continuation in &group.continuations {
+                    operands
+                        .push(self.build_generated_zantufa_mex_2(&continuation.expression, None)?);
+                }
+                self.build_generated_math_operator_expression(
+                    new!(MathOperator::BoGroup),
+                    operands,
+                    source,
+                )
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_zantufa_mex_2(
+        &mut self,
+        expression: &'tree ZantufaMex2Syntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match expression {
+            ZantufaMex2Syntax::ZantufaOperand(operand) => {
+                self.build_generated_zantufa_operand(operand, source)
+            }
+            ZantufaMex2Syntax::ZantufaReversePolishMekso(expression) => {
+                self.build_generated_zantufa_reverse_polish_mekso(expression, source)
+            }
+            ZantufaMex2Syntax::ZantufaForethoughtMekso(expression) => {
+                self.build_generated_zantufa_forethought_mekso(expression, source)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_zantufa_operand(
+        &mut self,
+        operand: &'tree ZantufaOperandSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        match operand {
+            ZantufaOperandSyntax::NumberMekso(number) => {
+                self.build_generated_math_expression_for_number(number, source)
+            }
+            ZantufaOperandSyntax::LerfuStringMekso(letters) => {
+                self.build_generated_math_expression_for_lerfu_string(letters, source)
+            }
+            ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
+                self.build_generated_zantufa_mex(&operand.inner_expression, source)
+            }
+            ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
+                self.build_generated_zantufa_mex(&operand.inner_expression, source)
+            }
+            ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
+                let id = self.build_generated_zantufa_mex(&operand.inner_expression, source)?;
+                self.set_math_scalar_negation(id, scalar_negation_for_token(&operand.nahe.value));
+                Ok(id)
+            }
+            ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
+                let id = self.build_generated_zantufa_operand(&operand.inner_expression, source)?;
+                self.set_math_scalar_negation(id, scalar_negation_for_token(&operand.nahe.value));
+                Ok(id)
+            }
+            ZantufaOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => {
+                let source = source.or_else(|| self.source_for_node(operand, "selbri-operand"));
+                self.build_generated_selbri_math_operand(&operand.selbri, source)
+            }
+            ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(operand) => {
+                let source = source.or_else(|| self.source_for_node(operand, "sumti-operand"));
+                self.build_generated_sumti_math_operand(&operand.sumti, source)
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_zantufa_forethought_mekso(
+        &mut self,
+        expression: &'tree ZantufaForethoughtMeksoSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let mut operands = expression
+            .operands
+            .iter()
+            .map(|operand| self.build_generated_zantufa_mex_2(operand, None))
+            .collect::<Result<Vec<_>, _>>()?;
+        if let Some(continuation) = &expression.continuation {
+            operands.push(self.build_generated_zantufa_forethought_mekso(continuation, None)?);
+        }
+        self.build_generated_zantufa_operator_sequence_expression(
+            std::slice::from_ref(&expression.operator),
+            operands,
+            source,
+        )
     }
 
     #[requires(true)]
@@ -5951,47 +5935,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             MeksoBaseSyntax::ForethoughtCallMekso(call) => {
                 self.build_generated_forethought_call_mekso(call, source)
             }
-            MeksoBaseSyntax::ZantufaBoGroupedMeksoBase(group) => {
-                self.build_generated_zantufa_bo_grouped_mekso_base(group, source)
-            }
-            MeksoBaseSyntax::ZantufaGroupedMeksoOperandSequence(group) => {
-                self.build_generated_zantufa_grouped_mekso_operand_sequence(group, source)
-            }
         }
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
-    pub(super) fn build_generated_zantufa_bo_grouped_mekso_base(
-        &mut self,
-        group: &'tree ZantufaBoGroupedMeksoBaseSyntax,
-        source: Option<crate::model::SemanticSource>,
-    ) -> Result<SemanticObjectId, SemanticsError> {
-        let mut operands = Vec::with_capacity(group.continuations.len() + 1);
-        operands.push(self.build_generated_mekso_operand(&group.first, None)?);
-        for continuation in &group.continuations {
-            operands.push(self.build_generated_mekso_operand(&continuation.expression, None)?);
-        }
-        self.build_generated_math_operator_expression(new!(MathOperator::BoGroup), operands, source)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
-    pub(super) fn build_generated_zantufa_grouped_mekso_operand_sequence(
-        &mut self,
-        group: &'tree ZantufaGroupedMeksoOperandSequenceSyntax,
-        source: Option<crate::model::SemanticSource>,
-    ) -> Result<SemanticObjectId, SemanticsError> {
-        let operands = group
-            .operands
-            .iter()
-            .map(|operand| self.build_generated_mekso_operand(operand, None))
-            .collect::<Result<Vec<_>, _>>()?;
-        self.build_generated_math_operator_expression(
-            new!(MathOperator::OperandGroup),
-            operands,
-            source,
-        )
     }
 
     #[requires(true)]
@@ -6083,11 +6027,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             SimpleMeksoOperandSyntax::LaheQualifiedMeksoOperand(operand) => {
                 self.build_generated_mekso_operand(&operand.inner_expression, source)
             }
-            SimpleMeksoOperandSyntax::ZantufaScalarNegatedMeksoOperand(operand) => {
-                let id = self.build_generated_mekso_operand(&operand.inner_expression, source)?;
-                self.set_math_scalar_negation(id, scalar_negation_for_token(&operand.nahe.value));
-                Ok(id)
-            }
             SimpleMeksoOperandSyntax::ParenthesizedMeksoOperand(operand) => {
                 self.build_generated_math_expression(&operand.inner_expression, source)
             }
@@ -6096,29 +6035,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             SimpleMeksoOperandSyntax::SelbriMeksoOperand(operand) => {
                 self.build_generated_selbri_mekso_operand(operand, source)
-            }
-            SimpleMeksoOperandSyntax::ZantufaSelbriMoheMeksoOperand(operand) => {
-                let source = source.or_else(|| self.source_for_node(operand, "selbri-operand"));
-                let Some(abstraction) = self.single_abstraction_from_selbri(&operand.selbri)?
-                else {
-                    return self.build_generated_math_literal(
-                        MathLiteral::text(
-                            MathLiteralKind::SelbriOperand,
-                            generated_selbri_surface_text(&operand.selbri)?,
-                        ),
-                        source,
-                    );
-                };
-                let denotation = self.build_abstraction_output(
-                    abstraction,
-                    self.source_for_node(abstraction, "abstraction"),
-                )?;
-                let id = self.next_math_id();
-                self.insert(
-                    id,
-                    SemanticObject::math_selbri_operand(denotation, source, Vec::new()),
-                )?;
-                Ok(id)
             }
             SimpleMeksoOperandSyntax::ArrayMeksoOperand(operand) => {
                 self.build_generated_array_mekso_operand(operand, source)
@@ -6167,8 +6083,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         operand: &'tree SumtiMeksoOperandSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let denotation = self.build_generated_sumti_operand_denotation(&operand.sumti)?;
         let source = source.or_else(|| self.source_for_node(operand, "sumti-operand"));
+        self.build_generated_sumti_math_operand(&operand.sumti, source)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_sumti_math_operand(
+        &mut self,
+        sumti: &'tree SumtiSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let denotation = self.build_generated_sumti_operand_denotation(sumti)?;
         let id = self.next_math_id();
         self.insert(
             id,
@@ -6271,11 +6197,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         let source = source.or_else(|| self.source_for_node(operand, "selbri-operand"));
-        let Some(abstraction) = self.single_abstraction_from_selbri(&operand.selbri)? else {
+        self.build_generated_selbri_math_operand(&operand.selbri, source)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::MathExpression) || ret.is_err())]
+    pub(super) fn build_generated_selbri_math_operand(
+        &mut self,
+        selbri: &'tree SelbriSyntax,
+        source: Option<crate::model::SemanticSource>,
+    ) -> Result<SemanticObjectId, SemanticsError> {
+        let Some(abstraction) = self.single_abstraction_from_selbri(selbri)? else {
             return self.build_generated_math_literal(
                 MathLiteral::text(
                     MathLiteralKind::SelbriOperand,
-                    generated_selbri_surface_text(&operand.selbri)?,
+                    generated_selbri_surface_text(selbri)?,
                 ),
                 source,
             );
@@ -6372,7 +6308,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut stack = Vec::with_capacity(reverse_polish.operands.len() + 1);
         for operand in &reverse_polish.operands {
-            stack.push(self.build_generated_mekso_base(operand, None)?);
+            stack.push(self.build_generated_zantufa_mex_2(operand, None)?);
         }
 
         let first_operator_source = reverse_polish
@@ -6389,7 +6325,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let last_tail_index = reverse_polish.tails.len().saturating_sub(1);
         for (index, tail) in reverse_polish.tails.iter().enumerate() {
             for operand in &tail.operands {
-                stack.push(self.build_generated_mekso_base(operand, None)?);
+                stack.push(self.build_generated_zantufa_mex_2(operand, None)?);
             }
             let operator_source = (index == last_tail_index).then(|| source.clone()).flatten();
             self.apply_generated_zantufa_reverse_polish_operator(
@@ -6416,7 +6352,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn apply_generated_zantufa_reverse_polish_operator(
         &mut self,
         stack: &mut Vec<SemanticObjectId>,
-        operator: &'tree MeksoOperatorSyntax,
+        operator: &'tree ZantufaOperatorSyntax,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<(), SemanticsError> {
         if stack.len() < 2 {
@@ -6430,8 +6366,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let left = stack.pop().ok_or_else(|| {
             invalid_graph("Zantufa reverse Polish mex is missing its left operand".to_owned())
         })?;
-        let expression = self.build_generated_math_operator_expression_for_operator(
-            operator,
+        let expression = self.build_generated_math_operator_expression(
+            MathOperator::from_label(generated_zantufa_operator_surface_label(operator)?),
             vec![left, right],
             source,
         )?;

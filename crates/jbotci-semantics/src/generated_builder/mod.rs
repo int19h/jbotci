@@ -85,12 +85,12 @@ use jbotci_syntax::generated_model::{
     TextNihoParagraphsSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax,
     TextSyntax, TreeNode, TreeWalkable, TreeWalker, UntaggedSelbriSyntax,
     VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax, VocativeSumtiSyntax,
-    VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax, ZantufaBoGroupedMeksoBaseSyntax,
-    ZantufaExtraGikConnectiveSyntax, ZantufaGroupedMeksoOperandSequenceSyntax,
-    ZantufaInfixMeksoSyntax, ZantufaMeSelbriBodySyntax, ZantufaMeTanruUnitSyntax,
-    ZantufaMeksoFragmentSyntax, ZantufaMexMoiTanruUnitSyntax, ZantufaReversePolishMeksoSyntax,
-    ZantufaStatementAbstractionTanruUnitSyntax, ZantufaStatementTermsStatementSyntax,
-    ZantufaStatementTermsTailSyntax,
+    VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax, ZantufaExtraGikConnectiveSyntax,
+    ZantufaForethoughtMeksoSyntax, ZantufaMeSelbriBodySyntax, ZantufaMeTanruUnitSyntax,
+    ZantufaMeksoFragmentSyntax, ZantufaMex1Syntax, ZantufaMex2Syntax, ZantufaMexGroupSyntax,
+    ZantufaMexMoiTanruUnitSyntax, ZantufaMexSyntax, ZantufaOperandSyntax, ZantufaOperatorSyntax,
+    ZantufaReversePolishMeksoSyntax, ZantufaStatementAbstractionTanruUnitSyntax,
+    ZantufaStatementTermsStatementSyntax, ZantufaStatementTermsTailSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreeVisitor;
@@ -12864,7 +12864,7 @@ mod tests {
                 "semantic interpretation is undefined for an experimental n-ary modal, nonlogical, or FAhU forethought termset connection",
             ),
             (
-                "li fu'a pa re su'i lo'o cu namcu",
+                "li ke fu'a pa re su'i ku'e ke'e lo'o cu namcu",
                 "semantic graph invariant failed: Zantufa reverse Polish mex operator has fewer than two operands",
             ),
             (

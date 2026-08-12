@@ -78,6 +78,7 @@ define_dialect_features! {
     ZantufaAdverbials => "zantufa-adverbials",
     ZantufaConnectives => "zantufa-connectives",
     ZantufaMex => "zantufa-mex",
+    ZantufaMexReinterpretation => "zantufa-mex-reinterpretation",
     ZantufaMorphology => "zantufa-morphology",
     ZantufaQuotes => "zantufa-quotes",
     ZantufaTags => "zantufa-tags",

@@ -1,0 +1,14 @@
+id = "adhoc.syntax.mekso.issue-835-zantufa-group-johi-rejected"
+lojban = "li ke jo'i pa re te'u ke'e lo'o"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "mekso", "issue-835", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "jbotci issue #835"
+url = "https://github.com/int19h/jbotci/issues/835"
+description = "The exact Zantufa mex_2 inventory excludes the standard JOhI array operand."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [22, 26], source-text = "ke'e", message = "unexpected cmavo" }]

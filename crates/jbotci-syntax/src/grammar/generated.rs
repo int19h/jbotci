@@ -69,6 +69,12 @@ pub mod generated_model {
         mekso_operator: MeksoOperatorSyntax;
         inner_mekso_operator: InnerMeksoOperatorSyntax;
         atomic_mekso_operator: AtomicMeksoOperatorSyntax;
+        zantufa_mex: ZantufaMexSyntax;
+        zantufa_mex_1: ZantufaMex1Syntax;
+        zantufa_mex_2: ZantufaMex2Syntax;
+        zantufa_operand: ZantufaOperandSyntax;
+        zantufa_operator: ZantufaOperatorSyntax;
+        zantufa_forethought_mekso: ZantufaForethoughtMeksoSyntax;
         reverse_polish_parts: ReversePolishPartsSyntax;
         letter_string: LetterStringSyntax;
         letter_tokens: LetterTokensSyntax;
@@ -1903,12 +1909,6 @@ pub mod generated_model {
         selbri_mekso_operator,
         /// Uses the `operand_mekso_operator` product form, whose payload preserves `maho`, `mekso`, and `tehu`.
         operand_mekso_operator,
-        /// Uses the `zantufa_maho_selbri_mekso_operator` product form, whose payload preserves `maho`, `selbri`, and `tehu`.
-        when feature(ZantufaMex) zantufa_maho_selbri_mekso_operator,
-        /// Uses the `zantufa_maho_sumti_mekso_operator` product form, whose payload preserves `maho`, `sumti`, and `tehu`.
-        when feature(ZantufaMex) zantufa_maho_sumti_mekso_operator,
-        /// Uses the `zantufa_connective_mekso_operator` product form, whose payload preserves `connective`.
-        when feature(ZantufaMex) zantufa_connective_mekso_operator,
         /// Uses a camxes-exp connective as an atomic operator.
         experimental_connective_mekso_operator,
         /// Uses the `primitive_mekso_operator` product form, whose payload preserves `vuhu`.
@@ -2100,18 +2100,6 @@ pub mod generated_model {
         number_mekso,
         /// Uses the `lerfu_string_mekso` product form, whose payload preserves `letters`, `boi`, and `free_modifiers`.
         lerfu_string_mekso,
-        /// Uses the `zantufa_scalar_negated_mekso_operand` product form, whose payload preserves `nahe` and `inner_expression`.
-        when feature(ZantufaMex) zantufa_scalar_negated_mekso_operand,
-        /// Uses the `zantufa_selbri_mohe_mekso_operand` product form, whose payload preserves `mohe`, `selbri`, and `tehu`.
-        when feature(ZantufaMex) zantufa_selbri_mohe_mekso_operand,
-    }
-
-    /// Product node for scalar-negated operand; preserves `nahe` and `inner_expression` in source order.
-    rule "scalar-negated operand" zantufa_scalar_negated_mekso_operand(mekso_operand) -> struct {
-        /// A word from selmaho `Nahe`.
-        field nahe <- selmaho(Nahe).warn(ExperimentalZantufaMex).wf();
-        /// The shared inner expression child syntax node.
-        field inner_expression <- arc(mekso_operand);
     }
 
     /// Product node for qualified operand; preserves `nahe`, `bo`, `inner_expression`, and `luhu` in source order.
@@ -2315,42 +2303,12 @@ pub mod generated_model {
         field free_modifiers <- [zero_or_more free_modifier];
     }
 
-    /// Sum node for mex; selects among the `zantufa_bo_grouped_mekso_base`, `mekso_operand`, `forethought_call_mekso`, and `zantufa_grouped_mekso_operand_sequence` forms.
+    /// Sum node for a standard mex base.
     rule "mex" mekso_base(mekso, mekso_base, mekso_operand, sumti, selbri, tense_modal, letter_string, letter_tokens, free_modifier, mekso_operator) -> enum {
-        /// Uses the `zantufa_bo_grouped_mekso_base` product form, whose payload preserves `first` and `continuations`.
-        when feature(ZantufaMex) zantufa_bo_grouped_mekso_base,
         /// Uses the nested `mekso_operand` sum form and preserves its selected alternative.
         mekso_operand,
         /// Uses the `forethought_call_mekso` product form, whose payload preserves `peho`, `operator`, `operands`, and `kuhe`.
         forethought_call_mekso,
-        /// Uses the `zantufa_grouped_mekso_operand_sequence` product form, whose payload preserves `ke`, `operands`, and `kehe`.
-        when feature(ZantufaMex) zantufa_grouped_mekso_operand_sequence,
-    }
-
-    /// Product node for grouped mex; preserves `first` and `continuations` in source order.
-    rule "grouped mex" zantufa_bo_grouped_mekso_base(mekso_operand) -> struct {
-        /// The shared first child syntax node.
-        field first <- arc(mekso_operand);
-        /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more zantufa_bo_grouped_mekso_continuation(mekso_operand)];
-    }
-
-    /// Product node for grouped mex; preserves `bo` and `expression` in source order.
-    rule "grouped mex" zantufa_bo_grouped_mekso_continuation(mekso_operand) -> struct {
-        /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo).warn(ExperimentalZantufaMex).wf();
-        /// The shared expression child syntax node.
-        field expression <- arc(mekso_operand);
-    }
-
-    /// Product node for grouped mex; preserves `ke`, `operands`, and `kehe` in source order.
-    rule "grouped mex" zantufa_grouped_mekso_operand_sequence(mekso_operand) -> struct {
-        /// The `Ke` cmavo marker.
-        field ke <- cmavo(Ke).warn(ExperimentalZantufaMex).wf();
-        /// Non-empty ordered sequence of operands components.
-        field operands <- [one_or_more arc(mekso_operand)];
-        /// The optional `Kehe` cmavo marker.
-        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
     /// Product node for mex; preserves `left_expression` and `tail` in source order.
@@ -2387,22 +2345,6 @@ pub mod generated_model {
         field right_expression <- arc(mekso_precedence);
     }
 
-    /// Product node for mex; preserves `first_expression` and `continuations` in source order.
-    rule "mex" zantufa_infix_mekso(mekso_base, mekso_precedence, mekso_operator) -> struct {
-        /// The shared first expression child syntax node.
-        field first_expression <- arc(mekso_precedence(mekso_base, mekso_precedence, mekso_operator));
-        /// Ordered sequence of zero or more continuations components.
-        field continuations <- [zero_or_more zantufa_infix_mekso_continuation(mekso_precedence, mekso_operator)];
-    }
-
-    /// Product node for mex continuation; preserves `operators` and `right_expression` in source order.
-    rule "mex continuation" zantufa_infix_mekso_continuation(mekso_precedence, mekso_operator) -> struct {
-        /// Non-empty ordered sequence of operators components.
-        field operators <- [one_or_more arc(mekso_operator)];
-        /// The optional right expression component.
-        field right_expression <- opt(arc(mekso_precedence));
-    }
-
     /// Product node for forethought mex; preserves `peho`, `operator`, `operands`, and `kuhe` in source order.
     rule "forethought mex" forethought_call_mekso(mekso_base, mekso_operator) -> struct {
         /// The optional `Peho` cmavo marker.
@@ -2415,38 +2357,257 @@ pub mod generated_model {
         field kuhe <- opt(cmavo(Kuhe).wf()).elidable_terminator(Kuhe);
     }
 
-    /// Sum node for mex; selects among the `zantufa_reverse_polish_mekso`, `zantufa_infix_mekso`, `infix_mekso`, and `reverse_polish_mekso` forms.
-    rule "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts) -> enum {
-        /// Uses the `zantufa_reverse_polish_mekso` product form, whose payload preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe`.
-        when feature(ZantufaMex) zantufa_reverse_polish_mekso,
-        /// Uses the `zantufa_infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.
-        when feature(ZantufaMex) zantufa_infix_mekso,
+    /// Sum node for mex, with baseline ownership before the warning-union Zantufa fallback.
+    rule "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts, zantufa_mex) -> enum {
+        /// Gives the faithful Zantufa projection priority only under the meaning-changing flag.
+        when feature(ZantufaMexReinterpretation) reinterpret_zantufa_mex,
         /// Uses the `infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.
         infix_mekso,
         /// Uses the `reverse_polish_mekso` product form, whose payload preserves `fuha` and `parts`.
         reverse_polish_mekso,
+        /// Additive fallback for Zantufa-only surfaces in the warning union.
+        when feature(ZantufaMex) zantufa_mex,
     }
 
-    /// Product node for reverse Polish mex; preserves `fuha`, `operands`, `operator`, `tails`, and `kuhe` in source order.
-    rule "reverse Polish mex" zantufa_reverse_polish_mekso(mekso_base, mekso_operator) -> struct {
+    /// Transparent priority wrapper used only by the meaning-changing reinterpretation flag.
+    rule "Zantufa mex reinterpretation" reinterpret_zantufa_mex(zantufa_mex) -> struct {
+        /// The faithful Zantufa mex projection.
+        field mex <- arc(zantufa_mex);
+    }
+
+    /// Product node for the complete Zantufa mex expression.
+    rule "Zantufa mex" zantufa_mex(zantufa_mex_1, zantufa_operator) -> struct {
+        /// The first mex_1 group.
+        field first_expression <- arc(zantufa_mex_1);
+        /// Source-ordered operator-led continuations.
+        field continuations <- [zero_or_more zantufa_mex_continuation(zantufa_mex_1, zantufa_operator)];
+    }
+
+    /// Product node for a Zantufa mex continuation.
+    rule "Zantufa mex continuation" zantufa_mex_continuation(zantufa_mex_1, zantufa_operator) -> struct {
+        /// One or more source operators; a connected operator node is intentionally not substituted.
+        field operators <- [one_or_more arc(zantufa_operator)];
+        /// The optional right mex_1 group.
+        field right_expression <- opt(arc(zantufa_mex_1));
+    }
+
+    /// Product node for Zantufa mex_1, including repeated BIhE tails.
+    rule "Zantufa mex precedence" zantufa_mex_1(zantufa_mex_2, zantufa_operator) -> struct {
+        /// The leading mex_2 group.
+        field first_group <- arc(zantufa_mex_group(zantufa_mex_2));
+        /// Repeated BIhE operator-sequence tails.
+        field tails <- [zero_or_more zantufa_bihe_mekso_tail(zantufa_mex_2, zantufa_operator)];
+    }
+
+    /// Sum node for either Zantufa mex_1 grouping form.
+    rule "Zantufa mex group" zantufa_mex_group(zantufa_mex_2) -> enum {
+        /// KE-grouped one-or-more mex_2 expressions.
+        zantufa_ke_grouped_mekso,
+        /// A mex_2 expression with zero or more BO-linked expressions.
+        zantufa_bo_grouped_mekso,
+    }
+
+    /// Product node for a KE-grouped Zantufa mex_1 group.
+    rule "Zantufa KE-grouped mex" zantufa_ke_grouped_mekso(zantufa_mex_2) -> struct {
+        /// The opening KE marker.
+        field ke <- cmavo(Ke).warn(ExperimentalZantufaMex).wf();
+        /// Non-empty source-ordered mex_2 expressions.
+        field expressions <- [one_or_more arc(zantufa_mex_2)];
+        /// The optional KEhE terminator.
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
+    }
+
+    /// Product node for a BO-grouped Zantufa mex_1 group.
+    rule "Zantufa BO-grouped mex" zantufa_bo_grouped_mekso(zantufa_mex_2) -> struct {
+        /// The first mex_2 expression.
+        field first_expression <- arc(zantufa_mex_2);
+        /// Source-ordered BO continuations.
+        field continuations <- [zero_or_more zantufa_bo_grouped_mekso_continuation(zantufa_mex_2)];
+    }
+
+    /// Product node for a Zantufa BO-group continuation.
+    rule "Zantufa BO-grouped mex continuation" zantufa_bo_grouped_mekso_continuation(zantufa_mex_2) -> struct {
+        /// The BO marker.
+        field bo <- cmavo(Bo).warn(ExperimentalZantufaMex).wf();
+        /// The following mex_2 expression.
+        field expression <- arc(zantufa_mex_2);
+    }
+
+    /// Product node for one repeated Zantufa BIhE tail.
+    rule "Zantufa mex precedence tail" zantufa_bihe_mekso_tail(zantufa_mex_2, zantufa_operator) -> struct {
+        /// The BIhE marker.
+        field bihe <- cmavo(Bihe).warn(ExperimentalZantufaMex).wf();
+        /// One or more source operators.
+        field operators <- [one_or_more arc(zantufa_operator)];
+        /// The optional following group.
+        field right_group <- opt(arc(zantufa_mex_group(zantufa_mex_2)));
+    }
+
+    /// Sum node for Zantufa mex_2.
+    rule "Zantufa mex atom" zantufa_mex_2(zantufa_mex, zantufa_mex_2, zantufa_operand, zantufa_operator, zantufa_forethought_mekso, sumti, selbri, letter_string, letter_tokens, free_modifier) -> enum {
+        /// A Zantufa operand.
+        zantufa_operand,
+        /// A Zantufa reverse-Polish expression.
+        zantufa_reverse_polish_mekso,
+        /// A Zantufa operator-first forethought expression.
+        zantufa_forethought_mekso,
+    }
+
+    /// Product node for reverse Polish Zantufa mex.
+    rule "Zantufa reverse Polish mex" zantufa_reverse_polish_mekso(zantufa_mex_2, zantufa_operator) -> struct {
         /// The `Fuha` cmavo marker.
         field fuha <- cmavo(Fuha).warn(ExperimentalZantufaMex).wf();
-        /// Non-empty ordered sequence of operands components.
-        field operands <- [one_or_more mekso_base];
-        /// The shared operator child syntax node.
-        field operator <- arc(mekso_operator);
-        /// Ordered sequence of zero or more tails components.
-        field tails <- [zero_or_more zantufa_reverse_polish_tail(mekso_base, mekso_operator)];
+        /// Non-empty ordered sequence of mex_2 expressions.
+        field operands <- [one_or_more arc(zantufa_mex_2)];
+        /// The following Zantufa operator.
+        field operator <- arc(zantufa_operator);
+        /// Ordered reverse-Polish tails.
+        field tails <- [zero_or_more zantufa_reverse_polish_tail(zantufa_mex_2, zantufa_operator)];
         /// The optional `Kuhe` cmavo marker.
         field kuhe <- opt(cmavo(Kuhe).wf()).elidable_terminator(Kuhe);
     }
 
-    /// Product node for reverse Polish mex tail; preserves `operands` and `operator` in source order.
-    rule "reverse Polish mex tail" zantufa_reverse_polish_tail(mekso_base, mekso_operator) -> struct {
-        /// Ordered sequence of zero or more operands components.
-        field operands <- [zero_or_more mekso_base];
-        /// The shared operator child syntax node.
-        field operator <- arc(mekso_operator);
+    /// Product node for a Zantufa reverse-Polish tail.
+    rule "Zantufa reverse Polish mex tail" zantufa_reverse_polish_tail(zantufa_mex_2, zantufa_operator) -> struct {
+        /// Ordered sequence of zero or more mex_2 expressions.
+        field operands <- [zero_or_more arc(zantufa_mex_2)];
+        /// The following Zantufa operator.
+        field operator <- arc(zantufa_operator);
+    }
+
+    /// Product node for Zantufa operator-first forethought mex.
+    rule "Zantufa forethought mex" zantufa_forethought_mekso(zantufa_mex_2, zantufa_operator, zantufa_forethought_mekso, letter_string, letter_tokens) -> struct {
+        assert (letter_string(letter_tokens), opt(cmavo(Boi))).not();
+        /// The optional PEhO marker.
+        field peho <- opt(cmavo(Peho).warn(ExperimentalZantufaMex).wf());
+        /// The leading Zantufa operator.
+        field operator <- arc(zantufa_operator);
+        /// Non-empty source-ordered mex_2 expressions.
+        field operands <- [one_or_more arc(zantufa_mex_2)];
+        /// The optional recursively nested forethought tail.
+        field continuation <- opt(arc(zantufa_forethought_mekso));
+        /// The optional KUhE terminator.
+        field kuhe <- opt(cmavo(Kuhe).wf()).elidable_terminator(Kuhe);
+    }
+
+    /// Sum node for the exact Zantufa operand inventory.
+    rule "Zantufa operand" zantufa_operand(zantufa_mex, zantufa_operand, sumti, selbri, letter_string, letter_tokens, free_modifier) -> enum {
+        /// A number with its BOI boundary.
+        number_mekso,
+        /// A lerfu string with its BOI boundary.
+        lerfu_string_mekso,
+        /// A VEI-grouped full Zantufa mex.
+        zantufa_parenthesized_mekso_operand,
+        /// A MOhE selbri operand.
+        zantufa_selbri_mohe_mekso_operand,
+        /// A MOhE sumti operand.
+        zantufa_sumti_mohe_mekso_operand,
+        /// A LAhE-qualified full Zantufa mex.
+        zantufa_lahe_qualified_mekso_operand,
+        /// A NAhE BO-qualified full Zantufa mex.
+        zantufa_nahe_bo_qualified_mekso_operand,
+        /// Recursive scalar negation.
+        zantufa_scalar_negated_mekso_operand,
+    }
+
+    /// Product node for a VEI-grouped Zantufa operand.
+    rule "Zantufa parenthesized mex" zantufa_parenthesized_mekso_operand(zantufa_mex) -> struct {
+        /// The VEI marker.
+        field vei <- cmavo(Vei).warn(ExperimentalZantufaMex).wf();
+        /// The full inner Zantufa mex.
+        field inner_expression <- arc(zantufa_mex);
+        /// The optional VEhO terminator.
+        field veho <- opt(cmavo(Veho).wf()).elidable_terminator(Veho);
+    }
+
+    /// Product node for a Zantufa MOhE sumti operand.
+    rule "Zantufa sumti operand" zantufa_sumti_mohe_mekso_operand(sumti) -> struct {
+        /// The MOhE marker.
+        field mohe <- cmavo(Mohe).warn(ExperimentalZantufaMex).wf();
+        /// The wrapped sumti.
+        field sumti <- arc(sumti);
+        /// The optional TEhU terminator.
+        field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
+    }
+
+    /// Product node for a wide Zantufa LAhE-qualified operand.
+    rule "Zantufa LAhE-qualified operand" zantufa_lahe_qualified_mekso_operand(zantufa_mex) -> struct {
+        /// The LAhE marker.
+        field lahe <- selmaho(Lahe).warn(ExperimentalZantufaMex).wf();
+        /// The full inner Zantufa mex.
+        field inner_expression <- arc(zantufa_mex);
+        /// The optional LUhU terminator.
+        field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
+    }
+
+    /// Product node for a wide Zantufa NAhE BO-qualified operand.
+    rule "Zantufa NAhE BO-qualified operand" zantufa_nahe_bo_qualified_mekso_operand(zantufa_mex) -> struct {
+        /// The NAhE marker.
+        field nahe <- selmaho(Nahe).warn(ExperimentalZantufaMex).wf();
+        /// The mandatory BO marker.
+        field bo <- cmavo(Bo).wf();
+        /// The full inner Zantufa mex.
+        field inner_expression <- arc(zantufa_mex);
+        /// The optional LUhU terminator.
+        field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
+    }
+
+    /// Product node for recursive Zantufa scalar negation.
+    rule "Zantufa scalar-negated operand" zantufa_scalar_negated_mekso_operand(zantufa_operand) -> struct {
+        /// The NAhE marker.
+        field nahe <- selmaho(Nahe).warn(ExperimentalZantufaMex).wf();
+        /// The recursively nested Zantufa operand.
+        field inner_expression <- arc(zantufa_operand);
+    }
+
+    /// Sum node for the exact Zantufa operator inventory.
+    rule "Zantufa operator" zantufa_operator(zantufa_mex, zantufa_operator, sumti, selbri) -> enum {
+        /// Recursive SE conversion.
+        zantufa_converted_mekso_operator,
+        /// Recursive NAhE scalar negation.
+        zantufa_scalar_negated_mekso_operator,
+        /// MAhO wrapping a full Zantufa mex.
+        zantufa_maho_mekso_operator,
+        /// MAhO wrapping a selbri.
+        zantufa_maho_selbri_mekso_operator,
+        /// MAhO wrapping a sumti.
+        zantufa_maho_sumti_mekso_operator,
+        /// A primitive VUhU operator.
+        zantufa_primitive_mekso_operator,
+        /// A joik or ek connective operator, excluding CU.
+        zantufa_connective_mekso_operator,
+    }
+
+    /// Product node for recursive Zantufa SE conversion.
+    rule "Zantufa converted operator" zantufa_converted_mekso_operator(zantufa_operator) -> struct {
+        /// The SE marker.
+        field se <- selmaho(Se).warn(ExperimentalZantufaMex).wf();
+        /// The recursively nested operator.
+        field inner_operator <- arc(zantufa_operator);
+    }
+
+    /// Product node for recursive Zantufa NAhE negation.
+    rule "Zantufa scalar-negated operator" zantufa_scalar_negated_mekso_operator(zantufa_operator) -> struct {
+        /// The NAhE marker.
+        field nahe <- selmaho(Nahe).warn(ExperimentalZantufaMex).wf();
+        /// The recursively nested operator.
+        field inner_operator <- arc(zantufa_operator);
+    }
+
+    /// Product node for MAhO wrapping a full Zantufa mex.
+    rule "Zantufa mex-to-operator" zantufa_maho_mekso_operator(zantufa_mex) -> struct {
+        /// The MAhO marker.
+        field maho <- cmavo(Maho).warn(ExperimentalZantufaMex).wf();
+        /// The wrapped full Zantufa mex.
+        field mekso <- arc(zantufa_mex);
+        /// The optional TEhU terminator.
+        field tehu <- opt(cmavo(Tehu).wf()).elidable_terminator(Tehu);
+    }
+
+    /// Transparent product node for a primitive Zantufa operator.
+    rule "Zantufa primitive operator" zantufa_primitive_mekso_operator -> struct {
+        /// The VUhU word.
+        field vuhu <- selmaho(Vuhu).warn(ExperimentalZantufaMex).wf();
     }
 
     /// Product node for reverse Polish mex; preserves `first_operand` and `tails` in source order.
