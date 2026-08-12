@@ -1886,7 +1886,7 @@ pub mod generated_model {
         /// The optional tense modal between the connective and BO.
         field tense_modal <- opt(arc(tense_modal));
         /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo).warn(ExperimentalMexOperator).wf();
+        field bo <- cmavo(Bo).warn(ExperimentalMexOperatorConnective).wf();
         /// The operator_1-width right operator.
         field right_operator <- arc(inner_mekso_operator);
     }

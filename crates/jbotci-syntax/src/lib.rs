@@ -2733,7 +2733,7 @@ pub enum ExperimentalConstruct {
     ExperimentalSimplerForethoughtConnective,
     ExperimentalSimplerTermConnective,
     ExperimentalSimplerMexOperandConnective,
-    ExperimentalMexOperator,
+    ExperimentalMexOperatorConnective,
     ExperimentalSimplerDescriptorHeadConnective,
     ExperimentalJiAsJaConnective,
     ExperimentalGadganzuGadri,
@@ -2838,7 +2838,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalSimplerMexOperandConnective => {
                 "syntax.warning.experimental-simpler-mex-operand-connective"
             }
-            Self::ExperimentalMexOperator => "syntax.warning.experimental-mex-operator",
+            Self::ExperimentalMexOperatorConnective => {
+                "syntax.warning.experimental-mex-operator-connective"
+            }
             Self::ExperimentalSimplerDescriptorHeadConnective => {
                 "syntax.warning.experimental-simpler-description-head-connective"
             }
@@ -2987,7 +2989,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalSimplerMexOperandConnective => {
                 "JA connective used between MEX operands"
             }
-            Self::ExperimentalMexOperator => "camxes-exp BO-bound or connective-atom MEX operator",
+            Self::ExperimentalMexOperatorConnective => {
+                "camxes-exp BO-bound or connective-atom MEX operator"
+            }
             Self::ExperimentalSimplerDescriptorHeadConnective => {
                 "JA connective used between description heads"
             }
