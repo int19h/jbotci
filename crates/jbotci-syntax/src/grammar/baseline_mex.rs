@@ -8,11 +8,14 @@
 //! revisited. A rejected tree is composed exclusively from the same terminal
 //! surfaces and greedy infix extent as the baseline rules, so its baseline
 //! reparse consumes the identical extent. The one deliberate exception is a
-//! wide-qualified head whose inner expression starts with a baseline operand:
+//! wide-qualified head whose entire inner expression is baseline-shaped:
 //! owner policy rejects that Zantufa reading so an elided `LUhU` reparses with
-//! the narrower baseline qualifier. With explicit `LUhU`, that rejection can
+//! the narrower baseline qualifier and the inner remainder becomes outer
+//! infix syntax at the same extent. With explicit `LUhU`, that rejection can
 //! leave an upstream-accepted surface unavailable in the warning union; the
-//! reinterpretation feature retains the faithful wide reading.
+//! reinterpretation feature retains the faithful wide reading. If any part of
+//! the inner expression is Zantufa-only, the baseline grammar cannot accept the
+//! surface, so retaining the wide reading cannot reinterpret a baseline parse.
 
 use bityzba::{contract_trait, invariant, requires};
 
@@ -32,7 +35,7 @@ fn is_baseline_mex(expression: &ZantufaMexSyntax) -> bool {
         continuations,
     } = expression;
     if baseline_operand_mex(expression)
-        || wide_qualified_head_starts_with_baseline_operand(first_expression)
+        || wide_qualified_head_has_baseline_inner(first_expression)
         || continuations.is_empty() && baseline_root_reverse_polish(first_expression)
     {
         return true;
@@ -243,7 +246,7 @@ fn baseline_operand_connective(operator: &ZantufaOperatorSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn wide_qualified_head_starts_with_baseline_operand(expression: &ZantufaMex1Syntax) -> bool {
+fn wide_qualified_head_has_baseline_inner(expression: &ZantufaMex1Syntax) -> bool {
     let ZantufaMex1Syntax {
         first_group,
         tails: _,
@@ -283,28 +286,11 @@ fn wide_qualified_head_starts_with_baseline_operand(expression: &ZantufaMex1Synt
         | ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_)
         | ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => return false,
     };
-    zantufa_mex_starts_with_baseline_operand(inner)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn zantufa_mex_starts_with_baseline_operand(expression: &ZantufaMexSyntax) -> bool {
-    let ZantufaMexSyntax {
-        first_expression,
-        continuations: _,
-    } = expression;
-    let ZantufaMex1Syntax {
-        first_group,
-        tails: _,
-    } = first_expression.as_ref();
-    let ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) = first_group.as_ref() else {
-        return false;
-    };
-    let ZantufaBoGroupedMeksoSyntax {
-        first_expression,
-        continuations: _,
-    } = group;
-    baseline_operand_atom(first_expression)
+    // A fully baseline-shaped inner MEX has a same-extent narrow reading:
+    // qualifier(first operand), followed by its remainder as outer infix syntax.
+    // If the inner contains any Zantufa-only element, that baseline reparse cannot
+    // succeed, so keeping the wide tree cannot steal or reinterpret a baseline parse.
+    is_baseline_mex(inner)
 }
 
 #[requires(true)]
@@ -471,7 +457,7 @@ fn recovered_is_baseline_mex(expression: &recovered::ZantufaMexSyntax) -> bool {
         return false;
     };
     if recovered_baseline_operand_mex(expression)
-        || recovered_wide_qualified_head_starts_with_baseline_operand(first_expression)
+        || recovered_wide_qualified_head_has_baseline_inner(first_expression)
         || continuations.is_empty() && recovered_baseline_root_reverse_polish(first_expression)
     {
         return true;
@@ -739,7 +725,7 @@ fn recovered_baseline_operand_connective(operator: &recovered::ZantufaOperatorSy
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_wide_qualified_head_starts_with_baseline_operand(
+fn recovered_wide_qualified_head_has_baseline_inner(
     expression: &recovered::ZantufaMex1Syntax,
 ) -> bool {
     let recovered::ZantufaMex1Syntax {
@@ -795,37 +781,9 @@ fn recovered_wide_qualified_head_starts_with_baseline_operand(
         | recovered::ZantufaOperandSyntax::ZantufaSumtiMoheMeksoOperand(_)
         | recovered::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(_) => return false,
     };
-    inner.is_some_and(recovered_zantufa_mex_starts_with_baseline_operand)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_zantufa_mex_starts_with_baseline_operand(
-    expression: &recovered::ZantufaMexSyntax,
-) -> bool {
-    let recovered::ZantufaMexSyntax {
-        first_expression,
-        continuations: _,
-    } = expression;
-    let Some(recovered::ZantufaMex1Syntax {
-        first_group,
-        tails: _,
-    }) = valid(first_expression)
-    else {
-        return false;
-    };
-    let Some(recovered::ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group)) = valid(first_group)
-    else {
-        return false;
-    };
-    let Some(recovered::ZantufaBoGroupedMeksoSyntax {
-        first_expression,
-        continuations: _,
-    }) = valid(group)
-    else {
-        return false;
-    };
-    valid(first_expression).is_some_and(recovered_baseline_operand_atom)
+    // Mirror the strict classifier's complete-inner proof. A recovered tree with
+    // any invalid component cannot establish baseline ownership and stays kept.
+    inner.is_some_and(recovered_is_baseline_mex)
 }
 
 #[requires(true)]

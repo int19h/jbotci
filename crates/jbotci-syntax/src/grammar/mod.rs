@@ -7890,6 +7890,36 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn zantufa_mex_priority_keeps_wide_qualifiers_with_zantufa_only_inner_material() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
+
+            for source in [
+                "li lu'e pa bo ci lo'o",
+                "li lu'e pa su'i re bo ci lo'o",
+                "li lu'e pa su'i re .e lo'o",
+                "li na'e bo pa bo ci lo'o",
+            ] {
+                let parsed = parse_source(source, &zantufa);
+                let tree = parse_tree_debug(source, &zantufa);
+                assert!(tree.contains("ZantufaPriorityMex"), "{source}: {tree}");
+                assert!(
+                    tree.contains("ZantufaLaheQualifiedMeksoOperand")
+                        || tree.contains("ZantufaNaheBoQualifiedMeksoOperand"),
+                    "wide qualifier must retain ownership: {source}: {tree}"
+                );
+                assert!(
+                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                    "wide Zantufa reading must warn: {source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn indefinite_sumti_explicit_ku_precedes_relative_clause() {
         let valid = segment_words_with_modifiers("mi viska ci gerku ku poi barda")
             .expect("valid morphology");
