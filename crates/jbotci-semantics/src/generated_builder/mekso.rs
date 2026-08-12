@@ -138,29 +138,6 @@ pub(super) fn generated_zantufa_mekso_operator_sequence_label<O: AsRef<ZantufaOp
         .map(|parts| parts.join(" "))
 }
 
-#[requires(!operators.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|(label, _)| !label.is_empty()) || ret.is_err())]
-pub(super) fn generated_zantufa_mekso_operator_sequence_label_with_replacement<
-    O: AsRef<ZantufaOperatorSyntax>,
->(
-    operators: &[O],
-    replacement_operator: &MeksoOperatorSyntax,
-) -> Result<(String, bool), SemanticsError> {
-    let mut replaced = false;
-    let mut parts = Vec::with_capacity(operators.len());
-    for operator in operators {
-        if !replaced && connected_generated_zantufa_operator(operator.as_ref())?.is_some() {
-            parts.push(generated_mekso_operator_surface_label(
-                replacement_operator,
-            )?);
-            replaced = true;
-        } else {
-            parts.push(generated_zantufa_operator_surface_label(operator.as_ref())?);
-        }
-    }
-    Ok((parts.join(" "), replaced))
-}
-
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|label| !label.is_empty()) || ret.is_err())]
 pub(super) fn generated_inner_mekso_operator_surface_label(
@@ -267,22 +244,75 @@ pub(super) fn generated_zantufa_operator_surface_label(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|expansion| expansion.as_ref().is_none_or(|expansion| expansion.connector.locus == ConnectorLocus::MathOperator)) || ret.is_err())]
-pub(super) fn connected_generated_zantufa_operator(
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(super) fn generated_zantufa_math_operator_label(
     operator: &ZantufaOperatorSyntax,
-) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
+) -> Result<MathOperator, SemanticsError> {
+    let source = generated_zantufa_operator_surface_label(operator)?;
+    Ok(match generated_zantufa_operator_base(operator) {
+        ZantufaOperatorSyntax::ZantufaPrimitiveMeksoOperator(operator) => {
+            match token_text(&operator.0.value).as_str() {
+                "su'i" => new!(MathOperator::Add),
+                "pi'i" => new!(MathOperator::Multiply),
+                "te'a" => new!(MathOperator::Power),
+                "vu'u" => new!(MathOperator::Subtract),
+                "fe'i" => new!(MathOperator::Divide),
+                "ju'u" => new!(MathOperator::Base),
+                _ => MathOperator::from_label(source),
+            }
+        }
+        _ => MathOperator::from_label(source),
+    })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_zantufa_operator_base(operator: &ZantufaOperatorSyntax) -> &ZantufaOperatorSyntax {
     match operator {
         ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(operator) => {
-            connected_generated_zantufa_operator(&operator.inner_operator)
+            generated_zantufa_operator_base(&operator.inner_operator)
         }
         ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(operator) => {
-            connected_generated_zantufa_operator(&operator.inner_operator)
+            generated_zantufa_operator_base(&operator.inner_operator)
         }
         ZantufaOperatorSyntax::ZantufaMahoMeksoOperator(_)
         | ZantufaOperatorSyntax::ZantufaMahoSelbriMeksoOperator(_)
         | ZantufaOperatorSyntax::ZantufaMahoSumtiMeksoOperator(_)
         | ZantufaOperatorSyntax::ZantufaPrimitiveMeksoOperator(_)
-        | ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(_) => Ok(None),
+        | ZantufaOperatorSyntax::ZantufaConnectiveMeksoOperator(_) => operator,
+    }
+}
+
+#[requires(operands.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+#[ensures(ret.iter().all(|operand| operand.object_kind() == crate::model::SemanticObjectKind::MathExpression))]
+pub(super) fn generated_math_operands_for_zantufa_operator(
+    operator: &ZantufaOperatorSyntax,
+    operands: Vec<SemanticObjectId>,
+) -> Vec<SemanticObjectId> {
+    match operator {
+        ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(operator) => {
+            converted_math_operands_for_generated(operator.se.value.cmavo(), operands)
+        }
+        ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(operator) => {
+            generated_math_operands_for_zantufa_operator(&operator.inner_operator, operands)
+        }
+        _ => operands,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|negation| !negation.introduced_by.is_empty()))]
+pub(super) fn scalar_negation_for_generated_zantufa_operator(
+    operator: &ZantufaOperatorSyntax,
+) -> Option<ScalarNegation> {
+    match operator {
+        ZantufaOperatorSyntax::ZantufaScalarNegatedMeksoOperator(operator) => {
+            Some(scalar_negation_for_token(&operator.nahe.value))
+        }
+        ZantufaOperatorSyntax::ZantufaConvertedMeksoOperator(operator) => {
+            scalar_negation_for_generated_zantufa_operator(&operator.inner_operator)
+        }
+        _ => None,
     }
 }
 
@@ -357,6 +387,7 @@ pub(super) fn generated_mekso_surface_text(
         MeksoSyntax::ReinterpretZantufaMex(expression) => {
             generated_node_surface_text(&expression.0)
         }
+        MeksoSyntax::ZantufaPriorityMex(expression) => generated_node_surface_text(&expression.0),
         MeksoSyntax::ZantufaMex(expression) => generated_node_surface_text(expression),
         MeksoSyntax::InfixMekso(infix) => generated_infix_mekso_surface_text(infix),
         MeksoSyntax::ReversePolishMekso(reverse_polish) => {
@@ -372,7 +403,9 @@ pub(super) fn generated_mekso_surface_text_with_connected_operator_replacement(
     replacement_operator: &MeksoOperatorSyntax,
 ) -> Result<Option<String>, SemanticsError> {
     match expression {
-        MeksoSyntax::ReinterpretZantufaMex(_) | MeksoSyntax::ZantufaMex(_) => Ok(None),
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaPriorityMex(_)
+        | MeksoSyntax::ZantufaMex(_) => Ok(None),
         MeksoSyntax::InfixMekso(infix) => {
             generated_infix_mekso_surface_text_with_connected_operator_replacement(
                 infix,
@@ -803,6 +836,7 @@ pub(super) fn generated_number_descriptor_mekso_surface_text(
         MeksoSyntax::ReinterpretZantufaMex(expression) => {
             generated_node_surface_text(&expression.0)
         }
+        MeksoSyntax::ZantufaPriorityMex(expression) => generated_node_surface_text(&expression.0),
         MeksoSyntax::ZantufaMex(expression) => generated_node_surface_text(expression),
         MeksoSyntax::InfixMekso(infix) => {
             generated_number_descriptor_infix_mekso_surface_text(infix)
@@ -894,7 +928,9 @@ pub(super) fn first_generated_connected_mekso_operator(
     expression: &MeksoSyntax,
 ) -> Result<Option<GeneratedConnectedMeksoOperatorExpansion>, SemanticsError> {
     match expression {
-        MeksoSyntax::ReinterpretZantufaMex(_) | MeksoSyntax::ZantufaMex(_) => Ok(None),
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaPriorityMex(_)
+        | MeksoSyntax::ZantufaMex(_) => Ok(None),
         MeksoSyntax::InfixMekso(infix) => first_generated_connected_mekso_operator_in_infix(infix),
         MeksoSyntax::ReversePolishMekso(_) => Ok(None),
     }
@@ -1267,7 +1303,9 @@ pub(super) fn generated_mekso_operator_from_simple(
 #[ensures(true)]
 pub(super) fn generated_mekso_contains_operand_connection(expression: &MeksoSyntax) -> bool {
     match expression {
-        MeksoSyntax::ReinterpretZantufaMex(_) | MeksoSyntax::ZantufaMex(_) => false,
+        MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaPriorityMex(_)
+        | MeksoSyntax::ZantufaMex(_) => false,
         MeksoSyntax::InfixMekso(infix) => {
             generated_mekso_precedence_contains_operand_connection(&infix.first_expression)
                 || infix.continuations.iter().any(|continuation| {
@@ -1918,9 +1956,48 @@ pub(super) fn generated_mekso_number_words_text(expression: &MeksoSyntax) -> Opt
             }
             generated_mekso_precedence_number_words_text(&infix.first_expression)
         }
-        MeksoSyntax::ReinterpretZantufaMex(_)
-        | MeksoSyntax::ZantufaMex(_)
-        | MeksoSyntax::ReversePolishMekso(_) => None,
+        MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_zantufa_mex_number_words_text(&expression.0)
+        }
+        MeksoSyntax::ZantufaPriorityMex(expression) => {
+            generated_zantufa_mex_number_words_text(&expression.0)
+        }
+        MeksoSyntax::ZantufaMex(expression) => generated_zantufa_mex_number_words_text(expression),
+        MeksoSyntax::ReversePolishMekso(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|text| !text.is_empty()))]
+fn generated_zantufa_mex_number_words_text(expression: &ZantufaMexSyntax) -> Option<String> {
+    if !expression.continuations.is_empty() || !expression.first_expression.tails.is_empty() {
+        return None;
+    }
+    let ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) =
+        expression.first_expression.first_group.as_ref()
+    else {
+        return None;
+    };
+    if !group.continuations.is_empty() {
+        return None;
+    }
+    let ZantufaMex2Syntax::ZantufaOperand(operand) = group.first_expression.as_ref() else {
+        return None;
+    };
+    match operand {
+        ZantufaOperandSyntax::NumberMekso(number) => {
+            Some(generated_number_words_text(&number.0.number))
+        }
+        ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
+            generated_zantufa_mex_number_words_text(&operand.inner_expression)
+        }
+        ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
+            generated_zantufa_mex_number_words_text(&operand.inner_expression)
+        }
+        ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
+            generated_zantufa_mex_number_words_text(&operand.inner_expression)
+        }
+        _ => None,
     }
 }
 
@@ -2037,6 +2114,7 @@ pub(super) fn generated_single_mekso_operand_from_mekso(
             &infix.first_expression
         }
         MeksoSyntax::ReinterpretZantufaMex(_)
+        | MeksoSyntax::ZantufaPriorityMex(_)
         | MeksoSyntax::ZantufaMex(_)
         | MeksoSyntax::ReversePolishMekso(_) => {
             return None;
@@ -2067,9 +2145,51 @@ pub(super) fn generated_mekso_letteral_tokens<'syntax>(
             }
             generated_mekso_precedence_letteral_tokens(&infix.first_expression)
         }
-        MeksoSyntax::ReinterpretZantufaMex(_)
-        | MeksoSyntax::ZantufaMex(_)
-        | MeksoSyntax::ReversePolishMekso(_) => None,
+        MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_zantufa_mex_letteral_tokens(&expression.0)
+        }
+        MeksoSyntax::ZantufaPriorityMex(expression) => {
+            generated_zantufa_mex_letteral_tokens(&expression.0)
+        }
+        MeksoSyntax::ZantufaMex(expression) => generated_zantufa_mex_letteral_tokens(expression),
+        MeksoSyntax::ReversePolishMekso(_) => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|tokens| !tokens.0.is_empty()))]
+fn generated_zantufa_mex_letteral_tokens<'syntax>(
+    expression: &'syntax ZantufaMexSyntax,
+) -> Option<(Vec<Token>, Option<&'syntax [FreeModifierSyntax]>)> {
+    if !expression.continuations.is_empty() || !expression.first_expression.tails.is_empty() {
+        return None;
+    }
+    let ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) =
+        expression.first_expression.first_group.as_ref()
+    else {
+        return None;
+    };
+    if !group.continuations.is_empty() {
+        return None;
+    }
+    let ZantufaMex2Syntax::ZantufaOperand(operand) = group.first_expression.as_ref() else {
+        return None;
+    };
+    match operand {
+        ZantufaOperandSyntax::LerfuStringMekso(letter) => Some((
+            generated_letter_string_tokens(&letter.letters),
+            Some(&letter.free_modifiers),
+        )),
+        ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
+            generated_zantufa_mex_letteral_tokens(&operand.inner_expression)
+        }
+        ZantufaOperandSyntax::ZantufaLaheQualifiedMeksoOperand(operand) => {
+            generated_zantufa_mex_letteral_tokens(&operand.inner_expression)
+        }
+        ZantufaOperandSyntax::ZantufaNaheBoQualifiedMeksoOperand(operand) => {
+            generated_zantufa_mex_letteral_tokens(&operand.inner_expression)
+        }
+        _ => None,
     }
 }
 

@@ -1994,6 +1994,52 @@ where
     .boxed()
 }
 
+/// A typed refinement that can reject an otherwise successful parser output.
+#[contract_trait]
+pub(crate) trait OutputRejection<O> {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn rejected_name(&self) -> &'static str;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects(&self, value: &O) -> bool;
+}
+
+/// Rejects a completed typed match and rewinds all state to the route's start.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn reject_output<'tokens, O, P, R>(inner: P, rejection: R) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+    R: OutputRejection<O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let before = input.save();
+        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        let value = match input.parse(&inner) {
+            Ok(value) => value,
+            Err(error) => {
+                input.rewind(before);
+                return Err(error);
+            }
+        };
+        if !rejection.rejects(&value) {
+            return Ok(value);
+        }
+        input.rewind(before);
+        input
+            .state()
+            .restore_diagnostic_candidates(diagnostic_snapshot);
+        Err(expected_found_named_at_current(
+            input,
+            format!("not {}", rejection.rejected_name()),
+        ))
+    })
+    .boxed()
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn not<'tokens, O, P>(parser: P) -> BoxedParser<'tokens, ()>

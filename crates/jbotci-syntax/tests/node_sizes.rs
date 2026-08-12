@@ -14,7 +14,7 @@ use jbotci_syntax::{
         QuoteSyntax, SelbriSyntax, SimpleMeksoOperandSyntax, StatementSyntax, SumtiSyntax,
         TanruUnitSyntax, TenseModalSyntax, TermSyntax, TextSyntax, ZantufaForethoughtMeksoSyntax,
         ZantufaMex1Syntax, ZantufaMex2Syntax, ZantufaMexSyntax, ZantufaOperandSyntax,
-        ZantufaOperatorSyntax,
+        ZantufaOperatorSyntax, ZantufaPriorityMexSyntax,
     },
     tree::WithFreeModifiers,
 };
@@ -77,6 +77,10 @@ fn ast_node_sizes_stay_within_stack_budget() {
             size_of::<AtomicMeksoOperatorSyntax>(),
         ),
         ("ZantufaMexSyntax", size_of::<ZantufaMexSyntax>()),
+        (
+            "ZantufaPriorityMexSyntax",
+            size_of::<ZantufaPriorityMexSyntax>(),
+        ),
         ("ZantufaMex1Syntax", size_of::<ZantufaMex1Syntax>()),
         ("ZantufaMex2Syntax", size_of::<ZantufaMex2Syntax>()),
         ("ZantufaOperandSyntax", size_of::<ZantufaOperandSyntax>()),

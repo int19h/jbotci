@@ -5284,6 +5284,10 @@ fn strict_postfix_parser_expr_tokens(
         ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
+        ("reject_output", 1) => {
+            let rejection = output_rejection_argument(args.first().expect("length checked"))?;
+            Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+        }
         ("ignore_then", 1) => {
             let parser = strict_rust_parser_expr_tokens(
                 args.first().expect("length checked"),
@@ -5566,6 +5570,10 @@ fn recovered_postfix_parser_expr_tokens(
         ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
+        ("reject_output", 1) => {
+            let rejection = output_rejection_argument(args.first().expect("length checked"))?;
+            Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
+        }
         ("ignore_then", 1) => {
             let parser = recovered_rust_parser_expr_tokens(
                 args.first().expect("length checked"),
@@ -6006,6 +6014,16 @@ fn strict_method_parser_expr_tokens(
             mode,
         )?;
         Ok(quote!(#inner.map(|_| ())))
+    } else if method.method == "reject_output" && method.args.len() == 1 {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
+        Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -6778,6 +6796,16 @@ fn recovered_method_parser_expr_tokens(
             mode,
         )?;
         Ok(quote!(#inner.map(|_| ())))
+    } else if method.method == "reject_output" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
+        Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -7454,6 +7482,7 @@ fn postfix_parser_output_type(
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => parser_output_type(receiver, type_env, arguments),
         ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
+        ("reject_output", 1) => parser_output_type(receiver, type_env, arguments),
         ("not" | "ignored", 0) => Some(quote!(())),
         ("ignore_then", 1) => {
             rust_parser_output_type(args.first().expect("length checked"), type_env, arguments)
@@ -7644,6 +7673,7 @@ fn method_rust_parser_output_type(
         || method.method == "not_next_rule"
         || method.method == "followed_by"
         || method.method == "lookahead"
+        || method.method == "reject_output"
     {
         rust_parser_output_type(&method.receiver, type_env, arguments)
     } else if method.method == "not" || method.method == "ignored" {
@@ -8613,7 +8643,7 @@ fn elidable_terminator_terminal_cmavo(expr: &Expr) -> Option<String> {
         }
         Expr::MethodCall(method) => match (method.method.to_string().as_str(), method.args.len()) {
             ("wf" | "with_free_modifiers" | "prohibited_wf" | "payload_start" | "lookahead", 0)
-            | ("warn", 1) => elidable_terminator_terminal_cmavo(&method.receiver),
+            | ("warn" | "reject_output", 1) => elidable_terminator_terminal_cmavo(&method.receiver),
             _ => None,
         },
         Expr::Group(group) => elidable_terminator_terminal_cmavo(&group.expr),
@@ -8926,7 +8956,7 @@ fn classify_postfix_recovery_expr(
         ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
             Ok(RecoveryExpr::WithFreeModifiers(inner()?))
         }
-        ("warn", 1) | ("elidable_terminator", 1) => {
+        ("warn", 1) | ("elidable_terminator", 1) | ("reject_output", 1) => {
             classify_parser_expr(receiver, arguments, type_env)
         }
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
@@ -9004,7 +9034,9 @@ fn classify_method_recovery_expr(
         ("wf", 0) | ("with_free_modifiers", 0) | ("prohibited_wf", 0) => {
             Ok(RecoveryExpr::WithFreeModifiers(inner()?))
         }
-        ("warn", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
+        ("warn", 1) | ("reject_output", 1) => {
+            classify_recovery_expr(&method.receiver, arguments, type_env)
+        }
         ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
@@ -9184,6 +9216,19 @@ fn path_expr_last_segment(expr: &Expr) -> Option<String> {
 #[ensures(ret.is_err() || ret.as_ref().is_ok_and(|segment| !segment.is_empty()))]
 fn required_path_expr_last_segment(expr: &Expr, message: &'static str) -> Result<String> {
     path_expr_last_segment(expr).ok_or_else(|| syn::Error::new_spanned(expr, message))
+}
+
+/// The refinement value passed to `reject_output()`.
+#[requires(true)]
+#[ensures(true)]
+fn output_rejection_argument(expr: &Expr) -> Result<TokenStream2> {
+    let Expr::Path(path) = expr else {
+        return Err(syn::Error::new_spanned(
+            expr,
+            "reject_output() requires a path to an output rejection value",
+        ));
+    };
+    Ok(quote!(#path))
 }
 
 #[requires(true)]

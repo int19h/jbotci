@@ -3800,6 +3800,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::MeksoSyntax::ReinterpretZantufaMex(expression) => {
                 self.walk_node(&expression.0);
             }
+            generated::MeksoSyntax::ZantufaPriorityMex(expression) => {
+                self.walk_node(&expression.0);
+            }
             generated::MeksoSyntax::ZantufaMex(expression) => self.walk_node(expression),
             generated::MeksoSyntax::InfixMekso(expression) => {
                 self.walk_node(&expression.first_expression);
@@ -7913,6 +7916,9 @@ fn generated_koha_subscript_index(
             generated::FreeModifierSyntax::XiFreeModifier(
                 generated::XiFreeModifierSyntax::XiParenthesizedFreeModifier(subscript),
             ) => generated_math_expression_to_usize(&subscript.expression.inner_expression),
+            generated::FreeModifierSyntax::XiFreeModifier(
+                generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(subscript),
+            ) => generated_zantufa_mex_2_to_usize(&subscript.expression),
             _ => None,
         })
 }
@@ -7923,6 +7929,49 @@ fn generated_math_expression_to_usize(expression: &generated::MeksoSyntax) -> Op
     match expression {
         generated::MeksoSyntax::InfixMekso(expression) if expression.continuations.is_empty() => {
             generated_mekso_precedence_to_usize(&expression.first_expression)
+        }
+        generated::MeksoSyntax::ReinterpretZantufaMex(expression) => {
+            generated_zantufa_mex_to_usize(&expression.0)
+        }
+        generated::MeksoSyntax::ZantufaPriorityMex(expression) => {
+            generated_zantufa_mex_to_usize(&expression.0)
+        }
+        generated::MeksoSyntax::ZantufaMex(expression) => {
+            generated_zantufa_mex_to_usize(expression)
+        }
+        _ => None,
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_zantufa_mex_to_usize(expression: &generated::ZantufaMexSyntax) -> Option<usize> {
+    if !expression.continuations.is_empty() || !expression.first_expression.tails.is_empty() {
+        return None;
+    }
+    let generated::ZantufaMexGroupSyntax::ZantufaBoGroupedMekso(group) =
+        expression.first_expression.first_group.as_ref()
+    else {
+        return None;
+    };
+    if !group.continuations.is_empty() {
+        return None;
+    }
+    generated_zantufa_mex_2_to_usize(&group.first_expression)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_zantufa_mex_2_to_usize(expression: &generated::ZantufaMex2Syntax) -> Option<usize> {
+    let generated::ZantufaMex2Syntax::ZantufaOperand(operand) = expression else {
+        return None;
+    };
+    match operand {
+        generated::ZantufaOperandSyntax::NumberMekso(number) => {
+            generated_number_words_to_usize(&number.0.number)
+        }
+        generated::ZantufaOperandSyntax::ZantufaParenthesizedMeksoOperand(operand) => {
+            generated_zantufa_mex_to_usize(&operand.inner_expression)
         }
         _ => None,
     }
@@ -8518,8 +8567,13 @@ mod tests {
 
     #[allow(unused_imports)]
     use bityzba::{ensures, requires};
-    use jbotci_morphology::segment_words_with_modifiers;
+    use jbotci_dialect::parse_dialect_definition;
+    use jbotci_morphology::{
+        MorphologyOptions, segment_words_with_modifiers,
+        segment_words_with_modifiers_with_options_and_source_id,
+    };
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_generated_model_with_source_and_options};
+    use std::sync::Arc;
 
     #[requires(true)]
     #[ensures(true)]
@@ -8537,6 +8591,63 @@ mod tests {
             &ParseOptions::default(),
         )
         .expect("generated syntax succeeds")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn parse_generated_zantufa_syntax(input: &str) -> Box<GeneratedTextSyntax> {
+        let dialect = parse_dialect_definition("(zantufa)").expect("Zantufa dialect");
+        let words = segment_words_with_modifiers_with_options_and_source_id(
+            input,
+            &MorphologyOptions::default().with_dialect_definition(&dialect),
+            None,
+        )
+        .expect("morphology succeeds");
+        parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            input,
+            &ParseOptions::default().with_dialect_definition(&dialect),
+        )
+        .expect("generated Zantufa syntax succeeds")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn generated_zantufa_numeric_xi_route_preserves_koha_index() {
+        let syntax = parse_generated_zantufa_syntax("ko'a xi na'e pa cu broda");
+        let index = GeneratedSyntaxIndex::new(&syntax).expect("syntax index");
+        let pro_sumti = (0..index.node_count())
+            .find_map(|raw| match index.node(RawSyntaxNodeId(raw)) {
+                Some(GeneratedSyntaxNodeRef::SumtiBaseSyntaxProSumti(
+                    generated::SumtiBaseSyntax::ProSumti(pro_sumti),
+                )) => Some(pro_sumti),
+                _ => None,
+            })
+            .expect("ko'a node");
+        let generated::FreeModifierSyntax::XiFreeModifier(
+            generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(subscript),
+        ) = &pro_sumti.0.free_modifiers[0]
+        else {
+            panic!("test source must select the exact Zantufa xi route");
+        };
+        let generated::ZantufaMex2Syntax::ZantufaOperand(
+            generated::ZantufaOperandSyntax::ZantufaScalarNegatedMeksoOperand(negated),
+        ) = subscript.expression.as_ref()
+        else {
+            panic!("test source must wrap the numeric operand");
+        };
+        let direct_subscript = generated::ZantufaMex2XiFreeModifierSyntax {
+            xi: subscript.xi.clone(),
+            expression: Arc::new(generated::ZantufaMex2Syntax::ZantufaOperand(
+                negated.inner_expression.as_ref().clone(),
+            )),
+        };
+        let free_modifiers = [generated::FreeModifierSyntax::XiFreeModifier(
+            generated::XiFreeModifierSyntax::ZantufaMex2XiFreeModifier(direct_subscript),
+        )];
+
+        assert_eq!(generated_koha_subscript_index(&free_modifiers), Some(1));
     }
 
     #[requires(true)]

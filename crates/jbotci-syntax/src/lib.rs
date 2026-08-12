@@ -1632,6 +1632,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "Zantufa priority mex",
+        parent: Some("Zantufa mex"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "Zantufa mex precedence",
         parent: Some("Zantufa mex"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,

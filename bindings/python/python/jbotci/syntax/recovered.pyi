@@ -6552,6 +6552,20 @@ class MeksoSyntaxReinterpretZantufaMex:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class MeksoSyntaxZantufaPriorityMex:
+    'Gives Zantufa-only continuations priority while handing baseline surfaces back.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_priority_mex']]]
+    def __new__(cls, zantufa_priority_mex: RecoveredField[ZantufaPriorityMexSyntax]) -> MeksoSyntaxZantufaPriorityMex: ...
+    @property
+    def zantufa_priority_mex(self) -> RecoveredField[ZantufaPriorityMexSyntax]:
+        'Gives Zantufa-only continuations priority while handing baseline surfaces back.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class MeksoSyntaxInfixMekso:
     'Uses the `infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.'
     __match_args__: ClassVar[tuple[Literal['infix_mekso']]]
@@ -6594,7 +6608,21 @@ class MeksoSyntaxZantufaMex:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for mex, with baseline ownership before the warning-union Zantufa fallback.
-MeksoSyntax: TypeAlias = MeksoSyntaxReinterpretZantufaMex | MeksoSyntaxInfixMekso | MeksoSyntaxReversePolishMekso | MeksoSyntaxZantufaMex
+MeksoSyntax: TypeAlias = MeksoSyntaxReinterpretZantufaMex | MeksoSyntaxZantufaPriorityMex | MeksoSyntaxInfixMekso | MeksoSyntaxReversePolishMekso | MeksoSyntaxZantufaMex
+
+@final
+class ZantufaPriorityMexSyntax:
+    'Transparent priority route for a Zantufa-only mex surface.'
+    __match_args__: ClassVar[tuple[Literal['mex']]]
+    def __new__(cls, mex: RecoveredField[ZantufaMexSyntax]) -> ZantufaPriorityMexSyntax: ...
+    @property
+    def mex(self) -> RecoveredField[ZantufaMexSyntax]:
+        'The completed Zantufa tree, rejected here when the baseline grammar owns its surface.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class ReinterpretZantufaMexSyntax:

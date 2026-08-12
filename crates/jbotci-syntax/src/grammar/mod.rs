@@ -31,6 +31,7 @@ use crate::{
     WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
+mod baseline_mex;
 mod generated;
 mod generated_runtime;
 mod parse_error;
@@ -7771,6 +7772,36 @@ mod tests {
     fn parse_source(source: &str, options: &ParseOptions) -> SyntaxParse {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         parse_syntax_tree(&words, options).expect("valid syntax")
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_mex_priority_reaches_non_ke_extensions_without_stealing_baseline() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
+            for source in ["li pa su'i", "li pa bo re", "li pa bi'e su'i"] {
+                let parsed = parse_source(source, &zantufa);
+                assert!(
+                    parse_tree_debug(source, &zantufa).contains("ZantufaPriorityMex"),
+                    "{source}"
+                );
+                assert!(
+                    has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                    "{source}"
+                );
+            }
+
+            let source = "li pa su'i re";
+            let baseline = parse_source(source, &ParseOptions::default());
+            let extended = parse_source(source, &zantufa);
+            assert_eq!(extended.parse_tree, baseline.parse_tree);
+            assert!(
+                !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
+                "baseline-owned MEX must not carry a Zantufa warning"
+            );
+        });
     }
 
     #[test]

@@ -2361,12 +2361,22 @@ pub mod generated_model {
     rule "mex" mekso(mekso_base, mekso_precedence, mekso_operator, reverse_polish_parts, zantufa_mex) -> enum {
         /// Gives the faithful Zantufa projection priority only under the meaning-changing flag.
         when feature(ZantufaMexReinterpretation) reinterpret_zantufa_mex,
+        /// Gives Zantufa-only continuations priority while handing baseline surfaces back.
+        when feature(ZantufaMex) zantufa_priority_mex,
         /// Uses the `infix_mekso` product form, whose payload preserves `first_expression` and `continuations`.
         infix_mekso,
         /// Uses the `reverse_polish_mekso` product form, whose payload preserves `fuha` and `parts`.
         reverse_polish_mekso,
         /// Additive fallback for Zantufa-only surfaces in the warning union.
         when feature(ZantufaMex) zantufa_mex,
+    }
+
+    /// Transparent priority route for a Zantufa-only mex surface.
+    rule "Zantufa priority mex" zantufa_priority_mex(zantufa_mex) -> struct {
+        /// The completed Zantufa tree, rejected here when the baseline grammar owns its surface.
+        field mex <- arc(
+            zantufa_mex.reject_output(crate::grammar::baseline_mex::BaselineMexRejection)
+        );
     }
 
     /// Transparent priority wrapper used only by the meaning-changing reinterpretation flag.
