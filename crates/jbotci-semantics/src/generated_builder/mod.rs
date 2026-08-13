@@ -11253,7 +11253,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn vuho_connected_sumti_distributes_the_matrix_predication() {
+    fn bare_vuho_does_not_steal_the_term_connection_distributing_the_matrix_predication() {
         let graph = semantic_graph_for("mi viska ko'a vu'o .e ko'e");
         let content = graph
             .objects
@@ -11265,10 +11265,10 @@ mod tests {
             .objects
             .get(&content)
             .and_then(SemanticObject::as_formula)
-            .expect("VUhO connection formula")
+            .expect("term connection formula after bare VUhO")
             .as_data()
         else {
-            panic!("VUhO-connected sumti should distribute the bridi");
+            panic!("the term connection after VUhO should distribute the bridi");
         };
         assert_eq!(connection.operator, FormulaOperator::And);
         assert_eq!(connection.children.len(), 2);
@@ -11277,7 +11277,7 @@ mod tests {
                 .connector
                 .as_ref()
                 .map(|connector| (connector.source.as_surface_word(), connector.locus)),
-            Some((Some("e"), ConnectorLocus::Argument))
+            Some((Some("e"), ConnectorLocus::Term))
         );
         let viska = connection
             .children
@@ -14742,7 +14742,7 @@ mod tests {
     #[ensures(true)]
     fn vuhu_connectives_outside_mekso_report_the_cll_semantic_gap() {
         for (source, locus) in [
-            ("le ni renvi kei su'i le ni renvi selcertu kei", "argument"),
+            ("le ni renvi kei su'i le ni renvi selcertu kei", "sumti"),
             ("mi klama i su'i do klama", "statement"),
             ("ganse su'i zukte nirna", "relation"),
         ] {
