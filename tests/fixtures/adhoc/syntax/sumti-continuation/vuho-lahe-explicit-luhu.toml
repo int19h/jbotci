@@ -1,0 +1,12 @@
+id = "adhoc.syntax.sumti-continuation.vuho-lahe-explicit-luhu"
+lojban = "mi viska la'e lo gerku vu'o poi ke'a barda ku'o .e lo mlatu lu'u"
+tags = ["adhoc", "syntax", "sumti-continuation", "issue-838", "vuho", "ownership", "explicit-luhu", "camxes-exp"]
+
+[[provenance]]
+kind = "other"
+name = "explicit LUhU scoped-ownership probe"
+description = "The pinned camxes-exp parser accepts this VUhO continuation. Explicit LUhU closes after `.e lo mlatu`, forcing the warning-gated scoped attachment to own the connection inside LAhE."
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-vuho-scoped-attachment", byte-span = [23, 27], source-text = "vu'o", message = "experimental syntax: VUhO scoped attachment enhancement", word-index = 5 }]

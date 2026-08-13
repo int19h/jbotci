@@ -2605,13 +2605,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let (id, built) = self.build_cached_sumti_referent_for_node(sumti, |builder| {
             let vuho_connection = match &sumti.vuho_attachment {
-                Some(VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(tail)) => {
-                    Some(tail.sumti_connection.as_ref())
-                }
-                Some(VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(tail)) => {
-                    tail.sumti_connection.as_deref()
-                }
-                None => None,
+                Some(VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(
+                    tail,
+                )) => Some(tail.sumti_connection.as_ref()),
+                Some(VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(_))
+                | Some(VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(_))
+                | None => None,
             };
             if let Some(connection) = vuho_connection {
                 let leading = builder.build_sumti_grouped_referent(&sumti.base_sumti)?;
@@ -2828,7 +2827,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for tail in &relative_clauses.additional {
             let atom = match tail {
                 RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => tail.inner.as_ref(),
-                RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => tail.inner.as_ref(),
+                RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
+                    tail.0.inner.as_ref()
+                }
             };
             if let RelativeClauseAtomSyntax::BridiRelativeClause(clause) = atom {
                 lowered.push(self.lower_generated_bridi_relative_clause(clause, head)?);
@@ -3713,7 +3714,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for tail in &relative_clauses.additional {
             let atom = match tail {
                 RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => tail.inner.as_ref(),
-                RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => tail.inner.as_ref(),
+                RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
+                    tail.0.inner.as_ref()
+                }
             };
             if let Some(clause) = self.lower_generated_relative_clause_atom(atom, head)? {
                 lowered.push(clause);
@@ -3757,7 +3760,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for tail in &relative_clauses.additional {
             let atom = match tail {
                 RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => tail.inner.as_ref(),
-                RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => tail.inner.as_ref(),
+                RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
+                    tail.0.inner.as_ref()
+                }
             };
             if let RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) = atom
                 && let Some(clause) =

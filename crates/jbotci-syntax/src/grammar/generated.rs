@@ -1675,30 +1675,44 @@ pub mod generated_model {
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
 
-    /// Sum node for sumti relative phrase; selects among the `vuho_relative_sumti_attachment_tail` and `vuho_connected_sumti_attachment_tail` forms.
+    /// Sum node for sumti relative phrase; tries the structurally closed scoped-continuation route before baseline VUhO-relative ownership and the bare-VUhO extension.
     rule "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> enum {
-        /// Uses the `vuho_relative_sumti_attachment_tail` product form, whose payload preserves `vuho`, `relative_clauses`, and `sumti_connection`.
+        /// Experimental VUhO-scoped continuation with required relatives and one required sumti continuation, reachable only immediately before explicit LUhU.
+        experimental_vuho_scoped_sumti_attachment_tail,
+        /// Baseline VUhO followed by a required relative-clause list.
         vuho_relative_sumti_attachment_tail,
-        /// Uses the `vuho_connected_sumti_attachment_tail` product form, whose payload preserves `vuho` and `sumti_connection`.
-        vuho_connected_sumti_attachment_tail,
+        /// Experimental bare VUhO attachment.
+        experimental_bare_vuho_sumti_attachment_tail,
     }
 
-    /// Product node for sumti relative phrase; preserves `vuho`, `relative_clauses`, and `sumti_connection` in source order.
+    /// Product node for baseline sumti relative phrase; preserves `vuho` and required `relative_clauses` in source order.
     rule "sumti relative phrase" vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> struct {
         /// The `Vuho` cmavo marker.
         field vuho <- cmavo(Vuho).wf();
         /// The `relative_clause_list` grammar result in the `relative_clauses` structural role of the `vuho_relative_sumti_attachment_tail` production.
         field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
-        /// The optional sumti connection component.
-        field sumti_connection <- opt(arc(sumti_connection_tail(sumti)));
     }
 
-    /// Product node for sumti relative phrase; preserves `vuho` and `sumti_connection` in source order.
-    rule "sumti relative phrase" vuho_connected_sumti_attachment_tail(sumti) -> struct {
-        /// The `Vuho` cmavo marker.
-        field vuho <- cmavo(Vuho).wf();
-        /// The shared sumti connection child syntax node.
+    /// Product node for the camxes-exp VUhO-scoped continuation; preserves `vuho`, required `relative_clauses`, and required `sumti_connection` in source order.
+    rule "sumti relative phrase" experimental_vuho_scoped_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> struct {
+        /// The warning-gated `Vuho` marker that identifies experimental scoped ownership.
+        field vuho <- cmavo(Vuho).warn(ExperimentalVuhoScopedAttachment).wf();
+        /// Required relative clauses scoped together with the continuation.
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
+        /// The required sumti continuation child.
         field sumti_connection <- arc(sumti_connection_tail(sumti));
+        // The explicit wrapper boundary makes closed-consumer ownership structural. Without this
+        // lookahead, ordering the longer arm first would steal the generic top-level term
+        // connection; ordering the shorter baseline arm first cannot be reconsidered after an
+        // enclosing LUhU fails because parser choice is locally committed.
+        assert cmavo(Luhu).lookahead();
+    }
+
+    /// Product node for the camxes-exp bare-VUhO extension.
+    rule "sumti relative phrase" experimental_bare_vuho_sumti_attachment_tail -> struct {
+        #[tree_child(primary)]
+        /// The warning-gated bare `Vuho` marker.
+        field vuho <- cmavo(Vuho).warn(ExperimentalVuhoScopedAttachment).wf();
     }
 
     /// Product node for sumti; preserves `base_sumti` and `relative_clauses` in source order.
@@ -2776,12 +2790,14 @@ pub mod generated_model {
         field luhu <- opt(cmavo(Luhu).wf()).elidable_terminator(Luhu);
     }
 
-    /// Product node for scalar-negated sumti; preserves `nahe`, `bo`, `inner_sumti`, and `luhu` in source order.
-    rule "scalar-negated sumti" scalar_negated_sumti_with_bo(sumti) -> struct {
+    /// Product node for scalar-negated sumti; preserves `nahe`, `bo`, optional `relative_clauses`, `inner_sumti`, and `luhu` in source order.
+    rule "scalar-negated sumti" scalar_negated_sumti_with_bo(sumti, subbridi, tense_modal, statement) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe);
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
+        /// Optional relative clauses attached in the standard post-BO slot before the inner sumti.
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
         #[tree_child(primary)]
         /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti);
@@ -3285,12 +3301,22 @@ pub mod generated_model {
         field lehai <- cmavo(Lehai).wf();
     }
 
-    /// Sum node for relative clauses; selects among the `joined_relative_clause_tail` and `connected_relative_clause_tail` forms.
+    /// Sum node for relative clauses; gives the completed camxes-exp continuation route first choice, then reparses baseline ZIhE surfaces through the standard arm.
     rule "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal, statement) -> enum {
+        /// Uses the ownership-filtered camxes-exp continuation route.
+        relative_clause_exp_continuation,
         /// Uses the `joined_relative_clause_tail` product form, whose payload preserves `zihe` and `inner`.
         joined_relative_clause_tail,
-        /// Uses the `connected_relative_clause_tail` product form, whose payload preserves `connective` and `inner`.
-        connected_relative_clause_tail,
+    }
+
+    /// Transparent ownership wrapper for a camxes-exp relative-clause continuation.
+    rule "relative clause" relative_clause_exp_continuation(sumti, subbridi, tense_modal, statement) -> struct {
+        #[tree_child(primary)]
+        /// The completed continuation, retained only when baseline ZIhE does not own its identical extent.
+        field continuation <- arc(
+            exp_relative_continuation(sumti, subbridi, tense_modal, statement)
+                .reject_output(crate::grammar::baseline_relative::BaselineRelativeContinuationRejection)
+        );
     }
 
     /// Product node for relative clause; preserves `zihe` and `inner` in source order.
@@ -3301,20 +3327,29 @@ pub mod generated_model {
         field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement));
     }
 
-    /// Product node for relative clause; preserves `connective` and `inner` in source order.
-    rule "relative clause" connected_relative_clause_tail(sumti, subbridi, tense_modal, statement) -> struct {
-        /// The `relative_clause_connective` connective joining the adjacent constituents of the `connected_relative_clause_tail` production.
-        field connective <- relative_clause_connective;
+    /// Product node for the camxes-exp relative-clause continuation; preserves `connective` and `inner` in source order.
+    rule "relative clause" exp_relative_continuation(sumti, subbridi, tense_modal, statement) -> struct {
+        /// The camxes-exp connective joining the adjacent relative clauses.
+        field connective <- exp_relative_clause_connective;
         /// The shared inner child syntax node.
         field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement));
     }
 
-    /// Sum node for relative clause connective; selects among the `joik_connective` and `jek_connective` forms.
-    rule "relative clause connective" relative_clause_connective -> enum {
-        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
-        joik_connective,
-        /// Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.
-        jek_connective,
+    /// Product node for the exact camxes-exp `NA? SE? (JOI / JA / A) NAI?` relative-clause connective.
+    rule "relative clause connective" exp_relative_clause_connective -> struct {
+        /// The optional left-negation prefix.
+        field na <- opt(selmaho(Na));
+        /// The optional conversion prefix.
+        field se <- opt(selmaho(Se));
+        #[tree_child(primary)]
+        /// The JOI-, JA-, or A-class connective head; ZIhE is lexically JOI and is classified after the whole continuation parses.
+        field head <- choice((
+            selmaho(Joi),
+            selmaho(Ja),
+            selmaho(A),
+        )).warn(ExperimentalRelativeClauseConnective).wf();
+        /// The optional right-negation suffix.
+        field nai <- opt(cmavo(Nai).wf());
     }
 
     /// Sum node for relative clause; selects among the `sumti_association_relative_clause` and `bridi_relative_clause` forms.

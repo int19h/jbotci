@@ -5206,8 +5206,9 @@ fn generated_logical_sumti_connection_for_branch(
 ) -> Result<Option<GeneratedLogicalSumtiConnection<'_>>, SemanticsError> {
     match branch {
         GeneratedDistributedSumtiBranch::Sumti(sumti) => {
-            if let Some(VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(tail)) =
-                &sumti.vuho_attachment
+            if let Some(VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(
+                tail,
+            )) = &sumti.vuho_attachment
             {
                 let connection = &tail.sumti_connection;
                 if generated_sumti_connective_is_logical(&connection.connective)
@@ -5223,7 +5224,7 @@ fn generated_logical_sumti_connection_for_branch(
                             bo: false,
                         },
                         trailing: GeneratedDistributedSumtiBranch::Sumti(connection.sumti.as_ref()),
-                        relative_clauses: None,
+                        relative_clauses: Some(&tail.relative_clauses),
                     }));
                 }
                 return Ok(None);
@@ -5971,6 +5972,9 @@ fn generated_sumti_relative_clause_list(sumti: &SumtiSyntax) -> Option<&Relative
         return simple.relative_clauses.as_ref();
     }
     match simple.base_sumti.as_ref() {
+        SumtiAtomSyntax::SumtiBase(SumtiBaseSyntax::ScalarNegatedSumtiWithBo(sumti)) => {
+            sumti.relative_clauses.as_ref()
+        }
         SumtiAtomSyntax::SumtiBase(SumtiBaseSyntax::LaheSumti(sumti)) => {
             sumti.relative_clauses.as_ref()
         }
@@ -5990,7 +5994,9 @@ fn generated_goi_assignment_clause(
         relative_clauses.additional.iter().find_map(|tail| {
             let atom = match tail {
                 RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => tail.inner.as_ref(),
-                RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => tail.inner.as_ref(),
+                RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
+                    tail.0.inner.as_ref()
+                }
             };
             generated_goi_assignment_clause_atom(atom)
         })
@@ -6120,21 +6126,24 @@ fn generated_simple_sumti_is_assignable_reference(sumti: &SimpleSumtiSyntax) -> 
 fn generated_vuho_relative_clause_list_for_sumti(
     sumti: &SumtiSyntax,
 ) -> Option<&RelativeClauseListSyntax> {
-    let VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(tail) =
-        sumti.vuho_attachment.as_ref()?
-    else {
-        return None;
-    };
-    tail.sumti_connection
-        .is_none()
-        .then_some(&tail.relative_clauses)
+    match sumti.vuho_attachment.as_ref()? {
+        VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(tail) => {
+            Some(&tail.relative_clauses)
+        }
+        VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(tail) => {
+            Some(&tail.relative_clauses)
+        }
+        VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(_) => None,
+    }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn generated_sumti_vuho_attachment_is_distribution_transparent(sumti: &SumtiSyntax) -> bool {
-    sumti.vuho_attachment.is_none()
-        || generated_vuho_relative_clause_list_for_sumti(sumti).is_some()
+    !matches!(
+        sumti.vuho_attachment,
+        Some(VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(_))
+    )
 }
 
 #[requires(true)]
@@ -7041,11 +7050,12 @@ fn generated_sumti_contains_current_level_keha(sumti: &SumtiSyntax) -> bool {
             .as_ref()
             .is_some_and(|attachment| match attachment {
                 VuhoSumtiAttachmentTailSyntax::VuhoRelativeSumtiAttachmentTail(_) => false,
-                VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(tail) => {
+                VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(tail) => {
                     generated_sumti_connection_tail_contains_current_level_keha(
                         &tail.sumti_connection,
                     )
                 }
+                VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(_) => false,
             })
 }
 
@@ -14746,6 +14756,23 @@ mod tests {
                 )
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn bare_vuho_lowers_as_an_empty_relative_attachment() {
+        let graph = semantic_graph_for("mi viska lo gerku vu'o");
+        let viska = named_predication_ids(&graph, "viska");
+        assert_eq!(viska.len(), 1);
+        let gerku = graph.objects[&viska[0]]
+            .as_predication()
+            .and_then(|predication| predication.arguments[&argument_key(2)].value)
+            .expect("viska x2 must retain the bare-VUhO description referent");
+        let descriptor = graph.objects[&gerku]
+            .descriptor()
+            .expect("lo gerku builds a descriptor");
+        assert!(descriptor.relative_clauses.is_empty());
     }
 
     #[test]
