@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 //! Shared web/API view models and gentufa parser facade.
 
 use std::collections::{BTreeMap, BTreeSet};

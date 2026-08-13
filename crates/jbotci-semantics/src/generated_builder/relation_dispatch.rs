@@ -280,6 +280,56 @@ pub(super) fn statement_connective_from_paragraph_standard(
                 ),
             }),
         ),
+        ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaGahoJoikConnective(
+            connective,
+        ) => StatementConnectiveSyntax::JoikConnective(
+            JoikConnectiveSyntax::ZantufaGahoJoikConnective(ZantufaGahoJoikConnectiveSyntax {
+                left_gaho: WithFreeModifiers::new(connective.left_gaho.clone(), Vec::new()),
+                na: connective
+                    .na
+                    .clone()
+                    .map(|token| WithFreeModifiers::new(token, Vec::new())),
+                se: connective
+                    .se
+                    .clone()
+                    .map(|token| WithFreeModifiers::new(token, Vec::new())),
+                joiz: WithFreeModifiers::new(connective.joiz.clone(), Vec::new()),
+                right_gaho: connective
+                    .right_gaho
+                    .clone()
+                    .map(|token| WithFreeModifiers::new(token, Vec::new())),
+            }),
+        ),
+        ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaNaJoikConnective(
+            connective,
+        ) => StatementConnectiveSyntax::JoikConnective(
+            JoikConnectiveSyntax::ZantufaNaJoikConnective(ZantufaNaJoikConnectiveSyntax {
+                na: WithFreeModifiers::new(connective.na.clone(), Vec::new()),
+                se: connective
+                    .se
+                    .clone()
+                    .map(|token| WithFreeModifiers::new(token, Vec::new())),
+                joiz: WithFreeModifiers::new(connective.joiz.clone(), Vec::new()),
+                right_gaho: connective
+                    .right_gaho
+                    .clone()
+                    .map(|token| WithFreeModifiers::new(token, Vec::new())),
+            }),
+        ),
+        ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaRightGahoJoikConnective(
+            connective,
+        ) => StatementConnectiveSyntax::JoikConnective(
+            JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(
+                ZantufaRightGahoJoikConnectiveSyntax {
+                    se: connective
+                        .se
+                        .clone()
+                        .map(|token| WithFreeModifiers::new(token, Vec::new())),
+                    joiz: WithFreeModifiers::new(connective.joiz.clone(), Vec::new()),
+                    right_gaho: WithFreeModifiers::new(connective.right_gaho.clone(), Vec::new()),
+                },
+            ),
+        ),
     }
 }
 

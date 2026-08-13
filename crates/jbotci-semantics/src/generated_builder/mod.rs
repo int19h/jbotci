@@ -86,11 +86,13 @@ use jbotci_syntax::generated_model::{
     TextSyntax, TreeNode, TreeWalkable, TreeWalker, UntaggedSelbriSyntax,
     VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax, VocativeSumtiSyntax,
     VuhoSumtiAttachmentTailSyntax, WordTanruUnitSyntax, ZantufaExtraGikConnectiveSyntax,
-    ZantufaForethoughtMeksoSyntax, ZantufaMeSelbriBodySyntax, ZantufaMeTanruUnitSyntax,
-    ZantufaMeksoFragmentSyntax, ZantufaMex1Syntax, ZantufaMex2Syntax, ZantufaMexGroupSyntax,
-    ZantufaMexMoiTanruUnitSyntax, ZantufaMexSyntax, ZantufaOperandSyntax, ZantufaOperatorSyntax,
-    ZantufaReversePolishMeksoSyntax, ZantufaStatementAbstractionTanruUnitSyntax,
-    ZantufaStatementTermsStatementSyntax, ZantufaStatementTermsTailSyntax,
+    ZantufaForethoughtMeksoSyntax, ZantufaGahoJoikConnectiveSyntax, ZantufaMeSelbriBodySyntax,
+    ZantufaMeTanruUnitSyntax, ZantufaMeksoFragmentSyntax, ZantufaMex1Syntax, ZantufaMex2Syntax,
+    ZantufaMexGroupSyntax, ZantufaMexMoiTanruUnitSyntax, ZantufaMexSyntax,
+    ZantufaNaJoikConnectiveSyntax, ZantufaOperandSyntax, ZantufaOperatorSyntax,
+    ZantufaReversePolishMeksoSyntax, ZantufaRightGahoJoikConnectiveSyntax,
+    ZantufaStatementAbstractionTanruUnitSyntax, ZantufaStatementTermsStatementSyntax,
+    ZantufaStatementTermsTailSyntax,
 };
 use jbotci_syntax::tree::{Token, WithFreeModifiers, WithIndicators, WithIndicatorsData};
 use jbotci_tree::TreeVisitor;
@@ -182,6 +184,7 @@ pub fn build_generated_semantic_graph_with_dictionary_and_options<'a>(
     dictionary: &Dictionary<'_>,
 ) -> Result<SemanticGraph, SemanticsError> {
     validate_supported_bai_modal_markers(syntax)?;
+    validate_supported_zantufa_joik_semantics(syntax)?;
     let builder = GeneratedGraphBuilder::new(options, dictionary);
     builder.build_text(syntax)
 }
@@ -12805,6 +12808,48 @@ mod tests {
                 format!("semantic interpretation is undefined for {construct}")
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_joik_semantic_gaps_are_explicit() {
+        let dialect = jbotci_dialect::parse_dialect_definition("(+zantufa-connectives)")
+            .expect("test dialect");
+        let parse_options =
+            jbotci_syntax::ParseOptions::default().with_dialect_definition(&dialect);
+        for (source, construct) in [
+            (
+                "gi na joi mi klama gi do klama",
+                "a Zantufa NA-led JOIK connective",
+            ),
+            (
+                "gi ga'o bi'i mi klama gi do klama",
+                "a Zantufa JOIK connective with only a left GAhO endpoint",
+            ),
+            (
+                "gi bi'i ga'o mi klama gi do klama",
+                "a Zantufa JOIK connective with only a right GAhO endpoint",
+            ),
+            (
+                "mi klama i na joi do klama",
+                "a Zantufa NA-led JOIK connective",
+            ),
+        ] {
+            let error = semantic_result_for_with_parse_options(source, &parse_options)
+                .expect_err("unsupported Zantufa JOIK shapes must not lower implicitly");
+            assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
+            assert_eq!(
+                error.message,
+                format!("semantic interpretation is undefined for {construct}")
+            );
+        }
+
+        semantic_result_for_with_parse_options(
+            "gi ga'o joi ga'o mi klama gi do klama",
+            &parse_options,
+        )
+        .expect("paired GAhO JOIK should retain representable endpoint semantics");
     }
 
     #[test]

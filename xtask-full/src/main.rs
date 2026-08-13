@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fmt;

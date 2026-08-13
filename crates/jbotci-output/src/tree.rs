@@ -2386,6 +2386,27 @@ fn generated_joik_connective_constructor(
         generated_model::JoikConnectiveSyntax::JoiConnective { .. } => "NonLogical",
         generated_model::JoikConnectiveSyntax::SimpleIntervalConnective { .. }
         | generated_model::JoikConnectiveSyntax::ClosedIntervalConnective { .. } => "Interval",
+        generated_model::JoikConnectiveSyntax::ZantufaGahoJoikConnective(connective) => {
+            if connective.joiz.value.cmavo() == Some(Cmavo::Bihi) {
+                "Interval"
+            } else {
+                "NonLogical"
+            }
+        }
+        generated_model::JoikConnectiveSyntax::ZantufaNaJoikConnective(connective) => {
+            if connective.joiz.value.cmavo() == Some(Cmavo::Bihi) {
+                "Interval"
+            } else {
+                "NonLogical"
+            }
+        }
+        generated_model::JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(connective) => {
+            if connective.joiz.value.cmavo() == Some(Cmavo::Bihi) {
+                "Interval"
+            } else {
+                "NonLogical"
+            }
+        }
     }
 }
 
@@ -2422,6 +2443,27 @@ fn generated_paragraph_standard_statement_connective_constructor(
         generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphJekConnective {
             ..
         } => "Selbri",
+        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaGahoJoikConnective(connective) => {
+            if connective.joiz.cmavo() == Some(Cmavo::Bihi) {
+                "Interval"
+            } else {
+                "NonLogical"
+            }
+        }
+        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaNaJoikConnective(connective) => {
+            if connective.joiz.cmavo() == Some(Cmavo::Bihi) {
+                "Interval"
+            } else {
+                "NonLogical"
+            }
+        }
+        generated_model::ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaRightGahoJoikConnective(connective) => {
+            if connective.joiz.cmavo() == Some(Cmavo::Bihi) {
+                "Interval"
+            } else {
+                "NonLogical"
+            }
+        }
     }
 }
 
