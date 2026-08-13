@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 use std::cell::RefCell;
 
 #[allow(unused_imports)]

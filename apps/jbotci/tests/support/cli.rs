@@ -2875,7 +2875,7 @@ fn gentufa_syntax_errors_go_to_stderr() {
         assert!(stderr.contains("unexpected cmavo"));
         assert!(
             stderr.contains(
-                "expected: free modifier, space interval, time interval, space tense, time tense, joik, linked arguments, forethought selbri connective",
+                "expected: free modifier, space interval, time interval, interval, space tense, time tense, linked arguments, forethought selbri connective",
             ),
             "{stderr}"
         );

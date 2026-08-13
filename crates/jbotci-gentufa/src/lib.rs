@@ -1,5 +1,7 @@
 //! Shared gentufa block layout and SVG/PNG export support.
 
+#![recursion_limit = "1024"]
+
 mod render;
 
 use std::cmp::Reverse;
