@@ -3256,7 +3256,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",
             Self::ExperimentalZantufaForethoughtGihi => "Zantufa GIhI forethought-chain terminator",
             Self::ExperimentalZantufaNaryForethought => "Zantufa n-ary forethought branch",
-            Self::ExperimentalZantufaGek => "Zantufa forethought connective form",
+            Self::ExperimentalZantufaGek => "Zantufa connective form",
             Self::ExperimentalZantufaPoihaBrigahi => {
                 "Zantufa POIhA briga'i term with KU terminator"
             }

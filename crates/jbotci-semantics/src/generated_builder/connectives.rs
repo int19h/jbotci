@@ -1,7 +1,7 @@
 use super::*;
 
 /// Grammar-directed guard for Zantufa JOIK shapes whose syntax is now typed but
-/// whose left-negation or one-sided endpoint semantics are not yet representable.
+/// whose negation or one-sided endpoint semantics are not yet representable.
 #[invariant(
     unsupported_shape
         .as_ref()
@@ -33,10 +33,12 @@ impl<'tree> TreeWalker<'tree> for GeneratedZantufaJoikSupportValidator {
             JoikConnectiveSyntax::ZantufaNaJoikConnective(_) => {
                 self.reject("a Zantufa NA-led JOIK connective")
             }
-            JoikConnectiveSyntax::ZantufaGahoJoikConnective(connective)
-                if connective.right_gaho.is_none() =>
-            {
-                self.reject("a Zantufa JOIK connective with only a left GAhO endpoint")
+            JoikConnectiveSyntax::ZantufaGahoJoikConnective(connective) => {
+                if connective.na.is_some() {
+                    self.reject("a Zantufa GAhO-led JOIK connective with NA")
+                } else if connective.right_gaho.is_none() {
+                    self.reject("a Zantufa JOIK connective with only a left GAhO endpoint")
+                }
             }
             JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(_) => {
                 self.reject("a Zantufa JOIK connective with only a right GAhO endpoint")
@@ -58,8 +60,14 @@ impl<'tree> TreeWalker<'tree> for GeneratedZantufaJoikSupportValidator {
             }
             ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaGahoJoikConnective(
                 connective,
-            ) if connective.right_gaho.is_none() => {
-                self.reject("a paragraph Zantufa JOIK connective with only a left GAhO endpoint")
+            ) => {
+                if connective.na.is_some() {
+                    self.reject("a paragraph Zantufa GAhO-led JOIK connective with NA")
+                } else if connective.right_gaho.is_none() {
+                    self.reject(
+                        "a paragraph Zantufa JOIK connective with only a left GAhO endpoint",
+                    )
+                }
             }
             ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaRightGahoJoikConnective(
                 _,

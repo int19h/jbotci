@@ -51,7 +51,26 @@ attachment, but neither source grammar has a connector node that owns both NAI
 and BO. The grammar therefore uses disjoint baseline NAI/no-BO and Zantufa
 BO/no-NAI variants; the DSL cannot assert over two parsed optional fields.
 
-NA-led and one-sided-GAhO Zantufa JOIK nodes are accepted syntactically but
-produce an explicit unsupported-semantics error. Paired endpoints and ordinary
-JOI/BIhI forms continue through existing lowering. A follow-up issue owns full
-semantic lowering of the unsupported shapes.
+NA-led, one-sided-GAhO, and GAhO-led-with-NA Zantufa JOIK nodes are accepted
+syntactically but produce an explicit unsupported-semantics error. Paired
+endpoints without NA and ordinary JOI/BIhI forms continue through existing
+lowering. A follow-up issue owns full semantic lowering of the unsupported
+shapes.
+
+## C3 projection ledger
+
+C3 regenerated 574 connected-MEX fixture projections that still flattened the
+operand or operator wrapper in gentufa tree/JSON output. This is an intended,
+content-preserving projection correction, not a forethought grammar shape
+change. The trigger is the shared `syntax_grammar!` model generator in
+`jbotci-syntax-macros`: it records generated structs as transparent tree
+constructors/fields only when they have one field. The earlier #811 and #812
+hierarchy restorations changed `MeksoOperandSyntax` and `MeksoOperatorSyntax`
+from transparent wrappers into multi-field product nodes, so their generated
+projections must retain the `connected_expression`/grouping and
+`leading_operator`/continuation field boundaries. C3's broad regeneration
+reached 574 stale connected-MEX expectations left after those hierarchy
+changes; the forethought connective additions merely supplied the scheduled
+consolidated regeneration boundary. Reverting those expectations would make
+them disagree with the current shared projection metadata and would erase the
+explicit hierarchy restored by #811/#812.

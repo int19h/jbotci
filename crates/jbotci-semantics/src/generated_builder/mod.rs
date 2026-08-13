@@ -12832,6 +12832,14 @@ mod tests {
                 "a Zantufa JOIK connective with only a right GAhO endpoint",
             ),
             (
+                "gi ga'o na se joi ga'o mi klama gi do klama",
+                "a Zantufa GAhO-led JOIK connective with NA",
+            ),
+            (
+                "li pa ga'o na bi'i ga'o re",
+                "a Zantufa GAhO-led JOIK connective with NA",
+            ),
+            (
                 "mi klama i na joi do klama",
                 "a Zantufa NA-led JOIK connective",
             ),

@@ -1,0 +1,13 @@
+id = "adhoc.syntax.forethought.issue-832-gi-se-pu-ordering"
+lojban = "gi se pu mi klama gi do klama"
+dialect = "(+zantufa-connectives +zantufa-tags)"
+tags = ["adhoc", "syntax", "forethought", "issue-832", "zantufa", "tag", "ordering"]
+
+[[provenance]]
+kind = "other"
+name = "pinned rolling-Zantufa running-parser probe"
+description = """Zantufa commit `d5a5065c924429f6af12578d2900135b10cf1373`, PEG SHA-256 `79e7a1da12552fb12457612e0f6e43a19ef263ee48466d9af6cf2a7ce86736d1`, rules `gek`/`tag` at lines 71/77. `node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse('gi se pu mi klama gi do klama')"` exits successfully; the shared `se` prefix must fall through from GI-JOIK to the recursive Zantufa tag arm."""
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-gek", byte-span = [0, 2], source-text = "gi", message = "experimental syntax: Zantufa connective form", word-index = 0 }, { severity = "warning", code = "syntax.warning.experimental-zantufa-tag", byte-span = [3, 5], source-text = "se", message = "experimental syntax: experimental Zantufa tag form", word-index = 1 }]
