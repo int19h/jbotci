@@ -1,5 +1,96 @@
 use super::*;
 
+/// Grammar-directed guard for Zantufa JOIK shapes whose syntax is now typed but
+/// whose negation or one-sided endpoint semantics are not yet representable.
+#[invariant(
+    unsupported_shape
+        .as_ref()
+        .is_none_or(|description| !description.is_empty()),
+    "captured unsupported JOIK descriptions must be non-empty"
+)]
+#[derive(Clone, Default)]
+struct GeneratedZantufaJoikSupportValidator {
+    unsupported_shape: Option<String>,
+}
+
+impl GeneratedZantufaJoikSupportValidator {
+    #[requires(!description.is_empty())]
+    #[ensures(self.unsupported_shape.is_some())]
+    fn reject(&mut self, description: &str) {
+        if self.unsupported_shape.is_none() {
+            *self = self.clone().with_data(data! {
+                unsupported_shape: Some(description.to_owned())
+            });
+        }
+    }
+}
+
+impl<'tree> TreeWalker<'tree> for GeneratedZantufaJoikSupportValidator {
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_joik_connective(&mut self, node: &'tree JoikConnectiveSyntax) {
+        match node {
+            JoikConnectiveSyntax::ZantufaNaJoikConnective(_) => {
+                self.reject("a Zantufa NA-led JOIK connective")
+            }
+            JoikConnectiveSyntax::ZantufaGahoJoikConnective(connective) => {
+                if connective.na.is_some() {
+                    self.reject("a Zantufa GAhO-led JOIK connective with NA")
+                } else if connective.right_gaho.is_none() {
+                    self.reject("a Zantufa JOIK connective with only a left GAhO endpoint")
+                }
+            }
+            JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(_) => {
+                self.reject("a Zantufa JOIK connective with only a right GAhO endpoint")
+            }
+            _ => {}
+        }
+        jbotci_syntax::generated_model::walk::joik_connective(self, node);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_paragraph_standard_statement_connective(
+        &mut self,
+        node: &'tree ParagraphStandardStatementConnectiveSyntax,
+    ) {
+        match node {
+            ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaNaJoikConnective(_) => {
+                self.reject("a paragraph Zantufa NA-led JOIK connective")
+            }
+            ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaGahoJoikConnective(
+                connective,
+            ) => {
+                if connective.na.is_some() {
+                    self.reject("a paragraph Zantufa GAhO-led JOIK connective with NA")
+                } else if connective.right_gaho.is_none() {
+                    self.reject(
+                        "a paragraph Zantufa JOIK connective with only a left GAhO endpoint",
+                    )
+                }
+            }
+            ParagraphStandardStatementConnectiveSyntax::ParagraphZantufaRightGahoJoikConnective(
+                _,
+            ) => self.reject("a paragraph Zantufa JOIK connective with only a right GAhO endpoint"),
+            _ => {}
+        }
+        jbotci_syntax::generated_model::walk::paragraph_standard_statement_connective(self, node);
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.is_ok() || ret.is_err())]
+pub(super) fn validate_supported_zantufa_joik_semantics(
+    syntax: &TextSyntax,
+) -> Result<(), SemanticsError> {
+    let mut validator = GeneratedZantufaJoikSupportValidator::default();
+    TreeWalkable::walk_with(syntax, &mut validator);
+    if let Some(description) = validator.into_data().unsupported_shape {
+        return Err(undefined_semantics(&description));
+    }
+    Ok(())
+}
+
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
 pub(super) fn generated_argument_connective_operator(
@@ -747,6 +838,40 @@ pub(super) fn generated_joik_connective_source(connective: &JoikConnectiveSyntax
                 tokens.push(token);
             }
             tokens.push(&connective.right_interval.value);
+            connective_source_from_tokens(tokens)
+        }
+        JoikConnectiveSyntax::ZantufaGahoJoikConnective(connective) => {
+            let mut tokens = vec![&connective.left_gaho.value];
+            if let Some(token) = &connective.na {
+                tokens.push(&token.value);
+            }
+            if let Some(token) = &connective.se {
+                tokens.push(&token.value);
+            }
+            tokens.push(&connective.joiz.value);
+            if let Some(token) = &connective.right_gaho {
+                tokens.push(&token.value);
+            }
+            connective_source_from_tokens(tokens)
+        }
+        JoikConnectiveSyntax::ZantufaNaJoikConnective(connective) => {
+            let mut tokens = vec![&connective.na.value];
+            if let Some(token) = &connective.se {
+                tokens.push(&token.value);
+            }
+            tokens.push(&connective.joiz.value);
+            if let Some(token) = &connective.right_gaho {
+                tokens.push(&token.value);
+            }
+            connective_source_from_tokens(tokens)
+        }
+        JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(connective) => {
+            let mut tokens = Vec::new();
+            if let Some(token) = &connective.se {
+                tokens.push(&token.value);
+            }
+            tokens.push(&connective.joiz.value);
+            tokens.push(&connective.right_gaho.value);
             connective_source_from_tokens(tokens)
         }
     }
@@ -2286,6 +2411,13 @@ pub(super) fn generated_joik_connective_primary_cmavo(
         JoikConnectiveSyntax::JoiConnective(connective) => connective.joi.value.cmavo(),
         JoikConnectiveSyntax::SimpleIntervalConnective(connective) => connective.bihi.value.cmavo(),
         JoikConnectiveSyntax::ClosedIntervalConnective(connective) => connective.bihi.cmavo(),
+        JoikConnectiveSyntax::ZantufaGahoJoikConnective(connective) => {
+            connective.joiz.value.cmavo()
+        }
+        JoikConnectiveSyntax::ZantufaNaJoikConnective(connective) => connective.joiz.value.cmavo(),
+        JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(connective) => {
+            connective.joiz.value.cmavo()
+        }
     }
 }
 
@@ -2311,6 +2443,9 @@ pub(super) fn generated_joik_connective_has_se(connective: &JoikConnectiveSyntax
         JoikConnectiveSyntax::JoiConnective(connective) => connective.se.is_some(),
         JoikConnectiveSyntax::SimpleIntervalConnective(connective) => connective.se.is_some(),
         JoikConnectiveSyntax::ClosedIntervalConnective(connective) => connective.se.is_some(),
+        JoikConnectiveSyntax::ZantufaGahoJoikConnective(connective) => connective.se.is_some(),
+        JoikConnectiveSyntax::ZantufaNaJoikConnective(connective) => connective.se.is_some(),
+        JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(connective) => connective.se.is_some(),
     }
 }
 
@@ -2349,6 +2484,9 @@ pub(super) fn generated_joik_connective_negates_right(connective: &JoikConnectiv
         JoikConnectiveSyntax::JoiConnective(connective) => connective.nai.is_some(),
         JoikConnectiveSyntax::SimpleIntervalConnective(connective) => connective.nai.is_some(),
         JoikConnectiveSyntax::ClosedIntervalConnective(connective) => connective.nai.is_some(),
+        JoikConnectiveSyntax::ZantufaGahoJoikConnective(_)
+        | JoikConnectiveSyntax::ZantufaNaJoikConnective(_)
+        | JoikConnectiveSyntax::ZantufaRightGahoJoikConnective(_) => false,
     }
 }
 

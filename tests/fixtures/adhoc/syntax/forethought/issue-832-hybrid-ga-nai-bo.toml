@@ -1,0 +1,13 @@
+id = "adhoc.syntax.forethought.issue-832-hybrid-ga-nai-bo"
+lojban = "ga nai bo mi klama gi do klama"
+dialect = "(+zantufa-connectives)"
+tags = ["adhoc", "syntax", "forethought", "issue-832", "zantufa", "attachment-waiver", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "pinned rolling-Zantufa attachment-model probe"
+description = """Zantufa commit `d5a5065c924429f6af12578d2900135b10cf1373`, PEG SHA-256 `79e7a1da12552fb12457612e0f6e43a19ef263ee48466d9af6cf2a7ce86736d1`. `node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse('ga nai bo mi klama gi do klama')"` exits successfully because NAI rides as a UI/free attachment; jbotci deliberately rejects a connector node structurally containing both NAI and BO."""
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 9], source-text = "bo", message = "unexpected cmavo" }]

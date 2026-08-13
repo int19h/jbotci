@@ -2034,6 +2034,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
         wiring: SyntaxConstructWiring::Parser,
     },
+    SyntaxConstructMetadata {
+        name: "Zantufa joik",
+        parent: Some("joik"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::GenericConnectiveParent,
+        wiring: SyntaxConstructWiring::Parser,
+    },
     // `interval` is the BIhI/GAhO branch inside `joik`, so its canonical
     // parent is `joik` even though joik itself is reused by several connection
     // families.
@@ -3250,7 +3256,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",
             Self::ExperimentalZantufaForethoughtGihi => "Zantufa GIhI forethought-chain terminator",
             Self::ExperimentalZantufaNaryForethought => "Zantufa n-ary forethought branch",
-            Self::ExperimentalZantufaGek => "Zantufa forethought connective form",
+            Self::ExperimentalZantufaGek => "Zantufa connective form",
             Self::ExperimentalZantufaPoihaBrigahi => {
                 "Zantufa POIhA briga'i term with KU terminator"
             }

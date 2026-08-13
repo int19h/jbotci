@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 //! Transport-agnostic analysis snapshots for editor and indexing integrations.
 
 mod line_index;

@@ -1,0 +1,18 @@
+id = "adhoc.syntax.forethought.issue-832-recovered-se-joi-disjoint"
+lojban = "mi se joi do klama"
+dialect = "(+zantufa-connectives)"
+tags = ["adhoc", "syntax", "recovery", "forethought", "issue-832", "baseline", "disjointness"]
+
+[[provenance]]
+kind = "other"
+name = "pinned rolling-Zantufa running-parser probe"
+description = """Zantufa commit `d5a5065c924429f6af12578d2900135b10cf1373`, PEG SHA-256 `79e7a1da12552fb12457612e0f6e43a19ef263ee48466d9af6cf2a7ce86736d1`. `node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse('mi se joi do klama')"` exits successfully; strict and recovered parsing must both keep bare `SE JOI` on the warning-free baseline arm."""
+
+[expectations.syntax]
+status = "success"
+diagnostics = []
+
+[expectations.syntax.recovered]
+status = "success"
+diagnostics = []
+tree = { valid-tokens = ["mi", "se", "joĭ", "do", "kláma"], recovery-items = [] }

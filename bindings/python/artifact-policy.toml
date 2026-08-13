@@ -22,11 +22,17 @@
 # `inspect` receives, not Maturin's raw output, because that is the artifact
 # the ratchet compares: measured 3,633,818 archive bytes, 24,117,331 unpacked
 # bytes, and 253 members.
+#
+# Epic #801's deliberate generated-model growth through grammar-parity epoch 3
+# brought the normalized sdist to 275 entries and the Linux aarch64 wheel to
+# 95,029,675 unpacked bytes, within 5% of their prior ceilings. Recalibrate only
+# those two marginal ratchets here; the post-epoch-11 closing sweep will
+# re-ratchet the complete artifact policy after the generated model stabilizes.
 [sizes.sdist]
 baseline_bytes = 3800000
 baseline_unpacked_bytes = 24200000
 max_growth_percent = 15
-max_entries = 280
+max_entries = 320
 
 [sizes.linux-x86_64]
 baseline_bytes = 20000000
@@ -36,7 +42,7 @@ max_entries = 32
 
 [sizes.linux-aarch64]
 baseline_bytes = 18500000
-baseline_unpacked_bytes = 80000000
+baseline_unpacked_bytes = 96000000
 max_growth_percent = 20
 max_entries = 32
 

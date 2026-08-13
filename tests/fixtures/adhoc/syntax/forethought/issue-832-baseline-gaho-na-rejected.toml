@@ -1,0 +1,13 @@
+id = "adhoc.syntax.forethought.issue-832-baseline-gaho-na-rejected"
+lojban = "gi ga'o na se joi ga'o mi klama gi do klama"
+dialect = "()"
+tags = ["adhoc", "syntax", "forethought", "issue-832", "baseline", "rejection"]
+
+[[provenance]]
+kind = "other"
+name = "pinned rolling-Zantufa running-parser probe"
+description = '''The feature-only contrast is accepted by Zantufa commit `d5a5065c924429f6af12578d2900135b10cf1373`, PEG SHA-256 `79e7a1da12552fb12457612e0f6e43a19ef263ee48466d9af6cf2a7ce86736d1`: `node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse(\"gi ga'o na se joi ga'o mi klama gi do klama\")"` exits successfully.'''
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [0, 2], source-text = "gi", message = "unexpected cmavo" }]

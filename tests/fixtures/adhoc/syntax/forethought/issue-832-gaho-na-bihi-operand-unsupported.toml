@@ -1,0 +1,17 @@
+id = "adhoc.syntax.forethought.issue-832-gaho-na-bihi-operand-unsupported"
+lojban = "li pa ga'o na bi'i ga'o re"
+dialect = "(+zantufa-connectives)"
+tags = ["adhoc", "syntax", "forethought", "issue-832", "zantufa", "joik", "bihi", "operand", "unsupported-semantics"]
+
+[[provenance]]
+kind = "other"
+name = "pinned rolling-Zantufa running-parser probe"
+description = '''Zantufa commit `d5a5065c924429f6af12578d2900135b10cf1373`, PEG SHA-256 `79e7a1da12552fb12457612e0f6e43a19ef263ee48466d9af6cf2a7ce86736d1`, rule `joik` at line 68. `node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse(\"li pa ga'o na bi'i ga'o re\")"` exits successfully.'''
+
+[expectations.syntax]
+status = "success"
+diagnostics = [{ severity = "warning", code = "syntax.warning.experimental-zantufa-gek", byte-span = [6, 10], source-text = "ga'o", message = "experimental syntax: Zantufa connective form", word-index = 2 }]
+
+[expectations.output.tersmu]
+status = "failure"
+error = "tersmu JSON build error: semantic interpretation is undefined for a Zantufa GAhO-led JOIK connective with NA"

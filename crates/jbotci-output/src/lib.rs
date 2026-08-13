@@ -1,3 +1,5 @@
+#![recursion_limit = "1024"]
+
 //! Output format selection and render facade.
 
 mod brackets;

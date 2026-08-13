@@ -352,7 +352,11 @@ def _check_wheel(entries: dict[str, bytes], platform: str) -> None:
     for name, contents in entries.items():
         if len(contents) <= 2_000_000:
             continue
-        assert name == native[0] and len(contents) <= 100_000_000, (
+        # Epic #801 deliberately grows the generated syntax model through the
+        # grammar-parity epochs; epoch 3's Windows _native.pyd is 102,337,024
+        # bytes. Recalibrate this ceiling now, then re-ratchet it in the
+        # post-epoch-11 closing sweep.
+        assert name == native[0] and len(contents) <= 115_000_000, (
             name,
             len(contents),
         )

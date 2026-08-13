@@ -1,5 +1,7 @@
 //! Runtime foundations for the xarsnu dialog simulation lab.
 
+#![recursion_limit = "1024"]
+
 pub mod config;
 pub mod jbotci_tools;
 mod model_capabilities;

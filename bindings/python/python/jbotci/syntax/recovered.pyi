@@ -9581,6 +9581,62 @@ class JekConnectiveSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class JoikConnectiveSyntaxClosedIntervalConnective:
+    'Uses the `closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+    __match_args__: ClassVar[tuple[Literal['closed_interval_connective']]]
+    def __new__(cls, closed_interval_connective: RecoveredField[ClosedIntervalConnectiveSyntax]) -> JoikConnectiveSyntaxClosedIntervalConnective: ...
+    @property
+    def closed_interval_connective(self) -> RecoveredField[ClosedIntervalConnectiveSyntax]:
+        'Uses the `closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class JoikConnectiveSyntaxZantufaGahoJoikConnective:
+    'Zantufa JOIK beginning with GAhO; paired GAhO+BIhI was already claimed above.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_gaho_joik_connective']]]
+    def __new__(cls, zantufa_gaho_joik_connective: RecoveredField[ZantufaGahoJoikConnectiveSyntax]) -> JoikConnectiveSyntaxZantufaGahoJoikConnective: ...
+    @property
+    def zantufa_gaho_joik_connective(self) -> RecoveredField[ZantufaGahoJoikConnectiveSyntax]:
+        'Zantufa JOIK beginning with GAhO; paired GAhO+BIhI was already claimed above.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class JoikConnectiveSyntaxZantufaRightGahoJoikConnective:
+    'Zantufa JOIK whose required right GAhO must be consumed before a simple arm can commit.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_right_gaho_joik_connective']]]
+    def __new__(cls, zantufa_right_gaho_joik_connective: RecoveredField[ZantufaRightGahoJoikConnectiveSyntax]) -> JoikConnectiveSyntaxZantufaRightGahoJoikConnective: ...
+    @property
+    def zantufa_right_gaho_joik_connective(self) -> RecoveredField[ZantufaRightGahoJoikConnectiveSyntax]:
+        'Zantufa JOIK whose required right GAhO must be consumed before a simple arm can commit.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class JoikConnectiveSyntaxZantufaNaJoikConnective:
+    'Zantufa JOIK beginning with explicit NA.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_na_joik_connective']]]
+    def __new__(cls, zantufa_na_joik_connective: RecoveredField[ZantufaNaJoikConnectiveSyntax]) -> JoikConnectiveSyntaxZantufaNaJoikConnective: ...
+    @property
+    def zantufa_na_joik_connective(self) -> RecoveredField[ZantufaNaJoikConnectiveSyntax]:
+        'Zantufa JOIK beginning with explicit NA.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class JoikConnectiveSyntaxJoiConnective:
     'Uses the `joi_connective` product form, whose payload preserves `se`, `joi`, and `nai`.'
     __match_args__: ClassVar[tuple[Literal['joi_connective']]]
@@ -9608,22 +9664,105 @@ class JoikConnectiveSyntaxSimpleIntervalConnective:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
+# Sum node for joik. Baseline paired intervals retain priority; Zantufa-only
+# leading and trailing shapes are then tried before locally successful simple arms.
+JoikConnectiveSyntax: TypeAlias = JoikConnectiveSyntaxClosedIntervalConnective | JoikConnectiveSyntaxZantufaGahoJoikConnective | JoikConnectiveSyntaxZantufaRightGahoJoikConnective | JoikConnectiveSyntaxZantufaNaJoikConnective | JoikConnectiveSyntaxJoiConnective | JoikConnectiveSyntaxSimpleIntervalConnective
+
 @final
-class JoikConnectiveSyntaxClosedIntervalConnective:
-    'Uses the `closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
-    __match_args__: ClassVar[tuple[Literal['closed_interval_connective']]]
-    def __new__(cls, closed_interval_connective: RecoveredField[ClosedIntervalConnectiveSyntax]) -> JoikConnectiveSyntaxClosedIntervalConnective: ...
+class ZantufaGahoJoikConnectiveSyntax:
+    'Zantufa GAhO-led JOIK over the representable JOI/BIhI inventory.'
+    __match_args__: ClassVar[tuple[Literal['left_gaho'], Literal['na'], Literal['se'], Literal['joiz'], Literal['right_gaho']]]
+    def __new__(
+        cls,
+        left_gaho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        na: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        se: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        joiz: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        right_gaho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ZantufaGahoJoikConnectiveSyntax: ...
     @property
-    def closed_interval_connective(self) -> RecoveredField[ClosedIntervalConnectiveSyntax]:
-        'Uses the `closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+    def left_gaho(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'Required left endpoint marker, which also owns the experimental warning.'
+        ...
+    @property
+    def na(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'Optional explicit left negation after the endpoint marker.'
+        ...
+    @property
+    def se(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'Optional member reversal.'
+        ...
+    @property
+    def joiz(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'Audited representable rolling JOI inventory: jbotci JOI plus BIhI.'
+        ...
+    @property
+    def right_gaho(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'Optional independent right endpoint marker.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for joik; selects among the `joi_connective`, `simple_interval_connective`, and `closed_interval_connective` forms.
-JoikConnectiveSyntax: TypeAlias = JoikConnectiveSyntaxJoiConnective | JoikConnectiveSyntaxSimpleIntervalConnective | JoikConnectiveSyntaxClosedIntervalConnective
+@final
+class ZantufaNaJoikConnectiveSyntax:
+    'Zantufa NA-led JOIK. Term consumers reject this completed typed variant\nto preserve the successful baseline `term NA JOI term` grouping.'
+    __match_args__: ClassVar[tuple[Literal['na'], Literal['se'], Literal['joiz'], Literal['right_gaho']]]
+    def __new__(
+        cls,
+        na: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        se: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        joiz: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        right_gaho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ZantufaNaJoikConnectiveSyntax: ...
+    @property
+    def na(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'Required explicit left negation, which also owns the experimental warning.'
+        ...
+    @property
+    def se(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'Optional member reversal.'
+        ...
+    @property
+    def joiz(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'Audited representable rolling JOI inventory: jbotci JOI plus BIhI.'
+        ...
+    @property
+    def right_gaho(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'Optional independent right endpoint marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRightGahoJoikConnectiveSyntax:
+    'Zantufa JOIK with a required right endpoint and no Zantufa-only prefix.'
+    __match_args__: ClassVar[tuple[Literal['se'], Literal['joiz'], Literal['right_gaho']]]
+    def __new__(
+        cls,
+        se: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        joiz: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        right_gaho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+    ) -> ZantufaRightGahoJoikConnectiveSyntax: ...
+    @property
+    def se(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'Optional member reversal.'
+        ...
+    @property
+    def joiz(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'Audited representable rolling JOI inventory: jbotci JOI plus BIhI.'
+        ...
+    @property
+    def right_gaho(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'Required right endpoint marker, which owns the experimental warning.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class JoiConnectiveSyntax:
@@ -10113,6 +10252,62 @@ class IStandardParagraphStatementConnectiveSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective:
+    'Uses the `paragraph_closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+    __match_args__: ClassVar[tuple[Literal['paragraph_closed_interval_connective']]]
+    def __new__(cls, paragraph_closed_interval_connective: RecoveredField[ParagraphClosedIntervalConnectiveSyntax]) -> ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective: ...
+    @property
+    def paragraph_closed_interval_connective(self) -> RecoveredField[ParagraphClosedIntervalConnectiveSyntax]:
+        'Uses the `paragraph_closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ParagraphStandardStatementConnectiveSyntaxParagraphZantufaGahoJoikConnective:
+    'Zantufa paragraph JOIK beginning with GAhO.'
+    __match_args__: ClassVar[tuple[Literal['paragraph_zantufa_gaho_joik_connective']]]
+    def __new__(cls, paragraph_zantufa_gaho_joik_connective: RecoveredField[ParagraphZantufaGahoJoikConnectiveSyntax]) -> ParagraphStandardStatementConnectiveSyntaxParagraphZantufaGahoJoikConnective: ...
+    @property
+    def paragraph_zantufa_gaho_joik_connective(self) -> RecoveredField[ParagraphZantufaGahoJoikConnectiveSyntax]:
+        'Zantufa paragraph JOIK beginning with GAhO.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ParagraphStandardStatementConnectiveSyntaxParagraphZantufaRightGahoJoikConnective:
+    'Zantufa paragraph JOIK whose required right GAhO precedes simple ownership.'
+    __match_args__: ClassVar[tuple[Literal['paragraph_zantufa_right_gaho_joik_connective']]]
+    def __new__(cls, paragraph_zantufa_right_gaho_joik_connective: RecoveredField[ParagraphZantufaRightGahoJoikConnectiveSyntax]) -> ParagraphStandardStatementConnectiveSyntaxParagraphZantufaRightGahoJoikConnective: ...
+    @property
+    def paragraph_zantufa_right_gaho_joik_connective(self) -> RecoveredField[ParagraphZantufaRightGahoJoikConnectiveSyntax]:
+        'Zantufa paragraph JOIK whose required right GAhO precedes simple ownership.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ParagraphStandardStatementConnectiveSyntaxParagraphZantufaNaJoikConnective:
+    'Zantufa paragraph JOIK beginning with explicit NA.'
+    __match_args__: ClassVar[tuple[Literal['paragraph_zantufa_na_joik_connective']]]
+    def __new__(cls, paragraph_zantufa_na_joik_connective: RecoveredField[ParagraphZantufaNaJoikConnectiveSyntax]) -> ParagraphStandardStatementConnectiveSyntaxParagraphZantufaNaJoikConnective: ...
+    @property
+    def paragraph_zantufa_na_joik_connective(self) -> RecoveredField[ParagraphZantufaNaJoikConnectiveSyntax]:
+        'Zantufa paragraph JOIK beginning with explicit NA.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class ParagraphStandardStatementConnectiveSyntaxParagraphJoiConnective:
     'Uses the `paragraph_joi_connective` product form, whose payload preserves `se`, `joi`, and `nai`.'
     __match_args__: ClassVar[tuple[Literal['paragraph_joi_connective']]]
@@ -10141,20 +10336,6 @@ class ParagraphStandardStatementConnectiveSyntaxParagraphSimpleIntervalConnectiv
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective:
-    'Uses the `paragraph_closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
-    __match_args__: ClassVar[tuple[Literal['paragraph_closed_interval_connective']]]
-    def __new__(cls, paragraph_closed_interval_connective: RecoveredField[ParagraphClosedIntervalConnectiveSyntax]) -> ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective: ...
-    @property
-    def paragraph_closed_interval_connective(self) -> RecoveredField[ParagraphClosedIntervalConnectiveSyntax]:
-        'Uses the `paragraph_closed_interval_connective` product form, whose payload preserves `left_interval`, `se`, `bihi`, `nai`, and `right_interval`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective:
     'Uses the `paragraph_jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
     __match_args__: ClassVar[tuple[Literal['paragraph_jek_connective']]]
@@ -10168,8 +10349,104 @@ class ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for statement connective; selects among the `paragraph_joi_connective`, `paragraph_simple_interval_connective`, `paragraph_closed_interval_connective`, and `paragraph_jek_connective` forms.
-ParagraphStandardStatementConnectiveSyntax: TypeAlias = ParagraphStandardStatementConnectiveSyntaxParagraphJoiConnective | ParagraphStandardStatementConnectiveSyntaxParagraphSimpleIntervalConnective | ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective | ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective
+# Paragraph JOIK family with the same mixed ownership ordering as `joik_connective`.
+ParagraphStandardStatementConnectiveSyntax: TypeAlias = ParagraphStandardStatementConnectiveSyntaxParagraphClosedIntervalConnective | ParagraphStandardStatementConnectiveSyntaxParagraphZantufaGahoJoikConnective | ParagraphStandardStatementConnectiveSyntaxParagraphZantufaRightGahoJoikConnective | ParagraphStandardStatementConnectiveSyntaxParagraphZantufaNaJoikConnective | ParagraphStandardStatementConnectiveSyntaxParagraphJoiConnective | ParagraphStandardStatementConnectiveSyntaxParagraphSimpleIntervalConnective | ParagraphStandardStatementConnectiveSyntaxParagraphJekConnective
+
+@final
+class ParagraphZantufaGahoJoikConnectiveSyntax:
+    'Paragraph form of a Zantufa GAhO-led JOIK.'
+    __match_args__: ClassVar[tuple[Literal['left_gaho'], Literal['na'], Literal['se'], Literal['joiz'], Literal['right_gaho']]]
+    def __new__(
+        cls,
+        left_gaho: RecoveredField[Token],
+        na: RecoveredField[Token] | None,
+        se: RecoveredField[Token] | None,
+        joiz: RecoveredField[Token],
+        right_gaho: RecoveredField[Token] | None,
+    ) -> ParagraphZantufaGahoJoikConnectiveSyntax: ...
+    @property
+    def left_gaho(self) -> RecoveredField[Token]:
+        'Required left endpoint marker.'
+        ...
+    @property
+    def na(self) -> RecoveredField[Token] | None:
+        'Optional explicit left negation.'
+        ...
+    @property
+    def se(self) -> RecoveredField[Token] | None:
+        'Optional member reversal.'
+        ...
+    @property
+    def joiz(self) -> RecoveredField[Token]:
+        'Audited representable rolling JOI inventory.'
+        ...
+    @property
+    def right_gaho(self) -> RecoveredField[Token] | None:
+        'Optional independent right endpoint marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ParagraphZantufaNaJoikConnectiveSyntax:
+    'Paragraph form of a Zantufa NA-led JOIK.'
+    __match_args__: ClassVar[tuple[Literal['na'], Literal['se'], Literal['joiz'], Literal['right_gaho']]]
+    def __new__(
+        cls,
+        na: RecoveredField[Token],
+        se: RecoveredField[Token] | None,
+        joiz: RecoveredField[Token],
+        right_gaho: RecoveredField[Token] | None,
+    ) -> ParagraphZantufaNaJoikConnectiveSyntax: ...
+    @property
+    def na(self) -> RecoveredField[Token]:
+        'Required explicit left negation.'
+        ...
+    @property
+    def se(self) -> RecoveredField[Token] | None:
+        'Optional member reversal.'
+        ...
+    @property
+    def joiz(self) -> RecoveredField[Token]:
+        'Audited representable rolling JOI inventory.'
+        ...
+    @property
+    def right_gaho(self) -> RecoveredField[Token] | None:
+        'Optional independent right endpoint marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ParagraphZantufaRightGahoJoikConnectiveSyntax:
+    'Paragraph form of a Zantufa right-GAhO-only JOIK.'
+    __match_args__: ClassVar[tuple[Literal['se'], Literal['joiz'], Literal['right_gaho']]]
+    def __new__(
+        cls,
+        se: RecoveredField[Token] | None,
+        joiz: RecoveredField[Token],
+        right_gaho: RecoveredField[Token],
+    ) -> ParagraphZantufaRightGahoJoikConnectiveSyntax: ...
+    @property
+    def se(self) -> RecoveredField[Token] | None:
+        'Optional member reversal.'
+        ...
+    @property
+    def joiz(self) -> RecoveredField[Token]:
+        'Audited representable rolling JOI inventory.'
+        ...
+    @property
+    def right_gaho(self) -> RecoveredField[Token]:
+        'Required independent right endpoint marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class ParagraphJekConnectiveSyntax:
@@ -10458,6 +10735,20 @@ class RelationConnectiveAsBridiTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ModalForethoughtConnectiveSyntaxZantufaGaBoForethoughtConnective:
+    'Zantufa GA form with required BO and no structural NAI.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_ga_bo_forethought_connective']]]
+    def __new__(cls, zantufa_ga_bo_forethought_connective: RecoveredField[ZantufaGaBoForethoughtConnectiveSyntax]) -> ModalForethoughtConnectiveSyntaxZantufaGaBoForethoughtConnective: ...
+    @property
+    def zantufa_ga_bo_forethought_connective(self) -> RecoveredField[ZantufaGaBoForethoughtConnectiveSyntax]:
+        'Zantufa GA form with required BO and no structural NAI.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class ModalForethoughtConnectiveSyntaxGaForethoughtConnective:
     'Uses the `ga_forethought_connective` product form, whose payload preserves `se`, `ga`, and `nai`.'
     __match_args__: ClassVar[tuple[Literal['ga_forethought_connective']]]
@@ -10500,13 +10791,27 @@ class ModalForethoughtConnectiveSyntaxJekGiForethoughtConnective:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ModalForethoughtConnectiveSyntaxZantufaModalGiBoForethoughtConnective:
+    'Zantufa tag-GI form with required BO and no structural NAI.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_modal_gi_bo_forethought_connective']]]
+    def __new__(cls, zantufa_modal_gi_bo_forethought_connective: RecoveredField[ZantufaModalGiBoForethoughtConnectiveSyntax]) -> ModalForethoughtConnectiveSyntaxZantufaModalGiBoForethoughtConnective: ...
+    @property
+    def zantufa_modal_gi_bo_forethought_connective(self) -> RecoveredField[ZantufaModalGiBoForethoughtConnectiveSyntax]:
+        'Zantufa tag-GI form with required BO and no structural NAI.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective:
-    'Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `bo`.'
+    'Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `nai`.'
     __match_args__: ClassVar[tuple[Literal['modal_gi_forethought_connective']]]
     def __new__(cls, modal_gi_forethought_connective: RecoveredField[ModalGiForethoughtConnectiveSyntax]) -> ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective: ...
     @property
     def modal_gi_forethought_connective(self) -> RecoveredField[ModalGiForethoughtConnectiveSyntax]:
-        'Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `bo`.'
+        'Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `nai`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -10527,8 +10832,49 @@ class ModalForethoughtConnectiveSyntaxZantufaInitialGiForethoughtConnective:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for forethought connective; selects among the `ga_forethought_connective`, `joik_jek_gi_forethought_connective`, `jek_gi_forethought_connective`, `modal_gi_forethought_connective`, and `zantufa_initial_gi_forethought_connective` forms.
-ModalForethoughtConnectiveSyntax: TypeAlias = ModalForethoughtConnectiveSyntaxGaForethoughtConnective | ModalForethoughtConnectiveSyntaxJoikJekGiForethoughtConnective | ModalForethoughtConnectiveSyntaxJekGiForethoughtConnective | ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective | ModalForethoughtConnectiveSyntaxZantufaInitialGiForethoughtConnective
+@final
+class ModalForethoughtConnectiveSyntaxZantufaInitialGiTagForethoughtConnective:
+    'Zantufa GI-first opening whose tail is a whole rolling-Zantufa tag.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_initial_gi_tag_forethought_connective']]]
+    def __new__(cls, zantufa_initial_gi_tag_forethought_connective: RecoveredField[ZantufaInitialGiTagForethoughtConnectiveSyntax]) -> ModalForethoughtConnectiveSyntaxZantufaInitialGiTagForethoughtConnective: ...
+    @property
+    def zantufa_initial_gi_tag_forethought_connective(self) -> RecoveredField[ZantufaInitialGiTagForethoughtConnectiveSyntax]:
+        'Zantufa GI-first opening whose tail is a whole rolling-Zantufa tag.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Forethought connective family with baseline and structurally disjoint Zantufa BO arms.
+ModalForethoughtConnectiveSyntax: TypeAlias = ModalForethoughtConnectiveSyntaxZantufaGaBoForethoughtConnective | ModalForethoughtConnectiveSyntaxGaForethoughtConnective | ModalForethoughtConnectiveSyntaxJoikJekGiForethoughtConnective | ModalForethoughtConnectiveSyntaxJekGiForethoughtConnective | ModalForethoughtConnectiveSyntaxZantufaModalGiBoForethoughtConnective | ModalForethoughtConnectiveSyntaxModalGiForethoughtConnective | ModalForethoughtConnectiveSyntaxZantufaInitialGiForethoughtConnective | ModalForethoughtConnectiveSyntaxZantufaInitialGiTagForethoughtConnective
+
+@final
+class ZantufaGaBoForethoughtConnectiveSyntax:
+    'Zantufa GA opening with required BO. Splitting this from the baseline\nNAI-bearing node prevents a connector node from containing both fields.'
+    __match_args__: ClassVar[tuple[Literal['se'], Literal['ga'], Literal['bo']]]
+    def __new__(
+        cls,
+        se: RecoveredField[Token] | None,
+        ga: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+    ) -> ZantufaGaBoForethoughtConnectiveSyntax: ...
+    @property
+    def se(self) -> RecoveredField[Token] | None:
+        'Optional member reversal.'
+        ...
+    @property
+    def ga(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'GA-family opening word.'
+        ...
+    @property
+    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'Required Zantufa BO suffix.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class GaForethoughtConnectiveSyntax:
@@ -10585,6 +10931,33 @@ class ZantufaInitialGiForethoughtConnectiveSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ZantufaInitialGiTagForethoughtConnectiveSyntax:
+    'Zantufa GI-first opening with a typed whole-tag tail.'
+    __match_args__: ClassVar[tuple[Literal['gi'], Literal['tag'], Literal['bo']]]
+    def __new__(
+        cls,
+        gi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        tag: RecoveredField[ZantufaTagSyntax],
+        bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ZantufaInitialGiTagForethoughtConnectiveSyntax: ...
+    @property
+    def gi(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'GI marker owning the Zantufa connective warning.'
+        ...
+    @property
+    def tag(self) -> RecoveredField[ZantufaTagSyntax]:
+        'Whole rolling-Zantufa tag, not the cross-profile shared tag node.'
+        ...
+    @property
+    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'Optional BO suffix immediately after the connective cluster.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class JoikJekGiForethoughtConnectiveSyntax:
     'Product node for forethought connective; preserves `connective`, `gi`, and `bo` in source order.'
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['gi'], Literal['bo']]]
@@ -10604,7 +10977,34 @@ class JoikJekGiForethoughtConnectiveSyntax:
         ...
     @property
     def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Bo` cmavo marker.'
+        'The optional `Bo` cmavo marker from the existing Zantufa extension.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaModalGiBoForethoughtConnectiveSyntax:
+    'Zantufa tag-GI opening with required BO. The separate node makes the\nsource grammars\' mutually exclusive structural NAI/BO ownership explicit.'
+    __match_args__: ClassVar[tuple[Literal['tense_modal'], Literal['gi'], Literal['bo']]]
+    def __new__(
+        cls,
+        tense_modal: RecoveredField[TenseModalSyntax],
+        gi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+    ) -> ZantufaModalGiBoForethoughtConnectiveSyntax: ...
+    @property
+    def tense_modal(self) -> RecoveredField[TenseModalSyntax]:
+        'Tag preceding GI.'
+        ...
+    @property
+    def gi(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'GI marker after the tag.'
+        ...
+    @property
+    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'Required Zantufa BO suffix.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -10655,13 +11055,13 @@ class JekGiForethoughtConnectiveSyntax:
 
 @final
 class ModalGiForethoughtConnectiveSyntax:
-    'Product node for forethought connective; preserves `tense_modal`, `gi`, and `bo` in source order.'
-    __match_args__: ClassVar[tuple[Literal['tense_modal'], Literal['gi'], Literal['bo']]]
+    'Product node for forethought connective; preserves `tense_modal`, `gi`, and `nai` in source order.'
+    __match_args__: ClassVar[tuple[Literal['tense_modal'], Literal['gi'], Literal['nai']]]
     def __new__(
         cls,
         tense_modal: RecoveredField[TenseModalSyntax],
         gi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        nai: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
     ) -> ModalGiForethoughtConnectiveSyntax: ...
     @property
     def tense_modal(self) -> RecoveredField[TenseModalSyntax]:
@@ -10672,8 +11072,8 @@ class ModalGiForethoughtConnectiveSyntax:
         'The `Gi` cmavo marker.'
         ...
     @property
-    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Bo` cmavo marker.'
+    def nai(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional standard `Nai` suffix on the tag-opened GI connective.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
