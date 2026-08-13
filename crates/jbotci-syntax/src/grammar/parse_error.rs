@@ -15,8 +15,9 @@ use super::{Span, SyntaxContextFrame, SyntaxRuleFrame, Token};
 use crate::{
     SyntaxConstructContext, SyntaxExpectation, SyntaxExpectationReason,
     SyntaxExpectationReasonData, SyntaxExpectedToken, SyntaxExpectedTokenData,
-    syntax_construct_depth, syntax_construct_is_descendant_of, syntax_construct_is_known,
-    syntax_construct_is_root, syntax_construct_parent, syntax_immediate_child_under,
+    syntax_construct_depth, syntax_construct_is_descendant_of,
+    syntax_construct_is_diagnostic_context, syntax_construct_is_known, syntax_construct_is_root,
+    syntax_construct_parent, syntax_immediate_child_under,
 };
 
 type SyntaxRichReason<'tokens> = RichReason<'tokens, Token, Cow<'static, str>>;
@@ -802,7 +803,7 @@ fn context_from_rich_pattern(pattern: &RichPattern<'_>) -> Option<String> {
         RichPattern::Label(label) => label.to_string(),
         _ => return None,
     };
-    syntax_construct_is_known(&construct).then_some(construct)
+    syntax_construct_is_diagnostic_context(&construct).then_some(construct)
 }
 
 #[requires(!construct.is_empty())]

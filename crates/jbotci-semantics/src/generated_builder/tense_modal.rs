@@ -108,12 +108,28 @@ pub(super) fn generated_tense_modal_has_event_modifier<N: TreeNode>(tense_modal:
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_tense_modal_is_experimental_fa_tag(tense_modal: &TenseModalSyntax) -> bool {
-    matches!(
-        tense_modal,
-        TenseModalSyntax(TenseModalBodySyntax::TenseModalAtom(
-            TenseModalAtomSyntax::FaFlatTagTense(_)
-        ))
-    )
+    let TenseModalSyntax(TenseModalBodySyntax::TenseModalAtom(
+        TenseModalAtomSyntax::ExpTagAtomRun(run),
+    )) = tense_modal
+    else {
+        return false;
+    };
+    generated_single_fa_exp_tag_prefixes(run).is_some_and(|(nahe, se)| !nahe && !se)
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn generated_single_fa_exp_tag_prefixes(
+    run: &ExpTagAtomRunSyntax,
+) -> Option<(bool, bool)> {
+    let ExpTagAtomRunSyntax(body) = run;
+    let body = body.as_ref();
+    if !body.additional.is_empty() {
+        return None;
+    }
+    let first = body.first.as_ref();
+    matches!(first.atom.value.as_ref(), ExpTagAtomSyntax::ExpFaTagAtom(_))
+        .then_some((first.nahe.is_some(), first.se.is_some()))
 }
 
 #[requires(true)]

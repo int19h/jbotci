@@ -201,6 +201,9 @@ jbotci_syntax_macros::syntax_grammar! {
         /// The source-ordered `maybe_bo` component retained by the `bo_sumti_tail` syntax node.
         field maybe_bo <- opt(cmavo(Bo));
     }
+
+    alias "statement" mapped_statement(statement) =
+        passthrough_statement(statement).map_to(passthrough_statement);
 }
 
 #[bityzba::requires(true)]
@@ -212,7 +215,7 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RECURSIVE_RULES[0].name, "text");
     assert_eq!(SYNTAX_GRAMMAR_RECURSIVE_RULES[1].output, "StatementSyntax");
 
-    assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 3);
+    assert_eq!(SYNTAX_GRAMMAR_RULES.len(), 4);
     assert_eq!(SYNTAX_GRAMMAR_RULES[0].kind, "alias");
     assert_eq!(SYNTAX_GRAMMAR_RULES[0].name, "passthrough_statement");
     assert_eq!(SYNTAX_GRAMMAR_RULES[0].arguments, &["statement"]);
@@ -234,7 +237,10 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[0].parser, "cmavo(Be).wf()");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[0].recovery,
-        SyntaxGrammarRecoveryExpr::WithFreeModifiers(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Be))
+        SyntaxGrammarRecoveryExpr::WithFreeModifiers {
+            inner: &SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Be),
+            condition: None,
+        }
     );
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[1].recovery,
@@ -244,9 +250,16 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RULES[1].fields[1].name, "");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[2].recovery,
-        SyntaxGrammarRecoveryExpr::WithFreeModifiers(&SyntaxGrammarRecoveryExpr::Selmaho(
-            Selmaho::Fa
-        ))
+        SyntaxGrammarRecoveryExpr::WithFreeModifiers {
+            inner: &SyntaxGrammarRecoveryExpr::Selmaho(Selmaho::Fa),
+            condition: None,
+        }
+    );
+
+    assert_eq!(SYNTAX_GRAMMAR_RULES[3].name, "mapped_statement");
+    assert_eq!(
+        SYNTAX_GRAMMAR_RULES[3].fields[0].recovery,
+        SyntaxGrammarRecoveryExpr::Rule("passthrough_statement")
     );
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[1].fields[3].recovery,
@@ -312,7 +325,10 @@ fn grammar_macro_exports_declaration_metadata() {
     assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[1].name, "bo");
     assert_eq!(
         SYNTAX_GRAMMAR_RULES[2].fields[1].recovery,
-        SyntaxGrammarRecoveryExpr::WithFreeModifiers(&SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo))
+        SyntaxGrammarRecoveryExpr::WithFreeModifiers {
+            inner: &SyntaxGrammarRecoveryExpr::Cmavo(Cmavo::Bo),
+            condition: None,
+        }
     );
     assert_eq!(SYNTAX_GRAMMAR_RULES[2].fields[2].name, "maybe_bo");
     assert_eq!(

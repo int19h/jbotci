@@ -1946,7 +1946,7 @@ class _syntax_parser_ExperimentalConstruct(StrEnum):
     EXPERIMENTAL_ZANTUFA_GEK = 'experimental-zantufa-gek'
     EXPERIMENTAL_ZANTUFA_POIHA_BRIGAHI = 'experimental-zantufa-poiha-brigahi'
     EXPERIMENTAL_ZANTUFA_JAI_TAG_TERM = 'experimental-zantufa-jai-tag-term'
-    EXPERIMENTAL_ZANTUFA_RECURSIVE_TAG = 'experimental-zantufa-recursive-tag'
+    EXPERIMENTAL_ZANTUFA_TAG = 'experimental-zantufa-tag'
     EXPERIMENTAL_ZANTUFA_GROUPED_BRIDI_TAIL = 'experimental-zantufa-grouped-bridi-tail'
     EXPERIMENTAL_ZANTUFA_STATEMENT_TERMS = 'experimental-zantufa-statement-terms'
     EXPERIMENTAL_ZANTUFA_STATEMENT_RELATIVE_CLAUSE = 'experimental-zantufa-statement-relative-clause'

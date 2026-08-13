@@ -28,8 +28,8 @@ use jbotci_syntax::generated_model::{
     CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
     DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
-    DirectForethoughtBridiConnectionSyntax, EkFragmentSyntax,
-    ExperimentalConnectiveMeksoOperatorSyntax, ExplicitXauhaLohoiTextSyntax,
+    DirectForethoughtBridiConnectionSyntax, EkFragmentSyntax, ExpTagAtomRunSyntax,
+    ExpTagAtomSyntax, ExperimentalConnectiveMeksoOperatorSyntax, ExplicitXauhaLohoiTextSyntax,
     FollowingParagraphStatementSyntax, ForethoughtBridiConnectionSyntax,
     ForethoughtBridiConnectionWithoutTailTermsSyntax, ForethoughtCallMeksoSyntax,
     ForethoughtMeksoOperandSyntax, ForethoughtMeksoOperatorSyntax,
@@ -12822,7 +12822,7 @@ mod tests {
             ),
             (
                 "mi tavla na'e fa do",
-                "an experimental NAhE-prefixed FA tag",
+                "an experimental LAhE/NAhE term wrapper",
             ),
             (
                 "lo'oi mi klama ku'au cu melbi",

@@ -11,8 +11,10 @@ status = "success"
 raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "xe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "xe" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } })]'
 
 [expectations.syntax]
+# Baseline-only term entry no longer treats this unfinished extension atom as a term candidate;
+# recovery therefore reports the competing unfinished selbri at the unchanged end position.
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.incomplete-term", byte-span = [5, 5], source-text = "", message = "incomplete term" }]
+diagnostics = [{ severity = "error", code = "syntax.incomplete-selbri", byte-span = [5, 5], source-text = "", message = "incomplete selbri" }]
 
 [expectations.output.vlasei]
 brackets = "(xe xe)"

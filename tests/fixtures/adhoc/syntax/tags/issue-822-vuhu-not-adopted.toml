@@ -1,0 +1,12 @@
+id = "adhoc.syntax.tags.issue-822-vuhu-not-adopted"
+lojban = "mi cu ri'a su'i pu broda"
+tags = ["adhoc", "syntax", "tag", "issue-822", "camxes-exp", "negative", "waiver"]
+
+[[provenance]]
+kind = "other"
+name = "camxes-exp widened-connective running-parser probe"
+description = '''`node -e "require('/home/int19h.linux/git/ilmentufa/camxes-exp.js').parse(\"mi cu ri'a su'i pu broda\")"` exits successfully while the same command with `camxes.js` throws; that separate widened joik_jek/VUhU surface is deliberately not adopted with the tag-atom model.'''
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-selbri", byte-span = [24, 24], source-text = "", message = "incomplete selbri" }]

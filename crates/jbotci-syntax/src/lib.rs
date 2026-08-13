@@ -854,6 +854,7 @@ impl SyntaxConstructContext {
 #[invariant(true)]
 enum SyntaxConstructWiring {
     Parser,
+    ParserInternal,
     Synthetic,
 }
 
@@ -872,6 +873,17 @@ struct SyntaxConstructMetadata {
     parent: Option<&'static str>,
     incomplete_attribution: SyntaxConstructIncompleteAttribution,
     wiring: SyntaxConstructWiring,
+}
+
+macro_rules! parser_construct_metadata {
+    ($name:literal, $parent:literal) => {
+        SyntaxConstructMetadata {
+            name: $name,
+            parent: Some($parent),
+            incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+            wiring: SyntaxConstructWiring::ParserInternal,
+        }
+    };
 }
 
 const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
@@ -1283,6 +1295,55 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
+    parser_construct_metadata!("baseline term tag", "tag"),
+    parser_construct_metadata!("baseline term tag atom", "baseline term tag"),
+    parser_construct_metadata!("baseline term connected tag", "baseline term tag"),
+    parser_construct_metadata!(
+        "baseline term connected tag continuation",
+        "baseline term connected tag"
+    ),
+    parser_construct_metadata!("experimental tag atom run", "tag"),
+    parser_construct_metadata!(
+        "experimental tag atom run body",
+        "experimental tag atom run"
+    ),
+    parser_construct_metadata!("experimental tag atom", "experimental tag atom run body"),
+    parser_construct_metadata!("experimental BAI tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental CAhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental CUhE tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental FA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental FAhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental FIhO tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental KI tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental PU tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental ROI tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental TAhE tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental VA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental VEhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental VIhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental ZAhO tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental ZEhA tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental ZI tag atom", "experimental tag atom"),
+    parser_construct_metadata!("experimental number", "experimental ROI tag atom"),
+    parser_construct_metadata!("experimental number atom", "experimental number"),
+    parser_construct_metadata!("experimental PA number atom", "experimental number atom"),
+    parser_construct_metadata!("experimental MOhE number atom", "experimental number atom"),
+    parser_construct_metadata!("experimental NIhE number atom", "experimental number atom"),
+    parser_construct_metadata!("experimental ROI interval", "experimental ROI tag atom"),
+    parser_construct_metadata!(
+        "experimental parenthesized ROI interval",
+        "experimental ROI interval"
+    ),
+    parser_construct_metadata!("experimental prefixed tag atom", "experimental tag atom"),
+    parser_construct_metadata!("Zantufa tag", "tag"),
+    parser_construct_metadata!("Zantufa tag continuation", "Zantufa tag"),
+    parser_construct_metadata!("Zantufa tag atom", "Zantufa tag"),
+    parser_construct_metadata!("Zantufa BAI tag atom", "Zantufa tag atom"),
+    parser_construct_metadata!("Zantufa FIhO tag atom", "Zantufa tag atom"),
+    parser_construct_metadata!("Zantufa ROI tag atom", "Zantufa tag atom"),
+    parser_construct_metadata!("Zantufa bare ROI tag atom", "Zantufa ROI tag atom"),
+    parser_construct_metadata!("Zantufa mex ROI tag atom", "Zantufa ROI tag atom"),
+    parser_construct_metadata!("Zantufa prefixed tag atom", "Zantufa tag atom"),
     SyntaxConstructMetadata {
         name: "modal tag",
         parent: Some("simple tense/modal"),
@@ -2119,6 +2180,13 @@ pub(crate) fn syntax_construct_is_known(construct: &str) -> bool {
 
 #[requires(!construct.is_empty())]
 #[ensures(ret -> syntax_construct_is_known(construct))]
+pub(crate) fn syntax_construct_is_diagnostic_context(construct: &str) -> bool {
+    syntax_construct_metadata(construct)
+        .is_some_and(|metadata| metadata.wiring != SyntaxConstructWiring::ParserInternal)
+}
+
+#[requires(!construct.is_empty())]
+#[ensures(ret -> syntax_construct_is_known(construct))]
 pub(crate) fn syntax_construct_uses_generic_incomplete_attribution(construct: &str) -> bool {
     syntax_construct_metadata(construct).is_some_and(|metadata| {
         matches!(
@@ -2915,7 +2983,7 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaGek,
     ExperimentalZantufaPoihaBrigahi,
     ExperimentalZantufaJaiTagTerm,
-    ExperimentalZantufaRecursiveTag,
+    ExperimentalZantufaTag,
     ExperimentalZantufaGroupedBridiTail,
     ExperimentalZantufaStatementTerms,
     ExperimentalZantufaStatementRelativeClause,
@@ -3057,9 +3125,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaJaiTagTerm => {
                 "syntax.warning.experimental-zantufa-jai-tag-term"
             }
-            Self::ExperimentalZantufaRecursiveTag => {
-                "syntax.warning.experimental-zantufa-recursive-tag"
-            }
+            Self::ExperimentalZantufaTag => "syntax.warning.experimental-zantufa-tag",
             Self::ExperimentalZantufaGroupedBridiTail => {
                 "syntax.warning.experimental-zantufa-grouped-bridi-tail"
             }
@@ -3110,7 +3176,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalMultipleNaFragment => "multiple NA fragment sequence",
             Self::ExperimentalEmptyPrenex => "empty prenex",
             Self::ExperimentalBareCuPredicate => "bare CU before the main selbri",
-            Self::ExperimentalNaheArgumentWithoutBo => "NAhE before sumti without BO",
+            Self::ExperimentalNaheArgumentWithoutBo => "NAhE argument without BO",
             Self::ExperimentalVuhoScopedAttachment => "VUhO scoped attachment enhancement",
             Self::ExperimentalNohoiSelbriRelativeClause => "NOhOI/KUhOI selbri relative clause",
             Self::ExperimentalSimplerSumtiConnective => {
@@ -3189,7 +3255,7 @@ impl ExperimentalConstruct {
                 "Zantufa POIhA briga'i term with KU terminator"
             }
             Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
-            Self::ExperimentalZantufaRecursiveTag => "Zantufa recursive SE/NAhE tag prefix",
+            Self::ExperimentalZantufaTag => "experimental Zantufa tag form",
             Self::ExperimentalZantufaGroupedBridiTail => "Zantufa KE bridi-tail grouping",
             Self::ExperimentalZantufaStatementTerms => "Zantufa statement-level trailing terms",
             Self::ExperimentalZantufaStatementRelativeClause => {

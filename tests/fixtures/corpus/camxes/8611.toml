@@ -11,8 +11,10 @@ status = "success"
 raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "so" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ca" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 3, byte_end: 5, char_start: 3, char_end: 5, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "gaŭ" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 6, byte_end: 9, char_start: 6, char_end: 9, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "fárvi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 10, byte_end: 15, char_start: 10, char_end: 15, start: None, end: None } }), PlainWord(Cmevla { phonemes: Phonemes { text: "is" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 16, byte_end: 18, char_start: 16, char_end: 18, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "fi" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 19, byte_end: 21, char_start: 19, char_end: 21, start: None, end: None } }), PlainWord(Cmavo { phonemes: Phonemes { text: "ne" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 21, byte_end: 23, char_start: 21, char_end: 23, start: None, end: None } })]'
 
 [expectations.syntax]
+# The corrected camxes-exp run owns `ca gau`; recovery consequently advances to the actual
+# later malformed cmevla `is`, matching the unchanged source-token sequence.
 status = "failure"
-diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 9], source-text = "gau", message = "unexpected cmavo" }]
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmevla", byte-span = [16, 18], source-text = "is", message = "unexpected cmevla" }]
 
 [expectations.output.vlasei]
 brackets = "(so ca gaŭ fárvi .is. fi ne)"

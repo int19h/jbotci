@@ -32,6 +32,7 @@ use crate::{
 };
 
 mod baseline_mex;
+mod baseline_tag;
 mod generated;
 mod generated_runtime;
 mod parse_error;
@@ -4949,9 +4950,14 @@ fn add_generated_construct_warnings(
     let mut visitor = new!(GeneratedConstructWarningVisitor {
         tokens,
         cbm_enabled,
+        zantufa_tag_depth: Cell::new(0),
         warnings: RefCell::new(warnings),
     });
     generated::generated_model::TreeNode::visit_in_order(text, &mut visitor);
+    drop(visitor);
+    // Parser-attached warnings are collected before structural warnings. Restore source order
+    // after combining both streams; the stable sort preserves their existing order at one token.
+    warnings.sort_by_key(|warning| warning.anchor_index);
 }
 
 #[invariant(
@@ -4963,6 +4969,7 @@ fn add_generated_construct_warnings(
 struct GeneratedConstructWarningVisitor<'a> {
     tokens: &'a [Token],
     cbm_enabled: bool,
+    zantufa_tag_depth: Cell<usize>,
     warnings: RefCell<&'a mut Vec<SyntaxWarning>>,
 }
 
@@ -4973,6 +4980,11 @@ impl GeneratedConstructWarningVisitor<'_> {
     where
         T: generated::generated_model::TreeNode,
     {
+        if construct == ExperimentalConstruct::ExperimentalZantufaMex
+            && self.zantufa_tag_depth.get() > 0
+        {
+            return;
+        }
         let mut visitor = new!(FirstTokenVisitor {
             token: Cell::new(None),
         });
@@ -4981,6 +4993,32 @@ impl GeneratedConstructWarningVisitor<'_> {
             let mut warnings = self.warnings.borrow_mut();
             push_generated_construct_warning(&mut warnings, self.tokens, construct, anchor);
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn remove_nested_zantufa_warnings<T>(&mut self, node: &T)
+    where
+        T: generated::generated_model::TreeNode,
+    {
+        let mut visitor = new!(TokenRangeVisitor {
+            first: Cell::new(None),
+            last: Cell::new(None),
+        });
+        node.visit_in_order(&mut visitor);
+        let (Some(first), Some(last)) = (visitor.first.get(), visitor.last.get()) else {
+            return;
+        };
+        let first = generated_warning_anchor_index(self.tokens, first);
+        let last = generated_warning_anchor_index(self.tokens, last);
+        self.warnings.borrow_mut().retain(|warning| {
+            !matches!(
+                warning.kind,
+                ExperimentalConstruct::ExperimentalZantufaMex
+                    | ExperimentalConstruct::ExperimentalZantufaCmavo
+            ) || warning.anchor_index < first
+                || warning.anchor_index > last
+        });
     }
 
     #[requires(description.0.value.is_cmavo(Cmavo::La))]
@@ -5007,6 +5045,23 @@ impl GeneratedConstructWarningVisitor<'_> {
     }
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn generated_exp_run_is_single_unprefixed_fa(
+    run: &generated::generated_model::ExpTagAtomRunSyntax,
+) -> bool {
+    let generated::generated_model::ExpTagAtomRunSyntax(run) = run;
+    let generated::generated_model::ExpTagAtomRunBodySyntax { first, additional } = run.as_ref();
+    let generated::generated_model::ExpPrefixedTagAtomSyntax { nahe, se, atom } = first.as_ref();
+    additional.is_empty()
+        && nahe.is_none()
+        && se.is_none()
+        && matches!(
+            atom.value.as_ref(),
+            generated::generated_model::ExpTagAtomSyntax::ExpFaTagAtom(_)
+        )
+}
+
 impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     type Node = generated::generated_model::NodeRef<'tree>;
     type Atom = generated::generated_model::AtomRef<'tree>;
@@ -5015,6 +5070,17 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
         match node {
+            generated::generated_model::NodeRef::ExpTagAtomRunSyntax(run)
+                if !generated_exp_run_is_single_unprefixed_fa(run) =>
+            {
+                self.warn_first_token(ExperimentalConstruct::ExperimentalFlattenedTag, run);
+            }
+            generated::generated_model::NodeRef::ZantufaTagSyntax(tag) => {
+                self.remove_nested_zantufa_warnings(tag);
+                self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaTag, tag);
+                self.zantufa_tag_depth
+                    .set(self.zantufa_tag_depth.get() + 1);
+            }
             generated::generated_model::NodeRef::FragmentStatementSyntaxZantufaMeksoFragment(
                 fragment,
             ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, fragment),
@@ -5079,6 +5145,53 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
             }
             _ => {}
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn exit_node(&mut self, node: Self::Node) {
+        if matches!(
+            node,
+            generated::generated_model::NodeRef::ZantufaTagSyntax(_)
+        ) {
+            assert!(
+                self.zantufa_tag_depth.get() > 0,
+                "Zantufa tag traversal exit must follow its matching entry"
+            );
+            self.zantufa_tag_depth.set(self.zantufa_tag_depth.get() - 1);
+        }
+    }
+}
+
+#[invariant(
+    first
+        .get()
+        .is_none_or(|token| token.core_word().byte_range().is_some()),
+    "captured first token must be source-backed"
+)]
+#[invariant(
+    last
+        .get()
+        .is_none_or(|token| token.core_word().byte_range().is_some()),
+    "captured last token must be source-backed"
+)]
+struct TokenRangeVisitor<'tree> {
+    first: Cell<Option<&'tree Token>>,
+    last: Cell<Option<&'tree Token>>,
+}
+
+impl<'tree> TreeVisitor<'tree> for TokenRangeVisitor<'tree> {
+    type Node = generated::generated_model::NodeRef<'tree>;
+    type Atom = generated::generated_model::AtomRef<'tree>;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_atom(&mut self, atom: Self::Atom) {
+        let generated::generated_model::AtomRef::Token(token) = atom;
+        if self.first.get().is_none() {
+            self.first.set(Some(token));
+        }
+        self.last.set(Some(token));
     }
 }
 
@@ -7629,7 +7742,7 @@ mod tests {
     fn warns_for_flat_tag_forms() {
         run_on_normal_stack(|| {
             let words =
-                segment_words_with_modifiers("na'e fa mi cu klama").expect("valid morphology");
+                segment_words_with_modifiers("mi cu na'e fa klama").expect("valid morphology");
 
             let parsed = parse_syntax_tree(&words, &ParseOptions::default())
                 .expect("valid flattened FA tag");
@@ -7654,8 +7767,7 @@ mod tests {
     #[ensures(true)]
     fn gates_zantufa_recursive_tags() {
         run_on_normal_stack(|| {
-            let words = segment_words_with_modifiers("na'e se na'e se fa mi cu klama")
-                .expect("valid morphology");
+            let words = segment_words_with_modifiers("mi cu roi klama").expect("valid morphology");
 
             assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
 
@@ -7664,9 +7776,11 @@ mod tests {
             let options = ParseOptions::default().with_dialect_definition(&dialect);
             let parsed = parse_syntax_tree(&words, &options).expect("valid recursive tag");
 
-            assert!(parsed.warnings.iter().any(|warning| {
-                warning.kind == ExperimentalConstruct::ExperimentalZantufaRecursiveTag
-            }));
+            assert!(
+                parsed.warnings.iter().any(|warning| {
+                    warning.kind == ExperimentalConstruct::ExperimentalZantufaTag
+                })
+            );
         });
     }
 

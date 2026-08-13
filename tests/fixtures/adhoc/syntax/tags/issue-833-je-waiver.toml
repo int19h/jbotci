@@ -1,0 +1,13 @@
+id = "adhoc.syntax.tags.issue-833-je-waiver"
+lojban = "mi cu mu'i je roi broda"
+dialect = "(+zantufa-tags)"
+tags = ["adhoc", "syntax", "tag", "issue-833", "zantufa", "negative", "waiver", "je"]
+
+[[provenance]]
+kind = "other"
+name = "Zantufa running-parser JE-as-JOI probe"
+description = '''`node -e "require('/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js').parse(\"mi cu mu'i je roi broda\")"` exits successfully because rolling JOI absorbs `je`; jbotci retains its baseline JE lexical meaning, so this meaning-changing relexing is explicitly waived and rejected.'''
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "broda", message = "unexpected brivla" }]

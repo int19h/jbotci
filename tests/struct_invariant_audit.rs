@@ -1744,6 +1744,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "observation child indices are finalized and checked by the enclosing memo store APIs",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:BaselineTagRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ClassifiedAtom",
+        "the independent prefix flags and closed atom kind deliberately admit every typed combination",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:PostNaExtensionTagRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ZantufaTagRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedVec",
         "empty and shared copy-on-write vectors are both valid; Some(empty) has the same semantics as the allocation-free None representation",
     ),
