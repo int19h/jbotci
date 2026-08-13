@@ -5,7 +5,7 @@ tags = ["adhoc", "syntax", "tag", "issue-822", "post-na", "no-steal"]
 [[provenance]]
 kind = "other"
 name = "camxes and camxes-exp running-parser post-NA ownership probe"
-description = '''`node -e "for (const p of [require('/home/int19h.linux/git/ilmentufa/camxes.js'),require('/home/int19h.linux/git/ilmentufa/camxes-exp.js')]) p.parse(\"mi na ri'a pu broda\")"` accepts in both parsers; baseline owns the warning-free NA/BAI term split and later PU-tagged selbri.'''
+description = '''`node -e "for (const [name,path] of [['camxes','/home/int19h.linux/git/ilmentufa/camxes.js'],['camxes-exp','/home/int19h.linux/git/ilmentufa/camxes-exp.js']]) { try { require(path).parse('mi na ri\u0027a pu broda'); console.log(name + ': ACCEPT'); } catch (_) { console.log(name + ': REJECT'); } }"` prints `camxes: REJECT` and `camxes-exp: ACCEPT`. The pinned camxes-corpus entry nevertheless expects success, and jbotci's baseline follows that corpus reading: the warning-free NA/BAI term split followed by the PU-tagged selbri.'''
 
 [expectations.syntax]
 status = "success"

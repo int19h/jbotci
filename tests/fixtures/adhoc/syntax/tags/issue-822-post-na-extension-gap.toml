@@ -5,7 +5,7 @@ tags = ["adhoc", "syntax", "tag", "issue-822", "post-na", "waiver", "negative"]
 [[provenance]]
 kind = "other"
 name = "Post-NA ownership gap probe"
-description = '''`node -e "require('/home/int19h.linux/git/ilmentufa/camxes-exp.js').parse('mi na pu roi broda')"` accepts the experimental post-NA run, while baseline rejects. Because PU is nevertheless a baseline-parseable term prefix, the no-stealing boundary conservatively rejects this differing-extent class; this is the documented post-NA counterpart to the term-entry adjacency gap.'''
+description = '''`node -e "for (const [name,path] of [['camxes','/home/int19h.linux/git/ilmentufa/camxes.js'],['camxes-exp','/home/int19h.linux/git/ilmentufa/camxes-exp.js'],['zantufa-1.9999','/home/int19h.linux/git/grammar-review/upstream/gerna_cipra/js/zantufa-1.9999.js']]) { try { require(path).parse('mi na pu roi broda'); console.log(name + ': ACCEPT'); } catch (_) { console.log(name + ': REJECT'); } }"` prints `camxes: REJECT`, `camxes-exp: REJECT`, and `zantufa-1.9999: ACCEPT`. The default-profile rejection therefore aligns with both camxes parsers rather than sacrificing an exp-owned reading. Because PU is nevertheless a baseline-parseable term prefix, the no-stealing boundary conservatively rejects the surface by default; the documented gap-class rationale applies only to the Zantufa-vs-default relationship, and jbotci's Zantufa profile retains the sourced ZantufaTag reading.'''
 
 [expectations.syntax]
 status = "failure"
