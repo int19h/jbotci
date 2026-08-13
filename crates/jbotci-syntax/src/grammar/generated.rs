@@ -55,8 +55,11 @@ pub mod generated_model {
         sumti_base: SumtiBaseSyntax;
         selbri: SelbriSyntax;
         co_selbri: CoSelbriSyntax;
+        tanru_selbri: TanruSelbriSyntax;
+        connected_selbri: ConnectedSelbriSyntax;
+        bound_selbri: BoundSelbriSyntax;
+        plain_bo_selbri: PlainBoSelbriSyntax;
         tanru_unit: TanruUnitSyntax;
-        bo_or_linked_tanru_unit: BoOrLinkedTanruUnitSyntax;
         tanru_unit_atom: TanruUnitAtomSyntax;
         jai_inner_tanru_unit: JaiInnerTanruUnitSyntax;
         tense_modal: TenseModalSyntax;
@@ -3651,6 +3654,16 @@ pub mod generated_model {
         vuhu_nonlogical_connective,
     }
 
+    /// Sum node for the standard selbri connective inventory. Unlike the
+    /// legacy shared relation connective, this deliberately excludes EK/A and
+    /// VUhU, which camxes-standard does not admit at selbri levels 4 or 5.
+    rule "selbri connective" selbri_afterthought_connective -> enum {
+        /// A JOI-family connective.
+        joik_connective,
+        /// A JA-family connective.
+        jek_connective,
+    }
+
     /// Sum node for statement connective; selects among the `joik_connective` and `jek_connective` forms.
     rule "statement connective" standard_statement_connective -> enum {
         /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
@@ -4885,14 +4898,12 @@ pub mod generated_model {
         untagged_selbri,
     }
 
-    /// Sum node for selbri; selects among the `negated_selbri`, `co_selbri`, and `forethought_selbri_connection` forms.
+    /// Sum node for selbri level 1; selects between the recursive NA arm and level 2.
     rule "selbri" untagged_selbri(selbri, co_selbri, statement) -> enum {
         /// Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.
         negated_selbri,
-        /// Uses the `co_selbri` product form, whose payload preserves `leading_selbri` and `co_tail`.
+        /// Uses the level-2 `co_selbri` product form.
         co_selbri,
-        /// Uses the `forethought_selbri_connection` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.
-        forethought_selbri_connection,
     }
 
     /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.
@@ -4916,9 +4927,9 @@ pub mod generated_model {
     }
 
     /// Product node for selbri; preserves `leading_selbri` and `co_tail` in source order.
-    rule "selbri" co_selbri(co_selbri, tanru_unit, statement) -> struct {
-        /// The shared leading selbri child syntax node.
-        field leading_selbri <- arc(connected_selbri(tanru_unit, statement));
+    rule "selbri" co_selbri(co_selbri, tanru_selbri, statement) -> struct {
+        /// The level-3 selbri before the optional CO tail.
+        field leading_selbri <- arc(tanru_selbri);
         /// The optional co tail component.
         field co_tail <- opt(co_selbri_tail(co_selbri));
     }
@@ -4931,150 +4942,145 @@ pub mod generated_model {
         field trailing_selbri <- arc(co_selbri);
     }
 
-    /// Product node for forethought selbri connection; preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi` in source order.
+    /// Product node for selbri level 3; adjacency is looser than level-4 connectives.
+    rule "tanru" tanru_selbri(connected_selbri) -> struct {
+        /// The first maximal level-4 connective group.
+        field first_selbri <- arc(connected_selbri);
+        /// Remaining adjacent level-4 connective groups.
+        field additional_selbri <- [zero_or_more arc(connected_selbri)];
+    }
+
+    /// Product node for selbri level 4; ordinary joik/jek continuations bind
+    /// more tightly than adjacency.
+    rule "selbri connection" connected_selbri(bound_selbri, tanru_selbri, tense_modal) -> struct {
+        /// The first level-5 selbri.
+        field leading_selbri <- arc(bound_selbri);
+        /// Source-ordered level-4 continuations.
+        field continuations <- [zero_or_more arc(connected_selbri_continuation(bound_selbri, tanru_selbri, tense_modal))];
+    }
+
+    /// Sum node for the two standard level-4 continuation forms.
+    rule "selbri connection continuation" connected_selbri_continuation(bound_selbri, tanru_selbri, tense_modal) -> enum {
+        /// An ordinary joik/jek continuation whose operand is level 5.
+        simple_connected_selbri_continuation,
+        /// The joik-only tagged KE continuation from camxes selbri level 4.
+        grouped_connected_selbri_continuation,
+    }
+
+    /// Product node for an ordinary level-4 selbri continuation.
+    rule "selbri connection continuation" simple_connected_selbri_continuation(bound_selbri) -> struct {
+        /// The standard joik/jek selbri connective.
+        field connective <- arc(selbri_afterthought_connective);
+        /// The following level-5 selbri.
+        field trailing_selbri <- arc(bound_selbri);
+    }
+
+    /// Product node for the joik-only tagged KE arm at selbri level 4.
+    rule "grouped selbri connection continuation" grouped_connected_selbri_continuation(tanru_selbri, tense_modal) -> struct {
+        /// The JOI-family connective; JEK is deliberately excluded.
+        field connective <- arc(joik_connective);
+        /// The optional tag between JOIK and KE.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The KE group opener.
+        field ke <- cmavo(Ke).wf();
+        /// The level-3 group body.
+        field inner_selbri <- arc(tanru_selbri);
+        /// The optional KEhE group terminator.
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
+    }
+
+    /// Product node for selbri level 5; a jek/joik plus optional tag and BO is
+    /// required before the recursive right operand.
+    rule "BO-bound selbri" bound_selbri(bound_selbri, plain_bo_selbri, tense_modal) -> struct {
+        /// The leading level-6 selbri.
+        field leading_selbri <- arc(plain_bo_selbri);
+        /// The optional, necessarily connective-bearing BO continuation.
+        field bo_tail <- opt(arc(bound_selbri_tail(bound_selbri, tense_modal)));
+    }
+
+    /// Product node for a level-5 connective BO continuation.
+    rule "BO-bound selbri continuation" bound_selbri_tail(bound_selbri, tense_modal) -> struct {
+        /// The required standard joik/jek connective.
+        field connective <- arc(selbri_afterthought_connective);
+        /// The optional tag between the connective and BO.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The BO marker.
+        field bo <- cmavo(Bo).wf();
+        /// The right-recursive level-5 operand.
+        field trailing_selbri <- arc(bound_selbri);
+    }
+
+    /// Sum node for selbri level 6.
+    rule "plain BO selbri" plain_bo_selbri(plain_bo_selbri, tanru_unit, selbri) -> enum {
+        /// A CEI-capable tanru unit with an optional plain BO continuation.
+        plain_bo_tanru_unit,
+        /// The standard forethought selbri owner, provisionally retaining the
+        /// pre-#841 branch widths until the next logical commit.
+        forethought_selbri_connection,
+    }
+
+    /// Product node for a CEI-capable unit with an optional plain BO tail.
+    rule "plain BO tanru unit" plain_bo_tanru_unit(plain_bo_selbri, tanru_unit) -> struct {
+        /// The leading complete tanru unit, including any CEI assignments.
+        field leading_unit <- arc(tanru_unit);
+        /// The optional connectorless BO continuation.
+        field bo_tail <- opt(arc(plain_bo_selbri_tail(plain_bo_selbri)));
+    }
+
+    /// Product node for a connectorless level-6 BO continuation.
+    rule "plain BO selbri continuation" plain_bo_selbri_tail(plain_bo_selbri) -> struct {
+        /// The BO marker.
+        field bo <- cmavo(Bo).wf();
+        /// The right-recursive level-6 operand.
+        field trailing_selbri <- arc(plain_bo_selbri);
+    }
+
+    /// Product node for the forethought selbri owner at level 6.
     rule "forethought selbri connection" forethought_selbri_connection(selbri) -> struct {
-        /// The `guhek_connective` forethought connective opening the paired branches of the `forethought_selbri_connection` production.
+        /// The forethought connective opener.
         field guhek <- guhek_connective;
-        /// The shared leading selbri child syntax node.
+        /// The full left selbri operand.
         field leading_selbri <- arc(selbri);
-        /// The initial `forethought_selbri_branch` constituent before the continuations of the `forethought_selbri_connection` production.
+        /// The first GI branch.
         field first_branch <- forethought_selbri_branch(selbri);
-        /// Ordered sequence of zero or more additional branches components.
+        /// Existing additional Zantufa branches, re-gated precisely in C2.
         field additional_branches <- [zero_or_more zantufa_forethought_selbri_branch(selbri)];
-        /// The optional gihi component.
+        /// The existing optional Zantufa GIhI terminator.
         field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
     }
 
-    /// Product node for forethought selbri connection; preserves `gik` and `selbri` in source order.
+    /// Product node for the first GI branch of a forethought selbri.
     rule "forethought selbri connection" forethought_selbri_branch(selbri) -> struct {
-        /// The GI-family `gik_connective` connective separating the forethought branches of the `forethought_selbri_branch` production.
+        /// The standard GI-family connective.
         field gik <- gik_connective;
-        /// The shared selbri child syntax node.
+        /// The branch selbri, tightened to level 6 in C2.
         field selbri <- arc(selbri);
     }
 
-    /// Product node for forethought selbri connection; preserves `gik` and `selbri` in source order.
+    /// Product node for an additional Zantufa forethought branch.
     rule "forethought selbri connection" zantufa_forethought_selbri_branch(selbri) -> struct {
         assert feature(ZantufaConnectives);
-        /// The GI-family `zantufa_extra_gik_connective` connective separating the forethought branches of the `zantufa_forethought_selbri_branch` production.
+        /// The additional GI-family connective.
         field gik <- zantufa_extra_gik_connective;
-        /// The shared selbri child syntax node.
+        /// The branch selbri, widened uniformly in C2.
         field selbri <- arc(selbri);
     }
 
-    /// Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.
-    rule "selbri connection" connected_selbri(tanru_unit, statement) -> struct {
-        /// The shared leading selbri child syntax node.
-        field leading_selbri <- arc(tanru_selbri(tanru_unit, statement));
-        /// Ordered sequence of zero or more continuations components.
-        field continuations <- [zero_or_more connected_selbri_continuation(tanru_unit, statement)];
+    /// Product node for a complete tanru unit: an atom with optional linkargs,
+    /// followed by zero or more CEI assignments.
+    rule "tanru unit" tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection) -> struct {
+        /// The first linked atom.
+        field base <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection));
+        /// Source-ordered CEI assignments.
+        field assignments <- [zero_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection)];
     }
 
-    /// Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.
-    rule "selbri connection continuation" connected_selbri_continuation(tanru_unit, statement) -> struct {
-        /// The `relation_afterthought_connective` connective joining the adjacent constituents of the `connected_selbri_continuation` production.
-        field connective <- relation_afterthought_connective;
-        /// The shared trailing selbri child syntax node.
-        field trailing_selbri <- arc(tanru_selbri(tanru_unit, statement));
-    }
-
-    /// Product node for tanru; preserves `first_unit` and `additional_units` in source order.
-    rule "tanru" tanru_selbri(tanru_unit, statement) -> struct {
-        /// The initial `tanru_unit` constituent before the continuations of the `tanru_selbri` production.
-        field first_unit <- tanru_unit;
-        /// Ordered sequence of zero or more additional units components.
-        field additional_units <- [zero_or_more tanru_unit];
-    }
-
-    /// Transparent product node for tanru unit; preserves the `units` component.
-    rule "tanru unit" tanru_unit(bo_or_linked_tanru_unit, statement) -> struct {
-        /// The source-ordered `units` chain assembled by the `tanru_unit` production.
-        field units <- chain(
-            first: arc(bo_or_linked_tanru_unit),
-            zero_or_more: tanru_unit_continuation(bo_or_linked_tanru_unit, statement),
-            element: trailing_unit,
-        );
-    }
-
-    /// Product node for tanru unit continuation; preserves `connective` and `trailing_unit` in source order.
-    rule "tanru unit continuation" tanru_unit_continuation(bo_or_linked_tanru_unit, statement) -> struct {
-        /// The `relation_afterthought_connective` connective joining the adjacent constituents of the `tanru_unit_continuation` production.
-        field connective <- relation_afterthought_connective;
-        /// The shared trailing unit child syntax node.
-        field trailing_unit <- arc(bo_or_linked_tanru_unit);
-    }
-
-    /// Sum node for tanru unit; selects among the `forethought_selbri_group_tanru_unit`, `bound_tanru_unit`, `assigned_pro_bridi_tanru_unit`, and `linked_tanru_unit` forms.
-    rule "tanru unit" bo_or_linked_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
-        /// Uses the `forethought_selbri_group_tanru_unit` product form, whose payload preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi`.
-        forethought_selbri_group_tanru_unit,
-        /// Uses the `bound_tanru_unit` product form, whose payload preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit`.
-        bound_tanru_unit,
-        /// Uses the `assigned_pro_bridi_tanru_unit` product form, whose payload preserves `base` and `assignments`.
-        assigned_pro_bridi_tanru_unit,
-        /// Uses the `linked_tanru_unit` product form, whose payload preserves `base` and `linkargs`.
-        linked_tanru_unit,
-    }
-
-    /// Product node for forethought selbri connection; preserves `guhek`, `leading_selbri`, `first_branch`, `additional_branches`, and `gihi` in source order.
-    rule "forethought selbri connection" forethought_selbri_group_tanru_unit(bo_or_linked_tanru_unit, selbri, statement) -> struct {
-        /// The `guhek_connective` forethought connective opening the paired branches of the `forethought_selbri_group_tanru_unit` production.
-        field guhek <- guhek_connective;
-        /// The shared leading selbri child syntax node.
-        field leading_selbri <- arc(selbri);
-        /// The initial `forethought_selbri_group_branch` constituent before the continuations of the `forethought_selbri_group_tanru_unit` production.
-        field first_branch <- forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement);
-        /// Ordered sequence of zero or more additional branches components.
-        field additional_branches <- [zero_or_more zantufa_forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement)];
-        /// The optional gihi component.
-        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
-    }
-
-    /// Product node for forethought selbri connection; preserves `gik` and `unit` in source order.
-    rule "forethought selbri connection" forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement) -> struct {
-        /// The GI-family `gik_connective` connective separating the forethought branches of the `forethought_selbri_group_branch` production.
-        field gik <- gik_connective;
-        /// The shared unit child syntax node.
-        field unit <- arc(bo_or_linked_tanru_unit);
-    }
-
-    /// Product node for forethought selbri connection; preserves `gik` and `unit` in source order.
-    rule "forethought selbri connection" zantufa_forethought_selbri_group_branch(bo_or_linked_tanru_unit, statement) -> struct {
-        assert feature(ZantufaConnectives);
-        /// The GI-family `zantufa_extra_gik_connective` connective separating the forethought branches of the `zantufa_forethought_selbri_group_branch` production.
-        field gik <- zantufa_extra_gik_connective;
-        /// The shared unit child syntax node.
-        field unit <- arc(bo_or_linked_tanru_unit);
-    }
-
-    /// Product node for BO-grouped tanru unit; preserves `leading_unit`, `bo_connective`, `bo_tense_modal`, `bo`, and `trailing_unit` in source order.
-    rule "BO-grouped tanru unit" bound_tanru_unit(bo_or_linked_tanru_unit, tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection) -> struct {
-        /// The shared leading unit child syntax node.
-        field leading_unit <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection));
-        /// The optional bo connective component.
-        field bo_connective <- opt(arc(relation_afterthought_connective));
-        /// The optional bo tense modal component.
-        field bo_tense_modal <- opt(arc(tense_modal));
-        /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo).wf();
-        /// The shared trailing unit child syntax node.
-        field trailing_unit <- arc(bo_or_linked_tanru_unit);
-    }
-
-    /// Product node for pro-bridi assignment; preserves `base` and `assignments` in source order.
-    rule "pro-bridi assignment" assigned_pro_bridi_tanru_unit(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
-        /// The shared base child syntax node.
-        field base <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
-        /// Non-empty ordered sequence of assignments components.
-        field assignments <- [one_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection)];
-    }
-
-    /// Product node for pro-bridi assignment; preserves `cei` and `tanru_unit` in source order.
-    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
-        /// The `Cei` cmavo marker.
+    /// Product node for one CEI assignment.
+    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection) -> struct {
+        /// The CEI marker.
         field cei <- cmavo(Cei).wf();
-        /// The shared tanru unit child syntax node.
-        field tanru_unit <- arc(linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
+        /// The following linked atom.
+        field tanru_unit <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection));
     }
 
     /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
@@ -5085,72 +5091,16 @@ pub mod generated_model {
         field linkargs <- opt(linkargs(sumti, tense_modal, selbri, forethought_bridi_connection));
     }
 
-    /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
-    rule "tanru unit" linked_tanru_unit_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
-        /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
-        /// The optional linkargs component.
-        field linkargs <- opt(linkargs(sumti, tense_modal, selbri, forethought_bridi_connection));
-    }
-
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
+    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
-    }
-
-    /// Sum node for tanru unit; selects among 18 forms including `pro_bridi_tanru_unit`, `ordinal_tanru_unit`, and `word_tanru_unit`.
-    rule "tanru unit" tanru_unit_atom_base_for_cei(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
-        /// Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.
-        pro_bridi_tanru_unit,
-        /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
-        ordinal_tanru_unit,
-        /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
-        word_tanru_unit,
-        /// Uses the `preposed_linkargs_tanru_unit` product form, whose payload preserves `linkargs` and `base`.
-        preposed_linkargs_tanru_unit,
-        /// Uses the `jai_modal_tanru_unit` product form, whose payload preserves `jai`, `tense_modal`, and `inner_unit`.
-        jai_modal_tanru_unit,
-        /// Uses the `scalar_negated_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.
-        scalar_negated_tanru_unit,
-        /// Uses the `zantufa_statement_abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei`.
-        when feature(ZantufaTerms) zantufa_statement_abstraction_tanru_unit,
-        /// Uses the `abstraction_tanru_unit` product form, whose payload preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei`.
-        abstraction_tanru_unit,
-        /// Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.
-        sumti_selbri_tanru_unit,
-        /// Uses the `zantufa_me_tanru_unit` product form, whose payload preserves `me`, `body`, `mehu`, and `moi_marker`.
-        zantufa_me_tanru_unit,
-        /// Uses the `zantufa_mex_moi_tanru_unit` product form, whose payload preserves `expression` and `moi`.
-        zantufa_mex_moi_tanru_unit,
-        /// Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.
-        operator_selbri_tanru_unit,
-        /// Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.
-        quoted_bridi_selbri_tanru_unit,
-        /// Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.
-        quoted_text_selbri_tanru_unit,
-        /// Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.
-        text_selbri_tanru_unit,
-        /// Uses the `tag_selbri_tanru_unit` product form, whose payload preserves `xohi` and `tag`.
-        tag_selbri_tanru_unit,
-        /// Uses the `goha_word_tanru_unit` product form, whose payload preserves `word`.
-        goha_word_tanru_unit,
-        /// Uses the `grouped_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.
-        grouped_tanru_unit,
-    }
-
-    /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
-        /// Ordered sequence of zero or more conversions components.
-        field conversions <- [zero_or_more selmaho(Se).wf()];
-        /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
+        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
     }
 
     /// Sum node for tanru unit; selects among 18 forms including `ordinal_tanru_unit`, `word_tanru_unit`, and `preposed_linkargs_tanru_unit`.
-    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
         /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
@@ -5190,11 +5140,11 @@ pub mod generated_model {
     }
 
     /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.
-    rule "tagged selbri" tagged_selbri_group_tanru_unit(tanru_unit, tense_modal, statement) -> struct {
+    rule "tagged selbri" tagged_selbri_group_tanru_unit(connected_selbri, tense_modal) -> struct {
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
         /// The shared inner selbri child syntax node.
-        field inner_selbri <- arc(connected_selbri(tanru_unit, statement));
+        field inner_selbri <- arc(connected_selbri);
     }
 
     /// Product node for linked arguments; preserves `linkargs` and `base` in source order.
@@ -5206,15 +5156,15 @@ pub mod generated_model {
     }
 
     /// Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, tanru_unit, tense_modal, statement) -> struct {
+    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, connected_selbri, tense_modal) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         /// The shared inner unit child syntax node.
-        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal, statement));
+        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom, connected_selbri, tense_modal));
     }
 
     /// Sum node for scalar-negated tanru unit; selects among the `tagged_selbri_group_tanru_unit`, `pro_bridi_tanru_unit`, and `tanru_unit_atom` forms.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom, tanru_unit, tense_modal, statement) -> enum {
+    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom, connected_selbri, tense_modal) -> enum {
         /// Uses the `tagged_selbri_group_tanru_unit` product form, whose payload preserves `tense_modal` and `inner_selbri`.
         tagged_selbri_group_tanru_unit,
         /// Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.
@@ -5428,11 +5378,11 @@ pub mod generated_model {
     }
 
     /// Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.
-    rule "grouped tanru" grouped_tanru_unit(tanru_unit, statement) -> struct {
+    rule "grouped tanru" grouped_tanru_unit(tanru_selbri) -> struct {
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The shared selbri child syntax node.
-        field selbri <- arc(connected_selbri(tanru_unit, statement));
+        field selbri <- arc(tanru_selbri);
         /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
@@ -5655,6 +5605,21 @@ pub mod generated_model {
         field nai <- opt(cmavo(Nai).wf());
     }
     }
+
+    /// Compatibility name for the now-unified tanru-unit atom used on both
+    /// sides of CEI. The standard grammar has one tanru-unit-1 domain, so the
+    /// epoch-5 model deliberately uses the same validated type throughout.
+    pub type TanruUnitAtomForCeiSyntax = TanruUnitAtomSyntax;
+
+    /// Compatibility name for the unified tanru-unit atom sum used after CEI.
+    pub type TanruUnitAtomBaseForCeiSyntax = TanruUnitAtomBaseSyntax;
+
+    /// Compatibility name for the unified linked tanru unit used after CEI.
+    pub type LinkedTanruUnitForCeiSyntax = LinkedTanruUnitSyntax;
+
+    /// Compatibility name for the former CEI-only wrapper. CEI assignments
+    /// now live on every `TanruUnitSyntax`, matching camxes tanru-unit.
+    pub type AssignedProBridiTanruUnitSyntax = TanruUnitSyntax;
 
     #[bityzba::invariant(true)]
     struct FirstGeneratedTokenVisitor<'tree> {

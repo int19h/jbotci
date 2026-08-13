@@ -1,0 +1,12 @@
+id = "adhoc.syntax.selbri.issue-840-jek-tag-ke-rejected"
+lojban = "lo broda je pu ke brode ke'e ku"
+tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "rejection"]
+
+[[provenance]]
+kind = "other"
+name = "camxes-standard tagged KE restriction"
+description = "Running camxes-standard rejects this description-isolated JEK plus stag plus KE surface because the dedicated tagged grouped continuation is JOIK-only."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [29, 31], source-text = "ku", message = "unexpected cmavo" }]

@@ -1,0 +1,12 @@
+id = "adhoc.syntax.selbri.issue-840-ek-rejected"
+lojban = "lo broda .e brode ku"
+tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "rejection"]
+
+[[provenance]]
+kind = "other"
+name = "I02 retained-standard connective partition"
+description = "Camxes-exp accepts EK here through its merged A/JA/JOI selbri level, but canonical finding I02 deliberately retains the standard selbri partition; running camxes-standard rejects this description-isolated surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [12, 17], source-text = "brode", message = "unexpected brivla" }]

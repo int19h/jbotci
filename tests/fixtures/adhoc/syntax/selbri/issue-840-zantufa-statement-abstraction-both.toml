@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-840-zantufa-statement-abstraction-both"
+lojban = "lo nu mi broda i je do brode kei cu fasnu"
+dialect = "(+zantufa-connectives +zantufa-tags)"
+tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "matrix", "both", "no-delta"]
+
+[[provenance]]
+kind = "other"
+name = "rolling-Zantufa statement abstraction survival control"
+description = "The independently selectable connective and tag families still do not imply Zantufa terms; this rejection remains unchanged."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [20, 22], source-text = "do", message = "unexpected cmavo" }]

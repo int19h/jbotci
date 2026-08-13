@@ -592,7 +592,6 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_untagged_selbr
             first_generated_contradictory_event_tense_modal_for_selbri(&negated.inner_selbri)
         }
         UntaggedSelbriSyntax::CoSelbri(_) => None,
-        UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => None,
     }
 }
 

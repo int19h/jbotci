@@ -555,23 +555,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if co_tail.is_some() {
             return Ok(None);
         }
-        let ConnectedSelbriSyntax {
-            leading_selbri,
-            continuations,
-        } = leading_selbri.as_ref();
-        if !continuations.is_empty() {
-            return Ok(None);
-        }
-        let TanruSelbriSyntax {
-            first_unit,
-            additional_units,
-        } = leading_selbri.as_ref();
-        if !additional_units.is_empty() || !first_unit.0.links.is_empty() {
-            return Ok(None);
-        }
-        let BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) = &*first_unit.0.first else {
+        let Some(unit) = generated_single_tanru_unit_from_tanru_selbri(leading_selbri) else {
             return Ok(None);
         };
+        if !unit.assignments.is_empty() {
+            return Ok(None);
+        }
+        let unit = unit.base.as_ref();
         if unit.linkargs.is_some() || !unit.base.conversions.is_empty() {
             return Ok(None);
         }
@@ -607,13 +597,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         match selbri {
             UntaggedSelbriSyntax::CoSelbri(co_selbri) if co_selbri.co_tail.is_none() => {
-                Self::generated_description_abstraction_for_connected_selbri(
-                    &co_selbri.leading_selbri,
-                )
+                Self::generated_description_abstraction_for_tanru_selbri(&co_selbri.leading_selbri)
             }
-            UntaggedSelbriSyntax::NegatedSelbri(_)
-            | UntaggedSelbriSyntax::CoSelbri(_)
-            | UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => Ok(None),
+            UntaggedSelbriSyntax::NegatedSelbri(_) | UntaggedSelbriSyntax::CoSelbri(_) => Ok(None),
         }
     }
 
@@ -625,7 +611,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if !selbri.continuations.is_empty() {
             return Ok(None);
         }
-        Self::generated_description_abstraction_for_tanru_selbri(&selbri.leading_selbri)
+        let bound = selbri.leading_selbri.as_ref();
+        if bound.bo_tail.is_some() {
+            return Ok(None);
+        }
+        let PlainBoSelbriSyntax::PlainBoTanruUnit(unit) = bound.leading_selbri.as_ref() else {
+            return Ok(None);
+        };
+        if unit.bo_tail.is_some() {
+            return Ok(None);
+        }
+        Self::generated_description_abstraction_for_tanru_unit(&unit.leading_unit)
     }
 
     #[requires(true)]
@@ -633,10 +629,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn generated_description_abstraction_for_tanru_selbri(
         selbri: &'tree TanruSelbriSyntax,
     ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
-        if !selbri.additional_units.is_empty() {
+        let Some(unit) = generated_single_tanru_unit_from_tanru_selbri(selbri) else {
             return Ok(None);
-        }
-        Self::generated_description_abstraction_for_tanru_unit(&selbri.first_unit)
+        };
+        Self::generated_description_abstraction_for_tanru_unit(unit)
     }
 
     #[requires(true)]
@@ -644,34 +640,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn generated_description_abstraction_for_tanru_unit(
         unit: &'tree TanruUnitSyntax,
     ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
-        if !unit.0.links.is_empty() {
+        if !unit.assignments.is_empty() {
             return Ok(None);
         }
-        Self::generated_description_abstraction_for_bo_or_linked_tanru_unit(&unit.0.first)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().is_ok_and(|abstraction| abstraction.is_none_or(|abstraction| !abstraction.link_relation.is_empty())) || ret.is_err())]
-    pub(super) fn generated_description_abstraction_for_bo_or_linked_tanru_unit(
-        unit: &'tree BoOrLinkedTanruUnitSyntax,
-    ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
-        match unit {
-            BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-                // The `be` links belong to this level, not to the NU unit, and
-                // they carry the abstractor's CLL 11.13 trailing place.
-                Ok(
-                    Self::generated_description_abstraction_for_tanru_atom(&unit.base)?.map(
-                        |abstraction| GeneratedDescriptionAbstraction {
-                            linkargs: unit.linkargs.as_ref(),
-                            ..abstraction
-                        },
-                    ),
-                )
-            }
-            BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
-            | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_)
-            | BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(_) => Ok(None),
-        }
+        // The `be` links belong to this level, not to the NU unit, and
+        // they carry the abstractor's CLL 11.13 trailing place.
+        Ok(
+            Self::generated_description_abstraction_for_tanru_atom(&unit.base.base)?.map(
+                |abstraction| GeneratedDescriptionAbstraction {
+                    linkargs: unit.base.linkargs.as_ref(),
+                    ..abstraction
+                },
+            ),
+        )
     }
 
     #[requires(true)]
@@ -687,7 +668,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 )
             }
             TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) if atom.conversions.is_empty() => {
-                Self::generated_description_abstraction_for_connected_selbri(&grouped.selbri)
+                Self::generated_description_abstraction_for_tanru_selbri(&grouped.selbri)
             }
             _ => Ok(None),
         }
@@ -2739,18 +2720,24 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         }
         let tanru = tanru_selbri_from_co_selbri(co_selbri)?;
-        if let Some(tanru) = tanru
-            && (!tanru.additional_units.is_empty()
-                || sumti_selbri_from_generated_tanru_unit(&tanru.first_unit)?.is_some()
-                || generated_tanru_unit_is_grouped(&tanru.first_unit)?)
-        {
-            return Ok(None);
+        if let Some(tanru) = tanru {
+            let Some(unit) = generated_single_tanru_unit_from_tanru_selbri(tanru) else {
+                return Ok(None);
+            };
+            if sumti_selbri_from_generated_tanru_unit(unit)?.is_some()
+                || generated_tanru_unit_is_grouped(unit)?
+            {
+                return Ok(None);
+            }
         }
         let (_, fai_sumti) = self.split_generated_fai_terms(terms.clone())?;
         if !fai_sumti.is_empty() {
             let jai_unit = match tanru {
                 Some(tanru) => {
-                    let (atom, _) = generated_linked_tanru_unit_parts(&tanru.first_unit)?;
+                    let Some(unit) = generated_single_tanru_unit_from_tanru_selbri(tanru) else {
+                        return Ok(None);
+                    };
+                    let (atom, _) = generated_linked_tanru_unit_parts(unit)?;
                     generated_jai_modal_tanru_unit(atom.base.as_ref())
                 }
                 None => None,
@@ -3442,7 +3429,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
         }
         if let Some(tanru) = tanru_selbri_from_selbri(&simple_tail.selbri)?
-            && !tanru.additional_units.is_empty()
+            && generated_single_tanru_unit_from_tanru_selbri(tanru).is_none()
         {
             return self.build_tanru_formula_for_terms_with_head_eventuality_order_and_mode(
                 tanru,
@@ -3475,23 +3462,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(formula);
         }
         if let Some(tanru) = tanru_selbri_from_selbri(&simple_tail.selbri)?
-            && tanru.additional_units.is_empty()
-            && (generated_tanru_unit_is_grouped(&tanru.first_unit)?
-                || generated_tanru_unit_has_scalar_negated_base(&tanru.first_unit))
+            && let Some(unit) = generated_single_tanru_unit_from_tanru_selbri(tanru)
+            && (generated_tanru_unit_is_grouped(unit)?
+                || generated_tanru_unit_has_scalar_negated_base(unit))
         {
             return self.build_relation_formula_for_generated_tanru_unit_terms(
-                &tanru.first_unit,
+                unit,
                 terms,
                 first_visible_place,
                 eventuality,
                 mode,
                 self.source_for_node(
                     source_node,
-                    generated_tanru_unit_formula_source_construct(&tanru.first_unit),
+                    generated_tanru_unit_formula_source_construct(unit),
                 ),
                 self.source_for_node(
                     source_node,
-                    generated_tanru_unit_formula_source_construct(&tanru.first_unit),
+                    generated_tanru_unit_formula_source_construct(unit),
                 ),
             );
         }
@@ -4099,7 +4086,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && !generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref())
             && let UntaggedSelbriSyntax::CoSelbri(co_selbri) = tagged.inner_selbri.as_ref()
             && let Some(tanru) = tanru_selbri_from_co_selbri(co_selbri)?
-            && !tanru.additional_units.is_empty()
+            && generated_single_tanru_unit_from_tanru_selbri(tanru).is_none()
             && terms
                 .iter()
                 .any(|term| generated_term_has_distributed_sumti_connection(term))
@@ -4147,14 +4134,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 simple_tail.selbri.as_ref()
             && co_selbri.co_tail.is_none()
             && let Some(tanru) = tanru_selbri_from_co_selbri(co_selbri)?
-            && tanru.additional_units.is_empty()
-            && let (atom, _) = generated_linked_tanru_unit_parts(&tanru.first_unit)?
+            && let Some(unit) = generated_single_tanru_unit_from_tanru_selbri(tanru)
+            && let (atom, _) = generated_linked_tanru_unit_parts(unit)?
             && generated_jai_modal_tanru_unit(atom.base.as_ref()).is_some()
             && !self.split_generated_fai_terms(terms.clone())?.1.is_empty()
         {
             return self
                 .build_relation_formula_for_generated_tanru_unit_terms_with_preassigned_arguments(
-                    &tanru.first_unit,
+                    unit,
                     preassigned_visible_arguments,
                     preassigned_place_questions,
                     terms,
@@ -4197,7 +4184,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
             }
             if let Some(tanru) = tanru_selbri_from_selbri(&simple_tail.selbri)?
-                && !tanru.additional_units.is_empty()
+                && generated_single_tanru_unit_from_tanru_selbri(tanru).is_none()
             {
                 let mut base_assignments = empty_generated_term_assignments();
                 base_assignments.visible_arguments = preassigned_visible_arguments.clone();
@@ -6217,8 +6204,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             UntaggedSelbriSyntax::CoSelbri(co_selbri) => {
                 relation_label_from_co_selbri(co_selbri).is_err()
             }
-            UntaggedSelbriSyntax::NegatedSelbri(_)
-            | UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => true,
+            UntaggedSelbriSyntax::NegatedSelbri(_) => true,
         };
         if structurally_lowered {
             return self.build_generated_connected_event_tense_formula_for_structural_selbri(
@@ -6784,44 +6770,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 predication_source,
                 formula_source,
             ),
-            UntaggedSelbriSyntax::ForethoughtSelbriConnection(connection) => {
-                let source = source_with_construct(
-                    formula_source.or(predication_source),
-                    "connected-selbri-formula",
-                );
-                let leading_eventuality = match eventuality {
-                    Some(eventuality) => Some(eventuality),
-                    None if !terms.is_empty() => Some(self.build_eventuality(source.clone())?),
-                    None => None,
-                };
-                let assignments =
-                    self.build_term_assignments_for_terms(terms, first_visible_place)?;
-                let mut visible_arguments = assignments.visible_arguments;
-                if !visible_arguments.contains_key(&1) {
-                    let referent = self.build_elided_referent("zo'e".to_owned())?;
-                    insert_visible_argument(
-                        &mut visible_arguments,
-                        1,
-                        ArgumentValue::elided(referent, "zo'e".to_owned(), None),
-                    )?;
-                }
-                let result = self
-                    .build_forethought_selbri_connection_formula_for_visible_arguments(
-                        connection,
-                        visible_arguments,
-                        source,
-                        ConnectorLocus::Predicate,
-                        leading_eventuality,
-                    )?;
-                self.attach_generated_modal_terms_to_formula(
-                    result.formula,
-                    &assignments.modal_terms,
-                )?;
-                if mode != PredicationMode::Asserted {
-                    self.set_formula_predication_mode(result.formula, mode);
-                }
-                Ok(result.formula)
-            }
         }
     }
 
@@ -6899,7 +6847,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         if let Some(tanru) = tanru_selbri_from_co_selbri(selbri)?
-            && !tanru.additional_units.is_empty()
+            && generated_single_tanru_unit_from_tanru_selbri(tanru).is_none()
         {
             let source = if formula_scope_child {
                 formula_source
@@ -6981,11 +6929,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
         }
         if let Some(tanru) = tanru_selbri_from_co_selbri(selbri)?
-            && tanru.additional_units.is_empty()
-            && sumti_selbri_from_generated_tanru_unit(&tanru.first_unit)?.is_none()
+            && let Some(unit) = generated_single_tanru_unit_from_tanru_selbri(tanru)
+            && sumti_selbri_from_generated_tanru_unit(unit)?.is_none()
         {
             let (predication_source, formula_source) =
-                if generated_tanru_unit_is_connected_selbri_formula(&tanru.first_unit) {
+                if generated_tanru_unit_is_connected_selbri_formula(unit) {
                     let source = source_with_construct(
                         formula_source
                             .clone()
@@ -6997,7 +6945,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     (predication_source, formula_source)
                 };
             return self.build_relation_formula_for_generated_tanru_unit_terms(
-                &tanru.first_unit,
+                unit,
                 terms,
                 first_visible_place,
                 eventuality,
@@ -7139,21 +7087,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         let Some(co_tail) = &selbri.co_tail else {
-            return self
-                .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
-                    &selbri.leading_selbri,
-                    visible_arguments,
-                    source,
-                    leading_eventuality,
-                );
-        };
-        let head = self
-            .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
+            return self.build_tanru_selbri_formula_for_visible_arguments_with_head_eventuality(
                 &selbri.leading_selbri,
                 visible_arguments,
-                source.clone(),
                 leading_eventuality,
-            )?;
+                source,
+            );
+        };
+        let head = self.build_tanru_selbri_formula_for_visible_arguments_with_head_eventuality(
+            &selbri.leading_selbri,
+            visible_arguments,
+            leading_eventuality,
+            source.clone(),
+        )?;
         let modifier = self
             .build_property_abstraction_for_co_selbri(&co_tail.trailing_selbri, source.clone())?;
         let relation_formula = self.build_tanru_relation_formula(
@@ -7214,21 +7160,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     > {
         let Some(co_tail) = &selbri.co_tail else {
             let result = self
-                .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
+                .build_tanru_selbri_formula_for_visible_arguments_with_head_eventuality(
                     &selbri.leading_selbri,
                     visible_arguments,
-                    source,
                     leading_eventuality,
+                    source,
                 )?;
             return Ok((result, empty_generated_term_assignments()));
         };
-        let head = self
-            .build_connected_selbri_tanru_formula_for_visible_arguments_with_leading_eventuality(
-                &selbri.leading_selbri,
-                visible_arguments,
-                source.clone(),
-                leading_eventuality,
-            )?;
+        let head = self.build_tanru_selbri_formula_for_visible_arguments_with_head_eventuality(
+            &selbri.leading_selbri,
+            visible_arguments,
+            leading_eventuality,
+            source.clone(),
+        )?;
         let modifier_parameter = self.next_parameter_id();
         self.insert(
             modifier_parameter,

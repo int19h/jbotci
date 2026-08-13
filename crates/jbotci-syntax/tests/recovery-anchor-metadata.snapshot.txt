@@ -1,4 +1,4 @@
-rules: 539
+rules: 537
 rule leading_indicator
   first [Selmaho(Cai), Selmaho(Ui)] conditions []
   field 0 indicator
@@ -13742,6 +13742,9 @@ rule operand_connective
 rule relation_afterthought_connective
   first [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
   first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+rule selbri_afterthought_connective
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
 rule standard_statement_connective
   first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
   first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
@@ -14850,6 +14853,136 @@ rule co_selbri_tail
   field 1 trailing_selbri
     resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
     resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+rule tanru_selbri
+  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 0 first_selbri
+    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+    resume 1 origin RepetitionElementFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 1 origin RepetitionElementFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 1 additional_selbri
+    resume 1 origin RepetitionElementFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 1 origin RepetitionElementFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+rule connected_selbri
+  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 0 leading_selbri
+    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+    resume 1 origin RepetitionElementFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+    resume 1 origin RepetitionElementFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+  field 1 continuations
+    resume 1 origin RepetitionElementFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+    resume 1 origin RepetitionElementFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+rule connected_selbri_continuation
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+rule simple_connected_selbri_continuation
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+  field 0 connective
+    resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+    resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 1 trailing_selbri
+    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+rule grouped_connected_selbri_continuation
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Se)] conditions []
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+  field 0 connective
+    resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Se)] conditions []
+    resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+    resume 1 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
+    resume 1 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
+    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
+    resume 2 origin LiteralRun start [Cmavo(Ke)] conditions []
+    resume 3 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 3 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+    resume 4 origin LiteralRun start [Cmavo(Kehe)] conditions []
+  field 1 tense_modal
+    resume 1 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
+    resume 1 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
+    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
+    resume 2 origin LiteralRun start [Cmavo(Ke)] conditions []
+    resume 3 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 3 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+    resume 4 origin LiteralRun start [Cmavo(Kehe)] conditions []
+  field 2 ke
+    resume 2 origin LiteralRun start [Cmavo(Ke)] conditions []
+    resume 3 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 3 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+    resume 4 origin LiteralRun start [Cmavo(Kehe)] conditions []
+  field 3 inner_selbri
+    resume 3 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 3 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+    resume 4 origin LiteralRun start [Cmavo(Kehe)] conditions []
+  field 4 kehe
+    resume 4 origin LiteralRun start [Cmavo(Kehe)] conditions []
+rule bound_selbri
+  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 0 leading_selbri
+    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+  field 1 bo_tail
+    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+rule bound_selbri_tail
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+  field 0 connective
+    resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions []
+    resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
+    resume 1 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
+    resume 1 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
+    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
+    resume 2 origin LiteralRun start [Cmavo(Bo)] conditions []
+    resume 3 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 3 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 1 tense_modal
+    resume 1 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
+    resume 1 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
+    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
+    resume 2 origin LiteralRun start [Cmavo(Bo)] conditions []
+    resume 3 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 3 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 2 bo
+    resume 2 origin LiteralRun start [Cmavo(Bo)] conditions []
+    resume 3 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 3 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 3 trailing_selbri
+    resume 3 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 3 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+rule plain_bo_selbri
+  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+rule plain_bo_tanru_unit
+  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 0 leading_unit
+    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+    resume 1 origin FieldFirst start [Cmavo(Bo)] conditions []
+  field 1 bo_tail
+    resume 1 origin FieldFirst start [Cmavo(Bo)] conditions []
+rule plain_bo_selbri_tail
+  first [Cmavo(Bo)] conditions []
+  field 0 bo
+    resume 0 origin LiteralRun start [Cmavo(Bo)] conditions []
+    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
+  field 1 trailing_selbri
+    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
 rule forethought_selbri_connection
   first [Selmaho(Guha), Selmaho(Nahe), Selmaho(Se)] conditions []
   field 0 guhek
@@ -14905,143 +15038,7 @@ rule zantufa_forethought_selbri_branch
     resume 2 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
     resume 2 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
     resume 2 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule connected_selbri
-  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 0 leading_selbri
-    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-    resume 1 origin RepetitionElementFirst start [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
-    resume 1 origin RepetitionElementFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
-  field 1 continuations
-    resume 1 origin RepetitionElementFirst start [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
-    resume 1 origin RepetitionElementFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
-rule connected_selbri_continuation
-  first [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
-  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
-  field 0 connective
-    resume 0 origin FieldFirst start [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
-    resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 1 trailing_selbri
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule tanru_selbri
-  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 0 first_unit
-    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-    resume 1 origin RepetitionElementFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 1 origin RepetitionElementFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 1 additional_units
-    resume 1 origin RepetitionElementFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 1 origin RepetitionElementFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
 rule tanru_unit
-  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 0 units
-    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule tanru_unit_continuation
-  first [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
-  first [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
-  field 0 connective
-    resume 0 origin FieldFirst start [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
-    resume 0 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 1 trailing_unit
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule bo_or_linked_tanru_unit
-  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule forethought_selbri_group_tanru_unit
-  first [Selmaho(Guha), Selmaho(Nahe), Selmaho(Se)] conditions []
-  field 0 guhek
-    resume 0 origin FieldFirst start [Selmaho(Guha), Selmaho(Nahe), Selmaho(Se)] conditions []
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Fehe), Cmavo(Fiho), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Ki), Cmavo(Luhei), Cmavo(Me), Cmavo(Mohe), Cmavo(Muhoi), Cmavo(Nihe), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Vei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
-    resume 1 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
-    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-    resume 2 origin FieldFirst start [Cmavo(Gi)] conditions []
-    resume 3 origin RepetitionElementFirst start [Cmavo(Gi)] conditions []
-  field 1 leading_selbri
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Fehe), Cmavo(Fiho), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Ki), Cmavo(Luhei), Cmavo(Me), Cmavo(Mohe), Cmavo(Muhoi), Cmavo(Nihe), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Vei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
-    resume 1 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
-    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-    resume 2 origin FieldFirst start [Cmavo(Gi)] conditions []
-    resume 3 origin RepetitionElementFirst start [Cmavo(Gi)] conditions []
-  field 2 first_branch
-    resume 2 origin FieldFirst start [Cmavo(Gi)] conditions []
-    resume 3 origin RepetitionElementFirst start [Cmavo(Gi)] conditions []
-  field 3 additional_branches
-    resume 3 origin RepetitionElementFirst start [Cmavo(Gi)] conditions []
-  field 4 gihi
-rule forethought_selbri_group_branch
-  first [Cmavo(Gi)] conditions []
-  field 0 gik
-    resume 0 origin FieldFirst start [Cmavo(Gi)] conditions []
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 1 unit
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule zantufa_forethought_selbri_group_branch
-  first [Cmavo(Gi)] conditions []
-  field 1 gik
-    resume 1 origin FieldFirst start [Cmavo(Gi)] conditions []
-    resume 2 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 2 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 2 unit
-    resume 2 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 2 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule bound_tanru_unit
-  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 0 leading_unit
-    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-    resume 1 origin FieldFirst start [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
-    resume 2 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
-    resume 2 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
-    resume 2 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
-    resume 2 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
-    resume 3 origin LiteralRun start [Cmavo(Bo)] conditions []
-    resume 4 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 4 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 1 bo_connective
-    resume 1 origin FieldFirst start [Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Ja), Selmaho(Joi), Selmaho(Na), Selmaho(Se), Selmaho(Vuhu)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaConnectives)]
-    resume 2 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
-    resume 2 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
-    resume 2 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
-    resume 2 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
-    resume 3 origin LiteralRun start [Cmavo(Bo)] conditions []
-    resume 4 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 4 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 2 bo_tense_modal
-    resume 2 origin FieldFirst start [Cmavo(Fehe), Cmavo(Fiho), Cmavo(Ki), Cmavo(Mohe), Cmavo(Nihe), Cmavo(Vei), Selmaho(Bai), Selmaho(Caha), Selmaho(Cuhe), Selmaho(Fa), Selmaho(Faha), Selmaho(Mohi), Selmaho(Nahe), Selmaho(Pa), Selmaho(Pu), Selmaho(Se), Selmaho(Tahe), Selmaho(Va), Selmaho(Veha), Selmaho(Viha), Selmaho(Zaho), Selmaho(Zeha), Selmaho(Zi)] conditions []
-    resume 2 origin FieldFirst start [Selmaho(Se)] conditions [Feature(UnrestrictedFree)]
-    resume 2 origin FieldFirst start [Cmavo(Ba), Cmavo(Bahau), Cmavo(Bahi), Cmavo(Baho), Cmavo(Bai), Cmavo(Bau), Cmavo(Beha), Cmavo(Behau), Cmavo(Behei), Cmavo(Behi), Cmavo(Buhu), Cmavo(Ca), Cmavo(Cahi), Cmavo(Caho), Cmavo(Cahu), Cmavo(Cau), Cmavo(Cihe), Cmavo(Ciho), Cmavo(Cihu), Cmavo(Coha), Cmavo(Cohi), Cmavo(Cohu), Cmavo(Cuhe), Cmavo(Cuhu), Cmavo(Deha), Cmavo(Dehi), Cmavo(Dehiha), Cmavo(Dehihe), Cmavo(Dehihi), Cmavo(Dehiho), Cmavo(Dehihu), Cmavo(Deiha), Cmavo(Diha), Cmavo(Dihi), Cmavo(Diho), Cmavo(Dohe), Cmavo(Duha), Cmavo(Duhi), Cmavo(Duho), Cmavo(Duhoi), Cmavo(Faha), Cmavo(Fahe), Cmavo(Fau), Cmavo(Fihe), Cmavo(Fiho), Cmavo(Fuha), Cmavo(Gaha), Cmavo(Gahu), Cmavo(Gaihi), Cmavo(Gau), Cmavo(Jahe), Cmavo(Jahi), Cmavo(Jihe), Cmavo(Jiho), Cmavo(Jihu), Cmavo(Kaha), Cmavo(Kahai), Cmavo(Kahi), Cmavo(Kai), Cmavo(Ke), Cmavo(Ki), Cmavo(Kihi), Cmavo(Kihoi), Cmavo(Kihu), Cmavo(Kohau), Cmavo(Koi), Cmavo(Kuhu), Cmavo(Lahu), Cmavo(Leha), Cmavo(Lihe), Cmavo(Mahe), Cmavo(Mahi), Cmavo(Maho), Cmavo(Mau), Cmavo(Meha), Cmavo(Mehe), Cmavo(Mohe), Cmavo(Mohu), Cmavo(Muhai), Cmavo(Muhi), Cmavo(Muhu), Cmavo(Naho), Cmavo(Nau), Cmavo(Neha), Cmavo(Nehi), Cmavo(Nehu), Cmavo(Niha), Cmavo(Nihi), Cmavo(Paha), Cmavo(Paho), Cmavo(Pahu), Cmavo(Peho), Cmavo(Piho), Cmavo(Pohi), Cmavo(Pu), Cmavo(Puha), Cmavo(Puhau), Cmavo(Puhe), Cmavo(Puho), Cmavo(Raha), Cmavo(Rahi), Cmavo(Rai), Cmavo(Reho), Cmavo(Riha), Cmavo(Rihi), Cmavo(Rihu), Cmavo(Ruhi), Cmavo(Ruhu), Cmavo(Sau), Cmavo(Sihu), Cmavo(Tahe), Cmavo(Tahi), Cmavo(Tai), Cmavo(Tehe), Cmavo(Tei), Cmavo(Tiha), Cmavo(Tihi), Cmavo(Tihu), Cmavo(Tihuha), Cmavo(Tihuhi), Cmavo(Toho), Cmavo(Tuhi), Cmavo(Va), Cmavo(Vaho), Cmavo(Vahu), Cmavo(Veha), Cmavo(Vehe), Cmavo(Vehi), Cmavo(Vehu), Cmavo(Vei), Cmavo(Vi), Cmavo(Viha), Cmavo(Vihe), Cmavo(Vihi), Cmavo(Vihu), Cmavo(Vu), Cmavo(Vuha), Cmavo(Xaho), Cmavo(Xohu), Cmavo(Za), Cmavo(Zahai), Cmavo(Zaho), Cmavo(Zau), Cmavo(Zeha), Cmavo(Zehe), Cmavo(Zehi), Cmavo(Zeho), Cmavo(Zehu), Cmavo(Zi), Cmavo(Zoha), Cmavo(Zohi), Cmavo(Zu), Cmavo(Zuha), Cmavo(Zuhau), Cmavo(Zuhe), Selmaho(A), Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Lahe), Selmaho(Lau), Selmaho(Na), Selmaho(Nahe), Selmaho(Pa), Selmaho(Roi), Selmaho(Se), Selmaho(Vuhu)] conditions [Feature(ZantufaTags)]
-    resume 2 origin FieldFirst start [Selmaho(Bihi), Selmaho(Gaho), Selmaho(Joi), Selmaho(Na), Selmaho(Se)] conditions [Feature(ZantufaTags), Feature(ZantufaConnectives)]
-    resume 3 origin LiteralRun start [Cmavo(Bo)] conditions []
-    resume 4 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 4 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 3 bo
-    resume 3 origin LiteralRun start [Cmavo(Bo)] conditions []
-    resume 4 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 4 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 4 trailing_unit
-    resume 4 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 4 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule assigned_pro_bridi_tanru_unit
   first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
   first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
   field 0 base
@@ -15068,28 +15065,6 @@ rule linked_tanru_unit
     resume 1 origin FieldFirst start [Cmavo(Be)] conditions []
   field 1 linkargs
     resume 1 origin FieldFirst start [Cmavo(Be)] conditions []
-rule linked_tanru_unit_for_cei
-  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 0 base
-    resume 0 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-    resume 0 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-    resume 1 origin FieldFirst start [Cmavo(Be)] conditions []
-  field 1 linkargs
-    resume 1 origin FieldFirst start [Cmavo(Be)] conditions []
-rule tanru_unit_atom_for_cei
-  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
-  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 0 conversions
-    resume 0 origin RepetitionElementFirst start [Selmaho(Se)] conditions []
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-  field 1 base
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa)] conditions []
-    resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
-rule tanru_unit_atom_base_for_cei
-  first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa)] conditions []
-  first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
 rule tanru_unit_atom
   first [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
   first [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
@@ -15122,10 +15097,10 @@ rule preposed_linkargs_tanru_unit
   first [Cmavo(Be)] conditions []
   field 0 linkargs
     resume 0 origin FieldFirst start [Cmavo(Be)] conditions []
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
     resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
   field 1 base
-    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Guha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
+    resume 1 origin FieldFirst start [Cmavo(Be), Cmavo(Bohei), Cmavo(Gohoi), Cmavo(Jai), Cmavo(Ke), Cmavo(Luhei), Cmavo(Me), Cmavo(Muhoi), Cmavo(Nuha), Cmavo(Tahai), Cmavo(Tei), Cmavo(Xohi), Cmavo(Zehoi), Selmaho(Goha), Selmaho(Lau), Selmaho(Nahe), Selmaho(Nu), Selmaho(Pa), Selmaho(Se)] conditions []
     resume 1 origin FieldFirst start [Selmaho(Nu)] conditions [Feature(ZantufaTerms)]
 rule scalar_negated_tanru_unit
   first [Selmaho(Nahe)] conditions []

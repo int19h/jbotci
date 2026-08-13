@@ -2350,6 +2350,21 @@ pub(super) fn generated_relation_afterthought_connective_formula_operator(
 }
 
 #[requires(true)]
+#[ensures(matches!(ret, RelationAfterthoughtConnectiveSyntax::JekConnective(_) | RelationAfterthoughtConnectiveSyntax::JoikConnective(_)))]
+pub(super) fn relation_afterthought_connective_from_selbri(
+    connective: &SelbriAfterthoughtConnectiveSyntax,
+) -> RelationAfterthoughtConnectiveSyntax {
+    match connective {
+        SelbriAfterthoughtConnectiveSyntax::JekConnective(connective) => {
+            RelationAfterthoughtConnectiveSyntax::JekConnective(connective.clone())
+        }
+        SelbriAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            RelationAfterthoughtConnectiveSyntax::JoikConnective(connective.clone())
+        }
+    }
+}
+
+#[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|token| matches!(token.cmavo(), Some(Cmavo::Ji | Cmavo::Jehi))))]
 pub(super) fn generated_relation_afterthought_connective_question_token(
     connective: &RelationAfterthoughtConnectiveSyntax,
