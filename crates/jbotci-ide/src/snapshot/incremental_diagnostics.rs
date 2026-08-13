@@ -871,12 +871,12 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn fixture_sample_gate_passes_imply_confirmation_equivalence() {
+    fn fixture_sample_gate_passes_match_the_reviewed_set_and_imply_confirmation_equivalence() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../../../tests/fixtures/zantufa/upstream-parity.json"
         ))
         .expect("checked-in fixture JSON");
-        let mut passed = 0;
+        let mut passed_ids = Vec::new();
         for case in fixture["cases"]
             .as_array()
             .expect("fixture cases")
@@ -889,13 +889,21 @@ mod tests {
             let confirmed = DocumentSnapshot::new(old_source, 1);
             let prepared = PreparedDocumentAnalysis::prepare(Some(&confirmed), new_source, 2);
             if prepared.gate() == IncrementalDiagnosticGate::Passed {
-                passed += 1;
+                passed_ids.push(case["id"].as_str().expect("fixture id"));
                 assert_provisional_matches_confirmation(prepared);
             }
         }
-        assert!(
-            passed >= 5,
-            "too few fixture-derived edits passed: {passed}"
+        // The bare Zantufa MEX fragment is deliberately absent: epoch 4's
+        // VUhU-as-sumti route gives it a local experimental warning, which the
+        // cross-paragraph-diagnostic gate must conservatively reject.
+        assert_eq!(
+            passed_ids,
+            [
+                "statement-relative-clause",
+                "grouped-bridi-tail",
+                "statement-abstraction",
+                "xi-mex-free-with-statement-terms",
+            ]
         );
     }
 

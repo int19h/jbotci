@@ -5389,13 +5389,20 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         argument_id,
                         &attachment.relative_clauses,
                     );
-                    if let Some(connection) = attachment.sumti_connection.as_deref() {
-                        self.visit_argument(&connection.sumti);
-                    }
                 }
-                generated::VuhoSumtiAttachmentTailSyntax::VuhoConnectedSumtiAttachmentTail(
+                generated::VuhoSumtiAttachmentTailSyntax::ExperimentalVuhoScopedSumtiAttachmentTail(
                     attachment,
-                ) => self.visit_argument(&attachment.sumti_connection.sumti),
+                ) => {
+                    self.visit_relative_clause_list(
+                        argument_id,
+                        argument_id,
+                        &attachment.relative_clauses,
+                    );
+                    self.visit_argument(&attachment.sumti_connection.sumti);
+                }
+                generated::VuhoSumtiAttachmentTailSyntax::ExperimentalBareVuhoSumtiAttachmentTail(
+                    _,
+                ) => {}
             }
         }
         if !handled_mention {
@@ -5595,6 +5602,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 false
             }
             generated::SumtiBaseSyntax::ScalarNegatedSumtiWithBo(sumti) => {
+                if let Some(clauses) = &sumti.relative_clauses {
+                    self.visit_relative_clause_list(argument_id, argument_id, clauses);
+                }
                 self.visit_argument(&sumti.inner_sumti);
                 false
             }
@@ -5770,8 +5780,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => {
                     self.visit_relative_clause_without_head(&tail.inner);
                 }
-                generated::RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => {
-                    self.visit_relative_clause_without_head(&tail.inner);
+                generated::RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
+                    self.visit_relative_clause_without_head(&tail.0.inner);
                 }
             }
         }
@@ -5791,8 +5801,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::RelativeClauseTailSyntax::JoinedRelativeClauseTail(tail) => {
                     self.visit_relative_clause(assignment_head_id, reference_head_id, &tail.inner);
                 }
-                generated::RelativeClauseTailSyntax::ConnectedRelativeClauseTail(tail) => {
-                    self.visit_relative_clause(assignment_head_id, reference_head_id, &tail.inner);
+                generated::RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
+                    self.visit_relative_clause(
+                        assignment_head_id,
+                        reference_head_id,
+                        &tail.0.inner,
+                    );
                 }
             }
         }

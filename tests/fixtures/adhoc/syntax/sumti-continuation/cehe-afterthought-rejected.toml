@@ -1,0 +1,12 @@
+id = "adhoc.syntax.sumti-continuation.cehe-afterthought-rejected"
+lojban = "tu'a mi ce'e do lu'u cu broda"
+tags = ["adhoc", "syntax", "sumti-continuation", "issue-839", "cehe", "negative", "afterthought"]
+
+[[provenance]]
+kind = "other"
+name = "camxes sumti-connective inventory"
+description = "Neither pinned camxes grammar sources CEhE at a sumti connective level; this pins afterthought rejection."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [16, 20], source-text = "lu'u", message = "unexpected cmavo" }]

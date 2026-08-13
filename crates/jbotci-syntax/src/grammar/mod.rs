@@ -32,6 +32,7 @@ use crate::{
 };
 
 mod baseline_mex;
+mod baseline_relative;
 mod baseline_tag;
 mod generated;
 mod generated_runtime;
@@ -6795,7 +6796,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_v0_joik_and_cehe_argument_connective_cases() {
+    fn parses_v0_joik_and_cehe_connective_cases() {
         run_on_normal_stack(|| {
             for source in [
                 "la djeimyz. cebo la djordj. bruna remei",
@@ -6805,6 +6806,65 @@ mod tests {
             ] {
                 parse_source(source, &ParseOptions::default());
             }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_connective_excludes_cehe_at_all_three_levels() {
+        run_on_normal_stack(|| {
+            for source in [
+                "tu'a mi ce'e do lu'u cu broda",
+                "tu'a mi ce'e bo do lu'u cu broda",
+                "tu'a mi ce'e ke do ke'e lu'u cu broda",
+            ] {
+                let words = segment_words_with_modifiers(source).expect("valid morphology");
+                assert!(
+                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
+                    "CEhE must not parse as a sumti connective: {source}",
+                );
+            }
+
+            let tree = parse_tree_debug("mi ce'e do cu broda", &ParseOptions::default());
+            assert!(tree.contains("TermsetGroup"));
+            assert!(!tree.contains("SumtiConnectiveSyntax::CeheConnective"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_connective_retains_all_jehi_spellings_without_warnings() {
+        run_on_normal_stack(|| {
+            for spelling in ["ja", "je", "je'i", "jo", "ju"] {
+                let source = format!("tu'a mi {spelling} do lu'u cu broda");
+                let parsed = parse_source(&source, &ParseOptions::default());
+                assert!(
+                    parsed.warnings.is_empty(),
+                    "JEhI vocabulary-waiver spelling must remain warning-free: {source}",
+                );
+                assert!(
+                    format!("{:?}", parsed.parse_tree).contains("JehiConnective"),
+                    "JEhI spelling must retain the JEhI sumti-connective arm: {source}",
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vuhu_sumti_connective_is_warning_gated() {
+        run_on_normal_stack(|| {
+            let source = "tu'a mi su'i do lu'u cu broda";
+            let parsed = parse_source(source, &ParseOptions::default());
+            assert_warning_kind(
+                source,
+                &ParseOptions::default(),
+                ExperimentalConstruct::ExperimentalVuhuConnective,
+            );
+            assert!(format!("{:?}", parsed.parse_tree).contains("ExperimentalVuhuSumtiConnective"));
         });
     }
 
@@ -8051,6 +8111,167 @@ mod tests {
         let raw = parse_tree_debug("le gerku voi blabi cu klama", &ParseOptions::default());
         assert!(raw.contains("RestrictiveBridiRelativeClause"));
         assert!(!raw.contains("IncidentalBridiRelativeClause"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn relative_continuation_classifier_preserves_baseline_zihe_ownership() {
+        run_on_normal_stack(|| {
+            let source = "lo gerku poi ke'a barda zi'e noi ke'a melbi cu klama";
+            let parsed = parse_source(source, &ParseOptions::default());
+            let tree = format!("{:?}", parsed.parse_tree);
+            assert!(tree.contains("JoinedRelativeClauseTail"), "{tree}");
+            assert!(!tree.contains("RelativeClauseExpContinuation"), "{tree}");
+            assert!(!has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalRelativeClauseConnective,
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn experimental_relative_continuation_accepts_exact_connective_shape() {
+        run_on_normal_stack(|| {
+            for source in [
+                "lo gerku poi ke'a barda ja noi ke'a melbi cu klama",
+                "lo gerku poi ke'a barda .e noi ke'a melbi cu klama",
+                "lo gerku poi ke'a barda na ja nai noi ke'a melbi cu klama",
+                "lo gerku poi ke'a barda ja voi'e lo mlatu cu klama",
+                "lo gerku poi ke'a barda ja po'oi lo mlatu cu klama",
+                "lo gerku poi ke'a barda ja sei mi cusku noi ke'a melbi cu klama",
+            ] {
+                let parsed = parse_source(source, &ParseOptions::default());
+                let tree = format!("{:?}", parsed.parse_tree);
+                assert!(
+                    tree.contains("RelativeClauseExpContinuation"),
+                    "{source}: {tree}"
+                );
+                assert!(
+                    has_warning_kind(
+                        &parsed,
+                        ExperimentalConstruct::ExperimentalRelativeClauseConnective,
+                    ),
+                    "{source}",
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vuho_ownership_is_consumer_sensitive_and_warning_gated() {
+        run_on_normal_stack(|| {
+            let baseline = parse_source(
+                "mi viska lo gerku vu'o poi ke'a barda",
+                &ParseOptions::default(),
+            );
+            let baseline_tree = format!("{:?}", baseline.parse_tree);
+            assert!(
+                baseline_tree.contains("VuhoRelativeSumtiAttachmentTail"),
+                "{baseline_tree}",
+            );
+            assert!(!has_warning_kind(
+                &baseline,
+                ExperimentalConstruct::ExperimentalVuhoScopedAttachment,
+            ));
+
+            let top_level = parse_source(
+                "mi viska lo gerku vu'o poi ke'a barda ku'o .e lo mlatu",
+                &ParseOptions::default(),
+            );
+            let top_level_tree = format!("{:?}", top_level.parse_tree);
+            assert!(
+                top_level_tree.contains("VuhoRelativeSumtiAttachmentTail"),
+                "{top_level_tree}",
+            );
+            assert!(top_level_tree.contains("ConnectedTerm"), "{top_level_tree}");
+            assert!(!has_warning_kind(
+                &top_level,
+                ExperimentalConstruct::ExperimentalVuhoScopedAttachment,
+            ));
+
+            let elided = parse_source(
+                "mi viska la'e lo gerku vu'o poi ke'a barda ku'o .e lo mlatu",
+                &ParseOptions::default(),
+            );
+            let elided_tree = format!("{:?}", elided.parse_tree);
+            assert!(
+                elided_tree.contains("VuhoRelativeSumtiAttachmentTail"),
+                "{elided_tree}",
+            );
+            assert!(!has_warning_kind(
+                &elided,
+                ExperimentalConstruct::ExperimentalVuhoScopedAttachment,
+            ));
+
+            let explicit_source =
+                "mi viska la'e lo gerku vu'o poi ke'a barda ku'o .e lo mlatu lu'u";
+            let explicit = parse_source(explicit_source, &ParseOptions::default());
+            let explicit_tree = format!("{:?}", explicit.parse_tree);
+            assert!(
+                explicit_tree.contains("ExperimentalVuhoScopedSumtiAttachmentTail"),
+                "{explicit_tree}",
+            );
+            assert!(
+                has_warning_kind(
+                    &explicit,
+                    ExperimentalConstruct::ExperimentalVuhoScopedAttachment,
+                ),
+                "{explicit_source}",
+            );
+
+            let bare = parse_source("mi viska lo gerku vu'o", &ParseOptions::default());
+            assert!(
+                format!("{:?}", bare.parse_tree)
+                    .contains("ExperimentalBareVuhoSumtiAttachmentTail")
+            );
+            assert!(has_warning_kind(
+                &bare,
+                ExperimentalConstruct::ExperimentalVuhoScopedAttachment,
+            ));
+
+            let direct =
+                segment_words_with_modifiers("mi viska la'e lo gerku vu'o .e lo mlatu lu'u")
+                    .expect("valid morphology");
+            assert!(
+                parse_syntax_tree(&direct, &ParseOptions::default()).is_err(),
+                "camxes-exp does not source a VUhO continuation without preceding relatives",
+            );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn nahe_bo_accepts_pre_inner_relative_clauses_without_changing_grouping() {
+        run_on_normal_stack(|| {
+            let nahe = parse_tree_debug(
+                "mi viska na'e bo poi ke'a barda ku'o lo gerku lu'u",
+                &ParseOptions::default(),
+            );
+            let lahe = parse_tree_debug(
+                "mi viska la'e poi ke'a barda ku'o lo gerku lu'u",
+                &ParseOptions::default(),
+            );
+            assert!(nahe.contains("ScalarNegatedSumtiWithBo"), "{nahe}");
+            assert!(nahe.contains("RelativeClauseListSyntax"), "{nahe}");
+            assert!(lahe.contains("LaheSumti"), "{lahe}");
+            assert!(lahe.contains("RelativeClauseListSyntax"), "{lahe}");
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn forethought_relative_clause_connective_remains_rejected() {
+        let words =
+            segment_words_with_modifiers("lo gerku ge poi ke'a barda gi poi ke'a melbi cu klama")
+                .expect("valid morphology");
+        assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
     }
 
     #[test]

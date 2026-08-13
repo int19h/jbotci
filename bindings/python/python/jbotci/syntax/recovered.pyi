@@ -4319,13 +4319,13 @@ class BoundSumtiTailSyntax:
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['bo'], Literal['trailing_sumti']]]
     def __new__(
         cls,
-        connective: RecoveredField[ArgumentConnectiveSyntax],
+        connective: RecoveredField[SumtiConnectiveSyntax],
         tense_modal: RecoveredField[TenseModalSyntax] | None,
         bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
         trailing_sumti: RecoveredField[SumtiBoundSyntax],
     ) -> BoundSumtiTailSyntax: ...
     @property
-    def connective(self) -> RecoveredField[ArgumentConnectiveSyntax]:
+    def connective(self) -> RecoveredField[SumtiConnectiveSyntax]:
         'The shared connective child syntax node.'
         ...
     @property
@@ -4349,10 +4349,10 @@ class BoundSumtiTailSyntax:
 class SumtiAfterthoughtTailSyntax:
     'Product node for sumti connective; preserves `connective` and `sumti` in source order.'
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['sumti']]]
-    def __new__(cls, connective: RecoveredField[ArgumentConnectiveSyntax], sumti: RecoveredField[SumtiBoundSyntax]) -> SumtiAfterthoughtTailSyntax: ...
+    def __new__(cls, connective: RecoveredField[SumtiConnectiveSyntax], sumti: RecoveredField[SumtiBoundSyntax]) -> SumtiAfterthoughtTailSyntax: ...
     @property
-    def connective(self) -> RecoveredField[ArgumentConnectiveSyntax]:
-        'The `argument_connective` connective joining the adjacent constituents of the `sumti_afterthought_tail` production.'
+    def connective(self) -> RecoveredField[SumtiConnectiveSyntax]:
+        'The `sumti_connective` connective joining the adjacent constituents of the `sumti_afterthought_tail` production.'
         ...
     @property
     def sumti(self) -> RecoveredField[SumtiBoundSyntax]:
@@ -4369,15 +4369,15 @@ class GroupedSumtiTailSyntax:
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['ke'], Literal['inner_sumti'], Literal['kehe']]]
     def __new__(
         cls,
-        connective: RecoveredField[ArgumentConnectiveSyntax],
+        connective: RecoveredField[SumtiConnectiveSyntax],
         tense_modal: RecoveredField[TenseModalSyntax] | None,
         ke: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
         inner_sumti: RecoveredField[SumtiSyntax],
         kehe: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
     ) -> GroupedSumtiTailSyntax: ...
     @property
-    def connective(self) -> RecoveredField[ArgumentConnectiveSyntax]:
-        'The `argument_connective` connective joining the adjacent constituents of the `grouped_sumti_tail` production.'
+    def connective(self) -> RecoveredField[SumtiConnectiveSyntax]:
+        'The `sumti_connective` connective joining the adjacent constituents of the `grouped_sumti_tail` production.'
         ...
     @property
     def tense_modal(self) -> RecoveredField[TenseModalSyntax] | None:
@@ -4401,13 +4401,27 @@ class GroupedSumtiTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class VuhoSumtiAttachmentTailSyntaxExperimentalVuhoScopedSumtiAttachmentTail:
+    'Experimental VUhO-scoped continuation with required relatives and one required sumti continuation, reachable only immediately before explicit LUhU.'
+    __match_args__: ClassVar[tuple[Literal['experimental_vuho_scoped_sumti_attachment_tail']]]
+    def __new__(cls, experimental_vuho_scoped_sumti_attachment_tail: RecoveredField[ExperimentalVuhoScopedSumtiAttachmentTailSyntax]) -> VuhoSumtiAttachmentTailSyntaxExperimentalVuhoScopedSumtiAttachmentTail: ...
+    @property
+    def experimental_vuho_scoped_sumti_attachment_tail(self) -> RecoveredField[ExperimentalVuhoScopedSumtiAttachmentTailSyntax]:
+        'Experimental VUhO-scoped continuation with required relatives and one required sumti continuation, reachable only immediately before explicit LUhU.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail:
-    'Uses the `vuho_relative_sumti_attachment_tail` product form, whose payload preserves `vuho`, `relative_clauses`, and `sumti_connection`.'
+    'Baseline VUhO followed by a required relative-clause list.'
     __match_args__: ClassVar[tuple[Literal['vuho_relative_sumti_attachment_tail']]]
     def __new__(cls, vuho_relative_sumti_attachment_tail: RecoveredField[VuhoRelativeSumtiAttachmentTailSyntax]) -> VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail: ...
     @property
     def vuho_relative_sumti_attachment_tail(self) -> RecoveredField[VuhoRelativeSumtiAttachmentTailSyntax]:
-        'Uses the `vuho_relative_sumti_attachment_tail` product form, whose payload preserves `vuho`, `relative_clauses`, and `sumti_connection`.'
+        'Baseline VUhO followed by a required relative-clause list.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4415,32 +4429,27 @@ class VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class VuhoSumtiAttachmentTailSyntaxVuhoConnectedSumtiAttachmentTail:
-    'Uses the `vuho_connected_sumti_attachment_tail` product form, whose payload preserves `vuho` and `sumti_connection`.'
-    __match_args__: ClassVar[tuple[Literal['vuho_connected_sumti_attachment_tail']]]
-    def __new__(cls, vuho_connected_sumti_attachment_tail: RecoveredField[VuhoConnectedSumtiAttachmentTailSyntax]) -> VuhoSumtiAttachmentTailSyntaxVuhoConnectedSumtiAttachmentTail: ...
+class VuhoSumtiAttachmentTailSyntaxExperimentalBareVuhoSumtiAttachmentTail:
+    'Experimental bare VUhO attachment.'
+    __match_args__: ClassVar[tuple[Literal['experimental_bare_vuho_sumti_attachment_tail']]]
+    def __new__(cls, experimental_bare_vuho_sumti_attachment_tail: RecoveredField[ExperimentalBareVuhoSumtiAttachmentTailSyntax]) -> VuhoSumtiAttachmentTailSyntaxExperimentalBareVuhoSumtiAttachmentTail: ...
     @property
-    def vuho_connected_sumti_attachment_tail(self) -> RecoveredField[VuhoConnectedSumtiAttachmentTailSyntax]:
-        'Uses the `vuho_connected_sumti_attachment_tail` product form, whose payload preserves `vuho` and `sumti_connection`.'
+    def experimental_bare_vuho_sumti_attachment_tail(self) -> RecoveredField[ExperimentalBareVuhoSumtiAttachmentTailSyntax]:
+        'Experimental bare VUhO attachment.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for sumti relative phrase; selects among the `vuho_relative_sumti_attachment_tail` and `vuho_connected_sumti_attachment_tail` forms.
-VuhoSumtiAttachmentTailSyntax: TypeAlias = VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail | VuhoSumtiAttachmentTailSyntaxVuhoConnectedSumtiAttachmentTail
+# Sum node for sumti relative phrase; tries the structurally closed scoped-continuation route before baseline VUhO-relative ownership and the bare-VUhO extension.
+VuhoSumtiAttachmentTailSyntax: TypeAlias = VuhoSumtiAttachmentTailSyntaxExperimentalVuhoScopedSumtiAttachmentTail | VuhoSumtiAttachmentTailSyntaxVuhoRelativeSumtiAttachmentTail | VuhoSumtiAttachmentTailSyntaxExperimentalBareVuhoSumtiAttachmentTail
 
 @final
 class VuhoRelativeSumtiAttachmentTailSyntax:
-    'Product node for sumti relative phrase; preserves `vuho`, `relative_clauses`, and `sumti_connection` in source order.'
-    __match_args__: ClassVar[tuple[Literal['vuho'], Literal['relative_clauses'], Literal['sumti_connection']]]
-    def __new__(
-        cls,
-        vuho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        relative_clauses: RecoveredField[RelativeClauseListSyntax],
-        sumti_connection: RecoveredField[SumtiConnectionTailSyntax] | None,
-    ) -> VuhoRelativeSumtiAttachmentTailSyntax: ...
+    'Product node for baseline sumti relative phrase; preserves `vuho` and required `relative_clauses` in source order.'
+    __match_args__: ClassVar[tuple[Literal['vuho'], Literal['relative_clauses']]]
+    def __new__(cls, vuho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], relative_clauses: RecoveredField[RelativeClauseListSyntax]) -> VuhoRelativeSumtiAttachmentTailSyntax: ...
     @property
     def vuho(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
         'The `Vuho` cmavo marker.'
@@ -4449,9 +4458,32 @@ class VuhoRelativeSumtiAttachmentTailSyntax:
     def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax]:
         'The `relative_clause_list` grammar result in the `relative_clauses` structural role of the `vuho_relative_sumti_attachment_tail` production.'
         ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExperimentalVuhoScopedSumtiAttachmentTailSyntax:
+    'Product node for the camxes-exp VUhO-scoped continuation; preserves `vuho`, required `relative_clauses`, and required `sumti_connection` in source order.'
+    __match_args__: ClassVar[tuple[Literal['vuho'], Literal['relative_clauses'], Literal['sumti_connection']]]
+    def __new__(
+        cls,
+        vuho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        relative_clauses: RecoveredField[RelativeClauseListSyntax],
+        sumti_connection: RecoveredField[SumtiConnectionTailSyntax],
+    ) -> ExperimentalVuhoScopedSumtiAttachmentTailSyntax: ...
     @property
-    def sumti_connection(self) -> RecoveredField[SumtiConnectionTailSyntax] | None:
-        'The optional sumti connection component.'
+    def vuho(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The warning-gated `Vuho` marker that identifies experimental scoped ownership.'
+        ...
+    @property
+    def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax]:
+        'Required relative clauses scoped together with the continuation.'
+        ...
+    @property
+    def sumti_connection(self) -> RecoveredField[SumtiConnectionTailSyntax]:
+        'The required sumti continuation child.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4459,17 +4491,13 @@ class VuhoRelativeSumtiAttachmentTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class VuhoConnectedSumtiAttachmentTailSyntax:
-    'Product node for sumti relative phrase; preserves `vuho` and `sumti_connection` in source order.'
-    __match_args__: ClassVar[tuple[Literal['vuho'], Literal['sumti_connection']]]
-    def __new__(cls, vuho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], sumti_connection: RecoveredField[SumtiConnectionTailSyntax]) -> VuhoConnectedSumtiAttachmentTailSyntax: ...
+class ExperimentalBareVuhoSumtiAttachmentTailSyntax:
+    'Product node for the camxes-exp bare-VUhO extension.'
+    __match_args__: ClassVar[tuple[Literal['vuho']]]
+    def __new__(cls, vuho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]) -> ExperimentalBareVuhoSumtiAttachmentTailSyntax: ...
     @property
     def vuho(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The `Vuho` cmavo marker.'
-        ...
-    @property
-    def sumti_connection(self) -> RecoveredField[SumtiConnectionTailSyntax]:
-        'The shared sumti connection child syntax node.'
+        'The warning-gated bare `Vuho` marker.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4774,10 +4802,10 @@ class QuantifiedSumtiSyntax:
 class SumtiConnectionTailSyntax:
     'Product node for sumti connective; preserves `connective` and `sumti` in source order.'
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['sumti']]]
-    def __new__(cls, connective: RecoveredField[ArgumentConnectiveSyntax], sumti: RecoveredField[SumtiSyntax]) -> SumtiConnectionTailSyntax: ...
+    def __new__(cls, connective: RecoveredField[SumtiConnectiveSyntax], sumti: RecoveredField[SumtiSyntax]) -> SumtiConnectionTailSyntax: ...
     @property
-    def connective(self) -> RecoveredField[ArgumentConnectiveSyntax]:
-        'The `argument_connective` connective joining the adjacent constituents of the `sumti_connection_tail` production.'
+    def connective(self) -> RecoveredField[SumtiConnectiveSyntax]:
+        'The `sumti_connective` connective joining the adjacent constituents of the `sumti_connection_tail` production.'
         ...
     @property
     def sumti(self) -> RecoveredField[SumtiSyntax]:
@@ -7643,12 +7671,13 @@ class ScalarNegatedTermWrapperSyntax:
 
 @final
 class ScalarNegatedSumtiWithBoSyntax:
-    'Product node for scalar-negated sumti; preserves `nahe`, `bo`, `inner_sumti`, and `luhu` in source order.'
-    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['bo'], Literal['inner_sumti'], Literal['luhu']]]
+    'Product node for scalar-negated sumti; preserves `nahe`, `bo`, optional `relative_clauses`, `inner_sumti`, and `luhu` in source order.'
+    __match_args__: ClassVar[tuple[Literal['nahe'], Literal['bo'], Literal['relative_clauses'], Literal['inner_sumti'], Literal['luhu']]]
     def __new__(
         cls,
         nahe: RecoveredField[Token],
         bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        relative_clauses: RecoveredField[RelativeClauseListSyntax] | None,
         inner_sumti: RecoveredField[SumtiSyntax],
         luhu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
     ) -> ScalarNegatedSumtiWithBoSyntax: ...
@@ -7659,6 +7688,10 @@ class ScalarNegatedSumtiWithBoSyntax:
     @property
     def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
         'The `Bo` cmavo marker.'
+        ...
+    @property
+    def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax] | None:
+        'Optional relative clauses attached in the standard post-BO slot before the inner sumti.'
         ...
     @property
     def inner_sumti(self) -> RecoveredField[SumtiSyntax]:
@@ -9067,6 +9100,20 @@ class CloseOnlyTextReplacementFreeModifierSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class RelativeClauseTailSyntaxRelativeClauseExpContinuation:
+    'Uses the ownership-filtered camxes-exp continuation route.'
+    __match_args__: ClassVar[tuple[Literal['relative_clause_exp_continuation']]]
+    def __new__(cls, relative_clause_exp_continuation: RecoveredField[RelativeClauseExpContinuationSyntax]) -> RelativeClauseTailSyntaxRelativeClauseExpContinuation: ...
+    @property
+    def relative_clause_exp_continuation(self) -> RecoveredField[RelativeClauseExpContinuationSyntax]:
+        'Uses the ownership-filtered camxes-exp continuation route.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class RelativeClauseTailSyntaxJoinedRelativeClauseTail:
     'Uses the `joined_relative_clause_tail` product form, whose payload preserves `zihe` and `inner`.'
     __match_args__: ClassVar[tuple[Literal['joined_relative_clause_tail']]]
@@ -9080,22 +9127,22 @@ class RelativeClauseTailSyntaxJoinedRelativeClauseTail:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
+# Sum node for relative clauses; gives the completed camxes-exp continuation route first choice, then reparses baseline ZIhE surfaces through the standard arm.
+RelativeClauseTailSyntax: TypeAlias = RelativeClauseTailSyntaxRelativeClauseExpContinuation | RelativeClauseTailSyntaxJoinedRelativeClauseTail
+
 @final
-class RelativeClauseTailSyntaxConnectedRelativeClauseTail:
-    'Uses the `connected_relative_clause_tail` product form, whose payload preserves `connective` and `inner`.'
-    __match_args__: ClassVar[tuple[Literal['connected_relative_clause_tail']]]
-    def __new__(cls, connected_relative_clause_tail: RecoveredField[ConnectedRelativeClauseTailSyntax]) -> RelativeClauseTailSyntaxConnectedRelativeClauseTail: ...
+class RelativeClauseExpContinuationSyntax:
+    'Transparent ownership wrapper for a camxes-exp relative-clause continuation.'
+    __match_args__: ClassVar[tuple[Literal['continuation']]]
+    def __new__(cls, continuation: RecoveredField[ExpRelativeContinuationSyntax]) -> RelativeClauseExpContinuationSyntax: ...
     @property
-    def connected_relative_clause_tail(self) -> RecoveredField[ConnectedRelativeClauseTailSyntax]:
-        'Uses the `connected_relative_clause_tail` product form, whose payload preserves `connective` and `inner`.'
+    def continuation(self) -> RecoveredField[ExpRelativeContinuationSyntax]:
+        'The completed continuation, retained only when baseline ZIhE does not own its identical extent.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for relative clauses; selects among the `joined_relative_clause_tail` and `connected_relative_clause_tail` forms.
-RelativeClauseTailSyntax: TypeAlias = RelativeClauseTailSyntaxJoinedRelativeClauseTail | RelativeClauseTailSyntaxConnectedRelativeClauseTail
 
 @final
 class JoinedRelativeClauseTailSyntax:
@@ -9116,13 +9163,13 @@ class JoinedRelativeClauseTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class ConnectedRelativeClauseTailSyntax:
-    'Product node for relative clause; preserves `connective` and `inner` in source order.'
+class ExpRelativeContinuationSyntax:
+    'Product node for the camxes-exp relative-clause continuation; preserves `connective` and `inner` in source order.'
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['inner']]]
-    def __new__(cls, connective: RecoveredField[RelativeClauseConnectiveSyntax], inner: RecoveredField[RelativeClauseAtomSyntax]) -> ConnectedRelativeClauseTailSyntax: ...
+    def __new__(cls, connective: RecoveredField[ExpRelativeClauseConnectiveSyntax], inner: RecoveredField[RelativeClauseAtomSyntax]) -> ExpRelativeContinuationSyntax: ...
     @property
-    def connective(self) -> RecoveredField[RelativeClauseConnectiveSyntax]:
-        'The `relative_clause_connective` connective joining the adjacent constituents of the `connected_relative_clause_tail` production.'
+    def connective(self) -> RecoveredField[ExpRelativeClauseConnectiveSyntax]:
+        'The camxes-exp connective joining the adjacent relative clauses.'
         ...
     @property
     def inner(self) -> RecoveredField[RelativeClauseAtomSyntax]:
@@ -9134,35 +9181,36 @@ class ConnectedRelativeClauseTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class RelativeClauseConnectiveSyntaxJoikConnective:
-    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
-    __match_args__: ClassVar[tuple[Literal['joik_connective']]]
-    def __new__(cls, joik_connective: RecoveredField[JoikConnectiveSyntax]) -> RelativeClauseConnectiveSyntaxJoikConnective: ...
+class ExpRelativeClauseConnectiveSyntax:
+    'Product node for the exact camxes-exp `NA? SE? (JOI / JA / A) NAI?` relative-clause connective.'
+    __match_args__: ClassVar[tuple[Literal['na'], Literal['se'], Literal['head'], Literal['nai']]]
+    def __new__(
+        cls,
+        na: RecoveredField[Token] | None,
+        se: RecoveredField[Token] | None,
+        head: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        nai: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ExpRelativeClauseConnectiveSyntax: ...
     @property
-    def joik_connective(self) -> RecoveredField[JoikConnectiveSyntax]:
-        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    def na(self) -> RecoveredField[Token] | None:
+        'The optional left-negation prefix.'
+        ...
+    @property
+    def se(self) -> RecoveredField[Token] | None:
+        'The optional conversion prefix.'
+        ...
+    @property
+    def head(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The JOI-, JA-, or A-class connective head; ZIhE is lexically JOI and is classified after the whole continuation parses.'
+        ...
+    @property
+    def nai(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional right-negation suffix.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class RelativeClauseConnectiveSyntaxJekConnective:
-    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
-    __match_args__: ClassVar[tuple[Literal['jek_connective']]]
-    def __new__(cls, jek_connective: RecoveredField[JekConnectiveSyntax]) -> RelativeClauseConnectiveSyntaxJekConnective: ...
-    @property
-    def jek_connective(self) -> RecoveredField[JekConnectiveSyntax]:
-        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for relative clause connective; selects among the `joik_connective` and `jek_connective` forms.
-RelativeClauseConnectiveSyntax: TypeAlias = RelativeClauseConnectiveSyntaxJoikConnective | RelativeClauseConnectiveSyntaxJekConnective
 
 @final
 class RelativeClauseAtomSyntaxSumtiAssociationRelativeClause:
@@ -9870,52 +9918,10 @@ class VuhuNonlogicalConnectiveSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class ArgumentConnectiveSyntaxCeheConnective:
-    'Uses the `cehe_connective` product form, whose payload preserves `cehe` and `nai`.'
-    __match_args__: ClassVar[tuple[Literal['cehe_connective']]]
-    def __new__(cls, cehe_connective: RecoveredField[CeheConnectiveSyntax]) -> ArgumentConnectiveSyntaxCeheConnective: ...
-    @property
-    def cehe_connective(self) -> RecoveredField[CeheConnectiveSyntax]:
-        'Uses the `cehe_connective` product form, whose payload preserves `cehe` and `nai`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ArgumentConnectiveSyntaxEkConnective:
-    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
-    __match_args__: ClassVar[tuple[Literal['ek_connective']]]
-    def __new__(cls, ek_connective: RecoveredField[EkConnectiveSyntax]) -> ArgumentConnectiveSyntaxEkConnective: ...
-    @property
-    def ek_connective(self) -> RecoveredField[EkConnectiveSyntax]:
-        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ArgumentConnectiveSyntaxJehiConnective:
-    'Uses the `jehi_connective` product form, whose payload preserves `na`, `se`, `jehi`, and `nai`.'
-    __match_args__: ClassVar[tuple[Literal['jehi_connective']]]
-    def __new__(cls, jehi_connective: RecoveredField[JehiConnectiveSyntax]) -> ArgumentConnectiveSyntaxJehiConnective: ...
-    @property
-    def jehi_connective(self) -> RecoveredField[JehiConnectiveSyntax]:
-        'Uses the `jehi_connective` product form, whose payload preserves `na`, `se`, `jehi`, and `nai`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ArgumentConnectiveSyntaxJoikConnective:
+class SumtiConnectiveSyntaxJoikConnective:
     'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
     __match_args__: ClassVar[tuple[Literal['joik_connective']]]
-    def __new__(cls, joik_connective: RecoveredField[JoikConnectiveSyntax]) -> ArgumentConnectiveSyntaxJoikConnective: ...
+    def __new__(cls, joik_connective: RecoveredField[JoikConnectiveSyntax]) -> SumtiConnectiveSyntaxJoikConnective: ...
     @property
     def joik_connective(self) -> RecoveredField[JoikConnectiveSyntax]:
         'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
@@ -9926,21 +9932,63 @@ class ArgumentConnectiveSyntaxJoikConnective:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class ArgumentConnectiveSyntaxVuhuNonlogicalConnective:
-    'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
-    __match_args__: ClassVar[tuple[Literal['vuhu_nonlogical_connective']]]
-    def __new__(cls, vuhu_nonlogical_connective: RecoveredField[VuhuNonlogicalConnectiveSyntax]) -> ArgumentConnectiveSyntaxVuhuNonlogicalConnective: ...
+class SumtiConnectiveSyntaxEkConnective:
+    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
+    __match_args__: ClassVar[tuple[Literal['ek_connective']]]
+    def __new__(cls, ek_connective: RecoveredField[EkConnectiveSyntax]) -> SumtiConnectiveSyntaxEkConnective: ...
     @property
-    def vuhu_nonlogical_connective(self) -> RecoveredField[VuhuNonlogicalConnectiveSyntax]:
-        'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
+    def ek_connective(self) -> RecoveredField[EkConnectiveSyntax]:
+        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for sumti connective; selects among the `cehe_connective`, `ek_connective`, `jehi_connective`, `joik_connective`, and `vuhu_nonlogical_connective` forms.
-ArgumentConnectiveSyntax: TypeAlias = ArgumentConnectiveSyntaxCeheConnective | ArgumentConnectiveSyntaxEkConnective | ArgumentConnectiveSyntaxJehiConnective | ArgumentConnectiveSyntaxJoikConnective | ArgumentConnectiveSyntaxVuhuNonlogicalConnective
+@final
+class SumtiConnectiveSyntaxJehiConnective:
+    'Uses the `jehi_connective` product form, whose payload preserves `na`, `se`, `jehi`, and `nai`.'
+    __match_args__: ClassVar[tuple[Literal['jehi_connective']]]
+    def __new__(cls, jehi_connective: RecoveredField[JehiConnectiveSyntax]) -> SumtiConnectiveSyntaxJehiConnective: ...
+    @property
+    def jehi_connective(self) -> RecoveredField[JehiConnectiveSyntax]:
+        'Uses the `jehi_connective` product form, whose payload preserves `na`, `se`, `jehi`, and `nai`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SumtiConnectiveSyntaxExperimentalVuhuSumtiConnective:
+    'Uses the warning-gated `experimental_vuhu_sumti_connective` product form, whose payload preserves `vuhu`.'
+    __match_args__: ClassVar[tuple[Literal['experimental_vuhu_sumti_connective']]]
+    def __new__(cls, experimental_vuhu_sumti_connective: RecoveredField[ExperimentalVuhuSumtiConnectiveSyntax]) -> SumtiConnectiveSyntaxExperimentalVuhuSumtiConnective: ...
+    @property
+    def experimental_vuhu_sumti_connective(self) -> RecoveredField[ExperimentalVuhuSumtiConnectiveSyntax]:
+        'Uses the warning-gated `experimental_vuhu_sumti_connective` product form, whose payload preserves `vuhu`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for sumti connective; selects among the `joik_connective`, `ek_connective`, `jehi_connective`, and `experimental_vuhu_sumti_connective` forms.
+SumtiConnectiveSyntax: TypeAlias = SumtiConnectiveSyntaxJoikConnective | SumtiConnectiveSyntaxEkConnective | SumtiConnectiveSyntaxJehiConnective | SumtiConnectiveSyntaxExperimentalVuhuSumtiConnective
+
+@final
+class ExperimentalVuhuSumtiConnectiveSyntax:
+    'Transparent product node for the camxes-exp VUhU sumti connective extension.'
+    __match_args__: ClassVar[tuple[Literal['vuhu']]]
+    def __new__(cls, vuhu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]) -> ExperimentalVuhuSumtiConnectiveSyntax: ...
+    @property
+    def vuhu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The VUhU word accepted at a sumti connective boundary.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class OperandConnectiveSyntaxJoikConnective:

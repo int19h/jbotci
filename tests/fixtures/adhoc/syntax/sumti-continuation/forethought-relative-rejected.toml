@@ -1,0 +1,12 @@
+id = "adhoc.syntax.sumti-continuation.forethought-relative-rejected"
+lojban = "lo gerku ge poi ke'a barda gi poi ke'a melbi cu klama"
+tags = ["adhoc", "syntax", "sumti-continuation", "issue-838", "issue-855", "forethought", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "pinned camxes-exp forethought deferral probe"
+description = '''`node -e "require('/home/int19h.linux/git/ilmentufa/camxes-exp.js').parse(\"lo gerku ge poi ke'a barda gi poi ke'a melbi cu klama\")"` exits successfully. The distinct forethought relative-list structure is deferred to #855 and deliberately remains rejected in epoch 4.'''
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 15], source-text = "poi", message = "unexpected cmavo" }]

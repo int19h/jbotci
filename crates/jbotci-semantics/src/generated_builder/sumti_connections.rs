@@ -40,9 +40,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let afterthought = sumti.base_sumti.leading_sumti.as_ref();
         if afterthought.continuations.is_empty()
-            || afterthought.continuations.iter().any(|continuation| {
-                generated_argument_connective_is_logical(&continuation.connective)
-            })
+            || afterthought
+                .continuations
+                .iter()
+                .any(|continuation| generated_sumti_connective_is_logical(&continuation.connective))
         {
             return Ok(None);
         }
@@ -310,7 +311,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 place,
                 GeneratedAlternativeArgumentSource::SumtiBound {
                     sumti: &afterthought.leading_sumti,
-                    negated: generated_argument_connective_negates_left(&continuation.connective),
+                    negated: generated_sumti_connective_negates_left(&continuation.connective),
                 },
             )?;
             insert_generated_alternative_argument(
@@ -318,7 +319,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 place,
                 GeneratedAlternativeArgumentSource::SumtiBound {
                     sumti: &continuation.sumti,
-                    negated: generated_argument_connective_negates_right(&continuation.connective),
+                    negated: generated_sumti_connective_negates_right(&continuation.connective),
                 },
             )?;
         }
@@ -332,7 +333,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 place,
                 GeneratedAlternativeArgumentSource::SumtiForethought {
                     sumti: &bound.leading_sumti,
-                    negated: generated_argument_connective_negates_left(tail.connective.as_ref()),
+                    negated: generated_sumti_connective_negates_left(tail.connective.as_ref()),
                 },
             )?;
             insert_generated_alternative_argument(
@@ -340,7 +341,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 place,
                 GeneratedAlternativeArgumentSource::SumtiBound {
                     sumti: &tail.trailing_sumti,
-                    negated: generated_argument_connective_negates_right(tail.connective.as_ref()),
+                    negated: generated_sumti_connective_negates_right(tail.connective.as_ref()),
                 },
             )?;
         }
@@ -1630,9 +1631,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     place,
                     GeneratedAlternativeArgumentSource::SumtiForethought {
                         sumti: &bound.leading_sumti,
-                        negated: generated_argument_connective_negates_left(
-                            tail.connective.as_ref(),
-                        ),
+                        negated: generated_sumti_connective_negates_left(tail.connective.as_ref()),
                     },
                 )?;
                 insert_generated_alternative_argument(
@@ -1640,9 +1639,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     place,
                     GeneratedAlternativeArgumentSource::SumtiBound {
                         sumti: &tail.trailing_sumti,
-                        negated: generated_argument_connective_negates_right(
-                            tail.connective.as_ref(),
-                        ),
+                        negated: generated_sumti_connective_negates_right(tail.connective.as_ref()),
                     },
                 )?;
                 return Ok(Some(GeneratedDistributedSumtiConnective::Argument {
@@ -1703,7 +1700,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             place,
             GeneratedAlternativeArgumentSource::SumtiBound {
                 sumti: &afterthought.leading_sumti,
-                negated: generated_argument_connective_negates_left(&continuation.connective),
+                negated: generated_sumti_connective_negates_left(&continuation.connective),
             },
         )?;
         insert_generated_alternative_argument(
@@ -1711,7 +1708,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             place,
             GeneratedAlternativeArgumentSource::SumtiBound {
                 sumti: &continuation.sumti,
-                negated: generated_argument_connective_negates_right(&continuation.connective),
+                negated: generated_sumti_connective_negates_right(&continuation.connective),
             },
         )?;
         Ok(Some(GeneratedDistributedSumtiConnective::Argument {
@@ -1991,11 +1988,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| id.object_kind() == crate::model::SemanticObjectKind::Parameter)) || ret.is_err())]
-    pub(super) fn build_generated_connective_question_parameter_for_argument_connective(
+    pub(super) fn build_generated_connective_question_parameter_for_sumti_connective(
         &mut self,
-        connective: &'tree ArgumentConnectiveSyntax,
+        connective: &'tree SumtiConnectiveSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some(token) = generated_argument_connective_question_token(connective) else {
+        let Some(token) = generated_sumti_connective_question_token(connective) else {
             return Ok(None);
         };
         self.build_generated_connective_question_parameter_for_token(&token)
@@ -2061,8 +2058,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         connective: GeneratedDistributedSumtiConnective<'tree>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         match connective {
-            GeneratedDistributedSumtiConnective::Argument { connective, .. } => self
-                .build_generated_connective_question_parameter_for_argument_connective(connective),
+            GeneratedDistributedSumtiConnective::Argument { connective, .. } => {
+                self.build_generated_connective_question_parameter_for_sumti_connective(connective)
+            }
             GeneratedDistributedSumtiConnective::Forethought { gek, .. } => self
                 .build_generated_connective_question_parameter_for_modal_forethought_connective(
                     gek,

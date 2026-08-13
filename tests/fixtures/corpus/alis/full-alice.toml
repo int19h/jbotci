@@ -18,17 +18,16 @@ diagnostics = [{ severity = "warning", code = "morphology.warning.experimental-c
 [expectations.syntax]
 status = "success"
 # The inline syntax debug tree is large; keep this full-text fixture reviewable.
-# Round 2 restores the post-NA term ownership rejected by the warning-priority
-# policy while retaining the independently reviewed epoch-2 tag-model regions.
-raw = { sha256 = "58be2ec81f3bd32f48f8cfb3d47520c755a8110f4b2cdcbb52699d6efa318df6" }
+# Epoch 4 adds explicit empty NAhE-BO relative slots and removes obsolete
+# VUhO continuation fields while preserving token ownership.
+raw = { sha256 = "343f918e0cdc21e1df95040e4b12b4a56182e68ebdda95ee247ebc4d8f6a91d8" }
 
 [expectations.semantics.refs]
 status = "success"
-# Restoring the post-NA term splits returns this full semantic projection exactly
-# to the pre-epoch baseline digest.
+# The syntax-only wrapper changes leave the reference projection unchanged.
 raw = { sha256 = "76c489e1dd3b48ed06f378b02b504f6a1e7b2be602b21a6aeab193c6f703fa0a" }
 
 [expectations.output.tersmu]
 status = "success"
-# The canonical graph likewise returns exactly to its pre-epoch baseline digest.
+# The canonical graph is likewise unchanged by the syntax wrapper migration.
 json = { sha256 = "b9f3a10edf4775742cab1024557c94e4a752b18b6d6b3ef6becbf36a5efbd167" }

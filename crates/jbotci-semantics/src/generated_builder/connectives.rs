@@ -93,32 +93,31 @@ pub(super) fn validate_supported_zantufa_joik_semantics(
 
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
-pub(super) fn generated_argument_connective_operator(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_sumti_connective_operator(
+    connective: &SumtiConnectiveSyntax,
 ) -> Result<CompositionOperator, SemanticsError> {
-    if generated_argument_connective_question_token(connective).is_some() {
+    if generated_sumti_connective_question_token(connective).is_some() {
         return Ok(CompositionOperator::ConnectiveQuestion);
     }
-    if generated_argument_connective_is_logical(connective) {
+    if generated_sumti_connective_is_logical(connective) {
         Ok(CompositionOperator::Joint)
     } else {
-        generated_nonlogical_argument_composition_operator(connective)
+        generated_nonlogical_sumti_composition_operator(connective)
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_primary_cmavo(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_sumti_connective_primary_cmavo(
+    connective: &SumtiConnectiveSyntax,
 ) -> Option<Cmavo> {
     match connective {
-        ArgumentConnectiveSyntax::CeheConnective(connective) => connective.cehe.value.cmavo(),
-        ArgumentConnectiveSyntax::EkConnective(connective) => connective.a.value.cmavo(),
-        ArgumentConnectiveSyntax::JehiConnective(connective) => connective.jehi.value.cmavo(),
-        ArgumentConnectiveSyntax::JoikConnective(connective) => {
+        SumtiConnectiveSyntax::JoikConnective(connective) => {
             generated_joik_connective_primary_cmavo(connective)
         }
-        ArgumentConnectiveSyntax::VuhuNonlogicalConnective(connective) => {
+        SumtiConnectiveSyntax::EkConnective(connective) => connective.a.value.cmavo(),
+        SumtiConnectiveSyntax::JehiConnective(connective) => connective.jehi.value.cmavo(),
+        SumtiConnectiveSyntax::ExperimentalVuhuSumtiConnective(connective) => {
             connective.0.value.cmavo()
         }
     }
@@ -126,14 +125,12 @@ pub(super) fn generated_argument_connective_primary_cmavo(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_is_logical(
-    connective: &ArgumentConnectiveSyntax,
-) -> bool {
-    if generated_argument_connective_question_token(connective).is_some() {
+pub(super) fn generated_sumti_connective_is_logical(connective: &SumtiConnectiveSyntax) -> bool {
+    if generated_sumti_connective_question_token(connective).is_some() {
         return true;
     }
     matches!(
-        generated_argument_connective_primary_cmavo(connective),
+        generated_sumti_connective_primary_cmavo(connective),
         Some(
             Cmavo::A
                 | Cmavo::E
@@ -155,30 +152,28 @@ pub(super) fn generated_argument_connective_is_logical(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_is_interval(
-    connective: &ArgumentConnectiveSyntax,
-) -> bool {
+pub(super) fn generated_sumti_connective_is_interval(connective: &SumtiConnectiveSyntax) -> bool {
     matches!(
-        generated_argument_connective_primary_cmavo(connective),
+        generated_sumti_connective_primary_cmavo(connective),
         Some(Cmavo::Bihi | Cmavo::Biho | Cmavo::Mihi)
     )
 }
 
 #[requires(true)]
 #[ensures(ret.is_ok() || ret.is_err())]
-pub(super) fn generated_nonlogical_argument_composition_operator(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_nonlogical_sumti_composition_operator(
+    connective: &SumtiConnectiveSyntax,
 ) -> Result<CompositionOperator, SemanticsError> {
     if matches!(
         connective,
-        ArgumentConnectiveSyntax::VuhuNonlogicalConnective(_)
+        SumtiConnectiveSyntax::ExperimentalVuhuSumtiConnective(_)
     ) {
         return Err(undefined_semantics(&format!(
-            "the experimental VUhU argument connective `{}` outside a mekso expression",
-            generated_argument_connective_source(connective)?
+            "the experimental VUhU sumti connective `{}` outside a mekso expression",
+            generated_sumti_connective_source(connective)?
         )));
     }
-    match generated_argument_connective_primary_cmavo(connective) {
+    match generated_sumti_connective_primary_cmavo(connective) {
         Some(Cmavo::Johu) => Ok(CompositionOperator::Joint),
         Some(Cmavo::Joi) => Ok(CompositionOperator::Mass),
         Some(Cmavo::Ce) => Ok(CompositionOperator::Set),
@@ -191,31 +186,31 @@ pub(super) fn generated_nonlogical_argument_composition_operator(
         Some(Cmavo::Biho) => Ok(CompositionOperator::OrderedInterval),
         Some(Cmavo::Mihi) => Ok(CompositionOperator::CenteredInterval),
         _ => Err(invalid_graph(format!(
-            "generated nonlogical argument connective `{}` has no composition operator",
-            generated_argument_connective_source(connective)?
+            "generated nonlogical sumti connective `{}` has no composition operator",
+            generated_sumti_connective_source(connective)?
         ))),
     }
 }
 
 #[requires(true)]
-#[ensures(!ret || generated_argument_connective_has_se(connective))]
-pub(super) fn generated_argument_connective_reverses_composition_members(
-    connective: &ArgumentConnectiveSyntax,
+#[ensures(!ret || generated_sumti_connective_has_se(connective))]
+pub(super) fn generated_sumti_connective_reverses_composition_members(
+    connective: &SumtiConnectiveSyntax,
 ) -> bool {
-    generated_argument_connective_has_se(connective)
+    generated_sumti_connective_has_se(connective)
         && matches!(
-            generated_argument_connective_primary_cmavo(connective),
+            generated_sumti_connective_primary_cmavo(connective),
             Some(Cmavo::Ceho | Cmavo::Fahu | Cmavo::Pihu | Cmavo::Biho | Cmavo::Mihi)
         )
 }
 
 #[requires(true)]
-#[ensures(ret.is_none() || generated_argument_connective_is_interval(connective))]
-pub(super) fn generated_argument_connective_endpoint_inclusion(
-    connective: &ArgumentConnectiveSyntax,
+#[ensures(ret.is_none() || generated_sumti_connective_is_interval(connective))]
+pub(super) fn generated_sumti_connective_endpoint_inclusion(
+    connective: &SumtiConnectiveSyntax,
     reverse_members: bool,
 ) -> Option<IntervalEndpointInclusion> {
-    let ArgumentConnectiveSyntax::JoikConnective(JoikConnectiveSyntax::ClosedIntervalConnective(
+    let SumtiConnectiveSyntax::JoikConnective(JoikConnectiveSyntax::ClosedIntervalConnective(
         connective,
     )) = connective
     else {
@@ -247,9 +242,7 @@ pub(super) fn endpoint_inclusion_for_generated_cmavo(
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub(super) fn generated_argument_connective_tokens(
-    connective: &ArgumentConnectiveSyntax,
-) -> Vec<Token> {
+pub(super) fn generated_sumti_connective_tokens(connective: &SumtiConnectiveSyntax) -> Vec<Token> {
     let mut collector = GeneratedSpanCollector::default();
     connective.visit_in_order(&mut collector);
     collector.tokens.into_iter().cloned().collect()
@@ -257,45 +250,44 @@ pub(super) fn generated_argument_connective_tokens(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_head_indicator_parts(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_sumti_connective_head_indicator_parts(
+    connective: &SumtiConnectiveSyntax,
 ) -> Vec<IndicatorPart> {
-    generated_argument_connective_tokens(connective)
+    generated_sumti_connective_tokens(connective)
         .into_iter()
-        .filter(generated_argument_connective_token_is_head)
+        .filter(generated_sumti_connective_token_is_head)
         .flat_map(|token| indicator_parts_for_token(&token))
         .collect()
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_modifier_indicator_parts(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_sumti_connective_modifier_indicator_parts(
+    connective: &SumtiConnectiveSyntax,
 ) -> Vec<IndicatorPart> {
-    generated_argument_connective_tokens(connective)
+    generated_sumti_connective_tokens(connective)
         .into_iter()
-        .filter(|token| !generated_argument_connective_token_is_head(token))
+        .filter(|token| !generated_sumti_connective_token_is_head(token))
         .flat_map(|token| indicator_parts_for_token(&token))
         .collect()
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_token_is_head(token: &Token) -> bool {
+pub(super) fn generated_sumti_connective_token_is_head(token: &Token) -> bool {
     token.is_selmaho(Selmaho::A)
         || token.is_selmaho(Selmaho::Joi)
         || token.is_selmaho(Selmaho::Bihi)
         || token.is_selmaho(Selmaho::Vuhu)
         || token.is_selmaho(Selmaho::Jehi)
-        || token.is_cmavo(Cmavo::Cehe)
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|token| matches!(token.cmavo(), Some(Cmavo::Ji | Cmavo::Gehi | Cmavo::Gihi | Cmavo::Guhi | Cmavo::Jehi))))]
-pub(super) fn generated_argument_connective_question_token(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_sumti_connective_question_token(
+    connective: &SumtiConnectiveSyntax,
 ) -> Option<Token> {
-    generated_argument_connective_tokens(connective)
+    generated_sumti_connective_tokens(connective)
         .into_iter()
         .find(|token| {
             matches!(
@@ -307,13 +299,13 @@ pub(super) fn generated_argument_connective_question_token(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_formula_operator(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_sumti_connective_formula_operator(
+    connective: &SumtiConnectiveSyntax,
 ) -> FormulaOperator {
-    if generated_argument_connective_question_token(connective).is_some() {
+    if generated_sumti_connective_question_token(connective).is_some() {
         return FormulaOperator::ConnectiveQuestion;
     }
-    let tokens = generated_argument_connective_tokens(connective);
+    let tokens = generated_sumti_connective_tokens(connective);
     if tokens
         .iter()
         .any(|token| matches!(token.cmavo(), Some(Cmavo::A | Cmavo::Ja | Cmavo::Ga)))
@@ -341,16 +333,16 @@ pub(super) fn generated_argument_connective_formula_operator(
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|source| !source.is_empty()) || ret.is_err())]
-pub(super) fn generated_argument_connective_source(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_sumti_connective_source(
+    connective: &SumtiConnectiveSyntax,
 ) -> Result<String, SemanticsError> {
-    if let Some(token) = generated_argument_connective_question_token(connective) {
+    if let Some(token) = generated_sumti_connective_question_token(connective) {
         return Ok(token_text(&token));
     }
-    let tokens = generated_argument_connective_tokens(connective);
+    let tokens = generated_sumti_connective_tokens(connective);
     if tokens.is_empty() {
         return Err(invalid_graph(
-            "generated argument connective has no tokens".to_owned(),
+            "generated sumti connective has no tokens".to_owned(),
         ));
     }
     Ok(connective_source_from_tokens(tokens.iter().collect()))
@@ -358,13 +350,13 @@ pub(super) fn generated_argument_connective_source(
 
 #[requires(true)]
 #[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
-pub(super) fn generated_argument_connective_truth_table(
-    connective: &ArgumentConnectiveSyntax,
+pub(super) fn generated_sumti_connective_truth_table(
+    connective: &SumtiConnectiveSyntax,
 ) -> Option<String> {
-    if generated_argument_connective_question_token(connective).is_some() {
+    if generated_sumti_connective_question_token(connective).is_some() {
         return None;
     }
-    let tokens = generated_argument_connective_tokens(connective);
+    let tokens = generated_sumti_connective_tokens(connective);
     let base = if tokens
         .iter()
         .any(|token| matches!(token.cmavo(), Some(Cmavo::A | Cmavo::Ja | Cmavo::Ga)))
@@ -388,9 +380,9 @@ pub(super) fn generated_argument_connective_truth_table(
     } else {
         None
     }?;
-    let left_negated = generated_argument_connective_negates_left(connective);
-    let right_negated = generated_argument_connective_negates_right(connective);
-    let se = generated_argument_connective_has_se(connective);
+    let left_negated = generated_sumti_connective_negates_left(connective);
+    let right_negated = generated_sumti_connective_negates_right(connective);
+    let se = generated_sumti_connective_has_se(connective);
     Some(
         [(true, true), (true, false), (false, true), (false, false)]
             .into_iter()
@@ -410,28 +402,24 @@ pub(super) fn generated_argument_connective_truth_table(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_negates_left(
-    connective: &ArgumentConnectiveSyntax,
-) -> bool {
-    generated_argument_connective_tokens(connective)
+pub(super) fn generated_sumti_connective_negates_left(connective: &SumtiConnectiveSyntax) -> bool {
+    generated_sumti_connective_tokens(connective)
         .iter()
         .any(|token| token.cmavo() == Some(Cmavo::Na))
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_negates_right(
-    connective: &ArgumentConnectiveSyntax,
-) -> bool {
-    generated_argument_connective_tokens(connective)
+pub(super) fn generated_sumti_connective_negates_right(connective: &SumtiConnectiveSyntax) -> bool {
+    generated_sumti_connective_tokens(connective)
         .iter()
         .any(|token| token.cmavo() == Some(Cmavo::Nai))
 }
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_argument_connective_has_se(connective: &ArgumentConnectiveSyntax) -> bool {
-    generated_argument_connective_tokens(connective)
+pub(super) fn generated_sumti_connective_has_se(connective: &SumtiConnectiveSyntax) -> bool {
+    generated_sumti_connective_tokens(connective)
         .iter()
         .any(|token| token.is_selmaho(Selmaho::Se))
 }
