@@ -6795,7 +6795,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_v0_joik_and_cehe_argument_connective_cases() {
+    fn parses_v0_joik_and_cehe_connective_cases() {
         run_on_normal_stack(|| {
             for source in [
                 "la djeimyz. cebo la djordj. bruna remei",
@@ -6805,6 +6805,65 @@ mod tests {
             ] {
                 parse_source(source, &ParseOptions::default());
             }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_connective_excludes_cehe_at_all_three_levels() {
+        run_on_normal_stack(|| {
+            for source in [
+                "tu'a mi ce'e do lu'u cu broda",
+                "tu'a mi ce'e bo do lu'u cu broda",
+                "tu'a mi ce'e ke do ke'e lu'u cu broda",
+            ] {
+                let words = segment_words_with_modifiers(source).expect("valid morphology");
+                assert!(
+                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
+                    "CEhE must not parse as a sumti connective: {source}",
+                );
+            }
+
+            let tree = parse_tree_debug("mi ce'e do cu broda", &ParseOptions::default());
+            assert!(tree.contains("TermsetGroup"));
+            assert!(!tree.contains("SumtiConnectiveSyntax::CeheConnective"));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sumti_connective_retains_all_jehi_spellings_without_warnings() {
+        run_on_normal_stack(|| {
+            for spelling in ["ja", "je", "je'i", "jo", "ju"] {
+                let source = format!("tu'a mi {spelling} do lu'u cu broda");
+                let parsed = parse_source(&source, &ParseOptions::default());
+                assert!(
+                    parsed.warnings.is_empty(),
+                    "JEhI vocabulary-waiver spelling must remain warning-free: {source}",
+                );
+                assert!(
+                    format!("{:?}", parsed.parse_tree).contains("JehiConnective"),
+                    "JEhI spelling must retain the JEhI sumti-connective arm: {source}",
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vuhu_sumti_connective_is_warning_gated() {
+        run_on_normal_stack(|| {
+            let source = "tu'a mi su'i do lu'u cu broda";
+            let parsed = parse_source(source, &ParseOptions::default());
+            assert_warning_kind(
+                source,
+                &ParseOptions::default(),
+                ExperimentalConstruct::ExperimentalVuhuConnective,
+            );
+            assert!(format!("{:?}", parsed.parse_tree).contains("ExperimentalVuhuSumtiConnective"));
         });
     }
 

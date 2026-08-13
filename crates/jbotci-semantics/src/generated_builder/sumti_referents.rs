@@ -171,16 +171,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         match simple {
             GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
-                if self.insert_generated_termset_sumti_assignment(
-                    visible_arguments,
-                    formula_scopes,
-                    coequal_scope_groups,
-                    next_visible_place,
-                    self.source_for_node(node, "quantifier-bundle"),
-                    sumti,
-                )? {
-                    return Ok(());
-                }
                 let argument = match generated_voha_place_for_sumti(sumti)
                     .and_then(|place| visible_arguments.get(&place).cloned())
                 {
@@ -317,60 +307,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "non-sumti term reached sumti assignment lowering".to_owned(),
             )),
         }
-    }
-
-    #[requires(*next_visible_place > 0)]
-    #[ensures(ret.as_ref().is_ok_and(|handled| !*handled || *next_visible_place > 1) || ret.is_err())]
-    pub(super) fn insert_generated_termset_sumti_assignment<'syntax: 'tree>(
-        &mut self,
-        visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
-        formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
-        coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
-        next_visible_place: &mut usize,
-        source: Option<crate::model::SemanticSource>,
-        sumti: &'syntax SumtiSyntax,
-    ) -> Result<bool, SemanticsError> {
-        let Some(afterthought) = generated_sumti_afterthought_for_termset(sumti) else {
-            return Ok(false);
-        };
-        let mut local_formula_scopes = Vec::new();
-        self.insert_generated_sumti_bound_termset_assignment(
-            visible_arguments,
-            &mut local_formula_scopes,
-            next_visible_place,
-            &afterthought.leading_sumti,
-        )?;
-        for continuation in &afterthought.continuations {
-            self.insert_generated_sumti_bound_termset_assignment(
-                visible_arguments,
-                &mut local_formula_scopes,
-                next_visible_place,
-                &continuation.sumti,
-            )?;
-        }
-        push_generated_coequal_scope_group_or_individual_scopes(
-            local_formula_scopes,
-            source,
-            formula_scopes,
-            coequal_scope_groups,
-        );
-        Ok(true)
-    }
-
-    #[requires(*next_visible_place > 0)]
-    #[ensures(true)]
-    pub(super) fn insert_generated_sumti_bound_termset_assignment<'syntax: 'tree>(
-        &mut self,
-        visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
-        formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
-        next_visible_place: &mut usize,
-        sumti: &'syntax SumtiBoundSyntax,
-    ) -> Result<(), SemanticsError> {
-        let argument = self.build_generated_alternative_argument_for_sumti_bound(sumti, false)?;
-        formula_scopes.extend(argument.formula_scopes);
-        insert_visible_argument(visible_arguments, *next_visible_place, argument.argument)?;
-        *next_visible_place += 1;
-        Ok(())
     }
 
     #[requires(true)]
@@ -6927,34 +6863,33 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         node: &N,
         source: SemanticObjectId,
-        connective: &'tree ArgumentConnectiveSyntax,
+        connective: &'tree SumtiConnectiveSyntax,
         trailing: SemanticObjectId,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let interval_connective = generated_argument_connective_is_interval(connective);
-        let logical_connective = generated_argument_connective_is_logical(connective);
+        let interval_connective = generated_sumti_connective_is_interval(connective);
+        let logical_connective = generated_sumti_connective_is_logical(connective);
         let operator_parameter =
-            self.build_generated_connective_question_parameter_for_argument_connective(connective)?;
+            self.build_generated_connective_question_parameter_for_sumti_connective(connective)?;
         let right_negated = operator_parameter.is_none()
-            && generated_argument_connective_negates_right(connective)
+            && generated_sumti_connective_negates_right(connective)
             && logical_connective;
         let complement = (operator_parameter.is_none()
             && interval_connective
-            && generated_argument_connective_negates_right(connective))
+            && generated_sumti_connective_negates_right(connective))
         .then_some(true);
         let scalar_negated = (operator_parameter.is_none()
             && !logical_connective
             && !interval_connective
-            && generated_argument_connective_negates_right(connective))
+            && generated_sumti_connective_negates_right(connective))
         .then_some(true);
         let operator = if operator_parameter.is_some() {
             CompositionOperator::ConnectiveQuestion
         } else if logical_connective {
             CompositionOperator::Joint
         } else {
-            generated_nonlogical_argument_composition_operator(connective)?
+            generated_nonlogical_sumti_composition_operator(connective)?
         };
-        let reverse_members =
-            generated_argument_connective_reverses_composition_members(connective);
+        let reverse_members = generated_sumti_connective_reverses_composition_members(connective);
         let (first, second) = if reverse_members {
             (trailing, source)
         } else {
@@ -6972,7 +6907,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         };
         let collective = operator.is_mass().then_some(true);
         let endpoint_inclusion =
-            generated_argument_connective_endpoint_inclusion(connective, reverse_members);
+            generated_sumti_connective_endpoint_inclusion(connective, reverse_members);
         let id = self.next_referent_id();
         self.insert(
             id,
@@ -6996,7 +6931,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
         )?;
         if let Some(anchor) = self.current_utterance {
-            let trailing_parts = generated_argument_connective_head_indicator_parts(connective);
+            let trailing_parts = generated_sumti_connective_head_indicator_parts(connective);
             if !trailing_parts.is_empty()
                 && displayed_content_target_kind_is_allowed(trailing.object_kind())
             {
@@ -7009,8 +6944,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     false,
                 )?;
             }
-            let composite_parts =
-                generated_argument_connective_modifier_indicator_parts(connective);
+            let composite_parts = generated_sumti_connective_modifier_indicator_parts(connective);
             if !composite_parts.is_empty()
                 && displayed_content_target_kind_is_allowed(id.object_kind())
             {

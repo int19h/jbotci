@@ -15,7 +15,7 @@ use jbotci_morphology::{
 use jbotci_source::SourceSpan;
 use jbotci_syntax::generated_model::{
     AbstractionTanruUnitSyntax, AbstractorConnectionSyntax, AfterthoughtBridiTailSyntax,
-    AfterthoughtBridiTailWithoutTailTermsSyntax, ArgumentConnectiveSyntax, ArrayMeksoOperandSyntax,
+    AfterthoughtBridiTailWithoutTailTermsSyntax, ArrayMeksoOperandSyntax,
     AssignedProBridiTanruUnitSyntax, AtomRef as GeneratedAtomRef, AtomicMeksoOperatorSyntax,
     BareCuBridiSyntax, BareCuTermsBridiSyntax, BoGroupedBridiTailSyntax,
     BoGroupedBridiTailWithoutTailTermsSyntax, BoOrLinkedTanruUnitSyntax, BoundMeksoOperandSyntax,
@@ -74,8 +74,8 @@ use jbotci_syntax::generated_model::{
     StatementAfterIConnectiveSyntax, StatementBaseSyntax, StatementConnectiveSyntax,
     StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax, StatementSyntax, SubbridiSyntax,
     SumtiAfterthoughtSyntax, SumtiAssociationRelativeClauseSyntax, SumtiAtomSyntax,
-    SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax, SumtiForethoughtSyntax,
-    SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
+    SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax, SumtiConnectiveSyntax,
+    SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
     SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
     TaggedSelbriSyntax, TaggedSumtiTermSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
@@ -1383,7 +1383,7 @@ impl<'syntax> From<GeneratedAlternativeArgument<'syntax>>
 #[derive(Debug, Clone, Copy)]
 enum GeneratedDistributedSumtiConnective<'syntax> {
     Argument {
-        connective: &'syntax ArgumentConnectiveSyntax,
+        connective: &'syntax SumtiConnectiveSyntax,
         tense_modal: Option<&'syntax TenseModalSyntax>,
         bo: bool,
     },
@@ -1572,11 +1572,9 @@ enum GeneratedPrenexTermEvent<'tree> {
 }
 
 #[invariant(::Complete(_) => true)]
-#[invariant(::Bound(_) => true)]
 #[derive(Debug, Clone, Copy)]
 enum GeneratedPrenexSumtiSyntax<'tree> {
     Complete(&'tree SumtiSyntax),
-    Bound(&'tree SumtiBoundSyntax),
 }
 
 #[invariant(true)]
@@ -3530,20 +3528,15 @@ fn advance_next_visible_place_after_generated_simple_term(
         return Err(undefined_semantics(description));
     }
     match simple {
-        GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
-            let count = generated_sumti_afterthought_for_termset(sumti)
-                .map(|afterthought| 1 + afterthought.continuations.len())
-                .unwrap_or(1);
-            for _ in 0..count {
-                let place =
-                    first_unfilled_generated_simulated_place(assigned_places, *next_visible_place);
-                assigned_places.insert(place);
-                record_generated_simulated_visible_place_assignment(
-                    assigned_places,
-                    next_visible_place,
-                    place,
-                );
-            }
+        GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(_)) => {
+            let place =
+                first_unfilled_generated_simulated_place(assigned_places, *next_visible_place);
+            assigned_places.insert(place);
+            record_generated_simulated_visible_place_assignment(
+                assigned_places,
+                next_visible_place,
+                place,
+            );
             Ok(())
         }
         GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
@@ -3716,7 +3709,7 @@ fn generated_distributed_sumti_connective_formula_operator(
 ) -> FormulaOperator {
     match connective {
         GeneratedDistributedSumtiConnective::Argument { connective, .. } => {
-            generated_argument_connective_formula_operator(connective)
+            generated_sumti_connective_formula_operator(connective)
         }
         GeneratedDistributedSumtiConnective::Forethought { gek, .. } => {
             generated_modal_forethought_connective_formula_operator(gek)
@@ -3735,7 +3728,7 @@ fn generated_distributed_sumti_connective_source(
             tense_modal,
             bo,
         } => {
-            let connective_source = generated_argument_connective_source(connective)?;
+            let connective_source = generated_sumti_connective_source(connective)?;
             let Some(tense_modal) = tense_modal else {
                 return Ok(connective_source);
             };
@@ -3779,7 +3772,7 @@ fn generated_distributed_sumti_connective_truth_table(
 ) -> Option<String> {
     match connective {
         GeneratedDistributedSumtiConnective::Argument { connective, .. } => {
-            generated_argument_connective_truth_table(connective)
+            generated_sumti_connective_truth_table(connective)
         }
         GeneratedDistributedSumtiConnective::Forethought { gek, gik } => {
             generated_modal_forethought_gik_connective_truth_table(gek, gik)
@@ -5217,8 +5210,8 @@ fn generated_logical_sumti_connection_for_branch(
                 &sumti.vuho_attachment
             {
                 let connection = &tail.sumti_connection;
-                if generated_argument_connective_is_logical(&connection.connective)
-                    && !generated_argument_connective_is_interval(&connection.connective)
+                if generated_sumti_connective_is_logical(&connection.connective)
+                    && !generated_sumti_connective_is_interval(&connection.connective)
                 {
                     return Ok(Some(GeneratedLogicalSumtiConnection {
                         leading: GeneratedDistributedSumtiBranch::SumtiGrouped(
@@ -5251,8 +5244,8 @@ fn generated_logical_sumti_connection_for_branch(
         }
         GeneratedDistributedSumtiBranch::SumtiGrouped(sumti) => {
             if let Some(tail) = &sumti.grouped_tail {
-                if generated_argument_connective_is_logical(&tail.connective)
-                    && !generated_argument_connective_is_interval(&tail.connective)
+                if generated_sumti_connective_is_logical(&tail.connective)
+                    && !generated_sumti_connective_is_interval(&tail.connective)
                 {
                     return Ok(Some(GeneratedLogicalSumtiConnection {
                         leading: generated_sumti_afterthought_branch(&sumti.leading_sumti),
@@ -5280,8 +5273,8 @@ fn generated_logical_sumti_connection_for_branch(
                 );
             }
             let continuation = &sumti.continuations[continuation_count - 1];
-            if generated_argument_connective_is_logical(&continuation.connective)
-                && !generated_argument_connective_is_interval(&continuation.connective)
+            if generated_sumti_connective_is_logical(&continuation.connective)
+                && !generated_sumti_connective_is_interval(&continuation.connective)
             {
                 return Ok(Some(GeneratedLogicalSumtiConnection {
                     leading: GeneratedDistributedSumtiBranch::SumtiAfterthought(new!(
@@ -5305,8 +5298,8 @@ fn generated_logical_sumti_connection_for_branch(
         }
         GeneratedDistributedSumtiBranch::SumtiBound(sumti) => {
             if let Some(tail) = &sumti.bound_tail {
-                if generated_argument_connective_is_logical(tail.connective.as_ref())
-                    && !generated_argument_connective_is_interval(tail.connective.as_ref())
+                if generated_sumti_connective_is_logical(tail.connective.as_ref())
+                    && !generated_sumti_connective_is_interval(tail.connective.as_ref())
                 {
                     return Ok(Some(GeneratedLogicalSumtiConnection {
                         leading: GeneratedDistributedSumtiBranch::SumtiForethought(
@@ -5373,7 +5366,7 @@ fn generated_distributed_sumti_connective_negates_left(
 ) -> bool {
     match connective {
         GeneratedDistributedSumtiConnective::Argument { connective, .. } => {
-            generated_argument_connective_negates_left(connective)
+            generated_sumti_connective_negates_left(connective)
         }
         GeneratedDistributedSumtiConnective::Forethought { gek, .. } => {
             generated_modal_forethought_connective_negates_left(gek)
@@ -5388,7 +5381,7 @@ fn generated_distributed_sumti_connective_negates_right(
 ) -> bool {
     match connective {
         GeneratedDistributedSumtiConnective::Argument { connective, .. } => {
-            generated_argument_connective_negates_right(connective)
+            generated_sumti_connective_negates_right(connective)
         }
         GeneratedDistributedSumtiConnective::Forethought { gik, .. } => gik.nai.is_some(),
     }
@@ -5509,7 +5502,7 @@ fn generated_sumti_has_argument_formula_scope(sumti: &SumtiSyntax) -> Result<boo
         || afterthought
             .continuations
             .iter()
-            .any(|continuation| generated_argument_connective_is_logical(&continuation.connective))
+            .any(|continuation| generated_sumti_connective_is_logical(&continuation.connective))
     {
         return Ok(false);
     }
@@ -5707,8 +5700,8 @@ fn generated_sumti_afterthought_for_distribution(
         .continuations
         .iter()
         .all(|continuation| {
-            generated_argument_connective_is_logical(&continuation.connective)
-                && !generated_argument_connective_is_interval(&continuation.connective)
+            generated_sumti_connective_is_logical(&continuation.connective)
+                && !generated_sumti_connective_is_interval(&continuation.connective)
         })
         .then_some(afterthought)
 }
@@ -5727,31 +5720,9 @@ fn generated_sumti_bound_for_distribution(sumti: &SumtiSyntax) -> Option<&SumtiB
     }
     let bound = afterthought.leading_sumti.as_ref();
     let tail = bound.bound_tail.as_ref()?;
-    (generated_argument_connective_is_logical(tail.connective.as_ref())
-        && !generated_argument_connective_is_interval(tail.connective.as_ref()))
+    (generated_sumti_connective_is_logical(tail.connective.as_ref())
+        && !generated_sumti_connective_is_interval(tail.connective.as_ref()))
     .then_some(bound)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_sumti_afterthought_for_termset(
-    sumti: &SumtiSyntax,
-) -> Option<&SumtiAfterthoughtSyntax> {
-    if sumti.vuho_attachment.is_some() || sumti.base_sumti.grouped_tail.is_some() {
-        return None;
-    }
-    let afterthought = sumti.base_sumti.leading_sumti.as_ref();
-    if afterthought.continuations.is_empty() {
-        return None;
-    }
-    afterthought
-        .continuations
-        .iter()
-        .all(|continuation| {
-            generated_argument_connective_primary_cmavo(&continuation.connective)
-                == Some(Cmavo::Cehe)
-        })
-        .then_some(afterthought)
 }
 
 #[requires(true)]
@@ -7940,9 +7911,6 @@ fn generated_prenex_binding_pro_sumti(
     match sumti {
         GeneratedPrenexSumtiSyntax::Complete(sumti) => {
             generated_prenex_binding_pro_sumti_for_sumti(sumti)
-        }
-        GeneratedPrenexSumtiSyntax::Bound(sumti) => {
-            generated_prenex_binding_pro_sumti_for_sumti_bound(sumti)
         }
     }
 }

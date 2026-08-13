@@ -1643,7 +1643,7 @@ pub mod generated_model {
     /// Product node for sumti connection; preserves `connective`, `tense_modal`, `bo`, and `trailing_sumti` in source order.
     rule "sumti connection" bound_sumti_tail(sumti_bound, tense_modal) -> struct {
         /// The shared connective child syntax node.
-        field connective <- arc(argument_connective);
+        field connective <- arc(sumti_connective);
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
         /// The `Bo` cmavo marker.
@@ -1655,16 +1655,16 @@ pub mod generated_model {
     /// Product node for sumti connective; preserves `connective` and `sumti` in source order.
     rule "sumti connective" sumti_afterthought_tail(sumti_bound) -> struct {
         assert zantufa_na_led_term_joik_guard();
-        /// The `argument_connective` connective joining the adjacent constituents of the `sumti_afterthought_tail` production.
-        field connective <- argument_connective;
+        /// The `sumti_connective` connective joining the adjacent constituents of the `sumti_afterthought_tail` production.
+        field connective <- sumti_connective;
         /// The shared sumti child syntax node.
         field sumti <- arc(sumti_bound);
     }
 
     /// Product node for sumti connection; preserves `connective`, `tense_modal`, `ke`, `inner_sumti`, and `kehe` in source order.
     rule "sumti connection" grouped_sumti_tail(sumti, tense_modal) -> struct {
-        /// The `argument_connective` connective joining the adjacent constituents of the `grouped_sumti_tail` production.
-        field connective <- argument_connective;
+        /// The `sumti_connective` connective joining the adjacent constituents of the `grouped_sumti_tail` production.
+        field connective <- sumti_connective;
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Ke` cmavo marker.
@@ -1763,8 +1763,8 @@ pub mod generated_model {
 
     /// Product node for sumti connective; preserves `connective` and `sumti` in source order.
     rule "sumti connective" sumti_connection_tail(sumti) -> struct {
-        /// The `argument_connective` connective joining the adjacent constituents of the `sumti_connection_tail` production.
-        field connective <- argument_connective;
+        /// The `sumti_connective` connective joining the adjacent constituents of the `sumti_connection_tail` production.
+        field connective <- sumti_connective;
         /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
     }
@@ -3577,18 +3577,23 @@ pub mod generated_model {
         field vuhu <- selmaho(Vuhu).wf();
     }
 
-    /// Sum node for sumti connective; selects among the `cehe_connective`, `ek_connective`, `jehi_connective`, `joik_connective`, and `vuhu_nonlogical_connective` forms.
-    rule "sumti connective" argument_connective -> enum {
-        /// Uses the `cehe_connective` product form, whose payload preserves `cehe` and `nai`.
-        cehe_connective,
+    /// Sum node for sumti connective; selects among the `joik_connective`, `ek_connective`, `jehi_connective`, and `experimental_vuhu_sumti_connective` forms.
+    rule "sumti connective" sumti_connective -> enum {
+        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
+        joik_connective,
         /// Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.
         ek_connective,
         /// Uses the `jehi_connective` product form, whose payload preserves `na`, `se`, `jehi`, and `nai`.
         jehi_connective,
-        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
-        joik_connective,
-        /// Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.
-        vuhu_nonlogical_connective,
+        /// Uses the warning-gated `experimental_vuhu_sumti_connective` product form, whose payload preserves `vuhu`.
+        experimental_vuhu_sumti_connective,
+    }
+
+    /// Transparent product node for the camxes-exp VUhU sumti connective extension.
+    rule "sumti connective" experimental_vuhu_sumti_connective -> struct {
+        #[tree_child(primary)]
+        /// The VUhU word accepted at a sumti connective boundary.
+        field vuhu <- selmaho(Vuhu).warn(ExperimentalVuhuConnective).wf();
     }
 
     /// Sum node for operand connective; selects among the `joik_connective` and `ek_connective` forms.

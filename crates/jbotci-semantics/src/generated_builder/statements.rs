@@ -63,32 +63,13 @@ impl<'builder, 'a, 'dict, 'tree> GeneratedPrenexTermCollector<'builder, 'a, 'dic
         self.events.push(GeneratedPrenexTermEvent::EndGroup);
     }
 
-    /// A CEhE afterthought termset is represented inside a single `SumtiSyntax`,
-    /// unlike a NUhI termset whose children remain ordinary `TermSyntax` nodes.
-    /// Emit the same balanced group event stream for both syntax spellings.
     #[requires(true)]
-    #[ensures(self.events.len() > old(self.events.len()))]
+    #[ensures(self.events.len() == old(self.events.len()) + 1)]
     fn push_sumti(&mut self, sumti: &'tree SumtiSyntax, is_topic: bool) {
-        if let Some(termset) = generated_sumti_afterthought_for_termset(sumti) {
-            self.start_group(sumti);
-            self.events.push(GeneratedPrenexTermEvent::Sumti {
-                syntax: GeneratedPrenexSumtiSyntax::Bound(&termset.leading_sumti),
-                is_topic,
-            });
-            self.events
-                .extend(termset.continuations.iter().map(|continuation| {
-                    GeneratedPrenexTermEvent::Sumti {
-                        syntax: GeneratedPrenexSumtiSyntax::Bound(&continuation.sumti),
-                        is_topic,
-                    }
-                }));
-            self.end_group();
-        } else {
-            self.events.push(GeneratedPrenexTermEvent::Sumti {
-                syntax: GeneratedPrenexSumtiSyntax::Complete(sumti),
-                is_topic,
-            });
-        }
+        self.events.push(GeneratedPrenexTermEvent::Sumti {
+            syntax: GeneratedPrenexSumtiSyntax::Complete(sumti),
+            is_topic,
+        });
     }
 }
 
@@ -299,15 +280,6 @@ fn generated_prenex_relation_variable_syntax(
     match sumti {
         GeneratedPrenexSumtiSyntax::Complete(sumti) => {
             relation_variable_syntax_from_no_gadri_prenex_sumti(sumti)
-        }
-        GeneratedPrenexSumtiSyntax::Bound(sumti) => {
-            let Some(description) = no_gadri_description_from_sumti_bound(sumti)? else {
-                return Ok(None);
-            };
-            if description.relative_clauses.is_some() {
-                return Ok(None);
-            }
-            relation_variable_syntax_from_generated_selbri(&description.selbri)
         }
     }
 }
@@ -4463,9 +4435,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         GeneratedPrenexSumtiSyntax::Complete(sumti) => {
                             self.generated_prenex_formula_scope_for_sumti(sumti)?
                         }
-                        GeneratedPrenexSumtiSyntax::Bound(sumti) => {
-                            self.generated_prenex_formula_scope_for_sumti_bound(sumti)?
-                        }
                     };
                     if let Some(scope) = scope {
                         groups
@@ -4513,16 +4482,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 GeneratedPrenexSumtiSyntax::Complete(sumti) => {
                     self.apply_generated_prenex_goi_assignments_for_sumti(sumti)?;
                 }
-                GeneratedPrenexSumtiSyntax::Bound(sumti) => {
-                    self.apply_generated_prenex_goi_assignments_for_sumti_bound(sumti)?;
-                }
             }
             if let Some(pro_sumti) = generated_prenex_binding_pro_sumti(sumti) {
                 let key = token_text(&pro_sumti.0.value);
                 let source = self.source_for_node(pro_sumti, "sumti");
                 let scope_key = match sumti {
                     GeneratedPrenexSumtiSyntax::Complete(sumti) => self.source_key_for_node(sumti),
-                    GeneratedPrenexSumtiSyntax::Bound(sumti) => self.source_key_for_node(sumti),
                 };
                 self.prenex_pro_sumti_bindings
                     .entry(key.clone())
@@ -4557,9 +4522,6 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 topics.push(match sumti {
                     GeneratedPrenexSumtiSyntax::Complete(sumti) => {
                         self.build_sumti_referent(sumti)?
-                    }
-                    GeneratedPrenexSumtiSyntax::Bound(sumti) => {
-                        self.build_sumti_bound_referent(sumti)?
                     }
                 });
             }
