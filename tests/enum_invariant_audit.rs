@@ -1620,10 +1620,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexSumtiSyntax::Bound",
-        "borrowed prenex sumti view delegates validity to the referenced bound-sumti syntax node",
-    ),
-    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedPrenexSumtiSyntax::Complete",
         "borrowed prenex sumti view delegates validity to the referenced complete sumti syntax node",
     ),
