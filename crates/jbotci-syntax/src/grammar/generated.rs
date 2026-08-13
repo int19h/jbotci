@@ -3753,7 +3753,7 @@ pub mod generated_model {
         joik_jek_gi_forethought_connective,
         /// Uses the `jek_gi_forethought_connective` product form, whose payload preserves `na`, `se`, `ja`, and 3 other fields.
         jek_gi_forethought_connective,
-        /// Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, and `bo`.
+        /// Uses the `modal_gi_forethought_connective` product form, whose payload preserves `tense_modal`, `gi`, `nai`, and `bo`.
         modal_gi_forethought_connective,
         /// Uses the `zantufa_initial_gi_forethought_connective` product form, whose payload preserves `gi`, `tail`, and `bo`.
         when feature(ZantufaConnectives) zantufa_initial_gi_forethought_connective,
@@ -3807,12 +3807,14 @@ pub mod generated_model {
         field bo <- opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
     }
 
-    /// Product node for forethought connective; preserves `tense_modal`, `gi`, and `bo` in source order.
+    /// Product node for forethought connective; preserves `tense_modal`, `gi`, `nai`, and `bo` in source order.
     rule "forethought connective" modal_gi_forethought_connective(tense_modal) -> struct {
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
         /// The `Gi` cmavo marker.
         field gi <- cmavo(Gi).wf();
+        /// The optional standard `Nai` suffix on the tag-opened GI connective.
+        field nai <- opt(cmavo(Nai).wf());
         /// The optional `Bo` cmavo marker.
         field bo <- opt(cmavo(Bo).warn(ExperimentalZantufaGek).wf());
     }

@@ -1,0 +1,12 @@
+id = "adhoc.syntax.forethought.issue-814-joik-gi-nai-rejected"
+lojban = "joi gi nai mi klama gi do klama"
+tags = ["adhoc", "syntax", "forethought", "issue-814", "camxes-standard", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "pinned camxes-standard running-parser probe"
+description = '''ilmentufa commit `778ea138f7d150121ca722db7536ce3b123943ac`, `camxes.peg` SHA-256 `a76803f447c15710a0d39283ea139b697d86fa162430b7b50ba14ae6dd60eb37`, rules `gek`/`gik` at lines 308/312. `node -e "require('/home/int19h.linux/git/ilmentufa/camxes.js').parse('joi gi nai mi klama gi do klama')"` throws (`Expected [,] but \"k\" found`), confirming the distinct `joik GI` opening has no post-GI NAI.'''
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [7, 10], source-text = "nai", message = "unexpected cmavo" }]
