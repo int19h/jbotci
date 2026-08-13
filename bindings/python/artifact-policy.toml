@@ -28,6 +28,10 @@
 # 95,029,675 unpacked bytes, within 5% of their prior ceilings. Recalibrate only
 # those two marginal ratchets here; the post-epoch-11 closing sweep will
 # re-ratchet the complete artifact policy after the generated model stabilizes.
+# Epoch 4's sumti-continuation model brings the stripped aarch64 wheel to
+# 22,106,247 archive bytes and 96,208,471 unpacked bytes. Both cross or remain
+# within 5% of the sdist-wheel ceiling, so round up that nearest ratchet only;
+# the 20% growth allowance and entry limit remain unchanged.
 [sizes.sdist]
 baseline_bytes = 3800000
 baseline_unpacked_bytes = 24200000
@@ -71,7 +75,7 @@ max_growth_percent = 25
 max_entries = 32
 
 [sizes.sdist-wheel-aarch64]
-baseline_bytes = 18500000
-baseline_unpacked_bytes = 80000000
+baseline_bytes = 18600000
+baseline_unpacked_bytes = 81000000
 max_growth_percent = 20
 max_entries = 32
