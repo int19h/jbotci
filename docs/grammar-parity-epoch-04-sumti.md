@@ -75,3 +75,37 @@ camxes keeps ZIhE-only relative repetition and requires a relative list after
 VUhO. Rolling Zantufa also accepts ZIhE through lexical JOI. Its bare adjacency
 and other wider repetitions remain deferred to #828 rather than being folded
 into this exact camxes-exp route.
+
+## C3 expectation ledger
+
+The single consolidated rewrite scanned 26,302 fixtures and changed 69. The
+committed comparer, `tools/compare-sumti-continuation-expectations.py`, compares
+the pre-C3 tree with the regenerated tree and accepts exactly two mechanical
+classes at identical spans:
+
+- **Sumti-connective re-wrapping (2):** `corpus/camxes/17625` and
+  `corpus/camxes/18858`. The old VUhU argument-connective wrapper becomes the
+  warning-gated VUhU sumti-connective wrapper; its token, span, and enclosing
+  sumti continuation are unchanged. The corresponding unsupported-semantics
+  diagnostic changes only “argument connective” to “sumti connective”.
+- **Relative-continuation re-typing (2):**
+  `adhoc/v0/warnings/experimental/simpler-joi-relative-clause-connective` and
+  `adhoc/v0/warnings/experimental/simpler-relative-clause-connective`. The old
+  JOIK/JEK connected-relative node becomes the experimental relative
+  continuation with the same connective head, following relative atom, and
+  spans.
+
+The other 65 fixtures were reviewed manually. Each row below names every
+fixture in that behavioral class; paths are relative to `tests/fixtures`.
+
+| Behavior | Fixtures | Manual justification |
+| --- | --- | --- |
+| CEhE removal from sumti continuation (10) | `cll/chapter-14/section-14.11/c14e11d2`, `cll/chapter-14/section-14.11/c14e11d4`, `cll/chapter-14/section-14.14/c14e14d15`, `cll/chapter-16/section-16.7/c16e7d5`, `corpus/camxes/1440`, `corpus/camxes/1533`, `corpus/camxes/3`, `corpus/camxes/811`, `corpus/camxes/812`, `muplis/collection-18/1323-front` | Each CEhE pair moves, at the same token spans, from an invalid sumti afterthought connection into the existing typed `TermsetGroup`/`TermsetGroupContinuation` owner. The larger reference deltas are the intended consequence: all terms of the termset are now assigned instead of treating the second member as a connected sumti. |
+| Empty NAhE-BO relative slot (41) | `adhoc/v0/warnings/standard-no-warning/standard-nahe-bo-argument`, `cll/chapter-06/section-6.10/c6e10d10`, `cll/chapter-06/section-6.10/c6e10d11`, `cll/chapter-15/section-15.6/c15e6d2`, `cll/chapter-15/section-15.6/c15e6d3`, `corpus/camxes/11165`, `corpus/camxes/11478`, `corpus/camxes/12195`, `corpus/camxes/12797`, `corpus/camxes/1456`, `corpus/camxes/1522`, `corpus/camxes/15757`, `corpus/camxes/1636`, `corpus/camxes/16427`, `corpus/camxes/16583`, `corpus/camxes/1660`, `corpus/camxes/17746`, `corpus/camxes/17808`, `corpus/camxes/18301`, `corpus/camxes/18499`, `corpus/camxes/18544`, `corpus/camxes/18611`, `corpus/camxes/19308`, `corpus/camxes/19445`, `corpus/camxes/19717`, `corpus/camxes/19738`, `corpus/camxes/2003`, `corpus/camxes/20071`, `corpus/camxes/20427`, `corpus/camxes/20459`, `corpus/camxes/20560`, `corpus/camxes/21328`, `corpus/camxes/21377`, `corpus/camxes/21466`, `corpus/camxes/2204`, `corpus/camxes/2495`, `corpus/camxes/2510`, `corpus/camxes/2725`, `corpus/camxes/7148`, `corpus/camxes/7796`, `muplis/collection-18/865-front` | Each tree differs only by `relative_clauses: None` in `ScalarNegatedSumtiWithBoSyntax`, immediately before the unchanged inner sumti. This is the new sourced slot in its empty state; acceptance, ownership, diagnostics, spans, and semantics remain unchanged. |
+| Baseline VUhO required-relative variant (12) | `adhoc/v0/warnings/standard-no-warning/standard-vuho-relative-clause`, `cll/chapter-08/section-8.8/c8e8d6`, `cll/chapter-08/section-8.8/c8e8d8`, `cll/chrestomathy/alice01`, `corpus/camxes/11182`, `corpus/camxes/1984`, `corpus/camxes/2029`, `corpus/camxes/2033`, `corpus/camxes/2038`, `corpus/camxes/2467`, `corpus/camxes/832`, `corpus/camxes/833` | Each warning-free baseline VUhO tree loses only the obsolete `sumti_connection: None` field. VUhO, its required relative list, all spans, and the semantic attachment are unchanged. |
+| Experimental scoped VUhO ownership (1) | `adhoc/v0/warnings/experimental/vuho-scoped-attachment` | The continuation moves into `VuhoConnectedSumtiAttachmentTail` under the explicit-LUhU consumer. Gentufa keeps the same token spans; reference assignments now expose the four owned termset members, which is the intended consumer-dependent scope rather than the old two connected sums. |
+| Hash-only full corpus (1) | `corpus/alis/full-alice` | The syntax digest changes from the same explicit empty NAhE-BO slots and removed baseline-VUhO empty continuation fields audited above. Its morphology digest, reference digest, and tersmu digest remain byte-for-byte unchanged, ruling out tokenization or semantic drift. |
+
+The comparer reports `2 + 2` mechanical fixtures and all 65 manual fixtures;
+it does not normalize CEhE acceptance, VUhO ownership, optional-field additions,
+warnings, or hashes.
