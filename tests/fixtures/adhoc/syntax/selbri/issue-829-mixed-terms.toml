@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-829-mixed-terms"
+lojban = "lo ke broda co brode ke'e cei na brodi ku"
+dialect = "(+zantufa-terms)"
+tags = ["adhoc", "syntax", "issue-829", "selbri-reconstruction", "matrix", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "S14 two-gate matrix"
+description = "ZantufaTerms alone cannot admit the required KE/CO atom."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 25], source-text = "ke'e", message = "unexpected cmavo" }]

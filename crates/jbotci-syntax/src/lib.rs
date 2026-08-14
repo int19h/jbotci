@@ -1933,6 +1933,36 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "Zantufa priority assigned selbri",
+        parent: Some("selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa assigned selbri",
+        parent: Some("Zantufa priority assigned selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa selbri assignment",
+        parent: Some("Zantufa assigned selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa KE/CO grouped tanru",
+        parent: Some("tanru unit"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "Zantufa KE/CO grouped tanru continuation",
+        parent: Some("Zantufa KE/CO grouped tanru"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "grouped selbri connection continuation",
         parent: Some("selbri connection continuation"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -3023,6 +3053,8 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaRahoiQuote,
     ExperimentalZantufaMuhoiSelbriUnit,
     ExperimentalZantufaLuheiSelbriUnit,
+    ExperimentalZantufaSelbriAssignment,
+    ExperimentalZantufaKeCoGrouping,
     CllProhibitedFreeModifierPlacement,
 }
 
@@ -3181,6 +3213,12 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaLuheiSelbriUnit => {
                 "syntax.warning.experimental-zantufa-luhei-selbri-unit"
             }
+            Self::ExperimentalZantufaSelbriAssignment => {
+                "syntax.warning.experimental-zantufa-selbri-assignment"
+            }
+            Self::ExperimentalZantufaKeCoGrouping => {
+                "syntax.warning.experimental-zantufa-ke-co-grouping"
+            }
             Self::CllProhibitedFreeModifierPlacement => {
                 "syntax.warning.cll-prohibited-free-modifier-placement"
             }
@@ -3303,6 +3341,8 @@ impl ExperimentalConstruct {
                 "Zantufa MUhOI delimited foreign selbri unit"
             }
             Self::ExperimentalZantufaLuheiSelbriUnit => "Zantufa LUhEI/LIhAU text selbri unit",
+            Self::ExperimentalZantufaSelbriAssignment => "Zantufa full-selbri CEI assignment",
+            Self::ExperimentalZantufaKeCoGrouping => "Zantufa flat KE/CO selbri grouping",
             Self::CllProhibitedFreeModifierPlacement => {
                 "free modifier placement prohibited by CLL grammar"
             }

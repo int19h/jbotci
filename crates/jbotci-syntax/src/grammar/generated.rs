@@ -4920,12 +4920,45 @@ pub mod generated_model {
         field ki <- cmavo(Ki).wf();
     }
 
-    /// Sum node for selbri; selects among the `tagged_selbri` and `untagged_selbri` forms.
+    /// Sum node for selbri; gives the full-operand Zantufa CEI owner first
+    /// refusal before the standard tagged and untagged owners.
     rule "selbri" selbri(selbri, co_selbri, tense_modal, statement, free_modifier) -> enum {
+        /// A Zantufa CEI chain whose assignments take full selbri operands.
+        when feature(ZantufaTerms) zantufa_priority_assigned_selbri,
         /// Uses the `tagged_selbri` product form, whose payload preserves `tense_modal` and `inner_selbri`.
         tagged_selbri,
         /// Uses the nested `untagged_selbri` sum form and preserves its selected alternative.
         untagged_selbri,
+    }
+
+    /// Transparent priority wrapper that returns completed shared surfaces to
+    /// the standard selbri owner.
+    rule "Zantufa priority assigned selbri" zantufa_priority_assigned_selbri(selbri, co_selbri) -> struct {
+        #[tree_child(primary)]
+        /// The completed assignment candidate after baseline-ownership filtering.
+        field selbri <- arc(
+            zantufa_assigned_selbri(selbri, co_selbri)
+                .reject_output(crate::grammar::baseline_selbri::BaselineSelbriAssignmentRejection)
+        );
+    }
+
+    /// Zantufa selbri-level pro-bridi assignment. This arm is deliberately
+    /// extension-first: the completed candidate classifier returns shared
+    /// same-extent surfaces to the standard CEI owner.
+    rule "Zantufa assigned selbri" zantufa_assigned_selbri(selbri, co_selbri) -> struct {
+        /// The level-2 selbri to which the assignments apply.
+        field leading_selbri <- arc(co_selbri);
+        /// One or more source-ordered full-selbri assignments.
+        field assignments <- [one_or_more zantufa_selbri_assignment(selbri)];
+    }
+
+    /// One full-selbri Zantufa CEI assignment.
+    rule "Zantufa selbri assignment" zantufa_selbri_assignment(selbri) -> struct {
+        assert feature(ZantufaTerms);
+        /// The warning-bearing CEI marker.
+        field cei <- cmavo(Cei).warn(ExperimentalZantufaSelbriAssignment).wf();
+        /// The full following selbri operand.
+        field selbri <- arc(selbri);
     }
 
     /// Sum node for selbri level 1; selects between the recursive NA arm and level 2.
@@ -5183,7 +5216,7 @@ pub mod generated_model {
         field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
     }
 
-    /// Sum node for tanru unit; selects among 18 forms including `ordinal_tanru_unit`, `word_tanru_unit`, and `preposed_linkargs_tanru_unit`.
+    /// Sum node for tanru unit; selects among the standard and gated Zantufa forms.
     rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
@@ -5219,8 +5252,32 @@ pub mod generated_model {
         goha_word_tanru_unit,
         /// Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.
         pro_bridi_tanru_unit,
+        /// Uses a flat Zantufa KE group with one or more direct CO tails.
+        when feature(ZantufaConnectives) zantufa_ke_co_grouped_tanru_unit,
         /// Uses the `grouped_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.
         grouped_tanru_unit,
+    }
+
+    /// A flat Zantufa KE group over level-3 operands. Requiring a nonempty
+    /// direct CO-tail list makes the arm structurally disjoint from standard KE.
+    rule "Zantufa KE/CO grouped tanru" zantufa_ke_co_grouped_tanru_unit(tanru_selbri) -> struct {
+        assert feature(ZantufaConnectives);
+        /// The warning-bearing KE group opener.
+        field ke <- cmavo(Ke).warn(ExperimentalZantufaKeCoGrouping).wf();
+        /// The first level-3 operand.
+        field leading_selbri <- arc(tanru_selbri);
+        /// One or more flat, source-ordered CO operands.
+        field co_tails <- [one_or_more zantufa_ke_co_grouped_tanru_tail(tanru_selbri)];
+        /// The optional KEhE group terminator.
+        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
+    }
+
+    /// One direct CO operand in a flat Zantufa KE group.
+    rule "Zantufa KE/CO grouped tanru continuation" zantufa_ke_co_grouped_tanru_tail(tanru_selbri) -> struct {
+        /// The CO marker.
+        field co <- cmavo(Co).wf();
+        /// The following level-3 operand.
+        field trailing_selbri <- arc(tanru_selbri);
     }
 
     /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.

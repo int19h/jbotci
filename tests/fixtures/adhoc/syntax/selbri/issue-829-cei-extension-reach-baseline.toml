@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-829-cei-extension-reach-baseline"
+lojban = "mi broda cei brode cei na brodi"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-829", "selbri-reconstruction", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "S25 standard rejection"
+description = "The running standard and experimental reference parsers reject the nested NA-led CEI surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 25], source-text = "na", message = "unexpected cmavo" }]

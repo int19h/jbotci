@@ -33,6 +33,7 @@ use crate::{
 
 mod baseline_mex;
 mod baseline_relative;
+mod baseline_selbri;
 mod baseline_tag;
 mod generated;
 mod generated_runtime;
@@ -7987,6 +7988,92 @@ mod tests {
                 !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
                 "baseline-owned MEX must not carry a Zantufa warning"
             );
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_selbri_assignment_priority_preserves_whole_baseline_candidates() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
+            for source in ["mi broda cei brode brodi", "mi broda cei brode cei brodi"] {
+                let baseline = parse_source(source, &ParseOptions::default());
+                let extended = parse_source(source, &zantufa);
+                assert_eq!(extended.parse_tree, baseline.parse_tree, "{source}");
+                assert!(
+                    !has_warning_kind(
+                        &extended,
+                        ExperimentalConstruct::ExperimentalZantufaSelbriAssignment,
+                    ),
+                    "baseline-owned CEI candidate must not warn: {source}"
+                );
+            }
+
+            for source in [
+                "mi broda cei brode cei na brodi",
+                "mi broda cei na brode",
+                "mi broda cei pu brode",
+            ] {
+                let words = segment_words_with_modifiers(source).expect("valid morphology");
+                assert!(
+                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
+                    "{source}"
+                );
+                let parsed = parse_source(source, &zantufa);
+                assert!(
+                    parse_tree_debug(source, &zantufa).contains("ZantufaPriorityAssignedSelbri"),
+                    "{source}"
+                );
+                assert!(
+                    has_warning_kind(
+                        &parsed,
+                        ExperimentalConstruct::ExperimentalZantufaSelbriAssignment,
+                    ),
+                    "{source}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_ke_co_group_is_flat_disjoint_and_warning_bearing() {
+        run_on_normal_stack(|| {
+            let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&dialect);
+
+            // A description isolates the selbri atom from the pre-existing
+            // Zantufa grouped-bridi-tail owner of top-level KE.
+            let control = "lo ke broda brode ke'e ku";
+            assert_eq!(
+                parse_source(control, &zantufa).parse_tree,
+                parse_source(control, &ParseOptions::default()).parse_tree,
+            );
+
+            for source in [
+                "lo ke broda co brode co brodi ke'e ku",
+                "lo ke broda co brode ke'e cei na brodi ku",
+                "lo na'e ke broda co brode ke'e ku",
+            ] {
+                let words = segment_words_with_modifiers(source).expect("valid morphology");
+                assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+                let parsed = parse_source(source, &zantufa);
+                let tree = parse_tree_debug(source, &zantufa);
+                assert!(
+                    tree.contains("ZantufaKeCoGroupedTanruUnit"),
+                    "{source}: {tree}"
+                );
+                assert!(
+                    has_warning_kind(
+                        &parsed,
+                        ExperimentalConstruct::ExperimentalZantufaKeCoGrouping,
+                    ),
+                    "{source}"
+                );
+            }
         });
     }
 

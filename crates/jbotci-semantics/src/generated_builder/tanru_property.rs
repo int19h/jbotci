@@ -2457,6 +2457,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         leading_eventuality: Option<SemanticObjectId>,
     ) -> Result<GeneratedTanruFormulaForArgument, SemanticsError> {
         match selbri {
+            SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => self
+                .build_co_selbri_inversion_formula_for_visible_arguments(
+                    &assigned.0.leading_selbri,
+                    visible_arguments,
+                    source,
+                    leading_eventuality,
+                ),
             SelbriSyntax::TaggedSelbri(tagged) => {
                 if generated_untagged_selbri_has_formula_scope(tagged.inner_selbri.as_ref()) {
                     let result = self.build_untagged_selbri_formula_for_visible_arguments(

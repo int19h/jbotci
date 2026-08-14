@@ -212,6 +212,10 @@ pub(super) fn generated_pro_bridi_target_relation_label(
     selbri: &SelbriSyntax,
 ) -> Result<Option<RelationLabel>, SemanticsError> {
     match selbri {
+        SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+            generated_pro_bridi_target_relation_label_from_co_selbri(&assigned.0.leading_selbri)
+                .map(Some)
+        }
         SelbriSyntax::TaggedSelbri(tagged) => {
             generated_pro_bridi_target_relation_label_for_untagged(tagged.inner_selbri.as_ref())
         }
@@ -784,6 +788,16 @@ pub(super) fn generated_raw_place_visible_rank_for_selbri(
     place: usize,
 ) -> Result<usize, SemanticsError> {
     match selbri {
+        SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+            if assigned.0.leading_selbri.co_tail.is_none() {
+                generated_raw_place_visible_rank_for_tanru_selbri(
+                    &assigned.0.leading_selbri.leading_selbri,
+                    place,
+                )
+            } else {
+                Ok(place)
+            }
+        }
         SelbriSyntax::TaggedSelbri(tagged) => {
             generated_raw_place_visible_rank_for_untagged_selbri(&tagged.inner_selbri, place)
         }
@@ -1348,6 +1362,9 @@ pub(super) fn relation_label_from_tanru_unit_atom_base(
         TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
             relation_label_from_grouped_tanru_unit(grouped)
         }
+        TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(grouped) => Ok(
+            RelationLabel::constructed(generated_node_surface_text(grouped)?),
+        ),
         TanruUnitAtomBaseSyntax::AbstractionTanruUnit(abstraction) => {
             abstraction_relation_label_from_generated(abstraction)
         }
@@ -1412,6 +1429,11 @@ pub(super) fn relation_label_from_tanru_atom_base_view(
         GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(
             grouped,
         )) => relation_label_from_grouped_tanru_unit(grouped),
+        GeneratedTanruAtomBaseView::Cei(
+            TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(grouped),
+        ) => Ok(RelationLabel::constructed(generated_node_surface_text(
+            grouped,
+        )?)),
         GeneratedTanruAtomBaseView::Cei(TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(
             abstraction,
         )) => abstraction_relation_label_from_generated(abstraction),
@@ -1721,6 +1743,7 @@ pub(super) fn add_generated_selbri_visible_linkarg_places(
     first_visible_place: usize,
 ) -> Result<(), SemanticsError> {
     match selbri {
+        SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => Ok(()),
         SelbriSyntax::TaggedSelbri(tagged) => add_generated_untagged_selbri_visible_linkarg_places(
             places,
             tagged.inner_selbri.as_ref(),
@@ -2072,6 +2095,9 @@ pub(super) fn relation_phrase_label_from_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<String, SemanticsError> {
     match selbri {
+        SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+            generated_node_surface_text(assigned)
+        }
         SelbriSyntax::TaggedSelbri(tagged) => generated_node_surface_text(tagged),
         SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) => {
             if co_selbri.co_tail.is_some() {

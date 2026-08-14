@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-829-mixed-baseline"
+lojban = "lo ke broda co brode ke'e cei na brodi ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-829", "selbri-reconstruction", "matrix", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "S14 two-gate matrix"
+description = "The mixed KE/CO plus full CEI surface requires both C4 feature gates."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 25], source-text = "ke'e", message = "unexpected cmavo" }]

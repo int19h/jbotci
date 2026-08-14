@@ -4651,6 +4651,9 @@ fn tanru_unit_atom_base_from_cei(unit: &TanruUnitAtomBaseForCeiSyntax) -> TanruU
         TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
             TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit.clone())
         }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+            TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(unit.clone())
+        }
     }
 }
 
@@ -4799,6 +4802,9 @@ fn relation_label_from_tanru_unit_atom(
         TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
             relation_label_from_grouped_tanru_unit(grouped)
         }
+        TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(grouped) => Ok(
+            RelationLabel::constructed(generated_node_surface_text(grouped)?),
+        ),
         TanruUnitAtomBaseSyntax::AbstractionTanruUnit(abstraction) => {
             abstraction_relation_label_from_generated(abstraction)
         }
@@ -7025,6 +7031,15 @@ fn generated_sumti_connection_tail_contains_current_level_keha(
 #[ensures(true)]
 fn generated_selbri_contains_current_level_keha(selbri: &SelbriSyntax) -> bool {
     match selbri {
+        SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+            generated_tanru_selbri_contains_current_level_keha(
+                &assigned.0.leading_selbri.leading_selbri,
+            ) || assigned
+                .0
+                .assignments
+                .iter()
+                .any(|assignment| generated_selbri_contains_current_level_keha(&assignment.selbri))
+        }
         SelbriSyntax::TaggedSelbri(selbri) => {
             generated_untagged_selbri_contains_current_level_keha(&selbri.inner_selbri)
         }
@@ -7205,6 +7220,12 @@ fn generated_tanru_unit_atom_base_contains_current_level_keha(
         TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
             generated_tanru_selbri_contains_current_level_keha(&unit.selbri)
         }
+        TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+            generated_tanru_selbri_contains_current_level_keha(&unit.leading_selbri)
+                || unit.co_tails.iter().any(|tail| {
+                    generated_tanru_selbri_contains_current_level_keha(&tail.trailing_selbri)
+                })
+        }
         TanruUnitAtomBaseSyntax::WordTanruUnit(WordTanruUnitSyntax(word)) => {
             word.value.cmavo() == Some(Cmavo::Keha)
         }
@@ -7250,6 +7271,12 @@ fn generated_tanru_unit_atom_base_for_cei_contains_current_level_keha(
         }
         TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
             generated_tanru_selbri_contains_current_level_keha(&unit.selbri)
+        }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+            generated_tanru_selbri_contains_current_level_keha(&unit.leading_selbri)
+                || unit.co_tails.iter().any(|tail| {
+                    generated_tanru_selbri_contains_current_level_keha(&tail.trailing_selbri)
+                })
         }
         TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(WordTanruUnitSyntax(word)) => {
             word.value.cmavo() == Some(Cmavo::Keha)

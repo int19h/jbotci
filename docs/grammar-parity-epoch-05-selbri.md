@@ -170,6 +170,60 @@ The positive controls `mi na'e broda`, `mi na'e se broda`, and
 and are pinned warning-free. Rolling Zantufa's wider NAhE-over-KE/CO form is
 untouched and remains part of the C4 KE/CO witness family.
 
+### C4 Zantufa CEI and KE/CO dispositions
+
+The three-parser reference trees are recorded in
+`/build/jbotci/logs/epoch05-c4-reference-probes.log`. Full-selbri CEI uses an
+extension-first candidate under `ZantufaTerms`, with
+`ExperimentalZantufaSelbriAssignment` anchored on each CEI retained by the
+extension owner. The completed-candidate classifier recognizes the actual
+pre-C4 tree shape across the whole extent: each operand must begin with an
+untagged L2 selbri, and neither the leading tree nor any operand may contain a
+surviving C4-only node. Generated traversal checks every descendant, while the
+candidate and assignment products are destructured without `..`; the recovered
+mirror rejects only fully valid candidates with the same shape.
+
+This is intentionally not a per-operand-width test. Splitting the first linked
+unit from `brode brodi` leaves ordinary adjacency, so the complete S15 surface
+has a same-extent baseline tree and is returned to the standard owner. By
+contrast, the surviving nested assignment in S25 contains an NA-led operand,
+which proves that no pre-C4 tree covers the complete extent.
+
+| Surface | Current owner | Diagnostics and disposition |
+| --- | --- | --- |
+| `mi broda cei brode brodi` | Standard `TanruUnit` CEI plus outer adjacency | Warning-free. Baseline ownership is pinned; rolling Zantufa absorbs the adjacency into the CEI operand. This fidelity pin flips under `ZantufaSelbriReinterpretation` in C5. |
+| `mi broda cei brode cei brodi` | Standard flat `TanruUnit` CEI chain | Warning-free. The nested rolling-Zantufa CEI tree is an A24 fidelity gap; C5's reinterpretation flag inherits the pin to flip. |
+| `mi broda cei brode cei na brodi` | Whole Zantufa assigned-selbri candidate whose leading baseline prefix retains the first CEI | Exact `ExperimentalZantufaSelbriAssignment` warning on the extension-owned second CEI; the baseline-owned first CEI remains warning-free. Standard and camxes-exp reject. |
+| `mi broda cei na brode` | Zantufa assigned-selbri candidate | Exact assignment warning on CEI; the full operand is NA-led. |
+| `mi broda cei pu brode` | Zantufa assigned-selbri candidate | Exact assignment warning on CEI; the full operand is tagged. |
+
+KE-with-CO is independently gated by `ZantufaConnectives`. Its atom contains a
+flat list of L3 operands and requires at least one direct CO continuation, so a
+non-CO KE group cannot enter the arm. `ExperimentalZantufaKeCoGrouping` is
+anchored on KE. Semantic/reference lowering folds the flat list from the right,
+preserving the multiple-CO meaning specified by CLL §5.8 while retaining the
+rolling-Zantufa syntax topology.
+
+| Surface | Current owner | Diagnostics and disposition |
+| --- | --- | --- |
+| `lo ke broda co brode co brodi ke'e ku` | Flat Zantufa KE/CO atom with two direct CO tails in a description selbri | Exact KE/CO grouping warning; camxes-standard and camxes-exp reject while rolling Zantufa accepts. |
+| `lo ke broda co brode ke'e cei na brodi ku` | Flat KE/CO atom followed by a full-selbri CEI assignment in a description selbri | Exact KE/CO grouping warning on KE plus assignment warning on CEI; camxes-standard and camxes-exp reject while rolling Zantufa accepts. |
+| `lo na'e ke broda co brode ke'e ku` | Standard NAhE atom wrapper around the flat KE/CO atom in a description selbri | Exact KE/CO grouping warning; this is S18's sourced wider Zantufa scope. Camxes-standard and camxes-exp reject while rolling Zantufa accepts. |
+| `lo ke broda brode ke'e ku` | Standard grouped tanru atom in a description selbri | Warning-free isolating no-delta control; the C4 arm is structurally unavailable. All three running reference parsers accept this surface. |
+
+The S14 gate matrix pins the two gates independently: no dialect, either
+feature alone, and the standard profile reject the complete mixed surface;
+explicitly enabling both features and the built-in Zantufa profile accept it
+with exactly the KE/CO and full-selbri-CEI warnings. The default parse without
+a dialect definition does not implicitly enable either warning-gated owner.
+
+The top-level `mi ke broda brode ke'e` surface remains owned by the epoch-2/3
+Zantufa grouped-bridi-tail arm and retains its
+`ExperimentalZantufaGroupedBridiTail` warning. That existing pin is the outer
+no-delta control: C4 does not reclassify it through the atom-level direct-CO
+gate. The description row above separately proves the selbri-family behavior
+without that bridi-tail escape.
+
 ## Fidelity gaps and reinterpretation ownership
 
 The default dialect preserves baseline ownership on identical-extent surfaces.
