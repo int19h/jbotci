@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-828-bridi-relative-baseline"
+lojban = "mi broda noi brode"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-828", "selbri-reconstruction", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-5 #828 witness"
+description = "Standard rejection control for additive non-description selbri relative attachment"
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 12], source-text = "noi", message = "unexpected cmavo" }]

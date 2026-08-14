@@ -5846,6 +5846,7 @@ fn generated_goi_assignment_clause(
                 RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     tail.0.inner.as_ref()
                 }
+                RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => tail.0.as_ref(),
             };
             generated_goi_assignment_clause_atom(atom)
         })
@@ -7031,6 +7032,23 @@ fn generated_sumti_connection_tail_contains_current_level_keha(
 #[ensures(true)]
 fn generated_selbri_contains_current_level_keha(selbri: &SelbriSyntax) -> bool {
     match selbri {
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+            generated_tanru_selbri_contains_current_level_keha(
+                &assigned.0.leading_selbri.leading_selbri,
+            ) || assigned
+                .0
+                .assignments
+                .iter()
+                .any(|assignment| generated_selbri_contains_current_level_keha(&assignment.selbri))
+        }
+        SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+            generated_tanru_selbri_contains_current_level_keha(
+                &relative.leading_selbri.leading_selbri,
+            ) || relative
+                .assignments
+                .iter()
+                .any(|assignment| generated_selbri_contains_current_level_keha(&assignment.selbri))
+        }
         SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
             generated_tanru_selbri_contains_current_level_keha(
                 &assigned.0.leading_selbri.leading_selbri,

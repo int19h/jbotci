@@ -29,6 +29,7 @@ use super::generated_model::{
     ExpZiTagAtomSyntax, SelbriSyntax, TenseModalAtomSyntax, TenseModalBodySyntax, TenseModalSyntax,
     recovered,
 };
+use super::generated_runtime::GrammarMapTo;
 use super::generated_runtime::OutputRejection;
 
 #[invariant(true)]
@@ -237,6 +238,15 @@ impl From<recovered::Recovered<recovered::BaselineTermTenseModalSyntax>>
     #[ensures(true)]
     fn from(value: recovered::Recovered<recovered::BaselineTermTenseModalSyntax>) -> Self {
         Self(map_recovered(value, recovered_baseline_body_into_body))
+    }
+}
+
+#[contract_trait]
+impl GrammarMapTo<recovered::TenseModalSyntax>
+    for recovered::Recovered<recovered::BaselineTermTenseModalSyntax>
+{
+    fn grammar_map_to(self) -> recovered::TenseModalSyntax {
+        self.into()
     }
 }
 
@@ -839,7 +849,9 @@ impl OutputRejection<SelbriSyntax> for PostNaExtensionTagRejection {
     fn rejects(&self, output: &SelbriSyntax) -> bool {
         match output {
             SelbriSyntax::TaggedSelbri(tagged) => tense_modal_is_extension(&tagged.tense_modal),
-            SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
+            SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+            | SelbriSyntax::ZantufaRelativeSelbri(_)
+            | SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
             SelbriSyntax::UntaggedSelbri(_) => false,
         }
     }
@@ -861,7 +873,9 @@ impl OutputRejection<recovered::Recovered<recovered::SelbriSyntax>>
             recovered::SelbriSyntax::TaggedSelbri(tagged) => valid(tagged).is_some_and(|tagged| {
                 valid(&tagged.tense_modal).is_some_and(recovered_tense_modal_is_extension)
             }),
-            recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
+            recovered::SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+            | recovered::SelbriSyntax::ZantufaRelativeSelbri(_)
+            | recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
             recovered::SelbriSyntax::UntaggedSelbri(_) => false,
         }
     }

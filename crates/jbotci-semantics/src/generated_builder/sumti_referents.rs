@@ -2830,6 +2830,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     tail.0.inner.as_ref()
                 }
+                RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => tail.0.as_ref(),
             };
             if let RelativeClauseAtomSyntax::BridiRelativeClause(clause) = atom {
                 lowered.push(self.lower_generated_bridi_relative_clause(clause, head)?);
@@ -3717,6 +3718,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     tail.0.inner.as_ref()
                 }
+                RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => tail.0.as_ref(),
             };
             if let Some(clause) = self.lower_generated_relative_clause_atom(atom, head)? {
                 lowered.push(clause);
@@ -3763,6 +3765,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     tail.0.inner.as_ref()
                 }
+                RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => tail.0.as_ref(),
             };
             if let RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) = atom
                 && let Some(clause) =

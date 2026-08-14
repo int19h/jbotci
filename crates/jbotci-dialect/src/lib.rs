@@ -80,6 +80,7 @@ define_dialect_features! {
     ZantufaConnectives => "zantufa-connectives",
     ZantufaMex => "zantufa-mex",
     ZantufaMexReinterpretation => "zantufa-mex-reinterpretation",
+    ZantufaSelbriReinterpretation => "zantufa-selbri-reinterpretation",
     ZantufaMorphology => "zantufa-morphology",
     ZantufaQuotes => "zantufa-quotes",
     ZantufaTags => "zantufa-tags",

@@ -212,6 +212,14 @@ pub(super) fn generated_pro_bridi_target_relation_label(
     selbri: &SelbriSyntax,
 ) -> Result<Option<RelationLabel>, SemanticsError> {
     match selbri {
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+            generated_pro_bridi_target_relation_label_from_co_selbri(&assigned.0.leading_selbri)
+                .map(Some)
+        }
+        SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+            generated_pro_bridi_target_relation_label_from_co_selbri(&relative.leading_selbri)
+                .map(Some)
+        }
         SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
             generated_pro_bridi_target_relation_label_from_co_selbri(&assigned.0.leading_selbri)
                 .map(Some)
@@ -788,6 +796,26 @@ pub(super) fn generated_raw_place_visible_rank_for_selbri(
     place: usize,
 ) -> Result<usize, SemanticsError> {
     match selbri {
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+            if assigned.0.leading_selbri.co_tail.is_none() {
+                generated_raw_place_visible_rank_for_tanru_selbri(
+                    &assigned.0.leading_selbri.leading_selbri,
+                    place,
+                )
+            } else {
+                Ok(place)
+            }
+        }
+        SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+            if relative.leading_selbri.co_tail.is_none() {
+                generated_raw_place_visible_rank_for_tanru_selbri(
+                    &relative.leading_selbri.leading_selbri,
+                    place,
+                )
+            } else {
+                Ok(place)
+            }
+        }
         SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
             if assigned.0.leading_selbri.co_tail.is_none() {
                 generated_raw_place_visible_rank_for_tanru_selbri(
@@ -1743,7 +1771,15 @@ pub(super) fn add_generated_selbri_visible_linkarg_places(
     first_visible_place: usize,
 ) -> Result<(), SemanticsError> {
     match selbri {
-        SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => Ok(()),
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+        | SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => Ok(()),
+        SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+            add_generated_tanru_selbri_visible_linkarg_places(
+                places,
+                &relative.leading_selbri.leading_selbri,
+                first_visible_place,
+            )
+        }
         SelbriSyntax::TaggedSelbri(tagged) => add_generated_untagged_selbri_visible_linkarg_places(
             places,
             tagged.inner_selbri.as_ref(),
@@ -2095,6 +2131,10 @@ pub(super) fn relation_phrase_label_from_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<String, SemanticsError> {
     match selbri {
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+            generated_node_surface_text(assigned)
+        }
+        SelbriSyntax::ZantufaRelativeSelbri(relative) => generated_node_surface_text(relative),
         SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
             generated_node_surface_text(assigned)
         }

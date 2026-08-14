@@ -1950,6 +1950,37 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,
     },
+    parser_construct_metadata!("Zantufa reinterpreted assigned selbri", "selbri"),
+    parser_construct_metadata!("Zantufa relative selbri", "selbri"),
+    parser_construct_metadata!("selbri without terminal relative", "selbri"),
+    parser_construct_metadata!(
+        "Zantufa priority assigned selbri without terminal relative",
+        "selbri without terminal relative"
+    ),
+    parser_construct_metadata!(
+        "Zantufa assigned selbri without terminal relative",
+        "Zantufa priority assigned selbri without terminal relative"
+    ),
+    parser_construct_metadata!(
+        "Zantufa selbri assignment without terminal relative",
+        "Zantufa assigned selbri without terminal relative"
+    ),
+    parser_construct_metadata!(
+        "tagged selbri without terminal relative",
+        "selbri without terminal relative"
+    ),
+    parser_construct_metadata!(
+        "untagged selbri without terminal relative",
+        "selbri without terminal relative"
+    ),
+    parser_construct_metadata!(
+        "negated selbri without terminal relative",
+        "untagged selbri without terminal relative"
+    ),
+    parser_construct_metadata!(
+        "Zantufa bare relative clause continuation",
+        "relative clauses"
+    ),
     SyntaxConstructMetadata {
         name: "Zantufa KE/CO grouped tanru",
         parent: Some("tanru unit"),
@@ -3055,6 +3086,7 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaLuheiSelbriUnit,
     ExperimentalZantufaSelbriAssignment,
     ExperimentalZantufaKeCoGrouping,
+    ExperimentalZantufaSelbriRelativePlacement,
     CllProhibitedFreeModifierPlacement,
 }
 
@@ -3219,6 +3251,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaKeCoGrouping => {
                 "syntax.warning.experimental-zantufa-ke-co-grouping"
             }
+            Self::ExperimentalZantufaSelbriRelativePlacement => {
+                "syntax.warning.experimental-zantufa-selbri-relative-placement"
+            }
             Self::CllProhibitedFreeModifierPlacement => {
                 "syntax.warning.cll-prohibited-free-modifier-placement"
             }
@@ -3343,6 +3378,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaLuheiSelbriUnit => "Zantufa LUhEI/LIhAU text selbri unit",
             Self::ExperimentalZantufaSelbriAssignment => "Zantufa full-selbri CEI assignment",
             Self::ExperimentalZantufaKeCoGrouping => "Zantufa flat KE/CO selbri grouping",
+            Self::ExperimentalZantufaSelbriRelativePlacement => {
+                "Zantufa selbri-relative placement or bare relative continuation"
+            }
             Self::CllProhibitedFreeModifierPlacement => {
                 "free modifier placement prohibited by CLL grammar"
             }
@@ -4642,6 +4680,34 @@ mod tests {
         );
         assert_eq!(visitor.recovery_spans, vec![(3, 5)]);
         assert_eq!(visitor.valid_tokens, vec!["mi", "i", "do"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_description_relative_body_retains_its_outer_attachment() {
+        let source = "lo broda poi brode kei ku";
+        let words =
+            jbotci_morphology::segment_words_with_modifiers(source).expect("valid morphology");
+        let options = ParseOptions::default();
+        parse_syntax_tree_with_source_and_options(&words, source, &options)
+            .expect_err("strict syntax rejects the malformed relative-clause body");
+
+        let recovered =
+            parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+        let tree = format!("{:?}", recovered.parse_tree);
+        let mut visitor = RecoveredTokenAndErrorVisitor::default();
+        generated_model::recovered::TreeNode::visit_in_order(
+            recovered.parse_tree.as_ref(),
+            &mut visitor,
+        );
+
+        assert_eq!(recovered.errors.len(), 1);
+        assert!(tree.contains("RelativeClauseListSyntax"), "{tree}");
+        assert!(visitor.valid_tokens.iter().any(|token| token == "poĭ"));
+        assert!(recovered_syntax_parse_conserves_word_spans(
+            &words, &recovered
+        ));
     }
 
     #[test]

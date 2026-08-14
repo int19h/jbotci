@@ -22,8 +22,10 @@ use bityzba::{contract_trait, invariant, requires};
 use jbotci_tree::TreeVisitor;
 
 use super::generated_model::{
-    NodeRef, SelbriSyntax, UntaggedSelbriSyntax, ZantufaAssignedSelbriSyntax,
-    ZantufaSelbriAssignmentSyntax, recovered,
+    NodeRef, SelbriSyntax, SelbriWithoutTerminalRelativeSyntax, UntaggedSelbriSyntax,
+    UntaggedSelbriWithoutTerminalRelativeSyntax, ZantufaAssignedSelbriSyntax,
+    ZantufaAssignedSelbriWithoutTerminalRelativeSyntax, ZantufaSelbriAssignmentSyntax,
+    ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
 
@@ -92,7 +94,10 @@ fn recovered_has_c4_node(tree: &impl recovered::TreeNode) -> bool {
 #[ensures(true)]
 fn operand_starts_with_old_unit(selbri: &SelbriSyntax) -> bool {
     match selbri {
-        SelbriSyntax::ZantufaPriorityAssignedSelbri(_) | SelbriSyntax::TaggedSelbri(_) => false,
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+        | SelbriSyntax::ZantufaRelativeSelbri(_)
+        | SelbriSyntax::ZantufaPriorityAssignedSelbri(_)
+        | SelbriSyntax::TaggedSelbri(_) => false,
         SelbriSyntax::UntaggedSelbri(selbri) => match selbri {
             UntaggedSelbriSyntax::NegatedSelbri(_) => false,
             UntaggedSelbriSyntax::CoSelbri(selbri) => !has_c4_node(selbri),
@@ -114,9 +119,51 @@ fn is_baseline_assignment(candidate: &ZantufaAssignedSelbriSyntax) -> bool {
         })
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn restricted_operand_starts_with_old_unit(selbri: &SelbriWithoutTerminalRelativeSyntax) -> bool {
+    match selbri {
+        SelbriWithoutTerminalRelativeSyntax::ZantufaPriorityAssignedSelbriWithoutTerminalRelative(_)
+        | SelbriWithoutTerminalRelativeSyntax::TaggedSelbriWithoutTerminalRelative(_) => false,
+        SelbriWithoutTerminalRelativeSyntax::UntaggedSelbriWithoutTerminalRelative(selbri) => {
+            match selbri {
+                UntaggedSelbriWithoutTerminalRelativeSyntax::NegatedSelbriWithoutTerminalRelative(
+                    _,
+                ) => false,
+                UntaggedSelbriWithoutTerminalRelativeSyntax::CoSelbri(selbri) => {
+                    !has_c4_node(selbri)
+                }
+            }
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn is_restricted_baseline_assignment(
+    candidate: &ZantufaAssignedSelbriWithoutTerminalRelativeSyntax,
+) -> bool {
+    let ZantufaAssignedSelbriWithoutTerminalRelativeSyntax {
+        leading_selbri,
+        preceding_assignments,
+        final_assignment,
+    } = candidate;
+    let ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax { cei: _, selbri } = final_assignment;
+    !has_c4_node(leading_selbri.as_ref())
+        && preceding_assignments.iter().all(|assignment| {
+            let ZantufaSelbriAssignmentSyntax { cei: _, selbri } = assignment;
+            operand_starts_with_old_unit(selbri.as_ref())
+        })
+        && restricted_operand_starts_with_old_unit(selbri.as_ref())
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BaselineSelbriAssignmentRejection;
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RestrictedBaselineSelbriAssignmentRejection;
 
 #[contract_trait]
 impl OutputRejection<ZantufaAssignedSelbriSyntax> for BaselineSelbriAssignmentRejection {
@@ -126,6 +173,19 @@ impl OutputRejection<ZantufaAssignedSelbriSyntax> for BaselineSelbriAssignmentRe
 
     fn rejects(&self, value: &ZantufaAssignedSelbriSyntax) -> bool {
         is_baseline_assignment(value)
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<ZantufaAssignedSelbriWithoutTerminalRelativeSyntax>
+    for RestrictedBaselineSelbriAssignmentRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "baseline description-boundary selbri assignment surface"
+    }
+
+    fn rejects(&self, value: &ZantufaAssignedSelbriWithoutTerminalRelativeSyntax) -> bool {
+        is_restricted_baseline_assignment(value)
     }
 }
 
@@ -142,7 +202,9 @@ fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
 #[ensures(true)]
 fn recovered_operand_starts_with_old_unit(selbri: &recovered::SelbriSyntax) -> bool {
     match selbri {
-        recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(_)
+        recovered::SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+        | recovered::SelbriSyntax::ZantufaRelativeSelbri(_)
+        | recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(_)
         | recovered::SelbriSyntax::TaggedSelbri(_) => false,
         recovered::SelbriSyntax::UntaggedSelbri(selbri) => {
             valid(selbri).is_some_and(|selbri| match selbri {
@@ -171,6 +233,49 @@ fn recovered_is_baseline_assignment(candidate: &recovered::ZantufaAssignedSelbri
         })
 }
 
+#[requires(true)]
+#[ensures(true)]
+fn recovered_restricted_operand_starts_with_old_unit(
+    selbri: &recovered::SelbriWithoutTerminalRelativeSyntax,
+) -> bool {
+    match selbri {
+        recovered::SelbriWithoutTerminalRelativeSyntax::ZantufaPriorityAssignedSelbriWithoutTerminalRelative(_)
+        | recovered::SelbriWithoutTerminalRelativeSyntax::TaggedSelbriWithoutTerminalRelative(_) => false,
+        recovered::SelbriWithoutTerminalRelativeSyntax::UntaggedSelbriWithoutTerminalRelative(
+            selbri,
+        ) => valid(selbri).is_some_and(|selbri| match selbri {
+            recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::NegatedSelbriWithoutTerminalRelative(_) => false,
+            recovered::UntaggedSelbriWithoutTerminalRelativeSyntax::CoSelbri(selbri) => {
+                valid(selbri).is_some_and(|selbri| !recovered_has_c4_node(selbri))
+            }
+        }),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_is_restricted_baseline_assignment(
+    candidate: &recovered::ZantufaAssignedSelbriWithoutTerminalRelativeSyntax,
+) -> bool {
+    let recovered::ZantufaAssignedSelbriWithoutTerminalRelativeSyntax {
+        leading_selbri,
+        preceding_assignments,
+        final_assignment,
+    } = candidate;
+    valid(leading_selbri).is_some_and(|selbri| !recovered_has_c4_node(selbri))
+        && preceding_assignments.iter().all(|assignment| {
+            valid(assignment).is_some_and(|assignment| {
+                let recovered::ZantufaSelbriAssignmentSyntax { cei: _, selbri } = assignment;
+                valid(selbri).is_some_and(recovered_operand_starts_with_old_unit)
+            })
+        })
+        && valid(final_assignment).is_some_and(|assignment| {
+            let recovered::ZantufaSelbriAssignmentWithoutTerminalRelativeSyntax { cei: _, selbri } =
+                assignment;
+            valid(selbri).is_some_and(recovered_restricted_operand_starts_with_old_unit)
+        })
+}
+
 #[contract_trait]
 impl OutputRejection<recovered::Recovered<recovered::ZantufaAssignedSelbriSyntax>>
     for BaselineSelbriAssignmentRejection
@@ -184,5 +289,23 @@ impl OutputRejection<recovered::Recovered<recovered::ZantufaAssignedSelbriSyntax
         value: &recovered::Recovered<recovered::ZantufaAssignedSelbriSyntax>,
     ) -> bool {
         valid(value).is_some_and(recovered_is_baseline_assignment)
+    }
+}
+
+#[contract_trait]
+impl
+    OutputRejection<
+        recovered::Recovered<recovered::ZantufaAssignedSelbriWithoutTerminalRelativeSyntax>,
+    > for RestrictedBaselineSelbriAssignmentRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "baseline description-boundary selbri assignment surface"
+    }
+
+    fn rejects(
+        &self,
+        value: &recovered::Recovered<recovered::ZantufaAssignedSelbriWithoutTerminalRelativeSyntax>,
+    ) -> bool {
+        valid(value).is_some_and(recovered_is_restricted_baseline_assignment)
     }
 }

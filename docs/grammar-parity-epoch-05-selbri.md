@@ -224,6 +224,95 @@ no-delta control: C4 does not reclassify it through the atom-level direct-CO
 gate. The description row above separately proves the selbri-family behavior
 without that bridi-tail escape.
 
+### C5 relative-attachment and fidelity dispositions
+
+Selbri-level relative attachment is an additive `ZantufaTerms` owner. Its
+relative-list marker carries
+`ExperimentalZantufaSelbriRelativePlacement`; the existing statement-body
+warning remains independent. The owner occurs before CEI assignments, so the
+explicit-KUhO witness `mi broda poi brode ku'o cei na brodi` retains a single
+selbri-level relative list followed by the full NA-led assignment. The default
+profile rejects that surface. The non-description control
+`mi broda noi brode` is likewise rejected without Zantufa terms and accepted
+with one selbri-relative-placement warning when the feature is enabled. The
+elided-KUhO spelling is deliberately absent from the witness set because its
+relative body absorbs the following words and does not isolate this owner.
+
+Description and vocative consumers use a typed
+`SelbriWithoutTerminalRelativeSyntax` entry. The restriction follows every
+rightmost recursive edge rather than inspecting tokens after parsing: NA
+recursion and the final full-selbri CEI operand remain restricted, while all
+earlier CEI operands remain full width. The following independently pinned
+surfaces prove the three steal paths and exact warning ownership:
+
+| Surface | Pinned owner and warning disposition |
+| --- | --- |
+| `lo na broda poi brode ku` | Outer description relative after an NA selbri; statement-body warning only. |
+| `lo broda cei brode poi brodi ku` | Outer description relative after the final CEI operand; the same-extent standard CEI owner remains warning-free, and POI has only the statement-body warning. |
+| `lo na broda cei brode poi brodi ku` | The combined NA/final-CEI right spine; again only the statement-body warning is present. |
+
+The quantifier-selbri consumer is split by actual terminator ownership.
+`re broda poi brode ku` is rejected by the default profile and accepted under
+Zantufa terms with the relative attached to the selbri before explicit KU.
+`re broda poi brode` keeps the standard outer-relative tree in both profiles;
+the elided KU is zero-width and no selbri-relative-placement warning is
+introduced. Both Zantufa-profile pins retain the independent Zantufa-mex
+warning on `re`; both also retain the statement-body warning on POI, and only
+the explicit-KU pin adds the selbri-relative-placement warning. The terminator
+distinction is structural: explicit KU selects the full selbri entry, while an
+elided KU selects the restricted entry.
+
+Description no-steal and continuation behavior is pinned in every applicable
+feature configuration:
+
+| Surface family | No dialect / `()` | `+zantufa-connectives` | `+zantufa-terms` | both features / `(zantufa)` |
+| --- | --- | --- | --- | --- |
+| Single POI: `lo broda poi brode ku` | Baseline outer relative, warning-free | Same baseline owner | Same baseline owner; statement-body warning only | Same baseline owner; statement-body warning only |
+| ZIhE pair: `lo broda poi brode zi'e poi brodi ku` | Baseline joined outer list, warning-free | Same baseline owner | Same baseline owner; statement-body warnings only | Same baseline owner; statement-body warnings only |
+| Bare pair: `lo broda poi brode poi brodi ku` | Reject | Reject | Baseline outer list plus one `ZantufaBareRelativeClauseTail` | Same gated continuation owner |
+| Bare triple: `lo broda poi brode poi brodi poi brodo ku` | Reject | Reject | Baseline outer list plus two source-ordered bare tails | Same gated continuation owner |
+
+The explicit `()` and omitted-dialect fixtures are separate pins in each
+six-configuration family. Enabling only Zantufa connectives never enables a
+bare continuation. Every accepted bare tail carries its own
+`ExperimentalZantufaSelbriRelativePlacement` warning, in addition to the
+statement-body warnings on its POI clauses. ZIhE remains the shared standard
+continuation and does not acquire a placement warning.
+
+`ZantufaSelbriReinterpretation` is a meaning-changing flag and is inert unless
+the corresponding Zantufa terms owner is also enabled. It bypasses only the
+two completed-candidate boundary classifiers specified by D6:
+
+| Flag witness | Default `(zantufa)` | Reinterpretation enabled |
+| --- | --- | --- |
+| `lo broda cei brode brodi ku` | Baseline tanru-unit CEI plus outer adjacency, warning-free | One full-selbri assignment whose operand absorbs `brode brodi`; assignment warning on CEI |
+| `lo broda poi brode ku` | Outer description relative | One `ZantufaRelativeSelbri` with a selbri-relative-placement warning |
+| `lo broda poi brode poi brodi ku` | Outer description list plus gated bare continuation | One selbri-level relative list containing the bare continuation; placement warnings remain exact |
+| `coi broda poi brode do'u` | Standard trailing vocative relative | Selbri-level relative ownership with a placement warning |
+
+The separate default and flag-enabled vocative fixtures, plus the default
+baseline fixture, pin all three ownership states. Nested CEI reinterpretation
+uses the same assignment arm; the C4 nested-CEI gap is therefore covered by
+the flag even though the compact witness matrix uses S15 as its primary CEI
+pair. Single-GI branch width and CO associativity remain #858 and are not
+changed by this flag.
+
+Bare-relative parsing instantiates the existing statement/bridi family with
+the restricted selbri entry, so the next POI stays visible to the containing
+list. Full-selbri CEI parsing similarly instantiates the rebuilt ladder with
+only its leading tanru-unit CEI repetition removed. Generated rule memos now
+include a balanced typed `SyntaxMemoScope` (`Ordinary`, `CeiFree`,
+`DescriptionRelative`, or their union), for both strict and recovery parses.
+This prevents two parameterized instantiations with the same generated rule
+name and token offset from replaying each other's result; it changes no
+grammar ownership by itself. A focused test pins the collision and a malformed
+description-relative-body recovery test pins conservation of the outer
+relative-list structure.
+
+Finally, `lo broda goi ko'a ku` remains a standard GOI relative under the
+built-in Zantufa profile with no C5 ownership delta. Full-term GOI expansion is
+#794/epoch 6 and receives no selbri-relative warning here.
+
 ## Fidelity gaps and reinterpretation ownership
 
 The default dialect preserves baseline ownership on identical-extent surfaces.

@@ -581,7 +581,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         selbri: &'tree SelbriSyntax,
     ) -> Result<Option<GeneratedDescriptionAbstraction<'tree>>, SemanticsError> {
         match selbri {
-            SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => Ok(None),
+            SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+            | SelbriSyntax::ZantufaRelativeSelbri(_)
+            | SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => Ok(None),
             SelbriSyntax::TaggedSelbri(tagged) => {
                 Self::generated_description_abstraction_for_untagged_selbri(&tagged.inner_selbri)
             }
@@ -6162,6 +6164,28 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         formula_source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match selbri {
+            SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => self
+                .build_co_selbri_formula_with_options(
+                    &assigned.0.leading_selbri,
+                    terms,
+                    first_visible_place,
+                    eventuality,
+                    mode,
+                    formula_scope_child,
+                    predication_source,
+                    formula_source,
+                ),
+            SelbriSyntax::ZantufaRelativeSelbri(relative) => self
+                .build_co_selbri_formula_with_options(
+                    &relative.leading_selbri,
+                    terms,
+                    first_visible_place,
+                    eventuality,
+                    mode,
+                    formula_scope_child,
+                    predication_source,
+                    formula_source,
+                ),
             SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => self
                 .build_co_selbri_formula_with_options(
                     &assigned.0.leading_selbri,

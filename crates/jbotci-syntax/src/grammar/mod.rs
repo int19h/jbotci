@@ -39,6 +39,7 @@ mod generated;
 mod generated_runtime;
 mod parse_error;
 mod parser_core;
+mod selbri_boundary;
 pub(crate) mod tokens;
 use parse_error::{SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError};
 use parser_core::{Boxed, Checkpoint, Cursor, Inspector, MappedInput, SimpleSpan, Spanned};
@@ -627,9 +628,34 @@ pub(super) struct SyntaxMemoValue {
     value: Rc<dyn Any>,
 }
 
-type StrictSyntaxMemoKey = (&'static str, usize);
-type RecoverySyntaxMemoKey = (&'static str, usize, usize, usize);
-type RecoverySyntaxMemoInProgressKey = (&'static str, usize, usize);
+#[invariant(true)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) enum SyntaxMemoScope {
+    #[default]
+    Ordinary,
+    CeiFree,
+    DescriptionRelative,
+    CeiFreeDescriptionRelative,
+}
+
+impl SyntaxMemoScope {
+    #[requires(true)]
+    #[ensures(true)]
+    fn nested(self, nested: Self) -> Self {
+        match (self, nested) {
+            (Self::Ordinary, nested) | (nested, Self::Ordinary) => nested,
+            (Self::CeiFree, Self::DescriptionRelative)
+            | (Self::DescriptionRelative, Self::CeiFree)
+            | (Self::CeiFreeDescriptionRelative, _)
+            | (_, Self::CeiFreeDescriptionRelative) => Self::CeiFreeDescriptionRelative,
+            (scope, _) => scope,
+        }
+    }
+}
+
+type StrictSyntaxMemoKey = (&'static str, usize, SyntaxMemoScope);
+type RecoverySyntaxMemoKey = (&'static str, usize, SyntaxMemoScope, usize, usize);
+type RecoverySyntaxMemoInProgressKey = (&'static str, usize, SyntaxMemoScope, usize);
 
 impl fmt::Debug for SyntaxMemoValue {
     #[requires(true)]
@@ -1039,16 +1065,16 @@ impl<'tokens> SyntaxRecoveryMemoSession<'tokens> {
     }
 
     #[requires(trial_id > 0)]
-    #[ensures(!self.store.borrow().sensitive_successes.keys().any(|(_, _, entry_trial_id, _)| *entry_trial_id == trial_id))]
-    #[ensures(!self.store.borrow().sensitive_failures.keys().any(|(_, _, entry_trial_id, _)| *entry_trial_id == trial_id))]
+    #[ensures(!self.store.borrow().sensitive_successes.keys().any(|(_, _, _, entry_trial_id, _)| *entry_trial_id == trial_id))]
+    #[ensures(!self.store.borrow().sensitive_failures.keys().any(|(_, _, _, entry_trial_id, _)| *entry_trial_id == trial_id))]
     fn finish_trial(&mut self, trial_id: usize) {
         let mut store = self.store.borrow_mut();
         store
             .sensitive_successes
-            .retain(|(_, _, entry_trial_id, _), _| *entry_trial_id != trial_id);
+            .retain(|(_, _, _, entry_trial_id, _), _| *entry_trial_id != trial_id);
         store
             .sensitive_failures
-            .retain(|(_, _, entry_trial_id, _), _| *entry_trial_id != trial_id);
+            .retain(|(_, _, _, entry_trial_id, _), _| *entry_trial_id != trial_id);
     }
 
     #[requires(true)]
@@ -1064,6 +1090,7 @@ impl<'tokens> SyntaxRecoveryMemoSession<'tokens> {
 pub(super) struct SyntaxMemoContext {
     recovery_trial_id: Option<usize>,
     recovery_index: usize,
+    scope: SyntaxMemoScope,
 }
 
 #[invariant(true)]
@@ -1102,6 +1129,7 @@ pub(super) struct ParserState<'tokens> {
     syntax_recovery_memo_in_progress: HashSet<RecoverySyntaxMemoInProgressKey>,
     recovery_memo_trial: Option<SyntaxRecoveryMemoTrial<'tokens>>,
     syntax_memo_rule_frames: Vec<SyntaxMemoRuleFrame<'tokens>>,
+    syntax_memo_scope: SyntaxMemoScope,
     next_syntax_diagnostic_observation_frame_id: NonZeroUsize,
     replayed_syntax_diagnostic_observations: HashSet<SyntaxDiagnosticObservationId>,
     diagnostic_candidates: Vec<SyntaxParseError<'tokens>>,
@@ -1168,6 +1196,7 @@ impl<'tokens> ParserState<'tokens> {
             syntax_recovery_memo_in_progress: HashSet::new(),
             recovery_memo_trial: None,
             syntax_memo_rule_frames: Vec::new(),
+            syntax_memo_scope: SyntaxMemoScope::Ordinary,
             next_syntax_diagnostic_observation_frame_id: NonZeroUsize::MIN,
             replayed_syntax_diagnostic_observations: HashSet::new(),
             diagnostic_candidates: Vec::new(),
@@ -1335,7 +1364,22 @@ impl<'tokens> ParserState<'tokens> {
                 .as_ref()
                 .map(|trial| trial.trial_id.get()),
             recovery_index: self.consumed_recovery_directives,
+            scope: self.syntax_memo_scope,
         })
+    }
+
+    #[requires(true)]
+    #[ensures(self.syntax_memo_scope == old(self.syntax_memo_scope).nested(scope))]
+    pub(super) fn enter_syntax_memo_scope(&mut self, scope: SyntaxMemoScope) -> SyntaxMemoScope {
+        let previous = self.syntax_memo_scope;
+        self.syntax_memo_scope = previous.nested(scope);
+        previous
+    }
+
+    #[requires(true)]
+    #[ensures(self.syntax_memo_scope == scope)]
+    pub(super) fn restore_syntax_memo_scope(&mut self, scope: SyntaxMemoScope) {
+        self.syntax_memo_scope = scope;
     }
 
     #[requires(true)]
@@ -1854,7 +1898,7 @@ impl<'tokens> ParserState<'tokens> {
                 .then(|| {
                     store
                         .insensitive_successes
-                        .get(&(rule_name, start_location))
+                        .get(&(rule_name, start_location, context.scope))
                         .filter(|memo| {
                             self.memo_range_is_reusable(memo.start_location, memo.end_location)
                                 && self.syntax_rule_observations_are_insensitive(
@@ -1875,6 +1919,7 @@ impl<'tokens> ParserState<'tokens> {
                 let memo = store.sensitive_successes.get(&(
                     rule_name,
                     start_location,
+                    context.scope,
                     trial_id,
                     context.recovery_index,
                 ))?;
@@ -1882,7 +1927,9 @@ impl<'tokens> ParserState<'tokens> {
             }
         } else {
             (
-                self.syntax_memo.get(&(rule_name, start_location))?.clone(),
+                self.syntax_memo
+                    .get(&(rule_name, start_location, context.scope))?
+                    .clone(),
                 false,
             )
         };
@@ -1935,7 +1982,7 @@ impl<'tokens> ParserState<'tokens> {
                 if !self.syntax_memo_rule_is_recovery_sensitive()
                     && let Some(failure) = store
                         .insensitive_failures
-                        .get(&(rule_name, start_location))
+                        .get(&(rule_name, start_location, context.scope))
                         .filter(|failure| {
                             self.memo_range_is_reusable(
                                 failure.start_location,
@@ -1955,7 +2002,13 @@ impl<'tokens> ParserState<'tokens> {
                         .expect("recovered memo context has a trial identity");
                     store
                         .sensitive_failures
-                        .get(&(rule_name, start_location, trial_id, context.recovery_index))
+                        .get(&(
+                            rule_name,
+                            start_location,
+                            context.scope,
+                            trial_id,
+                            context.recovery_index,
+                        ))
                         .cloned()
                         .map(|failure| (failure, true))
                 }
@@ -1978,7 +2031,7 @@ impl<'tokens> ParserState<'tokens> {
             return Some(failure);
         }
         self.syntax_failure_memo
-            .get(&(rule_name, start_location))
+            .get(&(rule_name, start_location, context.scope))
             .cloned()
             .map(|error| {
                 let end_location = self.memo_failure_end_location(start_location, &error);
@@ -1999,7 +2052,7 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || end_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(self.recovery_enabled() || self.syntax_memo.contains_key(&(rule_name, start_location)))]
+    #[ensures(self.recovery_enabled() || self.syntax_memo.contains_key(&(rule_name, start_location, context.scope)))]
     // Do not fold recovery side-effect snapshots into the recursive wasm rule
     // wrapper; V8 reserves frame space for inlined locals across the descent.
     #[inline(never)]
@@ -2052,24 +2105,30 @@ impl<'tokens> ParserState<'tokens> {
                     .recovery_trial_id
                     .expect("recovered memo context has a trial identity");
                 store.sensitive_successes.insert(
-                    (rule_name, start_location, trial_id, context.recovery_index),
+                    (
+                        rule_name,
+                        start_location,
+                        context.scope,
+                        trial_id,
+                        context.recovery_index,
+                    ),
                     success,
                 );
             } else {
                 store
                     .insensitive_successes
-                    .insert((rule_name, start_location), success);
+                    .insert((rule_name, start_location, context.scope), success);
             }
         } else {
             self.syntax_memo
-                .insert((rule_name, start_location), success);
+                .insert((rule_name, start_location, context.scope), success);
         }
     }
 
     #[requires(!rule_name.is_empty())]
     #[requires(!self.syntax_memo_rule_frames.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(self.recovery_enabled() || self.syntax_failure_memo.contains_key(&(rule_name, start_location)))]
+    #[ensures(self.recovery_enabled() || self.syntax_failure_memo.contains_key(&(rule_name, start_location, context.scope)))]
     pub(super) fn store_syntax_memo_failure(
         &mut self,
         rule_name: &'static str,
@@ -2105,24 +2164,30 @@ impl<'tokens> ParserState<'tokens> {
                     .recovery_trial_id
                     .expect("recovered memo context has a trial identity");
                 store.sensitive_failures.insert(
-                    (rule_name, start_location, trial_id, context.recovery_index),
+                    (
+                        rule_name,
+                        start_location,
+                        context.scope,
+                        trial_id,
+                        context.recovery_index,
+                    ),
                     failure,
                 );
             } else {
                 store
                     .insensitive_failures
-                    .insert((rule_name, start_location), failure);
+                    .insert((rule_name, start_location, context.scope), failure);
             }
             return;
         }
         self.syntax_failure_memo
-            .insert((rule_name, start_location), error);
+            .insert((rule_name, start_location, context.scope), error);
     }
 
     #[requires(!rule_name.is_empty())]
     #[requires(self.syntax_location_byte_offsets.is_empty() || start_location < self.syntax_location_byte_offsets.len())]
-    #[ensures(ret && !self.recovery_enabled() -> self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
-    #[ensures(ret && self.recovery_enabled() -> self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, context.recovery_index)))]
+    #[ensures(ret && !self.recovery_enabled() -> self.syntax_memo_in_progress.contains(&(rule_name, start_location, context.scope)))]
+    #[ensures(ret && self.recovery_enabled() -> self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, context.scope, context.recovery_index)))]
     // A completion deadline must be observable inside a single recovery
     // trial. Keep the query in this existing non-generic descent boundary so
     // ordinary generated rule frames retain their original stack shape.
@@ -2143,18 +2208,19 @@ impl<'tokens> ParserState<'tokens> {
             self.syntax_recovery_memo_in_progress.insert((
                 rule_name,
                 start_location,
+                context.scope,
                 context.recovery_index,
             ))
         } else {
             self.syntax_memo_in_progress
-                .insert((rule_name, start_location))
+                .insert((rule_name, start_location, context.scope))
         };
         entered
     }
 
     #[requires(!rule_name.is_empty())]
-    #[ensures(!self.syntax_memo_in_progress.contains(&(rule_name, start_location)))]
-    #[ensures(!self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, context.recovery_index)))]
+    #[ensures(!self.syntax_memo_in_progress.contains(&(rule_name, start_location, context.scope)))]
+    #[ensures(!self.syntax_recovery_memo_in_progress.contains(&(rule_name, start_location, context.scope, context.recovery_index)))]
     pub(super) fn exit_syntax_memo_rule(
         &mut self,
         rule_name: &'static str,
@@ -2165,11 +2231,12 @@ impl<'tokens> ParserState<'tokens> {
             self.syntax_recovery_memo_in_progress.remove(&(
                 rule_name,
                 start_location,
+                context.scope,
                 context.recovery_index,
             ));
         } else {
             self.syntax_memo_in_progress
-                .remove(&(rule_name, start_location));
+                .remove(&(rule_name, start_location, context.scope));
         }
     }
 
@@ -4680,6 +4747,7 @@ fn recovery_feature_condition_matches(
         "ZantufaConnectives" => dialect.zantufa_connectives_enabled,
         "ZantufaMex" => dialect.zantufa_mex_enabled,
         "ZantufaMexReinterpretation" => dialect.zantufa_mex_reinterpretation_enabled,
+        "ZantufaSelbriReinterpretation" => dialect.zantufa_selbri_reinterpretation_enabled,
         "ZantufaQuotes" => dialect.zantufa_quotes_enabled,
         "ZantufaTags" => dialect.zantufa_tags_enabled,
         "ZantufaTerms" => dialect.zantufa_terms_enabled,
@@ -5082,6 +5150,18 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                 self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaTag, tag);
                 self.zantufa_tag_depth
                     .set(self.zantufa_tag_depth.get() + 1);
+            }
+            generated::generated_model::NodeRef::ZantufaRelativeSelbriSyntax(selbri) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
+                    selbri.relative_clauses.as_ref(),
+                );
+            }
+            generated::generated_model::NodeRef::ZantufaBareRelativeClauseTailSyntax(tail) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
+                    tail.0.as_ref(),
+                );
             }
             generated::generated_model::NodeRef::FragmentStatementSyntaxZantufaMeksoFragment(
                 fragment,
@@ -5550,10 +5630,10 @@ mod tests {
         };
         store
             .insensitive_successes
-            .insert(("intersecting", 1), memo(1, 2));
+            .insert(("intersecting", 1, SyntaxMemoScope::Ordinary), memo(1, 2));
         store
             .insensitive_successes
-            .insert(("disjoint", 3), memo(3, 4));
+            .insert(("disjoint", 3, SyntaxMemoScope::Ordinary), memo(3, 4));
         drop(store);
 
         state.consumed_recovery_directives = 1;
@@ -5573,6 +5653,72 @@ mod tests {
             state.syntax_memo_success("disjoint", 3, context).is_some(),
             "memo reuse outside the abandoned range remains available",
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parameterized_rule_memos_are_isolated_by_scope() {
+        let mut state = ParserState::new(&[], &ParseOptions::default());
+
+        state.begin_syntax_memo_rule_frame();
+        let ordinary_context = state.syntax_memo_context();
+        state.store_syntax_memo_success(
+            "parameterized",
+            0,
+            ordinary_context,
+            0,
+            SyntaxMemoValue::from_shared(Rc::new(1_u8)),
+            Vec::new(),
+        );
+        state.finish_syntax_memo_rule_frame();
+
+        let previous = state.enter_syntax_memo_scope(SyntaxMemoScope::CeiFree);
+        state.begin_syntax_memo_rule_frame();
+        let cei_free_context = state.syntax_memo_context();
+        state.store_syntax_memo_success(
+            "parameterized",
+            0,
+            cei_free_context,
+            0,
+            SyntaxMemoValue::from_shared(Rc::new(2_u8)),
+            Vec::new(),
+        );
+        state.finish_syntax_memo_rule_frame();
+        state.restore_syntax_memo_scope(previous);
+
+        let previous = state.enter_syntax_memo_scope(SyntaxMemoScope::DescriptionRelative);
+        state.begin_syntax_memo_rule_frame();
+        let description_context = state.syntax_memo_context();
+        state.store_syntax_memo_success(
+            "parameterized",
+            0,
+            description_context,
+            0,
+            SyntaxMemoValue::from_shared(Rc::new(3_u8)),
+            Vec::new(),
+        );
+        state.finish_syntax_memo_rule_frame();
+        state.restore_syntax_memo_scope(previous);
+
+        for (scope, expected) in [
+            (SyntaxMemoScope::Ordinary, 1_u8),
+            (SyntaxMemoScope::CeiFree, 2_u8),
+            (SyntaxMemoScope::DescriptionRelative, 3_u8),
+        ] {
+            let previous = state.enter_syntax_memo_scope(scope);
+            state.begin_syntax_memo_rule_frame();
+            let context = state.syntax_memo_context();
+            let value = state
+                .syntax_memo_success("parameterized", 0, context)
+                .expect("the scoped memo is present")
+                .value()
+                .downcast::<u8>()
+                .expect("the scoped memo retains its typed value");
+            state.finish_syntax_memo_rule_frame();
+            state.restore_syntax_memo_scope(previous);
+            assert_eq!(*value, expected);
+        }
     }
 
     #[test]
@@ -5677,14 +5823,14 @@ mod tests {
         let child_observations = Rc::clone(
             store_ref
                 .insensitive_successes
-                .get(&("child-memo", 0))
+                .get(&("child-memo", 0, SyntaxMemoScope::Ordinary))
                 .and_then(|memo| memo.side_effects.recovery_checkpoint_observations.as_ref())
                 .expect("the child memo retained checkpoint observations"),
         );
         let parent_observations = Rc::clone(
             store_ref
                 .insensitive_successes
-                .get(&("parent-memo", 0))
+                .get(&("parent-memo", 0, SyntaxMemoScope::Ordinary))
                 .and_then(|memo| memo.side_effects.recovery_checkpoint_observations.as_ref())
                 .expect("the parent memo retained checkpoint observations"),
         );
@@ -5763,7 +5909,7 @@ mod tests {
         let store = store.borrow();
         let memo = store
             .insensitive_successes
-            .get(&("memo", 0))
+            .get(&("memo", 0, SyntaxMemoScope::Ordinary))
             .expect("the insensitive memo was stored");
         assert_eq!(
             memo.side_effects
@@ -8033,6 +8179,61 @@ mod tests {
                     ),
                     "{source}"
                 );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_selbri_relative_boundaries_and_reinterpretation_are_explicit() {
+        run_on_normal_stack(|| {
+            let zantufa_definition = parse_dialect_definition("(zantufa)").expect("valid dialect");
+            let fidelity_definition =
+                parse_dialect_definition("(zantufa +zantufa-selbri-reinterpretation)")
+                    .expect("valid fidelity dialect");
+            let zantufa = ParseOptions::default().with_dialect_definition(&zantufa_definition);
+            let fidelity = ParseOptions::default().with_dialect_definition(&fidelity_definition);
+
+            let baseline_owned = parse_source("lo broda poi brode ku", &zantufa);
+            assert!(!format!("{:?}", baseline_owned.parse_tree).contains("ZantufaRelativeSelbri"));
+            assert!(!has_warning_kind(
+                &baseline_owned,
+                ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
+            ));
+
+            let reinterpreted = parse_source("lo broda poi brode ku", &fidelity);
+            assert!(format!("{:?}", reinterpreted.parse_tree).contains("ZantufaRelativeSelbri"));
+            assert_warning_kind(
+                "lo broda poi brode ku",
+                &fidelity,
+                ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
+            );
+
+            let assignment_gap = parse_source("lo broda cei brode brodi ku", &zantufa);
+            assert!(
+                !format!("{:?}", assignment_gap.parse_tree)
+                    .contains("ReinterpretZantufaAssignedSelbri")
+            );
+            let faithful_assignment = parse_source("lo broda cei brode brodi ku", &fidelity);
+            let faithful_assignment_tree = format!("{:?}", faithful_assignment.parse_tree);
+            assert!(
+                faithful_assignment_tree.contains("ReinterpretZantufaAssignedSelbri"),
+                "{faithful_assignment_tree}"
+            );
+
+            let explicit_ku = parse_source("re broda poi brode ku", &zantufa);
+            assert!(format!("{:?}", explicit_ku.parse_tree).contains("ZantufaRelativeSelbri"));
+            let elided_ku = parse_source("re broda poi brode", &zantufa);
+            assert!(!format!("{:?}", elided_ku.parse_tree).contains("ZantufaRelativeSelbri"));
+
+            for source in [
+                "mi broda noi brode",
+                "lo broda poi brode poi brodi ku",
+                "coi broda poi brode do'u",
+            ] {
+                parse_source(source, &zantufa);
+                parse_source(source, &fidelity);
             }
         });
     }
