@@ -902,6 +902,7 @@ mod tests {
                 "statement-relative-clause",
                 "grouped-bridi-tail",
                 "statement-abstraction",
+                "trailing-operator-mex-quantifier",
                 "xi-mex-free-with-statement-terms",
             ]
         );

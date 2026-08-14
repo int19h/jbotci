@@ -1501,7 +1501,7 @@ mod tests {
     #[ensures(true)]
     fn error_region_brackets_prune_long_regions_to_the_error_path() {
         // A long sentence whose error sits at the very end: the full
-        // rendering is 1,820 characters, but the budgeted form prunes the
+        // rendering is 1,815 characters, but the budgeted form prunes the
         // region to the error path with balanced brackets and `…` elision,
         // and marks the dropped leading context (the {mi} subject child).
         let source = format!("mi {}ku", "broda ".repeat(300));
@@ -1514,7 +1514,7 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("full brackets");
-        assert_eq!(full.chars().count(), 1_820);
+        assert_eq!(full.chars().count(), 1_815);
 
         for budget in [400, 40] {
             let regions = pretty_recovered_syntax_error_region_brackets_with_options(
@@ -1524,7 +1524,7 @@ mod tests {
                 BracketRenderOptions::default(),
             )
             .expect("error region brackets");
-            assert_eq!(regions, "…\n[bróda {… bróda ([bróda ‼ku‼] ‼‼)}]");
+            assert_eq!(regions, "…\n[… ‼ku‼]");
             assert!(regions.chars().count() <= budget);
         }
 
@@ -1537,7 +1537,7 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
-        assert_eq!(cut, "…\n[bróda {… bróda (…");
+        assert_eq!(cut, "…\n[… ‼ku‼]");
         assert!(cut.chars().count() <= 20);
     }
 
@@ -1580,8 +1580,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn error_region_brackets_report_omitted_regions_over_budget() {
-        // Two error regions whose pruned forms do not both fit the budget:
-        // the first is shown, the second is reported by the omission note.
+        // Two error regions whose compact pruned forms both fit the budget.
         let source = format!(
             "mi {}ku i do {}ku",
             "broda ".repeat(40),
@@ -1596,7 +1595,7 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("full brackets");
-        assert_eq!(full.chars().count(), 523);
+        assert_eq!(full.chars().count(), 518);
 
         let regions = pretty_recovered_syntax_error_region_brackets_with_options(
             &recovered,
@@ -1605,7 +1604,7 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
-        assert_eq!(regions, "[… ‼ku‼]\n… (1 more error region not shown)");
+        assert_eq!(regions, "[… ‼ku‼]\n[.i {do (… ‼ku‼)}]");
         assert!(regions.chars().count() <= 50);
 
         // Both regions fit a budget that admits them together with their
@@ -1617,12 +1616,8 @@ mod tests {
             BracketRenderOptions::default(),
         )
         .expect("error region brackets");
-        assert_eq!(
-            regions,
-            "[… ‼ku‼]\n[.i {do (bróda [… bróda {(bróda ‼ku‼) ‼‼}])}]"
-        );
-        // Both error tokens are shown (the second region additionally keeps
-        // its zero-width recovery marker).
+        assert_eq!(regions, "[… ‼ku‼]\n[.i {do (… ‼ku‼)}]");
+        // Both error tokens are shown.
         assert_eq!(regions.matches("‼ku‼").count(), 2);
         assert!(regions.chars().count() <= 60);
     }

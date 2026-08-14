@@ -2874,13 +2874,11 @@ fn gentufa_syntax_errors_go_to_stderr() {
         assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
         assert!(stderr.contains("unexpected cmavo"));
         assert!(
-            stderr.contains(
-                "expected: free modifier, space interval, time interval, interval, space tense, time tense, linked arguments, forethought selbri connective",
-            ),
+            stderr.contains("expected: free modifier or statement connective"),
             "{stderr}"
         );
         assert!(
-            stderr.contains("while parsing BO-grouped tanru unit"),
+            stderr.contains("while parsing statement connection"),
             "{stderr}"
         );
         assert!(!stderr.contains("expected one of:"));
