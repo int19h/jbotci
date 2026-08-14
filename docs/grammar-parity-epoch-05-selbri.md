@@ -3710,3 +3710,10 @@ ceiling by 2.29%; `artifact-policy.toml` therefore rounds only the Linux
 aarch64 compressed baseline from 18.5 MB to 19.0 MB, producing a 22.8 MB
 ceiling. The unpacked and entry ratchets remain unchanged. The final policy
 receipt is `/build/jbotci/logs/epoch05-artifact-ratchet-inspect-final.log`.
+
+### Round 2: debug LSP latency guard and description CEI reach
+
+| Surface or gate | Disposition and evidence |
+|---|---|
+| `error_heavy_completion_returns_before_followup_diagnostics` | CI measured base `9fafb66d4a` at approximately 2.8–2.9 s against the former 3 s wall-clock bound and epoch-5 `06437145a2` at 3.083 s. On the profiling host, base/current totals were 5.30/5.79 s (+9.2%, within the accepted 10% margin), while the current release path was 1.16 s. A bounded `perf` pass found no dominant epoch-5 selbri helper: the measured work is primarily the concurrent full-document recovery and decoration analysis launched by `didOpen`, with individual reconstructed-selbri functions below sampling significance. No speculative parser optimization was taken. The debug-only bound is therefore 6.5 s, which restores comparable headroom on the slower profiling host; response-shape and follow-up-diagnostics assertions remain exact. Profile: `/build/jbotci/logs/epoch05-round2-perf-report.log`. |
+| `lo broda cei brode cei na brodi ku` under `(zantufa)` | K3's description-position extension-reach residual is now pinned. The restricted description selbri preserves the baseline-shaped first CEI prefix inside one nested Zantufa assignment whose later operand is `na brodi`; exact syntax tree, two CEI warning diagnostics, Gentufa tree, and JSON are recorded in `adhoc/syntax/selbri/issue-829-description-cei-extension-reach-zantufa.toml`. Running camxes-standard and camxes-exp reject at `ku`; running Zantufa 1.9999 accepts with the second CEI nested inside the first assignment operand (`/build/jbotci/logs/epoch05-round2-description-cei-reference.log`). |
