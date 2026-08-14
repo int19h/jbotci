@@ -6575,7 +6575,7 @@ pub mod generated_model {
             .filter(|error| error.span().start == deepest_start)
             .map(|error| GeneratedRecoveryBranch {
                 span_start: error.span().start,
-                active_rule_contexts: error.active_rule_contexts().to_vec(),
+                active_rule_contexts: error.active_rule_contexts(),
             })
             .collect()
     }

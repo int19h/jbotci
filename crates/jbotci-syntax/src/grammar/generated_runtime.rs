@@ -496,8 +496,8 @@ where
                         failure_location > start_location,
                     );
                     let error = error
-                        .with_active_contexts(input.state().active_syntax_contexts())
-                        .with_active_rule_contexts(input.state().active_syntax_rules());
+                        .with_active_contexts(input.state().active_syntax_context_stack())
+                        .with_active_rule_contexts(input.state().active_syntax_rule_stack());
                     input.state().pop_syntax_context();
                     error
                 } else {

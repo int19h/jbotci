@@ -1792,6 +1792,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "stateless parser rejection policy has exactly one valid value",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedStackIter",
+        "an optional borrowed persistent-stack node is the iterator's complete valid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedStackNode",
+        "every typed value and optional persistent parent combination is a valid stack node",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedVec",
         "empty and shared copy-on-write vectors are both valid; Some(empty) has the same semantics as the allocation-free None representation",
     ),

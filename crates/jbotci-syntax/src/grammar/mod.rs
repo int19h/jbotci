@@ -41,7 +41,9 @@ mod parse_error;
 mod parser_core;
 mod selbri_boundary;
 pub(crate) mod tokens;
-use parse_error::{SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError};
+use parse_error::{
+    SharedStack, SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError,
+};
 use parser_core::{Boxed, Checkpoint, Cursor, Inspector, MappedInput, SimpleSpan, Spanned};
 
 #[doc(hidden)]
@@ -1139,6 +1141,8 @@ pub(super) struct ParserState<'tokens> {
     trace: TraceRecorder,
     active_syntax_contexts: Vec<SyntaxContextFrame>,
     active_syntax_rules: Vec<SyntaxRuleFrame>,
+    active_syntax_context_stack: SharedStack<SyntaxContextFrame>,
+    active_syntax_rule_stack: SharedStack<SyntaxRuleFrame>,
     recovery_directives: Vec<RecoveryDirective>,
     recovery_rule_parser_targets: HashSet<(&'static str, usize)>,
     recovery_rule_target_last_indices: FxHashMap<SyntaxRuleObservation, usize>,
@@ -1206,6 +1210,8 @@ impl<'tokens> ParserState<'tokens> {
             trace: TraceRecorder::new(options.trace.clone(), TracePhase::Syntax),
             active_syntax_contexts: Vec::new(),
             active_syntax_rules: Vec::new(),
+            active_syntax_context_stack: SharedStack::empty(),
+            active_syntax_rule_stack: SharedStack::empty(),
             recovery_directives: Vec::new(),
             recovery_rule_parser_targets: HashSet::new(),
             recovery_rule_target_last_indices: FxHashMap::default(),
@@ -2284,8 +2290,8 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(true)]
     pub(super) fn record_diagnostic_candidate(&mut self, error: SyntaxParseError<'tokens>) {
         let error = error
-            .with_active_contexts(&self.active_syntax_contexts)
-            .with_active_rule_contexts(&self.active_syntax_rules);
+            .with_active_contexts(self.active_syntax_context_stack.clone())
+            .with_active_rule_contexts(self.active_syntax_rule_stack.clone());
         if self.diagnostic_candidate_is_at_continuation_sentinel(&error)
             && !self
                 .continuation_diagnostic_candidates
@@ -2507,8 +2513,9 @@ impl<'tokens> ParserState<'tokens> {
     #[requires(!construct.is_empty())]
     #[ensures(self.active_syntax_contexts.len() == old(self.active_syntax_contexts.len()) + 1)]
     pub(super) fn push_syntax_context(&mut self, construct: &'static str, byte_start: usize) {
-        self.active_syntax_contexts
-            .push(SyntaxContextFrame::new(construct, byte_start));
+        let frame = SyntaxContextFrame::new(construct, byte_start);
+        self.active_syntax_context_stack = self.active_syntax_context_stack.pushed(frame.clone());
+        self.active_syntax_contexts.push(frame);
     }
 
     #[requires(!self.active_syntax_contexts.is_empty())]
@@ -2517,14 +2524,16 @@ impl<'tokens> ParserState<'tokens> {
         self.active_syntax_contexts
             .pop()
             .expect("syntax context stack is non-empty");
+        self.active_syntax_context_stack = self.active_syntax_context_stack.popped();
     }
 
     #[requires(!rule.is_empty())]
     #[ensures(self.active_syntax_rules.len() == old(self.active_syntax_rules.len()) + 1)]
     pub(super) fn push_syntax_rule(&mut self, rule: &'static str, byte_start: usize) {
         let recovery_enabled = self.recovery_rule_parser_enabled(rule, byte_start);
-        self.active_syntax_rules
-            .push(SyntaxRuleFrame::new(rule, byte_start, recovery_enabled));
+        let frame = SyntaxRuleFrame::new(rule, byte_start, recovery_enabled);
+        self.active_syntax_rule_stack = self.active_syntax_rule_stack.pushed(frame.clone());
+        self.active_syntax_rules.push(frame);
     }
 
     #[requires(!self.active_syntax_rules.is_empty())]
@@ -2533,6 +2542,7 @@ impl<'tokens> ParserState<'tokens> {
         self.active_syntax_rules
             .pop()
             .expect("syntax rule stack is non-empty");
+        self.active_syntax_rule_stack = self.active_syntax_rule_stack.popped();
     }
 
     #[requires(true)]
@@ -2587,6 +2597,18 @@ impl<'tokens> ParserState<'tokens> {
     #[ensures(true)]
     pub(super) fn active_syntax_rules(&self) -> &[SyntaxRuleFrame] {
         &self.active_syntax_rules
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == self.active_syntax_contexts.len())]
+    pub(super) fn active_syntax_context_stack(&self) -> SharedStack<SyntaxContextFrame> {
+        self.active_syntax_context_stack.clone()
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == self.active_syntax_rules.len())]
+    pub(super) fn active_syntax_rule_stack(&self) -> SharedStack<SyntaxRuleFrame> {
+        self.active_syntax_rule_stack.clone()
     }
 
     #[requires(!rule.is_empty())]
@@ -3241,6 +3263,10 @@ impl<'tokens> Inspector<'tokens> for ParserState<'tokens> {
         self.active_syntax_contexts
             .truncate(marker.inspector().syntax_context_count);
         self.active_syntax_rules
+            .truncate(marker.inspector().syntax_rule_count);
+        self.active_syntax_context_stack
+            .truncate(marker.inspector().syntax_context_count);
+        self.active_syntax_rule_stack
             .truncate(marker.inspector().syntax_rule_count);
         if let Some(recovery) = &marker.inspector().recovery {
             self.consumed_recovery_directives = recovery.consumed_recovery_directives;
