@@ -1556,7 +1556,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::ForethoughtBridiConnectionSyntax::GroupedForethoughtBridiConnection(
                 connection,
             ) => {
-                if let Some(tense_modal) = connection.tense_modal.as_deref() {
+                for tense_modal in &connection.tense_modals {
                     self.walk_node(tense_modal);
                 }
                 self.analyze_forethought_bridi_connection(&connection.inner, branch_initial_place)
@@ -1590,7 +1590,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 branch_frames
             }
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(connection) => {
-                if let Some(tense_modal) = connection.tense_modal.as_deref() {
+                for tense_modal in &connection.tense_modals {
                     self.walk_node(tense_modal);
                 }
                 self.analyze_forethought_bridi_connection_without_tail_terms(&connection.inner, branch_initial_place)
@@ -1628,6 +1628,46 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     #[ensures(true)]
     fn analyze_relation(&mut self, selbri: &'tree generated::SelbriSyntax) -> SelbriPlaceFrameId {
         match selbri {
+            generated::SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+                let inner = self.analyze_co_selbri(&assigned.0.leading_selbri);
+                for assignment in &assigned.0.assignments {
+                    self.walk_node(&assignment.selbri);
+                }
+                self.add_frame(
+                    self.raw_for_node(assigned),
+                    PlaceFrameKind::Forwarding,
+                    Some(SelbriNodeId(self.raw_for_node(assigned))),
+                    None,
+                    propagation_forward(inner),
+                )
+            }
+            generated::SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+                let inner = self.analyze_co_selbri(&relative.leading_selbri);
+                self.walk_node(&relative.relative_clauses);
+                for assignment in &relative.assignments {
+                    self.walk_node(&assignment.selbri);
+                }
+                self.add_frame(
+                    self.raw_for_node(relative),
+                    PlaceFrameKind::Forwarding,
+                    Some(SelbriNodeId(self.raw_for_node(relative))),
+                    None,
+                    propagation_forward(inner),
+                )
+            }
+            generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+                let inner = self.analyze_co_selbri(&assigned.0.leading_selbri);
+                for assignment in &assigned.0.assignments {
+                    self.walk_node(&assignment.selbri);
+                }
+                self.add_frame(
+                    self.raw_for_node(assigned),
+                    PlaceFrameKind::Forwarding,
+                    Some(SelbriNodeId(self.raw_for_node(assigned))),
+                    None,
+                    propagation_forward(inner),
+                )
+            }
             generated::SelbriSyntax::TaggedSelbri(selbri) => {
                 self.walk_node(&selbri.tense_modal);
                 let inner = self.analyze_untagged_relation(&selbri.inner_selbri);
@@ -1663,21 +1703,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::UntaggedSelbriSyntax::CoSelbri(selbri) => self.analyze_co_selbri(selbri),
-            generated::UntaggedSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                let leading = self.analyze_relation(&selbri.leading_selbri);
-                let mut branches =
-                    vec![leading, self.analyze_relation(&selbri.first_branch.selbri)];
-                for branch in &selbri.additional_branches {
-                    branches.push(self.analyze_relation(&branch.selbri));
-                }
-                self.add_frame(
-                    self.raw_for_node(selbri),
-                    PlaceFrameKind::ConnectiveBranching,
-                    Some(SelbriNodeId(self.raw_for_node(selbri))),
-                    None,
-                    propagation_connective_branches(branches),
-                )
-            }
         }
     }
 
@@ -1687,7 +1712,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         selbri: &'tree generated::CoSelbriSyntax,
     ) -> SelbriPlaceFrameId {
-        let leading = self.analyze_connected_selbri(&selbri.leading_selbri);
+        let leading = self.analyze_tanru_selbri(&selbri.leading_selbri);
         if let Some(tail) = &selbri.co_tail {
             let trailing = self.analyze_co_selbri(&tail.trailing_selbri);
             return self.add_frame(
@@ -1713,13 +1738,20 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         selbri: &'tree generated::ConnectedSelbriSyntax,
     ) -> SelbriPlaceFrameId {
-        let leading = self.analyze_tanru_selbri(&selbri.leading_selbri);
+        let leading = self.analyze_bound_selbri(&selbri.leading_selbri);
         if selbri.continuations.is_empty() {
             return leading;
         }
         let mut branches = vec![leading];
         for continuation in &selbri.continuations {
-            branches.push(self.analyze_tanru_selbri(&continuation.trailing_selbri));
+            branches.push(match continuation.as_ref() {
+                generated::ConnectedSelbriContinuationSyntax::SimpleConnectedSelbriContinuation(
+                    continuation,
+                ) => self.analyze_bound_selbri(&continuation.trailing_selbri),
+                generated::ConnectedSelbriContinuationSyntax::GroupedConnectedSelbriContinuation(
+                    continuation,
+                ) => self.analyze_tanru_selbri(&continuation.inner_selbri),
+            });
         }
         self.add_frame(
             self.raw_for_node(selbri),
@@ -1737,9 +1769,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         selbri: &'tree generated::TanruSelbriSyntax,
     ) -> SelbriPlaceFrameId {
         let mut unit_frames = Vec::new();
-        unit_frames.push(self.analyze_relation_unit(&selbri.first_unit));
-        for unit in &selbri.additional_units {
-            unit_frames.push(self.analyze_relation_unit(unit));
+        unit_frames.push(self.analyze_connected_selbri(&selbri.first_selbri));
+        for unit in &selbri.additional_selbri {
+            unit_frames.push(self.analyze_connected_selbri(unit));
         }
         let head = *unit_frames
             .last()
@@ -1760,39 +1792,59 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         unit: &'tree generated::TanruUnitSyntax,
     ) -> SelbriPlaceFrameId {
-        let mut unit_frames = Vec::new();
-        unit_frames.push(self.analyze_bo_or_linked_tanru_unit(&unit.0.first));
-        for continuation in &unit.0.links {
-            unit_frames.push(self.analyze_bo_or_linked_tanru_unit(&continuation.trailing_unit));
+        let inner = self.analyze_linked_tanru_unit(&unit.base);
+        for assignment in &unit.assignments {
+            self.analyze_linked_tanru_unit(&assignment.tanru_unit);
         }
-        if unit_frames.len() == 1 {
-            return unit_frames[0];
+        if unit.assignments.is_empty() {
+            inner
+        } else {
+            self.add_frame(
+                self.raw_for_node(unit),
+                PlaceFrameKind::Forwarding,
+                None,
+                Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                propagation_forward(inner),
+            )
         }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn analyze_bound_selbri(
+        &mut self,
+        selbri: &'tree generated::BoundSelbriSyntax,
+    ) -> SelbriPlaceFrameId {
+        let leading = self.analyze_plain_bo_selbri(&selbri.leading_selbri);
+        let Some(tail) = selbri.bo_tail.as_deref() else {
+            return leading;
+        };
+        if let Some(tense_modal) = tail.tense_modal.as_deref() {
+            self.walk_node(tense_modal);
+        }
+        let trailing = self.analyze_bound_selbri(&tail.trailing_selbri);
         self.add_frame(
-            self.raw_for_node(unit),
+            self.raw_for_node(selbri),
             PlaceFrameKind::ConnectiveBranching,
+            Some(SelbriNodeId(self.raw_for_node(selbri))),
             None,
-            Some(TanruUnitNodeId(self.raw_for_node(unit))),
-            propagation_connective_branches(unit_frames),
+            propagation_connective_branches(vec![leading, trailing]),
         )
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn analyze_bo_or_linked_tanru_unit(
+    fn analyze_plain_bo_selbri(
         &mut self,
-        unit: &'tree generated::BoOrLinkedTanruUnitSyntax,
+        selbri: &'tree generated::PlainBoSelbriSyntax,
     ) -> SelbriPlaceFrameId {
-        match unit {
-            generated::BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-                self.analyze_linked_tanru_unit(unit)
-            }
-            generated::BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-                let leading = self.analyze_linked_tanru_unit(&unit.leading_unit);
-                if let Some(tense_modal) = unit.bo_tense_modal.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                let trailing = self.analyze_bo_or_linked_tanru_unit(&unit.trailing_unit);
+        match selbri {
+            generated::PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
+                let leading = self.analyze_relation_unit(&unit.leading_unit);
+                let Some(tail) = unit.bo_tail.as_deref() else {
+                    return leading;
+                };
+                let trailing = self.analyze_plain_bo_selbri(&tail.trailing_selbri);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::Compound,
@@ -1801,33 +1853,38 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_compound(trailing, vec![leading]),
                 )
             }
-            generated::BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-                let inner = self.analyze_linked_tanru_unit_for_cei(&unit.base);
-                for assignment in &unit.assignments {
-                    self.analyze_linked_tanru_unit_for_cei(&assignment.tanru_unit);
-                }
+            generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
+                let branches = match selbri {
+                    generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
+                        selbri,
+                    ) => vec![
+                        self.analyze_relation(&selbri.leading_selbri),
+                        self.analyze_plain_bo_selbri(&selbri.first_branch.selbri),
+                    ],
+                    generated::ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
+                        selbri,
+                    ) => vec![
+                        self.analyze_co_selbri(&selbri.leading_selbri),
+                        self.analyze_co_selbri(&selbri.first_branch.selbri),
+                    ],
+                    generated::ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
+                        selbri,
+                    ) => {
+                        let mut branches = vec![
+                            self.analyze_co_selbri(&selbri.leading_selbri),
+                            self.analyze_co_selbri(&selbri.first_branch.selbri),
+                        ];
+                        for branch in &selbri.additional_branches {
+                            branches.push(self.analyze_co_selbri(&branch.selbri));
+                        }
+                        branches
+                    }
+                };
                 self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Forwarding,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_forward(inner),
-                )
-            }
-            generated::BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
-                let leading = self.analyze_relation(&unit.leading_selbri);
-                let mut branches = vec![
-                    leading,
-                    self.analyze_bo_or_linked_tanru_unit(&unit.first_branch.unit),
-                ];
-                for branch in &unit.additional_branches {
-                    branches.push(self.analyze_bo_or_linked_tanru_unit(&branch.unit));
-                }
-                self.add_frame(
-                    self.raw_for_node(unit),
+                    self.raw_for_node(selbri),
                     PlaceFrameKind::ConnectiveBranching,
+                    Some(SelbriNodeId(self.raw_for_node(selbri))),
                     None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
                     propagation_connective_branches(branches),
                 )
             }
@@ -1841,25 +1898,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         unit: &'tree generated::LinkedTanruUnitSyntax,
     ) -> SelbriPlaceFrameId {
         let inner = self.analyze_tanru_unit_atom(&unit.base);
-        if let Some(linkargs) = &unit.linkargs {
-            self.assign_link_arguments(inner, linkargs);
-        }
-        self.add_frame(
-            self.raw_for_node(unit),
-            PlaceFrameKind::LinkedUnit,
-            None,
-            Some(TanruUnitNodeId(self.raw_for_node(unit))),
-            propagation_forward(inner),
-        )
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_linked_tanru_unit_for_cei(
-        &mut self,
-        unit: &'tree generated::LinkedTanruUnitForCeiSyntax,
-    ) -> SelbriPlaceFrameId {
-        let inner = self.analyze_tanru_unit_atom_for_cei(&unit.base);
         if let Some(linkargs) = &unit.linkargs {
             self.assign_link_arguments(inner, linkargs);
         }
@@ -1999,7 +2037,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
-                let inner = self.analyze_connected_selbri(&unit.selbri);
+                let inner = self.analyze_tanru_selbri(&unit.selbri);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::Forwarding,
@@ -2007,6 +2045,30 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     Some(TanruUnitNodeId(self.raw_for_node(unit))),
                     propagation_forward(inner),
                 )
+            }
+            generated::TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+                let mut trailing = self.analyze_tanru_selbri(&unit.co_tails.last().trailing_selbri);
+                for index in (0..unit.co_tails.len()).rev() {
+                    let leading = if index == 0 {
+                        unit.leading_selbri.as_ref()
+                    } else {
+                        unit.co_tails[index - 1].trailing_selbri.as_ref()
+                    };
+                    let leading = self.analyze_tanru_selbri(leading);
+                    let source = if index == 0 {
+                        self.raw_for_node(unit)
+                    } else {
+                        self.raw_for_node(&unit.co_tails[index - 1])
+                    };
+                    trailing = self.add_frame(
+                        source,
+                        PlaceFrameKind::CoInverted,
+                        None,
+                        Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                        propagation_co(leading, trailing),
+                    );
+                }
+                trailing
             }
             generated::TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
                 let inner = self.analyze_scalar_negated_tanru_inner_unit(&unit.inner_unit);
@@ -2151,7 +2213,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
-                let inner = self.analyze_connected_selbri(&unit.selbri);
+                let inner = self.analyze_tanru_selbri(&unit.selbri);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::Forwarding,
@@ -2159,6 +2221,25 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     Some(TanruUnitNodeId(self.raw_for_node(unit))),
                     propagation_forward(inner),
                 )
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+                let mut trailing = self.analyze_tanru_selbri(&unit.co_tails.last().trailing_selbri);
+                for index in (0..unit.co_tails.len()).rev() {
+                    let leading = if index == 0 {
+                        unit.leading_selbri.as_ref()
+                    } else {
+                        unit.co_tails[index - 1].trailing_selbri.as_ref()
+                    };
+                    let leading = self.analyze_tanru_selbri(leading);
+                    trailing = self.add_frame(
+                        self.raw_for_node(unit),
+                        PlaceFrameKind::CoInverted,
+                        None,
+                        Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                        propagation_co(leading, trailing),
+                    );
+                }
+                trailing
             }
             generated::TanruUnitAtomBaseForCeiSyntax::ScalarNegatedTanruUnit(unit) => {
                 let inner = self.analyze_scalar_negated_tanru_inner_unit(&unit.inner_unit);
@@ -2231,23 +2312,8 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         unit: &'tree generated::ScalarNegatedTanruInnerUnitSyntax,
     ) -> SelbriPlaceFrameId {
-        match unit {
-            generated::ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-                self.walk_node(&unit.tense_modal);
-                self.analyze_connected_selbri(&unit.inner_selbri)
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-                self.analyze_tanru_unit_atom(unit)
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(unit) => self
-                .add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                ),
-        }
+        let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
+        self.analyze_tanru_unit_atom(unit)
     }
 
     #[requires(true)]
@@ -2550,6 +2616,19 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 );
             }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                let slot = Some(modal_slot(Some(
+                    self.raw_for_node(term.tense_modal.as_ref()),
+                )));
+                self.assign_tagged_or_elided_argument_to_cursors(
+                    cursors,
+                    outer_term,
+                    &term.sumti,
+                    slot,
+                    AssignmentSource::ModalTerm,
+                );
+            }
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
                 self.walk_node(&term.tense_modal);
                 let slot = Some(modal_slot(Some(
                     self.raw_for_node(term.tense_modal.as_ref()),
@@ -3612,6 +3691,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
+            generated::SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
             generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
                 if let Some(tense_modal) = term.tag.as_deref() {
                     self.walk_node(tense_modal);
@@ -3676,6 +3759,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             GeneratedSimpleTermRef::SumtiTerm(term) => self.walk_node(&term.0),
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
@@ -4657,7 +4744,7 @@ impl<'index, 'tree> TreeVisitor<'tree>
             self.skip_depth = 1;
             return;
         }
-        if let GeneratedSyntaxNodeRef::AssignedProBridiTanruUnitSyntax(unit) = node {
+        if let GeneratedSyntaxNodeRef::TanruUnitSyntax(unit) = node {
             for assignment in &unit.assignments {
                 self.record_assignment(assignment.tanru_unit.as_ref());
             }
@@ -5214,7 +5301,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::ForethoughtBridiConnectionSyntax::GroupedForethoughtBridiConnection(
                 connection,
             ) => {
-                if let Some(tense_modal) = connection.tense_modal.as_deref() {
+                for tense_modal in &connection.tense_modals {
                     self.walk_node(tense_modal);
                 }
                 self.visit_forethought_bridi_connection(&connection.inner);
@@ -5246,7 +5333,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(
                 connection,
             ) => {
-                if let Some(tense_modal) = connection.tense_modal.as_deref() {
+                for tense_modal in &connection.tense_modals {
                     self.walk_node(tense_modal);
                 }
                 self.visit_forethought_bridi_connection_without_tail_terms(&connection.inner);
@@ -5783,6 +5870,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     self.visit_relative_clause_without_head(&tail.0.inner);
                 }
+                generated::RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => {
+                    self.visit_relative_clause_without_head(&tail.0);
+                }
             }
         }
     }
@@ -5807,6 +5897,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                         reference_head_id,
                         &tail.0.inner,
                     );
+                }
+                generated::RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => {
+                    self.visit_relative_clause(assignment_head_id, reference_head_id, &tail.0);
                 }
             }
         }
@@ -5992,6 +6085,49 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_relation(&mut self, selbri: &'tree generated::SelbriSyntax) {
         match selbri {
+            generated::SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+                self.visit_co_selbri(&assigned.0.leading_selbri);
+                for assignment in &assigned.0.assignments {
+                    self.visit_relation(&assignment.selbri);
+                    if let Some(predicate_id) = self.current_bridi {
+                        self.add_edge(
+                            ReferenceKind::ProBridiAssignment,
+                            self.raw_for_node(assignment),
+                            target_resolved_node(predicate_id.0),
+                            ReferenceRule::CeiAssignsEnclosingBridi,
+                        );
+                    }
+                }
+            }
+            generated::SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+                self.visit_co_selbri(&relative.leading_selbri);
+                self.visit_relative_clause_list_without_head(&relative.relative_clauses);
+                for assignment in &relative.assignments {
+                    self.visit_relation(&assignment.selbri);
+                    if let Some(predicate_id) = self.current_bridi {
+                        self.add_edge(
+                            ReferenceKind::ProBridiAssignment,
+                            self.raw_for_node(assignment),
+                            target_resolved_node(predicate_id.0),
+                            ReferenceRule::CeiAssignsEnclosingBridi,
+                        );
+                    }
+                }
+            }
+            generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+                self.visit_co_selbri(&assigned.0.leading_selbri);
+                for assignment in &assigned.0.assignments {
+                    self.visit_relation(&assignment.selbri);
+                    if let Some(predicate_id) = self.current_bridi {
+                        self.add_edge(
+                            ReferenceKind::ProBridiAssignment,
+                            self.raw_for_node(assignment),
+                            target_resolved_node(predicate_id.0),
+                            ReferenceRule::CeiAssignsEnclosingBridi,
+                        );
+                    }
+                }
+            }
             generated::SelbriSyntax::TaggedSelbri(selbri) => {
                 self.walk_node(&selbri.tense_modal);
                 self.visit_untagged_relation(&selbri.inner_selbri);
@@ -6012,20 +6148,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::UntaggedSelbriSyntax::CoSelbri(selbri) => {
                 self.visit_co_selbri(selbri);
             }
-            generated::UntaggedSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                self.visit_relation(&selbri.leading_selbri);
-                self.visit_relation(&selbri.first_branch.selbri);
-                for branch in &selbri.additional_branches {
-                    self.visit_relation(&branch.selbri);
-                }
-            }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn visit_co_selbri(&mut self, selbri: &'tree generated::CoSelbriSyntax) {
-        self.visit_connected_selbri(&selbri.leading_selbri);
+        self.visit_tanru_selbri(&selbri.leading_selbri);
         if let Some(tail) = selbri.co_tail.as_ref() {
             self.visit_co_selbri(&tail.trailing_selbri);
         }
@@ -6034,70 +6163,96 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[requires(true)]
     #[ensures(true)]
     fn visit_connected_selbri(&mut self, selbri: &'tree generated::ConnectedSelbriSyntax) {
-        self.visit_tanru_selbri(&selbri.leading_selbri);
+        self.visit_bound_selbri(&selbri.leading_selbri);
         for continuation in &selbri.continuations {
-            self.visit_tanru_selbri(&continuation.trailing_selbri);
+            match continuation.as_ref() {
+                generated::ConnectedSelbriContinuationSyntax::SimpleConnectedSelbriContinuation(
+                    continuation,
+                ) => self.visit_bound_selbri(&continuation.trailing_selbri),
+                generated::ConnectedSelbriContinuationSyntax::GroupedConnectedSelbriContinuation(
+                    continuation,
+                ) => self.visit_tanru_selbri(&continuation.inner_selbri),
+            }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn visit_tanru_selbri(&mut self, selbri: &'tree generated::TanruSelbriSyntax) {
-        self.visit_relation_unit(&selbri.first_unit);
-        for unit in &selbri.additional_units {
-            self.visit_relation_unit(unit);
+        self.visit_connected_selbri(&selbri.first_selbri);
+        for unit in &selbri.additional_selbri {
+            self.visit_connected_selbri(unit);
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn visit_relation_unit(&mut self, unit: &'tree generated::TanruUnitSyntax) {
-        self.visit_bo_or_linked_tanru_unit(&unit.0.first);
-        for link in &unit.0.links {
-            self.visit_bo_or_linked_tanru_unit(&link.trailing_unit);
+        self.visit_linked_tanru_unit(&unit.base);
+        for assignment in &unit.assignments {
+            self.visit_linked_tanru_unit(&assignment.tanru_unit);
+            if let Some(label) = generated_relation_unit_assignment_label(&assignment.tanru_unit)
+                && let Some(predicate_id) = self.current_bridi
+            {
+                self.cei_bridi_bindings.insert(label, predicate_id);
+            }
+            if let Some(predicate_id) = self.current_bridi {
+                self.add_edge(
+                    ReferenceKind::ProBridiAssignment,
+                    self.raw_for_node(assignment.tanru_unit.as_ref()),
+                    target_resolved_node(predicate_id.0),
+                    ReferenceRule::CeiAssignsEnclosingBridi,
+                );
+            }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_bo_or_linked_tanru_unit(&mut self, unit: &'tree generated::BoOrLinkedTanruUnitSyntax) {
-        match unit {
-            generated::BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
-                self.visit_relation(&unit.leading_selbri);
-                self.visit_bo_or_linked_tanru_unit(&unit.first_branch.unit);
-                for branch in &unit.additional_branches {
-                    self.visit_bo_or_linked_tanru_unit(&branch.unit);
+    fn visit_bound_selbri(&mut self, selbri: &'tree generated::BoundSelbriSyntax) {
+        self.visit_plain_bo_selbri(&selbri.leading_selbri);
+        if let Some(tail) = selbri.bo_tail.as_deref() {
+            if let Some(tense_modal) = tail.tense_modal.as_deref() {
+                self.walk_node(tense_modal);
+            }
+            self.visit_bound_selbri(&tail.trailing_selbri);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_plain_bo_selbri(&mut self, selbri: &'tree generated::PlainBoSelbriSyntax) {
+        match selbri {
+            generated::PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
+                self.visit_relation_unit(&unit.leading_unit);
+                if let Some(tail) = unit.bo_tail.as_deref() {
+                    self.visit_plain_bo_selbri(&tail.trailing_selbri);
                 }
             }
-            generated::BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-                self.visit_linked_tanru_unit(&unit.leading_unit);
-                if let Some(tense_modal) = unit.bo_tense_modal.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                self.visit_bo_or_linked_tanru_unit(&unit.trailing_unit);
-            }
-            generated::BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-                self.visit_linked_tanru_unit_for_cei(&unit.base);
-                for assignment in &unit.assignments {
-                    self.visit_linked_tanru_unit_for_cei(&assignment.tanru_unit);
-                    if let Some(label) =
-                        generated_relation_unit_assignment_label(&assignment.tanru_unit)
-                        && let Some(predicate_id) = self.current_bridi
-                    {
-                        self.cei_bridi_bindings.insert(label, predicate_id);
+            generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
+                match selbri {
+                    generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
+                        selbri,
+                    ) => {
+                        self.visit_relation(&selbri.leading_selbri);
+                        self.visit_plain_bo_selbri(&selbri.first_branch.selbri);
                     }
-                    if let Some(predicate_id) = self.current_bridi {
-                        self.add_edge(
-                            ReferenceKind::ProBridiAssignment,
-                            self.raw_for_node(assignment.tanru_unit.as_ref()),
-                            target_resolved_node(predicate_id.0),
-                            ReferenceRule::CeiAssignsEnclosingBridi,
-                        );
+                    generated::ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
+                        selbri,
+                    ) => {
+                        self.visit_co_selbri(&selbri.leading_selbri);
+                        self.visit_co_selbri(&selbri.first_branch.selbri);
+                    }
+                    generated::ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
+                        selbri,
+                    ) => {
+                        self.visit_co_selbri(&selbri.leading_selbri);
+                        self.visit_co_selbri(&selbri.first_branch.selbri);
+                        for branch in &selbri.additional_branches {
+                            self.visit_co_selbri(&branch.selbri);
+                        }
                     }
                 }
-            }
-            generated::BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-                self.visit_linked_tanru_unit(unit);
             }
         }
     }
@@ -6187,7 +6342,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.walk_node(&unit.tag);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
-                self.visit_connected_selbri(&unit.selbri);
+                self.visit_tanru_selbri(&unit.selbri);
+            }
+            generated::TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+                self.visit_tanru_selbri(&unit.leading_selbri);
+                for tail in &unit.co_tails {
+                    self.visit_tanru_selbri(&tail.trailing_selbri);
+                }
             }
             generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(_)
@@ -6254,7 +6415,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.walk_node(&unit.tag);
             }
             generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
-                self.visit_connected_selbri(&unit.selbri);
+                self.visit_tanru_selbri(&unit.selbri);
+            }
+            generated::TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+                self.visit_tanru_selbri(&unit.leading_selbri);
+                for tail in &unit.co_tails {
+                    self.visit_tanru_selbri(&tail.trailing_selbri);
+                }
             }
             generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
@@ -6286,18 +6453,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         &mut self,
         unit: &'tree generated::ScalarNegatedTanruInnerUnitSyntax,
     ) {
-        match unit {
-            generated::ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-                self.walk_node(&unit.tense_modal);
-                self.visit_connected_selbri(&unit.inner_selbri);
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(unit) => {
-                self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-                self.visit_tanru_unit_atom(unit);
-            }
-        }
+        let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
+        self.visit_tanru_unit_atom(unit);
     }
 
     #[requires(true)]
@@ -7131,6 +7288,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
+            generated::SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
             generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
                 if let Some(tense_modal) = term.tag.as_deref() {
                     self.walk_node(tense_modal);
@@ -7195,6 +7356,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             GeneratedSimpleTermRef::SumtiTerm(term) => self.visit_argument(&term.0),
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
@@ -8315,6 +8480,15 @@ fn generated_relation_pro_bridi_cmavo(selbri: &generated::SelbriSyntax) -> Optio
 #[ensures(true)]
 fn generated_relation_first_token(selbri: &generated::SelbriSyntax) -> Option<&Token> {
     match selbri {
+        generated::SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+            generated_tanru_selbri_first_token(&assigned.0.leading_selbri.leading_selbri)
+        }
+        generated::SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+            generated_tanru_selbri_first_token(&relative.leading_selbri.leading_selbri)
+        }
+        generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+            generated_tanru_selbri_first_token(&assigned.0.leading_selbri.leading_selbri)
+        }
         generated::SelbriSyntax::TaggedSelbri(selbri) => {
             generated_untagged_relation_first_token(&selbri.inner_selbri)
         }
@@ -8331,12 +8505,11 @@ fn generated_untagged_relation_first_token(
 ) -> Option<&Token> {
     match selbri {
         generated::UntaggedSelbriSyntax::CoSelbri(selbri) => {
-            generated_connected_selbri_first_token(&selbri.leading_selbri)
+            generated_tanru_selbri_first_token(&selbri.leading_selbri)
         }
         generated::UntaggedSelbriSyntax::NegatedSelbri(selbri) => {
             generated_relation_first_token(&selbri.inner_selbri)
         }
-        generated::UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => None,
     }
 }
 
@@ -8345,38 +8518,38 @@ fn generated_untagged_relation_first_token(
 fn generated_connected_selbri_first_token(
     selbri: &generated::ConnectedSelbriSyntax,
 ) -> Option<&Token> {
-    generated_tanru_selbri_first_token(&selbri.leading_selbri)
+    generated_bound_selbri_first_token(&selbri.leading_selbri)
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn generated_tanru_selbri_first_token(selbri: &generated::TanruSelbriSyntax) -> Option<&Token> {
-    generated_tanru_unit_first_token(&selbri.first_unit)
+    generated_connected_selbri_first_token(&selbri.first_selbri)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_bound_selbri_first_token(selbri: &generated::BoundSelbriSyntax) -> Option<&Token> {
+    generated_plain_bo_selbri_first_token(&selbri.leading_selbri)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_plain_bo_selbri_first_token(
+    selbri: &generated::PlainBoSelbriSyntax,
+) -> Option<&Token> {
+    match selbri {
+        generated::PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
+            generated_tanru_unit_first_token(&unit.leading_unit)
+        }
+        generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(_) => None,
+    }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn generated_tanru_unit_first_token(unit: &generated::TanruUnitSyntax) -> Option<&Token> {
-    generated_bo_or_linked_tanru_unit_first_token(&unit.0.first)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_bo_or_linked_tanru_unit_first_token(
-    unit: &generated::BoOrLinkedTanruUnitSyntax,
-) -> Option<&Token> {
-    match unit {
-        generated::BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-            generated_tanru_unit_atom_first_token(&unit.base)
-        }
-        generated::BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-            generated_tanru_unit_atom_for_cei_first_token(&unit.base.base)
-        }
-        generated::BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-            generated_tanru_unit_atom_first_token(&unit.leading_unit.base)
-        }
-        generated::BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => None,
-    }
+    generated_tanru_unit_atom_first_token(&unit.base.base)
 }
 
 #[requires(true)]
@@ -8406,7 +8579,7 @@ fn generated_tanru_unit_atom_base_first_token(
             generated_scalar_negated_tanru_inner_unit_first_token(&unit.inner_unit)
         }
         generated::TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
-            generated_connected_selbri_first_token(&unit.selbri)
+            generated_tanru_selbri_first_token(&unit.selbri)
         }
         _ => None,
     }
@@ -8425,7 +8598,7 @@ fn generated_tanru_unit_atom_base_for_cei_first_token(
             generated_scalar_negated_tanru_inner_unit_first_token(&unit.inner_unit)
         }
         generated::TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
-            generated_connected_selbri_first_token(&unit.selbri)
+            generated_tanru_selbri_first_token(&unit.selbri)
         }
         _ => None,
     }
@@ -8436,17 +8609,8 @@ fn generated_tanru_unit_atom_base_for_cei_first_token(
 fn generated_scalar_negated_tanru_inner_unit_first_token(
     unit: &generated::ScalarNegatedTanruInnerUnitSyntax,
 ) -> Option<&Token> {
-    match unit {
-        generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-            generated_tanru_unit_atom_base_first_token(&unit.base)
-        }
-        generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(unit) => {
-            Some(&unit.goha.value)
-        }
-        generated::ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-            generated_connected_selbri_first_token(&unit.inner_selbri)
-        }
-    }
+    let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
+    generated_tanru_unit_atom_base_first_token(&unit.base)
 }
 
 #[requires(true)]

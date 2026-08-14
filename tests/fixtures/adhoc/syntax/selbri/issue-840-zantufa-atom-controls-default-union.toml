@@ -1,0 +1,12 @@
+id = "adhoc.syntax.selbri.issue-840-zantufa-atom-controls-default-union"
+lojban = "klama mezu'a .i pa su'i re moi"
+tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "matrix", "default-union", "no-delta"]
+
+[[provenance]]
+kind = "other"
+name = "rolling-Zantufa atom survival controls"
+description = "Pins the existing Zantufa ME tag-body and MEX-MOI tanru atoms under the default warning-grammar union."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [19, 23], source-text = "su'i", message = "unexpected cmavo" }]

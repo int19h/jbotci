@@ -1100,6 +1100,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedForethoughtSelbriInspector",
+        "tree-walker discovery state is a boolean for which both states are valid",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedGraphBuilder",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1162,6 +1166,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:IndicatorPart",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_builder/pro_bridi.rs:GeneratedTanruUnitCollector",
+        "tree-walker accumulator may validly contain any ordered prefix of borrowed invariant-bearing tanru units",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/sources.rs:GeneratedSpanCollector",
@@ -1652,6 +1660,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "zero-sized grammar refinement policy has no independently invalid state",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:BaselineSelbriAssignmentRejection",
+        "zero-sized grammar refinement policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:C4NodeVisitor",
+        "tree-visitor discovery state is a boolean for which both states are valid",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:RecoveredC4NodeVisitor",
+        "recovered-tree visitor discovery state is a boolean for which both states are valid",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:RestrictedBaselineSelbriAssignmentRejection",
+        "zero-sized grammar refinement policy has no independently invalid state",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineRelativeContinuationRejection",
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
@@ -1756,12 +1780,24 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the independent prefix flags and closed atom kind deliberately admit every typed combination",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:NonElidedNaheFihoTagTermRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_tag.rs:PostNaExtensionTagRejection",
         "stateless parser rejection policy has exactly one valid value",
     ),
     (
         "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ZantufaTagRejection",
         "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedStackIter",
+        "an optional borrowed persistent-stack node is the iterator's complete valid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedStackNode",
+        "every typed value and optional persistent parent combination is a valid stack node",
     ),
     (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedVec",

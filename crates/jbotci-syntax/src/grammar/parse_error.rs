@@ -112,6 +112,122 @@ impl<'a, T: Clone> IntoIterator for &'a mut SharedVec<T> {
     }
 }
 
+/// A persistent stack used to snapshot the parser's active grammar path.
+///
+/// Parser failures are memoized at many nested rules. Sharing the stack tail
+/// keeps each snapshot constant-size instead of copying the complete active
+/// path into every failure memo.
+#[invariant(head.is_some() == (*len > 0))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(super) struct SharedStack<T> {
+    head: Option<Rc<SharedStackNode<T>>>,
+    len: usize,
+}
+
+#[invariant(true)]
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct SharedStackNode<T> {
+    value: T,
+    parent: Option<Rc<SharedStackNode<T>>>,
+}
+
+#[invariant(true)]
+struct SharedStackIter<'a, T> {
+    next: Option<&'a SharedStackNode<T>>,
+}
+
+impl<T> SharedStack<T> {
+    #[requires(true)]
+    #[ensures(ret.is_empty())]
+    pub(super) fn empty() -> Self {
+        new!(SharedStack { head: None, len: 0 })
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == self.len() + 1)]
+    pub(super) fn pushed(&self, value: T) -> Self {
+        new!(SharedStack {
+            head: Some(Rc::new(SharedStackNode {
+                value,
+                parent: self.head.clone(),
+            })),
+            len: self.len + 1,
+        })
+    }
+
+    #[requires(!self.is_empty())]
+    #[ensures(ret.len() + 1 == self.len())]
+    pub(super) fn popped(&self) -> Self {
+        let head = self.head.as_ref().expect("shared stack is non-empty");
+        new!(SharedStack {
+            head: head.parent.clone(),
+            len: self.len - 1,
+        })
+    }
+
+    #[requires(len <= self.len())]
+    #[ensures(self.len() == len)]
+    pub(super) fn truncate(&mut self, len: usize) {
+        while self.len > len {
+            *self = self.popped();
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn iter_inner_to_outer(&self) -> SharedStackIter<'_, T> {
+        SharedStackIter {
+            next: self.head.as_deref(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == self.len())]
+    pub(super) fn to_vec_outer_to_inner(&self) -> Vec<T>
+    where
+        T: Clone,
+    {
+        let mut values = self
+            .iter_inner_to_outer()
+            .map(|value| value.clone())
+            .collect::<Vec<_>>();
+        values.reverse();
+        values
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn len(&self) -> usize {
+        self.len
+    }
+
+    #[requires(true)]
+    #[ensures(ret == (self.len() == 0))]
+    pub(super) fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+}
+
+impl<T> Default for SharedStack<T> {
+    #[requires(true)]
+    #[ensures(ret.is_empty())]
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+impl<'a, T> Iterator for SharedStackIter<'a, T> {
+    type Item = &'a T;
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn next(&mut self) -> Option<Self::Item> {
+        let node = self.next?;
+        self.next = node.parent.as_deref();
+        Some(&node.value)
+    }
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(super) struct SyntaxParseError<'tokens> {
@@ -127,8 +243,8 @@ pub(super) struct SyntaxParseErrorData<'tokens> {
     context_paths: SharedVec<Vec<SyntaxConstructContext>>,
     found: Option<SyntaxFound>,
     custom_kind: Option<SyntaxParseCustomKind>,
-    active_contexts: SharedVec<SyntaxContextFrame>,
-    active_rule_contexts: SharedVec<SyntaxRuleFrame>,
+    active_contexts: SharedStack<SyntaxContextFrame>,
+    active_rule_contexts: SharedStack<SyntaxRuleFrame>,
     preferred_context_hint: Option<SyntaxConstructContext>,
     same_position_branches: SharedVec<Arc<SyntaxParseError<'tokens>>>,
 }
@@ -229,8 +345,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: None,
-            active_contexts: SharedVec::empty(),
-            active_rule_contexts: SharedVec::empty(),
+            active_contexts: SharedStack::empty(),
+            active_rule_contexts: SharedStack::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
         })
@@ -250,8 +366,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: Some(custom_kind),
-            active_contexts: SharedVec::empty(),
-            active_rule_contexts: SharedVec::empty(),
+            active_contexts: SharedStack::empty(),
+            active_rule_contexts: SharedStack::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
         })
@@ -273,8 +389,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context_paths: empty_context_paths(),
             found: None,
             custom_kind: None,
-            active_contexts: SharedVec::empty(),
-            active_rule_contexts: SharedVec::empty(),
+            active_contexts: SharedStack::empty(),
+            active_rule_contexts: SharedStack::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
         })
@@ -304,8 +420,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
             context_paths: empty_context_paths(),
             found: Some(found),
             custom_kind: None,
-            active_contexts: SharedVec::empty(),
-            active_rule_contexts: SharedVec::empty(),
+            active_contexts: SharedStack::empty(),
+            active_rule_contexts: SharedStack::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
         })
@@ -433,8 +549,8 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn active_rule_contexts(&self) -> &[SyntaxRuleFrame] {
-        &self.active_rule_contexts
+    pub(super) fn active_rule_contexts(&self) -> Vec<SyntaxRuleFrame> {
+        self.active_rule_contexts.to_vec_outer_to_inner()
     }
 
     #[requires(true)]
@@ -461,11 +577,14 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn with_active_contexts(mut self, contexts: &[SyntaxContextFrame]) -> Self {
+    pub(super) fn with_active_contexts(
+        mut self,
+        contexts: SharedStack<SyntaxContextFrame>,
+    ) -> Self {
         if self.active_contexts.len() > contexts.len() {
             return self;
         }
-        self.active_contexts = SharedVec::from_vec(contexts.to_vec());
+        self.active_contexts = contexts;
         if self.preferred_context_hint.is_none() {
             self.preferred_context_hint =
                 preferred_context_from_branches(&self.same_position_branches);
@@ -475,9 +594,12 @@ impl<'tokens> SyntaxParseError<'tokens> {
 
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn with_active_rule_contexts(mut self, contexts: &[SyntaxRuleFrame]) -> Self {
+    pub(super) fn with_active_rule_contexts(
+        mut self,
+        contexts: SharedStack<SyntaxRuleFrame>,
+    ) -> Self {
         if self.active_rule_contexts.len() <= contexts.len() {
-            self.active_rule_contexts = SharedVec::from_vec(contexts.to_vec());
+            self.active_rule_contexts = contexts;
         }
         self
     }
@@ -540,7 +662,7 @@ impl<'tokens> SyntaxParseError<'tokens> {
         self.expected_groups.hash(&mut hasher);
         self.context_paths.hash(&mut hasher);
         self.custom_kind.hash(&mut hasher);
-        for context in &self.active_contexts {
+        for context in self.active_contexts.iter_inner_to_outer() {
             context.construct().hash(&mut hasher);
             context.byte_start().hash(&mut hasher);
         }
@@ -606,8 +728,8 @@ where
             context_paths: empty_context_paths(),
             found: Some(syntax_found),
             custom_kind: None,
-            active_contexts: SharedVec::empty(),
-            active_rule_contexts: SharedVec::empty(),
+            active_contexts: SharedStack::empty(),
+            active_rule_contexts: SharedStack::empty(),
             preferred_context_hint: None,
             same_position_branches: SharedVec::empty(),
         })
@@ -678,8 +800,8 @@ where
         self.context_paths = empty_context_paths();
         self.found = Some(syntax_found);
         self.custom_kind = None;
-        self.active_contexts = SharedVec::empty();
-        self.active_rule_contexts = SharedVec::empty();
+        self.active_contexts = SharedStack::empty();
+        self.active_rule_contexts = SharedStack::empty();
         self.preferred_context_hint = None;
         self
     }
@@ -1068,11 +1190,11 @@ fn syntax_context_from_frame(frame: &SyntaxContextFrame, span: Span) -> SyntaxCo
 #[ensures(true)]
 fn append_active_contexts_to_report_contexts(
     contexts: &mut Vec<SyntaxConstructContext>,
-    active_contexts: &[SyntaxContextFrame],
+    active_contexts: &SharedStack<SyntaxContextFrame>,
     span: Span,
 ) {
     let mut reached_report_context = contexts.is_empty();
-    for frame in active_contexts.iter().rev() {
+    for frame in active_contexts.iter_inner_to_outer() {
         let construct = frame.construct();
         if !syntax_construct_is_known(construct) {
             continue;
@@ -1138,9 +1260,9 @@ fn merge_report_errors<'tokens>(
 #[requires(true)]
 #[ensures(true)]
 fn deeper_active_context_stack(
-    left: SharedVec<SyntaxContextFrame>,
-    right: SharedVec<SyntaxContextFrame>,
-) -> SharedVec<SyntaxContextFrame> {
+    left: SharedStack<SyntaxContextFrame>,
+    right: SharedStack<SyntaxContextFrame>,
+) -> SharedStack<SyntaxContextFrame> {
     if right.len() > left.len() {
         right
     } else {

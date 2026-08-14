@@ -567,6 +567,9 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_selbri(
     selbri: &SelbriSyntax,
 ) -> Option<&TenseModalSyntax> {
     match selbri {
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+        | SelbriSyntax::ZantufaRelativeSelbri(_)
+        | SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => None,
         SelbriSyntax::TaggedSelbri(tagged) => {
             if generated_tense_modal_has_contradictory_event_negation(&tagged.tense_modal) {
                 Some(tagged.tense_modal.as_ref())
@@ -592,7 +595,6 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_untagged_selbr
             first_generated_contradictory_event_tense_modal_for_selbri(&negated.inner_selbri)
         }
         UntaggedSelbriSyntax::CoSelbri(_) => None,
-        UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => None,
     }
 }
 

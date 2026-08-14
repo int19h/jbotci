@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-829-ke-co-flat-baseline"
+lojban = "lo ke broda co brode co brodi ke'e ku"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-829", "selbri-reconstruction", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "S12 standard rejection"
+description = "Camxes standard and experimental reject CO within the standard KE atom."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 34], source-text = "ke'e", message = "unexpected cmavo" }]

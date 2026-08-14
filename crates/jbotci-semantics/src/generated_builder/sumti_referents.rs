@@ -2830,6 +2830,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     tail.0.inner.as_ref()
                 }
+                RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => tail.0.as_ref(),
             };
             if let RelativeClauseAtomSyntax::BridiRelativeClause(clause) = atom {
                 lowered.push(self.lower_generated_bridi_relative_clause(clause, head)?);
@@ -3717,6 +3718,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     tail.0.inner.as_ref()
                 }
+                RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => tail.0.as_ref(),
             };
             if let Some(clause) = self.lower_generated_relative_clause_atom(atom, head)? {
                 lowered.push(clause);
@@ -3763,6 +3765,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     tail.0.inner.as_ref()
                 }
+                RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => tail.0.as_ref(),
             };
             if let RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(clause) = atom
                 && let Some(clause) =
@@ -8771,7 +8774,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
         )?;
         let body = if let Some(tanru) = tanru_selbri_from_selbri(selbri)?
-            && (!tanru.additional_units.is_empty()
+            && (generated_single_tanru_unit_from_tanru_selbri(tanru).is_none()
                 || generated_tanru_selbri_is_single_converted_group(tanru))
         {
             self.build_property_formula_for_tanru_selbri(
@@ -8813,7 +8816,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         if let SelbriSyntax::UntaggedSelbri(UntaggedSelbriSyntax::CoSelbri(co_selbri)) = selbri
-            && (co_selbri.co_tail.is_some() || !co_selbri.leading_selbri.continuations.is_empty())
+            && relation_label_from_co_selbri(co_selbri).is_err()
         {
             let mut visible_arguments = BTreeMap::new();
             insert_visible_argument(
@@ -8838,11 +8841,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         if let Some(tanru) = tanru_selbri_from_selbri(selbri)?
-            && tanru.additional_units.is_empty()
+            && let Some(tanru_unit) = generated_single_tanru_unit_from_tanru_selbri(tanru)
         {
             let source = self.source_for_node(selbri, "restrictive-predication");
-            if let Some(question) =
-                relation_question_syntax_from_generated_tanru_unit(&tanru.first_unit)?
+            if let Some(question) = relation_question_syntax_from_generated_tanru_unit(tanru_unit)?
             {
                 return self.build_property_atom_for_generated_relation_question(
                     question,
@@ -8850,8 +8852,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     self.source_for_node(selbri, "restrictive-formula"),
                 );
             }
-            if let Some(cmavo) =
-                resolvable_generated_pro_bridi_cmavo_from_tanru_unit(&tanru.first_unit)?
+            if let Some(cmavo) = resolvable_generated_pro_bridi_cmavo_from_tanru_unit(tanru_unit)?
                 && let Some(formula) = self
                     .build_restrictive_formula_for_generated_pro_bridi_frame(
                         cmavo,
@@ -8861,10 +8862,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             {
                 return Ok(formula);
             }
-            if generated_bare_jai_modal_tanru_unit_from_tanru_unit(&tanru.first_unit)?.is_some() {
+            if generated_bare_jai_modal_tanru_unit_from_tanru_unit(tanru_unit)?.is_some() {
                 return self
                     .build_relation_formula_for_generated_tanru_unit_argument_with_eventuality(
-                        &tanru.first_unit,
+                        tanru_unit,
                         ArgumentValue::filled(referent, None),
                         None,
                         PredicationMode::Restrictive,
@@ -8874,32 +8875,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     );
             }
             if let Some(unit) =
-                generated_jai_modal_tanru_unit_with_tense_from_tanru_unit(&tanru.first_unit)?
+                generated_jai_modal_tanru_unit_with_tense_from_tanru_unit(tanru_unit)?
             {
                 return self.build_restrictive_generated_jai_modal_conversion_formula(
-                    selbri,
-                    &tanru.first_unit,
-                    unit,
-                    referent,
-                );
-            }
-            if !tanru.first_unit.0.links.is_empty() {
-                let mut visible_arguments = BTreeMap::new();
-                insert_visible_argument(
-                    &mut visible_arguments,
-                    1,
-                    ArgumentValue::filled(referent, None),
-                )?;
-                return self.build_property_formula_for_tanru_selbri_with_visible_arguments(
-                    tanru,
-                    visible_arguments,
-                    self.source_for_node(selbri, "restrictive-selbri-formula"),
-                    GeneratedPropertyTanruContext::Description,
-                    None,
+                    selbri, tanru_unit, unit, referent,
                 );
             }
             return self.build_relation_formula_for_generated_tanru_unit_argument(
-                &tanru.first_unit,
+                tanru_unit,
                 ArgumentValue::filled(referent, None),
                 PredicationMode::Restrictive,
                 self.source_for_node(selbri, "restrictive-predication"),
@@ -8907,7 +8890,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         if let Some(tanru) = tanru_selbri_from_selbri(selbri)?
-            && !tanru.additional_units.is_empty()
+            && generated_single_tanru_unit_from_tanru_selbri(tanru).is_none()
         {
             let mut visible_arguments = BTreeMap::new();
             insert_visible_argument(
@@ -8929,8 +8912,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     UntaggedSelbriSyntax::CoSelbri(co_selbri) => {
                         relation_label_from_co_selbri(co_selbri).is_err()
                     }
-                    UntaggedSelbriSyntax::NegatedSelbri(_)
-                    | UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => true,
+                    UntaggedSelbriSyntax::NegatedSelbri(_) => true,
                 })
         {
             let mut visible_arguments = BTreeMap::new();
@@ -9156,10 +9138,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let predication_source = self.source_for_node(tagged, "restrictive-predication");
         let formula_source = self.source_for_node(tagged, "restrictive-formula");
         if let Some(tanru) = tanru_selbri_from_co_selbri(co_selbri)?
-            && tanru.additional_units.is_empty()
+            && let Some(unit) = generated_single_tanru_unit_from_tanru_selbri(tanru)
         {
             return self.build_tagged_relation_formula_for_generated_tanru_unit_argument(
-                &tanru.first_unit,
+                unit,
                 ArgumentValue::filled(referent, None),
                 tagged.tense_modal.as_ref(),
                 PredicationMode::Restrictive,

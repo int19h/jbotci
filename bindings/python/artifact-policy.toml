@@ -32,6 +32,11 @@
 # 22,106,247 archive bytes and 96,208,471 unpacked bytes. Both cross or remain
 # within 5% of the sdist-wheel ceiling, so round up that nearest ratchet only;
 # the 20% growth allowance and entry limit remain unchanged.
+# Epoch 5's selbri reconstruction brings the manylinux 2.28 aarch64 wheel to
+# 22,707,929 archive bytes and 98,781,023 unpacked bytes: 2.72% and 2.67% growth
+# respectively from epoch 4. Only the compressed Linux aarch64 artifact crosses
+# its existing ceiling, by 2.29%, so round that baseline to 19 MB; the unpacked
+# and entry ratchets retain ample headroom.
 [sizes.sdist]
 baseline_bytes = 3800000
 baseline_unpacked_bytes = 24200000
@@ -45,7 +50,7 @@ max_growth_percent = 25
 max_entries = 32
 
 [sizes.linux-aarch64]
-baseline_bytes = 18500000
+baseline_bytes = 19000000
 baseline_unpacked_bytes = 96000000
 max_growth_percent = 20
 max_entries = 32

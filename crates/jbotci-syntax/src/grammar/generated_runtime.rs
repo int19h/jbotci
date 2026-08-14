@@ -9,7 +9,7 @@ use std::{any::Any, cell::Cell, rc::Rc};
 pub(crate) use super::parser_core::SharedSyntaxOutput;
 use super::{
     BoxedParser, ParserInput, RecoveryCheckpointKind, Span, SyntaxFound, SyntaxFoundData,
-    SyntaxParseError,
+    SyntaxMemoScope, SyntaxParseError,
     parser_core::{InputRef, MapExtra, Parser, custom, empty as parser_empty, end as parser_end},
     tokens::{
         ExperimentalCmavoContext, cmevla_word, is_brivla_relation_word, is_cmevla_word,
@@ -22,6 +22,89 @@ use crate::{
     SyntaxWordCategory, Token,
     tree::{SyntaxRecoveryItem, WithFreeModifiers},
 };
+
+/// Typed conversion used by the grammar DSL's `map_to` operator.
+///
+/// The local trait permits recovery-aware conversions between generated
+/// recursive parser outputs, whose outer [`jbotci_tree::Recovered`] wrappers
+/// cannot use the foreign [`From`] trait because of Rust's orphan rules.
+#[contract_trait]
+pub(crate) trait GrammarMapTo<T>: Sized {
+    #[requires(true)]
+    #[ensures(true)]
+    fn grammar_map_to(self) -> T;
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn grammar_map_to<T, U>(value: T) -> U
+where
+    T: GrammarMapTo<U>,
+{
+    value.grammar_map_to()
+}
+
+/// Removes the recovery wrapper introduced when an ordinary generated rule is
+/// reused as a recursive parser implementation.
+///
+/// A valid outer slot can still contain recovery items in the node's fields;
+/// those remain intact. An outer error or prefix cannot be represented by the
+/// recursive node type itself, so it is returned to the containing recovery
+/// owner instead of being discarded.
+#[requires(!expected.is_empty())]
+#[ensures(true)]
+pub(crate) fn recovered_recursive_output<'tokens, T, P>(
+    parser: P,
+    expected: &'static str,
+) -> BoxedParser<'tokens, T>
+where
+    T: 'tokens,
+    P: Parser<'tokens, jbotci_tree::Recovered<T, SyntaxRecoveryItem>> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let before = input.save();
+        let diagnostic_snapshot = input.state().diagnostic_candidates_snapshot();
+        match input.parse(&parser) {
+            Ok(jbotci_tree::Recovered::Valid(value)) => Ok(*value),
+            Ok(jbotci_tree::Recovered::Error(_) | jbotci_tree::Recovered::Prefix(_)) => {
+                input.rewind(before);
+                input
+                    .state()
+                    .restore_diagnostic_candidates(diagnostic_snapshot);
+                Err(expected_found_named_at_current(input, expected.to_owned()))
+            }
+            Err(error) => {
+                input.rewind(before);
+                Err(error)
+            }
+        }
+    })
+    .boxed()
+}
+
+/// Isolates memo entries produced by one parameterization of generated rules.
+///
+/// Generated rule functions are reusable with different recursive parser
+/// arguments. Their memoized results are reusable only within the same
+/// argument family, even when the rule name and token location coincide.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn memo_scope<'tokens, O, P>(
+    scope: SyntaxMemoScope,
+    parser: P,
+) -> BoxedParser<'tokens, O>
+where
+    O: 'tokens,
+    P: Parser<'tokens, O> + Clone + 'tokens,
+{
+    custom::<_, _>(move |input| {
+        let previous = input.state().enter_syntax_memo_scope(scope);
+        let result = input.parse(&parser);
+        input.state().restore_syntax_memo_scope(previous);
+        result
+    })
+    .boxed()
+}
 
 #[invariant(!words.is_empty(), "vocative marker sequence cannot be empty")]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -68,6 +151,7 @@ pub(crate) struct SyntaxGrammarDialect {
     pub zantufa_connectives_enabled: bool,
     pub zantufa_mex_enabled: bool,
     pub zantufa_mex_reinterpretation_enabled: bool,
+    pub zantufa_selbri_reinterpretation_enabled: bool,
     pub zantufa_quotes_enabled: bool,
     pub zantufa_tags_enabled: bool,
     pub zantufa_terms_enabled: bool,
@@ -87,6 +171,9 @@ impl SyntaxGrammarDialect {
             zantufa_mex_enabled: features.contains(&DialectFeature::ZantufaMex),
             zantufa_mex_reinterpretation_enabled: features
                 .contains(&DialectFeature::ZantufaMexReinterpretation),
+            zantufa_selbri_reinterpretation_enabled: features
+                .contains(&DialectFeature::ZantufaSelbriReinterpretation)
+                && features.contains(&DialectFeature::ZantufaTerms),
             zantufa_quotes_enabled: features.contains(&DialectFeature::ZantufaQuotes),
             zantufa_tags_enabled: features.contains(&DialectFeature::ZantufaTags),
             zantufa_terms_enabled: features.contains(&DialectFeature::ZantufaTerms),
@@ -105,6 +192,7 @@ pub(crate) enum SyntaxGrammarFeature {
     ZantufaConnectives,
     ZantufaMex,
     ZantufaMexReinterpretation,
+    ZantufaSelbriReinterpretation,
     ZantufaQuotes,
     ZantufaTags,
     ZantufaTerms,
@@ -122,6 +210,7 @@ impl SyntaxGrammarFeature {
             Self::ZantufaConnectives => dialect.zantufa_connectives_enabled,
             Self::ZantufaMex => dialect.zantufa_mex_enabled,
             Self::ZantufaMexReinterpretation => dialect.zantufa_mex_reinterpretation_enabled,
+            Self::ZantufaSelbriReinterpretation => dialect.zantufa_selbri_reinterpretation_enabled,
             Self::ZantufaQuotes => dialect.zantufa_quotes_enabled,
             Self::ZantufaTags => dialect.zantufa_tags_enabled,
             Self::ZantufaTerms => dialect.zantufa_terms_enabled,
@@ -139,6 +228,7 @@ impl SyntaxGrammarFeature {
             Self::ZantufaConnectives => "ZANTUFA-CONNECTIVES feature",
             Self::ZantufaMex => "ZANTUFA-MEX feature",
             Self::ZantufaMexReinterpretation => "ZANTUFA-MEX-REINTERPRETATION feature",
+            Self::ZantufaSelbriReinterpretation => "ZANTUFA-SELBRI-REINTERPRETATION feature",
             Self::ZantufaQuotes => "ZANTUFA-QUOTES feature",
             Self::ZantufaTags => "ZANTUFA-TAGS feature",
             Self::ZantufaTerms => "ZANTUFA-TERMS feature",
@@ -406,8 +496,8 @@ where
                         failure_location > start_location,
                     );
                     let error = error
-                        .with_active_contexts(input.state().active_syntax_contexts())
-                        .with_active_rule_contexts(input.state().active_syntax_rules());
+                        .with_active_contexts(input.state().active_syntax_context_stack())
+                        .with_active_rule_contexts(input.state().active_syntax_rule_stack());
                     input.state().pop_syntax_context();
                     error
                 } else {

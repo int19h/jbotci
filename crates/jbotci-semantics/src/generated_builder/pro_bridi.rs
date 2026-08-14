@@ -1,5 +1,20 @@
 use super::*;
 
+#[invariant(true)]
+#[derive(Default)]
+struct GeneratedTanruUnitCollector<'tree> {
+    units: Vec<&'tree TanruUnitSyntax>,
+}
+
+impl<'tree> TreeWalker<'tree> for GeneratedTanruUnitCollector<'tree> {
+    #[requires(true)]
+    #[ensures(self.units.contains(&node))]
+    fn walk_tanru_unit(&mut self, node: &'tree TanruUnitSyntax) {
+        self.units.push(node);
+        jbotci_syntax::generated_model::walk::tanru_unit(self, node);
+    }
+}
+
 impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(true)]
@@ -8,16 +23,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         unit: &'tree TanruUnitSyntax,
         visible_arguments: &BTreeMap<usize, ArgumentValue>,
     ) -> Result<(), SemanticsError> {
-        if !unit.0.links.is_empty() {
-            return Ok(());
-        }
-        let BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(assigned) = unit.0.first.as_ref()
-        else {
-            return Ok(());
-        };
-        let base = linked_tanru_unit_from_cei(assigned.base.as_ref());
-        let relation = semantic_relation_label(relation_label_from_linked_tanru_unit(&base)?);
-        for assignment in &assigned.assignments {
+        let relation = semantic_relation_label(relation_label_from_linked_tanru_unit(&unit.base)?);
+        for assignment in &unit.assignments {
             let Some(label) =
                 assigned_pro_bridi_reference_label_for_linked_tanru_unit(&assignment.tanru_unit)
             else {
@@ -38,7 +45,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         Ok(())
     }
 
-    #[requires(!tanru.additional_units.is_empty())]
+    #[requires(true)]
     #[requires(visible_arguments.keys().all(|place| *place > 0))]
     #[ensures(true)]
     pub(super) fn record_generated_assigned_pro_bridi_bindings_for_tanru_selbri(
@@ -47,16 +54,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         visible_arguments: &BTreeMap<usize, ArgumentValue>,
     ) -> Result<(), SemanticsError> {
         let source = self.source_for_node(tanru, "restrictive-tanru-formula");
-        for unit in std::iter::once(&tanru.first_unit).chain(tanru.additional_units.iter()) {
-            if !unit.0.links.is_empty() {
-                continue;
-            }
-            let BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(assigned) =
-                unit.0.first.as_ref()
-            else {
-                continue;
-            };
-            for assignment in &assigned.assignments {
+        let mut collector = GeneratedTanruUnitCollector::default();
+        TreeWalkable::walk_with(tanru, &mut collector);
+        for unit in collector.units {
+            for assignment in &unit.assignments {
                 let Some(label) = assigned_pro_bridi_reference_label_for_linked_tanru_unit(
                     &assignment.tanru_unit,
                 ) else {
@@ -100,23 +101,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             insert_visible_argument(&mut visible_arguments, place, argument)?;
         }
         if let Some(tanru) = binding.tanru {
-            let result = if tanru.additional_units.is_empty() {
-                self.build_tanru_unit_formula_for_visible_arguments(
-                    &tanru.first_unit,
-                    visible_arguments,
-                    formula_source,
-                    ConnectorLocus::Predicate,
-                    Some(eventuality),
-                )?
-            } else {
-                self.build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms(
+            let result = self
+                .build_tanru_formula_result_for_visible_arguments_with_head_eventuality_and_modal_terms(
                     tanru,
                     visible_arguments,
                     Some(eventuality),
                     formula_source,
                     modal_terms,
-                )?
-            };
+                )?;
             if mode != PredicationMode::Asserted {
                 self.set_formula_predication_mode(result.formula, mode);
             }
@@ -189,16 +181,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         if let Some(tanru) = binding.tanru {
             let source = binding.source.clone().or_else(|| source.clone());
-            if tanru.additional_units.is_empty() {
-                return self.build_description_property_formula_for_tanru_unit(
-                    &tanru.first_unit,
-                    parameter,
-                    source,
-                );
-            }
-            return self.build_property_formula_for_tanru_run(
-                &tanru.first_unit,
-                &tanru.additional_units,
+            return self.build_property_formula_for_tanru_selbri(
+                tanru,
                 parameter,
                 source,
                 GeneratedPropertyTanruContext::Description,

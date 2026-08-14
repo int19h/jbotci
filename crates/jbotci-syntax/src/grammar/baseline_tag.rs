@@ -29,6 +29,7 @@ use super::generated_model::{
     ExpZiTagAtomSyntax, SelbriSyntax, TenseModalAtomSyntax, TenseModalBodySyntax, TenseModalSyntax,
     recovered,
 };
+use super::generated_runtime::GrammarMapTo;
 use super::generated_runtime::OutputRejection;
 
 #[invariant(true)]
@@ -237,6 +238,15 @@ impl From<recovered::Recovered<recovered::BaselineTermTenseModalSyntax>>
     #[ensures(true)]
     fn from(value: recovered::Recovered<recovered::BaselineTermTenseModalSyntax>) -> Self {
         Self(map_recovered(value, recovered_baseline_body_into_body))
+    }
+}
+
+#[contract_trait]
+impl GrammarMapTo<recovered::TenseModalSyntax>
+    for recovered::Recovered<recovered::BaselineTermTenseModalSyntax>
+{
+    fn grammar_map_to(self) -> recovered::TenseModalSyntax {
+        self.into()
     }
 }
 
@@ -589,6 +599,102 @@ pub(crate) struct PostNaExtensionTagRejection;
 
 #[requires(true)]
 #[ensures(true)]
+fn is_elided_nahe_fiho_tense_modal(output: &TenseModalSyntax) -> bool {
+    let TenseModalSyntax(TenseModalBodySyntax::TenseModalAtom(
+        TenseModalAtomSyntax::ExpTagAtomRun(run),
+    )) = output
+    else {
+        return false;
+    };
+    let ExpTagAtomRunBodySyntax { first, additional } = &*run.0;
+    let ExpPrefixedTagAtomSyntax { nahe, se, atom } = first.as_ref();
+    let ExpTagAtomSyntax::ExpFihoTagAtom(fiho) = &*atom.value else {
+        return false;
+    };
+    nahe.as_ref()
+        .is_some_and(|nahe| nahe.free_modifiers.is_empty())
+        && se.is_none()
+        && atom.free_modifiers.is_empty()
+        && additional.is_empty()
+        && fiho.fiho.free_modifiers.is_empty()
+        && fiho.fehu.is_none()
+}
+
+/// Keeps the extension-first final-tag-term route restricted to the exact
+/// elided-FEhU NAhE/FIhO candidate.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct NonElidedNaheFihoTagTermRejection;
+
+#[contract_trait]
+impl OutputRejection<TenseModalSyntax> for NonElidedNaheFihoTagTermRejection {
+    fn rejected_name(&self) -> &'static str {
+        "non-elided-FEhU or non-NAhE/FIhO final tag term"
+    }
+
+    fn rejects(&self, output: &TenseModalSyntax) -> bool {
+        !is_elided_nahe_fiho_tense_modal(output)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_is_elided_nahe_fiho_tense_modal(
+    tense_modal: &recovered::Recovered<recovered::TenseModalSyntax>,
+) -> bool {
+    let Some(recovered::TenseModalSyntax(body)) = valid(tense_modal) else {
+        return false;
+    };
+    let Some(recovered::TenseModalBodySyntax::TenseModalAtom(atom)) = valid(body) else {
+        return false;
+    };
+    let Some(recovered::TenseModalAtomSyntax::ExpTagAtomRun(run)) = valid(atom) else {
+        return false;
+    };
+    let Some(run) = valid(run).and_then(|run| valid(&run.0)) else {
+        return false;
+    };
+    let recovered::ExpTagAtomRunBodySyntax { first, additional } = run;
+    let Some(recovered::ExpPrefixedTagAtomSyntax { nahe, se, atom }) = valid(first) else {
+        return false;
+    };
+    let Some(recovered::ExpTagAtomSyntax::ExpFihoTagAtom(fiho)) = valid(&atom.value) else {
+        return false;
+    };
+    let Some(recovered::ExpFihoTagAtomSyntax {
+        fiho,
+        selbri: _,
+        fehu,
+    }) = valid(fiho)
+    else {
+        return false;
+    };
+    nahe.as_ref()
+        .is_some_and(|nahe| valid(&nahe.value).is_some() && nahe.free_modifiers.is_empty())
+        && se.is_none()
+        && valid(&atom.value).is_some()
+        && atom.free_modifiers.is_empty()
+        && additional.is_empty()
+        && valid(&fiho.value).is_some()
+        && fiho.free_modifiers.is_empty()
+        && fehu.is_none()
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::TenseModalSyntax>>
+    for NonElidedNaheFihoTagTermRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "non-elided-FEhU or non-NAhE/FIhO final tag term"
+    }
+
+    fn rejects(&self, output: &recovered::Recovered<recovered::TenseModalSyntax>) -> bool {
+        !recovered_is_elided_nahe_fiho_tense_modal(output)
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn exp_run_starts_with_baseline_term(run: &ExpTagAtomRunBodySyntax) -> bool {
     let first = classified(run, 0);
     if first.kind == AtomKind::Fiho {
@@ -743,6 +849,9 @@ impl OutputRejection<SelbriSyntax> for PostNaExtensionTagRejection {
     fn rejects(&self, output: &SelbriSyntax) -> bool {
         match output {
             SelbriSyntax::TaggedSelbri(tagged) => tense_modal_is_extension(&tagged.tense_modal),
+            SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+            | SelbriSyntax::ZantufaRelativeSelbri(_)
+            | SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
             SelbriSyntax::UntaggedSelbri(_) => false,
         }
     }
@@ -764,6 +873,9 @@ impl OutputRejection<recovered::Recovered<recovered::SelbriSyntax>>
             recovered::SelbriSyntax::TaggedSelbri(tagged) => valid(tagged).is_some_and(|tagged| {
                 valid(&tagged.tense_modal).is_some_and(recovered_tense_modal_is_extension)
             }),
+            recovered::SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
+            | recovered::SelbriSyntax::ZantufaRelativeSelbri(_)
+            | recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
             recovered::SelbriSyntax::UntaggedSelbri(_) => false,
         }
     }

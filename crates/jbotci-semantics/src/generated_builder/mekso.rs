@@ -2358,6 +2358,18 @@ pub(super) fn generated_math_operator_question_token_for_selbri(
     selbri: &SelbriSyntax,
 ) -> Result<Option<&Token>, SemanticsError> {
     match selbri {
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+            relation_question_syntax_from_co_selbri(&assigned.0.leading_selbri)
+                .map(|question| question.map(generated_relation_question_token))
+        }
+        SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+            relation_question_syntax_from_co_selbri(&relative.leading_selbri)
+                .map(|question| question.map(generated_relation_question_token))
+        }
+        SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+            relation_question_syntax_from_co_selbri(&assigned.0.leading_selbri)
+                .map(|question| question.map(generated_relation_question_token))
+        }
         SelbriSyntax::TaggedSelbri(tagged) => {
             generated_math_operator_question_token_for_untagged_selbri(&tagged.inner_selbri)
         }

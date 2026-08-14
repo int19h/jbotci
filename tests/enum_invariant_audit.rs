@@ -1792,6 +1792,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing BareNaTermSyntax node",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ElidedNaheFihoTagTerm",
+        "borrowed leaf validity is owned by the invariant-bearing ElidedNaheFihoTagTermSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::FihoiAdverbialTerm",
         "borrowed leaf validity is owned by the invariant-bearing FihoiAdverbialTermSyntax node",
     ),

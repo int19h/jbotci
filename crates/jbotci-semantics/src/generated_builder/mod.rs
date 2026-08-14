@@ -18,13 +18,13 @@ use jbotci_syntax::generated_model::{
     AfterthoughtBridiTailWithoutTailTermsSyntax, ArrayMeksoOperandSyntax,
     AssignedProBridiTanruUnitSyntax, AtomRef as GeneratedAtomRef, AtomicMeksoOperatorSyntax,
     BareCuBridiSyntax, BareCuTermsBridiSyntax, BoGroupedBridiTailSyntax,
-    BoGroupedBridiTailWithoutTailTermsSyntax, BoOrLinkedTanruUnitSyntax, BoundMeksoOperandSyntax,
-    BoundMeksoOperatorSyntax, BoundOrSimpleMeksoOperandSyntax, BoundTanruUnitSyntax,
-    BoundTermSyntax, BridiRelativeClauseSyntax, BridiStatementContinuationSyntax,
-    BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax, BridiTailConnectiveSyntax,
-    BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax,
-    BridiWithPostCuTermsSyntax, ClosedIntervalConnectiveSyntax, CmevlaVocativeSumtiSyntax,
-    CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
+    BoGroupedBridiTailWithoutTailTermsSyntax, BoundMeksoOperandSyntax, BoundMeksoOperatorSyntax,
+    BoundOrSimpleMeksoOperandSyntax, BoundSelbriSyntax, BoundTermSyntax, BridiRelativeClauseSyntax,
+    BridiStatementContinuationSyntax, BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax,
+    BridiTailConnectiveSyntax, BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax,
+    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, ClosedIntervalConnectiveSyntax,
+    CmevlaVocativeSumtiSyntax, CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax,
+    ConnectedSelbriContinuationSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
     CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
     DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
@@ -33,13 +33,13 @@ use jbotci_syntax::generated_model::{
     FollowingParagraphStatementSyntax, ForethoughtBridiConnectionSyntax,
     ForethoughtBridiConnectionWithoutTailTermsSyntax, ForethoughtCallMeksoSyntax,
     ForethoughtMeksoOperandSyntax, ForethoughtMeksoOperatorSyntax,
-    ForethoughtSelbriConnectionSyntax, ForethoughtSelbriGroupTanruUnitSyntax,
-    ForethoughtStatementSyntax, ForethoughtSumtiSyntax, ForethoughtTermsetSyntax,
-    FragmentStatementSyntax, FreeModifierSyntax, GihekConnectiveSyntax, GihekFragmentSyntax,
-    GikConnectiveSyntax, GohaWordTanruUnitSyntax, GroupedForethoughtBridiConnectionSyntax,
-    GroupedTanruUnitSyntax, GuhekConnectiveSyntax, IParagraphStatementConnectiveSyntax,
-    IStatementConnectionSyntax, IStatementConnectionTailSyntax, IStatementConnectiveSyntax,
-    InfixMeksoSyntax, InnerMeksoOperatorSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax,
+    ForethoughtSelbriConnectionSyntax, ForethoughtStatementSyntax, ForethoughtSumtiSyntax,
+    ForethoughtTermsetSyntax, FragmentStatementSyntax, FreeModifierSyntax, GihekConnectiveSyntax,
+    GihekFragmentSyntax, GikConnectiveSyntax, GohaWordTanruUnitSyntax,
+    GroupedForethoughtBridiConnectionSyntax, GroupedTanruUnitSyntax, GuhekConnectiveSyntax,
+    IParagraphStatementConnectiveSyntax, IStatementConnectionSyntax,
+    IStatementConnectionTailSyntax, IStatementConnectiveSyntax, InfixMeksoSyntax,
+    InnerMeksoOperatorSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax,
     JekConnectiveSyntax, JoiConnectiveSyntax, JoikConnectiveSyntax, KeTermsetSyntax,
     LaheSumtiSyntax, LeadingIStatementSyntax, LeadingIndicatorSyntax,
     LeadingTermTagTenseModalSyntax, LerfuStringMeksoSyntax, LerfuStringSumtiSyntax,
@@ -55,8 +55,8 @@ use jbotci_syntax::generated_model::{
     OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
     ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
     ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax,
-    PendingIConnectiveSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
-    PrenexFragmentSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
+    PendingIConnectiveSyntax, PlainBoSelbriSyntax, PlainBoTanruUnitSyntax, PlainLinkedSumtiSyntax,
+    PlainRelativeSumtiSyntax, PrenexFragmentSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
     PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
     QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
     QuantifierSumtiDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
@@ -65,9 +65,9 @@ use jbotci_syntax::generated_model::{
     RelativeClauseListSyntax, RelativeClauseTailSyntax, RelativeSumtiSyntax,
     RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax, ReversePolishPartsSyntax,
     ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
-    ScalarNegatedTanruUnitSyntax, SelbriFragmentSyntax, SelbriMeksoOperandSyntax,
-    SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
-    SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
+    ScalarNegatedTanruUnitSyntax, SelbriAfterthoughtConnectiveSyntax, SelbriFragmentSyntax,
+    SelbriMeksoOperandSyntax, SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax,
+    SimpleBridiTailSyntax, SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
     SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
     SimpleTermSyntax, SingleNaFragmentSyntax, SoiFreeModifierSyntax,
     StandardMeksoArrayElementSyntax, StandardStatementConnectiveSyntax,
@@ -4491,52 +4491,31 @@ fn tanru_operand_label_from_generated_unit(
 #[requires(true)]
 #[ensures(true)]
 fn generated_tanru_unit_label_needs_parentheses(unit: &TanruUnitSyntax) -> bool {
-    match unit.0.first.as_ref() {
-        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
-        | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => true,
-        BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => match unit.base.base.as_ref() {
-            TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
-                grouped_tanru_unit_label_needs_parentheses(grouped)
-            }
-            base => scalar_negated_tanru_atom_base(base)
-                .and_then(scalar_negated_tanru_unit_inner_grouped)
-                .is_some_and(|(grouped, _)| grouped_tanru_unit_label_needs_parentheses(grouped)),
-        },
-        BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-            let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-            match base.base.base.as_ref() {
-                TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
-                    grouped_tanru_unit_label_needs_parentheses(grouped)
-                }
-                base => scalar_negated_tanru_atom_base(base)
-                    .and_then(scalar_negated_tanru_unit_inner_grouped)
-                    .is_some_and(|(grouped, _)| {
-                        grouped_tanru_unit_label_needs_parentheses(grouped)
-                    }),
-            }
+    match unit.base.base.base.as_ref() {
+        TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
+            grouped_tanru_unit_label_needs_parentheses(grouped)
         }
+        base => scalar_negated_tanru_atom_base(base)
+            .and_then(scalar_negated_tanru_unit_inner_grouped)
+            .is_some_and(|(grouped, _)| grouped_tanru_unit_label_needs_parentheses(grouped)),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn generated_tanru_unit_is_connected_selbri_formula(unit: &TanruUnitSyntax) -> bool {
-    !unit.0.links.is_empty()
-        || bo_or_linked_tanru_unit_has_bo_connective(unit.0.first.as_ref())
-        || matches!(
-            unit.0.first.as_ref(),
-            BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_)
-        )
+    let _ = unit;
+    false
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn generated_tanru_formula_source_construct(tanru: &TanruSelbriSyntax) -> &'static str {
-    if generated_tanru_unit_has_bo_connective_source(&tanru.first_unit)
+    if generated_connected_selbri_has_connective_source(&tanru.first_selbri)
         || tanru
-            .additional_units
+            .additional_selbri
             .iter()
-            .any(generated_tanru_unit_has_bo_connective_source)
+            .any(|connected| generated_connected_selbri_has_connective_source(connected))
     {
         "connected-selbri-formula"
     } else {
@@ -4555,34 +4534,45 @@ fn generated_tanru_unit_formula_source_construct(unit: &TanruUnitSyntax) -> &'st
 }
 
 #[requires(true)]
-#[ensures(ret == bo_or_linked_tanru_unit_has_bo_connective(unit.0.first.as_ref()))]
+#[ensures(!ret)]
 fn generated_tanru_unit_has_bo_connective_source(unit: &TanruUnitSyntax) -> bool {
-    bo_or_linked_tanru_unit_has_bo_connective(unit.0.first.as_ref())
+    let _ = unit;
+    false
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn simple_linkargs_from_plain_bo_selbri(selbri: &PlainBoSelbriSyntax) -> Option<&LinkargsSyntax> {
+    let PlainBoSelbriSyntax::PlainBoTanruUnit(unit) = selbri else {
+        return None;
+    };
+    if unit.bo_tail.is_some() || !unit.leading_unit.assignments.is_empty() {
+        return None;
+    }
+    unit.leading_unit.base.linkargs.as_ref()
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn generated_tanru_unit_preallocates_head_eventuality(unit: &TanruUnitSyntax) -> bool {
-    generated_tanru_unit_is_connected_selbri_formula(unit)
-        || matches!(
-            unit.0.first.as_ref(),
-            BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
-                | BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(_)
-        )
+    generated_tanru_unit_is_connected_selbri_formula(unit) || !unit.assignments.is_empty()
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn bo_or_linked_tanru_unit_has_bo_connective(unit: &BoOrLinkedTanruUnitSyntax) -> bool {
-    match unit {
-        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-            unit.bo_connective.is_some()
-                || bo_or_linked_tanru_unit_has_bo_connective(unit.trailing_unit.as_ref())
+fn generated_connected_selbri_has_connective_source(selbri: &ConnectedSelbriSyntax) -> bool {
+    !selbri.continuations.is_empty()
+        || generated_bound_selbri_has_connective_source(&selbri.leading_selbri)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_bound_selbri_has_connective_source(selbri: &BoundSelbriSyntax) -> bool {
+    selbri.bo_tail.is_some()
+        || match selbri.leading_selbri.as_ref() {
+            PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => unit.bo_tail.is_some(),
+            PlainBoSelbriSyntax::ForethoughtSelbriConnection(_) => true,
         }
-        BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(_)
-        | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_)
-        | BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(_) => false,
-    }
 }
 
 #[requires(true)]
@@ -4661,6 +4651,9 @@ fn tanru_unit_atom_base_from_cei(unit: &TanruUnitAtomBaseForCeiSyntax) -> TanruU
         TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
             TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit.clone())
         }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+            TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(unit.clone())
+        }
     }
 }
 
@@ -4708,15 +4701,8 @@ fn assigned_pro_bridi_reference_label_for_tanru_unit_atom_base(
 fn assigned_pro_bridi_reference_label_for_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<String> {
-    match unit.inner_unit.as_ref() {
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
-            assigned_pro_bridi_reference_label_for_tanru_unit_atom(atom)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(unit) => {
-            assigned_pro_bridi_reference_label_for_pro_bridi_tanru_unit(unit)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(_) => None,
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    assigned_pro_bridi_reference_label_for_tanru_unit_atom(atom)
 }
 
 #[requires(true)]
@@ -4748,97 +4734,10 @@ fn relation_label_from_tanru_unit(unit: &TanruUnitSyntax) -> Result<RelationLabe
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
-fn relation_label_from_bo_or_linked_tanru_unit(
-    unit: &BoOrLinkedTanruUnitSyntax,
-) -> Result<RelationLabel, SemanticsError> {
-    match unit {
-        BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-            relation_label_from_linked_tanru_unit(unit)
-        }
-        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-            relation_label_from_bound_tanru_unit(unit)
-        }
-        BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
-            relation_label_from_forethought_selbri_group_tanru_unit(unit)
-        }
-        BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-            let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-            relation_label_from_linked_tanru_unit(&base)
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
 fn relation_label_from_linked_tanru_unit(
     unit: &LinkedTanruUnitSyntax,
 ) -> Result<RelationLabel, SemanticsError> {
     relation_label_from_tanru_unit_atom(&unit.base)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| relation.is_displayable()) || ret.is_err())]
-fn relation_label_from_bound_tanru_unit(
-    unit: &BoundTanruUnitSyntax,
-) -> Result<RelationLabel, SemanticsError> {
-    let leading = relation_label_from_linked_tanru_unit(&unit.leading_unit)?;
-    let trailing = relation_label_from_bo_or_linked_tanru_unit(&unit.trailing_unit)?;
-    if let Some(connective) = &unit.bo_connective {
-        Ok(RelationLabel::constructed(format!(
-            "{} {} {}",
-            leading,
-            relation_afterthought_connective_label(connective)?,
-            trailing
-        )))
-    } else {
-        Ok(RelationLabel::constructed(format!(
-            "{leading} bo {trailing}"
-        )))
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|label| label.is_displayable()) || ret.is_err())]
-fn relation_label_from_forethought_selbri_group_tanru_unit(
-    unit: &ForethoughtSelbriGroupTanruUnitSyntax,
-) -> Result<RelationLabel, SemanticsError> {
-    let mut parts = vec![
-        generated_guhek_connective_source(&unit.guhek),
-        relation_phrase_label_from_selbri(unit.leading_selbri.as_ref())?,
-        token_text(&unit.first_branch.gik.gi.value),
-        relation_label_from_bo_or_linked_tanru_unit(unit.first_branch.unit.as_ref())?
-            .display_text(),
-    ];
-    for branch in &unit.additional_branches {
-        parts.push(token_text(&branch.gik.0.value));
-        parts.push(
-            relation_label_from_bo_or_linked_tanru_unit(branch.unit.as_ref())?.display_text(),
-        );
-    }
-    Ok(RelationLabel::constructed(parts.join(" ")))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
-fn tanru_unit_label_from_bo_or_linked_tanru_unit(
-    unit: &BoOrLinkedTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
-    match unit {
-        BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-            tanru_unit_label_from_linked_tanru_unit(unit)
-        }
-        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-            tanru_unit_label_from_bound_tanru_unit(unit)
-        }
-        BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
-            relation_label_from_forethought_selbri_group_tanru_unit(unit)
-                .map(|label| label.display_text())
-        }
-        BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-            let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-            tanru_unit_label_from_linked_tanru_unit(&base)
-        }
-    }
 }
 
 #[requires(true)]
@@ -4850,63 +4749,10 @@ fn tanru_unit_label_from_linked_tanru_unit(
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
-fn tanru_unit_label_from_bound_tanru_unit(
-    unit: &BoundTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
-    let leading = tanru_unit_label_from_linked_tanru_unit(&unit.leading_unit)?;
-    let trailing = tanru_operand_label_from_bo_or_linked_tanru_unit(&unit.trailing_unit)?;
-    Ok(format!("{leading}-{trailing}"))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|relation| !relation.is_empty()) || ret.is_err())]
-fn tanru_operand_label_from_bo_or_linked_tanru_unit(
-    unit: &BoOrLinkedTanruUnitSyntax,
-) -> Result<String, SemanticsError> {
-    let label = tanru_unit_label_from_bo_or_linked_tanru_unit(unit)?;
-    if bo_or_linked_tanru_unit_label_needs_parentheses(unit) {
-        Ok(format!("({label})"))
-    } else {
-        Ok(label)
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn bo_or_linked_tanru_unit_label_needs_parentheses(unit: &BoOrLinkedTanruUnitSyntax) -> bool {
-    match unit {
-        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(_)
-        | BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(_) => true,
-        BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => match unit.base.base.as_ref() {
-            TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
-                grouped_tanru_unit_label_needs_parentheses(grouped)
-            }
-            base => scalar_negated_tanru_atom_base(base)
-                .and_then(scalar_negated_tanru_unit_inner_grouped)
-                .is_some_and(|(grouped, _)| grouped_tanru_unit_label_needs_parentheses(grouped)),
-        },
-        BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-            let base = linked_tanru_unit_from_cei(unit.base.as_ref());
-            match base.base.base.as_ref() {
-                TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
-                    grouped_tanru_unit_label_needs_parentheses(grouped)
-                }
-                base => scalar_negated_tanru_atom_base(base)
-                    .and_then(scalar_negated_tanru_unit_inner_grouped)
-                    .is_some_and(|(grouped, _)| {
-                        grouped_tanru_unit_label_needs_parentheses(grouped)
-                    }),
-            }
-        }
-    }
-}
-
-#[requires(true)]
 #[ensures(true)]
 fn grouped_tanru_unit_label_needs_parentheses(grouped: &GroupedTanruUnitSyntax) -> bool {
-    !grouped.selbri.leading_selbri.additional_units.is_empty()
-        || !grouped.selbri.continuations.is_empty()
+    !grouped.selbri.additional_selbri.is_empty()
+        || !grouped.selbri.first_selbri.continuations.is_empty()
 }
 
 #[requires(true)]
@@ -4919,7 +4765,7 @@ fn tanru_unit_label_from_tanru_unit_atom(
             tanru_unit_label_from_scalar_negated_tanru_unit(unit)
         }
         TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
-            tanru_label_from_connected_selbri(&grouped.selbri)
+            tanru_label_from_tanru_selbri(&grouped.selbri)
         }
         _ => relation_label_from_tanru_unit_atom(unit).map(|label| label.display_text()),
     }
@@ -4930,17 +4776,8 @@ fn tanru_unit_label_from_tanru_unit_atom(
 fn tanru_unit_label_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Result<String, SemanticsError> {
-    match unit.inner_unit.as_ref() {
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
-            tanru_unit_label_from_tanru_unit_atom(atom)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(pro_bridi) => {
-            Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi).display_text())
-        }
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(tagged) => {
-            generated_node_surface_text(tagged)
-        }
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    tanru_unit_label_from_tanru_unit_atom(atom)
 }
 
 #[requires(true)]
@@ -4965,6 +4802,9 @@ fn relation_label_from_tanru_unit_atom(
         TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) => {
             relation_label_from_grouped_tanru_unit(grouped)
         }
+        TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(grouped) => Ok(
+            RelationLabel::constructed(generated_node_surface_text(grouped)?),
+        ),
         TanruUnitAtomBaseSyntax::AbstractionTanruUnit(abstraction) => {
             abstraction_relation_label_from_generated(abstraction)
         }
@@ -5140,6 +4980,15 @@ fn generated_term_has_distributed_sumti_connection(term: &TermSyntax) -> bool {
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
         },
         GeneratedSimpleTermRef::TaggedSumtiTerm(term) => match term.sumti.as_ref() {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                generated_logical_sumti_connection_for_branch(
+                    GeneratedDistributedSumtiBranch::Sumti(sumti),
+                )
+                .is_ok_and(|connection| connection.is_some())
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
+        },
+        GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => match term.sumti.as_ref() {
             TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
                 generated_logical_sumti_connection_for_branch(
                     GeneratedDistributedSumtiBranch::Sumti(sumti),
@@ -5997,6 +5846,7 @@ fn generated_goi_assignment_clause(
                 RelativeClauseTailSyntax::RelativeClauseExpContinuation(tail) => {
                     tail.0.inner.as_ref()
                 }
+                RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(tail) => tail.0.as_ref(),
             };
             generated_goi_assignment_clause_atom(atom)
         })
@@ -6993,6 +6843,12 @@ fn generated_simple_term_contains_current_level_keha(term: GeneratedSimpleTermRe
             }
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
         },
+        GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => match term.sumti.as_ref() {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                generated_sumti_contains_current_level_keha(sumti)
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
+        },
         GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
             NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
                 term.free_modifiers
@@ -7176,6 +7032,32 @@ fn generated_sumti_connection_tail_contains_current_level_keha(
 #[ensures(true)]
 fn generated_selbri_contains_current_level_keha(selbri: &SelbriSyntax) -> bool {
     match selbri {
+        SelbriSyntax::ReinterpretZantufaAssignedSelbri(assigned) => {
+            generated_tanru_selbri_contains_current_level_keha(
+                &assigned.0.leading_selbri.leading_selbri,
+            ) || assigned
+                .0
+                .assignments
+                .iter()
+                .any(|assignment| generated_selbri_contains_current_level_keha(&assignment.selbri))
+        }
+        SelbriSyntax::ZantufaRelativeSelbri(relative) => {
+            generated_tanru_selbri_contains_current_level_keha(
+                &relative.leading_selbri.leading_selbri,
+            ) || relative
+                .assignments
+                .iter()
+                .any(|assignment| generated_selbri_contains_current_level_keha(&assignment.selbri))
+        }
+        SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
+            generated_tanru_selbri_contains_current_level_keha(
+                &assigned.0.leading_selbri.leading_selbri,
+            ) || assigned
+                .0
+                .assignments
+                .iter()
+                .any(|assignment| generated_selbri_contains_current_level_keha(&assignment.selbri))
+        }
         SelbriSyntax::TaggedSelbri(selbri) => {
             generated_untagged_selbri_contains_current_level_keha(&selbri.inner_selbri)
         }
@@ -7193,18 +7075,10 @@ fn generated_untagged_selbri_contains_current_level_keha(selbri: &UntaggedSelbri
             generated_selbri_contains_current_level_keha(&selbri.inner_selbri)
         }
         UntaggedSelbriSyntax::CoSelbri(selbri) => {
-            generated_connected_selbri_contains_current_level_keha(&selbri.leading_selbri)
+            generated_tanru_selbri_contains_current_level_keha(&selbri.leading_selbri)
                 || selbri.co_tail.as_ref().is_some_and(|tail| {
                     generated_co_selbri_contains_current_level_keha(&tail.trailing_selbri)
                 })
-        }
-        UntaggedSelbriSyntax::ForethoughtSelbriConnection(connection) => {
-            generated_selbri_contains_current_level_keha(&connection.leading_selbri)
-                || generated_selbri_contains_current_level_keha(&connection.first_branch.selbri)
-                || connection
-                    .additional_branches
-                    .iter()
-                    .any(|branch| generated_selbri_contains_current_level_keha(&branch.selbri))
         }
     }
 }
@@ -7212,7 +7086,7 @@ fn generated_untagged_selbri_contains_current_level_keha(selbri: &UntaggedSelbri
 #[requires(true)]
 #[ensures(true)]
 fn generated_co_selbri_contains_current_level_keha(selbri: &CoSelbriSyntax) -> bool {
-    generated_connected_selbri_contains_current_level_keha(&selbri.leading_selbri)
+    generated_tanru_selbri_contains_current_level_keha(&selbri.leading_selbri)
         || selbri.co_tail.as_ref().is_some_and(|tail| {
             generated_co_selbri_contains_current_level_keha(&tail.trailing_selbri)
         })
@@ -7221,64 +7095,80 @@ fn generated_co_selbri_contains_current_level_keha(selbri: &CoSelbriSyntax) -> b
 #[requires(true)]
 #[ensures(true)]
 fn generated_connected_selbri_contains_current_level_keha(selbri: &ConnectedSelbriSyntax) -> bool {
-    generated_tanru_selbri_contains_current_level_keha(&selbri.leading_selbri)
-        || selbri.continuations.iter().any(|continuation| {
-            generated_tanru_selbri_contains_current_level_keha(&continuation.trailing_selbri)
-        })
+    generated_bound_selbri_contains_current_level_keha(&selbri.leading_selbri)
+        || selbri
+            .continuations
+            .iter()
+            .any(|continuation| match continuation.as_ref() {
+                ConnectedSelbriContinuationSyntax::SimpleConnectedSelbriContinuation(
+                    continuation,
+                ) => generated_bound_selbri_contains_current_level_keha(
+                    &continuation.trailing_selbri,
+                ),
+                ConnectedSelbriContinuationSyntax::GroupedConnectedSelbriContinuation(
+                    continuation,
+                ) => generated_tanru_selbri_contains_current_level_keha(&continuation.inner_selbri),
+            })
 }
 
 #[requires(true)]
 #[ensures(true)]
 fn generated_tanru_selbri_contains_current_level_keha(selbri: &TanruSelbriSyntax) -> bool {
-    generated_tanru_unit_contains_current_level_keha(&selbri.first_unit)
+    generated_connected_selbri_contains_current_level_keha(&selbri.first_selbri)
         || selbri
-            .additional_units
+            .additional_selbri
             .iter()
-            .any(generated_tanru_unit_contains_current_level_keha)
+            .any(|connected| generated_connected_selbri_contains_current_level_keha(connected))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_tanru_unit_contains_current_level_keha(unit: &TanruUnitSyntax) -> bool {
-    generated_bo_or_linked_tanru_unit_contains_current_level_keha(&unit.0.first)
-        || unit.0.links.iter().any(|link| {
-            generated_bo_or_linked_tanru_unit_contains_current_level_keha(&link.trailing_unit)
+fn generated_bound_selbri_contains_current_level_keha(selbri: &BoundSelbriSyntax) -> bool {
+    generated_plain_bo_selbri_contains_current_level_keha(&selbri.leading_selbri)
+        || selbri.bo_tail.as_ref().is_some_and(|tail| {
+            generated_bound_selbri_contains_current_level_keha(&tail.trailing_selbri)
         })
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_bo_or_linked_tanru_unit_contains_current_level_keha(
-    unit: &BoOrLinkedTanruUnitSyntax,
-) -> bool {
-    match unit {
-        BoOrLinkedTanruUnitSyntax::ForethoughtSelbriGroupTanruUnit(unit) => {
-            generated_selbri_contains_current_level_keha(&unit.leading_selbri)
-                || generated_bo_or_linked_tanru_unit_contains_current_level_keha(
-                    &unit.first_branch.unit,
-                )
-                || unit.additional_branches.iter().any(|branch| {
-                    generated_bo_or_linked_tanru_unit_contains_current_level_keha(&branch.unit)
-                })
-        }
-        BoOrLinkedTanruUnitSyntax::BoundTanruUnit(unit) => {
-            generated_linked_tanru_unit_contains_current_level_keha(&unit.leading_unit)
-                || generated_bo_or_linked_tanru_unit_contains_current_level_keha(
-                    &unit.trailing_unit,
-                )
-        }
-        BoOrLinkedTanruUnitSyntax::AssignedProBridiTanruUnit(unit) => {
-            generated_linked_tanru_unit_for_cei_contains_current_level_keha(&unit.base)
-                || unit.assignments.iter().any(|assignment| {
-                    generated_linked_tanru_unit_for_cei_contains_current_level_keha(
-                        &assignment.tanru_unit,
+fn generated_plain_bo_selbri_contains_current_level_keha(selbri: &PlainBoSelbriSyntax) -> bool {
+    match selbri {
+        PlainBoSelbriSyntax::ForethoughtSelbriConnection(unit) => match unit {
+            ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(unit) => {
+                generated_selbri_contains_current_level_keha(&unit.leading_selbri)
+                    || generated_plain_bo_selbri_contains_current_level_keha(
+                        &unit.first_branch.selbri,
                     )
+            }
+            ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(unit) => {
+                generated_co_selbri_contains_current_level_keha(&unit.leading_selbri)
+                    || generated_co_selbri_contains_current_level_keha(&unit.first_branch.selbri)
+            }
+            ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(unit) => {
+                generated_co_selbri_contains_current_level_keha(&unit.leading_selbri)
+                    || generated_co_selbri_contains_current_level_keha(&unit.first_branch.selbri)
+                    || unit.additional_branches.iter().any(|branch| {
+                        generated_co_selbri_contains_current_level_keha(&branch.selbri)
+                    })
+            }
+        },
+        PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
+            generated_tanru_unit_contains_current_level_keha(&unit.leading_unit)
+                || unit.bo_tail.as_ref().is_some_and(|tail| {
+                    generated_plain_bo_selbri_contains_current_level_keha(&tail.trailing_selbri)
                 })
-        }
-        BoOrLinkedTanruUnitSyntax::LinkedTanruUnit(unit) => {
-            generated_linked_tanru_unit_contains_current_level_keha(unit)
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_tanru_unit_contains_current_level_keha(unit: &TanruUnitSyntax) -> bool {
+    generated_linked_tanru_unit_contains_current_level_keha(&unit.base)
+        || unit.assignments.iter().any(|assignment| {
+            generated_linked_tanru_unit_contains_current_level_keha(&assignment.tanru_unit)
+        })
 }
 
 #[requires(true)]
@@ -7346,7 +7236,13 @@ fn generated_tanru_unit_atom_base_contains_current_level_keha(
             generated_node_contains_cmavo(unit.expression.as_ref(), Cmavo::Keha)
         }
         TanruUnitAtomBaseSyntax::GroupedTanruUnit(unit) => {
-            generated_connected_selbri_contains_current_level_keha(&unit.selbri)
+            generated_tanru_selbri_contains_current_level_keha(&unit.selbri)
+        }
+        TanruUnitAtomBaseSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+            generated_tanru_selbri_contains_current_level_keha(&unit.leading_selbri)
+                || unit.co_tails.iter().any(|tail| {
+                    generated_tanru_selbri_contains_current_level_keha(&tail.trailing_selbri)
+                })
         }
         TanruUnitAtomBaseSyntax::WordTanruUnit(WordTanruUnitSyntax(word)) => {
             word.value.cmavo() == Some(Cmavo::Keha)
@@ -7392,7 +7288,13 @@ fn generated_tanru_unit_atom_base_for_cei_contains_current_level_keha(
             generated_node_contains_cmavo(unit.expression.as_ref(), Cmavo::Keha)
         }
         TanruUnitAtomBaseForCeiSyntax::GroupedTanruUnit(unit) => {
-            generated_connected_selbri_contains_current_level_keha(&unit.selbri)
+            generated_tanru_selbri_contains_current_level_keha(&unit.selbri)
+        }
+        TanruUnitAtomBaseForCeiSyntax::ZantufaKeCoGroupedTanruUnit(unit) => {
+            generated_tanru_selbri_contains_current_level_keha(&unit.leading_selbri)
+                || unit.co_tails.iter().any(|tail| {
+                    generated_tanru_selbri_contains_current_level_keha(&tail.trailing_selbri)
+                })
         }
         TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(WordTanruUnitSyntax(word)) => {
             word.value.cmavo() == Some(Cmavo::Keha)
@@ -7433,15 +7335,8 @@ fn generated_zantufa_me_tanru_unit_contains_current_level_keha(
 fn generated_scalar_negated_tanru_inner_unit_contains_current_level_keha(
     unit: &ScalarNegatedTanruInnerUnitSyntax,
 ) -> bool {
-    match unit {
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-            generated_connected_selbri_contains_current_level_keha(&unit.inner_selbri)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => false,
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-            generated_tanru_unit_atom_contains_current_level_keha(unit)
-        }
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
+    generated_tanru_unit_atom_contains_current_level_keha(unit)
 }
 
 #[requires(true)]
@@ -7609,8 +7504,47 @@ fn argument_place_index(place: &PlaceIndex) -> usize {
 fn generated_untagged_selbri_has_formula_scope(selbri: &UntaggedSelbriSyntax) -> bool {
     match selbri {
         UntaggedSelbriSyntax::NegatedSelbri(_) => true,
-        UntaggedSelbriSyntax::CoSelbri(_) => false,
-        UntaggedSelbriSyntax::ForethoughtSelbriConnection(_) => true,
+        UntaggedSelbriSyntax::CoSelbri(selbri) => {
+            generated_tanru_selbri_has_formula_scope(&selbri.leading_selbri)
+                || selbri.co_tail.as_ref().is_some_and(|tail| {
+                    generated_co_selbri_has_formula_scope(&tail.trailing_selbri)
+                })
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_co_selbri_has_formula_scope(selbri: &CoSelbriSyntax) -> bool {
+    generated_tanru_selbri_has_formula_scope(&selbri.leading_selbri)
+        || selbri
+            .co_tail
+            .as_ref()
+            .is_some_and(|tail| generated_co_selbri_has_formula_scope(&tail.trailing_selbri))
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_tanru_selbri_has_formula_scope(selbri: &TanruSelbriSyntax) -> bool {
+    let mut inspector = GeneratedForethoughtSelbriInspector::default();
+    TreeWalkable::walk_with(selbri, &mut inspector);
+    inspector.found
+}
+
+#[invariant(true)]
+#[derive(Default)]
+struct GeneratedForethoughtSelbriInspector {
+    found: bool,
+}
+
+impl<'tree> TreeWalker<'tree> for GeneratedForethoughtSelbriInspector {
+    #[requires(true)]
+    #[ensures(self.found)]
+    fn walk_forethought_selbri_connection(
+        &mut self,
+        _node: &'tree ForethoughtSelbriConnectionSyntax,
+    ) {
+        self.found = true;
     }
 }
 
@@ -14744,7 +14678,6 @@ mod tests {
         for (source, locus) in [
             ("le ni renvi kei su'i le ni renvi selcertu kei", "sumti"),
             ("mi klama i su'i do klama", "statement"),
-            ("ganse su'i zukte nirna", "relation"),
         ] {
             let error = semantic_result_for(source)
                 .expect_err("raw VUhU has no CLL semantics as a general connective");
@@ -14756,6 +14689,26 @@ mod tests {
                 )
             );
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vuhu_relation_surface_is_the_pinned_bridi_tail_residual() {
+        let graph = semantic_graph_for("ganse su'i zukte nirna");
+        assert!(graph.objects.values().any(|object| {
+            object
+                .as_formula()
+                .is_some_and(|formula| match formula.as_data() {
+                    data!(FormulaNode::Connective(formula)) => {
+                        formula.connector.as_ref().is_some_and(|connector| {
+                            connector.source.as_surface_word() == Some("su'i")
+                                && connector.locus == ConnectorLocus::PredicatePhrase
+                        })
+                    }
+                    _ => false,
+                })
+        }));
     }
 
     #[test]
@@ -14778,7 +14731,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn ji_relation_connection_builds_a_typed_connective_question() {
+    fn ji_relation_surface_is_the_pinned_bridi_tail_connective_question() {
         let graph = semantic_graph_for("ganse ji zukte nirna");
         let utterance = graph.objects[&graph.root]
             .as_utterance()
@@ -14808,7 +14761,7 @@ mod tests {
             .as_ref()
             .expect("connective question has connector metadata");
         assert_eq!(connector.source.as_surface_word(), Some("ji"));
-        assert_eq!(connector.locus, ConnectorLocus::PropertyAbstraction);
+        assert_eq!(connector.locus, ConnectorLocus::PredicatePhrase);
         assert_eq!(connector.truth_table, None);
         let answer = connector
             .parameter
@@ -14821,36 +14774,27 @@ mod tests {
                         && parameter.role == ParameterRole::ConnectiveQuestion
                 })
         );
-        let branch_predications = connection
-            .children
-            .iter()
-            .map(|formula| {
-                graph.objects[formula]
-                    .formula_predication()
-                    .and_then(|predication| graph.objects[&predication].as_predication())
-                    .expect("each JI property branch is atomic")
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            branch_predications
-                .iter()
-                .filter_map(|predication| match predication.relation.as_data() {
-                    data!(PredicationRelation::Named { relation }) => Some(relation.clone()),
-                    data!(PredicationRelation::Parameter { .. }) => None,
-                    data!(PredicationRelation::Composition) => None,
-                })
-                .collect::<BTreeSet<_>>(),
-            BTreeSet::from(["ganse".to_owned(), "zukte".to_owned()])
-        );
-        assert!(
-            branch_predications
-                .iter()
-                .all(|predication| predication.mode == PredicationMode::Restrictive)
-        );
-        assert_eq!(
-            branch_predications[0].arguments[&argument_key(1)].value,
-            branch_predications[1].arguments[&argument_key(1)].value
-        );
+        let ganse = named_predication_ids(&graph, "ganse");
+        let zukte = named_predication_ids(&graph, "zukte");
+        let nirna = named_predication_ids(&graph, "nirna");
+        assert_eq!(ganse.len(), 1);
+        assert_eq!(zukte.len(), 1);
+        assert_eq!(nirna.len(), 1);
+        assert!(formula_contains_predication(
+            &graph,
+            connection.children[0],
+            ganse[0]
+        ));
+        assert!(formula_contains_predication(
+            &graph,
+            connection.children[1],
+            nirna[0]
+        ));
+        assert!(graph.objects.values().any(|object| {
+            object
+                .predication_tanru_link()
+                .is_some_and(|link| link.head == nirna[0])
+        }));
     }
 
     #[test]

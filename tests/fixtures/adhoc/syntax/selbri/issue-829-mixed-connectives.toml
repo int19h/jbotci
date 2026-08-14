@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-829-mixed-connectives"
+lojban = "lo ke broda co brode ke'e cei na brodi ku"
+dialect = "(+zantufa-connectives)"
+tags = ["adhoc", "syntax", "issue-829", "selbri-reconstruction", "matrix", "negative"]
+
+[[provenance]]
+kind = "other"
+name = "S14 two-gate matrix"
+description = "ZantufaConnectives alone admits KE/CO but not the NA-led full CEI operand, so the complete surface fails."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 32], source-text = "na", message = "unexpected cmavo" }]

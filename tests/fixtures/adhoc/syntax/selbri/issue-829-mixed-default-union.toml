@@ -1,0 +1,12 @@
+id = "adhoc.syntax.selbri.issue-829-mixed-default-union"
+lojban = "lo ke broda co brode ke'e cei na brodi ku"
+tags = ["adhoc", "syntax", "issue-829", "selbri-reconstruction", "matrix", "default-union"]
+
+[[provenance]]
+kind = "other"
+name = "S14 two-gate matrix"
+description = "With no dialect definition, neither C4 additive feature gate is enabled and the complete mixed surface remains rejected."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 25], source-text = "ke'e", message = "unexpected cmavo" }]

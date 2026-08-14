@@ -5287,11 +5287,24 @@ fn strict_postfix_parser_expr_tokens(
         ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
+        ("recursive_output", 1) => {
+            let target = required_path_expr_last_segment(
+                args.first().expect("length checked"),
+                "recursive_output() requires a recursive parser path",
+            )?;
+            if !generation.type_env.recursive.contains_key(&target) {
+                return Err(syn::Error::new_spanned(
+                    args.first().expect("length checked"),
+                    "recursive_output() names an unknown recursive parser",
+                ));
+            }
+            Ok(inner)
+        }
         ("reject_output", 1) => {
             let rejection = output_rejection_argument(args.first().expect("length checked"))?;
             Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
         }
-        ("map_to", 1) => {
+        ("map_to" | "map_recovered_to", 1) => {
             let target = required_path_expr_last_segment(
                 args.first().expect("length checked"),
                 "map_to() requires a grammar rule path",
@@ -5604,6 +5617,22 @@ fn recovered_postfix_parser_expr_tokens(
         ("lookahead", 0) => Ok(quote!(generated_runtime::lookahead(#inner))),
         ("not", 0) => Ok(quote!(generated_runtime::not(#inner))),
         ("ignored", 0) => Ok(quote!(#inner.map(|_| ()))),
+        ("recursive_output", 1) => {
+            let target = required_path_expr_last_segment(
+                args.first().expect("length checked"),
+                "recursive_output() requires a recursive parser path",
+            )?;
+            generation.type_env.recursive.get(&target).ok_or_else(|| {
+                syn::Error::new_spanned(
+                    args.first().expect("length checked"),
+                    "recursive_output() names an unknown recursive parser",
+                )
+            })?;
+            Ok(quote!(generated_runtime::recovered_recursive_output(
+                #inner,
+                stringify!(#target),
+            )))
+        }
         ("reject_output", 1) => {
             let rejection = output_rejection_argument(args.first().expect("length checked"))?;
             Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
@@ -5620,6 +5649,29 @@ fn recovered_postfix_parser_expr_tokens(
                 ));
             }
             Ok(quote!(#inner.map(Into::into)))
+        }
+        ("map_recovered_to", 1) => {
+            let target = required_path_expr_last_segment(
+                args.first().expect("length checked"),
+                "map_recovered_to() requires a grammar rule path",
+            )?;
+            if !generation.type_env.rules.contains_key(&target) {
+                return Err(syn::Error::new_spanned(
+                    args.first().expect("length checked"),
+                    "map_recovered_to() names an unknown grammar rule",
+                ));
+            }
+            let target_output = generation
+                .type_env
+                .rules
+                .get(&target)
+                .expect("target presence checked");
+            let recovered_module = generation.recovered_module;
+            let target_output =
+                quote!(#recovered_module::Recovered<#recovered_module::#target_output>);
+            Ok(quote!(#inner.map(|value| {
+                generated_runtime::grammar_map_to::<_, #target_output>(value)
+            })))
         }
         ("ignore_then", 1) => {
             let parser = recovered_rust_parser_expr_tokens(
@@ -6082,6 +6134,25 @@ fn strict_method_parser_expr_tokens(
             mode,
         )?;
         Ok(quote!(#inner.map(|_| ())))
+    } else if method.method == "recursive_output" && method.args.len() == 1 {
+        let inner = strict_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let target = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "recursive_output() requires a recursive parser path",
+        )?;
+        if !generation.type_env.recursive.contains_key(&target) {
+            return Err(syn::Error::new_spanned(
+                method.args.first().expect("length checked"),
+                "recursive_output() names an unknown recursive parser",
+            ));
+        }
+        Ok(inner)
     } else if method.method == "reject_output" && method.args.len() == 1 {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
@@ -6092,7 +6163,9 @@ fn strict_method_parser_expr_tokens(
         )?;
         let rejection = output_rejection_argument(method.args.first().expect("length checked"))?;
         Ok(quote!(generated_runtime::reject_output(#inner, #rejection)))
-    } else if method.method == "map_to" && method.args.len() == 1 {
+    } else if (method.method == "map_to" || method.method == "map_recovered_to")
+        && method.args.len() == 1
+    {
         let inner = strict_rust_parser_expr_tokens(
             &method.receiver,
             arguments,
@@ -6208,6 +6281,24 @@ fn strict_call_parser_expr_tokens(
         );
     }
     match (function.as_str(), call.args.len()) {
+        ("memo_scope", 2) => {
+            let scope = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "memo_scope() requires a syntax memo scope path",
+            )?;
+            let scope = format_ident!("{scope}");
+            let inner = strict_rust_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(generated_runtime::memo_scope(
+                SyntaxMemoScope::#scope,
+                #inner,
+            )))
+        }
         ("cmavo", 1) => {
             let cmavo = required_path_expr_last_segment(
                 call.args.first().expect("length checked"),
@@ -6907,6 +6998,28 @@ fn recovered_method_parser_expr_tokens(
             mode,
         )?;
         Ok(quote!(#inner.map(|_| ())))
+    } else if method.method == "recursive_output" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let target = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "recursive_output() requires a recursive parser path",
+        )?;
+        generation.type_env.recursive.get(&target).ok_or_else(|| {
+            syn::Error::new_spanned(
+                method.args.first().expect("length checked"),
+                "recursive_output() names an unknown recursive parser",
+            )
+        })?;
+        Ok(quote!(generated_runtime::recovered_recursive_output(
+            #inner,
+            stringify!(#target),
+        )))
     } else if method.method == "reject_output" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -6936,6 +7049,34 @@ fn recovered_method_parser_expr_tokens(
             ));
         }
         Ok(quote!(#inner.map(Into::into)))
+    } else if method.method == "map_recovered_to" && method.args.len() == 1 {
+        let inner = recovered_rust_parser_expr_tokens(
+            &method.receiver,
+            arguments,
+            generation,
+            free_modifier_parser,
+            mode,
+        )?;
+        let target = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "map_recovered_to() requires a grammar rule path",
+        )?;
+        if !generation.type_env.rules.contains_key(&target) {
+            return Err(syn::Error::new_spanned(
+                method.args.first().expect("length checked"),
+                "map_recovered_to() names an unknown grammar rule",
+            ));
+        }
+        let target_output = generation
+            .type_env
+            .rules
+            .get(&target)
+            .expect("target presence checked");
+        let recovered_module = generation.recovered_module;
+        let target_output = quote!(#recovered_module::Recovered<#recovered_module::#target_output>);
+        Ok(quote!(#inner.map(|value| {
+            generated_runtime::grammar_map_to::<_, #target_output>(value)
+        })))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
         let inner = recovered_rust_parser_expr_tokens(
             &method.receiver,
@@ -7042,6 +7183,24 @@ fn recovered_call_parser_expr_tokens(
     }
     let recovered_module = generation.recovered_module;
     match (function.as_str(), call.args.len()) {
+        ("memo_scope", 2) => {
+            let scope = required_path_expr_last_segment(
+                call.args.first().expect("length checked"),
+                "memo_scope() requires a syntax memo scope path",
+            )?;
+            let scope = format_ident!("{scope}");
+            let inner = recovered_rust_parser_expr_tokens(
+                call.args.iter().nth(1).expect("length checked"),
+                arguments,
+                generation,
+                free_modifier_parser,
+                mode,
+            )?;
+            Ok(quote!(generated_runtime::memo_scope(
+                SyntaxMemoScope::#scope,
+                #inner,
+            )))
+        }
         ("cmavo", 1) => {
             let cmavo = required_path_expr_last_segment(
                 call.args.first().expect("length checked"),
@@ -7638,9 +7797,13 @@ fn postfix_parser_output_type(
 ) -> Option<TokenStream2> {
     match (method.to_string().as_str(), args.len()) {
         ("elidable_terminator", 1) => parser_output_type(receiver, type_env, arguments),
+        ("recursive_output", 1) => {
+            let target = required_path_expr_last_segment(&args[0], "recursive parser").ok()?;
+            type_env.recursive.get(&target).map(|ty| quote!(#ty))
+        }
         ("lookahead", 0) => parser_output_type(receiver, type_env, arguments),
         ("reject_output", 1) => parser_output_type(receiver, type_env, arguments),
-        ("map_to", 1) => {
+        ("map_to" | "map_recovered_to", 1) => {
             let target = required_path_expr_last_segment(&args[0], "map_to target").ok()?;
             type_env.rules.get(&target).map(|ty| quote!(#ty))
         }
@@ -7837,13 +8000,22 @@ fn method_rust_parser_output_type(
         || method.method == "reject_output"
     {
         rust_parser_output_type(&method.receiver, type_env, arguments)
-    } else if method.method == "map_to" && method.args.len() == 1 {
+    } else if (method.method == "map_to" || method.method == "map_recovered_to")
+        && method.args.len() == 1
+    {
         let target = required_path_expr_last_segment(
             method.args.first().expect("length checked"),
             "map_to target",
         )
         .ok()?;
         type_env.rules.get(&target).map(|ty| quote!(#ty))
+    } else if method.method == "recursive_output" && method.args.len() == 1 {
+        let target = required_path_expr_last_segment(
+            method.args.first().expect("length checked"),
+            "recursive_output target",
+        )
+        .ok()?;
+        type_env.recursive.get(&target).map(|ty| quote!(#ty))
     } else if method.method == "not" || method.method == "ignored" {
         Some(quote!(()))
     } else if method.method == "ignore_then" && method.args.len() == 1 {
@@ -7877,6 +8049,11 @@ fn call_rust_parser_output_type(
         return Some(quote!(#ty));
     }
     match (function.as_str(), call.args.len()) {
+        ("memo_scope", 2) => rust_parser_output_type(
+            call.args.iter().nth(1).expect("length checked"),
+            type_env,
+            arguments,
+        ),
         ("cmavo" | "selmaho" | "word_category" | "quote_marker" | "delimited_quote_marker", 1)
         | (
             "relation_word"
@@ -9148,9 +9325,12 @@ fn classify_postfix_recovery_expr(
                 args.first().expect("length checked"),
             )?),
         }),
-        ("warn", 1) | ("elidable_terminator", 1) | ("reject_output", 1) | ("map_to", 1) => {
-            classify_parser_expr(receiver, arguments, type_env)
-        }
+        ("warn", 1)
+        | ("elidable_terminator", 1)
+        | ("reject_output", 1)
+        | ("map_to", 1)
+        | ("map_recovered_to", 1)
+        | ("recursive_output", 1) => classify_parser_expr(receiver, arguments, type_env),
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("not", 0) => Ok(RecoveryExpr::Not(inner()?)),
         ("lookahead", 0) => Ok(RecoveryExpr::Lookahead(inner()?)),
@@ -9235,9 +9415,11 @@ fn classify_method_recovery_expr(
                 method.args.first().expect("length checked"),
             )?),
         }),
-        ("warn", 1) | ("reject_output", 1) | ("map_to", 1) => {
-            classify_recovery_expr(&method.receiver, arguments, type_env)
-        }
+        ("warn", 1)
+        | ("reject_output", 1)
+        | ("map_to", 1)
+        | ("map_recovered_to", 1)
+        | ("recursive_output", 1) => classify_recovery_expr(&method.receiver, arguments, type_env),
         ("payload_start", 0) => Ok(RecoveryExpr::PayloadStart(inner()?)),
         ("ignored", 0) => Ok(RecoveryExpr::Ignored(inner()?)),
         ("ignore_then", 1) => Ok(RecoveryExpr::Sequence(vec![
@@ -9301,6 +9483,7 @@ fn classify_call_recovery_expr(
         return Ok(RecoveryExpr::Opaque(compact_tokens(call)));
     };
     Ok(match (name.as_str(), call.args.len()) {
+        ("memo_scope", 2) => classify_recovery_expr(&call.args[1], arguments, type_env)?,
         ("cmavo", 1) => call
             .args
             .first()

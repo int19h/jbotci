@@ -1,0 +1,12 @@
+id = "adhoc.syntax.selbri.issue-840-zantufa-statement-abstraction-default-union"
+lojban = "lo nu mi broda i je do brode kei cu fasnu"
+tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "matrix", "default-union", "no-delta"]
+
+[[provenance]]
+kind = "other"
+name = "rolling-Zantufa statement abstraction survival control"
+description = "The default warning-grammar union does not enable the ZantufaTerms owner for statement-bodied abstractions; this rejection remains unchanged."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [20, 22], source-text = "do", message = "unexpected cmavo" }]

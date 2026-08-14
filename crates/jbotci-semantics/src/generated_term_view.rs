@@ -8,9 +8,9 @@
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use jbotci_syntax::generated_model::{
-    BareNaTermSyntax, BoundTermSyntax, FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax,
-    JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LinkedTermSyntax, NaKuTermSyntax,
-    NoihaAdverbialTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
+    BareNaTermSyntax, BoundTermSyntax, ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax,
+    ForethoughtTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LinkedTermSyntax,
+    NaKuTermSyntax, NoihaAdverbialTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
     PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
     SumtiTermSyntax, TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax,
     TenseTaggedLinkedSumtiSyntax,
@@ -19,6 +19,7 @@ use jbotci_syntax::generated_model::{
 /// A borrowed simple-term leaf shared by `SimpleTermSyntax` and `BoundTermSyntax`.
 #[invariant(::PlaceTaggedSumtiTerm(_) => true)]
 #[invariant(::JaiTaggedSumtiTerm(_) => true)]
+#[invariant(::ElidedNaheFihoTagTerm(_) => true)]
 #[invariant(::TaggedSumtiBeforeTagTerm(_) => true)]
 #[invariant(::TaggedSumtiTerm(_) => true)]
 #[invariant(::NoihaAdverbialTerm(_) => true)]
@@ -34,6 +35,7 @@ use jbotci_syntax::generated_model::{
 pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     PlaceTaggedSumtiTerm(&'syntax PlaceTaggedSumtiTermSyntax),
     JaiTaggedSumtiTerm(&'syntax JaiTaggedSumtiTermSyntax),
+    ElidedNaheFihoTagTerm(&'syntax ElidedNaheFihoTagTermSyntax),
     TaggedSumtiBeforeTagTerm(&'syntax TaggedSumtiBeforeTagTermSyntax),
     TaggedSumtiTerm(&'syntax TaggedSumtiTermSyntax),
     NoihaAdverbialTerm(&'syntax NoihaAdverbialTermSyntax),
@@ -55,6 +57,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
         match term {
             SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => Self::PlaceTaggedSumtiTerm(term),
             SimpleTermSyntax::JaiTaggedSumtiTerm(term) => Self::JaiTaggedSumtiTerm(term),
+            SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => Self::ElidedNaheFihoTagTerm(term),
             SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Self::TaggedSumtiBeforeTagTerm(term)
             }
@@ -79,6 +82,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             BoundTermSyntax::StagBoundTermConnection(_) => None,
             BoundTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
             BoundTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
+            BoundTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             BoundTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
             }

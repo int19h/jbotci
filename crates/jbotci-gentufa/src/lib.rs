@@ -2726,7 +2726,7 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn generated_chain_blocks_render_tanru_run_in_flat_source_order() {
+    fn generated_selbri_connection_blocks_render_in_flat_source_order() {
         let layout = generated_test_blocks_layout("mi melbi je cmalu je blanu");
 
         assert_eq!(
@@ -2737,7 +2737,7 @@ mod tests {
             layout
                 .blocks
                 .iter()
-                .any(|block| block.label == "tanru unit")
+                .any(|block| block.label == "selbri connection")
         );
     }
 

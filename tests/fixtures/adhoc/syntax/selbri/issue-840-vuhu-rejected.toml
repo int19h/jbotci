@@ -1,0 +1,12 @@
+id = "adhoc.syntax.selbri.issue-840-vuhu-rejected"
+lojban = "lo broda su'i brode ku"
+tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "rejection"]
+
+[[provenance]]
+kind = "other"
+name = "I02 retained-standard connective partition"
+description = "Camxes-exp accepts VUhU at selbri level 4, but canonical finding I02 deliberately leaves that experimental connective addition unadopted; running camxes-standard rejects this description-isolated surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [14, 19], source-text = "brode", message = "unexpected brivla" }]

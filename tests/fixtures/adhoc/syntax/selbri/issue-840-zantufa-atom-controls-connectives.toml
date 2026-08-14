@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-840-zantufa-atom-controls-connectives"
+lojban = "klama mezu'a .i pa su'i re moi"
+dialect = "(+zantufa-connectives)"
+tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "matrix", "zantufa-connectives", "no-delta"]
+
+[[provenance]]
+kind = "other"
+name = "rolling-Zantufa atom survival controls"
+description = "Pins the existing Zantufa ME tag-body and MEX-MOI tanru atoms with only Zantufa connectives enabled."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [19, 23], source-text = "su'i", message = "unexpected cmavo" }]

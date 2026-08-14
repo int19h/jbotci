@@ -1,0 +1,12 @@
+id = "adhoc.syntax.selbri.issue-840-tag-bo-rejected"
+lojban = "mi pu bo broda"
+tags = ["adhoc", "syntax", "issue-840", "selbri-reconstruction", "rejection"]
+
+[[provenance]]
+kind = "other"
+name = "three-parser rejection probe"
+description = "Running camxes-standard, camxes-exp, and rolling Zantufa all reject connectorless tag-plus-BO at this selbri position; the former jbotci acceptance had no upstream source."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "bo", message = "unexpected cmavo" }]

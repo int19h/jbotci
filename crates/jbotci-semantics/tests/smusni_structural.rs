@@ -2462,7 +2462,7 @@ fn the_membership_path_witness_renders_a_canonical_document() {
     // The `ka` crossing is a bare lambda over the graph's own parameter, and its
     // body is the `je` conjunction of both relations.
     assert!(
-        rendered.text.contains("$parameterNode_11"),
+        rendered.text.contains("$parameterNode_10"),
         "{}",
         rendered.text
     );
