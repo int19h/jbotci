@@ -97,6 +97,44 @@ These pins document rather than broaden C1: the description-isolated fixtures
 prove the selbri-family restriction, while the complete-statement fixtures
 make the deferred bridi-tail-family boundary mechanically visible.
 
+### C2 forethought-domain dispositions
+
+The grouped forethought-bridi owners with and without tail terms both carry a
+source-ordered repeated tag field. The nested S2 witness
+`mi ke bau bai ke ge broda gi brode ke'e ke'e` prevents the outer bridi-tail
+term consumer from reclaiming either BAI; the top-level
+`mi bau bai ke ge broda gi brode ke'e` control records that the same words are
+ordinary terms when the isolating outer KE is absent.
+
+Standard forethought selbri now have one binary owner at L6. Its left operand
+is full selbri width and its sole GI branch is L6 width, so the pinned standard
+trees put CO and adjacency outside the group:
+
+| Surface | Standard disposition |
+| --- | --- |
+| `mi gu'e broda gi brode co brodi` | The complete GUhE/GI group is the left side of the outer right-recursive CO. |
+| `mi gu'e broda gi brode brodi` | The complete GUhE/GI group is followed by outer tanru adjacency. |
+
+The rolling-Zantufa owner is reachable only under `ZantufaConnectives` and
+only when the completed surface proves disjointness from standard syntax:
+one or more additional GI branches, or an explicit GIhI. Its leading operand
+and every branch are uniformly L2 width. Each additional GI retains
+`ExperimentalZantufaNaryForethought`; GIhI retains
+`ExperimentalZantufaForethoughtGihi`. The six-configuration fixtures pin both
+success trees and exact warning sets, and pin failures with exact diagnostics.
+
+NAhE was unfolded from the connective leaf into the standard and Zantufa
+forethought owners. A repeated free-modifier slot follows it independently;
+S35 and S36 pin the SEI surface both without and with NAhE. Connector source
+rendering still includes NAhE, while truth-table behavior remains determined
+by GUhA/GI.
+
+Single-GI branch-width reinterpretation is deliberately not warning-gated or
+pinned to a Zantufa tree: both single-GI surfaces are already accepted by the
+standard owner at identical extent. Their Zantufa CO-inside and
+adjacency-inside trees remain the documented #858 fidelity gap. This avoids a
+warning arm that silently reinterprets baseline-valid text.
+
 ## Fidelity gaps and reinterpretation ownership
 
 The default dialect preserves baseline ownership on identical-extent surfaces.

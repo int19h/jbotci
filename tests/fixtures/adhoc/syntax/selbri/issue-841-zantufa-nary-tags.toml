@@ -1,0 +1,13 @@
+id = "adhoc.syntax.selbri.issue-841-zantufa-nary-tags"
+lojban = "mi gu'e broda gi brode gi brodi"
+dialect = "(+zantufa-tags)"
+tags = ["adhoc", "syntax", "issue-841", "selbri-reconstruction", "matrix", "tags"]
+
+[[provenance]]
+kind = "other"
+name = "rolling-Zantufa n-ary forethought"
+description = "The additional GI is the structural disjointness marker; enabled profiles pin the wide L2 operands and exact n-ary warning, while standard-only profiles reject."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 25], source-text = "gi", message = "unexpected cmavo" }]

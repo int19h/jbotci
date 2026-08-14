@@ -7102,14 +7102,25 @@ fn generated_bound_selbri_contains_current_level_keha(selbri: &BoundSelbriSyntax
 #[ensures(true)]
 fn generated_plain_bo_selbri_contains_current_level_keha(selbri: &PlainBoSelbriSyntax) -> bool {
     match selbri {
-        PlainBoSelbriSyntax::ForethoughtSelbriConnection(unit) => {
-            generated_selbri_contains_current_level_keha(&unit.leading_selbri)
-                || generated_selbri_contains_current_level_keha(&unit.first_branch.selbri)
-                || unit
-                    .additional_branches
-                    .iter()
-                    .any(|branch| generated_selbri_contains_current_level_keha(&branch.selbri))
-        }
+        PlainBoSelbriSyntax::ForethoughtSelbriConnection(unit) => match unit {
+            ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(unit) => {
+                generated_selbri_contains_current_level_keha(&unit.leading_selbri)
+                    || generated_plain_bo_selbri_contains_current_level_keha(
+                        &unit.first_branch.selbri,
+                    )
+            }
+            ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(unit) => {
+                generated_co_selbri_contains_current_level_keha(&unit.leading_selbri)
+                    || generated_co_selbri_contains_current_level_keha(&unit.first_branch.selbri)
+            }
+            ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(unit) => {
+                generated_co_selbri_contains_current_level_keha(&unit.leading_selbri)
+                    || generated_co_selbri_contains_current_level_keha(&unit.first_branch.selbri)
+                    || unit.additional_branches.iter().any(|branch| {
+                        generated_co_selbri_contains_current_level_keha(&branch.selbri)
+                    })
+            }
+        },
         PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
             generated_tanru_unit_contains_current_level_keha(&unit.leading_unit)
                 || unit.bo_tail.as_ref().is_some_and(|tail| {

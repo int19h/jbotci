@@ -1904,22 +1904,56 @@ fn add_generated_plain_bo_selbri_visible_linkarg_places(
             Ok(())
         }
         PlainBoSelbriSyntax::ForethoughtSelbriConnection(connection) => {
-            add_generated_selbri_visible_linkarg_places(
-                places,
-                &connection.leading_selbri,
-                first_visible_place,
-            )?;
-            add_generated_selbri_visible_linkarg_places(
-                places,
-                &connection.first_branch.selbri,
-                first_visible_place,
-            )?;
-            for branch in &connection.additional_branches {
-                add_generated_selbri_visible_linkarg_places(
-                    places,
-                    &branch.selbri,
-                    first_visible_place,
-                )?;
+            match connection {
+                ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
+                    connection,
+                ) => {
+                    add_generated_selbri_visible_linkarg_places(
+                        places,
+                        &connection.leading_selbri,
+                        first_visible_place,
+                    )?;
+                    add_generated_plain_bo_selbri_visible_linkarg_places(
+                        places,
+                        &connection.first_branch.selbri,
+                        first_visible_place,
+                    )?;
+                }
+                ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
+                    connection,
+                ) => {
+                    add_generated_co_selbri_visible_linkarg_places(
+                        places,
+                        &connection.leading_selbri,
+                        first_visible_place,
+                    )?;
+                    add_generated_co_selbri_visible_linkarg_places(
+                        places,
+                        &connection.first_branch.selbri,
+                        first_visible_place,
+                    )?;
+                }
+                ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
+                    connection,
+                ) => {
+                    add_generated_co_selbri_visible_linkarg_places(
+                        places,
+                        &connection.leading_selbri,
+                        first_visible_place,
+                    )?;
+                    add_generated_co_selbri_visible_linkarg_places(
+                        places,
+                        &connection.first_branch.selbri,
+                        first_visible_place,
+                    )?;
+                    for branch in &connection.additional_branches {
+                        add_generated_co_selbri_visible_linkarg_places(
+                            places,
+                            &branch.selbri,
+                            first_visible_place,
+                        )?;
+                    }
+                }
             }
             Ok(())
         }

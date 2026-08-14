@@ -2595,9 +2595,12 @@ pub(super) fn generated_relation_afterthought_connective_reverses_composition_me
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub(super) fn generated_guhek_connective_source(connective: &GuhekConnectiveSyntax) -> String {
+pub(super) fn generated_guhek_connective_source(
+    nahe: Option<&Token>,
+    connective: &GuhekConnectiveSyntax,
+) -> String {
     let mut tokens = Vec::new();
-    if let Some(token) = &connective.nahe {
+    if let Some(token) = nahe {
         tokens.push(token);
     }
     if let Some(token) = &connective.se {
@@ -2613,11 +2616,12 @@ pub(super) fn generated_guhek_connective_source(connective: &GuhekConnectiveSynt
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub(super) fn generated_guhek_gik_connective_source(
+    nahe: Option<&Token>,
     guhek: &GuhekConnectiveSyntax,
     gik: &GikConnectiveSyntax,
 ) -> String {
     let mut parts = vec![
-        generated_guhek_connective_source(guhek),
+        generated_guhek_connective_source(nahe, guhek),
         token_text(&gik.gi.value),
     ];
     if let Some(nai) = &gik.nai {

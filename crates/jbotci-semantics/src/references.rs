@@ -1556,7 +1556,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::ForethoughtBridiConnectionSyntax::GroupedForethoughtBridiConnection(
                 connection,
             ) => {
-                if let Some(tense_modal) = connection.tense_modal.as_deref() {
+                for tense_modal in &connection.tense_modals {
                     self.walk_node(tense_modal);
                 }
                 self.analyze_forethought_bridi_connection(&connection.inner, branch_initial_place)
@@ -1590,7 +1590,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 branch_frames
             }
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(connection) => {
-                if let Some(tense_modal) = connection.tense_modal.as_deref() {
+                for tense_modal in &connection.tense_modals {
                     self.walk_node(tense_modal);
                 }
                 self.analyze_forethought_bridi_connection_without_tail_terms(&connection.inner, branch_initial_place)
@@ -1814,12 +1814,32 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                let leading = self.analyze_relation(&selbri.leading_selbri);
-                let mut branches =
-                    vec![leading, self.analyze_relation(&selbri.first_branch.selbri)];
-                for branch in &selbri.additional_branches {
-                    branches.push(self.analyze_relation(&branch.selbri));
-                }
+                let branches = match selbri {
+                    generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
+                        selbri,
+                    ) => vec![
+                        self.analyze_relation(&selbri.leading_selbri),
+                        self.analyze_plain_bo_selbri(&selbri.first_branch.selbri),
+                    ],
+                    generated::ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
+                        selbri,
+                    ) => vec![
+                        self.analyze_co_selbri(&selbri.leading_selbri),
+                        self.analyze_co_selbri(&selbri.first_branch.selbri),
+                    ],
+                    generated::ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
+                        selbri,
+                    ) => {
+                        let mut branches = vec![
+                            self.analyze_co_selbri(&selbri.leading_selbri),
+                            self.analyze_co_selbri(&selbri.first_branch.selbri),
+                        ];
+                        for branch in &selbri.additional_branches {
+                            branches.push(self.analyze_co_selbri(&branch.selbri));
+                        }
+                        branches
+                    }
+                };
                 self.add_frame(
                     self.raw_for_node(selbri),
                     PlaceFrameKind::ConnectiveBranching,
@@ -5192,7 +5212,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::ForethoughtBridiConnectionSyntax::GroupedForethoughtBridiConnection(
                 connection,
             ) => {
-                if let Some(tense_modal) = connection.tense_modal.as_deref() {
+                for tense_modal in &connection.tense_modals {
                     self.walk_node(tense_modal);
                 }
                 self.visit_forethought_bridi_connection(&connection.inner);
@@ -5224,7 +5244,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             generated::ForethoughtBridiConnectionWithoutTailTermsSyntax::GroupedForethoughtBridiConnectionWithoutTailTerms(
                 connection,
             ) => {
-                if let Some(tense_modal) = connection.tense_modal.as_deref() {
+                for tense_modal in &connection.tense_modals {
                     self.walk_node(tense_modal);
                 }
                 self.visit_forethought_bridi_connection_without_tail_terms(&connection.inner);
@@ -6072,10 +6092,28 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
             }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
-                self.visit_relation(&selbri.leading_selbri);
-                self.visit_relation(&selbri.first_branch.selbri);
-                for branch in &selbri.additional_branches {
-                    self.visit_relation(&branch.selbri);
+                match selbri {
+                    generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
+                        selbri,
+                    ) => {
+                        self.visit_relation(&selbri.leading_selbri);
+                        self.visit_plain_bo_selbri(&selbri.first_branch.selbri);
+                    }
+                    generated::ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
+                        selbri,
+                    ) => {
+                        self.visit_co_selbri(&selbri.leading_selbri);
+                        self.visit_co_selbri(&selbri.first_branch.selbri);
+                    }
+                    generated::ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
+                        selbri,
+                    ) => {
+                        self.visit_co_selbri(&selbri.leading_selbri);
+                        self.visit_co_selbri(&selbri.first_branch.selbri);
+                        for branch in &selbri.additional_branches {
+                            self.visit_co_selbri(&branch.selbri);
+                        }
+                    }
                 }
             }
         }

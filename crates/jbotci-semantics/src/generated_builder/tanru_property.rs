@@ -2602,45 +2602,107 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 ArgumentValue::elided(referent, "zo'e".to_owned(), None),
             )?;
         }
-        let leading = self.build_selbri_formula_for_visible_arguments(
-            connection.leading_selbri.as_ref(),
-            visible_arguments.clone(),
-            source.clone(),
-            connector_locus,
-            leading_eventuality,
-        )?;
-        let trailing = self.build_selbri_formula_for_visible_arguments(
-            connection.first_branch.selbri.as_ref(),
-            visible_arguments.clone(),
-            source.clone(),
-            connector_locus,
-            None,
-        )?;
-        let mut formula = self.build_binary_formula_for_generated_forethought_selbri_connective(
-            &connection.guhek,
-            &connection.first_branch.gik,
-            connector_locus,
-            leading.formula,
-            trailing.formula,
-            source.clone(),
-        )?;
-        for branch in &connection.additional_branches {
-            let trailing = self.build_selbri_formula_for_visible_arguments(
-                branch.selbri.as_ref(),
-                visible_arguments.clone(),
-                source.clone(),
-                connector_locus,
-                None,
-            )?;
-            formula = self.build_binary_formula_for_generated_extra_forethought_selbri_connective(
-                &connection.guhek,
-                &branch.gik,
-                connector_locus,
-                formula,
-                trailing.formula,
-                source.clone(),
-            )?;
-        }
+        let (leading, formula) = match connection {
+            ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(connection) => {
+                let leading = self.build_selbri_formula_for_visible_arguments(
+                    connection.leading_selbri.as_ref(),
+                    visible_arguments.clone(),
+                    source.clone(),
+                    connector_locus,
+                    leading_eventuality,
+                )?;
+                let trailing = self.build_plain_bo_selbri_formula_for_visible_arguments(
+                    connection.first_branch.selbri.as_ref(),
+                    visible_arguments.clone(),
+                    source.clone(),
+                    connector_locus,
+                    None,
+                )?;
+                let formula = self
+                    .build_binary_formula_for_generated_forethought_selbri_connective(
+                        connection.nahe.as_ref(),
+                        &connection.guhek,
+                        &connection.first_branch.gik,
+                        connector_locus,
+                        leading.formula,
+                        trailing.formula,
+                        source.clone(),
+                    )?;
+                (leading, formula)
+            }
+            ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
+                connection,
+            ) => {
+                let leading = self.build_co_selbri_inversion_formula_for_visible_arguments(
+                    connection.leading_selbri.as_ref(),
+                    visible_arguments.clone(),
+                    source.clone(),
+                    leading_eventuality,
+                )?;
+                let trailing = self.build_co_selbri_inversion_formula_for_visible_arguments(
+                    connection.first_branch.selbri.as_ref(),
+                    visible_arguments.clone(),
+                    source.clone(),
+                    None,
+                )?;
+                let formula = self
+                    .build_binary_formula_for_generated_forethought_selbri_connective(
+                        connection.nahe.as_ref(),
+                        &connection.guhek,
+                        &connection.first_branch.gik,
+                        connector_locus,
+                        leading.formula,
+                        trailing.formula,
+                        source.clone(),
+                    )?;
+                (leading, formula)
+            }
+            ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
+                connection,
+            ) => {
+                let leading = self.build_co_selbri_inversion_formula_for_visible_arguments(
+                    connection.leading_selbri.as_ref(),
+                    visible_arguments.clone(),
+                    source.clone(),
+                    leading_eventuality,
+                )?;
+                let trailing = self.build_co_selbri_inversion_formula_for_visible_arguments(
+                    connection.first_branch.selbri.as_ref(),
+                    visible_arguments.clone(),
+                    source.clone(),
+                    None,
+                )?;
+                let mut formula = self
+                    .build_binary_formula_for_generated_forethought_selbri_connective(
+                        connection.nahe.as_ref(),
+                        &connection.guhek,
+                        &connection.first_branch.gik,
+                        connector_locus,
+                        leading.formula,
+                        trailing.formula,
+                        source.clone(),
+                    )?;
+                for branch in &connection.additional_branches {
+                    let trailing = self.build_co_selbri_inversion_formula_for_visible_arguments(
+                        branch.selbri.as_ref(),
+                        visible_arguments.clone(),
+                        source.clone(),
+                        None,
+                    )?;
+                    formula = self
+                        .build_binary_formula_for_generated_extra_forethought_selbri_connective(
+                            connection.nahe.as_ref(),
+                            &connection.guhek,
+                            &branch.gik,
+                            connector_locus,
+                            formula,
+                            trailing.formula,
+                            source.clone(),
+                        )?;
+                }
+                (leading, formula)
+            }
+        };
         Ok(GeneratedTanruFormulaForArgument::from_data(data!(
             GeneratedTanruFormulaForArgument {
                 formula,
@@ -4245,44 +4307,102 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         context: GeneratedPropertyTanruContext,
     ) -> Result<SemanticObjectId, SemanticsError> {
         match selbri {
-            PlainBoSelbriSyntax::ForethoughtSelbriConnection(connection) => {
-                let leading = self.build_property_formula_for_selbri(
-                    &connection.leading_selbri,
-                    parameter,
-                    source.clone(),
-                )?;
-                let trailing = self.build_property_formula_for_selbri(
-                    &connection.first_branch.selbri,
-                    parameter,
-                    source.clone(),
-                )?;
-                let mut formula = self
-                    .build_binary_formula_for_generated_forethought_selbri_connective(
+            PlainBoSelbriSyntax::ForethoughtSelbriConnection(connection) => match connection {
+                ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
+                    connection,
+                ) => {
+                    let leading = self.build_property_formula_for_selbri(
+                        &connection.leading_selbri,
+                        parameter,
+                        source.clone(),
+                    )?;
+                    let trailing = self.build_property_formula_for_plain_bo_selbri(
+                        &connection.first_branch.selbri,
+                        parameter,
+                        source.clone(),
+                        context,
+                    )?;
+                    self.build_binary_formula_for_generated_forethought_selbri_connective(
+                        connection.nahe.as_ref(),
                         &connection.guhek,
                         &connection.first_branch.gik,
                         context.connector_locus(),
                         leading,
                         trailing,
-                        source.clone(),
-                    )?;
-                for branch in &connection.additional_branches {
-                    let trailing = self.build_property_formula_for_selbri(
-                        &branch.selbri,
+                        source,
+                    )
+                }
+                ForethoughtSelbriConnectionSyntax::ZantufaGihiForethoughtSelbriConnection(
+                    connection,
+                ) => {
+                    let leading = self.build_property_formula_for_co_selbri(
+                        &connection.leading_selbri,
                         parameter,
                         source.clone(),
+                        context,
                     )?;
-                    formula = self
-                        .build_binary_formula_for_generated_extra_forethought_selbri_connective(
+                    let trailing = self.build_property_formula_for_co_selbri(
+                        &connection.first_branch.selbri,
+                        parameter,
+                        source.clone(),
+                        context,
+                    )?;
+                    self.build_binary_formula_for_generated_forethought_selbri_connective(
+                        connection.nahe.as_ref(),
+                        &connection.guhek,
+                        &connection.first_branch.gik,
+                        context.connector_locus(),
+                        leading,
+                        trailing,
+                        source,
+                    )
+                }
+                ForethoughtSelbriConnectionSyntax::ZantufaNaryForethoughtSelbriConnection(
+                    connection,
+                ) => {
+                    let leading = self.build_property_formula_for_co_selbri(
+                        &connection.leading_selbri,
+                        parameter,
+                        source.clone(),
+                        context,
+                    )?;
+                    let trailing = self.build_property_formula_for_co_selbri(
+                        &connection.first_branch.selbri,
+                        parameter,
+                        source.clone(),
+                        context,
+                    )?;
+                    let mut formula = self
+                        .build_binary_formula_for_generated_forethought_selbri_connective(
+                            connection.nahe.as_ref(),
                             &connection.guhek,
-                            &branch.gik,
+                            &connection.first_branch.gik,
                             context.connector_locus(),
-                            formula,
+                            leading,
                             trailing,
                             source.clone(),
                         )?;
+                    for branch in &connection.additional_branches {
+                        let trailing = self.build_property_formula_for_co_selbri(
+                            &branch.selbri,
+                            parameter,
+                            source.clone(),
+                            context,
+                        )?;
+                        formula = self
+                            .build_binary_formula_for_generated_extra_forethought_selbri_connective(
+                                connection.nahe.as_ref(),
+                                &connection.guhek,
+                                &branch.gik,
+                                context.connector_locus(),
+                                formula,
+                                trailing,
+                                source.clone(),
+                            )?;
+                    }
+                    Ok(formula)
                 }
-                Ok(formula)
-            }
+            },
             PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
                 let Some(tail) = &unit.bo_tail else {
                     return self.build_property_formula_for_tanru_unit(
@@ -6835,6 +6955,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_binary_formula_for_generated_forethought_selbri_connective<'syntax>(
         &mut self,
+        nahe: Option<&'syntax Token>,
         guhek: &'syntax GuhekConnectiveSyntax,
         gik: &'syntax GikConnectiveSyntax,
         locus: ConnectorLocus,
@@ -6846,7 +6967,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             guhek,
             generated_guhek_connective_negates_left(guhek),
             generated_gik_connective_negates_right(gik),
-            generated_guhek_connective_source(guhek),
+            generated_guhek_connective_source(nahe, guhek),
             generated_guhek_gik_connective_truth_table(guhek, gik),
             locus,
             left,
@@ -6862,6 +6983,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         'syntax,
     >(
         &mut self,
+        nahe: Option<&'syntax Token>,
         guhek: &'syntax GuhekConnectiveSyntax,
         gik: &'syntax ZantufaExtraGikConnectiveSyntax,
         locus: ConnectorLocus,
@@ -6871,7 +6993,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let connector_source = format!(
             "{} {}",
-            generated_guhek_connective_source(guhek),
+            generated_guhek_connective_source(nahe, guhek),
             token_text(&gik.0.value)
         );
         self.build_formula_for_generated_forethought_selbri_connective_core(

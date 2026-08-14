@@ -808,21 +808,21 @@ pub mod generated_model {
     }
 
     /// Sum node for forethought bridi connection; selects among the `direct_forethought_bridi_connection`, `grouped_forethought_bridi_connection`, and `negated_forethought_bridi_connection` forms.
-    rule "forethought bridi connection" forethought_bridi_connection(forethought_bridi_connection, subbridi, term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "forethought bridi connection" forethought_bridi_connection(forethought_bridi_connection, subbridi, term, tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+        /// Uses the `grouped_forethought_bridi_connection` product form, whose payload preserves `tense_modals`, `ke`, `inner`, and `kehe`.
+        grouped_forethought_bridi_connection,
         /// Uses the `direct_forethought_bridi_connection` product form, whose payload preserves `gek`, `first`, `first_branch`, and 4 other fields.
         direct_forethought_bridi_connection,
-        /// Uses the `grouped_forethought_bridi_connection` product form, whose payload preserves `tense_modal`, `ke`, `inner`, and `kehe`.
-        grouped_forethought_bridi_connection,
         /// Uses the `negated_forethought_bridi_connection` product form, whose payload preserves `na` and `inner`.
         negated_forethought_bridi_connection,
     }
 
     /// Sum node for forethought bridi connection; selects among the `direct_forethought_bridi_connection_without_tail_terms`, `grouped_forethought_bridi_connection_without_tail_terms`, and `negated_forethought_bridi_connection_without_tail_terms` forms.
-    rule "forethought bridi connection" forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, subbridi, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+    rule "forethought bridi connection" forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, subbridi, tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+        /// Uses the `grouped_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `tense_modals`, `ke`, `inner`, and `kehe`.
+        grouped_forethought_bridi_connection_without_tail_terms,
         /// Uses the `direct_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `gek`, `first`, `first_branch`, and 3 other fields.
         direct_forethought_bridi_connection_without_tail_terms,
-        /// Uses the `grouped_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `tense_modal`, `ke`, `inner`, and `kehe`.
-        grouped_forethought_bridi_connection_without_tail_terms,
         /// Uses the `negated_forethought_bridi_connection_without_tail_terms` product form, whose payload preserves `na` and `inner`.
         negated_forethought_bridi_connection_without_tail_terms,
     }
@@ -878,10 +878,10 @@ pub mod generated_model {
         field branch <- arc(subbridi);
     }
 
-    /// Product node for forethought bridi connection; preserves `tense_modal`, `ke`, `inner`, and `kehe` in source order.
-    rule "forethought bridi connection" grouped_forethought_bridi_connection(forethought_bridi_connection, tense_modal) -> struct {
-        /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
+    /// Product node for forethought bridi connection; preserves `tense_modals`, `ke`, `inner`, and `kehe` in source order.
+    rule "forethought bridi connection" grouped_forethought_bridi_connection(forethought_bridi_connection, tense_modal, baseline_term_tense_modal) -> struct {
+        /// The source-ordered tag sequence before KE.
+        field tense_modals <- [zero_or_more arc(standard_forethought_tense_modal(baseline_term_tense_modal, tense_modal))];
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The shared inner child syntax node.
@@ -890,10 +890,10 @@ pub mod generated_model {
         field kehe <- opt(arc(cmavo(Kehe).wf())).elidable_terminator(Kehe);
     }
 
-    /// Product node for forethought bridi connection; preserves `tense_modal`, `ke`, `inner`, and `kehe` in source order.
-    rule "forethought bridi connection" grouped_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, tense_modal) -> struct {
-        /// The optional tense modal component.
-        field tense_modal <- opt(arc(tense_modal));
+    /// Product node for forethought bridi connection; preserves `tense_modals`, `ke`, `inner`, and `kehe` in source order.
+    rule "forethought bridi connection" grouped_forethought_bridi_connection_without_tail_terms(forethought_bridi_connection_without_tail_terms, tense_modal, baseline_term_tense_modal) -> struct {
+        /// The source-ordered tag sequence before KE.
+        field tense_modals <- [zero_or_more arc(standard_forethought_tense_modal(baseline_term_tense_modal, tense_modal))];
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).wf();
         /// The shared inner child syntax node.
@@ -1328,7 +1328,8 @@ pub mod generated_model {
     }
 
     /// Product node for termset; preserves `ke`, `termset`, and `kehe` in source order.
-    rule "termset" ke_termset(term) -> struct {
+    rule "termset" ke_termset(term, tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+        assert !grouped_forethought_bridi_term_escape(tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci).ignored();
         /// The `Ke` cmavo marker.
         field ke <- cmavo(Ke).warn(ExperimentalKeTermset).wf();
         /// Non-empty ordered sequence of termset components.
@@ -1336,6 +1337,22 @@ pub mod generated_model {
         /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
     }
+
+    /// Lookahead shape that reserves KE tag+ KE forethought bridi groups from
+    /// the overlapping experimental KE termset owner.
+    rule "forethought bridi connection" grouped_forethought_bridi_term_escape(tense_modal, baseline_term_tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+        /// The outer grouping KE.
+        field outer_ke <- cmavo(Ke).wf();
+        /// One or more source-ordered tags that make the ownership collision possible.
+        field tense_modals <- [one_or_more arc(standard_forethought_tense_modal(baseline_term_tense_modal, tense_modal))];
+        /// The inner grouping KE following the tags.
+        field inner_ke <- cmavo(Ke).wf();
+        /// The forethought connective beginning inside the inner group.
+        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+    }
+
+    alias "tag" standard_forethought_tense_modal(baseline_term_tense_modal, tense_modal) =
+        baseline_term_tense_modal.map_to(tense_modal);
 
     /// Sum node for NOIhA adverbial; selects among the `noiha_variable_adverbial_term` and `noiha_relative_adverbial_term` forms.
     rule "NOIhA adverbial" noiha_adverbial_term(free_modifier, selbri) -> enum {
@@ -3873,10 +3890,8 @@ pub mod generated_model {
         field nai <- opt(cmavo(Nai).wf());
     }
 
-    /// Product node for forethought selbri connective; preserves `nahe`, `se`, `guha`, and `nai` in source order.
+    /// Product node for forethought selbri connective; preserves `se`, `guha`, and `nai` in source order.
     rule "forethought selbri connective" guhek_connective -> struct {
-        /// The optional nahe component.
-        field nahe <- opt(selmaho(Nahe));
         /// The optional se component.
         field se <- opt(selmaho(Se));
         #[tree_child(primary)]
@@ -4891,7 +4906,7 @@ pub mod generated_model {
     }
 
     /// Sum node for selbri; selects among the `tagged_selbri` and `untagged_selbri` forms.
-    rule "selbri" selbri(selbri, co_selbri, tense_modal, statement) -> enum {
+    rule "selbri" selbri(selbri, co_selbri, tense_modal, statement, free_modifier) -> enum {
         /// Uses the `tagged_selbri` product form, whose payload preserves `tense_modal` and `inner_selbri`.
         tagged_selbri,
         /// Uses the nested `untagged_selbri` sum form and preserves its selected alternative.
@@ -4899,7 +4914,7 @@ pub mod generated_model {
     }
 
     /// Sum node for selbri level 1; selects between the recursive NA arm and level 2.
-    rule "selbri" untagged_selbri(selbri, co_selbri, statement) -> enum {
+    rule "selbri" untagged_selbri(selbri, co_selbri, statement, free_modifier) -> enum {
         /// Uses the `negated_selbri` product form, whose payload preserves `na` and `inner_selbri`.
         negated_selbri,
         /// Uses the level-2 `co_selbri` product form.
@@ -4907,11 +4922,11 @@ pub mod generated_model {
     }
 
     /// Product node for tagged selbri; preserves `tense_modal` and `inner_selbri` in source order.
-    rule "tagged selbri" tagged_selbri(selbri, co_selbri, tense_modal, statement) -> struct {
+    rule "tagged selbri" tagged_selbri(selbri, co_selbri, tense_modal, statement, free_modifier) -> struct {
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
         /// The shared inner selbri child syntax node.
-        field inner_selbri <- arc(untagged_selbri(selbri, co_selbri, statement));
+        field inner_selbri <- arc(untagged_selbri(selbri, co_selbri, statement, free_modifier));
     }
 
     /// Product node for negated selbri; preserves `na` and `inner_selbri` in source order.
@@ -4927,7 +4942,7 @@ pub mod generated_model {
     }
 
     /// Product node for selbri; preserves `leading_selbri` and `co_tail` in source order.
-    rule "selbri" co_selbri(co_selbri, tanru_selbri, statement) -> struct {
+    rule "selbri" co_selbri(co_selbri, tanru_selbri, statement, free_modifier) -> struct {
         /// The level-3 selbri before the optional CO tail.
         field leading_selbri <- arc(tanru_selbri);
         /// The optional co tail component.
@@ -4952,7 +4967,7 @@ pub mod generated_model {
 
     /// Product node for selbri level 4; ordinary joik/jek continuations bind
     /// more tightly than adjacency.
-    rule "selbri connection" connected_selbri(bound_selbri, tanru_selbri, tense_modal) -> struct {
+    rule "selbri connection" connected_selbri(bound_selbri, tanru_selbri, tense_modal, free_modifier) -> struct {
         /// The first level-5 selbri.
         field leading_selbri <- arc(bound_selbri);
         /// Source-ordered level-4 continuations.
@@ -4991,7 +5006,7 @@ pub mod generated_model {
 
     /// Product node for selbri level 5; a jek/joik plus optional tag and BO is
     /// required before the recursive right operand.
-    rule "BO-bound selbri" bound_selbri(bound_selbri, plain_bo_selbri, tense_modal) -> struct {
+    rule "BO-bound selbri" bound_selbri(bound_selbri, plain_bo_selbri, tense_modal, free_modifier) -> struct {
         /// The leading level-6 selbri.
         field leading_selbri <- arc(plain_bo_selbri);
         /// The optional, necessarily connective-bearing BO continuation.
@@ -5011,11 +5026,10 @@ pub mod generated_model {
     }
 
     /// Sum node for selbri level 6.
-    rule "plain BO selbri" plain_bo_selbri(plain_bo_selbri, tanru_unit, selbri) -> enum {
+    rule "plain BO selbri" plain_bo_selbri(plain_bo_selbri, tanru_unit, selbri, co_selbri, free_modifier) -> enum {
         /// A CEI-capable tanru unit with an optional plain BO continuation.
         plain_bo_tanru_unit,
-        /// The standard forethought selbri owner, provisionally retaining the
-        /// pre-#841 branch widths until the next logical commit.
+        /// A standard binary or structurally disjoint Zantufa forethought owner.
         forethought_selbri_connection,
     }
 
@@ -5035,35 +5049,90 @@ pub mod generated_model {
         field trailing_selbri <- arc(plain_bo_selbri);
     }
 
-    /// Product node for the forethought selbri owner at level 6.
-    rule "forethought selbri connection" forethought_selbri_connection(selbri) -> struct {
-        /// The forethought connective opener.
+    /// Sum node separating the standard binary owner from the two structurally
+    /// disjoint Zantufa shapes.
+    rule "forethought selbri connection" forethought_selbri_connection(selbri, plain_bo_selbri, co_selbri, free_modifier) -> enum {
+        /// A Zantufa forethought with at least two GI branches.
+        zantufa_nary_forethought_selbri_connection,
+        /// A Zantufa forethought whose explicit GIhI is its disjointness marker.
+        zantufa_gihi_forethought_selbri_connection,
+        /// The standard binary L6 owner.
+        standard_forethought_selbri_connection,
+    }
+
+    /// Product node for the standard binary forethought selbri owner at L6.
+    rule "forethought selbri connection" standard_forethought_selbri_connection(selbri, plain_bo_selbri, free_modifier) -> struct {
+        /// Optional NAhE preceding the independent free-modifier slot.
+        field nahe <- opt(selmaho(Nahe));
+        /// Free modifiers between NAhE (when present) and GUhA.
+        field free_modifiers <- [zero_or_more free_modifier];
+        /// The forethought connective opener without NAhE.
         field guhek <- guhek_connective;
         /// The full left selbri operand.
         field leading_selbri <- arc(selbri);
-        /// The first GI branch.
-        field first_branch <- forethought_selbri_branch(selbri);
-        /// Existing additional Zantufa branches, re-gated precisely in C2.
-        field additional_branches <- [zero_or_more zantufa_forethought_selbri_branch(selbri)];
-        /// The existing optional Zantufa GIhI terminator.
-        field gihi <- opt(feature(ZantufaConnectives, selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi))).elidable_terminator(Gihi);
+        /// The single tight L6 GI branch.
+        field first_branch <- forethought_selbri_branch(plain_bo_selbri);
     }
 
-    /// Product node for the first GI branch of a forethought selbri.
-    rule "forethought selbri connection" forethought_selbri_branch(selbri) -> struct {
+    /// Product node for the standard GI branch of a forethought selbri.
+    rule "forethought selbri connection" forethought_selbri_branch(plain_bo_selbri) -> struct {
         /// The standard GI-family connective.
         field gik <- gik_connective;
-        /// The branch selbri, tightened to level 6 in C2.
-        field selbri <- arc(selbri);
+        /// The tight level-6 branch selbri.
+        field selbri <- arc(plain_bo_selbri);
     }
 
-    /// Product node for an additional Zantufa forethought branch.
-    rule "forethought selbri connection" zantufa_forethought_selbri_branch(selbri) -> struct {
+    /// Product node for the first wide Zantufa GI branch.
+    rule "forethought selbri connection" zantufa_first_forethought_selbri_branch(co_selbri) -> struct {
+        /// The un-warned first GI-family connective.
+        field gik <- gik_connective;
+        /// The wide level-2 branch selbri.
+        field selbri <- arc(co_selbri);
+    }
+
+    /// Product node for an additional wide Zantufa forethought branch.
+    rule "forethought selbri connection" zantufa_forethought_selbri_branch(co_selbri) -> struct {
         assert feature(ZantufaConnectives);
         /// The additional GI-family connective.
         field gik <- zantufa_extra_gik_connective;
-        /// The branch selbri, widened uniformly in C2.
-        field selbri <- arc(selbri);
+        /// The wide level-2 branch selbri.
+        field selbri <- arc(co_selbri);
+    }
+
+    /// Zantufa wide forethought selected by one or more additional GI branches.
+    rule "forethought selbri connection" zantufa_nary_forethought_selbri_connection(co_selbri, free_modifier) -> struct {
+        assert feature(ZantufaConnectives);
+        /// Optional NAhE preceding the independent free-modifier slot.
+        field nahe <- opt(selmaho(Nahe));
+        /// Free modifiers between NAhE (when present) and GUhA.
+        field free_modifiers <- [zero_or_more free_modifier];
+        /// The forethought connective opener without NAhE.
+        field guhek <- guhek_connective;
+        /// The wide level-2 left operand.
+        field leading_selbri <- arc(co_selbri);
+        /// The first wide GI branch.
+        field first_branch <- zantufa_first_forethought_selbri_branch(co_selbri);
+        /// One or more additional warning-bearing GI branches.
+        field additional_branches <- [one_or_more zantufa_forethought_selbri_branch(co_selbri)];
+        /// An optional warning-bearing explicit GIhI terminator.
+        field gihi <- opt(selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi)).elidable_terminator(Gihi);
+    }
+
+    /// Zantufa wide forethought selected by an explicit GIhI terminator.
+    rule "forethought selbri connection" zantufa_gihi_forethought_selbri_connection(co_selbri, free_modifier) -> struct {
+        assert feature(ZantufaConnectives);
+        /// Optional NAhE preceding the independent free-modifier slot.
+        field nahe <- opt(selmaho(Nahe));
+        /// Free modifiers between NAhE (when present) and GUhA.
+        field free_modifiers <- [zero_or_more free_modifier];
+        /// The forethought connective opener without NAhE.
+        field guhek <- guhek_connective;
+        /// The wide level-2 left operand.
+        field leading_selbri <- arc(co_selbri);
+        /// The first wide GI branch.
+        field first_branch <- zantufa_first_forethought_selbri_branch(co_selbri);
+        /// The required warning-bearing explicit GIhI terminator.
+        field gihi <- selmaho(Gihi).warn(ExperimentalZantufaForethoughtGihi).wf();
     }
 
     /// Product node for a complete tanru unit: an atom with optional linkargs,
