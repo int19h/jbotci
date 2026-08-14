@@ -1112,6 +1112,8 @@ pub mod generated_model {
         place_tagged_sumti_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
         /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
         tagged_sumti_before_tag_term,
         /// Uses the `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
@@ -1148,6 +1150,8 @@ pub mod generated_model {
         place_tagged_sumti_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
         /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
         tagged_sumti_before_tag_term,
         /// Uses the `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
@@ -1472,6 +1476,17 @@ pub mod generated_model {
         ));
         assert !selbri;
         /// The shared sumti child syntax node.
+        field sumti <- arc(tagged_or_elided_sumti(sumti));
+    }
+
+    /// Final experimental tag term for the A21 elided-FEhU NAhE/FIhO surface.
+    rule "tag" elided_nahe_fiho_tag_term(tense_modal, sumti) -> struct {
+        assert (selmaho(Nahe), cmavo(Fiho)).lookahead();
+        /// The exact extension-owned NAhE/FIhO tag.
+        field tense_modal <- arc(
+            tense_modal.reject_output(crate::grammar::baseline_tag::NonElidedNaheFihoTagTermRejection)
+        );
+        /// The elided sumti following a final tag term.
         field sumti <- arc(tagged_or_elided_sumti(sumti));
     }
 
@@ -5225,19 +5240,15 @@ pub mod generated_model {
     }
 
     /// Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, connected_selbri, tense_modal) -> struct {
+    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         /// The shared inner unit child syntax node.
-        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom, connected_selbri, tense_modal));
+        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom));
     }
 
-    /// Sum node for scalar-negated tanru unit; selects among the `tagged_selbri_group_tanru_unit`, `pro_bridi_tanru_unit`, and `tanru_unit_atom` forms.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom, connected_selbri, tense_modal) -> enum {
-        /// Uses the `tagged_selbri_group_tanru_unit` product form, whose payload preserves `tense_modal` and `inner_selbri`.
-        tagged_selbri_group_tanru_unit,
-        /// Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.
-        pro_bridi_tanru_unit,
+    /// The standard scalar-negation operand, restricted to exactly one tanru-unit atom.
+    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom) -> enum {
         /// Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.
         tanru_unit_atom,
     }

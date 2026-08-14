@@ -4698,15 +4698,8 @@ fn assigned_pro_bridi_reference_label_for_tanru_unit_atom_base(
 fn assigned_pro_bridi_reference_label_for_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<String> {
-    match unit.inner_unit.as_ref() {
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
-            assigned_pro_bridi_reference_label_for_tanru_unit_atom(atom)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(unit) => {
-            assigned_pro_bridi_reference_label_for_pro_bridi_tanru_unit(unit)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(_) => None,
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    assigned_pro_bridi_reference_label_for_tanru_unit_atom(atom)
 }
 
 #[requires(true)]
@@ -4780,17 +4773,8 @@ fn tanru_unit_label_from_tanru_unit_atom(
 fn tanru_unit_label_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Result<String, SemanticsError> {
-    match unit.inner_unit.as_ref() {
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
-            tanru_unit_label_from_tanru_unit_atom(atom)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(pro_bridi) => {
-            Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi).display_text())
-        }
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(tagged) => {
-            generated_node_surface_text(tagged)
-        }
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    tanru_unit_label_from_tanru_unit_atom(atom)
 }
 
 #[requires(true)]
@@ -4990,6 +4974,15 @@ fn generated_term_has_distributed_sumti_connection(term: &TermSyntax) -> bool {
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
         },
         GeneratedSimpleTermRef::TaggedSumtiTerm(term) => match term.sumti.as_ref() {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                generated_logical_sumti_connection_for_branch(
+                    GeneratedDistributedSumtiBranch::Sumti(sumti),
+                )
+                .is_ok_and(|connection| connection.is_some())
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
+        },
+        GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => match term.sumti.as_ref() {
             TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
                 generated_logical_sumti_connection_for_branch(
                     GeneratedDistributedSumtiBranch::Sumti(sumti),
@@ -6843,6 +6836,12 @@ fn generated_simple_term_contains_current_level_keha(term: GeneratedSimpleTermRe
             }
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
         },
+        GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => match term.sumti.as_ref() {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                generated_sumti_contains_current_level_keha(sumti)
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
+        },
         GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
             NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
                 term.free_modifiers
@@ -7291,15 +7290,8 @@ fn generated_zantufa_me_tanru_unit_contains_current_level_keha(
 fn generated_scalar_negated_tanru_inner_unit_contains_current_level_keha(
     unit: &ScalarNegatedTanruInnerUnitSyntax,
 ) -> bool {
-    match unit {
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-            generated_connected_selbri_contains_current_level_keha(&unit.inner_selbri)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => false,
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-            generated_tanru_unit_atom_contains_current_level_keha(unit)
-        }
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
+    generated_tanru_unit_atom_contains_current_level_keha(unit)
 }
 
 #[requires(true)]

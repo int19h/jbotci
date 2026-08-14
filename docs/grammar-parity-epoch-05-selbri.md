@@ -135,6 +135,41 @@ standard owner at identical extent. Their Zantufa CO-inside and
 adjacency-inside trees remain the documented #858 fidelity gap. This avoids a
 warning arm that silently reinterprets baseline-valid text.
 
+### C3 NAhE atom-scope and tag-model dispositions
+
+The standard scalar-negation owner now recurses over exactly
+`tanru_unit_atom`. Its former tagged-connected-selbri and direct pro-bridi
+alternatives were jbotci-only duplicates; pro-bridi remains available through
+the ordinary atom inventory. The generated semantic consumers were reduced to
+the now-single atom variant, preserving conversion, place-frame, reference,
+KEhA, label, and rafsi traversal through the atom helpers.
+
+The reference probes are recorded in
+`/build/jbotci/logs/epoch05-c3-reference-probes.log`. Running camxes-standard
+rejects `mi na'e fi'o brodo fe'u brode`, while camxes-exp and rolling Zantufa
+accept it as a full bridi with the NAhE/FIhO form in the ordinary selbri tag
+slot. Both experimental references accept the elided-FEhU surface
+`mi na'e fi'o brodo brode` as a final tag-term fragment. Jbotci therefore pins
+the following ownership, with no selbri-side widening:
+
+| Surface and profile | Pinned owner | Diagnostics disposition |
+| --- | --- | --- |
+| Explicit FEhU, default/exp | `TaggedSelbri` containing `ExpTagAtomRun` | Exactly `ExperimentalFlattenedTag` on NAhE. |
+| Explicit FEhU, built-in Zantufa | The same extension-first tag model inside `TaggedSelbri` | Exactly `ExperimentalFlattenedTag`; the earlier camxes-exp arm owns the common extent before the Zantufa tag fallback. |
+| Elided FEhU, default/exp | `ElidedNaheFihoTagTerm` fragment containing `ExpTagAtomRun` | Exactly `ExperimentalFlattenedTag` on NAhE. |
+| Elided FEhU, built-in Zantufa | The same final tag-term fragment | Exactly `ExperimentalFlattenedTag` for the common exp/Zantufa extent. |
+
+The final-tag-term arm is extension-first and accepts only the typed completed
+candidate consisting of one NAhE-prefixed FIhO atom with an absent FEhU. Its
+strict and recovered classifiers are exhaustive over the relevant generated
+tag nodes, so explicit FEhU and unrelated tags cannot be reowned. This is the
+A21 tag-model route, not the removed scalar-negated selbri arm.
+
+The positive controls `mi na'e broda`, `mi na'e se broda`, and
+`mi na'e ke broda brode ke'e` were rerun through all three reference parsers
+and are pinned warning-free. Rolling Zantufa's wider NAhE-over-KE/CO form is
+untouched and remains part of the C4 KE/CO witness family.
+
 ## Fidelity gaps and reinterpretation ownership
 
 The default dialect preserves baseline ownership on identical-extent surfaces.

@@ -487,8 +487,11 @@ pub(super) fn resolvable_generated_pro_bridi_cmavo_from_tanru_unit(
 pub(super) fn resolvable_generated_pro_bridi_cmavo_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<Cmavo> {
-    let ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(pro_bridi) = unit.inner_unit.as_ref()
-    else {
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    if !atom.conversions.is_empty() {
+        return None;
+    }
+    let TanruUnitAtomBaseSyntax::ProBridiTanruUnit(pro_bridi) = atom.base.as_ref() else {
         return None;
     };
     pro_bridi
@@ -652,10 +655,7 @@ pub(super) fn generated_tanru_unit_atom_base_is_jai_conversion(
     match base {
         TanruUnitAtomBaseSyntax::JaiModalTanruUnit(_) => true,
         TanruUnitAtomBaseSyntax::ScalarNegatedTanruUnit(unit) => {
-            let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref()
-            else {
-                return false;
-            };
+            let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
             generated_tanru_unit_atom_base_is_jai_conversion(atom.base.as_ref())
         }
         _ => false,
@@ -902,15 +902,8 @@ pub(super) fn generated_raw_place_visible_rank_for_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
     place: usize,
 ) -> Result<usize, SemanticsError> {
-    match unit.inner_unit.as_ref() {
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
-            generated_raw_place_visible_rank_for_tanru_unit_atom(atom, place)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(grouped) => {
-            generated_raw_place_visible_rank_for_connected_selbri(&grouped.inner_selbri, place)
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_) => Ok(place),
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    generated_raw_place_visible_rank_for_tanru_unit_atom(atom, place)
 }
 
 #[requires(place > 0)]
@@ -1182,9 +1175,7 @@ pub(super) fn generated_jai_modal_tanru_unit(
 pub(super) fn generated_jai_modal_tanru_unit_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<&JaiModalTanruUnitSyntax> {
-    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref() else {
-        return None;
-    };
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
     generated_jai_modal_tanru_unit(atom.base.as_ref())
 }
 
@@ -1269,9 +1260,7 @@ pub(super) fn bare_generated_jai_modal_tanru_atom_base_view(
 pub(super) fn bare_generated_jai_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<&JaiModalTanruUnitSyntax> {
-    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref() else {
-        return None;
-    };
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
     bare_generated_jai_modal_tanru_unit(atom.base.as_ref())
 }
 
@@ -1315,9 +1304,7 @@ pub(super) fn generated_jai_modal_tanru_atom_base_view_with_tense(
 pub(super) fn generated_jai_modal_tanru_unit_with_tense_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<&JaiModalTanruUnitSyntax> {
-    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref() else {
-        return None;
-    };
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
     generated_jai_modal_tanru_unit_with_tense(atom.base.as_ref())
 }
 
@@ -1512,13 +1499,8 @@ pub(super) fn generated_lujvo_rafsi_parts_for_tanru_atom_base_view(
 pub(super) fn generated_lujvo_rafsi_parts_for_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<Vec<String>> {
-    match unit.inner_unit.as_ref() {
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
-            generated_lujvo_rafsi_parts_for_tanru_unit_atom_base(atom.base.as_ref())
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(_)
-        | ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(_) => None,
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    generated_lujvo_rafsi_parts_for_tanru_unit_atom_base(atom.base.as_ref())
 }
 
 #[requires(true)]
@@ -2048,10 +2030,8 @@ pub(super) fn add_generated_linked_sumti_visible_places(
 pub(super) fn scalar_negated_tanru_unit_inner_atom(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Option<&TanruUnitAtomSyntax> {
-    match unit.inner_unit.as_ref() {
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => Some(atom),
-        _ => None,
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    Some(atom)
 }
 
 #[requires(true)]
@@ -2062,9 +2042,7 @@ pub(super) fn scalar_negated_tanru_unit_inner_grouped(
     &GroupedTanruUnitSyntax,
     &[WithFreeModifiers<Token, FreeModifierSyntax>],
 )> {
-    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref() else {
-        return None;
-    };
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
     let TanruUnitAtomBaseSyntax::GroupedTanruUnit(grouped) = atom.base.as_ref() else {
         return None;
     };
@@ -2076,17 +2054,8 @@ pub(super) fn scalar_negated_tanru_unit_inner_grouped(
 pub(super) fn relation_label_from_scalar_negated_tanru_unit(
     unit: &ScalarNegatedTanruUnitSyntax,
 ) -> Result<RelationLabel, SemanticsError> {
-    match unit.inner_unit.as_ref() {
-        ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) => {
-            relation_label_from_tanru_unit_atom_base(atom.base.as_ref())
-        }
-        ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(pro_bridi) => {
-            Ok(relation_label_from_pro_bridi_tanru_unit(pro_bridi))
-        }
-        ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(tagged) => {
-            relation_label_from_connected_selbri(&tagged.inner_selbri)
-        }
-    }
+    let ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(atom) = unit.inner_unit.as_ref();
+    relation_label_from_tanru_unit_atom_base(atom.base.as_ref())
 }
 
 #[requires(true)]

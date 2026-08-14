@@ -2229,23 +2229,8 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         &mut self,
         unit: &'tree generated::ScalarNegatedTanruInnerUnitSyntax,
     ) -> SelbriPlaceFrameId {
-        match unit {
-            generated::ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-                self.walk_node(&unit.tense_modal);
-                self.analyze_connected_selbri(&unit.inner_selbri)
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-                self.analyze_tanru_unit_atom(unit)
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(unit) => self
-                .add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                ),
-        }
+        let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
+        self.analyze_tanru_unit_atom(unit)
     }
 
     #[requires(true)]
@@ -2548,6 +2533,19 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 );
             }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                let slot = Some(modal_slot(Some(
+                    self.raw_for_node(term.tense_modal.as_ref()),
+                )));
+                self.assign_tagged_or_elided_argument_to_cursors(
+                    cursors,
+                    outer_term,
+                    &term.sumti,
+                    slot,
+                    AssignmentSource::ModalTerm,
+                );
+            }
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
                 self.walk_node(&term.tense_modal);
                 let slot = Some(modal_slot(Some(
                     self.raw_for_node(term.tense_modal.as_ref()),
@@ -3610,6 +3608,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
+            generated::SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
             generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
                 if let Some(tense_modal) = term.tag.as_deref() {
                     self.walk_node(tense_modal);
@@ -3674,6 +3676,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             GeneratedSimpleTermRef::SumtiTerm(term) => self.walk_node(&term.0),
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
@@ -6303,18 +6309,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         &mut self,
         unit: &'tree generated::ScalarNegatedTanruInnerUnitSyntax,
     ) {
-        match unit {
-            generated::ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-                self.walk_node(&unit.tense_modal);
-                self.visit_connected_selbri(&unit.inner_selbri);
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(unit) => {
-                self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
-            }
-            generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-                self.visit_tanru_unit_atom(unit);
-            }
-        }
+        let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
+        self.visit_tanru_unit_atom(unit);
     }
 
     #[requires(true)]
@@ -7148,6 +7144,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
+            generated::SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
             generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
                 if let Some(tense_modal) = term.tag.as_deref() {
                     self.walk_node(tense_modal);
@@ -7212,6 +7212,10 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             GeneratedSimpleTermRef::SumtiTerm(term) => self.visit_argument(&term.0),
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
                 self.walk_node(&term.tense_modal);
                 self.walk_node(&term.sumti);
             }
@@ -8452,17 +8456,8 @@ fn generated_tanru_unit_atom_base_for_cei_first_token(
 fn generated_scalar_negated_tanru_inner_unit_first_token(
     unit: &generated::ScalarNegatedTanruInnerUnitSyntax,
 ) -> Option<&Token> {
-    match unit {
-        generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) => {
-            generated_tanru_unit_atom_base_first_token(&unit.base)
-        }
-        generated::ScalarNegatedTanruInnerUnitSyntax::ProBridiTanruUnit(unit) => {
-            Some(&unit.goha.value)
-        }
-        generated::ScalarNegatedTanruInnerUnitSyntax::TaggedSelbriGroupTanruUnit(unit) => {
-            generated_connected_selbri_first_token(&unit.inner_selbri)
-        }
-    }
+    let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
+    generated_tanru_unit_atom_base_first_token(&unit.base)
 }
 
 #[requires(true)]
