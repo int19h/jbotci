@@ -61,9 +61,26 @@ Probed at base `3c3b84a5ba` and after the change:
 
 Exactly three pre-existing expectations move to the sourced shape, all of them
 NUhI-less GEK termsets: `corpus/camxes/644`, `corpus/camxes/2481` and
-`corpus/alis/full-alice`. Their `semantics.refs` and `output` facets are
-unaffected; only the pinned syntax tree changes. They are regenerated with the
-epoch's single consolidated expectation update.
+`corpus/alis/full-alice`. Their `semantics.refs`, `tersmu-json` and `output`
+facets are unaffected; only the pinned syntax tree changes. They are regenerated
+with the epoch's single consolidated expectation update.
+
+### Witnesses
+
+| Fixture | Surface | What it pins |
+| --- | --- | --- |
+| `gek-termset-nuhi-less-tag-operand` | `ge ko'a gi pu broda` | the unguarded operand: a bare tag with an elided KU, which the guarded `terms` sequence would refuse |
+| `gek-termset-balanced-nesting` | `ge pu ko'a pu ko'e gi pu ko'i pu ko'u broda` | `A (B gik C) D`, not the flat 2 + 2 jbotci used to build |
+| `gek-termset-baseline-sumti-owned` | `ge ko'a gi ko'e broda` | the whole-candidate classifier: the baseline GEK **sumti** connection keeps the extent |
+| `gek-termset-baseline-sumti-owned-continuation` | `ge ko'a gi ko'e .e ko'i broda` | the same, with `.e` outside the connection |
+| `gek-termset-baseline-sumti-owned-zantufa` | `ge ko'a gi ko'e broda` `(zantufa)` | the classifier is not dialect-gated |
+| `nuhi-plain-over-nested-gek-termset` | `nu'i ge ko'a gi pu broda` | the arm-fallback rule (B1/Kimi-3): the pinned tree is `NuhiTermset { nuhi, termset: [GekTermset(..)] }`, because the NUhI-gek arm's guarded operands refuse the surface |
+| `gek-termset-branch-connection-formula` | `ge ba ko'a gi ca ko'e broda` | the branch formula: a `termSet`-locus connective formula over two branches, not `invalid_graph` |
+
+The plan asks for a camxes-exp analogue of the arm-fallback pin. Epoch 6a
+retired `DialectFeature::TermHierarchy` and made the exp tiers unconditional, so
+the default configuration *is* the std/exp union and the single pin covers both;
+there is no separate exp configuration left to write.
 
 ### The gek-termset versus gek-sumti mechanism (B6)
 
@@ -98,50 +115,99 @@ branches and no terminator slot. So the optional-NUhI node's NUhU slots are
 sourced by nothing, and its Zantufa n-ary branches and GIhI cannot be sourced in
 the NUhI-present arm they currently sit in.
 
-## Open: the branch-formula type boundary
-
-D3's grammar half is complete and probe-exact. Its **semantic** half is blocked
-on a boundary that the plan did not anticipate.
+## The branch-formula type boundary, and the refactor that removed it
 
 A NUhI-less GEK termset lowers as a logical *connection*:
 `build_generated_forethought_termset_connection_formula` finds the termset in
 the sentence's term list and splices each of its two branches into the
-surrounding terms, producing two complete bridi term lists that are then lowered
-separately and joined by the connective. That splice is typed
+surrounding terms, producing two complete bridi term lists that are lowered
+separately and joined by the connective. That splice was typed
 `Vec<&TermSyntax>`, and it reaches the general bridi lowering path
 (`build_selbri_simple_bridi_tail_formula_with_preassigned_arguments`,
 `build_term_assignments_for_terms`, `GeneratedTermAssignments<'syntax>`).
 
-`gek_termset` operands are `NonabsTermSyntax`, which is not convertible by
-reference — and they must be, because the unguarded atom is exactly what makes
-`ge ko'a gi pu broda` parse. Making the bridi term list level-agnostic (a
-`GeneratedBridiTermRef` threaded through roughly 112 signatures across
-`generated_builder/*.rs`, plus the assignment payload types) is a refactor
-comparable in size to the epoch itself.
+`gek_termset` operands are `NonabsTermSyntax`, and they must be: the unguarded
+atom is exactly what makes `ge ko'a gi pu broda` parse. There is no reference
+conversion between the level enums and there must not be one — mechanism E
+re-lists the same leaves at every level precisely so that no level is a wrapper
+around another, so a conversion would be a copy. The lead's ruling was to fix the
+boundary rather than ship a capability gap or defer it into epoch 7, which
+reworks these same lowering paths.
 
-The branch *membership* is unaffected by the re-shaping: the leading operands
-read outermost-first are the branch before the GIK and the trailing operands
-read innermost-first are the branch behind it, which for the symmetric corpus
-cases is exactly the flat reading's membership. So the correct lowering is known;
-only the type boundary is in the way.
+The bridi term list is therefore level-agnostic as of `38b6348c53`, which lands
+before any D3 semantic wiring and changes no surface's meaning.
+`GeneratedBridiTermRef` is a `Copy` view over the six levels holding each level's
+own node, with two projections — `simple` (the leaf) and `grouping` (the
+connection tier) — and a `visit_in_order` that dispatches to the underlying node
+so nothing that traverses a term list observes a different event stream. Both
+projections are level-independent, because the tiers a level admits differ but
+the product node a given tier builds is one type across every level offering it;
+`simple().is_none() == grouping().is_some()` is written as an invariant. 122
+signature sites moved, and the conversions sit where a `Vec` of references was
+already being built, so nothing is allocated or cloned that was not before.
 
-At this commit the reference and place-analysis walkers cover the new node — the
-`semantics.refs` and `output` facets of the three affected fixtures still pass —
-but graph building reports the principled `invalid_graph` error "non-sumti term
-reached sumti visible-place advancement" instead of a connection formula. That
-is not a semantics-coverage ratchet failure (the ratchet fires on
-`undefined_semantics` and panics, and the allowlist stays empty), but it is a
-capability regression on the surfaces in the table above.
+Two duplications collapsed as a direct consequence: the five per-level
+term-formula-scope walkers became one, and the twice-written "is this term a
+forethought termset, directly or wrapped in a degenerate `ConnectedTerm`"
+matcher became `generated_forethought_termset_in_term`.
 
-The disposition is a lead decision because every option changes what this epoch
-delivers, and it is recorded as an open ASK on work item
-`jbotci-epoch06b-terms`.
+### The branch-membership rule
+
+`GeneratedForethoughtTermsetRef` abstracts the two GEK/GIK-joining shapes behind
+`gek()`, `gik()`, `branches()` and `additional_branches()`, so the connection
+formula body is shared verbatim between them. For the NUhI-present arm both
+branches are written out in source order. For the NUhI-less arm the operand tree
+is walked pushing each level's leading operand *before* recursing and its
+trailing operand *after*:
+
+> the branch before the GIK is the leading operands read **outermost-first**,
+> and the branch behind it is the trailing operands read **innermost-first**.
+
+`ge pu ko'a pu ko'e gi pu ko'i pu ko'u broda` nests `A (B gik C) D` and yields
+branches `[A, B]` and `[C, D]`, which is exactly what the flat reading produced
+on symmetric termsets. That is not only an argument: `corpus/alis/full-alice`'s
+`tersmu-json` expectation was pinned from the *old flat reading*, and it passes
+unchanged after the re-shaping. Re-shaping the syntax tree left the semantic
+graph byte-identical, which is the strongest available evidence that the
+membership rule is the sourced one.
+
+`ge ba ko'a gi ca ko'e broda` now lowers to a connective formula (operator `and`,
+connector `ge gi`, locus `termSet`, two atom branches) where it previously
+reported the principled `invalid_graph` error "non-sumti term reached sumti
+visible-place advancement".
 
 ## Scope not yet delivered
 
 | Section | Issue | State |
 | --- | --- | --- |
-| D3 termset shapes | #806 | grammar complete; semantics blocked as above; witnesses and the `forethought_termset` disposition pending |
+| D3 termset shapes | #806 | grammar, semantics and witnesses complete; the `forethought_termset` split is still open (below) |
 | D4 GOI and flavour-context payload width | #794 | not started |
 | D5 Zantufa term binding | #827 | not started |
 | C7 consolidated expectations, comparer re-baseline, ratchet, peak RSS | — | not started |
+
+## Open: the `forethought_termset` split
+
+The optional-NUhI `forethought_termset` node still carries the two unsourced
+widenings tabulated above. The recommended disposition, sent to
+`lead-jbotci-801` and not yet answered, is to split it: `forethought_termset`
+becomes NUhI-**mandatory** (the sourced NUhI-gek arm only, dropping
+`additional_branches` and `gihi`), and rolling Zantufa's own shape
+`gek_term <- gek term+ (gik term+)+ GIhI?` becomes its own
+`ZantufaConnectives`-gated arm ordered behind the now-sourced `gek_termset`.
+That removes both widenings and matches D3's "three distinct shapes" literally.
+
+The cost is bounded and was measured rather than estimated: exactly 14 fixture
+files carry a `ForethoughtTermset` expectation, so the Debug-shape delta
+(`m_nuhi` becoming a mandatory `nuhi`, `additional_branches` and `gihi` removed)
+is 14 files of individually reviewable manual residue in C7 — not a mechanical
+comparer class and not a bulk regeneration.
+
+The six-configuration substitution this epoch applies is recorded here as well:
+epoch 6a retired `DialectFeature::TermHierarchy`, so the plan's "exp-off"
+configuration no longer exists and the exp T3/T4 tiers are unconditional. The
+configuration family for D3/D4/D5 is therefore read over the zantufa axes —
+omitted dialect, `()`, `(+zantufa-terms)`, `(+zantufa-connectives)`, both, and
+`(zantufa)` — with the plan's "the zantufa arm must not widen" intent discharged
+by the `ZantufaTerms`-off rejection rows plus a zantufa-**on** row pinning that
+the connective-present stag-less form stays owned by the exp T4-normal arm. The
+lead ACKed this substitution.

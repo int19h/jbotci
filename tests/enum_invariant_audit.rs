@@ -1784,6 +1784,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed term validity is owned by the invariant-bearing TermSyntax node",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedForethoughtTermsetRef::Gek",
+        "borrowed termset validity is owned by the invariant-bearing GekTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedForethoughtTermsetRef::Nuhi",
+        "borrowed termset validity is owned by the invariant-bearing ForethoughtTermsetSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::Empty",
         "the empty linked-sumti leaf is a closed marker with no payload state to constrain",
     ),

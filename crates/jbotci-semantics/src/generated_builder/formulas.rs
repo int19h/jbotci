@@ -1271,29 +1271,33 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
         let before_terms = &terms[..position];
         let after_terms = &terms[position + 1..];
+        let (leading_branch, trailing_branch) = termset.branches();
         let leading_terms =
-            generated_forethought_termset_branch_terms(before_terms, &termset.terms, after_terms);
-        let trailing_terms = generated_forethought_termset_branch_terms(
-            before_terms,
-            &termset.first_branch.terms,
-            after_terms,
-        );
-        let source = self.source_for_node(termset, "termset-connection-formula");
-        let modal_connection_spec =
-            generated_modal_statement_connection_spec_for_tense_modal(&termset.gek);
-        if !termset.additional_branches.is_empty()
-            && (!generated_modal_forethought_connective_is_logical(&termset.gek)
-                || generated_modal_forethought_connective_primary_cmavo(&termset.gek)
-                    == Some(Cmavo::Fahu)
+            generated_forethought_termset_branch_terms(before_terms, leading_branch, after_terms);
+        let trailing_terms =
+            generated_forethought_termset_branch_terms(before_terms, trailing_branch, after_terms);
+        let gek = termset.gek();
+        let gik = termset.gik();
+        let source = match termset {
+            GeneratedForethoughtTermsetRef::Nuhi(termset) => {
+                self.source_for_node(termset, "termset-connection-formula")
+            }
+            GeneratedForethoughtTermsetRef::Gek(termset) => {
+                self.source_for_node(termset, "termset-connection-formula")
+            }
+        };
+        let modal_connection_spec = generated_modal_statement_connection_spec_for_tense_modal(gek);
+        if !termset.additional_branches().is_empty()
+            && (!generated_modal_forethought_connective_is_logical(gek)
+                || generated_modal_forethought_connective_primary_cmavo(gek) == Some(Cmavo::Fahu)
                 || modal_connection_spec.is_some())
         {
             return Err(undefined_semantics(
                 "an experimental n-ary modal, nonlogical, or FAhU forethought termset connection",
             ));
         }
-        if !generated_modal_forethought_connective_is_logical(&termset.gek)
-            && generated_modal_forethought_connective_primary_cmavo(&termset.gek)
-                != Some(Cmavo::Fahu)
+        if !generated_modal_forethought_connective_is_logical(gek)
+            && generated_modal_forethought_connective_primary_cmavo(gek) != Some(Cmavo::Fahu)
             && modal_connection_spec.is_none()
         {
             if !preassigned_visible_arguments.is_empty() || !preassigned_place_questions.is_empty()
@@ -1305,7 +1309,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             return self
                 .build_generated_nonlogical_forethought_termset_connection_formula(
-                    termset,
+                    gek,
+                    gik,
                     simple_tail,
                     leading_terms,
                     trailing_terms,
@@ -1334,31 +1339,27 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
         )?;
         if let Some(formula) = self.build_generated_fahu_forethought_termset_distribution_formula(
-            &termset.gek,
-            &termset.first_branch.gik,
+            gek,
+            gik,
             leading,
             trailing,
             source.clone(),
         )? {
             return Ok(Some(formula));
         }
-        self.mark_generated_modal_forethought_whether_or_not_inert_operand(
-            &termset.gek,
-            leading,
-            trailing,
-        );
-        let left = if generated_modal_forethought_connective_negates_left(&termset.gek) {
+        self.mark_generated_modal_forethought_whether_or_not_inert_operand(gek, leading, trailing);
+        let left = if generated_modal_forethought_connective_negates_left(gek) {
             self.build_unary_formula(FormulaOperator::Not, leading, source.clone())?
         } else {
             leading
         };
-        let right = if generated_gik_connective_negates_right(&termset.first_branch.gik) {
+        let right = if generated_gik_connective_negates_right(gik) {
             self.build_unary_formula(FormulaOperator::Not, trailing, source.clone())?
         } else {
             trailing
         };
-        let operator = generated_modal_forethought_connective_formula_operator(&termset.gek);
-        let mut children = if generated_modal_forethought_connective_has_se(&termset.gek)
+        let operator = generated_modal_forethought_connective_formula_operator(gek);
+        let mut children = if generated_modal_forethought_connective_has_se(gek)
             && operator != FormulaOperator::WhetherOrNot
         {
             vec![right, left]
@@ -1378,15 +1379,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     "modal termset connection could not find formula-bearing bridi events or propositions to relate",
                 )),
             }
-        } else if !generated_modal_forethought_connective_is_logical(&termset.gek) {
+        } else if !generated_modal_forethought_connective_is_logical(gek) {
             diagnostics.push(diagnostic(
                 "nonlogical forethought termset connection composition is not fully lowered yet",
             ));
         }
         let connector_parameter = self
-            .build_generated_connective_question_parameter_for_modal_forethought_connective(
-                &termset.gek,
-            )?;
+            .build_generated_connective_question_parameter_for_modal_forethought_connective(gek)?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -1395,15 +1394,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 children,
                 Some(new!(Connector {
                     source: ConnectorSource::surface_word(generated_modal_forethought_pair_source(
-                        &termset.gek,
-                        &termset.first_branch.gik,
+                        gek, gik,
                     ),),
                     locus: ConnectorLocus::TermSet,
-                    truth_table: generated_modal_forethought_gik_connective_truth_table(
-                        &termset.gek,
-                        &termset.first_branch.gik,
-                    )
-                    .or_else(|| modal_connection_spec.map(|_| "TFFF".to_owned())),
+                    truth_table: generated_modal_forethought_gik_connective_truth_table(gek, gik)
+                        .or_else(|| modal_connection_spec.map(|_| "TFFF".to_owned())),
                     parameter: connector_parameter,
                 })),
                 source.clone(),
@@ -1411,10 +1406,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ),
         )?;
         let mut formula = formula;
-        for branch in &termset.additional_branches {
+        for branch in termset.additional_branches() {
             let branch_terms = generated_forethought_termset_branch_terms(
                 before_terms,
-                &branch.terms,
+                branch
+                    .terms
+                    .iter()
+                    .map(|term| GeneratedBridiTermRef::Term(term.as_ref()))
+                    .collect(),
                 after_terms,
             );
             let branch_formula = self.build_generated_termset_branch_formula_in_mode(
@@ -1428,12 +1427,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             )?;
             let connector_source = format!(
                 "{} {}",
-                generated_modal_forethought_connective_source(&termset.gek),
+                generated_modal_forethought_connective_source(gek),
                 token_text(&branch.gik.0.value)
             );
             formula = self
                 .build_binary_formula_for_generated_forethought_statement_connective_core(
-                    &termset.gek,
+                    gek,
                     false,
                     false,
                     connector_source,
@@ -2293,12 +2292,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(first_visible_place > 0)]
     #[requires(mode == PredicationMode::Asserted)]
-    #[requires(!generated_modal_forethought_connective_is_logical(&termset.gek))]
-    #[requires(generated_modal_forethought_connective_primary_cmavo(&termset.gek) != Some(Cmavo::Fahu))]
+    #[requires(!generated_modal_forethought_connective_is_logical(gek))]
+    #[requires(generated_modal_forethought_connective_primary_cmavo(gek) != Some(Cmavo::Fahu))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_nonlogical_forethought_termset_connection_formula(
         &mut self,
-        termset: &'tree ForethoughtTermsetSyntax,
+        gek: &'tree ModalForethoughtConnectiveSyntax,
+        gik: &'tree GikConnectiveSyntax,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         leading_terms: Vec<GeneratedBridiTermRef<'tree>>,
         trailing_terms: Vec<GeneratedBridiTermRef<'tree>>,
@@ -2355,20 +2355,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         continue;
                     };
                     let reverse_members =
-                        generated_modal_forethought_connective_reverses_composition_members(
-                            &termset.gek,
-                        );
+                        generated_modal_forethought_connective_reverses_composition_members(gek);
                     let (first, second) = if reverse_members {
                         (trailing_value, leading_value)
                     } else {
                         (leading_value, trailing_value)
                     };
                     let operator =
-                        generated_nonlogical_modal_forethought_composition_operator(&termset.gek)?;
+                        generated_nonlogical_modal_forethought_composition_operator(gek)?;
                     let collective = operator.is_mass().then_some(true);
                     let endpoint_inclusion =
                         generated_modal_forethought_connective_endpoint_inclusion(
-                            &termset.gek,
+                            gek,
                             reverse_members,
                         );
                     let composite = self.next_referent_id();
@@ -2385,12 +2383,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                                 members: vec![first, second],
                                 excluded_members: Vec::new(),
                                 collective,
-                                scalar_negated: termset
-                                    .first_branch
-                                    .gik
-                                    .nai
-                                    .is_some()
-                                    .then_some(true),
+                                scalar_negated: gik.nai.is_some().then_some(true),
                                 complement: None,
                                 endpoint_inclusion,
                             })),

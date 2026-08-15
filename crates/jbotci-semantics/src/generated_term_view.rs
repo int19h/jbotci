@@ -17,14 +17,15 @@ use std::sync::Arc;
 use jbotci_syntax::generated_model::{
     AtomRef, BalancedTermsetOperandsSyntax, BareNaTermSyntax, BoundTermSyntax, CeheTermSyntax,
     ConnectedTermSyntax, ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax,
-    ForethoughtTermsetSyntax, GekTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax,
-    LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax, NodeRef,
-    NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NuhiTermsetSyntax,
-    PeheTermsetConnectionSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
-    PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
-    StagBoundTermConnectionSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax,
-    TermSyntax, TermsetGroupSyntax, TreeNode,
+    ForethoughtTermsetSyntax, GekTermsetSyntax, GikConnectiveSyntax, JaiTaggedSumtiTermSyntax,
+    KeTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax,
+    ModalForethoughtConnectiveSyntax, NaKuTermSyntax, NodeRef, NoihaAdverbialTermSyntax,
+    NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NuhiTermsetSyntax, PeheTermsetConnectionSyntax,
+    PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax,
+    SimpleTermSyntax, SoiAdverbialTermSyntax, StagBoundTermConnectionSyntax, SumtiTermSyntax,
+    TaggedOrElidedSumtiSyntax, TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax,
+    TenseTaggedLinkedSumtiSyntax, TermSyntax, TermsetGroupSyntax, TreeNode,
+    ZantufaForethoughtTermsetBranchSyntax,
 };
 use jbotci_tree::TreeVisitor;
 
@@ -423,6 +424,141 @@ impl<'syntax> GeneratedBridiTermRef<'syntax> {
             Self::Nonabs(term) => term.visit_in_order(visitor),
             Self::Bound(term) => term.visit_in_order(visitor),
             Self::Simple(term) => term.visit_in_order(visitor),
+        }
+    }
+}
+
+/// A forethought termset in a bridi term list, in whichever sourced shape it parsed as.
+///
+/// Two of the three sourced termset shapes join two branches with a GEK/GIK pair and therefore
+/// lower as a logical connection: the NUhI-present arm, whose branches are `terms` sequences
+/// written out in source order, and the NUhI-less `gek_termset`, whose branches have to be
+/// recovered from a balanced operand tree. Everything downstream of "which terms are in which
+/// branch" is identical, so the shapes are distinguished only here.
+#[invariant(::Nuhi(_) => true)]
+#[invariant(::Gek(_) => true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum GeneratedForethoughtTermsetRef<'syntax> {
+    Nuhi(&'syntax ForethoughtTermsetSyntax),
+    Gek(&'syntax GekTermsetSyntax),
+}
+
+impl<'syntax> GeneratedForethoughtTermsetRef<'syntax> {
+    /// The opening forethought connective.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn gek(self) -> &'syntax ModalForethoughtConnectiveSyntax {
+        match self {
+            Self::Nuhi(termset) => &termset.gek,
+            Self::Gek(termset) => &termset.0.gek,
+        }
+    }
+
+    /// The GIK that separates the first two branches.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn gik(self) -> &'syntax GikConnectiveSyntax {
+        match self {
+            Self::Nuhi(termset) => &termset.first_branch.gik,
+            // The GIK alternative is listed before the recursive one, exactly as upstream orders
+            // it, so the innermost pair is the one that carries the GIK.
+            Self::Gek(termset) => innermost_gek_termset_gik(termset.0.operands.as_ref()),
+        }
+    }
+
+    /// The experimental Zantufa branches beyond the first two, which only the NUhI arm can carry.
+    #[requires(true)]
+    #[ensures(ret.is_empty() || matches!(self, Self::Nuhi(_)))]
+    pub(crate) fn additional_branches(self) -> &'syntax [ZantufaForethoughtTermsetBranchSyntax] {
+        match self {
+            Self::Nuhi(termset) => &termset.additional_branches,
+            Self::Gek(_) => &[],
+        }
+    }
+
+    /// The two branches, in the order the connective combines them.
+    ///
+    /// For the NUhI arm both branches are written out in source order. For the NUhI-less arm
+    /// `terms_gik_terms <- nonabs_term (gik / terms_gik_terms) nonabs_term` pairs operands by
+    /// NESTING rather than by concatenation: each level contributes exactly one operand before its
+    /// centre and one after it, so an n-operand termset nests n/2 deep and the outermost operands
+    /// are the outermost pair. The branch before the GIK is therefore the leading operands read
+    /// OUTERMOST-FIRST, and the branch behind it is the trailing operands read INNERMOST-FIRST.
+    /// On a symmetric termset such as `ge pu ko'a pu ko'e gi pu ko'i pu ko'u broda` that is
+    /// exactly the membership the old flat reading produced, which is why re-shaping the tree
+    /// leaves the corpus graphs alone.
+    #[requires(true)]
+    #[ensures(!ret.0.is_empty() && !ret.1.is_empty())]
+    pub(crate) fn branches(
+        self,
+    ) -> (
+        Vec<GeneratedBridiTermRef<'syntax>>,
+        Vec<GeneratedBridiTermRef<'syntax>>,
+    ) {
+        match self {
+            Self::Nuhi(termset) => (
+                termset
+                    .terms
+                    .iter()
+                    .map(|term| GeneratedBridiTermRef::Term(term.as_ref()))
+                    .collect(),
+                termset
+                    .first_branch
+                    .terms
+                    .iter()
+                    .map(|term| GeneratedBridiTermRef::Term(term.as_ref()))
+                    .collect(),
+            ),
+            Self::Gek(termset) => {
+                let mut leading = Vec::new();
+                let mut trailing = Vec::new();
+                collect_gek_termset_branches(
+                    termset.0.operands.as_ref(),
+                    &mut leading,
+                    &mut trailing,
+                );
+                (leading, trailing)
+            }
+        }
+    }
+}
+
+/// Append a NUhI-less termset's operands to its two branches; see `branches` for the rule.
+#[requires(true)]
+#[ensures(
+    leading.len() - old(leading.len()) == trailing.len() - old(trailing.len()),
+    "every nesting level contributes exactly one operand to each branch"
+)]
+fn collect_gek_termset_branches<'syntax>(
+    operands: &'syntax BalancedTermsetOperandsSyntax,
+    leading: &mut Vec<GeneratedBridiTermRef<'syntax>>,
+    trailing: &mut Vec<GeneratedBridiTermRef<'syntax>>,
+) {
+    match operands {
+        BalancedTermsetOperandsSyntax::GikPairedTermsetOperands(pair) => {
+            leading.push(GeneratedBridiTermRef::Nonabs(pair.leading_operand.as_ref()));
+            trailing.push(GeneratedBridiTermRef::Nonabs(
+                pair.trailing_operand.as_ref(),
+            ));
+        }
+        BalancedTermsetOperandsSyntax::NestedPairedTermsetOperands(pair) => {
+            leading.push(GeneratedBridiTermRef::Nonabs(pair.leading_operand.as_ref()));
+            collect_gek_termset_branches(pair.inner.as_ref(), leading, trailing);
+            trailing.push(GeneratedBridiTermRef::Nonabs(
+                pair.trailing_operand.as_ref(),
+            ));
+        }
+    }
+}
+
+/// The GIK of a NUhI-less termset, which the innermost operand pair carries.
+#[requires(true)]
+#[ensures(true)]
+fn innermost_gek_termset_gik(operands: &BalancedTermsetOperandsSyntax) -> &GikConnectiveSyntax {
+    match operands {
+        BalancedTermsetOperandsSyntax::GikPairedTermsetOperands(pair) => &pair.gik,
+        BalancedTermsetOperandsSyntax::NestedPairedTermsetOperands(pair) => {
+            innermost_gek_termset_gik(pair.inner.as_ref())
         }
     }
 }

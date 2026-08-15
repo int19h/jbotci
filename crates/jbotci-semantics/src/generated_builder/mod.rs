@@ -102,8 +102,9 @@ use crate::facade::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
 use crate::generated_term_view::{
-    GeneratedBridiTermRef, GeneratedLinkedSumtiRef, GeneratedSimpleTermRef, GeneratedTaggedTermRef,
-    GeneratedTermGroupingRef, any_gek_termset_operand,
+    GeneratedBridiTermRef, GeneratedForethoughtTermsetRef, GeneratedLinkedSumtiRef,
+    GeneratedSimpleTermRef, GeneratedTaggedTermRef, GeneratedTermGroupingRef,
+    any_gek_termset_operand,
 };
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, Adjunct, AdjunctData, AnchorMagnitude,
@@ -3227,20 +3228,14 @@ fn generated_modal_forethought_pair_source(
 
 #[requires(true)]
 #[ensures(ret.len() >= before_terms.len() + after_terms.len())]
-fn generated_forethought_termset_branch_terms<'syntax, I, T>(
+fn generated_forethought_termset_branch_terms<'syntax>(
     before_terms: &[GeneratedBridiTermRef<'syntax>],
-    branch_terms: I,
+    branch_terms: Vec<GeneratedBridiTermRef<'syntax>>,
     after_terms: &[GeneratedBridiTermRef<'syntax>],
-) -> Vec<GeneratedBridiTermRef<'syntax>>
-where
-    I: IntoIterator<Item = &'syntax T>,
-    T: AsRef<TermSyntax> + 'syntax,
-{
-    let branch_terms = branch_terms.into_iter();
-    let mut terms =
-        Vec::with_capacity(before_terms.len() + branch_terms.size_hint().0 + after_terms.len());
+) -> Vec<GeneratedBridiTermRef<'syntax>> {
+    let mut terms = Vec::with_capacity(before_terms.len() + branch_terms.len() + after_terms.len());
     terms.extend_from_slice(before_terms);
-    terms.extend(branch_terms.map(|term| GeneratedBridiTermRef::Term(term.as_ref())));
+    terms.extend(branch_terms);
     terms.extend_from_slice(after_terms);
     terms
 }
@@ -3556,10 +3551,15 @@ fn generated_bridi_term_contains_byte_span(
 #[ensures(true)]
 fn generated_forethought_termset_in_term<'syntax>(
     term: GeneratedBridiTermRef<'syntax>,
-) -> Option<&'syntax ForethoughtTermsetSyntax> {
+) -> Option<GeneratedForethoughtTermsetRef<'syntax>> {
     if let Some(simple) = term.simple() {
         return match simple {
-            GeneratedSimpleTermRef::ForethoughtTermset(termset) => Some(termset),
+            GeneratedSimpleTermRef::ForethoughtTermset(termset) => {
+                Some(GeneratedForethoughtTermsetRef::Nuhi(termset))
+            }
+            GeneratedSimpleTermRef::GekTermset(termset) => {
+                Some(GeneratedForethoughtTermsetRef::Gek(termset))
+            }
             _ => None,
         };
     }
@@ -3570,7 +3570,10 @@ fn generated_forethought_termset_in_term<'syntax>(
         return None;
     }
     match connection.leading_term.as_ref() {
-        BoundTermSyntax::ForethoughtTermset(termset) => Some(termset),
+        BoundTermSyntax::ForethoughtTermset(termset) => {
+            Some(GeneratedForethoughtTermsetRef::Nuhi(termset))
+        }
+        BoundTermSyntax::GekTermset(termset) => Some(GeneratedForethoughtTermsetRef::Gek(termset)),
         _ => None,
     }
 }
