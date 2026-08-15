@@ -354,14 +354,16 @@ pub(super) fn zantufa_statement_terms_tail_is_semantically_empty(
 #[ensures(matches!(tail, ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(_)) -> !ret.is_empty())]
 pub(super) fn zantufa_statement_terms_tail_terms(
     tail: &ZantufaStatementTermsTailSyntax,
-) -> Vec<&TermSyntax> {
+) -> Vec<GeneratedBridiTermRef<'_>> {
     match tail {
         ZantufaStatementTermsTailSyntax::ZantufaIauStatementTermsTail(tail) => {
-            tail.terms.iter().collect()
+            tail.terms.iter().map(GeneratedBridiTermRef::Term).collect()
         }
-        ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => {
-            tail.0.iter().map(|term| term.as_ref()).collect()
-        }
+        ZantufaStatementTermsTailSyntax::ZantufaBareStatementTermsTail(tail) => tail
+            .0
+            .iter()
+            .map(|term| GeneratedBridiTermRef::Term(term.as_ref()))
+            .collect(),
     }
 }
 

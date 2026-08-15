@@ -4,21 +4,29 @@
 //! serde output remain stable. These views give downstream algorithms one strongly typed leaf
 //! surface without allocating or cloning the generated nodes. A `None` conversion identifies a
 //! connection node whose grouping must be handled explicitly rather than flattened as a leaf.
+//!
+//! `GeneratedSimpleTermRef` is the leaf surface. `GeneratedBridiTermRef` is the whole-term
+//! surface: a term at *any* level, which is what a bridi term list actually holds once branches
+//! from different levels are spliced into one list. Every view here is `Copy` and borrowed, so no
+//! path in lowering ever converts a term by copying it into another level's enum.
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
 use std::sync::Arc;
 
 use jbotci_syntax::generated_model::{
-    BalancedTermsetOperandsSyntax, BareNaTermSyntax, BoundTermSyntax, CeheTermSyntax,
-    ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax,
-    GekTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LeadingTermTagTenseModalSyntax,
-    LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax, NoihaAdverbialTermSyntax,
-    NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
-    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
-    SumtiTermSyntax, TaggedOrElidedSumtiSyntax, TaggedSumtiBeforeTagTermSyntax,
-    TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax, TermSyntax,
+    AtomRef, BalancedTermsetOperandsSyntax, BareNaTermSyntax, BoundTermSyntax, CeheTermSyntax,
+    ConnectedTermSyntax, ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax,
+    ForethoughtTermsetSyntax, GekTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax,
+    LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax, NodeRef,
+    NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NuhiTermsetSyntax,
+    PeheTermsetConnectionSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
+    PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
+    StagBoundTermConnectionSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
+    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax,
+    TermSyntax, TermsetGroupSyntax, TreeNode,
 };
+use jbotci_tree::TreeVisitor;
 
 /// A borrowed tag-led term leaf.
 ///
@@ -297,6 +305,124 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             Self::SoiAdverbialTerm(_) => Some("an experimental SOI/XOI adverbial term"),
             Self::JaiTaggedSumtiTerm(_) => Some("an experimental Zantufa JAI tag term"),
             _ => None,
+        }
+    }
+}
+
+/// A borrowed grouping node: a term that is a connection of other terms rather than a leaf.
+///
+/// Every level of the composed hierarchy admits a suffix of these tiers — the leaf level admits
+/// none, the BO-bound level admits only the BO connection, and the PEhE level admits all four —
+/// but the product node a given tier builds is the same type at every level that offers it, so
+/// grouping is level-independent even though the enums that carry it are not.
+#[invariant(::PeheTermsetConnection(_) => true)]
+#[invariant(::TermsetGroup(_) => true)]
+#[invariant(::ConnectedTerm(_) => true)]
+#[invariant(::StagBoundTermConnection(_) => true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum GeneratedTermGroupingRef<'syntax> {
+    PeheTermsetConnection(&'syntax PeheTermsetConnectionSyntax),
+    TermsetGroup(&'syntax TermsetGroupSyntax),
+    ConnectedTerm(&'syntax ConnectedTermSyntax),
+    StagBoundTermConnection(&'syntax StagBoundTermConnectionSyntax),
+}
+
+/// A borrowed term of the composed hierarchy, at whichever level the term list drew it from.
+///
+/// Bridi lowering does not work on one syntactic level. A sentence contributes its own
+/// `TermSyntax` terms, a tail contributes more of them, a NUhI-present termset branch contributes
+/// `TermSyntax` again, and a NUhI-less GEK termset branch contributes the unguarded
+/// `NonabsTermSyntax` operands that are what make `ge ko'a gi pu broda` parse at all. The levels
+/// differ only in which connective tiers they admit above the shared leaf inventory — mechanism E
+/// re-lists the same leaves at every level — and lowering asks a term only two things: which leaf
+/// it is, or, failing that, which grouping node it is. Both answers are level-independent.
+///
+/// So one `Copy` view spans every level, and it holds the level's own node rather than a projection
+/// of it: `simple` and `grouping` are the two projections, and `visit_in_order` still walks the
+/// real node, so nothing that traverses a term list observes a different event stream than it did
+/// when the list was a slice of one level's references.
+///
+/// This type exists precisely so that splicing a branch into the surrounding term list stays a
+/// borrow. There is deliberately no conversion that copies a node out of one level's enum into
+/// another's.
+#[invariant(::Term(_) => true)]
+#[invariant(::Cehe(_) => true)]
+#[invariant(::Loose(_) => true)]
+#[invariant(::Nonabs(_) => true)]
+#[invariant(::Bound(_) => true)]
+#[invariant(::Simple(_) => true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum GeneratedBridiTermRef<'syntax> {
+    Term(&'syntax TermSyntax),
+    Cehe(&'syntax CeheTermSyntax),
+    Loose(&'syntax LooseTermSyntax),
+    Nonabs(&'syntax NonabsTermSyntax),
+    Bound(&'syntax BoundTermSyntax),
+    Simple(&'syntax SimpleTermSyntax),
+}
+
+impl<'syntax> GeneratedBridiTermRef<'syntax> {
+    /// Borrow the leaf, or report that this term is a grouping node instead.
+    #[requires(true)]
+    #[ensures(ret.is_none() == self.grouping().is_some())]
+    pub(crate) fn simple(self) -> Option<GeneratedSimpleTermRef<'syntax>> {
+        match self {
+            Self::Term(term) => GeneratedSimpleTermRef::from_term(term),
+            Self::Cehe(term) => GeneratedSimpleTermRef::from_cehe(term),
+            Self::Loose(term) => GeneratedSimpleTermRef::from_loose(term),
+            Self::Nonabs(term) => GeneratedSimpleTermRef::from_nonabs(term),
+            Self::Bound(term) => GeneratedSimpleTermRef::from_bound(term),
+            Self::Simple(term) => Some(GeneratedSimpleTermRef::from_simple(term)),
+        }
+    }
+
+    /// Borrow the grouping node, or report that this term is a leaf instead.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn grouping(self) -> Option<GeneratedTermGroupingRef<'syntax>> {
+        match self {
+            Self::Term(TermSyntax::PeheTermsetConnection(connection)) => {
+                Some(GeneratedTermGroupingRef::PeheTermsetConnection(connection))
+            }
+            Self::Term(TermSyntax::TermsetGroup(group))
+            | Self::Cehe(CeheTermSyntax::TermsetGroup(group)) => {
+                Some(GeneratedTermGroupingRef::TermsetGroup(group))
+            }
+            Self::Term(TermSyntax::ConnectedTerm(connection))
+            | Self::Cehe(CeheTermSyntax::ConnectedTerm(connection))
+            | Self::Loose(LooseTermSyntax::ConnectedTerm(connection))
+            | Self::Nonabs(NonabsTermSyntax::ConnectedTerm(connection)) => {
+                Some(GeneratedTermGroupingRef::ConnectedTerm(connection))
+            }
+            Self::Term(TermSyntax::StagBoundTermConnection(connection))
+            | Self::Cehe(CeheTermSyntax::StagBoundTermConnection(connection))
+            | Self::Loose(LooseTermSyntax::StagBoundTermConnection(connection))
+            | Self::Nonabs(NonabsTermSyntax::StagBoundTermConnection(connection))
+            | Self::Bound(BoundTermSyntax::StagBoundTermConnection(connection)) => Some(
+                GeneratedTermGroupingRef::StagBoundTermConnection(connection),
+            ),
+            _ => None,
+        }
+    }
+
+    /// Walk the underlying node in source order.
+    ///
+    /// The view is not a `TreeNode` — it has no node identity of its own — but every arm borrows
+    /// one, so in-order scans dispatch straight through to it and observe the node they would have
+    /// observed before the term list became level-agnostic.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn visit_in_order<V>(self, visitor: &mut V)
+    where
+        V: TreeVisitor<'syntax, Node = NodeRef<'syntax>, Atom = AtomRef<'syntax>>,
+    {
+        match self {
+            Self::Term(term) => term.visit_in_order(visitor),
+            Self::Cehe(term) => term.visit_in_order(visitor),
+            Self::Loose(term) => term.visit_in_order(visitor),
+            Self::Nonabs(term) => term.visit_in_order(visitor),
+            Self::Bound(term) => term.visit_in_order(visitor),
+            Self::Simple(term) => term.visit_in_order(visitor),
         }
     }
 }

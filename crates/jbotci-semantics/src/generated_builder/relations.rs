@@ -245,6 +245,7 @@ pub(super) fn generated_pro_bridi_replay_source_from_bridi<'syntax>(
                 .leading_terms
                 .iter()
                 .chain(simple_tail.terms.iter())
+                .map(GeneratedBridiTermRef::Term)
                 .collect::<Vec<_>>();
             Ok(Some(new!(GeneratedProBridiReplaySource {
                 selbri: simple_tail.selbri.as_ref(),

@@ -33,7 +33,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_relation_formula_for_generated_tanru_unit_terms(
         &mut self,
         unit: &'tree TanruUnitSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -62,7 +62,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         unit: &'tree TanruUnitSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -1750,7 +1750,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_tanru_formula_for_terms(
         &mut self,
         tanru: &'tree TanruSelbriSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -1768,7 +1768,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_tanru_formula_for_terms_with_head_eventuality_order(
         &mut self,
         tanru: &'tree TanruSelbriSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         head_eventuality_before_terms: bool,
         source: Option<crate::model::SemanticSource>,
@@ -1792,7 +1792,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_tanru_formula_for_terms_with_head_eventuality_order_and_mode(
         &mut self,
         tanru: &'tree TanruSelbriSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         head_eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -1837,7 +1837,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     >(
         &mut self,
         tanru: &'syntax TanruSelbriSyntax,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         head_eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -1866,7 +1866,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     >(
         &mut self,
         tanru: &'syntax TanruSelbriSyntax,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         base_assignments: &GeneratedTermAssignments<'syntax>,
         first_visible_place: usize,
         head_eventuality: Option<SemanticObjectId>,
@@ -1874,7 +1874,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let mut connected = None;
-        for (position, term) in terms.iter().enumerate() {
+        for (position, &term) in terms.iter().enumerate() {
             let simple = generated_simple_term_for_assignment(term)?;
             let (place_tag, sumti) = match simple {
                 GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => (None, sumti.as_ref()),
@@ -1923,7 +1923,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &mut prefix_assignments.coequal_scope_groups,
                 &mut prefix_assignments.term_formula_scopes,
                 &mut prefix_assignments.next_visible_place,
-                term,
+                *term,
             )?;
             prefix_assignments.implicit_existentials.extend(
                 self.implicit_existential_variables
@@ -3381,7 +3381,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_term_assignments_for_terms<'syntax: 'tree>(
         &mut self,
-        terms: Vec<&'syntax TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'syntax>>,
         first_visible_place: usize,
     ) -> Result<GeneratedTermAssignments<'syntax>, SemanticsError> {
         self.build_term_assignments_for_terms_with_shared_tail_source(
@@ -3395,7 +3395,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_term_assignments_for_terms_with_shared_tail_source<'syntax: 'tree>(
         &mut self,
-        terms: Vec<&'syntax TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'syntax>>,
         first_visible_place: usize,
         shared_tail_start: Option<usize>,
     ) -> Result<GeneratedTermAssignments<'syntax>, SemanticsError> {
@@ -3418,7 +3418,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_term_assignments_for_terms_without_shared_tail_source<'syntax: 'tree>(
         &mut self,
-        terms: Vec<&'syntax TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'syntax>>,
         first_visible_place: usize,
     ) -> Result<GeneratedTermAssignments<'syntax>, SemanticsError> {
         self.build_term_assignments_for_terms_excluding_source(terms, first_visible_place, None)
@@ -3429,7 +3429,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_term_assignments_for_terms_with_shared_tail_source_core<'syntax: 'tree>(
         &mut self,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         shared_tail_start: Option<usize>,
     ) -> Result<GeneratedTermAssignments<'syntax>, SemanticsError> {
@@ -3463,7 +3463,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             if shared_tail_start.is_some_and(|start| index >= start)
                 && generated_shared_head_term_uses_shared_source(term)
             {
-                let source = self.source_for_node(term, "shared-tail-term");
+                let source = self.source_for_bridi_term(term, "shared-tail-term");
                 for (place, argument) in &mut assignments.visible_arguments {
                     if !existing_places.contains(place) {
                         *argument = argument.clone().with_data(data! {
@@ -3480,7 +3480,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|(assignments, _)| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_term_assignments_for_terms_excluding_source<'syntax: 'tree>(
         &mut self,
-        terms: Vec<&'syntax TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'syntax>>,
         first_visible_place: usize,
         excluded_source: Option<&SourceByteSpan>,
     ) -> Result<(GeneratedTermAssignments<'syntax>, bool), SemanticsError> {
@@ -3497,7 +3497,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|(assignments, _)| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_term_assignments_for_terms_excluding_source_core<'syntax: 'tree>(
         &mut self,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         excluded_source: Option<&SourceByteSpan>,
     ) -> Result<(GeneratedTermAssignments<'syntax>, bool), SemanticsError> {
@@ -3517,7 +3517,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 continue;
             }
             if let Some(excluded_source) = excluded_source
-                && generated_node_contains_byte_span(term, excluded_source)
+                && generated_bridi_term_contains_byte_span(term, excluded_source)
             {
                 let previous_next_visible_place = next_visible_place;
                 let previous_assigned_places = assigned_places_for_skipped.clone();
@@ -3570,7 +3570,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_sumti_selbri_formula_for_terms(
         &mut self,
         sumti_selbri: &'tree SumtiSelbriTanruUnitSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,

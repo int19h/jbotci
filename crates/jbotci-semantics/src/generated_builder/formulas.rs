@@ -31,7 +31,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         bridi: &'tree BridiSyntax,
-        suffix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
     ) -> Result<SemanticObjectId, SemanticsError> {
         self.pro_bridi_scope_stack.push(bridi);
         let result = match bridi {
@@ -84,7 +84,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         match bridi {
             BridiSyntax::BridiWithLeadingTerms(bridi) => {
                 for term in &bridi.leading_terms {
-                    self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+                    self.collect_generated_term_formula_scopes_for_bridi_term(
+                        GeneratedBridiTermRef::Term(term),
+                        scopes,
+                    )?;
                 }
                 self.collect_generated_bridi_tail_term_formula_scopes(&bridi.bridi_tail, scopes)?;
             }
@@ -94,7 +97,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .iter()
                     .chain(bridi.bridi_tail.terms.iter())
                 {
-                    self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+                    self.collect_generated_term_formula_scopes_for_bridi_term(
+                        GeneratedBridiTermRef::Term(term),
+                        scopes,
+                    )?;
                 }
                 self.collect_generated_bridi_tail_term_formula_scopes(
                     &bridi.bridi_tail.bridi_tail,
@@ -106,7 +112,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             BridiSyntax::BareCuTermsBridi(bridi) => {
                 for term in &bridi.bridi_tail.terms {
-                    self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+                    self.collect_generated_term_formula_scopes_for_bridi_term(
+                        GeneratedBridiTermRef::Term(term),
+                        scopes,
+                    )?;
                 }
                 self.collect_generated_bridi_tail_term_formula_scopes(
                     &bridi.bridi_tail.bridi_tail,
@@ -134,7 +143,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let simple_tail = simple_tail_from_bridi_tail(tail)?;
         for term in &simple_tail.terms {
-            self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+            self.collect_generated_term_formula_scopes_for_bridi_term(
+                GeneratedBridiTermRef::Term(term),
+                scopes,
+            )?;
         }
         Ok(())
     }
@@ -157,7 +169,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     self.collect_generated_subbridi_term_formula_scopes(&branch.branch, scopes)?;
                 }
                 for term in &connection.tail_terms {
-                    self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+                    self.collect_generated_term_formula_scopes_for_bridi_term(
+                        GeneratedBridiTermRef::Term(term),
+                        scopes,
+                    )?;
                 }
                 Ok(())
             }
@@ -191,106 +206,44 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
     }
 
+    /// Collect the formula scopes a term opens, at whichever level of the hierarchy it sits.
+    ///
+    /// The five levels used to have five near-identical copies of this walk. They differ only in
+    /// which grouping tiers they admit, and the view answers that uniformly, so there is one.
     #[requires(true)]
     #[ensures(true)]
-    pub(super) fn collect_generated_term_formula_scopes_for_term(
+    pub(super) fn collect_generated_term_formula_scopes_for_bridi_term(
         &self,
-        term: &'tree TermSyntax,
+        term: GeneratedBridiTermRef<'tree>,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
-        if let Some(leaf) = GeneratedSimpleTermRef::from_term(term) {
+        if let Some(leaf) = term.simple() {
             return self.collect_generated_term_formula_scopes_for_simple_term(term, leaf, scopes);
         }
-        match term {
-            TermSyntax::PeheTermsetConnection(connection) => {
-                self.collect_generated_term_formula_scopes_for_cehe_term(
-                    &connection.leading_term,
+        match term.grouping() {
+            Some(GeneratedTermGroupingRef::PeheTermsetConnection(connection)) => {
+                self.collect_generated_term_formula_scopes_for_bridi_term(
+                    GeneratedBridiTermRef::Cehe(&connection.leading_term),
                     scopes,
                 )?;
                 for continuation in &connection.continuations {
-                    self.collect_generated_term_formula_scopes_for_cehe_term(
-                        &continuation.trailing_term,
+                    self.collect_generated_term_formula_scopes_for_bridi_term(
+                        GeneratedBridiTermRef::Cehe(&continuation.trailing_term),
                         scopes,
                     )?;
                 }
                 Ok(())
             }
-            TermSyntax::TermsetGroup(group) => {
+            Some(GeneratedTermGroupingRef::TermsetGroup(group)) => {
                 self.collect_generated_term_formula_scopes_for_termset_group(group, scopes)
             }
-            TermSyntax::ConnectedTerm(connection) => {
+            Some(GeneratedTermGroupingRef::ConnectedTerm(connection)) => {
                 self.collect_generated_term_formula_scopes_for_connected_term(connection, scopes)
             }
-            TermSyntax::StagBoundTermConnection(connection) => {
+            Some(GeneratedTermGroupingRef::StagBoundTermConnection(connection)) => {
                 self.collect_generated_term_formula_scopes_for_stag_bound_term(connection, scopes)
             }
-            _ => unreachable!("term leaf conversion rejected a non-connection variant"),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn collect_generated_term_formula_scopes_for_cehe_term(
-        &self,
-        term: &'tree CeheTermSyntax,
-        scopes: &mut Vec<GeneratedTermFormulaScope>,
-    ) -> Result<(), SemanticsError> {
-        if let Some(leaf) = GeneratedSimpleTermRef::from_cehe(term) {
-            return self.collect_generated_term_formula_scopes_for_simple_term(term, leaf, scopes);
-        }
-        match term {
-            CeheTermSyntax::TermsetGroup(group) => {
-                self.collect_generated_term_formula_scopes_for_termset_group(group, scopes)
-            }
-            CeheTermSyntax::ConnectedTerm(connection) => {
-                self.collect_generated_term_formula_scopes_for_connected_term(connection, scopes)
-            }
-            CeheTermSyntax::StagBoundTermConnection(connection) => {
-                self.collect_generated_term_formula_scopes_for_stag_bound_term(connection, scopes)
-            }
-            _ => unreachable!("CEhE-level leaf conversion rejected a non-connection variant"),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn collect_generated_term_formula_scopes_for_loose_term(
-        &self,
-        term: &'tree LooseTermSyntax,
-        scopes: &mut Vec<GeneratedTermFormulaScope>,
-    ) -> Result<(), SemanticsError> {
-        if let Some(leaf) = GeneratedSimpleTermRef::from_loose(term) {
-            return self.collect_generated_term_formula_scopes_for_simple_term(term, leaf, scopes);
-        }
-        match term {
-            LooseTermSyntax::ConnectedTerm(connection) => {
-                self.collect_generated_term_formula_scopes_for_connected_term(connection, scopes)
-            }
-            LooseTermSyntax::StagBoundTermConnection(connection) => {
-                self.collect_generated_term_formula_scopes_for_stag_bound_term(connection, scopes)
-            }
-            _ => unreachable!("loose-level leaf conversion rejected a non-connection variant"),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn collect_generated_term_formula_scopes_for_nonabs_term(
-        &self,
-        term: &'tree NonabsTermSyntax,
-        scopes: &mut Vec<GeneratedTermFormulaScope>,
-    ) -> Result<(), SemanticsError> {
-        if let Some(leaf) = GeneratedSimpleTermRef::from_nonabs(term) {
-            return self.collect_generated_term_formula_scopes_for_simple_term(term, leaf, scopes);
-        }
-        match term {
-            NonabsTermSyntax::ConnectedTerm(connection) => {
-                self.collect_generated_term_formula_scopes_for_connected_term(connection, scopes)
-            }
-            NonabsTermSyntax::StagBoundTermConnection(connection) => {
-                self.collect_generated_term_formula_scopes_for_stag_bound_term(connection, scopes)
-            }
-            _ => unreachable!("nonabs-level leaf conversion rejected a non-connection variant"),
+            None => unreachable!("a term that is neither a leaf nor a grouping node"),
         }
     }
 
@@ -301,10 +254,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         group: &'tree TermsetGroupSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
-        self.collect_generated_term_formula_scopes_for_loose_term(&group.leading_term, scopes)?;
+        self.collect_generated_term_formula_scopes_for_bridi_term(
+            GeneratedBridiTermRef::Loose(&group.leading_term),
+            scopes,
+        )?;
         for continuation in &group.continuations {
-            self.collect_generated_term_formula_scopes_for_nonabs_term(
-                &continuation.trailing_term,
+            self.collect_generated_term_formula_scopes_for_bridi_term(
+                GeneratedBridiTermRef::Nonabs(&continuation.trailing_term),
                 scopes,
             )?;
         }
@@ -318,33 +274,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         connection: &'tree ConnectedTermSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
-        self.collect_generated_term_formula_scopes_for_bound_term(
-            &connection.leading_term,
+        self.collect_generated_term_formula_scopes_for_bridi_term(
+            GeneratedBridiTermRef::Bound(&connection.leading_term),
             scopes,
         )?;
         for continuation in &connection.continuations {
-            self.collect_generated_term_formula_scopes_for_bound_term(
-                &continuation.trailing_term,
+            self.collect_generated_term_formula_scopes_for_bridi_term(
+                GeneratedBridiTermRef::Bound(&continuation.trailing_term),
                 scopes,
             )?;
         }
         Ok(())
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub(super) fn collect_generated_term_formula_scopes_for_bound_term(
-        &self,
-        term: &'tree BoundTermSyntax,
-        scopes: &mut Vec<GeneratedTermFormulaScope>,
-    ) -> Result<(), SemanticsError> {
-        if let Some(leaf) = GeneratedSimpleTermRef::from_bound(term) {
-            return self.collect_generated_term_formula_scopes_for_simple_term(term, leaf, scopes);
-        }
-        let BoundTermSyntax::StagBoundTermConnection(connection) = term else {
-            unreachable!("bound-term leaf conversion rejected a non-connection variant")
-        };
-        self.collect_generated_term_formula_scopes_for_stag_bound_term(connection, scopes)
     }
 
     #[requires(true)]
@@ -354,43 +294,47 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         connection: &'tree StagBoundTermConnectionSyntax,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
-        self.collect_generated_term_formula_scopes_for_simple_term(
-            connection.leading_term.as_ref(),
-            GeneratedSimpleTermRef::from_simple(&connection.leading_term),
+        self.collect_generated_term_formula_scopes_for_bridi_term(
+            GeneratedBridiTermRef::Simple(&connection.leading_term),
             scopes,
         )?;
         for continuation in &connection.continuations {
-            self.collect_generated_term_formula_scopes_for_simple_term(
-                continuation.trailing_term.as_ref(),
-                GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
+            self.collect_generated_term_formula_scopes_for_bridi_term(
+                GeneratedBridiTermRef::Simple(&continuation.trailing_term),
                 scopes,
             )?;
         }
         Ok(())
     }
 
-    #[requires(true)]
+    #[requires(term.simple().is_some(), "the caller has already resolved this term to its leaf")]
     #[ensures(true)]
-    pub(super) fn collect_generated_term_formula_scopes_for_simple_term<N: TreeNode>(
+    pub(super) fn collect_generated_term_formula_scopes_for_simple_term(
         &self,
-        node: &N,
+        term: GeneratedBridiTermRef<'tree>,
         simple: GeneratedSimpleTermRef<'tree>,
         scopes: &mut Vec<GeneratedTermFormulaScope>,
     ) -> Result<(), SemanticsError> {
         match simple {
             GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                 scopes.push(GeneratedTermFormulaScope::Negation {
-                    source: self.source_for_node(node, "bridi-negation-boundary"),
+                    source: self.source_for_bridi_term(term, "bridi-negation-boundary"),
                 });
             }
             GeneratedSimpleTermRef::NuhiTermset(termset) => {
                 for term in &termset.termset {
-                    self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+                    self.collect_generated_term_formula_scopes_for_bridi_term(
+                        GeneratedBridiTermRef::Term(term),
+                        scopes,
+                    )?;
                 }
             }
             GeneratedSimpleTermRef::KeTermset(termset) => {
                 for term in &termset.termset {
-                    self.collect_generated_term_formula_scopes_for_term(term, scopes)?;
+                    self.collect_generated_term_formula_scopes_for_bridi_term(
+                        GeneratedBridiTermRef::Term(term),
+                        scopes,
+                    )?;
                 }
             }
             _ => {}
@@ -416,6 +360,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .leading_terms
                     .iter()
                     .chain(bridi.bridi_tail.terms.iter())
+                    .map(GeneratedBridiTermRef::Term)
                     .collect::<Vec<_>>();
                 self.build_bridi_tail_formula_with_prefix_terms(
                     bridi,
@@ -433,7 +378,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 mode,
             ),
             BridiSyntax::BareCuTermsBridi(bridi) => {
-                let leading_terms = bridi.bridi_tail.terms.iter().collect::<Vec<_>>();
+                let leading_terms = bridi
+                    .bridi_tail
+                    .terms
+                    .iter()
+                    .map(GeneratedBridiTermRef::Term)
+                    .collect::<Vec<_>>();
                 self.build_bridi_tail_formula_with_prefix_terms(
                     bridi,
                     &bridi.bridi_tail.bridi_tail,
@@ -456,7 +406,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         tail: &'tree BridiTailSyntax,
-        prefix_terms: &[&'tree TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'tree>],
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -492,7 +442,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let terms = prefix_terms
             .iter()
             .copied()
-            .chain(simple_tail.terms.iter())
+            .chain(simple_tail.terms.iter().map(GeneratedBridiTermRef::Term))
             .collect::<Vec<_>>();
         if let Some(formula) = self.build_generated_forethought_termset_connection_formula(
             source_node,
@@ -790,7 +740,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         let simple_tail = simple_tail_from_bridi_tail(&bridi.0)?;
-        let terms: Vec<&'tree TermSyntax> = simple_tail.terms.iter().collect();
+        let terms: Vec<GeneratedBridiTermRef<'tree>> = simple_tail
+            .terms
+            .iter()
+            .map(GeneratedBridiTermRef::Term)
+            .collect();
         if let Some(formula) = self.build_generated_forethought_termset_connection_formula(
             bridi,
             simple_tail,
@@ -820,7 +774,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         tail: &'tree BridiTailSyntax,
-        suffix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
     ) -> Result<SemanticObjectId, SemanticsError> {
         if generated_bridi_tail_is_connected(tail) {
             return self.build_connected_bridi_tail_formula_with_shared_terms(
@@ -847,7 +801,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         }
         let simple_tail = simple_tail_from_bridi_tail(tail)?;
         let mut terms = Vec::with_capacity(simple_tail.terms.len() + suffix_terms.len());
-        terms.extend(simple_tail.terms.iter());
+        terms.extend(simple_tail.terms.iter().map(GeneratedBridiTermRef::Term));
         terms.extend_from_slice(suffix_terms);
         let shared_tail_start = (!suffix_terms.is_empty()).then_some(simple_tail.terms.len());
         if let Some(formula) = self.build_generated_forethought_termset_connection_formula(
@@ -898,7 +852,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let leading_terms: Vec<&'tree TermSyntax> = bridi.leading_terms.iter().collect();
+        let leading_terms: Vec<GeneratedBridiTermRef<'tree>> = bridi
+            .leading_terms
+            .iter()
+            .map(GeneratedBridiTermRef::Term)
+            .collect();
         if generated_bridi_tail_is_connected(&bridi.bridi_tail) {
             return self.build_connected_bridi_tail_formula_with_shared_terms(
                 bridi,
@@ -923,10 +881,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             );
         }
         let simple_tail = simple_tail_from_bridi_tail(&bridi.bridi_tail)?;
-        let terms: Vec<&'tree TermSyntax> = leading_terms
+        let terms: Vec<GeneratedBridiTermRef<'tree>> = leading_terms
             .iter()
             .copied()
-            .chain(simple_tail.terms.iter())
+            .chain(simple_tail.terms.iter().map(GeneratedBridiTermRef::Term))
             .collect();
         if let Some(formula) = self.build_generated_forethought_termset_connection_formula(
             bridi,
@@ -983,7 +941,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_generated_direct_term_connection_formula<'syntax: 'tree>(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -992,14 +950,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             terms
                 .iter()
                 .enumerate()
-                .find_map(|(position, term)| match term {
-                    TermSyntax::ConnectedTerm(_) => Some((position, term)),
+                .find_map(|(position, term)| match term.grouping() {
+                    Some(GeneratedTermGroupingRef::ConnectedTerm(connection)) => {
+                        Some((position, connection))
+                    }
                     _ => None,
                 })
         else {
             return Ok(None);
         };
-        let connection = *connection;
 
         let (leading_term, continuations): (
             GeneratedDirectTermOperand<'syntax>,
@@ -1007,22 +966,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &'syntax TermAfterthoughtConnectiveSyntax,
                 GeneratedDirectTermOperand<'syntax>,
             )>,
-        ) = match connection {
-            TermSyntax::ConnectedTerm(connection) => (
-                GeneratedDirectTermOperand::Bound(&connection.leading_term),
-                connection
-                    .continuations
-                    .iter()
-                    .map(|continuation| {
-                        (
-                            &continuation.connective,
-                            GeneratedDirectTermOperand::Bound(&continuation.trailing_term),
-                        )
-                    })
-                    .collect(),
-            ),
-            _ => unreachable!("the direct term connection search returned another term kind"),
-        };
+        ) = (
+            GeneratedDirectTermOperand::Bound(&connection.leading_term),
+            connection
+                .continuations
+                .iter()
+                .map(|continuation| {
+                    (
+                        &continuation.connective,
+                        GeneratedDirectTermOperand::Bound(&continuation.trailing_term),
+                    )
+                })
+                .collect(),
+        );
 
         if leading_term.is_grouped_connection()
             || continuations
@@ -1122,7 +1078,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     &mut assignments.coequal_scope_groups,
                     &mut assignments.term_formula_scopes,
                     &mut next_visible_place,
-                    term,
+                    GeneratedBridiTermRef::Bound(term),
                     simple,
                 )?;
             }
@@ -1208,9 +1164,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         bridi: &'tree BridiWithLeadingTermsSyntax,
-        suffix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let leading_terms: Vec<&'tree TermSyntax> = bridi.leading_terms.iter().collect();
+        let leading_terms: Vec<GeneratedBridiTermRef<'tree>> = bridi
+            .leading_terms
+            .iter()
+            .map(GeneratedBridiTermRef::Term)
+            .collect();
         if generated_bridi_tail_is_connected(&bridi.bridi_tail) {
             return self.build_connected_bridi_tail_formula_with_shared_terms(
                 source_node,
@@ -1238,7 +1198,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut terms =
             Vec::with_capacity(leading_terms.len() + simple_tail.terms.len() + suffix_terms.len());
         terms.extend(leading_terms.iter().copied());
-        terms.extend(simple_tail.terms.iter());
+        terms.extend(simple_tail.terms.iter().map(GeneratedBridiTermRef::Term));
         terms.extend_from_slice(suffix_terms);
         let shared_tail_start =
             (!suffix_terms.is_empty()).then_some(leading_terms.len() + simple_tail.terms.len());
@@ -1290,29 +1250,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         _source_node: &N,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        let Some((position, termset)) =
-            terms
-                .iter()
-                .enumerate()
-                .find_map(|(position, term)| match term {
-                    TermSyntax::ForethoughtTermset(termset) => Some((position, termset)),
-                    TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-                        leading_term,
-                        continuations,
-                    }) if continuations.is_empty() => match leading_term.as_ref() {
-                        BoundTermSyntax::ForethoughtTermset(termset) => Some((position, termset)),
-                        _ => None,
-                    },
-                    _ => None,
-                })
-        else {
+        let Some((position, termset)) = terms.iter().enumerate().find_map(|(position, term)| {
+            generated_forethought_termset_in_term(*term).map(|termset| (position, termset))
+        }) else {
             return Ok(None);
         };
         if eventuality.is_some() {
@@ -1505,7 +1452,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_generated_pehe_termset_connection_formula<'syntax: 'tree>(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -1514,8 +1461,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             terms
                 .iter()
                 .enumerate()
-                .find_map(|(position, term)| match term {
-                    TermSyntax::PeheTermsetConnection(connection) => Some((position, connection)),
+                .find_map(|(position, term)| match term.grouping() {
+                    Some(GeneratedTermGroupingRef::PeheTermsetConnection(connection)) => {
+                        Some((position, connection))
+                    }
                     _ => None,
                 })
         else {
@@ -1665,8 +1614,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         termset: &'tree ForethoughtTermsetSyntax,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        leading_terms: &[&'syntax TermSyntax],
-        trailing_terms: &[&'syntax TermSyntax],
+        leading_terms: &[GeneratedBridiTermRef<'syntax>],
+        trailing_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
@@ -2159,7 +2108,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 coequal_scope_groups,
                 term_formula_scopes,
                 next_visible_place,
-                operand,
+                GeneratedBridiTermRef::Cehe(operand),
                 simple,
             );
         }
@@ -2173,7 +2122,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     coequal_scope_groups,
                     term_formula_scopes,
                     next_visible_place,
-                    operand,
+                    GeneratedBridiTermRef::Cehe(operand),
                     termset,
                 ),
             CeheTermSyntax::ConnectedTerm(_) | CeheTermSyntax::StagBoundTermConnection(_) => Err(
@@ -2351,8 +2300,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         termset: &'tree ForethoughtTermsetSyntax,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        leading_terms: Vec<&'tree TermSyntax>,
-        trailing_terms: Vec<&'tree TermSyntax>,
+        leading_terms: Vec<GeneratedBridiTermRef<'tree>>,
+        trailing_terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         mode: PredicationMode,
         source: Option<crate::model::SemanticSource>,
@@ -2502,7 +2451,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_generated_termset_branch_formula_in_mode(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
         first_visible_place: usize,
@@ -2626,7 +2575,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2654,7 +2603,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2685,7 +2634,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: Vec<&'syntax TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'syntax>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2729,9 +2678,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         selbri: &'tree SelbriSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
         annotate_shared_head_source: bool,
-        mut terms: Vec<&'syntax TermSyntax>,
+        mut terms: Vec<GeneratedBridiTermRef<'syntax>>,
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -2791,7 +2740,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && mode == PredicationMode::Asserted
             && allow_single_argument_distribution
             && let [term] = terms.as_slice()
-            && let Some(sumti) = simple_sumti_from_term(term)
+            && let Some(sumti) = simple_sumti_from_term(*term)
             && no_gadri_description_from_sumti(sumti)?.is_some()
         {
             return Ok(None);
@@ -2948,9 +2897,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         relation: &str,
         direct_relation_place_count: Option<usize>,
         place_limit: usize,
-        prefix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
         annotate_shared_head_source: bool,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         conversions: &[WithFreeModifiers<Token, F>],
@@ -3046,9 +2995,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         relation: &str,
         direct_relation_place_count: Option<usize>,
         place_limit: usize,
-        prefix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
         annotate_shared_head_source: bool,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         conversions: &[WithFreeModifiers<Token, F>],
@@ -3236,7 +3185,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         relation: &str,
         direct_relation_place_count: Option<usize>,
         place_limit: usize,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         conversions: &[WithFreeModifiers<Token, F>],
@@ -3405,7 +3354,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -3448,7 +3397,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && mode == PredicationMode::Asserted
             && allow_single_argument_distribution
             && let [term] = terms.as_slice()
-            && let Some(sumti) = simple_sumti_from_term(term)
+            && let Some(sumti) = simple_sumti_from_term(*term)
         {
             if let Some(description) = no_gadri_description_from_sumti(sumti)? {
                 return self.build_no_gadri_quantified_argument_formula(
@@ -3529,7 +3478,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_generated_connected_mekso_identity_formula(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let Ok(relation) = relation_label_from_selbri(&simple_tail.selbri) else {
@@ -3993,7 +3942,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4027,7 +3976,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -4064,7 +4013,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         preassigned_place_questions: &[GeneratedPlaceQuestionAssignment],
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -4120,7 +4069,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             && generated_single_tanru_unit_from_tanru_selbri(tanru).is_none()
             && terms
                 .iter()
-                .any(|term| generated_term_has_distributed_sumti_connection(term))
+                .any(|term| generated_term_has_distributed_sumti_connection(*term))
         {
             if generated_tense_modal_resets_sticky_modals(tagged.tense_modal.as_ref()) {
                 self.sticky_adjuncts.clear();
@@ -4378,8 +4327,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
-        terms: Vec<&'tree TermSyntax>,
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         shared_tail_start: Option<usize>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
@@ -4594,8 +4543,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_forethought_bridi_connection_formula_with_shared_terms(
         &mut self,
         connection: &'tree ForethoughtBridiConnectionSyntax,
-        prefix_terms: &[&'tree TermSyntax],
-        suffix_terms: &[&'tree TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'tree>],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4632,8 +4581,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_direct_forethought_bridi_connection_formula(
         &mut self,
         connection: &'tree DirectForethoughtBridiConnectionSyntax,
-        prefix_terms: &[&'tree TermSyntax],
-        suffix_terms: &[&'tree TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'tree>],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4661,7 +4610,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let first_visible_place = next_visible_place_after_generated_terms(prefix_terms, 1)?;
         let mut branch_suffix_terms =
             Vec::with_capacity(connection.tail_terms.len() + suffix_terms.len());
-        branch_suffix_terms.extend(connection.tail_terms.iter());
+        branch_suffix_terms.extend(
+            connection
+                .tail_terms
+                .iter()
+                .map(GeneratedBridiTermRef::Term),
+        );
         branch_suffix_terms.extend_from_slice(suffix_terms);
 
         let (first_formula, prefix_context) = self
@@ -4882,8 +4836,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_grouped_forethought_bridi_connection_formula(
         &mut self,
         connection: &'tree GroupedForethoughtBridiConnectionSyntax,
-        prefix_terms: &[&'tree TermSyntax],
-        suffix_terms: &[&'tree TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'tree>],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4901,8 +4855,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_negated_forethought_bridi_connection_formula(
         &mut self,
         connection: &'tree NegatedForethoughtBridiConnectionSyntax,
-        prefix_terms: &[&'tree TermSyntax],
-        suffix_terms: &[&'tree TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'tree>],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -4926,8 +4880,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         source_node: &N,
         tail: &'syntax BridiTailSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
-        suffix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -4950,7 +4904,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let leading_suffix_terms = if let Some(first_continuation) = first.0.links.first() {
             let mut leading_suffix_terms =
                 Vec::with_capacity(first_continuation.tail_terms.len() + suffix_terms.len());
-            leading_suffix_terms.extend(first_continuation.tail_terms.iter());
+            leading_suffix_terms.extend(
+                first_continuation
+                    .tail_terms
+                    .iter()
+                    .map(GeneratedBridiTermRef::Term),
+            );
             leading_suffix_terms.extend_from_slice(suffix_terms);
             leading_suffix_terms
         } else {
@@ -4968,7 +4927,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for continuation in &first.0.links {
             let mut branch_suffix_terms =
                 Vec::with_capacity(continuation.tail_terms.len() + suffix_terms.len());
-            branch_suffix_terms.extend(continuation.tail_terms.iter());
+            branch_suffix_terms.extend(
+                continuation
+                    .tail_terms
+                    .iter()
+                    .map(GeneratedBridiTermRef::Term),
+            );
             branch_suffix_terms.extend_from_slice(suffix_terms);
             let next = self.build_bo_grouped_bridi_tail_formula_with_shared_terms(
                 &continuation.bridi_tail,
@@ -4992,7 +4956,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if let Some(continuation) = ke_continuation.as_deref() {
             let mut branch_suffix_terms =
                 Vec::with_capacity(continuation.tail_terms.len() + suffix_terms.len());
-            branch_suffix_terms.extend(continuation.tail_terms.iter());
+            branch_suffix_terms.extend(
+                continuation
+                    .tail_terms
+                    .iter()
+                    .map(GeneratedBridiTermRef::Term),
+            );
             branch_suffix_terms.extend_from_slice(suffix_terms);
             let next = self.build_connected_bridi_tail_formula_with_shared_terms(
                 continuation,
@@ -5045,7 +5014,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source_node: &N,
         tail: &'syntax BridiTailSyntax,
         assignments: &GeneratedTermAssignments<'syntax>,
-        suffix_terms: &[&'syntax TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         leading_eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -5065,7 +5034,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let leading_suffix_terms = if let Some(first_continuation) = first.0.links.first() {
             let mut leading_suffix_terms =
                 Vec::with_capacity(first_continuation.tail_terms.len() + suffix_terms.len());
-            leading_suffix_terms.extend(first_continuation.tail_terms.iter());
+            leading_suffix_terms.extend(
+                first_continuation
+                    .tail_terms
+                    .iter()
+                    .map(GeneratedBridiTermRef::Term),
+            );
             leading_suffix_terms.extend_from_slice(suffix_terms);
             leading_suffix_terms
         } else {
@@ -5084,7 +5058,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for continuation in &first.0.links {
             let mut branch_suffix_terms =
                 Vec::with_capacity(continuation.tail_terms.len() + suffix_terms.len());
-            branch_suffix_terms.extend(continuation.tail_terms.iter());
+            branch_suffix_terms.extend(
+                continuation
+                    .tail_terms
+                    .iter()
+                    .map(GeneratedBridiTermRef::Term),
+            );
             branch_suffix_terms.extend_from_slice(suffix_terms);
             let next = self.build_bo_grouped_bridi_tail_formula_with_preassigned_shared_terms(
                 &continuation.bridi_tail,
@@ -5107,7 +5086,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         if let Some(continuation) = ke_continuation.as_deref() {
             let mut branch_suffix_terms =
                 Vec::with_capacity(continuation.tail_terms.len() + suffix_terms.len());
-            branch_suffix_terms.extend(continuation.tail_terms.iter());
+            branch_suffix_terms.extend(
+                continuation
+                    .tail_terms
+                    .iter()
+                    .map(GeneratedBridiTermRef::Term),
+            );
             branch_suffix_terms.extend_from_slice(suffix_terms);
             let next = self.build_connected_bridi_tail_formula_with_preassigned_shared_terms(
                 continuation,
@@ -5142,7 +5126,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         tail: &'syntax BoGroupedBridiTailSyntax,
         assignments: &GeneratedTermAssignments<'syntax>,
-        suffix_terms: &[&'syntax TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -5183,7 +5167,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         tail: &'syntax BoGroupedBridiTailSyntax,
         assignments: &GeneratedTermAssignments<'syntax>,
-        suffix_terms: &[&'syntax TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -5196,7 +5180,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             ));
         };
         let mut terms = Vec::with_capacity(simple_tail.terms.len() + suffix_terms.len());
-        terms.extend(simple_tail.terms.iter());
+        terms.extend(simple_tail.terms.iter().map(GeneratedBridiTermRef::Term));
         terms.extend_from_slice(suffix_terms);
         let shared_tail_start = (!suffix_terms.is_empty()).then_some(simple_tail.terms.len());
         let formula = self
@@ -5228,7 +5212,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         leading_tail: &'syntax BoGroupedBridiTailSyntax,
         continuation: &'syntax jbotci_syntax::generated_model::BridiTailBoContinuationSyntax,
         assignments: &GeneratedTermAssignments<'syntax>,
-        suffix_terms: &[&'syntax TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         leading_eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -5237,7 +5221,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<SemanticObjectId, SemanticsError> {
         let mut branch_suffix_terms =
             Vec::with_capacity(continuation.tail_terms.len() + suffix_terms.len());
-        branch_suffix_terms.extend(continuation.tail_terms.iter());
+        branch_suffix_terms.extend(
+            continuation
+                .tail_terms
+                .iter()
+                .map(GeneratedBridiTermRef::Term),
+        );
         branch_suffix_terms.extend_from_slice(suffix_terms);
         let first = self.build_bo_grouped_bridi_tail_formula_core_with_preassigned_shared_terms(
             leading_tail,
@@ -5275,7 +5264,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|assignments| assignments.visible_arguments.keys().all(|place| *place > 0)) || ret.is_err())]
     pub(super) fn build_generated_shared_head_assignments<'syntax: 'tree>(
         &mut self,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         annotate_shared_head_source: bool,
     ) -> Result<GeneratedTermAssignments<'syntax>, SemanticsError> {
         let mut assignments = empty_generated_term_assignments();
@@ -5294,14 +5283,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &mut assignments.coequal_scope_groups,
                 &mut assignments.term_formula_scopes,
                 &mut assignments.next_visible_place,
-                term,
+                *term,
             )?;
             assignments.implicit_existentials.extend(
                 self.implicit_existential_variables
                     .split_off(existential_start),
             );
-            if annotate_shared_head_source && generated_shared_head_term_uses_shared_source(term) {
-                let source = self.source_for_node(*term, "shared-head-term");
+            if annotate_shared_head_source && generated_shared_head_term_uses_shared_source(*term) {
+                let source = self.source_for_bridi_term(*term, "shared-head-term");
                 for (place, argument) in &mut assignments.visible_arguments {
                     if !existing_places.contains(place) {
                         *argument = argument.clone().with_data(data! {
@@ -5416,8 +5405,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_bo_grouped_bridi_tail_formula_with_shared_terms<'syntax: 'tree>(
         &mut self,
         tail: &'syntax BoGroupedBridiTailSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
-        suffix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         mode: PredicationMode,
         allow_single_argument_distribution: bool,
@@ -5451,8 +5440,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_bo_grouped_bridi_tail_formula_core_with_shared_terms<'syntax: 'tree>(
         &mut self,
         tail: &'syntax BoGroupedBridiTailSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
-        suffix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         mode: PredicationMode,
         allow_single_argument_distribution: bool,
@@ -5471,25 +5460,15 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             SimpleBridiTailSyntax::SelbriSimpleBridiTail(simple_tail) => {
                 let mut terms = Vec::with_capacity(simple_tail.terms.len() + suffix_terms.len());
-                terms.extend(simple_tail.terms.iter());
+                terms.extend(simple_tail.terms.iter().map(GeneratedBridiTermRef::Term));
                 terms.extend_from_slice(suffix_terms);
                 let shared_tail_start =
                     (!suffix_terms.is_empty()).then_some(simple_tail.terms.len());
                 let eventuality = None;
-                if terms.iter().any(|term| match term {
-                    TermSyntax::ForethoughtTermset(_) => true,
-                    TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-                        leading_term,
-                        continuations,
-                    }) => {
-                        continuations.is_empty()
-                            && matches!(
-                                leading_term.as_ref(),
-                                BoundTermSyntax::ForethoughtTermset(_)
-                            )
-                    }
-                    _ => false,
-                }) {
+                if terms
+                    .iter()
+                    .any(|term| generated_forethought_termset_in_term(*term).is_some())
+                {
                     let shared_head_assignments = if prefix_terms.is_empty() {
                         empty_generated_term_assignments()
                     } else {
@@ -5596,8 +5575,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         leading_tail: &'syntax BoGroupedBridiTailSyntax,
         continuation: &'syntax jbotci_syntax::generated_model::BridiTailBoContinuationSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
-        suffix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         mode: PredicationMode,
         allow_single_argument_distribution: bool,
@@ -5605,7 +5584,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<GeneratedScopedFormula<'syntax>, SemanticsError> {
         let mut branch_suffix_terms =
             Vec::with_capacity(continuation.tail_terms.len() + suffix_terms.len());
-        branch_suffix_terms.extend(continuation.tail_terms.iter());
+        branch_suffix_terms.extend(
+            continuation
+                .tail_terms
+                .iter()
+                .map(GeneratedBridiTermRef::Term),
+        );
         branch_suffix_terms.extend_from_slice(suffix_terms);
         let mut first = self.build_bo_grouped_bridi_tail_formula_core_with_shared_terms(
             leading_tail,
@@ -5732,9 +5716,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_forethought_subbridi_branch_formula_with_deferred_prefix<'syntax: 'tree>(
         &mut self,
         subbridi: &'tree SubbridiSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
-        suffix_terms: &[&'syntax TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         eventuality: Option<SemanticObjectId>,
     ) -> Result<(SemanticObjectId, GeneratedForethoughtPrefixContext<'syntax>), SemanticsError>
     {
@@ -5797,9 +5781,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_forethought_bridi_branch_formula_with_deferred_prefix<'syntax: 'tree>(
         &mut self,
         bridi: &'tree BridiSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
-        suffix_terms: &[&'syntax TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         eventuality: Option<SemanticObjectId>,
     ) -> Result<(SemanticObjectId, GeneratedForethoughtPrefixContext<'syntax>), SemanticsError>
     {
@@ -5856,9 +5840,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         source_node: &N,
         branch_leading_terms: &'tree [TermSyntax],
         tail: &'tree BridiTailSyntax,
-        prefix_terms: &[&'syntax TermSyntax],
+        prefix_terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
-        suffix_terms: &[&'syntax TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'syntax>],
         eventuality: Option<SemanticObjectId>,
         allow_single_argument_distribution: bool,
     ) -> Result<(SemanticObjectId, GeneratedForethoughtPrefixContext<'syntax>), SemanticsError>
@@ -5927,8 +5911,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut terms = Vec::with_capacity(
             branch_leading_terms.len() + simple_tail.terms.len() + suffix_terms.len(),
         );
-        terms.extend(branch_leading_terms.iter());
-        terms.extend(simple_tail.terms.iter());
+        terms.extend(branch_leading_terms.iter().map(GeneratedBridiTermRef::Term));
+        terms.extend(simple_tail.terms.iter().map(GeneratedBridiTermRef::Term));
         terms.extend_from_slice(suffix_terms);
         let shared_tail_start = (!suffix_terms.is_empty())
             .then_some(branch_leading_terms.len() + simple_tail.terms.len());
@@ -5952,7 +5936,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         subbridi: &'tree SubbridiSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         first_visible_place: usize,
-        suffix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
         eventuality: Option<SemanticObjectId>,
         branch_prenex_existentials: &[GeneratedImplicitExistential],
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -5999,7 +5983,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         bridi: &'tree BridiSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         first_visible_place: usize,
-        suffix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
         eventuality: Option<SemanticObjectId>,
         branch_prenex_existentials: &[GeneratedImplicitExistential],
     ) -> Result<SemanticObjectId, SemanticsError> {
@@ -6056,7 +6040,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         tail: &'tree BridiTailSyntax,
         preassigned_visible_arguments: &BTreeMap<usize, ArgumentValue>,
         first_visible_place: usize,
-        suffix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
         eventuality: Option<SemanticObjectId>,
         allow_single_argument_distribution: bool,
         branch_prenex_existentials: &[GeneratedImplicitExistential],
@@ -6095,7 +6079,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     branch_prenex_existentials.to_vec(),
                 );
             }
-            let leading_terms = branch_leading_terms.iter().collect::<Vec<_>>();
+            let leading_terms = branch_leading_terms
+                .iter()
+                .map(GeneratedBridiTermRef::Term)
+                .collect::<Vec<_>>();
             let formula = self.build_connected_bridi_tail_formula_with_shared_terms(
                 source_node,
                 tail,
@@ -6132,8 +6119,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut terms = Vec::with_capacity(
             branch_leading_terms.len() + simple_tail.terms.len() + suffix_terms.len(),
         );
-        terms.extend(branch_leading_terms.iter());
-        terms.extend(simple_tail.terms.iter());
+        terms.extend(branch_leading_terms.iter().map(GeneratedBridiTermRef::Term));
+        terms.extend(simple_tail.terms.iter().map(GeneratedBridiTermRef::Term));
         terms.extend_from_slice(suffix_terms);
         let shared_tail_start = (!suffix_terms.is_empty())
             .then_some(branch_leading_terms.len() + simple_tail.terms.len());
@@ -6159,7 +6146,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_simple_tail_formula_with_options(
         &mut self,
         simple_tail: &'tree SelbriSimpleBridiTailSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -6183,7 +6170,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_selbri_formula_with_options(
         &mut self,
         selbri: &'tree SelbriSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -6257,7 +6244,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         tagged: &'tree jbotci_syntax::generated_model::TaggedSelbriSyntax,
         spec: GeneratedConnectedEventTenseSpec,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -6450,7 +6437,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         tagged: &'tree jbotci_syntax::generated_model::TaggedSelbriSyntax,
         spec: GeneratedConnectedEventTenseSpec,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -6579,7 +6566,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_tagged_selbri_formula_with_options(
         &mut self,
         tagged: &'tree jbotci_syntax::generated_model::TaggedSelbriSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -6777,7 +6764,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_untagged_selbri_formula_with_options(
         &mut self,
         selbri: &'tree UntaggedSelbriSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -6842,7 +6829,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_co_selbri_formula_with_options(
         &mut self,
         selbri: &'tree CoSelbriSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -7211,7 +7198,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         &mut self,
         selbri: &'tree CoSelbriSyntax,
         visible_arguments: BTreeMap<usize, ArgumentValue>,
-        modifier_terms: Vec<&'syntax TermSyntax>,
+        modifier_terms: Vec<GeneratedBridiTermRef<'syntax>>,
         modifier_first_visible_place: usize,
         source: Option<crate::model::SemanticSource>,
         leading_eventuality: Option<SemanticObjectId>,

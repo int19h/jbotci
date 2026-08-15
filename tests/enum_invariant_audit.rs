@@ -1760,6 +1760,30 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Bound",
+        "borrowed term validity is owned by the invariant-bearing BoundTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Cehe",
+        "borrowed term validity is owned by the invariant-bearing CeheTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Loose",
+        "borrowed term validity is owned by the invariant-bearing LooseTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Nonabs",
+        "borrowed term validity is owned by the invariant-bearing NonabsTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Simple",
+        "borrowed term validity is owned by the invariant-bearing SimpleTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Term",
+        "borrowed term validity is owned by the invariant-bearing TermSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::Empty",
         "the empty linked-sumti leaf is a closed marker with no payload state to constrain",
     ),
@@ -1834,6 +1858,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::TaggedSumtiTerm",
         "borrowed leaf validity is owned by the invariant-bearing TaggedSumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::ConnectedTerm",
+        "borrowed grouping validity is owned by the invariant-bearing ConnectedTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::PeheTermsetConnection",
+        "borrowed grouping validity is owned by the invariant-bearing PeheTermsetConnectionSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::StagBoundTermConnection",
+        "borrowed grouping validity is owned by the invariant-bearing StagBoundTermConnectionSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::TermsetGroup",
+        "borrowed grouping validity is owned by the invariant-bearing TermsetGroupSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:MathLiteralValue::Integer",

@@ -345,7 +345,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 if generated_bridi_tail_is_connected(&bridi.bridi_tail) =>
             {
                 let (assignments, _) = self.build_term_assignments_for_terms_excluding_source(
-                    bridi.leading_terms.iter().collect(),
+                    bridi
+                        .leading_terms
+                        .iter()
+                        .map(GeneratedBridiTermRef::Term)
+                        .collect(),
                     1,
                     excluded_source,
                 )?;
@@ -479,7 +483,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_resolved_generated_pro_bridi_formula_for_terms(
         &mut self,
         cmavo: Cmavo,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -658,6 +662,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .leading_terms
                     .iter()
                     .chain(simple_tail.terms.iter())
+                    .map(GeneratedBridiTermRef::Term)
                     .collect::<Vec<_>>();
                 self.generated_pro_bridi_frame_from_selbri_and_terms(
                     &simple_tail.selbri,
@@ -729,7 +734,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn generated_pro_bridi_frame_from_selbri_and_terms(
         &mut self,
         selbri: &'tree SelbriSyntax,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<Option<GeneratedProBridiFrame<'tree>>, SemanticsError> {

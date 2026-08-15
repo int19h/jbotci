@@ -182,7 +182,7 @@ pub(super) fn generated_tense_modal_anchors_to_speech_time<N: TreeNode>(tense_mo
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|connection| connection.as_ref().is_none_or(|(_, _, spec)| spec.terms.len() >= 2)) || ret.is_err())]
 pub(super) fn generated_logical_modal_connection_assignment_in_terms<'syntax>(
-    terms: &[&'syntax TermSyntax],
+    terms: &[GeneratedBridiTermRef<'syntax>],
 ) -> Result<
     Option<(
         usize,
@@ -194,7 +194,7 @@ pub(super) fn generated_logical_modal_connection_assignment_in_terms<'syntax>(
     let mut connection = None;
     for (index, term) in terms.iter().enumerate() {
         let Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) =
-            generated_simple_term_for_assignment(term)
+            generated_simple_term_for_assignment(*term)
         else {
             continue;
         };
@@ -217,7 +217,7 @@ pub(super) fn generated_logical_modal_connection_assignment_in_terms<'syntax>(
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|(_, _, spec)| spec.branches.len() >= 2))]
 pub(super) fn generated_logical_event_tense_connection_assignment_in_terms<'syntax>(
-    terms: &[&'syntax TermSyntax],
+    terms: &[GeneratedBridiTermRef<'syntax>],
 ) -> Option<(
     usize,
     GeneratedTaggedTermRef<'syntax>,
@@ -226,7 +226,7 @@ pub(super) fn generated_logical_event_tense_connection_assignment_in_terms<'synt
     let mut connection = None;
     for (index, term) in terms.iter().enumerate() {
         let Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) =
-            generated_simple_term_for_assignment(term)
+            generated_simple_term_for_assignment(*term)
         else {
             continue;
         };
@@ -529,32 +529,42 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_bridi(
         BridiSyntax::BridiWithLeadingTerms(bridi) => bridi
             .leading_terms
             .iter()
-            .find_map(first_generated_contradictory_event_tense_modal_for_term)
+            .find_map(|term| {
+                first_generated_contradictory_event_tense_modal_for_term(
+                    GeneratedBridiTermRef::Term(term),
+                )
+            })
             .or_else(|| {
                 simple_tail_from_bridi_tail(&bridi.bridi_tail)
                     .ok()
                     .and_then(|tail| {
-                        tail.terms
-                            .iter()
-                            .find_map(first_generated_contradictory_event_tense_modal_for_term)
+                        tail.terms.iter().find_map(|term| {
+                            first_generated_contradictory_event_tense_modal_for_term(
+                                GeneratedBridiTermRef::Term(term),
+                            )
+                        })
                     })
             }),
         BridiSyntax::BridiWithPostCuTerms(bridi) => bridi
             .leading_terms
             .iter()
-            .find_map(first_generated_contradictory_event_tense_modal_for_term)
+            .find_map(|term| {
+                first_generated_contradictory_event_tense_modal_for_term(
+                    GeneratedBridiTermRef::Term(term),
+                )
+            })
             .or_else(|| {
-                bridi
-                    .bridi_tail
-                    .terms
-                    .iter()
-                    .find_map(first_generated_contradictory_event_tense_modal_for_term)
+                bridi.bridi_tail.terms.iter().find_map(|term| {
+                    first_generated_contradictory_event_tense_modal_for_term(
+                        GeneratedBridiTermRef::Term(term),
+                    )
+                })
             }),
-        BridiSyntax::BareCuTermsBridi(bridi) => bridi
-            .bridi_tail
-            .terms
-            .iter()
-            .find_map(first_generated_contradictory_event_tense_modal_for_term),
+        BridiSyntax::BareCuTermsBridi(bridi) => bridi.bridi_tail.terms.iter().find_map(|term| {
+            first_generated_contradictory_event_tense_modal_for_term(GeneratedBridiTermRef::Term(
+                term,
+            ))
+        }),
         BridiSyntax::BareCuBridi(_) | BridiSyntax::RelationOnlyBridi(_) => None,
     };
     leading.or_else(|| {
@@ -634,9 +644,9 @@ pub(super) fn first_generated_contradictory_event_tense_modal_for_linked_sumti(
 
 #[requires(true)]
 #[ensures(ret.is_none_or(generated_tense_modal_has_contradictory_event_negation))]
-pub(super) fn first_generated_contradictory_event_tense_modal_for_term(
-    term: &TermSyntax,
-) -> Option<&TenseModalSyntax> {
+pub(super) fn first_generated_contradictory_event_tense_modal_for_term<'syntax>(
+    term: GeneratedBridiTermRef<'syntax>,
+) -> Option<&'syntax TenseModalSyntax> {
     match generated_simple_term_for_assignment(term).ok()? {
         GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
             let tense_modal = match term.tense_modal.as_ref() {

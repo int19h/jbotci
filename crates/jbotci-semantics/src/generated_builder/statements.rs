@@ -1589,10 +1589,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn attach_generated_reciprocity_to_predication_for_terms(
         &mut self,
         predication: SemanticObjectId,
-        terms: &[&'tree TermSyntax],
+        terms: &[GeneratedBridiTermRef<'tree>],
     ) -> Result<(), SemanticsError> {
         let mut exchanges = Vec::new();
-        for term in terms {
+        for &term in terms {
             self.collect_generated_reciprocal_exchanges_from_term(
                 predication,
                 term,
@@ -1651,18 +1651,18 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn collect_generated_reciprocal_exchanges_from_term(
         &mut self,
         predication: SemanticObjectId,
-        term: &'tree TermSyntax,
+        term: GeneratedBridiTermRef<'tree>,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
-        if let Some(simple) = GeneratedSimpleTermRef::from_term(term) {
+        if let Some(simple) = term.simple() {
             return self.collect_generated_reciprocal_exchanges_from_simple_term(
                 predication,
                 simple,
                 out,
             );
         }
-        match term {
-            TermSyntax::TermsetGroup(termset) => {
+        match term.grouping() {
+            Some(GeneratedTermGroupingRef::TermsetGroup(termset)) => {
                 if let Some(simple) =
                     GeneratedSimpleTermRef::from_loose(termset.leading_term.as_ref())
                 {
@@ -1723,13 +1723,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             GeneratedSimpleTermRef::NuhiTermset(termset) => {
                 for term in &termset.termset {
-                    self.collect_generated_reciprocal_exchanges_from_term(predication, term, out)?;
+                    self.collect_generated_reciprocal_exchanges_from_term(
+                        predication,
+                        GeneratedBridiTermRef::Term(term.as_ref()),
+                        out,
+                    )?;
                 }
                 Ok(())
             }
             GeneratedSimpleTermRef::KeTermset(termset) => {
                 for term in &termset.termset {
-                    self.collect_generated_reciprocal_exchanges_from_term(predication, term, out)?;
+                    self.collect_generated_reciprocal_exchanges_from_term(
+                        predication,
+                        GeneratedBridiTermRef::Term(term.as_ref()),
+                        out,
+                    )?;
                 }
                 Ok(())
             }
@@ -3170,7 +3178,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         utterance_id: SemanticObjectId,
         bridi: &'tree BridiSyntax,
         force: UtteranceForce,
-        suffix_terms: &[&'tree TermSyntax],
+        suffix_terms: &[GeneratedBridiTermRef<'tree>],
         source_node: &N,
     ) -> Result<(SemanticObjectId, SemanticObjectId), SemanticsError> {
         let question_start = self.direct_question_slots.len();
