@@ -2743,6 +2743,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             GeneratedSimpleTermRef::SoiAdverbialTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::NaKuTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::BareNaTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::GekTermset(term) => self.walk_node(term),
             GeneratedSimpleTermRef::ForethoughtTermset(term) => self.walk_node(term),
         }
     }
@@ -3481,6 +3482,12 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     self.analyze_relation(&term.selbri);
                 }
             },
+            // The operand tree is walked directly rather than through the whole termset node, so
+            // the opening forethought connective is skipped exactly as it is for the NUhI-present
+            // termset below: this walk visits term operands, not the connective that joins them.
+            GeneratedSimpleTermRef::GekTermset(term) => {
+                self.walk_node(term.0.operands.as_ref());
+            }
             GeneratedSimpleTermRef::ForethoughtTermset(term) => {
                 for term in &term.terms {
                     self.walk_node(term);
@@ -7099,6 +7106,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.walk_node(tense_modal);
                 }
                 self.visit_argument(&term.sumti);
+            }
+            // The operand tree is walked directly rather than through the whole termset node, so
+            // the opening forethought connective is skipped exactly as it is for the NUhI-present
+            // termset below: this walk visits term operands, not the connective that joins them.
+            GeneratedSimpleTermRef::GekTermset(term) => {
+                self.walk_node(term.0.operands.as_ref());
             }
             GeneratedSimpleTermRef::ForethoughtTermset(term) => {
                 for term in &term.terms {

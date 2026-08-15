@@ -66,6 +66,11 @@ pub mod generated_model {
         nonabs_term: NonabsTermSyntax;
         bound_term: BoundTermSyntax;
         simple_term: SimpleTermSyntax;
+        // The NUhI-less termset is referenced from every leaf inventory of the ladder, and its
+        // operand tree is self-recursive (camxes.peg:136-138), so both belong here for the same
+        // reason the ladder levels do.
+        gek_termset: GekTermsetSyntax;
+        balanced_termset_operands: BalancedTermsetOperandsSyntax;
         sumti: SumtiSyntax;
         sumti_grouped: SumtiGroupedSyntax;
         sumti_afterthought: SumtiAfterthoughtSyntax;
@@ -1261,7 +1266,7 @@ pub mod generated_model {
     /// branch: a nested branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps every level's leaf inventory synchronized with
     /// `simple_term`.
-    rule "term" term(statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" term(gek_termset, statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1292,6 +1297,8 @@ pub mod generated_model {
         sumti_term,
         /// Uses the `bare_na_term` product form, whose payload preserves `na`.
         bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
         /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
@@ -1302,7 +1309,7 @@ pub mod generated_model {
 
     /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
     /// (camxes.peg:116). It is the operand level of the PEhE connection above it.
-    rule "term" cehe_term(statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" cehe_term(gek_termset, statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1331,6 +1338,8 @@ pub mod generated_model {
         sumti_term,
         /// Uses the `bare_na_term` product form, whose payload preserves `na`.
         bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
         /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
@@ -1342,7 +1351,7 @@ pub mod generated_model {
     /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
     /// abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
     /// (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-    rule "term" loose_term(statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" loose_term(gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1369,6 +1378,8 @@ pub mod generated_model {
         sumti_term,
         /// Uses the `bare_na_term` product form, whose payload preserves `na`.
         bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
         /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
@@ -1386,7 +1397,7 @@ pub mod generated_model {
     /// of the two sources is exactly this level: the guarded tiers with the unguarded leaf
     /// inventory. The guard only ever fires when a selbri follows the atom directly, which is a
     /// position no connective tier can occupy, so no surface outside the two sources is admitted.
-    rule "term" nonabs_term(statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" nonabs_term(gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1413,6 +1424,8 @@ pub mod generated_model {
         sumti_term,
         /// Uses the `bare_na_term` product form, whose payload preserves `na`.
         bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
         /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
@@ -1443,7 +1456,7 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" simple_term(gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
@@ -1466,6 +1479,8 @@ pub mod generated_model {
         sumti_term,
         /// Uses the `bare_na_term` product form, whose payload preserves `na`.
         bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
         /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
@@ -1479,7 +1494,7 @@ pub mod generated_model {
     /// The leaf rules are deliberately listed directly rather than through `simple_term`: a
     /// nested sum branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-    rule "term" bound_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" bound_term(gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1504,6 +1519,8 @@ pub mod generated_model {
         sumti_term,
         /// Uses the `bare_na_term` product form, whose payload preserves `na`.
         bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
         /// Uses the `forethought_termset` product form, whose payload preserves its connected term sequences.
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
@@ -1638,6 +1655,73 @@ pub mod generated_model {
         field terms <- [one_or_more arc(term)];
         /// The optional elidable NUhU terminator closing this branch's term sequence.
         field nuhu <- opt(cmavo(Nuhu).wf()).elidable_terminator(Nuhu);
+    }
+
+    /// The NUhI-less forethought termset: `gek_termset <- gek terms_gik_terms` (camxes.peg:136,
+    /// camxes-exp.peg:191).
+    ///
+    /// This is the third of the three sourced termset shapes, and the only one that carries
+    /// neither NUhI nor a NUhU slot. Its operands are single unguarded terms rather than the
+    /// guarded `terms` sequences the NUhI-present arm takes (B1), and they are paired by nesting
+    /// rather than by concatenation.
+    ///
+    /// The arm is extension-first against the baseline GEK sumti connection, which owns
+    /// `ge ko'a gi ko'e broda` at `sumti_4` in camxes-standard and camxes-exp alike. Arm order
+    /// alone cannot settle that, because a locally failing outer parse would let this arm reclaim
+    /// the extent on backtracking, so the completed candidate is classified instead.
+    rule "termset" gek_termset(balanced_termset_operands, nonabs_term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+        #[tree_child(primary)]
+        /// The completed NUhI-less candidate, retained only when the baseline GEK sumti connection
+        /// does not own its identical extent.
+        field termset <- arc(
+            gek_termset_candidate(balanced_termset_operands, nonabs_term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci)
+                .reject_output(crate::grammar::baseline_termset::BaselineGekSumtiRejection)
+        );
+    }
+
+    /// The classified body of the NUhI-less forethought termset.
+    rule "termset" gek_termset_candidate(balanced_termset_operands, nonabs_term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+        /// The opening forethought connective that determines how the operands are combined.
+        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        /// The balanced operand tree. Unlike the NUhI-present arm, the operand sequence is not a
+        /// `terms` run: each level contributes exactly one leading and one trailing operand.
+        field operands <- arc(balanced_termset_operands);
+    }
+
+    /// `terms_gik_terms <- nonabs_term (gik / terms_gik_terms) nonabs_term` (camxes.peg:138,
+    /// camxes-exp.peg:193).
+    ///
+    /// Each level pairs one leading operand with one trailing operand around a centre that is
+    /// either the GIK itself or the next nested pair, so an n-operand termset nests n/2 deep and
+    /// the outermost operands are the outermost pair. The GIK alternative is listed first, exactly
+    /// as upstream orders it, so the innermost pair is the one that finds the GIK.
+    rule "termset" balanced_termset_operands(balanced_termset_operands, nonabs_term) -> enum {
+        /// Uses the `gik_paired_termset_operands` product form, whose payload preserves
+        /// `leading_operand`, `gik`, and `trailing_operand`.
+        gik_paired_termset_operands,
+        /// Uses the `nested_paired_termset_operands` product form, whose payload preserves
+        /// `leading_operand`, `inner`, and `trailing_operand`.
+        nested_paired_termset_operands,
+    }
+
+    /// The innermost operand pair, which is the one that carries the GIK.
+    rule "termset" gik_paired_termset_operands(nonabs_term) -> struct {
+        /// The operand before the GIK.
+        field leading_operand <- arc(nonabs_term);
+        /// The GIK connective that pairs with the opening forethought connective.
+        field gik <- gik_connective;
+        /// The operand after the GIK.
+        field trailing_operand <- arc(nonabs_term);
+    }
+
+    /// An outer operand pair wrapped around the next nested pair.
+    rule "termset" nested_paired_termset_operands(balanced_termset_operands, nonabs_term) -> struct {
+        /// The operand before the nested pair.
+        field leading_operand <- arc(nonabs_term);
+        /// The nested operand pair.
+        field inner <- arc(balanced_termset_operands);
+        /// The operand after the nested pair.
+        field trailing_operand <- arc(nonabs_term);
     }
 
     /// Product node for termset; preserves `nuhi`, `termset`, and `nuhu` in source order.

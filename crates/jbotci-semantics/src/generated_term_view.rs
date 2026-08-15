@@ -10,14 +10,14 @@ use bityzba::{ensures, invariant, requires};
 use std::sync::Arc;
 
 use jbotci_syntax::generated_model::{
-    BareNaTermSyntax, BoundTermSyntax, CeheTermSyntax, ElidedNaheFihoTagTermSyntax,
-    FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax,
-    LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax,
-    NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NuhiTermsetSyntax,
-    PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax,
-    SimpleTermSyntax, SoiAdverbialTermSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax,
-    TermSyntax,
+    BalancedTermsetOperandsSyntax, BareNaTermSyntax, BoundTermSyntax, CeheTermSyntax,
+    ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax,
+    GekTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LeadingTermTagTenseModalSyntax,
+    LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax, NoihaAdverbialTermSyntax,
+    NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
+    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
+    SumtiTermSyntax, TaggedOrElidedSumtiSyntax, TaggedSumtiBeforeTagTermSyntax,
+    TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax, TermSyntax,
 };
 
 /// A borrowed tag-led term leaf.
@@ -54,6 +54,25 @@ impl<'syntax> GeneratedTaggedTermRef<'syntax> {
     }
 }
 
+/// Report whether any operand of a NUhI-less forethought termset satisfies a predicate.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn any_gek_termset_operand(
+    operands: &BalancedTermsetOperandsSyntax,
+    predicate: &mut impl FnMut(&NonabsTermSyntax) -> bool,
+) -> bool {
+    match operands {
+        BalancedTermsetOperandsSyntax::GikPairedTermsetOperands(pair) => {
+            predicate(pair.leading_operand.as_ref()) || predicate(pair.trailing_operand.as_ref())
+        }
+        BalancedTermsetOperandsSyntax::NestedPairedTermsetOperands(pair) => {
+            predicate(pair.leading_operand.as_ref())
+                || any_gek_termset_operand(pair.inner.as_ref(), predicate)
+                || predicate(pair.trailing_operand.as_ref())
+        }
+    }
+}
+
 /// A borrowed simple-term leaf shared by every level of the composed term hierarchy.
 #[invariant(::PlaceTaggedSumtiTerm(_) => true)]
 #[invariant(::JaiTaggedSumtiTerm(_) => true)]
@@ -66,6 +85,7 @@ impl<'syntax> GeneratedTaggedTermRef<'syntax> {
 #[invariant(::NaKuTerm(_) => true)]
 #[invariant(::SumtiTerm(_) => true)]
 #[invariant(::BareNaTerm(_) => true)]
+#[invariant(::GekTermset(_) => true)]
 #[invariant(::ForethoughtTermset(_) => true)]
 #[invariant(::NuhiTermset(_) => true)]
 #[invariant(::KeTermset(_) => true)]
@@ -82,6 +102,7 @@ pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     NaKuTerm(&'syntax NaKuTermSyntax),
     SumtiTerm(&'syntax SumtiTermSyntax),
     BareNaTerm(&'syntax BareNaTermSyntax),
+    GekTermset(&'syntax GekTermsetSyntax),
     ForethoughtTermset(&'syntax ForethoughtTermsetSyntax),
     NuhiTermset(&'syntax NuhiTermsetSyntax),
     KeTermset(&'syntax KeTermsetSyntax),
@@ -108,6 +129,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             SimpleTermSyntax::NaKuTerm(term) => Self::NaKuTerm(term),
             SimpleTermSyntax::SumtiTerm(term) => Self::SumtiTerm(term),
             SimpleTermSyntax::BareNaTerm(term) => Self::BareNaTerm(term),
+            SimpleTermSyntax::GekTermset(term) => Self::GekTermset(term),
             SimpleTermSyntax::ForethoughtTermset(term) => Self::ForethoughtTermset(term),
             SimpleTermSyntax::NuhiTermset(term) => Self::NuhiTermset(term),
             SimpleTermSyntax::KeTermset(term) => Self::KeTermset(term),
@@ -135,6 +157,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             BoundTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             BoundTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             BoundTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            BoundTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
             BoundTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             BoundTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             BoundTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -165,6 +188,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             TermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             TermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             TermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            TermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
             TermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             TermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             TermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -194,6 +218,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             CeheTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             CeheTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             CeheTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            CeheTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
             CeheTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             CeheTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             CeheTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -221,6 +246,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             LooseTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             LooseTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             LooseTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            LooseTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
             LooseTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             LooseTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             LooseTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -254,6 +280,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             NonabsTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             NonabsTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             NonabsTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            NonabsTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
             NonabsTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             NonabsTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             NonabsTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),

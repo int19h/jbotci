@@ -35,6 +35,7 @@ mod baseline_mex;
 mod baseline_relative;
 mod baseline_selbri;
 mod baseline_tag;
+mod baseline_termset;
 mod generated;
 mod generated_runtime;
 mod parse_error;

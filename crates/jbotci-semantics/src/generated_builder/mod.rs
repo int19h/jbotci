@@ -103,6 +103,7 @@ use crate::facade::{
 };
 use crate::generated_term_view::{
     GeneratedLinkedSumtiRef, GeneratedSimpleTermRef, GeneratedTaggedTermRef,
+    any_gek_termset_operand,
 };
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, Adjunct, AdjunctData, AnchorMagnitude,
@@ -6848,6 +6849,10 @@ fn generated_simple_term_contains_current_level_keha(term: GeneratedSimpleTermRe
         GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
             generated_statement_contains_current_level_keha(&term.statement)
         }
+        GeneratedSimpleTermRef::GekTermset(termset) => any_gek_termset_operand(
+            &termset.0.operands,
+            &mut generated_nonabs_term_contains_current_level_keha,
+        ),
         GeneratedSimpleTermRef::ForethoughtTermset(termset) => {
             termset
                 .terms
