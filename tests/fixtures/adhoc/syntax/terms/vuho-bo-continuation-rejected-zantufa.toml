@@ -1,0 +1,13 @@
+id = "adhoc.syntax.terms.vuho-bo-continuation-rejected-zantufa"
+lojban = "lo gerku vu'o poi brode ku'o .e bo lo mlatu cu viska"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "term-hierarchy-epoch", "issue-838", "vuho", "ownership", "zantufa", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6 VUhO ownership matrix"
+description = "Rolling Zantufa accepts this surface through its connectorless BO term tier, which #827 owns and this epoch does not implement, so jbotci still rejects it. Recorded as a Zantufa fidelity gap."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [32, 34], source-text = "bo", message = "unexpected cmavo" }]

@@ -211,3 +211,28 @@ retained halves of both domains keep their acceptance:
 `adhoc/v0/warnings/experimental/broad-a-term-connective`,
 `broad-joi-term-connective`, and the two `experimental-ji-*-term-connective`
 fixtures, whose `ji` is an A-family question word rather than a JEK.
+
+## VUhO ownership matrix (epoch-4 residual)
+
+Epoch 4 left the owner of a connective continuation after a VUhO tail to this
+epoch. The rule is baseline-first: wherever the complete outer candidate
+succeeds, the outer term connection owns the continuation, which is what the
+retained epoch-4 fixture
+`adhoc/syntax/sumti-continuation/vuho-term-no-steal` already pinned. The
+composed ladder does not change that owner.
+
+| Surface | camxes-standard | camxes-exp | rolling Zantufa | jbotci owner | Witness |
+| --- | --- | --- | --- | --- | --- |
+| `… vu'o poi brode ku'o .e lo mlatu …` | rejects | accepts, inside the VUhO tail | accepts, outer | outer term connection | `vuho-sumti-continuation-outer` |
+| `… vu'o poi brode ku'o .e ba ko'a …` | rejects | accepts at the term tier | accepts, outer | outer term connection | `vuho-tag-continuation-outer` |
+| `… vu'o poi brode ku'o .e bo lo mlatu …` | rejects | rejects | accepts via connectorless BO | rejects | `vuho-bo-continuation-rejected` |
+| `… vu'o .e lo mlatu …` (bare VUhO) | rejects | accepts, outer | rejects | outer term connection, bare-VUhO warning | `vuho-bare-continuation-outer` |
+
+Two fidelity gaps are recorded rather than closed. camxes-exp reads the
+sumti-operand continuation *inside* the VUhO tail
+(`relative_clauses (joik_ek sumti)?`, camxes-exp.peg:175); adopting that reading
+would reinterpret a successful baseline parse, so it stays a documented gap with
+a reinterpretation-flag candidate, exactly as the standing ruling requires.
+Rolling Zantufa accepts the BO-bound continuation through its connectorless BO
+term tier, which #827 owns; until that lands, the Zantufa configuration keeps
+the rejection, witnessed by `vuho-bo-continuation-rejected-zantufa`.
