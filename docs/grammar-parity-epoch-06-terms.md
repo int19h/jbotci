@@ -49,35 +49,81 @@ connection selects its leaf directly at the level that offered it. The former
 `ConnectedTerm { leading_term, continuations: [] }` wrapper, which the old
 `zero_or_more` shape produced for every term in the corpus, is gone.
 
-### Mechanism E's measured cost
+### Mechanism E's cost, and the recursive-family fix
 
-Leaf-listing keeps the public shape stable at a price the epoch should record
-rather than discover later. A term position now dispatches through five levels
-that each re-list a fifteen-rule leaf inventory, where the flat sum dispatched
-once, so every term in every text pays roughly five times the per-level memo
-traffic. Measured on this host, release binaries, base `a8b4f06227` versus the
-epoch:
+Leaf-listing keeps the public shape stable, and the first cut of the ladder paid
+a large, wrongly-attributed price for it. The ladder was measured at +55% on the
+full fixture profile and +63–77% on isolated parse throughput, and that cost was
+read as intrinsic to leaf-listing: five levels each re-listing a fifteen-rule
+leaf inventory, so every term in every text pays roughly five times the
+per-level memo traffic.
 
-| Measurement | Base | Epoch | Delta |
+Profiling refuted that reading. The regression was a **fixed per-parse cost**,
+not a per-token one: the delta was +8.1 ms on a two-word text, +8.5 ms on a
+100-character sentence and +11 ms on an 8 KB text. A per-token cost scales with
+length; this one did not. Over 65% of samples sat in `malloc`/`free`, and the
+inclusive call graph put the term-ladder *parser constructors* — not the parse
+— at the top of the profile.
+
+The cause is that the ladder levels were never added to the grammar's recursive
+parser family. `strict_generated_parser_family()` builds the combinator graph
+once per parse and hands out cheap clones of its members; a rule outside the
+family is instead re-constructed inline at every reference site. `term` was in
+the family, but `cehe_term`, `loose_term`, `nonabs_term`, `bound_term` and
+`simple_term` were not, so each of the ~2–3 reference sites per level rebuilt
+its whole subtree, and the levels nest — `term` → `termset_group` →
+`loose_term` → `connected_term` → `bound_term` → `stag_bound_term_connection` →
+`simple_term` — which multiplies the rebuilds through the ladder. Every other
+ladder in the grammar (sumti, selbri, mekso) already declares each level in the
+`recursive` block; the term ladder simply omitted it.
+
+The fix is that omission repaired: the five levels join the `recursive` block,
+their reference sites take them as parameters instead of calling them, and each
+level is constructed once per parse. No rule, no alternative, no alternative
+*order* and no output type changes, so the panel-approved ladder is untouched
+and every tree is byte-identical — the full profile passes with the same
+73,733 / 514 / 0 pass-xfail-fail counts as before the fix.
+
+Measured on this host, release binaries, all three states against the same
+fixture tree on the same filesystem with a warm page cache:
+
+| Full release fixture profile | Base `a8b4f06227` | Ladder, unfixed | Ladder + fix |
 | --- | ---: | ---: | ---: |
-| Full release fixture profile, wall clock | 5:58 | 9:15 | +55% |
-| `jbotci gentufa --benchmark 500 "mi klama le zarci"` | 4.98 s | 8.83 s | +77% |
-| `--benchmark 500 "lo nu mi citka lo plise cu se pluka mi"` | 6.16 s | 10.06 s | +63% |
-| Full release fixture profile, peak RSS | 5,738,932 KB | 5,774,252 KB | +0.62% |
-| `memoized_mid_size_recovery_remains_grammar_filtered`, isolated | 1.48 s | 1.63 s | +10% |
+| Wall clock | 344.9 s | 468.3 s (+35.8%) | **315.3 s (−8.6%)** |
+| CPU (user + sys) | 1,074 s | 1,844 s (+71.6%) | **859 s (−20.0%)** |
+| Peak RSS | 5,773,984 KB | 5,774,252 KB (+0.005%) | 5,764,824 KB (−0.16%) |
 
-The cost is the ladder itself, not the guard re-key: texts containing no
-term-level connective, which never engage a loose continuation and therefore
-never run the re-keyed lookahead, regress by the same proportion. The peak-RSS
-gate this epoch was given is met with room to spare; the wall-clock figure is
-disclosed here as a known, accepted cost of the owner-chosen mechanism, and the
-remedy — letting the levels share one memoized leaf probe, which needs a syntax
-DSL change rather than a grammar change — is left to a follow-up rather than
-improvised at submission. The IDE completion guard
-`memoized_mid_size_recovery_remains_grammar_filtered` moves with it: it passes
-standalone at 1.63 s against its 2 s literal bound, CI skips that bound
-(`CI` is set there) in favour of the ample-budget twin, and it flaked once at
-2.019 s under full-suite parallel load on this host.
+Isolated parse throughput, `jbotci gentufa --benchmark`, unfixed column as
+recorded at first submission:
+
+| Text | Base | Ladder, unfixed | Ladder + fix |
+| --- | ---: | ---: | ---: |
+| `--benchmark 500 "mi klama le zarci"` | 5.02 s | 8.83 s (+77%) | **3.86 s (−23%)** |
+| `--benchmark 500 "lo nu mi citka lo plise cu se pluka mi"` | 6.47 s | 10.06 s (+63%) | **5.07 s (−22%)** |
+| `--benchmark 50 "mi klama"`, median | 8.63 ms | 16.45 ms (+91%) | **6.21 ms (−28%)** |
+| 8 KB Alice slice, median | 103.90 ms | 115.19 ms (+11%) | 103.95 ms (±0%) |
+| Full Alice, 154 KB, median | 1,545 ms | — | **1,531 ms (−1%)** |
+
+The fixed ladder is faster than the pre-epoch base everywhere, by the most on
+short texts, because the base paid the same defect at lower multiplicity:
+`connected_term` and `simple_term` were already being re-constructed at several
+sites before the epoch deepened the ladder. Long texts sit at parity, which is
+the expected shape — construction is a fixed cost, so it vanishes into a long
+parse either way.
+
+One measurement note for anyone re-running these: the fixture-tree filesystem
+dominates comparisons of this suite. The long-text fixtures are ~50 MB of TOML,
+and reading them from the repository volume rather than the scratch volume moved
+the *same binary* by up to +23% wall clock — enough to invent or hide a
+regression on its own. Every figure above puts both trees on one volume with the
+cache warmed.
+
+The IDE completion guard `memoized_mid_size_recovery_remains_grammar_filtered`
+was disclosed at first submission as moving 1.48 s → 1.63 s against its 2 s
+literal bound, with one flake at 2.019 s under full-suite parallel load. It is
+carried by the same construction cost: it now reports 1.30 s, stable across
+three consecutive isolated runs, which is below the pre-epoch base as well as
+the bound.
 
 ### Two parameters, never conflated
 
