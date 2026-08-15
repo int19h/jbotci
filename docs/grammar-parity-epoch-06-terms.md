@@ -49,6 +49,36 @@ connection selects its leaf directly at the level that offered it. The former
 `ConnectedTerm { leading_term, continuations: [] }` wrapper, which the old
 `zero_or_more` shape produced for every term in the corpus, is gone.
 
+### Mechanism E's measured cost
+
+Leaf-listing keeps the public shape stable at a price the epoch should record
+rather than discover later. A term position now dispatches through five levels
+that each re-list a fifteen-rule leaf inventory, where the flat sum dispatched
+once, so every term in every text pays roughly five times the per-level memo
+traffic. Measured on this host, release binaries, base `a8b4f06227` versus the
+epoch:
+
+| Measurement | Base | Epoch | Delta |
+| --- | ---: | ---: | ---: |
+| Full release fixture profile, wall clock | 5:58 | 9:15 | +55% |
+| `jbotci gentufa --benchmark 500 "mi klama le zarci"` | 4.98 s | 8.83 s | +77% |
+| `--benchmark 500 "lo nu mi citka lo plise cu se pluka mi"` | 6.16 s | 10.06 s | +63% |
+| Full release fixture profile, peak RSS | 5,738,932 KB | 5,774,252 KB | +0.62% |
+| `memoized_mid_size_recovery_remains_grammar_filtered`, isolated | 1.48 s | 1.63 s | +10% |
+
+The cost is the ladder itself, not the guard re-key: texts containing no
+term-level connective, which never engage a loose continuation and therefore
+never run the re-keyed lookahead, regress by the same proportion. The peak-RSS
+gate this epoch was given is met with room to spare; the wall-clock figure is
+disclosed here as a known, accepted cost of the owner-chosen mechanism, and the
+remedy — letting the levels share one memoized leaf probe, which needs a syntax
+DSL change rather than a grammar change — is left to a follow-up rather than
+improvised at submission. The IDE completion guard
+`memoized_mid_size_recovery_remains_grammar_filtered` moves with it: it passes
+standalone at 1.63 s against its 2 s literal bound, CI skips that bound
+(`CI` is set there) in favour of the ample-budget twin, and it flaked once at
+2.019 s under full-suite parallel load on this host.
+
 ### Two parameters, never conflated
 
 The plan separates *guard content* from *operand width*; the implementation
@@ -156,8 +186,31 @@ node types, including the GAhO interval forms, or extending the syntax macro to
 anchor a warning on a node's primary token. Both are outside this epoch's
 scope, and the first carries real fidelity risk. The state is not a regression:
 the default profile already accepted term-level connectives warning-free at the
-implementation base. Recorded as a follow-up-issue candidate alongside the
-fidelity-flag candidates below.
+implementation base (`ba ko'a .e ca ko'e broda` parses without a diagnostic
+there and here). The owner ruling on the epoch accepts the gap as documented and
+files the DSL work as #860; the duplicate-inventory workaround is explicitly not
+attempted, and the T4 BO warning stays.
+
+The ruling requires this note to enumerate the surfaces the epoch *newly* makes
+parse warning-free through the exp-sourced loose tier. There are four, one per
+position where the tier became reachable; every other T3 surface was already
+reachable, and warning-free, at the implementation base. Each row was re-probed
+against the base binary (`a8b4f06227`) and the epoch binary in the default
+profile.
+
+| Newly warning-free surface | Position that gained T3 | Base | Epoch | Witness |
+| --- | --- | --- | --- | --- |
+| `ba ko'a ce'e ca ko'e .e vi ko'i broda` | CEhE leading operand (`loose_term`, camxes-exp.peg:122) | rejects | accepts, no diagnostic | `issue-792-cehe-loose-composition` |
+| `ko'a ce'e ba ko'e .e ca ko'i broda` | CEhE continuation (`nonabs_term`, camxes-exp.peg:122) | rejects | accepts, no diagnostic | `issue-792-cehe-continuation-loose` |
+| `ko'a pe'e je ba ko'e .e ca ko'i broda` | PEhE operand (`cehe_term`, camxes-exp.peg:121) | rejects | accepts, no diagnostic | `issue-792-pehe-operand-loose` |
+| `mi broda be ba ko'a .e ca ko'e be'o brode` | BE/BEI link (`linked_term`, camxes-exp.peg:200) — the tier lost its dialect gate | rejects | accepts, no diagnostic | `adhoc/issues/issue-791/06-loose-link-chain` |
+
+The BO tier at the same four positions does warn, so the gap is exactly the
+connective-only tier: `ba ko'a ce'e ca ko'e .e ba bo vi ko'i broda` and
+`mi broda be ba ko'a .e ba bo ca ko'e be'o brode` are new acceptances that carry
+`syntax.warning.experimental-term-bo-connection`. `ko'a ce'e pu broda` is also a
+new acceptance but is *not* part of this gap: the unguarded CEhE continuation is
+camxes-standard's own `nonabs_term`, so no extension is being diagnosed.
 
 ## Removed routes
 
@@ -205,7 +258,12 @@ question is recorded as a follow-up-issue candidate rather than minted here.
 Three pre-existing v0 fixtures carry the same flip and are re-pinned with the
 epoch: `adhoc/v0/warnings/experimental/simpler-term-connective` (JA),
 `adhoc/v0/warnings/experimental/vuhu-term-connective` and
-`adhoc/v0/syntax/basic/cache-vuhu-connective-after-joik-miss` (VUhU). The
+`adhoc/v0/syntax/basic/cache-vuhu-connective-after-joik-miss` (VUhU). Two corpus
+fixtures carry the flip as well, and the consolidated regeneration below
+disposes of both individually: `corpus/camxes/811` is a PEhE + EK surface that
+now rejects, and `corpus/camxes/20100` is a term-level JEK whose rejection
+*retires* an xfail, because the camxes corpus expected the rejection all along.
+The
 retained halves of both domains keep their acceptance:
 `issue-795-term-ek-accepted`, `issue-806-pehe-jek-accepted`,
 `adhoc/v0/warnings/experimental/broad-a-term-connective`,
@@ -236,3 +294,218 @@ a reinterpretation-flag candidate, exactly as the standing ruling requires.
 Rolling Zantufa accepts the BO-bound continuation through its connectorless BO
 term tier, which #827 owns; until that lands, the Zantufa configuration keeps
 the rejection, witnessed by `vuho-bo-continuation-rejected-zantufa`.
+
+## Consolidated regeneration, comparer, and manual residue
+
+The epoch carries exactly one expectation update, as #792 requires ("do not refresh
+intermediate `TermSyntax` shapes"): the C1-C6 commits pin only their own witnesses, and
+every pre-existing expectation is regenerated once, here.
+
+`fixture-rewrite` visited all 26,444 fixtures. Measured against an archive of
+`tests/fixtures` taken immediately before the regeneration, 18,244 pre-existing fixtures
+changed; the 33 witnesses added by C1-C6 changed in **zero** leaves, which the comparer
+verifies as a hard error rather than a skip.
+
+`regenerate_syntax_fixture` refuses any fixture carrying `expectations.syntax.xfail`
+(`xtask-full/src/main.rs:8813`), because an xfail pin records a corpus-expected status that
+differs from the accepted one. The re-leveling changes the accepted tree of every such
+fixture, so those 394 trees were regenerated through the project's own writer rather than by
+hand: each fixture was copied without its `xfail` table, rewritten, and had its original
+`status` and `xfail` lines spliced back. The pipeline is validated by the 120 xfail fixtures
+whose trees did *not* change — every one of them round-trips byte for byte — and by checking
+the regenerated status against `xfail.accepted-status` for all 515. Exactly one fixture
+failed that check, and it is the acceptance flip ledgered below.
+
+### The comparer
+
+`tools/compare-term-hierarchy-expectations.py` rewrites the *old* tree with the mechanical
+shapes the plan approves and then requires byte equality with the new tree. It never infers
+a class from the new tree, from fixture text, or from a span comparison, so an ownership
+change cannot be laundered as a re-leveling. Class (iii), sumti-term pass-through, is
+prohibited and not implemented.
+
+| Class | Incidence | What it accepts |
+| --- | ---: | --- |
+| `flat-sum-wrapper` (i) | 18,192 | The wrapper paths of the five former `term` sum siblings: the degenerate `ConnectedTerm { leading_term, continuations: [] }` produced by the old `zero_or_more` list, and the nested-sum `SimpleTerm(..)` variant. Atom-only: never a connection, never a termset or GEK atom, never a VUhO-carrying payload, never a recovered tree. |
+| `pehe-cehe-retyping` (ii) | 5 | The PEhE operand's level change and the CEhE continuation's `TaggedSumtiTerm` → `NonabsTaggedSumtiTerm` rename, each only with the parent node *and* the governing connective exhaustively proven. |
+| `stagless-bo-route-rejection` (#796) | 0 | An accept→reject flip whose old tree contains the deleted `BoundTermConnection`. No pre-existing fixture used the route; its witnesses landed with C1. |
+| manual residue | 49 | Individually dispositioned below. |
+
+Per-level nesting-depth validation is the plan's guard against a term landing at the wrong
+ladder depth. Every strip happens at a position whose old and new levels are named in the
+comparer's `POSITIONS` table — the 25 consumer sites plus the PEhE, CEhE, BO and link
+operands — and the surviving leaf's variant name must belong to that position's *new* level
+inventory, transcribed from the rebuilt grammar. A `NonabsTaggedSumtiTerm` outside a CEhE
+continuation, or a `TaggedSumtiTerm` inside one, is residue rather than a re-leveling. Two
+whole-tree invariants back the table: no regenerated tree may contain a `SimpleTerm(..)`
+wrapper, and no regenerated `ConnectedTermSyntax` may carry an empty continuation list.
+
+Any divergence at or inside a `ConnectedTerm`, `ConnectedLinkedTerm`, `LinkedSumti` or
+`Linkargs` node is excluded from every mechanical class by name; the degenerate
+zero-continuation wrapper is the single enumerated exception, which is why it is spelled out
+in class (i). The exclusion is precise rather than textual: the walk is a paired traversal,
+so an unchanged `Linkargs` subtree — present in every `be` fixture — is not residue, while a
+`Linkargs` subtree that *moved* is.
+
+One reading is recorded for review. Reconciliation B9 spells out "excluding connectives,
+VUhO, relatives, termsets, GEK, BO, recovered trees". All of those are implemented except a
+blanket exclusion of terms whose sumti carries a relative clause: a relative clause is
+sumti-internal structure rather than a term-tier shape, class (i) already requires the
+unwrapped payload to match byte for byte, and excluding them would move 1,769 pre-epoch
+fixtures into hand-written ledger rows without adding any safety. The VUhO attachment *is*
+excluded, because that is a term-versus-sumti ownership surface (the epoch-4 residual above).
+
+### Manual residue: 49 individual dispositions
+
+Nothing below is normalized or silently accepted. The 32 fixtures excluded by old-tree shape
+were each re-run through the identical classifier with only the payload exclusion under
+review lifted; 31 then classify as `flat-sum-wrapper` with no residue at all, and the
+thirty-second (`corpus/alis/full-alice.toml`) leaves only its refs digest, dispositioned on
+its own row.
+
+| Fixture | Disposition |
+| --- | --- |
+| `adhoc/output/gentufa-show-elided.toml` | Gentufa-only fixture with no pinned syntax tree, so no mechanical class can attach and the comparer fails closed. The delta is the retired zero-continuation wrapper, visible as `ConnectedTerm` → `SumtiTerm` in the `show-elided` JSON; the token and span projection of every Gentufa leaf is unchanged. |
+| `adhoc/syntax/selbri/issue-840-ek-rejected.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-brivla@[12,17] "brode"` → `syntax.unexpected-word@[12,17] "brode"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `adhoc/syntax/selbri/issue-840-jek-tag-ke-rejected.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-cmavo@[29,31] "ku"` → `syntax.unexpected-brivla@[18,23] "brode"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `adhoc/syntax/sumti-continuation/vuho-bare.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `adhoc/syntax/sumti-continuation/vuho-baseline.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `adhoc/syntax/tags/issue-822-vuhu-not-adopted.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-end@[24,24]` → `syntax.unexpected-cmavo@[11,15] "su'i"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `adhoc/syntax/tags/issue-833-je-waiver.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-brivla@[18,23] "broda"` → `syntax.unexpected-cmavo@[14,17] "roi"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `adhoc/v0/warnings/standard-no-warning/standard-vuho-relative-clause.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-08/section-8.8/c8e8d6.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-08/section-8.8/c8e8d8.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-09/section-9.8/c9e8d6.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-10/section-10.25/c10e25d1.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `NuhiTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-10/section-10.25/c10e25d2.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `NuhiTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-14/section-14.11/c14e11d7.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-14/section-14.15/c14e15d8.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-14/section-14.15/c14e15d9.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chapter-16/section-16.7/c16e7d5.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `NuhiTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chrestomathy/alice01.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `KeTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `cll/chrestomathy/forest-nymph.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/alis/full-alice.toml` | Both the excluded VUhO payload shape and the digest-pinned refs projection. The tree is proven to be the class-(i) wrapper removal alone (audit below), and the refs digest moves for exactly the `corpus/camxes/2391` cause: Alice contains the same `lu ki'u ma na ku da'i sei la cibmasti cicyractu cu cusku li'u` sentence. Diffing the regenerated projections of both binaries gives 15 added frames and 0 removed, all inside that clause's byte range. `output.tersmu.json` is unchanged. |
+| `corpus/camxes/11154.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.incomplete-term@[64,64]` → `syntax.incomplete-selbri@[64,64]`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/11856.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.incomplete-term@[37,37]` → `syntax.incomplete-selbri@[37,37]`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/12023.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/1451.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/16184.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-brivla@[31,36] "lerci"` → `syntax.unexpected-word@[31,36] "lerci"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/16271.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-brivla@[21,26] "jinvi"` → `syntax.unexpected-cmavo@[7,9] "bo"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/1692.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/16937.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/1984.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/20100.toml` | Acceptance flip that **retires an xfail**: `ca le purlamnanca ku je ca le cabnanca ku na go'i` used a term-level JEK, which the corrected #795 domain rejects. The camxes corpus expected `failure` all along, so the fixture drops its `xfail` table, its accepted tree and its Gentufa renderings, and pins the new failure frontier exactly (`syntax.unexpected-cmavo@[27,29] "le"`). |
+| `corpus/camxes/2029.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/2033.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/2038.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/21600.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-brivla@[158,163] "finti"` → `syntax.unexpected-word@[158,163] "finti"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/2391.toml` | Semantic-projection residue with a verified cause: the syntax tree is the class-(i) wrapper removal alone, and the reference collector now reaches the free modifiers of the NA-KU term leaf, so the `sei la cibmasti cicyractu cu cusku` clause inside the fragment contributes its frames where the wrapper path produced none. Isolated by probe: `naku sei la djan cu cusku` yields 0 frames on base `a8b4f06227` and 4 here, while `mi klama sei la djan cu cusku` is unchanged at 9. Exact refs pinned. |
+| `corpus/camxes/2467.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/2481.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/2646.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/2661.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/2881.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.incomplete-selbri@[7,7]` → `syntax.incomplete-sumti@[7,7]`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/5290.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-brivla@[10,18] "zirbolci"` → `syntax.unexpected-word@[10,18] "zirbolci"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/5339.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-cmavo@[30,32] "cu"` → `syntax.unexpected-brivla@[23,29] "terpli"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/6378.toml` | Failure-frontier residue on an input that rejects before and after: `syntax.unexpected-cmavo@[22,24] "le"` → `syntax.unexpected-cmavo@[8,10] "na"`. The frontier moves because the term tier no longer offers the retired connective alternatives. Exact diagnostics pinned. |
+| `corpus/camxes/644.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `ForethoughtTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/811.toml` | Acceptance flip pinned as a **corpus witness of the #806 PEhE domain**: `la djeimyz. ce'e la meris. pe'e .e la djordj. ce'e la martas. prami` joins two CEhE termsets with `pe'e .e`, and the corrected PEhE level takes JOIK or JEK only. The fixture now pins the rejection at byte 34 and the semantic projection's matching error; camxes-exp still accepts it, which is the documented gap already recorded for `ko'a pe'e .e ko'e broda`. |
+| `corpus/camxes/832.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/833.toml` | Excluded old-tree shape: the zero-continuation wrapper covers a VUhO-carrying payload, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/846.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `NuhiTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+| `corpus/camxes/847.toml` | Excluded old-tree shape: the zero-continuation wrapper covers the `NuhiTermset` termset/GEK atom, which class (i) refuses by construction. Individually reviewed: re-running the identical classifier with only that payload exclusion lifted classifies the fixture as `flat-sum-wrapper` with no residue, so the delta is the wrapper removal alone. Exact regenerated tree pinned, no normalization. |
+
+## Scope delivered, and the epoch 6b boundary
+
+This round — epoch 6a — delivers the composed ladder and the dispositions that
+depend on it. It closes #792 (level composition, including the standard CEhE
+flavour divergence), #795 (the term connective domain), #796 (route removal),
+and #816 (the BO tier's stag policy: mandatory in the absorption-safe flavour,
+optional at BE/BEI links), and it discharges the epoch-4 VUhO residual.
+
+#806 is **half** delivered and stays open. Its PEhE half — the JOIK/JEK domain
+of the PEhE level, its operand level, and the CEhE token site — is in this
+round; its standard-termset half is epoch 6b. #794 and #827 are entirely
+epoch 6b.
+
+| Epoch 6b | Issue | Why it is not here |
+| --- | --- | --- |
+| NUhI-less `gek_termset` rebuild: balanced `nonabs (gik / recursion) nonabs` operands, no NUhU slots, with a whole-candidate baseline-gek-sumti classifier | #806 (stays open) | Needs a new recursive termset node and the camxes-exp normal-flavour ladder as its operand level, plus semantic lowering for both. `nu'i` termsets keep their guarded `terms` operands, which is already the sourced NUhI-present shape; `ge ko'a gi pu broda` therefore still rejects. |
+| GOI payload width across the three profiles, and the `abs` axis on the payload flavour | #794 | Needs the normal-flavour ladder threaded through the whole relative-clause subtree in place of the narrow `relative_sumti` family. |
+| Zantufa connectorless BO at the term and sumti tiers, the JAI structural predicate, FA joik-chains, and the Zantufa GOI payload | #827 | Depends on the same normal-flavour ladder plus its own whole-candidate classifier. |
+
+### Why 6b does not rewrite the expectation shapes this round re-levels
+
+The consolidated regeneration below re-levels every term in the corpus. That
+work is not provisional, because the deferred sections add arms and operand
+levels at positions the ladder does not currently reach; they do not renumber it.
+
+*The ladder's levels and their leaf inventories are fixed.* Mechanism E means a
+level re-lists leaves rather than nesting the level below it, so adding an arm to
+a level adds one variant to that level's inventory and changes the Debug shape of
+no tree that does not select the new arm. 6b adds arms — a recursive
+`gek_termset` operand, connectorless BO at the term and sumti tiers, a widened
+JAI atom — and each of them is placed at the baseline precedence level it already
+belongs to, which is the rule this round's own `stag_bound_term_connection`
+placement follows.
+
+*Every 6b arm is unreachable on a surface that parses today.* The NUhI-less
+`gek_termset` arm only engages where a GEK sits at a term position with no NUhI,
+which this round rejects (`ge ko'a gi pu broda`); Zantufa's connectorless BO only
+engages on a BO with no connective, which every profile rejects here
+(`pu ko'a bo ca ko'e broda`); the JAI predicate only widens where the current
+overt-sumti requirement fails. Each therefore turns a rejection into an
+acceptance rather than re-owning an accepted tree, and each lands with its own
+whole-candidate classifier proving exactly that.
+
+*The one subtree 6b does re-shape is not this round's.* #794 replaces the narrow
+`relative_sumti` payload of a GOI relative with a full normal-flavour term. That
+changes GOI payload expectations, which this round does not re-level: the
+regeneration's term positions are the 25 consumer sites plus the PEhE, CEhE, BO
+and link operands, and a GOI payload is none of them. `lo broda goi ko'a ku`
+keeps the tree it has here.
+
+*The ownership question 6b could reopen is already ledgered as a gap, not as a
+pin to revisit.* camxes-exp's inner VUhO attachment stays a documented fidelity
+gap under the standing reinterpretation ruling, as does Zantufa's `ce'e`-as-BO
+lexing, which 6b inherits with #827. Adopting either changes the meaning of a
+surface that already parses, so by that ruling it arrives behind a
+meaning-changing dialect flag rather than by re-pinning the baseline
+expectations regenerated here.
+
+## Verification
+
+Release mode, on the implementation host, at the submitted tree.
+
+| Gate | Result | Log |
+| --- | --- | --- |
+| `cargo test -r --workspace` | 2,310 passed, 0 failed, 16 ignored | `epoch06-gate-workspace-tests4.log` |
+| `fixture-test --profile all` | 26,446 fixtures, 4 facets, 73,733 passed, 514 xfailed, **0 failed** | `epoch06-gate-fixture-profile.log` |
+| Expensive contracts, all targets, release | 2,331 passed, 0 failed | `epoch06-gate-expensive-contracts.log` |
+| `semantics-coverage` | checked 22,608, panics 0, unsupported 0 | `epoch06-gate-semantics-coverage.log` |
+| Debug `jbotci` build | green | `epoch06-gate-debug-jbotci.log` |
+| Debug `dx build` | green | `epoch06-gate-debug-dx.log` |
+| Four Python generated checks | all green | `epoch06-gate-generate_*.log`, `epoch06-gate-compose_stubs.log` |
+| `cargo fmt --all --check` | clean | `epoch06-fmt4.log` |
+| Frozen tagged syntax facet | 60/60 | — |
+| Comparer, ratcheted | 18,244 / 18,192 / 5 / 0 / 49, witness deltas 0 | `epoch06-comparer-final.txt` |
+| Peak RSS, full profile | base 5,738,932 KB → 5,774,252 KB, **+0.62%** (gate +20%) | `epoch06-gate-fixture-profile*.log` |
+| Artifact ratchet | archive +0.67%, unpacked +0.92% versus a base-built control | `epoch06-artifact-ratchet.log` |
+
+The xfail count moves 515 → 514 because `corpus/camxes/20100`'s xfail retires.
+
+Four breakages left by the earlier commits are fixed here rather than deferred:
+`cargo fmt` in three `jbotci-semantics` files; the stale `su'i` case in
+`nonlogical_direct_term_connections_are_principled_errors`, which #795 turned
+from an undefined lowering into a syntax rejection; three stale and one missing
+invariant-audit allowlist row for the deleted `GeneratedDirectTermConnective` /
+`GeneratedDirectTermOperand::Simple` variants and the new
+`GeneratedTaggedTermRef`; and the recovery-anchor metadata snapshot, whose delta
+is exactly this epoch's rule rename and narrowed connective inventories.
+
+Both wheels in the artifact row were built natively as manylinux 2.34, because
+local container tooling could not produce a 2.28 artifact on this host. The base
+control lands within 0.01% of epoch 5's container measurement, which is what
+makes the delta meaningful; `artifact-policy.toml` records the same caveat, and
+the python-wheels workflow remains the acceptance authority for the 2.28
+artifact.
