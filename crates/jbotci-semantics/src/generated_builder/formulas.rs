@@ -1004,7 +1004,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let (leading_term, continuations): (
             GeneratedDirectTermOperand<'syntax>,
             Vec<(
-                GeneratedDirectTermConnective<'syntax>,
+                &'syntax TermAfterthoughtConnectiveSyntax,
                 GeneratedDirectTermOperand<'syntax>,
             )>,
         ) = match connection {
@@ -1015,7 +1015,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     .iter()
                     .map(|continuation| {
                         (
-                            GeneratedDirectTermConnective::Connected(&continuation.connective),
+                            &continuation.connective,
                             GeneratedDirectTermOperand::Bound(&continuation.trailing_term),
                         )
                     })
@@ -1151,7 +1151,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_direct_term_pair_formula(
         &mut self,
-        connective: GeneratedDirectTermConnective<'_>,
+        connective: &TermAfterthoughtConnectiveSyntax,
         left: SemanticObjectId,
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
@@ -1533,7 +1533,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.build_term_assignments_for_terms(before_terms.to_vec(), first_visible_place)?;
         let suffix_assignments = self.build_term_assignments_for_terms(after_terms.to_vec(), 1)?;
         if connection.continuations.len() == 1
-            && !generated_statement_connective_is_logical(&connection.continuations[0].connective)
+            && !generated_statement_connective_is_logical(&statement_connective_from_standard(&connection.continuations[0].connective))
         {
             return self
                 .build_generated_nonlogical_pehe_termset_connection_formula(
@@ -1559,7 +1559,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
         )?;
         for continuation in &connection.continuations {
-            if !generated_statement_connective_is_logical(&continuation.connective) {
+            if !generated_statement_connective_is_logical(&statement_connective_from_standard(&continuation.connective)) {
                 return Err(invalid_graph(
                     "mixed logical and nonlogical PEhE chain reached logical branch folding"
                         .to_owned(),
@@ -1594,19 +1594,19 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let left = if generated_statement_connective_negates_left(&continuation.connective) {
+        let left = if generated_statement_connective_negates_left(&statement_connective_from_standard(&continuation.connective)) {
             self.build_unary_formula(FormulaOperator::Not, left, source.clone())?
         } else {
             left
         };
-        let right = if generated_statement_connective_negates_right(&continuation.connective) {
+        let right = if generated_statement_connective_negates_right(&statement_connective_from_standard(&continuation.connective)) {
             self.build_unary_formula(FormulaOperator::Not, right, source.clone())?
         } else {
             right
         };
         let operator =
-            generated_statement_connective_formula_operator_for_core(&continuation.connective);
-        let children = if generated_statement_connective_has_se(&continuation.connective)
+            generated_statement_connective_formula_operator_for_core(&statement_connective_from_standard(&continuation.connective));
+        let children = if generated_statement_connective_has_se(&statement_connective_from_standard(&continuation.connective))
             && operator != FormulaOperator::WhetherOrNot
         {
             vec![right, left]
@@ -1616,10 +1616,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let connector_parameter =
             build_generated_connective_question_parameter_for_statement_connective(
                 self,
-                &continuation.connective,
+                &statement_connective_from_standard(&continuation.connective),
             )?;
         let connector_source =
-            generated_statement_connective_core_source(&continuation.connective)?;
+            generated_statement_connective_core_source(&statement_connective_from_standard(&continuation.connective))?;
         let formula = self.next_formula_id();
         self.insert(
             formula,
@@ -1634,7 +1634,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     source: ConnectorSource::surface_word(format!("pe'e {connector_source}")),
                     locus: ConnectorLocus::TermSet,
                     truth_table: generated_statement_connective_core_truth_table(
-                        &continuation.connective,
+                        &statement_connective_from_standard(&continuation.connective),
                     ),
                     parameter: connector_parameter,
                 })),
@@ -2174,7 +2174,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(first_visible_place > 0)]
     #[requires(mode == PredicationMode::Asserted)]
-    #[requires(!generated_statement_connective_is_logical(&continuation.connective))]
+    #[requires(!generated_statement_connective_is_logical(&statement_connective_from_standard(&continuation.connective)))]
     #[ensures(ret.as_ref().is_ok_and(|id| id.object_kind() == crate::model::SemanticObjectKind::Formula) || ret.is_err())]
     pub(super) fn build_generated_nonlogical_pehe_termset_connection_formula<'syntax: 'tree>(
         &mut self,
@@ -2244,7 +2244,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     };
                     let reverse_members =
                         generated_statement_connective_reverses_composition_members(
-                            &continuation.connective,
+                            &statement_connective_from_standard(&continuation.connective),
                         );
                     let (first, second) = if reverse_members {
                         (trailing_value, leading_value)
@@ -2252,11 +2252,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         (leading_value, trailing_value)
                     };
                     let operator = generated_nonlogical_statement_composition_operator(
-                        &continuation.connective,
+                        &statement_connective_from_standard(&continuation.connective),
                     )?;
                     let collective = operator.is_mass().then_some(true);
                     let endpoint_inclusion = generated_statement_connective_endpoint_inclusion(
-                        &continuation.connective,
+                        &statement_connective_from_standard(&continuation.connective),
                         reverse_members,
                     );
                     let composite = self.next_referent_id();
@@ -2274,7 +2274,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                                 excluded_members: Vec::new(),
                                 collective,
                                 scalar_negated: generated_statement_connective_negates_right(
-                                    &continuation.connective,
+                                    &statement_connective_from_standard(&continuation.connective),
                                 )
                                 .then_some(true),
                                 complement: None,

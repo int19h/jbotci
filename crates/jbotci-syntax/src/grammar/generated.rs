@@ -1231,7 +1231,7 @@ pub mod generated_model {
     // continuation is offered, in every profile and at every consumer.
     alias "term connection" term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection) = (
         (
-            connected_term_connective,
+            term_afterthought_connective,
             arc(tense_modal),
             choice((cmavo(Bo), cmavo(Ke))).wf(),
             opt(cmavo(Cu).wf()),
@@ -1240,7 +1240,7 @@ pub mod generated_model {
                 arc(forethought_bridi_connection).ignored(),
             )),
         ).not(),
-        (connected_term_connective, arc(tense_modal), cmavo(Bo), cmavo(I)).not(),
+        (term_afterthought_connective, arc(tense_modal), cmavo(Bo), cmavo(I)).not(),
     ).ignored();
 
     /// The PEhE level of the composed term hierarchy: `terms_1 <- terms_2 (PEhE free* joik_jek
@@ -1424,8 +1424,10 @@ pub mod generated_model {
     rule "termset connection continuation" pehe_termset_connection_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The `Pehe` cmavo marker.
         field pehe <- cmavo(Pehe).wf();
-        /// The `statement_connective` connective joining the adjacent constituents of the `pehe_termset_connection_continuation` production.
-        field connective <- statement_connective;
+        /// The PEhE connective. camxes-standard spells the PEhE level `joik_jek` (camxes.peg:114),
+        /// which is the JOIK-or-JEK inventory; #806 carries that domain, so EK and VUhU are
+        /// rejected here with a documented-gap ledger row against camxes-exp's literal `joik_jek`.
+        field connective <- standard_statement_connective;
         /// The shared trailing term child syntax node.
         field trailing_term <- arc(cehe_term(statement, term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci));
     }
@@ -1518,7 +1520,7 @@ pub mod generated_model {
     /// One mandatory-stag BO continuation at the absorption-safe term level.
     rule "term connection continuation" stag_bound_term_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The connective joining the adjacent simple terms.
-        field connective <- bound_term_connective;
+        field connective <- term_afterthought_connective;
         /// The mandatory camxes-exp `stag` before BO.
         field tense_modal <- arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection));
         /// The `Bo` cmavo marker, which owns the experimental warning for the whole connection.
@@ -1527,11 +1529,17 @@ pub mod generated_model {
         field trailing_term <- arc(simple_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
     }
 
-    /// Sum node for term connective; selects among the `joik_connective` and `ek_connective` forms.
-    rule "term connective" bound_term_connective -> enum {
-        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
+    /// Sum node for the term-level connective inventory.
+    ///
+    /// Both camxes-exp term tiers spell their connective `joik_ek` (camxes-exp.peg:153-154), and
+    /// the owner-corrected domain for that position is JOIK or EK only (#795, #806). This
+    /// deliberately diverges from camxes-exp's literal `joik_ek`, which also admits VUhU and
+    /// reaches JA through its `joik`: the divergence is the I02 adjudication applied to the term
+    /// site, and the rejected surfaces are witnessed with a documented-gap ledger row.
+    rule "term connective" term_afterthought_connective -> enum {
+        /// A JOI-family connective.
         joik_connective,
-        /// Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.
+        /// An A-family connective.
         ek_connective,
     }
 
@@ -1548,22 +1556,10 @@ pub mod generated_model {
     rule "term connection continuation" connected_term_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
         assert zantufa_na_led_term_joik_guard();
-        /// The `connected_term_connective` connective joining the adjacent constituents of the `connected_term_continuation` production.
-        field connective <- connected_term_connective;
+        /// The `term_afterthought_connective` connective joining the adjacent constituents of the `connected_term_continuation` production.
+        field connective <- term_afterthought_connective;
         /// The shared trailing term child syntax node.
         field trailing_term <- arc(bound_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
-    }
-
-    /// Sum node for term connective; selects among the `joik_connective`, `jek_connective`, `ek_connective`, and `vuhu_nonlogical_connective` forms.
-    rule "term connective" connected_term_connective -> enum {
-        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
-        joik_connective,
-        /// Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.
-        jek_connective,
-        /// Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.
-        ek_connective,
-        /// Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.
-        vuhu_nonlogical_connective,
     }
 
     // Zantufa's NA-led JOIK collides with the established successful baseline
@@ -6121,7 +6117,7 @@ pub mod generated_model {
     rule "linked arguments" connected_linked_term_continuation(sumti, tense_modal, selbri, forethought_bridi_connection) -> struct {
         assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
         /// The connective joining the adjacent linked terms.
-        field connective <- connected_term_connective;
+        field connective <- term_afterthought_connective;
         /// The BO-bound linked term following the connective.
         field trailing_link <- arc(bound_linked_term(sumti, tense_modal));
     }
@@ -6159,7 +6155,7 @@ pub mod generated_model {
     /// One optional-stag BO continuation in a BE/BEI argument connection.
     rule "linked arguments" bound_linked_term_continuation(sumti, tense_modal) -> struct {
         /// The connective joining the adjacent linked arguments.
-        field connective <- bound_term_connective;
+        field connective <- term_afterthought_connective;
         /// The optional camxes-exp `stag`; unlike ordinary terms, links use the `term` flavor.
         field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
         /// The `Bo` cmavo marker, which owns the experimental warning for the whole connection.

@@ -172,3 +172,42 @@ through the termset-branch cursor, which is what the deleted stag-less route did
 for its two operands and what the CEhE termset already did for its branches. The
 previous behaviour — silently skipping the operands of a `stag_bound_term_connection`
 — was an artefact of the feature-gated route, not a disposition.
+
+## Connective inventories (#795, #806)
+
+`term_afterthought_connective` (JOIK or EK) is the connective of both term
+tiers and of the BE/BEI loose tier; the PEhE level takes the standard
+`standard_statement_connective` (JOIK or JEK). The wide
+`connected_term_connective`, which admitted JEK and VUhU at the loose tier,
+retires with the flips.
+
+Both domains are owner-corrected rather than ported: camxes-exp spells both
+term tiers `joik_ek` and the PEhE tier `joik_jek`, and its `joik_ek_1` is
+`joik / ek / VUhU` while its `joik` also reaches JA spellings
+(camxes-exp.peg:347, :354, :358). The narrowed domains follow #795 ("corrected
+joik/ek domain") and #806 ("PEhE uses joik/jek only"), which is the I02
+adjudication applied to the term site — the same precedence epochs 4 and 5 used
+for their CEhE and selbri EK/VUhU flips.
+
+### Documented gaps
+
+The warning grammar now rejects four shapes that running camxes-exp accepts.
+Each is witnessed, and the standing reinterpretation ruling's fidelity-flag
+question is recorded as a follow-up-issue candidate rather than minted here.
+
+| Surface | camxes-exp | camxes-standard | jbotci | Witness |
+| --- | --- | --- | --- | --- |
+| `ba ko'a je ca ko'e broda` | accepts (`joik_ek` reaches JA) | rejects | rejects | `adhoc/syntax/terms/issue-795-term-jek-rejected` |
+| `ba ko'a vu'u ca ko'e broda` | accepts (`joik_ek_1` includes VUhU) | rejects | rejects | `adhoc/syntax/terms/issue-795-term-vuhu-rejected` |
+| `ko'a pe'e .e ko'e broda` | accepts | rejects | rejects | `adhoc/syntax/terms/issue-806-pehe-ek-rejected` |
+| `ko'a pe'e vu'u ko'e broda` | accepts | rejects | rejects | `adhoc/syntax/terms/issue-806-pehe-vuhu-rejected` |
+
+Three pre-existing v0 fixtures carry the same flip and are re-pinned with the
+epoch: `adhoc/v0/warnings/experimental/simpler-term-connective` (JA),
+`adhoc/v0/warnings/experimental/vuhu-term-connective` and
+`adhoc/v0/syntax/basic/cache-vuhu-connective-after-joik-miss` (VUhU). The
+retained halves of both domains keep their acceptance:
+`issue-795-term-ek-accepted`, `issue-806-pehe-jek-accepted`,
+`adhoc/v0/warnings/experimental/broad-a-term-connective`,
+`broad-joi-term-connective`, and the two `experimental-ji-*-term-connective`
+fixtures, whose `ji` is an A-family question word rather than a JEK.

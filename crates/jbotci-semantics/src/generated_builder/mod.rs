@@ -77,7 +77,7 @@ use jbotci_syntax::generated_model::{
     SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax, SumtiConnectiveSyntax,
     SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
     SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSelbriSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
+    TaggedSelbriSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax, TermAfterthoughtConnectiveSyntax,
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
     TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalAtomSyntax, TenseModalBodySyntax,
     TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermSyntax, TermsFragmentSyntax,
@@ -1393,12 +1393,6 @@ enum GeneratedDistributedSumtiConnective<'syntax> {
         gek: &'syntax jbotci_syntax::generated_model::ModalForethoughtConnectiveSyntax,
         gik: &'syntax GikConnectiveSyntax,
     },
-}
-
-#[invariant(::Connected(_) => true)]
-#[derive(Debug, Clone, Copy)]
-enum GeneratedDirectTermConnective<'syntax> {
-    Connected(&'syntax jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax),
 }
 
 #[invariant(*continuation_count <= sumti.continuations.len())]
