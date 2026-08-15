@@ -185,6 +185,38 @@ visible-place advancement".
 | D5 Zantufa term binding | #827 | not started |
 | C7 consolidated expectations, comparer re-baseline, ratchet, peak RSS | — | not started |
 
+The next session picks these up in that order. What each needs, concretely:
+
+- **D4 (#794).** A named normal-flavour payload constituent: the loose joik_ek
+  tier over an OPTIONAL-stag BO tier over the unguarded leaves. The BE/BEI link
+  ladder that epoch 6a built (`generated.rs`, the `linked_term` family) is the
+  exact structural template, including its `recursive` block declarations —
+  every new ladder level 6b adds must join that block, which is epoch lesson 11.
+  Then the GOI payload widens from `relative_sumti` to it, and the `gek_termset`
+  operand widens to it as well. Witnesses: std FA-tagged and termset payloads,
+  the std negative set from Sol's GOI-width matrix (CEhE, PEhE and `.e bo` stay
+  outside or reject), exp payload positives (`goi ba ko'e .e bo vi ko'i`), and
+  GEhU/relative no-delta rows. The 6a ledger's intentional-partial row for the
+  zantufa GOI payload retires here.
+- **D5 (#827).** Connectorless BO at the term and sumti tiers, placed at the
+  baseline BO-precedence levels; the arm grammar admits only the
+  connector-ABSENT form AND a `#634`-pattern whole-candidate `reject_output`
+  classifier rejects any completed candidate carrying a present connective
+  (belt on top of the grammar shape — B3). The JAI term (overt sumti / explicit
+  KU / elision) with a structural rule-level negative predicate at the named DSL
+  site, its three mandatory configuration fixtures, and recovered/elided-KU
+  diagnostics. FA joik-chains in the zantufa tag_term atom. The `ce'e`-as-BO
+  fidelity note needs one witness pinning baseline CEhE ownership of
+  `ko'a ce'e ko'e broda` in the zantufa profile plus a gap ledger row.
+- **C7.** Re-baseline `tools/compare-term-hierarchy-expectations.py` to
+  `git archive 3c3b84a5ba tests/fixtures` (the tool is fail-closed both ways and
+  its baseline must stay git-derivable — that was the 6a round-3 fix), extend the
+  classes only per the plan's C7 rules, review the comparer before the refresh,
+  then regenerate. The three deferred syntax expectations plus whatever the
+  `forethought_termset` split moves are the manual residue. Then the
+  semantics-coverage ratchet and the peak-RSS gate (epoch-vs-base ≤ +20% on the
+  full release fixture profile, measured AFTER the bulk regeneration, one volume).
+
 ## Open: the `forethought_termset` split
 
 The optional-NUhI `forethought_termset` node still carries the two unsourced
