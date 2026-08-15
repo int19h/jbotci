@@ -218,45 +218,94 @@ where camxes-standard rejects them. The owner-visible consequences:
 | `zantufa` builtin preset | Drops `term-hierarchy` from its definition; the tiers it used to enable are now unconditional. |
 | `ExperimentalTermHierarchyBoConnection` | Renamed `ExperimentalTermBoConnection` (`syntax.warning.experimental-term-bo-connection`). The variant existed but was never emitted; it is now wired to the `bo` token of every BO-bound term and linked-argument connection. |
 
-### Diagnosed tiers and one documented gap
+### Diagnosed tiers and the two warning mechanisms
 
-The BO tier warns on its `bo` token. The loose (T3) tier does **not** warn, and
-that is a recorded gap rather than a decision that term-level connectives are
-standard: camxes-standard has no term-level connective at all, so every loose
-term connection is an extension. The syntax DSL anchors a warning on a `Token`
-parser (`ParserState::warn` takes `&Token`), and a loose continuation owns no
-token of its own — its only tokens belong to the shared `joik_connective` /
-`ek_connective` nodes that the sumti and statement tiers also use. Warning the
-tier therefore requires either duplicating the joik|ek inventory as term-tier
-node types, including the GAhO interval forms, or extending the syntax macro to
-anchor a warning on a node's primary token. Both are outside this epoch's
-scope, and the first carries real fidelity risk. The state is not a regression:
-the default profile already accepted term-level connectives warning-free at the
-implementation base (`ba ko'a .e ca ko'e broda` parses without a diagnostic
-there and here). The owner ruling on the epoch accepts the gap as documented and
-files the DSL work as #860; the duplicate-inventory workaround is explicitly not
-attempted, and the T4 BO warning stays.
+Both extension tiers are diagnosed. camxes-standard has no term-level connective
+at all, so every BO (T4) *and* every loose (T3) term connection is an extension
+and warns in every profile. There is no documented gap.
 
-The ruling requires this note to enumerate the surfaces the epoch *newly* makes
-parse warning-free through the exp-sourced loose tier. There are four, one per
-position where the tier became reachable; every other T3 surface was already
-reachable, and warning-free, at the implementation base. Each row was re-probed
-against the base binary (`a8b4f06227`) and the epoch binary in the default
-profile.
+The two tiers reach that outcome through different mechanisms, because they own
+different amounts of the source text:
 
-| Newly warning-free surface | Position that gained T3 | Base | Epoch | Witness |
+| Tier | Warning | Mechanism | Anchor |
+| --- | --- | --- | --- |
+| T4, BO-bound | `syntax.warning.experimental-term-bo-connection` | In-parser token warn: `cmavo(Bo).warn(ExperimentalTermBoConnection)` in the rule body (`generated.rs` `stag_bound_term_continuation`, `bound_linked_term_continuation`) | The `bo` token |
+| T3, loose | `syntax.warning.experimental-term-loose-connection` | Post-parse construct visitor: `GeneratedConstructWarningVisitor::warn_first_token` on `ConnectedTermContinuationSyntax` and `ConnectedLinkedTermContinuationSyntax` (`grammar/mod.rs`) | The continuation's first token, which is its connective |
+
+The split is forced by the grammar, not chosen for convenience. `ParserState::warn`
+takes a `&Token`, so an in-parser warn has to name a token the rule itself
+matches. T4 matches its own `bo`, so it warns there. A T3 continuation matches
+no token of its own: its connective is the shared `joik_connective` /
+`ek_connective` node that the sumti and statement tiers also use, so an
+in-parser warn at that site would fire on every tier that shares the inventory.
+The alternative — duplicating the joik|ek inventory, including the GAhO interval
+forms, as term-tier node types — carries real fidelity risk for no gain.
+
+The construct visitor already solves exactly this problem for the rule-level
+constructs that own no distinguishing token (`ExperimentalFlattenedTag`,
+`ExperimentalZantufaTag`, `ExperimentalZantufaSelbriRelativePlacement`). It runs
+over the completed tree, so it can anchor on a node's first token; for a loose
+continuation that first token *is* the connective, because the continuation is
+`connective trailing_term`. No inventory is duplicated and no DSL change is
+needed, which is why #860 — filed to extend the macro for this case — is
+superseded rather than implemented.
+
+One warning is emitted per continuation, so an n-operand loose chain carries
+n − 1 warnings; `ba ko'a .e ca ko'e .a vi ko'i broda` carries two. The warnings
+join the parser-attached stream and are re-sorted by anchor index, so a mixed
+chain reports its T3 and T4 warnings in source order.
+
+The four positions where the epoch newly makes the loose tier *reachable* each
+carry the warning. Each row was re-probed against the base binary
+(`a8b4f06227`) and the epoch binary in the default profile.
+
+| Newly reachable surface | Position that gained T3 | Base | Epoch | Witness |
 | --- | --- | --- | --- | --- |
-| `ba ko'a ce'e ca ko'e .e vi ko'i broda` | CEhE leading operand (`loose_term`, camxes-exp.peg:122) | rejects | accepts, no diagnostic | `issue-792-cehe-loose-composition` |
-| `ko'a ce'e ba ko'e .e ca ko'i broda` | CEhE continuation (`nonabs_term`, camxes-exp.peg:122) | rejects | accepts, no diagnostic | `issue-792-cehe-continuation-loose` |
-| `ko'a pe'e je ba ko'e .e ca ko'i broda` | PEhE operand (`cehe_term`, camxes-exp.peg:121) | rejects | accepts, no diagnostic | `issue-792-pehe-operand-loose` |
-| `mi broda be ba ko'a .e ca ko'e be'o brode` | BE/BEI link (`linked_term`, camxes-exp.peg:200) — the tier lost its dialect gate | rejects | accepts, no diagnostic | `adhoc/issues/issue-791/06-loose-link-chain` |
+| `ba ko'a ce'e ca ko'e .e vi ko'i broda` | CEhE leading operand (`loose_term`, camxes-exp.peg:122) | rejects | accepts + T3 warning on `.e` | `issue-792-cehe-loose-composition` |
+| `ko'a ce'e ba ko'e .e ca ko'i broda` | CEhE continuation (`nonabs_term`, camxes-exp.peg:122) | rejects | accepts + T3 warning on `.e` | `issue-792-cehe-continuation-loose` |
+| `ko'a pe'e je ba ko'e .e ca ko'i broda` | PEhE operand (`cehe_term`, camxes-exp.peg:121) | rejects | accepts + T3 warning on `.e` | `issue-792-pehe-operand-loose` |
+| `mi broda be ba ko'a .e ca ko'e be'o brode` | BE/BEI link (`linked_term`, camxes-exp.peg:200) — the tier lost its dialect gate | rejects | accepts + T3 warning on `.e` | `adhoc/issues/issue-791/06-loose-link-chain` |
 
-The BO tier at the same four positions does warn, so the gap is exactly the
-connective-only tier: `ba ko'a ce'e ca ko'e .e ba bo vi ko'i broda` and
-`mi broda be ba ko'a .e ba bo ca ko'e be'o brode` are new acceptances that carry
-`syntax.warning.experimental-term-bo-connection`. `ko'a ce'e pu broda` is also a
-new acceptance but is *not* part of this gap: the unguarded CEhE continuation is
-camxes-standard's own `nonabs_term`, so no extension is being diagnosed.
+The warning is not limited to those four: it fires wherever the loose tier is
+selected, including the positions that were already reachable at the
+implementation base. `ba ko'a .e ca ko'e broda` parsed warning-free at the base
+and now carries the T3 warning; that is the intended behaviour change and is the
+reason the epoch re-pins fixtures it did not otherwise touch (see the re-pin
+table below).
+
+The BO tier at the same four positions warns as before:
+`ba ko'a ce'e ca ko'e .e ba bo vi ko'i broda` and
+`mi broda be ba ko'a .e ba bo ca ko'e be'o brode` carry
+`syntax.warning.experimental-term-bo-connection` on their `bo`, and no T3
+warning — the `.e` there belongs to the BO continuation, not to a loose one.
+`ko'a ce'e pu broda` is a new acceptance that carries *neither* warning: the
+unguarded CEhE continuation is camxes-standard's own `nonabs_term`, so no
+extension is being diagnosed.
+
+### T3 warning re-pins
+
+The warning changes no tree, no status and no other diagnostic. Every affected
+expectation gains T3 warning entries and keeps every pre-existing diagnostic in
+place and in order, which is the property
+`tools/compare-term-hierarchy-expectations.py` enforces as its class (iv)
+`t3-loose-connection-warning`.
+
+| Re-pinned expectations | Fixtures | Warnings added |
+| --- | --- | --- |
+| Epoch witnesses (C1–C6, exact commit-local pins) | 9 | 10 |
+| Pre-epoch fixtures the tier already reached | 13 | 15 |
+| **Total** | **22** | **25** |
+
+Only one of the 22 is a corpus fixture (`corpus/camxes/5226`). Term-level
+connectives are rare in running text because the sumti tier's greedy connective
+absorbs almost every `.e` before the term tier can offer one; the loose tier is
+overwhelmingly exercised by the adhoc suites that target it.
+
+Because the warning lands on surfaces the epoch's own witnesses pin, the
+comparer's zero-witness-delta guarantee is restated rather than dropped: a
+witness may now take the additive class-(iv) re-pin and nothing else. Any other
+witness delta, or a witness that mixes class (iv) with any other class, is still
+a hard error.
 
 ## Removed routes
 

@@ -3066,6 +3066,7 @@ pub enum ExperimentalConstruct {
     ExperimentalBroadBoStatementConnective,
     ExperimentalBroadKePredicateContinuation,
     ExperimentalTermBoConnection,
+    ExperimentalTermLooseConnection,
     ExperimentalBareNaTerm,
     ExperimentalXohiTagSelbri,
     ExperimentalZantufaCmavo,
@@ -3201,6 +3202,9 @@ impl ExperimentalConstruct {
                 "syntax.warning.experimental-broad-ke-bridi-continuation"
             }
             Self::ExperimentalTermBoConnection => "syntax.warning.experimental-term-bo-connection",
+            Self::ExperimentalTermLooseConnection => {
+                "syntax.warning.experimental-term-loose-connection"
+            }
             Self::ExperimentalBareNaTerm => "syntax.warning.experimental-bare-na-term",
             Self::ExperimentalXohiTagSelbri => "syntax.warning.experimental-xohi-tag-selbri",
             Self::ExperimentalZantufaCmavo => "syntax.warning.experimental-zantufa-cmavo",
@@ -3344,6 +3348,7 @@ impl ExperimentalConstruct {
                 "broad connective with KE/KEhE in a bridi/subbridi continuation"
             }
             Self::ExperimentalTermBoConnection => "BO-bound term or linked-argument connection",
+            Self::ExperimentalTermLooseConnection => "loose term or linked-argument connection",
             Self::ExperimentalBareNaTerm => "bare NA term/adverbial without KU",
             Self::ExperimentalXohiTagSelbri => "XOhI tag-to-selbri conversion",
             Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",

@@ -1414,6 +1414,7 @@ class _syntax_parser_ExperimentalConstruct(StrEnum):
     EXPERIMENTAL_BROAD_BO_STATEMENT_CONNECTIVE = 'experimental-broad-bo-statement-connective'
     EXPERIMENTAL_BROAD_KE_PREDICATE_CONTINUATION = 'experimental-broad-ke-predicate-continuation'
     EXPERIMENTAL_TERM_BO_CONNECTION = 'experimental-term-bo-connection'
+    EXPERIMENTAL_TERM_LOOSE_CONNECTION = 'experimental-term-loose-connection'
     EXPERIMENTAL_BARE_NA_TERM = 'experimental-bare-na-term'
     EXPERIMENTAL_XOHI_TAG_SELBRI = 'experimental-xohi-tag-selbri'
     EXPERIMENTAL_ZANTUFA_CMAVO = 'experimental-zantufa-cmavo'

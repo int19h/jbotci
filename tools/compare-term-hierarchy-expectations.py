@@ -65,6 +65,27 @@ Class (ii) `pehe-cehe-retyping` — PEhE and CEhE operand re-typing
 Class (iii) from the plan, sumti-term pass-through, is PROHIBITED and deliberately not
 implemented: it would accept ownership changes at identical spans.
 
+Class (iv) `t3-loose-connection-warning` — the T3 construct warning
+    The loose (T3) tier is a diagnosed extension, so every loose continuation now carries
+    `syntax.warning.experimental-term-loose-connection` anchored on its connective token.
+    That warning is *additive to a diagnostics list and nothing else*: a fixture in this
+    class must keep its tree, its status and every other leaf byte-identical, and its
+    `diagnostics` leaves may only gain entries whose `code` is exactly the T3 warning.
+    Deleting the additions from the new list must reproduce the old list element for element
+    and in order, so no pre-existing diagnostic can be reordered, retimed, re-spanned or
+    dropped under cover of the new warning.  A fixture that had no `diagnostics` leaf at all
+    is treated as having had an empty one, which is the only leaf-set difference this
+    classifier accepts.
+
+    Unlike the tree classes, this one is *not* excluded on recovered expectations: a
+    diagnostics list is a flat pinned list rather than a tree shape, and the additive check
+    is exactly as fail-closed on `expectations.syntax.recovered.diagnostics` as it is on
+    `expectations.syntax.diagnostics`.  Recovered *trees* remain excluded.
+
+    Because the T3 warning fires on surfaces the epoch's own witnesses pin, this is also the
+    only class permitted to appear on a C1-C6 witness.  A witness delta that classifies as
+    anything else — or that mixes this class with any other — is still a hard error.
+
 #796 flip `stagless-bo-route-rejection`
     The deleted standard stag-less BO term route makes its surfaces reject.  A fixture whose
     old tree contains `BoundTermConnection` and whose status flips success -> failure is a
@@ -354,22 +375,43 @@ PEHE_CONNECTIVE_NAMES = frozenset({"JoikConnective", "JekConnective"})
 
 # The reviewed C7 result.  A re-run against the same archive must reproduce it exactly;
 # `--expect-changed`/`--expect-manual` override the pins for an exploratory run.
-EXPECTED_CHANGED = 18244
+EXPECTED_CHANGED = 18249
 EXPECTED_MECHANICAL = {
     "flat-sum-wrapper": 18192,
     "pehe-cehe-retyping": 5,
     "stagless-bo-route-rejection": 0,
+    "t3-loose-connection-warning": 13,
 }
 EXPECTED_MANUAL = 49
 
 CLASS_FLAT_SUM_WRAPPER = "flat-sum-wrapper"
 CLASS_PEHE_CEHE_RETYPING = "pehe-cehe-retyping"
 CLASS_BO_ROUTE_REJECTION = "stagless-bo-route-rejection"
+CLASS_T3_LOOSE_WARNING = "t3-loose-connection-warning"
 MECHANICAL_CLASSES = (
     CLASS_FLAT_SUM_WRAPPER,
     CLASS_PEHE_CEHE_RETYPING,
     CLASS_BO_ROUTE_REJECTION,
+    CLASS_T3_LOOSE_WARNING,
 )
+
+T3_LOOSE_WARNING_CODE = "syntax.warning.experimental-term-loose-connection"
+
+
+def t3_warning_only_addition(old_value: Any, new_value: Any) -> bool:
+    """True when `new_value` is `old_value` plus T3 warning entries and nothing else.
+
+    Fail-closed: a non-list on either side, a removal, a reorder, or any added entry whose
+    `code` is not the T3 warning all return False and fall through to manual residue.
+    """
+    old_list = [] if old_value is None else old_value
+    new_list = [] if new_value is None else new_value
+    if not isinstance(old_list, list) or not isinstance(new_list, list):
+        return False
+    surviving = [entry for entry in new_list if entry.get("code") != T3_LOOSE_WARNING_CODE]
+    if surviving != old_list:
+        return False
+    return len(new_list) > len(old_list)
 
 
 class Divergence(Exception):
@@ -663,14 +705,29 @@ def compare_fixture(old: dict[str, Any], new: dict[str, Any]) -> tuple[set[str],
     residue: list[str] = []
     classes: set[str] = set()
     if set(old_leaves) != set(new_leaves):
-        added = sorted(".".join(path) for path in set(new_leaves) - set(old_leaves))
-        removed = sorted(".".join(path) for path in set(old_leaves) - set(new_leaves))
-        reasons = []
-        if added:
-            reasons.append(f"expectation leaves added: {', '.join(added)}")
-        if removed:
-            reasons.append(f"expectation leaves removed: {', '.join(removed)}")
-        return classes, reasons
+        added_paths = set(new_leaves) - set(old_leaves)
+        removed_paths = set(old_leaves) - set(new_leaves)
+        # A fixture that carried no diagnostics at all gains the leaf outright when the T3
+        # warning starts firing.  That is the one leaf-set difference class (iv) accepts, and
+        # only in the additive direction: a removed leaf is never mechanical.
+        t3_added = {
+            path
+            for path in added_paths
+            if path[-1:] == ("diagnostics",) and t3_warning_only_addition(None, new_leaves[path])
+        }
+        if not removed_paths and t3_added == added_paths:
+            classes.add(CLASS_T3_LOOSE_WARNING)
+            for path in t3_added:
+                old_leaves[path] = []
+        else:
+            added = sorted(".".join(path) for path in added_paths)
+            removed = sorted(".".join(path) for path in removed_paths)
+            reasons = []
+            if added:
+                reasons.append(f"expectation leaves added: {', '.join(added)}")
+            if removed:
+                reasons.append(f"expectation leaves removed: {', '.join(removed)}")
+            return classes, reasons
 
     old_status = old_leaves.get(("expectations", "syntax", "status"))
     new_status = new_leaves.get(("expectations", "syntax", "status"))
@@ -687,6 +744,15 @@ def compare_fixture(old: dict[str, Any], new: dict[str, Any]) -> tuple[set[str],
         if old_value == new_value:
             continue
         joined = ".".join(path)
+        # Checked before the recovered exclusion: a diagnostics list is a flat pinned list,
+        # not a tree shape, so the additive T3 check is equally fail-closed on the recovered
+        # expectations.  Recovered trees stay excluded by the branch below.
+        if path[-1:] == ("diagnostics",):
+            if t3_warning_only_addition(old_value, new_value):
+                classes.add(CLASS_T3_LOOSE_WARNING)
+            else:
+                residue.append(joined)
+            continue
         if path[:2] == ("expectations", "syntax") and "recovered" in path:
             residue.append(f"recovered-tree leaf {joined} (excluded from mechanical classes)")
             continue
@@ -743,9 +809,9 @@ def classify_one(job: tuple[str, str, str]) -> tuple[str, list[str], list[str]]:
 
 def collect_jobs(
     candidate_root: Path, baseline_root: Path, witnesses: set[str]
-) -> tuple[list[tuple[str, str, str]], list[str]]:
+) -> tuple[list[tuple[str, str, str]], list[tuple[str, str, str]]]:
     jobs: list[tuple[str, str, str]] = []
-    witness_deltas: list[str] = []
+    witness_jobs: list[tuple[str, str, str]] = []
     for candidate_path in sorted(candidate_root.rglob("*.toml")):
         relative = candidate_path.relative_to(candidate_root)
         repository_path = (Path("tests/fixtures") / relative).as_posix()
@@ -755,11 +821,13 @@ def collect_jobs(
         if baseline_file.read_bytes() == candidate_path.read_bytes():
             continue
         if repository_path in witnesses:
-            # C1-C6 witnesses carry commit-local exact pins; a delta means the pin was wrong.
-            witness_deltas.append(repository_path)
+            # C1-C6 witnesses carry commit-local exact pins.  Since the T3 warning ruling they
+            # are allowed exactly one delta -- the additive class-(iv) re-pin -- and are
+            # classified for it rather than skipped; any other delta means the pin was wrong.
+            witness_jobs.append((repository_path, str(baseline_file), str(candidate_path)))
             continue
         jobs.append((repository_path, str(baseline_file), str(candidate_path)))
-    return jobs, witness_deltas
+    return jobs, witness_jobs
 
 
 def run(args: argparse.Namespace) -> int:
@@ -779,10 +847,12 @@ def run(args: argparse.Namespace) -> int:
             stdout=subprocess.PIPE,
         ).stdout.splitlines()
     )
-    jobs, witness_deltas = collect_jobs(args.candidate, args.baseline_root, witnesses)
+    jobs, witness_jobs = collect_jobs(args.candidate, args.baseline_root, witnesses)
 
     mechanical: dict[str, list[str]] = {name: [] for name in MECHANICAL_CLASSES}
     manual: list[tuple[str, list[str]]] = []
+    witness_rewarns: list[str] = []
+    witness_deltas: list[str] = []
     with ProcessPoolExecutor(max_workers=args.jobs) as pool:
         for repository_path, classes, residue in pool.map(classify_one, jobs, chunksize=16):
             if residue:
@@ -790,6 +860,11 @@ def run(args: argparse.Namespace) -> int:
             else:
                 for classification in classes:
                     mechanical[classification].append(repository_path)
+        for repository_path, classes, residue in pool.map(classify_one, witness_jobs, chunksize=4):
+            if not residue and classes == [CLASS_T3_LOOSE_WARNING]:
+                witness_rewarns.append(repository_path)
+            else:
+                witness_deltas.append(repository_path)
 
     lines = [f"changed: {len(jobs)}"]
     for classification, paths in mechanical.items():
@@ -797,9 +872,11 @@ def run(args: argparse.Namespace) -> int:
     lines.append(f"manual: {len(manual)}")
     for path, reasons in sorted(manual):
         lines.append(f"  {path}: {'; '.join(reasons)}")
+    lines.append(f"epoch-witness T3 re-pins: {len(witness_rewarns)}")
+    lines.extend(f"  {path}" for path in sorted(witness_rewarns))
     if witness_deltas:
         lines.append(f"epoch-witness deltas (must be empty): {len(witness_deltas)}")
-        lines.extend(f"  {path}" for path in witness_deltas)
+        lines.extend(f"  {path}" for path in sorted(witness_deltas))
     report = "\n".join(lines)
     print(report)
     if args.report:
@@ -813,7 +890,8 @@ def run(args: argparse.Namespace) -> int:
                     "manual": [
                         {"fixture": path, "reasons": reasons} for path, reasons in sorted(manual)
                     ],
-                    "witness_deltas": witness_deltas,
+                    "witness_rewarns": sorted(witness_rewarns),
+                    "witness_deltas": sorted(witness_deltas),
                 },
                 indent=2,
                 sort_keys=True,
@@ -822,7 +900,7 @@ def run(args: argparse.Namespace) -> int:
         )
 
     if witness_deltas:
-        print("error: epoch witnesses must keep their commit-local pins")
+        print("error: epoch witnesses may only take the additive T3 warning re-pin")
         return 1
     if len(jobs) != args.expect_changed:
         print(f"error: expected {args.expect_changed} changed pre-epoch fixtures")

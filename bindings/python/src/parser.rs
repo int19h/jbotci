@@ -271,6 +271,7 @@ define_syntax_string_enum_binding!(
         ExperimentalConstruct::ExperimentalBroadBoStatementConnective => ("EXPERIMENTAL_BROAD_BO_STATEMENT_CONNECTIVE", "experimental-broad-bo-statement-connective"),
         ExperimentalConstruct::ExperimentalBroadKePredicateContinuation => ("EXPERIMENTAL_BROAD_KE_PREDICATE_CONTINUATION", "experimental-broad-ke-predicate-continuation"),
         ExperimentalConstruct::ExperimentalTermBoConnection => ("EXPERIMENTAL_TERM_BO_CONNECTION", "experimental-term-bo-connection"),
+        ExperimentalConstruct::ExperimentalTermLooseConnection => ("EXPERIMENTAL_TERM_LOOSE_CONNECTION", "experimental-term-loose-connection"),
         ExperimentalConstruct::ExperimentalBareNaTerm => ("EXPERIMENTAL_BARE_NA_TERM", "experimental-bare-na-term"),
         ExperimentalConstruct::ExperimentalXohiTagSelbri => ("EXPERIMENTAL_XOHI_TAG_SELBRI", "experimental-xohi-tag-selbri"),
         ExperimentalConstruct::ExperimentalZantufaCmavo => ("EXPERIMENTAL_ZANTUFA_CMAVO", "experimental-zantufa-cmavo"),
