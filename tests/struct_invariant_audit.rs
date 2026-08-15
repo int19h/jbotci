@@ -1176,6 +1176,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTaggedTermRef",
+        "borrowed tag-term view delegates validity to the invariant-bearing guarded or unguarded tag term it was built from",
+    ),
+    (
         "crates/jbotci-semantics/src/model.rs:Actuality",
         "actuality is a single closed enum field",
     ),

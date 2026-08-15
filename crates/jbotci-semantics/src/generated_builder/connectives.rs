@@ -461,9 +461,10 @@ pub(super) fn generated_direct_term_connection_unsupported_error(
         TermSyntax::ConnectedTerm(connection) => Some(connection),
         _ => None,
     })?;
-    let all_logical = connection.continuations.iter().all(|continuation| {
-        generated_direct_term_connective_is_logical(&continuation.connective)
-    });
+    let all_logical = connection
+        .continuations
+        .iter()
+        .all(|continuation| generated_direct_term_connective_is_logical(&continuation.connective));
     Some(if all_logical {
         undefined_semantics("a direct term connection that shares terms with a connected bridi")
     } else {
@@ -492,12 +493,10 @@ pub(super) fn generated_direct_term_connective_primary_cmavo(
     connective: &TermAfterthoughtConnectiveSyntax,
 ) -> Option<Cmavo> {
     match connective {
-            TermAfterthoughtConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_primary_cmavo(connective),
-            TermAfterthoughtConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.a.value.cmavo(),
+        TermAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_primary_cmavo(connective)
+        }
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => connective.a.value.cmavo(),
     }
 }
 
@@ -521,25 +520,23 @@ pub(super) fn generated_direct_term_connective_source(
     connective: &TermAfterthoughtConnectiveSyntax,
 ) -> Result<String, SemanticsError> {
     match connective {
-            TermAfterthoughtConnectiveSyntax::JoikConnective(
-                connective,
-            ) => Ok(generated_joik_connective_source(connective)),
-            TermAfterthoughtConnectiveSyntax::EkConnective(
-                connective,
-            ) => {
-                let mut tokens = Vec::new();
-                if let Some(token) = &connective.na {
-                    tokens.push(token);
-                }
-                if let Some(token) = &connective.se {
-                    tokens.push(token);
-                }
-                tokens.push(&connective.a.value);
-                if let Some(token) = &connective.nai {
-                    tokens.push(&token.value);
-                }
-                Ok(connective_source_from_tokens(tokens))
+        TermAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            Ok(generated_joik_connective_source(connective))
+        }
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => {
+            let mut tokens = Vec::new();
+            if let Some(token) = &connective.na {
+                tokens.push(token);
             }
+            if let Some(token) = &connective.se {
+                tokens.push(token);
+            }
+            tokens.push(&connective.a.value);
+            if let Some(token) = &connective.nai {
+                tokens.push(&token.value);
+            }
+            Ok(connective_source_from_tokens(tokens))
+        }
     }
 }
 
@@ -549,12 +546,10 @@ pub(super) fn generated_direct_term_connective_has_se(
     connective: &TermAfterthoughtConnectiveSyntax,
 ) -> bool {
     match connective {
-            TermAfterthoughtConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_has_se(connective),
-            TermAfterthoughtConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.se.is_some(),
+        TermAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_has_se(connective)
+        }
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => connective.se.is_some(),
     }
 }
 
@@ -564,10 +559,8 @@ pub(super) fn generated_direct_term_connective_negates_left(
     connective: &TermAfterthoughtConnectiveSyntax,
 ) -> bool {
     match connective {
-            TermAfterthoughtConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.na.is_some(),
-            _ => false,
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => connective.na.is_some(),
+        _ => false,
     }
 }
 
@@ -577,12 +570,10 @@ pub(super) fn generated_direct_term_connective_negates_right(
     connective: &TermAfterthoughtConnectiveSyntax,
 ) -> bool {
     match connective {
-            TermAfterthoughtConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_negates_right(connective),
-            TermAfterthoughtConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.nai.is_some(),
+        TermAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_negates_right(connective)
+        }
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => connective.nai.is_some(),
     }
 }
 

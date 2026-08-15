@@ -1533,7 +1533,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             self.build_term_assignments_for_terms(before_terms.to_vec(), first_visible_place)?;
         let suffix_assignments = self.build_term_assignments_for_terms(after_terms.to_vec(), 1)?;
         if connection.continuations.len() == 1
-            && !generated_statement_connective_is_logical(&statement_connective_from_standard(&connection.continuations[0].connective))
+            && !generated_statement_connective_is_logical(&statement_connective_from_standard(
+                &connection.continuations[0].connective,
+            ))
         {
             return self
                 .build_generated_nonlogical_pehe_termset_connection_formula(
@@ -1559,7 +1561,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             source.clone(),
         )?;
         for continuation in &connection.continuations {
-            if !generated_statement_connective_is_logical(&statement_connective_from_standard(&continuation.connective)) {
+            if !generated_statement_connective_is_logical(&statement_connective_from_standard(
+                &continuation.connective,
+            )) {
                 return Err(invalid_graph(
                     "mixed logical and nonlogical PEhE chain reached logical branch folding"
                         .to_owned(),
@@ -1594,20 +1598,26 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         right: SemanticObjectId,
         source: Option<crate::model::SemanticSource>,
     ) -> Result<SemanticObjectId, SemanticsError> {
-        let left = if generated_statement_connective_negates_left(&statement_connective_from_standard(&continuation.connective)) {
+        let left = if generated_statement_connective_negates_left(
+            &statement_connective_from_standard(&continuation.connective),
+        ) {
             self.build_unary_formula(FormulaOperator::Not, left, source.clone())?
         } else {
             left
         };
-        let right = if generated_statement_connective_negates_right(&statement_connective_from_standard(&continuation.connective)) {
+        let right = if generated_statement_connective_negates_right(
+            &statement_connective_from_standard(&continuation.connective),
+        ) {
             self.build_unary_formula(FormulaOperator::Not, right, source.clone())?
         } else {
             right
         };
-        let operator =
-            generated_statement_connective_formula_operator_for_core(&statement_connective_from_standard(&continuation.connective));
-        let children = if generated_statement_connective_has_se(&statement_connective_from_standard(&continuation.connective))
-            && operator != FormulaOperator::WhetherOrNot
+        let operator = generated_statement_connective_formula_operator_for_core(
+            &statement_connective_from_standard(&continuation.connective),
+        );
+        let children = if generated_statement_connective_has_se(
+            &statement_connective_from_standard(&continuation.connective),
+        ) && operator != FormulaOperator::WhetherOrNot
         {
             vec![right, left]
         } else {
@@ -1618,8 +1628,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 self,
                 &statement_connective_from_standard(&continuation.connective),
             )?;
-        let connector_source =
-            generated_statement_connective_core_source(&statement_connective_from_standard(&continuation.connective))?;
+        let connector_source = generated_statement_connective_core_source(
+            &statement_connective_from_standard(&continuation.connective),
+        )?;
         let formula = self.next_formula_id();
         self.insert(
             formula,

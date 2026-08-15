@@ -1448,10 +1448,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed hierarchy operand delegates validity to the invariant-bearing BoundTermSyntax node",
     ),
     (
-        "crates/jbotci-semantics/src/generated_builder/formulas.rs:GeneratedDirectTermOperand::Simple",
-        "borrowed legacy operand delegates validity to the invariant-bearing SimpleTermSyntax node",
-    ),
-    (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedAlternativeArgumentSource::Built",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
@@ -1494,14 +1490,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedBridiFormulaScope::Term",
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDirectTermConnective::Bound",
-        "direct term connective delegates validity to the typed bound connective syntax",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDirectTermConnective::Connected",
-        "direct term connective delegates validity to the typed connected connective syntax",
     ),
     (
         "crates/jbotci-semantics/src/generated_builder/mod.rs:GeneratedDistributedSumtiBranch::Sumti",

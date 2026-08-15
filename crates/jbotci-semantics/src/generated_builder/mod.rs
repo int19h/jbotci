@@ -77,11 +77,11 @@ use jbotci_syntax::generated_model::{
     SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax, SumtiConnectiveSyntax,
     SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
     SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSelbriSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax, TermAfterthoughtConnectiveSyntax,
+    TaggedSelbriSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
     TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalAtomSyntax, TenseModalBodySyntax,
-    TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermSyntax, TermsFragmentSyntax,
-    TermsetGroupSyntax, TextGroupStatementSyntax, TextLeadingConnectiveSyntax,
+    TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermAfterthoughtConnectiveSyntax, TermSyntax,
+    TermsFragmentSyntax, TermsetGroupSyntax, TextGroupStatementSyntax, TextLeadingConnectiveSyntax,
     TextNihoParagraphsSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax,
     TextSyntax, TreeNode, TreeWalkable, TreeWalker, UntaggedSelbriSyntax,
     VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax, VocativeSumtiSyntax,
@@ -14510,7 +14510,11 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn nonlogical_direct_term_connections_are_principled_errors() {
-        for source in ["pu ko'a joi ba ko'e broda", "pu ko'a su'i ba ko'e broda"] {
+        // The VUhU spelling (`pu ko'a su'i ba ko'e broda`) left this list with #795: the
+        // corrected term connective domain is JOIK or EK, so VUhU is now a syntax rejection
+        // rather than an undefined lowering. `adhoc/syntax/terms/issue-795-term-vuhu-rejected`
+        // pins that. JOIK reaches JOI, which still parses and still has no lowering.
+        for source in ["pu ko'a joi ba ko'e broda"] {
             let error = semantic_result_for(source)
                 .expect_err("experimental nonlogical direct term semantics are undefined");
             assert_eq!(error.kind, SemanticsErrorKind::InvalidGraph);
