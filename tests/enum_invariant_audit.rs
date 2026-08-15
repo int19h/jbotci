@@ -1792,6 +1792,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing ForethoughtTermsetSyntax node",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::GekTermset",
+        "borrowed leaf validity is owned by the invariant-bearing GekTermsetSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::JaiTaggedSumtiTerm",
         "borrowed leaf validity is owned by the invariant-bearing JaiTaggedSumtiTermSyntax node",
     ),
