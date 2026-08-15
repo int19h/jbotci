@@ -296,6 +296,10 @@ place and in order, which is the property
 | Pre-epoch fixtures the tier already reached | 13 | 15 |
 | **Total** | **22** | **25** |
 
+Both rows are the comparer's own report rather than a hand count: the 13 are its class-(iv)
+incidence and the 9 are its `epoch-witness T3 re-pins` list, each named in
+`epoch06-comparer-round3.txt`.
+
 Only one of the 22 is a corpus fixture (`corpus/camxes/5226`). Term-level
 connectives are rare in running text because the sumti tier's greedy connective
 absorbs almost every `.e` before the term tier can offer one; the loose tier is
@@ -396,10 +400,14 @@ The epoch carries exactly one expectation update, as #792 requires ("do not refr
 intermediate `TermSyntax` shapes"): the C1-C6 commits pin only their own witnesses, and
 every pre-existing expectation is regenerated once, here.
 
-`fixture-rewrite` visited all 26,444 fixtures. Measured against an archive of
-`tests/fixtures` taken immediately before the regeneration, 18,244 pre-existing fixtures
-changed; the 33 witnesses added by C1-C6 changed in **zero** leaves, which the comparer
-verifies as a hard error rather than a skip.
+`fixture-rewrite` visited all 26,444 fixtures. The baseline they are measured against is
+`git archive 667178f5a7 tests/fixtures` — the fixture tree at the C1-C6 tip, immediately
+before the regeneration — so the archive is reproducible from git rather than hand-assembled.
+Against it, 18,249 pre-existing fixtures changed. Of the 35 witnesses added by C1-C6, 9 take
+the additive class-(iv) T3 re-pin and the other 26 changed in **zero** leaves; the comparer
+verifies both as hard errors rather than skips. Pairing is itself fail-closed in both
+directions: a candidate fixture with no archive entry, or an archive entry with no candidate,
+is reported as a hard error and never skipped, so no re-pin can leave the audit silently.
 
 `regenerate_syntax_fixture` refuses any fixture carrying `expectations.syntax.xfail`
 (`xtask-full/src/main.rs:8813`), because an xfail pin records a corpus-expected status that
@@ -424,7 +432,14 @@ prohibited and not implemented.
 | `flat-sum-wrapper` (i) | 18,192 | The wrapper paths of the five former `term` sum siblings: the degenerate `ConnectedTerm { leading_term, continuations: [] }` produced by the old `zero_or_more` list, and the nested-sum `SimpleTerm(..)` variant. Atom-only: never a connection, never a termset or GEK atom, never a VUhO-carrying payload, never a recovered tree. |
 | `pehe-cehe-retyping` (ii) | 5 | The PEhE operand's level change and the CEhE continuation's `TaggedSumtiTerm` → `NonabsTaggedSumtiTerm` rename, each only with the parent node *and* the governing connective exhaustively proven. |
 | `stagless-bo-route-rejection` (#796) | 0 | An accept→reject flip whose old tree contains the deleted `BoundTermConnection`. No pre-existing fixture used the route; its witnesses landed with C1. |
+| `t3-loose-connection-warning` (iv) | 13 | The additive T3 warning on a pre-epoch fixture, with the tree, the status and every other leaf byte-identical and every pre-existing diagnostic kept in place and in order. The 9 witness re-pins are classified by the same rule and reported separately. |
 | manual residue | 49 | Individually dispositioned below. |
+
+Every other leaf is compared exactly, with one recorded exception: the `description` prose of
+a `provenance` entry, which carries no expectation. The entries must still correspond one for
+one and agree on every other field, and the fixtures whose prose moved are listed and counted
+in the report — 2, the witnesses whose text the T3 ruling reversal re-described — so an
+unreviewed prose edit still fails the run.
 
 Per-level nesting-depth validation is the plan's guard against a term landing at the wrong
 ladder depth. Every strip happens at a position whose old and new levels are named in the
@@ -583,7 +598,7 @@ Release mode, on the implementation host, at the submitted tree.
 | Four Python generated checks | all green | `epoch06-gate-generate_*.log`, `epoch06-gate-compose_stubs.log` |
 | `cargo fmt --all --check` | clean | `epoch06-fmt4.log` |
 | Frozen tagged syntax facet | 60/60 | — |
-| Comparer, ratcheted | 18,244 / 18,192 / 5 / 0 / 49, witness deltas 0 | `epoch06-comparer-final.txt` |
+| Comparer, ratcheted | 18,249 changed / 18,192 / 5 / 0 / 13 mechanical / 49 manual, prose-only provenance edits 2, epoch-witness T3 re-pins 9, witness deltas 0, unpaired 0 | `epoch06-comparer-round3.txt` |
 | Peak RSS, full profile | base 5,738,932 KB → 5,774,252 KB, **+0.62%** (gate +20%) | `epoch06-gate-fixture-profile*.log` |
 | Artifact ratchet | archive +0.67%, unpacked +0.92% versus a base-built control | `epoch06-artifact-ratchet.log` |
 

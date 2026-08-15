@@ -101,6 +101,19 @@ unwrapped payload to match the regenerated tree byte for byte, so no relative-cl
 ownership change can survive the comparison; excluding them would move 1,769 pre-epoch
 fixtures into hand-written residue rows without adding any safety.  The VUhO attachment is
 excluded because that *is* a term-versus-sumti ownership surface (epoch-4 residual, D6).
+
+The baseline archive is exactly `git archive 667178f5a7 tests/fixtures` (`ARCHIVE_COMMIT`),
+the fixture tree at the C1-C6 tip, so it is reproducible rather than hand-assembled.  Every
+candidate fixture must therefore have a baseline entry and every baseline entry must have a
+candidate: an unpaired fixture on either side is a hard error, never a skip.  Skipping one
+would silently drop the epoch's own new witnesses -- the population most likely to carry an
+unaudited re-pin -- out of the classification entirely.
+
+The one value the classifier does not compare exactly is the `description` prose of a
+`provenance` entry, which carries no expectation.  Every other provenance field stays exact --
+the entries must correspond one for one and agree on every other key -- and a fixture whose
+prose moved is listed in the report with its number pinned like the mechanical classes, so an
+unreviewed prose edit still fails the run.
 """
 
 from __future__ import annotations
@@ -118,6 +131,8 @@ import tomllib
 from typing import Any, Iterator
 
 EPOCH_BASE = "a8b4f06227"
+# The commit whose `tests/fixtures` tree the baseline archive reproduces byte for byte.
+ARCHIVE_COMMIT = "667178f5a7"
 
 
 @dataclass(frozen=True)
@@ -383,6 +398,9 @@ EXPECTED_MECHANICAL = {
     "t3-loose-connection-warning": 13,
 }
 EXPECTED_MANUAL = 49
+# Prose-only provenance edits.  The T3 ruling reversal rewrote the `description` of the two
+# witnesses whose text still described the tier as undiagnosed.
+EXPECTED_PROSE = 2
 
 CLASS_FLAT_SUM_WRAPPER = "flat-sum-wrapper"
 CLASS_PEHE_CEHE_RETYPING = "pehe-cehe-retyping"
@@ -699,11 +717,35 @@ def bracket_token_projection(value: str) -> tuple[str, ...]:
     return tuple(BRACKET_TOKEN.findall(value))
 
 
-def compare_fixture(old: dict[str, Any], new: dict[str, Any]) -> tuple[set[str], list[str]]:
+def provenance_prose_only(old_value: Any, new_value: Any) -> bool:
+    """True when a `provenance` array moved in its `description` prose and nowhere else.
+
+    `leaves` yields the whole array of tables as one value, so the entries are paired here:
+    they must correspond one for one, carry the same keys, and agree on every key other than
+    `description`.  A re-sourced, added or dropped provenance entry is therefore still residue.
+    """
+    if not isinstance(old_value, list) or not isinstance(new_value, list):
+        return False
+    if len(old_value) != len(new_value):
+        return False
+    for old_entry, new_entry in zip(old_value, new_value):
+        if not isinstance(old_entry, dict) or not isinstance(new_entry, dict):
+            return False
+        if set(old_entry) != set(new_entry):
+            return False
+        if any(old_entry[key] != new_entry[key] for key in old_entry if key != "description"):
+            return False
+    return True
+
+
+def compare_fixture(
+    old: dict[str, Any], new: dict[str, Any]
+) -> tuple[set[str], list[str], bool]:
     old_leaves = dict(leaves(old))
     new_leaves = dict(leaves(new))
     residue: list[str] = []
     classes: set[str] = set()
+    prose = False
     if set(old_leaves) != set(new_leaves):
         added_paths = set(new_leaves) - set(old_leaves)
         removed_paths = set(old_leaves) - set(new_leaves)
@@ -727,7 +769,7 @@ def compare_fixture(old: dict[str, Any], new: dict[str, Any]) -> tuple[set[str],
                 reasons.append(f"expectation leaves added: {', '.join(added)}")
             if removed:
                 reasons.append(f"expectation leaves removed: {', '.join(removed)}")
-            return classes, reasons
+            return classes, reasons, prose
 
     old_status = old_leaves.get(("expectations", "syntax", "status"))
     new_status = new_leaves.get(("expectations", "syntax", "status"))
@@ -744,6 +786,10 @@ def compare_fixture(old: dict[str, Any], new: dict[str, Any]) -> tuple[set[str],
         if old_value == new_value:
             continue
         joined = ".".join(path)
+        # Provenance prose, not an expectation: recorded and counted rather than compared.
+        if path == ("provenance",) and provenance_prose_only(old_value, new_value):
+            prose = True
+            continue
         # Checked before the recovered exclusion: a diagnostics list is a flat pinned list,
         # not a tree shape, so the additive T3 check is equally fail-closed on the recovered
         # expectations.  Recovered trees stay excluded by the branch below.
@@ -793,30 +839,37 @@ def compare_fixture(old: dict[str, Any], new: dict[str, Any]) -> tuple[set[str],
         # Diagnostics, statuses, digests, semantics refs, tersmu output and every other leaf
         # are deliberately exact.
         residue.append(joined)
-    if not classes and old != new and not residue:
+    if not classes and old != new and not residue and not prose:
         residue.append("no mechanical term-hierarchy shape found")
-    return classes, residue
+    return classes, residue, prose
 
 
-def classify_one(job: tuple[str, str, str]) -> tuple[str, list[str], list[str]]:
+def classify_one(job: tuple[str, str, str]) -> tuple[str, list[str], list[str], bool]:
     """Worker entry point.  The texts are re-read here so the parent never holds them."""
     repository_path, baseline_file, candidate_file = job
     old = tomllib.loads(Path(baseline_file).read_text())
     new = tomllib.loads(Path(candidate_file).read_text())
-    classes, residue = compare_fixture(old, new)
-    return repository_path, sorted(classes), residue
+    classes, residue, prose = compare_fixture(old, new)
+    return repository_path, sorted(classes), residue, prose
 
 
 def collect_jobs(
     candidate_root: Path, baseline_root: Path, witnesses: set[str]
-) -> tuple[list[tuple[str, str, str]], list[tuple[str, str, str]]]:
+) -> tuple[list[tuple[str, str, str]], list[tuple[str, str, str]], list[str]]:
     jobs: list[tuple[str, str, str]] = []
     witness_jobs: list[tuple[str, str, str]] = []
+    # An unpaired fixture on either side is unclassifiable, so it is reported rather than
+    # skipped: a missing baseline entry would otherwise drop a re-pinned fixture -- including
+    # a new epoch witness -- out of the audit without a trace.
+    unpaired: list[str] = []
+    seen: set[Path] = set()
     for candidate_path in sorted(candidate_root.rglob("*.toml")):
         relative = candidate_path.relative_to(candidate_root)
+        seen.add(relative)
         repository_path = (Path("tests/fixtures") / relative).as_posix()
         baseline_file = baseline_root / relative
         if not baseline_file.exists():
+            unpaired.append(f"{repository_path}: absent from the baseline archive")
             continue
         if baseline_file.read_bytes() == candidate_path.read_bytes():
             continue
@@ -827,7 +880,12 @@ def collect_jobs(
             witness_jobs.append((repository_path, str(baseline_file), str(candidate_path)))
             continue
         jobs.append((repository_path, str(baseline_file), str(candidate_path)))
-    return jobs, witness_jobs
+    for baseline_path in sorted(baseline_root.rglob("*.toml")):
+        relative = baseline_path.relative_to(baseline_root)
+        if relative not in seen:
+            repository_path = (Path("tests/fixtures") / relative).as_posix()
+            unpaired.append(f"{repository_path}: absent from the candidate tree")
+    return jobs, witness_jobs, unpaired
 
 
 def run(args: argparse.Namespace) -> int:
@@ -847,20 +905,27 @@ def run(args: argparse.Namespace) -> int:
             stdout=subprocess.PIPE,
         ).stdout.splitlines()
     )
-    jobs, witness_jobs = collect_jobs(args.candidate, args.baseline_root, witnesses)
+    jobs, witness_jobs, unpaired = collect_jobs(args.candidate, args.baseline_root, witnesses)
 
     mechanical: dict[str, list[str]] = {name: [] for name in MECHANICAL_CLASSES}
     manual: list[tuple[str, list[str]]] = []
+    prose_edits: list[str] = []
     witness_rewarns: list[str] = []
     witness_deltas: list[str] = []
     with ProcessPoolExecutor(max_workers=args.jobs) as pool:
-        for repository_path, classes, residue in pool.map(classify_one, jobs, chunksize=16):
+        for repository_path, classes, residue, prose in pool.map(classify_one, jobs, chunksize=16):
+            if prose:
+                prose_edits.append(repository_path)
             if residue:
                 manual.append((repository_path, residue))
             else:
                 for classification in classes:
                     mechanical[classification].append(repository_path)
-        for repository_path, classes, residue in pool.map(classify_one, witness_jobs, chunksize=4):
+        for repository_path, classes, residue, prose in pool.map(
+            classify_one, witness_jobs, chunksize=4
+        ):
+            if prose:
+                prose_edits.append(repository_path)
             if not residue and classes == [CLASS_T3_LOOSE_WARNING]:
                 witness_rewarns.append(repository_path)
             else:
@@ -872,8 +937,13 @@ def run(args: argparse.Namespace) -> int:
     lines.append(f"manual: {len(manual)}")
     for path, reasons in sorted(manual):
         lines.append(f"  {path}: {'; '.join(reasons)}")
+    lines.append(f"prose-only provenance edits: {len(prose_edits)}")
+    lines.extend(f"  {path}" for path in sorted(prose_edits))
     lines.append(f"epoch-witness T3 re-pins: {len(witness_rewarns)}")
     lines.extend(f"  {path}" for path in sorted(witness_rewarns))
+    if unpaired:
+        lines.append(f"unpaired fixtures (must be empty): {len(unpaired)}")
+        lines.extend(f"  {entry}" for entry in sorted(unpaired))
     if witness_deltas:
         lines.append(f"epoch-witness deltas (must be empty): {len(witness_deltas)}")
         lines.extend(f"  {path}" for path in sorted(witness_deltas))
@@ -890,6 +960,8 @@ def run(args: argparse.Namespace) -> int:
                     "manual": [
                         {"fixture": path, "reasons": reasons} for path, reasons in sorted(manual)
                     ],
+                    "prose_edits": sorted(prose_edits),
+                    "unpaired": sorted(unpaired),
                     "witness_rewarns": sorted(witness_rewarns),
                     "witness_deltas": sorted(witness_deltas),
                 },
@@ -899,6 +971,12 @@ def run(args: argparse.Namespace) -> int:
             + "\n"
         )
 
+    if unpaired:
+        print(
+            "error: every fixture must be paired with the baseline archive "
+            f"({ARCHIVE_COMMIT}); an unpaired one is never skipped"
+        )
+        return 1
     if witness_deltas:
         print("error: epoch witnesses may only take the additive T3 warning re-pin")
         return 1
@@ -910,6 +988,9 @@ def run(args: argparse.Namespace) -> int:
         return 1
     if len(manual) != args.expect_manual:
         print(f"error: expected {args.expect_manual} manual-residue fixtures")
+        return 1
+    if len(prose_edits) != args.expect_prose:
+        print(f"error: expected {args.expect_prose} prose-only provenance edits")
         return 1
     return 0
 
@@ -923,6 +1004,7 @@ def main() -> int:
     parser.add_argument("--jobs", type=int, default=15)
     parser.add_argument("--expect-changed", type=int, default=EXPECTED_CHANGED)
     parser.add_argument("--expect-manual", type=int, default=EXPECTED_MANUAL)
+    parser.add_argument("--expect-prose", type=int, default=EXPECTED_PROSE)
     args = parser.parse_args()
 
     # The pinned trees nest deeply enough to exhaust the default interpreter stack.
