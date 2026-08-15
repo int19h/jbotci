@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.loose-guard-link-bo-rejected"
+lojban = "mi broda be ko'a .e pu bo brode be'o brodi"
+tags = ["adhoc", "syntax", "term-hierarchy-epoch", "issue-791", "loose-guard", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6 term hierarchy witness"
+description = "The same reservation at the second guard consumer, the BE/BEI linked-term tier; camxes-exp rejects the surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [32, 36], source-text = "be'o", message = "unexpected cmavo" }]

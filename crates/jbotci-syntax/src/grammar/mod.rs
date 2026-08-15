@@ -4766,7 +4766,6 @@ fn recovery_feature_condition_matches(
     dialect: generated_runtime::SyntaxGrammarDialect,
 ) -> bool {
     match name {
-        "TermHierarchy" => dialect.term_hierarchy_enabled,
         "Cbm" => dialect.cbm_enabled,
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
         "ZantufaAdverbials" => dialect.zantufa_adverbials_enabled,

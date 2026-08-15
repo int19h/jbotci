@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.loose-guard-term-then-free-rejected"
+lojban = "mi broda ko'a .e pu bo sei mi nelci se'u do brode"
+tags = ["adhoc", "syntax", "term-hierarchy-epoch", "issue-791", "loose-guard", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6 term hierarchy witness"
+description = "The free-modifier variant of the reserved shape; the guard covers the free-modifier slot after BO."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [44, 49], source-text = "brode", message = "unexpected brivla" }]

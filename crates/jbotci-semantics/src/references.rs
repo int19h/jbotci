@@ -2481,114 +2481,188 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         term: &'tree generated::TermSyntax,
         source: AssignmentSource,
     ) {
+        if let Some(simple) = GeneratedSimpleTermRef::from_term(term) {
+            self.assign_simple_term(cursors, term, simple, source);
+            return;
+        }
         match term {
-            generated::TermSyntax::SimpleTerm(simple) => {
-                self.assign_simple_term(
-                    cursors,
-                    term,
-                    GeneratedSimpleTermRef::from_simple(simple),
-                    source,
-                );
-            }
-            generated::TermSyntax::ConnectedTerm(connected) => {
-                if let Some(leading) = GeneratedSimpleTermRef::from_bound(&connected.leading_term) {
-                    self.assign_simple_term(cursors, term, leading, source);
+            generated::TermSyntax::PeheTermsetConnection(connection) => {
+                self.assign_cehe_term(cursors, term, &connection.leading_term);
+                for continuation in &connection.continuations {
+                    self.assign_cehe_term(cursors, term, &continuation.trailing_term);
                 }
-                for continuation in &connected.continuations {
-                    if let Some(trailing) =
-                        GeneratedSimpleTermRef::from_bound(&continuation.trailing_term)
-                    {
-                        self.assign_simple_term(cursors, term, trailing, source);
-                    }
-                }
-            }
-            generated::TermSyntax::BoundTermConnection(bound) => {
-                self.assign_simple_term(
-                    cursors,
-                    term,
-                    GeneratedSimpleTermRef::from_simple(&bound.leading_term),
-                    AssignmentSource::TermsetBranch,
-                );
-                self.assign_simple_term(
-                    cursors,
-                    term,
-                    GeneratedSimpleTermRef::from_simple(&bound.trailing_term),
-                    AssignmentSource::TermsetBranch,
-                );
             }
             generated::TermSyntax::TermsetGroup(group) => {
-                self.assign_simple_term(
-                    cursors,
-                    term,
-                    GeneratedSimpleTermRef::from_simple(&group.leading_term),
-                    AssignmentSource::TermsetBranch,
-                );
-                for continuation in &group.continuations {
-                    self.assign_simple_term(
-                        cursors,
-                        term,
-                        GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
-                        AssignmentSource::TermsetBranch,
-                    );
-                }
+                self.assign_termset_group(cursors, term, group);
             }
-            generated::TermSyntax::PeheTermsetConnection(connection) => {
-                self.assign_pehe_termset_operand(cursors, term, &connection.leading_term);
-                for continuation in &connection.continuations {
-                    self.assign_pehe_termset_operand(cursors, term, &continuation.trailing_term);
-                }
+            generated::TermSyntax::ConnectedTerm(connected) => {
+                self.assign_connected_term(cursors, term, connected, source);
             }
+            generated::TermSyntax::StagBoundTermConnection(connection) => {
+                self.assign_stag_bound_term_connection(cursors, term, connection);
+            }
+            _ => unreachable!("term leaf conversion rejected a non-connection variant"),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn assign_pehe_termset_operand(
+    fn assign_cehe_term(
         &mut self,
         cursors: &mut Vec<PlaceCursor>,
         outer_term: &'tree generated::TermSyntax,
-        term: &'tree generated::PeheTermsetOperandSyntax,
+        term: &'tree generated::CeheTermSyntax,
     ) {
+        if let Some(simple) = GeneratedSimpleTermRef::from_cehe(term) {
+            self.assign_simple_term(cursors, outer_term, simple, AssignmentSource::TermsetBranch);
+            return;
+        }
         match term {
-            generated::PeheTermsetOperandSyntax::SimpleTerm(simple) => {
-                self.assign_simple_term(
+            generated::CeheTermSyntax::TermsetGroup(group) => {
+                self.assign_termset_group(cursors, outer_term, group);
+            }
+            generated::CeheTermSyntax::ConnectedTerm(connected) => {
+                self.assign_connected_term(
                     cursors,
                     outer_term,
-                    GeneratedSimpleTermRef::from_simple(simple),
+                    connected,
                     AssignmentSource::TermsetBranch,
                 );
             }
-            generated::PeheTermsetOperandSyntax::TermsetGroup(group) => {
-                self.assign_simple_term(
-                    cursors,
-                    outer_term,
-                    GeneratedSimpleTermRef::from_simple(&group.leading_term),
-                    AssignmentSource::TermsetBranch,
-                );
-                for continuation in &group.continuations {
-                    self.assign_simple_term(
-                        cursors,
-                        outer_term,
-                        GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
-                        AssignmentSource::TermsetBranch,
-                    );
-                }
+            generated::CeheTermSyntax::StagBoundTermConnection(connection) => {
+                self.assign_stag_bound_term_connection(cursors, outer_term, connection);
             }
-            generated::PeheTermsetOperandSyntax::BoundTermConnection(bound) => {
-                self.assign_simple_term(
+            _ => unreachable!("CEhE-level leaf conversion rejected a non-connection variant"),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assign_loose_term(
+        &mut self,
+        cursors: &mut Vec<PlaceCursor>,
+        outer_term: &'tree generated::TermSyntax,
+        term: &'tree generated::LooseTermSyntax,
+    ) {
+        if let Some(simple) = GeneratedSimpleTermRef::from_loose(term) {
+            self.assign_simple_term(cursors, outer_term, simple, AssignmentSource::TermsetBranch);
+            return;
+        }
+        match term {
+            generated::LooseTermSyntax::ConnectedTerm(connected) => {
+                self.assign_connected_term(
                     cursors,
                     outer_term,
-                    GeneratedSimpleTermRef::from_simple(&bound.leading_term),
-                    AssignmentSource::TermsetBranch,
-                );
-                self.assign_simple_term(
-                    cursors,
-                    outer_term,
-                    GeneratedSimpleTermRef::from_simple(&bound.trailing_term),
+                    connected,
                     AssignmentSource::TermsetBranch,
                 );
             }
-            generated::PeheTermsetOperandSyntax::StagBoundTermConnection(_) => {}
+            generated::LooseTermSyntax::StagBoundTermConnection(connection) => {
+                self.assign_stag_bound_term_connection(cursors, outer_term, connection);
+            }
+            _ => unreachable!("loose-level leaf conversion rejected a non-connection variant"),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assign_nonabs_term(
+        &mut self,
+        cursors: &mut Vec<PlaceCursor>,
+        outer_term: &'tree generated::TermSyntax,
+        term: &'tree generated::NonabsTermSyntax,
+    ) {
+        if let Some(simple) = GeneratedSimpleTermRef::from_nonabs(term) {
+            self.assign_simple_term(cursors, outer_term, simple, AssignmentSource::TermsetBranch);
+            return;
+        }
+        match term {
+            generated::NonabsTermSyntax::ConnectedTerm(connected) => {
+                self.assign_connected_term(
+                    cursors,
+                    outer_term,
+                    connected,
+                    AssignmentSource::TermsetBranch,
+                );
+            }
+            generated::NonabsTermSyntax::StagBoundTermConnection(connection) => {
+                self.assign_stag_bound_term_connection(cursors, outer_term, connection);
+            }
+            _ => unreachable!("nonabs-level leaf conversion rejected a non-connection variant"),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assign_termset_group(
+        &mut self,
+        cursors: &mut Vec<PlaceCursor>,
+        outer_term: &'tree generated::TermSyntax,
+        group: &'tree generated::TermsetGroupSyntax,
+    ) {
+        self.assign_loose_term(cursors, outer_term, &group.leading_term);
+        for continuation in &group.continuations {
+            self.assign_nonabs_term(cursors, outer_term, &continuation.trailing_term);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assign_connected_term(
+        &mut self,
+        cursors: &mut Vec<PlaceCursor>,
+        outer_term: &'tree generated::TermSyntax,
+        connected: &'tree generated::ConnectedTermSyntax,
+        source: AssignmentSource,
+    ) {
+        self.assign_bound_term(cursors, outer_term, &connected.leading_term, source);
+        for continuation in &connected.continuations {
+            self.assign_bound_term(cursors, outer_term, &continuation.trailing_term, source);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn assign_bound_term(
+        &mut self,
+        cursors: &mut Vec<PlaceCursor>,
+        outer_term: &'tree generated::TermSyntax,
+        term: &'tree generated::BoundTermSyntax,
+        source: AssignmentSource,
+    ) {
+        if let Some(simple) = GeneratedSimpleTermRef::from_bound(term) {
+            self.assign_simple_term(cursors, outer_term, simple, source);
+            return;
+        }
+        let generated::BoundTermSyntax::StagBoundTermConnection(connection) = term else {
+            unreachable!("bound-term leaf conversion rejected a non-connection variant")
+        };
+        self.assign_stag_bound_term_connection(cursors, outer_term, connection);
+    }
+
+    /// A BO-bound term connection groups its operands, so every operand shares the branch cursor
+    /// exactly as the CEhE termset branches do.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assign_stag_bound_term_connection(
+        &mut self,
+        cursors: &mut Vec<PlaceCursor>,
+        outer_term: &'tree generated::TermSyntax,
+        connection: &'tree generated::StagBoundTermConnectionSyntax,
+    ) {
+        self.assign_simple_term(
+            cursors,
+            outer_term,
+            GeneratedSimpleTermRef::from_simple(&connection.leading_term),
+            AssignmentSource::TermsetBranch,
+        );
+        for continuation in &connection.continuations {
+            self.assign_simple_term(
+                cursors,
+                outer_term,
+                GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
+                AssignmentSource::TermsetBranch,
+            );
         }
     }
 
@@ -2616,14 +2690,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 );
             }
             GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
-                self.walk_node(&term.tense_modal);
+                self.walk_node(term.tense_modal);
                 let slot = Some(modal_slot(Some(
                     self.raw_for_node(term.tense_modal.as_ref()),
                 )));
                 self.assign_tagged_or_elided_argument_to_cursors(
                     cursors,
                     outer_term,
-                    &term.sumti,
+                    term.sumti,
                     slot,
                     AssignmentSource::ModalTerm,
                 );
@@ -3364,6 +3438,78 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     {
         GeneratedSyntaxTreeWalkable::walk_with(node, self);
     }
+
+    /// Walk one term leaf, whichever hierarchy level listed it.
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term_leaf(&mut self, term: GeneratedSimpleTermRef<'tree>) {
+        match term {
+            GeneratedSimpleTermRef::SumtiTerm(term) => {
+                self.walk_node(&term.0);
+            }
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => {
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(term.tense_modal);
+                self.walk_node(term.sumti);
+            }
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
+                if let Some(tense_modal) = term.tag.as_deref() {
+                    self.walk_node(tense_modal);
+                }
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
+                self.walk_node(&term.statement);
+            }
+            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
+                self.walk_node(&term.statement);
+            }
+            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
+                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
+                    for free_modifier in &term.free_modifiers {
+                        self.walk_node(free_modifier);
+                    }
+                    self.analyze_relation(&term.selbri);
+                }
+                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
+                    self.analyze_relation(&term.selbri);
+                }
+            },
+            GeneratedSimpleTermRef::ForethoughtTermset(term) => {
+                for term in &term.terms {
+                    self.walk_node(term);
+                }
+                for term in &term.first_branch.terms {
+                    self.walk_node(term);
+                }
+                for branch in &term.additional_branches {
+                    for term in &branch.terms {
+                        self.walk_node(term);
+                    }
+                }
+            }
+            GeneratedSimpleTermRef::NuhiTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term);
+                }
+            }
+            GeneratedSimpleTermRef::KeTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term);
+                }
+            }
+            GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => {
+                self.walk_node(&term.0);
+            }
+            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}
+        }
+    }
 }
 
 impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
@@ -3630,16 +3776,11 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_term(&mut self, node: &'tree generated::TermSyntax) {
         match node {
-            generated::TermSyntax::SimpleTerm(term) => self.walk_node(term),
-            generated::TermSyntax::ConnectedTerm(term) => {
+            generated::TermSyntax::PeheTermsetConnection(term) => {
                 self.walk_node(&term.leading_term);
                 for continuation in &term.continuations {
                     self.walk_node(&continuation.trailing_term);
                 }
-            }
-            generated::TermSyntax::BoundTermConnection(term) => {
-                self.walk_node(&term.leading_term);
-                self.walk_node(&term.trailing_term);
             }
             generated::TermSyntax::TermsetGroup(term) => {
                 self.walk_node(&term.leading_term);
@@ -3647,105 +3788,86 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                     self.walk_node(&continuation.trailing_term);
                 }
             }
-            generated::TermSyntax::PeheTermsetConnection(term) => {
+            generated::TermSyntax::ConnectedTerm(term) => {
                 self.walk_node(&term.leading_term);
                 for continuation in &term.continuations {
                     self.walk_node(&continuation.trailing_term);
                 }
             }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_pehe_termset_operand(&mut self, node: &'tree generated::PeheTermsetOperandSyntax) {
-        match node {
-            generated::PeheTermsetOperandSyntax::BoundTermConnection(term) => {
-                self.walk_node(&term.leading_term);
-                self.walk_node(&term.trailing_term);
-            }
-            generated::PeheTermsetOperandSyntax::TermsetGroup(term) => {
-                self.walk_node(&term.leading_term);
-                for continuation in &term.continuations {
-                    self.walk_node(&continuation.trailing_term);
-                }
-            }
-            generated::PeheTermsetOperandSyntax::SimpleTerm(term) => self.walk_node(term),
-            generated::PeheTermsetOperandSyntax::StagBoundTermConnection(term) => {
-                self.walk_node(term)
-            }
+            generated::TermSyntax::StagBoundTermConnection(term) => self.walk_node(term),
+            _ => generated::walk::term(self, node),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn walk_simple_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
+        self.walk_simple_term_leaf(GeneratedSimpleTermRef::from_simple(node));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_cehe_term(&mut self, node: &'tree generated::CeheTermSyntax) {
         match node {
-            generated::SimpleTermSyntax::SumtiTerm(term) => {
-                self.walk_node(&term.0);
-            }
-            generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
-                self.walk_node(&term.sumti);
-            }
-            generated::SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                self.walk_node(&term.tense_modal);
-                self.walk_node(&term.sumti);
-            }
-            generated::SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => {
-                self.walk_node(&term.tense_modal);
-                self.walk_node(&term.sumti);
-            }
-            generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
-                if let Some(tense_modal) = term.tag.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                self.walk_node(&term.sumti);
-            }
-            generated::SimpleTermSyntax::FihoiAdverbialTerm(term) => {
-                self.walk_node(&term.statement);
-            }
-            generated::SimpleTermSyntax::SoiAdverbialTerm(term) => {
-                self.walk_node(&term.statement);
-            }
-            generated::SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
-                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                    for free_modifier in &term.free_modifiers {
-                        self.walk_node(free_modifier);
-                    }
-                    self.analyze_relation(&term.selbri);
-                }
-                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                    self.analyze_relation(&term.selbri);
-                }
-            },
-            generated::SimpleTermSyntax::ForethoughtTermset(term) => {
-                for term in &term.terms {
-                    self.walk_node(term);
-                }
-                for term in &term.first_branch.terms {
-                    self.walk_node(term);
-                }
-                for branch in &term.additional_branches {
-                    for term in &branch.terms {
-                        self.walk_node(term);
-                    }
+            generated::CeheTermSyntax::TermsetGroup(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
                 }
             }
-            generated::SimpleTermSyntax::NuhiTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term);
+            generated::CeheTermSyntax::ConnectedTerm(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
                 }
             }
-            generated::SimpleTermSyntax::KeTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term);
+            generated::CeheTermSyntax::StagBoundTermConnection(term) => self.walk_node(term),
+            _ => {
+                let Some(leaf) = GeneratedSimpleTermRef::from_cehe(node) else {
+                    unreachable!("CEhE-level leaf conversion rejected a non-connection variant")
+                };
+                self.walk_simple_term_leaf(leaf);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_loose_term(&mut self, node: &'tree generated::LooseTermSyntax) {
+        match node {
+            generated::LooseTermSyntax::ConnectedTerm(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
                 }
             }
-            generated::SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
-                self.walk_node(&term.0);
+            generated::LooseTermSyntax::StagBoundTermConnection(term) => self.walk_node(term),
+            _ => {
+                let Some(leaf) = GeneratedSimpleTermRef::from_loose(node) else {
+                    unreachable!("loose-level leaf conversion rejected a non-connection variant")
+                };
+                self.walk_simple_term_leaf(leaf);
             }
-            generated::SimpleTermSyntax::NaKuTerm(_)
-            | generated::SimpleTermSyntax::BareNaTerm(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_nonabs_term(&mut self, node: &'tree generated::NonabsTermSyntax) {
+        match node {
+            generated::NonabsTermSyntax::ConnectedTerm(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::NonabsTermSyntax::StagBoundTermConnection(term) => self.walk_node(term),
+            _ => {
+                let Some(leaf) = GeneratedSimpleTermRef::from_nonabs(node) else {
+                    unreachable!("nonabs-level leaf conversion rejected a non-connection variant")
+                };
+                self.walk_simple_term_leaf(leaf);
+            }
         }
     }
 
@@ -3755,66 +3877,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         let Some(node) = GeneratedSimpleTermRef::from_bound(node) else {
             return;
         };
-        match node {
-            GeneratedSimpleTermRef::SumtiTerm(term) => self.walk_node(&term.0),
-            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
-            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
-                self.walk_node(&term.tense_modal);
-                self.walk_node(&term.sumti);
-            }
-            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
-                self.walk_node(&term.tense_modal);
-                self.walk_node(&term.sumti);
-            }
-            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
-                if let Some(tense_modal) = term.tag.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                self.walk_node(&term.sumti);
-            }
-            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
-                self.walk_node(&term.statement);
-            }
-            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
-                self.walk_node(&term.statement);
-            }
-            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
-                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                    for free_modifier in &term.free_modifiers {
-                        self.walk_node(free_modifier);
-                    }
-                    self.analyze_relation(&term.selbri);
-                }
-                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                    self.analyze_relation(&term.selbri);
-                }
-            },
-            GeneratedSimpleTermRef::ForethoughtTermset(term) => {
-                for term in &term.terms {
-                    self.walk_node(term);
-                }
-                for term in &term.first_branch.terms {
-                    self.walk_node(term);
-                }
-                for branch in &term.additional_branches {
-                    for term in &branch.terms {
-                        self.walk_node(term);
-                    }
-                }
-            }
-            GeneratedSimpleTermRef::NuhiTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term);
-                }
-            }
-            GeneratedSimpleTermRef::KeTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term);
-                }
-            }
-            GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(&term.0),
-            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}
-        }
+        self.walk_simple_term_leaf(node);
     }
 
     #[requires(true)]
@@ -7015,6 +7078,72 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     {
         GeneratedSyntaxTreeWalkable::walk_with(node, self);
     }
+
+    /// Visit one term leaf, whichever hierarchy level listed it.
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_term_leaf(&mut self, node: GeneratedSimpleTermRef<'tree>) {
+        match node {
+            GeneratedSimpleTermRef::SumtiTerm(term) => self.visit_argument(&term.0),
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
+                self.walk_node(term.tense_modal);
+                self.walk_node(term.sumti);
+            }
+            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
+                self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
+                if let Some(tense_modal) = term.tag.as_deref() {
+                    self.walk_node(tense_modal);
+                }
+                self.visit_argument(&term.sumti);
+            }
+            GeneratedSimpleTermRef::ForethoughtTermset(term) => {
+                for term in &term.terms {
+                    self.walk_node(term.as_ref());
+                }
+                for term in &term.first_branch.terms {
+                    self.walk_node(term.as_ref());
+                }
+                for branch in &term.additional_branches {
+                    for term in &branch.terms {
+                        self.walk_node(term.as_ref());
+                    }
+                }
+            }
+            GeneratedSimpleTermRef::NuhiTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term.as_ref());
+                }
+            }
+            GeneratedSimpleTermRef::KeTermset(term) => {
+                for term in &term.termset {
+                    self.walk_node(term.as_ref());
+                }
+            }
+            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
+                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
+                    for free_modifier in &term.free_modifiers {
+                        self.walk_node(free_modifier);
+                    }
+                    self.visit_relation(&term.selbri);
+                }
+                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
+                    self.visit_relation(&term.selbri);
+                }
+            },
+            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
+                self.visit_statement(&term.statement);
+            }
+            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
+                self.visit_statement(&term.statement);
+            }
+            GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(&term.0),
+            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}
+        }
+    }
 }
 
 impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
@@ -7229,16 +7358,11 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[ensures(true)]
     fn walk_term(&mut self, node: &'tree generated::TermSyntax) {
         match node {
-            generated::TermSyntax::SimpleTerm(term) => self.walk_node(term),
-            generated::TermSyntax::ConnectedTerm(term) => {
+            generated::TermSyntax::PeheTermsetConnection(term) => {
                 self.walk_node(&term.leading_term);
                 for continuation in &term.continuations {
                     self.walk_node(&continuation.trailing_term);
                 }
-            }
-            generated::TermSyntax::BoundTermConnection(term) => {
-                self.walk_node(&term.leading_term);
-                self.walk_node(&term.trailing_term);
             }
             generated::TermSyntax::TermsetGroup(term) => {
                 self.walk_node(&term.leading_term);
@@ -7246,32 +7370,84 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
                     self.walk_node(&continuation.trailing_term);
                 }
             }
-            generated::TermSyntax::PeheTermsetConnection(term) => {
+            generated::TermSyntax::ConnectedTerm(term) => {
                 self.walk_node(&term.leading_term);
                 for continuation in &term.continuations {
                     self.walk_node(&continuation.trailing_term);
                 }
+            }
+            generated::TermSyntax::StagBoundTermConnection(term) => self.walk_node(term),
+            _ => {
+                let Some(leaf) = GeneratedSimpleTermRef::from_term(node) else {
+                    unreachable!("term leaf conversion rejected a non-connection variant")
+                };
+                self.visit_term_leaf(leaf);
             }
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_pehe_termset_operand(&mut self, node: &'tree generated::PeheTermsetOperandSyntax) {
+    fn walk_cehe_term(&mut self, node: &'tree generated::CeheTermSyntax) {
         match node {
-            generated::PeheTermsetOperandSyntax::SimpleTerm(term) => self.walk_node(term),
-            generated::PeheTermsetOperandSyntax::TermsetGroup(term) => {
+            generated::CeheTermSyntax::TermsetGroup(term) => {
                 self.walk_node(&term.leading_term);
                 for continuation in &term.continuations {
                     self.walk_node(&continuation.trailing_term);
                 }
             }
-            generated::PeheTermsetOperandSyntax::BoundTermConnection(term) => {
+            generated::CeheTermSyntax::ConnectedTerm(term) => {
                 self.walk_node(&term.leading_term);
-                self.walk_node(&term.trailing_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
             }
-            generated::PeheTermsetOperandSyntax::StagBoundTermConnection(term) => {
-                self.walk_node(term)
+            generated::CeheTermSyntax::StagBoundTermConnection(term) => self.walk_node(term),
+            _ => {
+                let Some(leaf) = GeneratedSimpleTermRef::from_cehe(node) else {
+                    unreachable!("CEhE-level leaf conversion rejected a non-connection variant")
+                };
+                self.visit_term_leaf(leaf);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_loose_term(&mut self, node: &'tree generated::LooseTermSyntax) {
+        match node {
+            generated::LooseTermSyntax::ConnectedTerm(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::LooseTermSyntax::StagBoundTermConnection(term) => self.walk_node(term),
+            _ => {
+                let Some(leaf) = GeneratedSimpleTermRef::from_loose(node) else {
+                    unreachable!("loose-level leaf conversion rejected a non-connection variant")
+                };
+                self.visit_term_leaf(leaf);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_nonabs_term(&mut self, node: &'tree generated::NonabsTermSyntax) {
+        match node {
+            generated::NonabsTermSyntax::ConnectedTerm(term) => {
+                self.walk_node(&term.leading_term);
+                for continuation in &term.continuations {
+                    self.walk_node(&continuation.trailing_term);
+                }
+            }
+            generated::NonabsTermSyntax::StagBoundTermConnection(term) => self.walk_node(term),
+            _ => {
+                let Some(leaf) = GeneratedSimpleTermRef::from_nonabs(node) else {
+                    unreachable!("nonabs-level leaf conversion rejected a non-connection variant")
+                };
+                self.visit_term_leaf(leaf);
             }
         }
     }
@@ -7279,71 +7455,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_simple_term(&mut self, node: &'tree generated::SimpleTermSyntax) {
-        match node {
-            generated::SimpleTermSyntax::SumtiTerm(term) => self.visit_argument(&term.0),
-            generated::SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
-                self.walk_node(&term.sumti);
-            }
-            generated::SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                self.walk_node(&term.tense_modal);
-                self.walk_node(&term.sumti);
-            }
-            generated::SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => {
-                self.walk_node(&term.tense_modal);
-                self.walk_node(&term.sumti);
-            }
-            generated::SimpleTermSyntax::JaiTaggedSumtiTerm(term) => {
-                if let Some(tense_modal) = term.tag.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                self.visit_argument(&term.sumti);
-            }
-            generated::SimpleTermSyntax::ForethoughtTermset(term) => {
-                for term in &term.terms {
-                    self.walk_node(term.as_ref());
-                }
-                for term in &term.first_branch.terms {
-                    self.walk_node(term.as_ref());
-                }
-                for branch in &term.additional_branches {
-                    for term in &branch.terms {
-                        self.walk_node(term.as_ref());
-                    }
-                }
-            }
-            generated::SimpleTermSyntax::NuhiTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term.as_ref());
-                }
-            }
-            generated::SimpleTermSyntax::KeTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term.as_ref());
-                }
-            }
-            generated::SimpleTermSyntax::NoihaAdverbialTerm(term) => match term {
-                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                    for free_modifier in &term.free_modifiers {
-                        self.walk_node(free_modifier);
-                    }
-                    self.visit_relation(&term.selbri);
-                }
-                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                    self.visit_relation(&term.selbri);
-                }
-            },
-            generated::SimpleTermSyntax::FihoiAdverbialTerm(term) => {
-                self.visit_statement(&term.statement);
-            }
-            generated::SimpleTermSyntax::SoiAdverbialTerm(term) => {
-                self.visit_statement(&term.statement);
-            }
-            generated::SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
-                self.walk_node(&term.0);
-            }
-            generated::SimpleTermSyntax::NaKuTerm(_)
-            | generated::SimpleTermSyntax::BareNaTerm(_) => {}
-        }
+        self.visit_term_leaf(GeneratedSimpleTermRef::from_simple(node));
     }
 
     #[requires(true)]
@@ -7352,66 +7464,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         let Some(node) = GeneratedSimpleTermRef::from_bound(node) else {
             return;
         };
-        match node {
-            GeneratedSimpleTermRef::SumtiTerm(term) => self.visit_argument(&term.0),
-            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => self.walk_node(&term.sumti),
-            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => {
-                self.walk_node(&term.tense_modal);
-                self.walk_node(&term.sumti);
-            }
-            GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
-                self.walk_node(&term.tense_modal);
-                self.walk_node(&term.sumti);
-            }
-            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
-                if let Some(tense_modal) = term.tag.as_deref() {
-                    self.walk_node(tense_modal);
-                }
-                self.visit_argument(&term.sumti);
-            }
-            GeneratedSimpleTermRef::ForethoughtTermset(term) => {
-                for term in &term.terms {
-                    self.walk_node(term.as_ref());
-                }
-                for term in &term.first_branch.terms {
-                    self.walk_node(term.as_ref());
-                }
-                for branch in &term.additional_branches {
-                    for term in &branch.terms {
-                        self.walk_node(term.as_ref());
-                    }
-                }
-            }
-            GeneratedSimpleTermRef::NuhiTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term.as_ref());
-                }
-            }
-            GeneratedSimpleTermRef::KeTermset(term) => {
-                for term in &term.termset {
-                    self.walk_node(term.as_ref());
-                }
-            }
-            GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
-                generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
-                    for free_modifier in &term.free_modifiers {
-                        self.walk_node(free_modifier);
-                    }
-                    self.visit_relation(&term.selbri);
-                }
-                generated::NoihaAdverbialTermSyntax::NoihaRelativeAdverbialTerm(term) => {
-                    self.visit_relation(&term.selbri);
-                }
-            },
-            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
-                self.visit_statement(&term.statement);
-            }
-            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
-                self.visit_statement(&term.statement);
-            }
-            GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(&term.0),
-            GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}
-        }
+        self.visit_term_leaf(node);
     }
 
     #[requires(true)]
@@ -7761,95 +7814,139 @@ fn next_generated_place_after_common_terms(start: u8, terms: &[generated::TermSy
 #[requires(true)]
 #[ensures(true)]
 fn advance_cursor_for_generated_term_shape(cursor: &mut PlaceCursor, term: &generated::TermSyntax) {
+    if let Some(simple) = GeneratedSimpleTermRef::from_term(term) {
+        advance_cursor_for_generated_simple_term_shape(cursor, simple);
+        return;
+    }
     match term {
-        generated::TermSyntax::SimpleTerm(simple) => {
-            advance_cursor_for_generated_simple_term_shape(
-                cursor,
-                GeneratedSimpleTermRef::from_simple(simple),
-            );
-        }
-        generated::TermSyntax::ConnectedTerm(connected) => {
-            if let Some(leading) = GeneratedSimpleTermRef::from_bound(&connected.leading_term) {
-                advance_cursor_for_generated_simple_term_shape(cursor, leading);
+        generated::TermSyntax::PeheTermsetConnection(connection) => {
+            advance_cursor_for_generated_cehe_term_shape(cursor, &connection.leading_term);
+            for continuation in &connection.continuations {
+                advance_cursor_for_generated_cehe_term_shape(cursor, &continuation.trailing_term);
             }
-            for continuation in &connected.continuations {
-                if let Some(trailing) =
-                    GeneratedSimpleTermRef::from_bound(&continuation.trailing_term)
-                {
-                    advance_cursor_for_generated_simple_term_shape(cursor, trailing);
-                }
-            }
-        }
-        generated::TermSyntax::BoundTermConnection(bound) => {
-            advance_cursor_for_generated_simple_term_shape(
-                cursor,
-                GeneratedSimpleTermRef::from_simple(&bound.leading_term),
-            );
-            advance_cursor_for_generated_simple_term_shape(
-                cursor,
-                GeneratedSimpleTermRef::from_simple(&bound.trailing_term),
-            );
         }
         generated::TermSyntax::TermsetGroup(group) => {
-            advance_cursor_for_generated_simple_term_shape(
-                cursor,
-                GeneratedSimpleTermRef::from_simple(&group.leading_term),
-            );
-            for continuation in &group.continuations {
-                advance_cursor_for_generated_simple_term_shape(
-                    cursor,
-                    GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
-                );
-            }
+            advance_cursor_for_generated_termset_group_shape(cursor, group);
         }
-        generated::TermSyntax::PeheTermsetConnection(connection) => {
-            advance_cursor_for_generated_pehe_operand_shape(cursor, &connection.leading_term);
-            for continuation in &connection.continuations {
-                advance_cursor_for_generated_pehe_operand_shape(
-                    cursor,
-                    &continuation.trailing_term,
-                );
-            }
+        generated::TermSyntax::ConnectedTerm(connected) => {
+            advance_cursor_for_generated_connected_term_shape(cursor, connected);
+        }
+        generated::TermSyntax::StagBoundTermConnection(connection) => {
+            advance_cursor_for_generated_stag_bound_term_shape(cursor, connection);
+        }
+        _ => unreachable!("term leaf conversion rejected a non-connection variant"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn advance_cursor_for_generated_cehe_term_shape(
+    cursor: &mut PlaceCursor,
+    term: &generated::CeheTermSyntax,
+) {
+    if let Some(simple) = GeneratedSimpleTermRef::from_cehe(term) {
+        advance_cursor_for_generated_simple_term_shape(cursor, simple);
+        return;
+    }
+    match term {
+        generated::CeheTermSyntax::TermsetGroup(group) => {
+            advance_cursor_for_generated_termset_group_shape(cursor, group);
+        }
+        generated::CeheTermSyntax::ConnectedTerm(connected) => {
+            advance_cursor_for_generated_connected_term_shape(cursor, connected);
+        }
+        generated::CeheTermSyntax::StagBoundTermConnection(connection) => {
+            advance_cursor_for_generated_stag_bound_term_shape(cursor, connection);
+        }
+        _ => unreachable!("CEhE-level leaf conversion rejected a non-connection variant"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn advance_cursor_for_generated_loose_term_shape(
+    cursor: &mut PlaceCursor,
+    term: &generated::LooseTermSyntax,
+) {
+    if let Some(simple) = GeneratedSimpleTermRef::from_loose(term) {
+        advance_cursor_for_generated_simple_term_shape(cursor, simple);
+        return;
+    }
+    match term {
+        generated::LooseTermSyntax::ConnectedTerm(connected) => {
+            advance_cursor_for_generated_connected_term_shape(cursor, connected);
+        }
+        generated::LooseTermSyntax::StagBoundTermConnection(connection) => {
+            advance_cursor_for_generated_stag_bound_term_shape(cursor, connection);
+        }
+        _ => unreachable!("loose-level leaf conversion rejected a non-connection variant"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn advance_cursor_for_generated_nonabs_term_shape(
+    cursor: &mut PlaceCursor,
+    term: &generated::NonabsTermSyntax,
+) {
+    if let Some(simple) = GeneratedSimpleTermRef::from_nonabs(term) {
+        advance_cursor_for_generated_simple_term_shape(cursor, simple);
+        return;
+    }
+    match term {
+        generated::NonabsTermSyntax::ConnectedTerm(connected) => {
+            advance_cursor_for_generated_connected_term_shape(cursor, connected);
+        }
+        generated::NonabsTermSyntax::StagBoundTermConnection(connection) => {
+            advance_cursor_for_generated_stag_bound_term_shape(cursor, connection);
+        }
+        _ => unreachable!("nonabs-level leaf conversion rejected a non-connection variant"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn advance_cursor_for_generated_termset_group_shape(
+    cursor: &mut PlaceCursor,
+    group: &generated::TermsetGroupSyntax,
+) {
+    advance_cursor_for_generated_loose_term_shape(cursor, &group.leading_term);
+    for continuation in &group.continuations {
+        advance_cursor_for_generated_nonabs_term_shape(cursor, &continuation.trailing_term);
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn advance_cursor_for_generated_connected_term_shape(
+    cursor: &mut PlaceCursor,
+    connected: &generated::ConnectedTermSyntax,
+) {
+    if let Some(leading) = GeneratedSimpleTermRef::from_bound(&connected.leading_term) {
+        advance_cursor_for_generated_simple_term_shape(cursor, leading);
+    }
+    for continuation in &connected.continuations {
+        if let Some(trailing) = GeneratedSimpleTermRef::from_bound(&continuation.trailing_term) {
+            advance_cursor_for_generated_simple_term_shape(cursor, trailing);
         }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn advance_cursor_for_generated_pehe_operand_shape(
+fn advance_cursor_for_generated_stag_bound_term_shape(
     cursor: &mut PlaceCursor,
-    term: &generated::PeheTermsetOperandSyntax,
+    connection: &generated::StagBoundTermConnectionSyntax,
 ) {
-    match term {
-        generated::PeheTermsetOperandSyntax::SimpleTerm(simple) => {
-            advance_cursor_for_generated_simple_term_shape(
-                cursor,
-                GeneratedSimpleTermRef::from_simple(simple),
-            );
-        }
-        generated::PeheTermsetOperandSyntax::TermsetGroup(group) => {
-            advance_cursor_for_generated_simple_term_shape(
-                cursor,
-                GeneratedSimpleTermRef::from_simple(&group.leading_term),
-            );
-            for continuation in &group.continuations {
-                advance_cursor_for_generated_simple_term_shape(
-                    cursor,
-                    GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
-                );
-            }
-        }
-        generated::PeheTermsetOperandSyntax::BoundTermConnection(bound) => {
-            advance_cursor_for_generated_simple_term_shape(
-                cursor,
-                GeneratedSimpleTermRef::from_simple(&bound.leading_term),
-            );
-            advance_cursor_for_generated_simple_term_shape(
-                cursor,
-                GeneratedSimpleTermRef::from_simple(&bound.trailing_term),
-            );
-        }
-        generated::PeheTermsetOperandSyntax::StagBoundTermConnection(_) => {}
+    advance_cursor_for_generated_simple_term_shape(
+        cursor,
+        GeneratedSimpleTermRef::from_simple(&connection.leading_term),
+    );
+    for continuation in &connection.continuations {
+        advance_cursor_for_generated_simple_term_shape(
+            cursor,
+            GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
+        );
     }
 }
 

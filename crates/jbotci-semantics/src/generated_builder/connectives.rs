@@ -458,23 +458,14 @@ pub(super) fn generated_direct_term_connection_unsupported_error(
     terms: &[&TermSyntax],
 ) -> Option<SemanticsError> {
     let connection = terms.iter().copied().find_map(|term| match term {
-        TermSyntax::ConnectedTerm(connection) if !connection.continuations.is_empty() => Some(term),
-        TermSyntax::BoundTermConnection(_) => Some(term),
+        TermSyntax::ConnectedTerm(connection) => Some(connection),
         _ => None,
     })?;
-    let all_logical = match connection {
-        TermSyntax::ConnectedTerm(connection) => {
-            connection.continuations.iter().all(|continuation| {
-                generated_direct_term_connective_is_logical(
-                    GeneratedDirectTermConnective::Connected(&continuation.connective),
-                )
-            })
-        }
-        TermSyntax::BoundTermConnection(connection) => generated_direct_term_connective_is_logical(
-            GeneratedDirectTermConnective::Bound(&connection.connective),
-        ),
-        _ => unreachable!("the direct term connection search returned another term kind"),
-    };
+    let all_logical = connection.continuations.iter().all(|continuation| {
+        generated_direct_term_connective_is_logical(GeneratedDirectTermConnective::Connected(
+            &continuation.connective,
+        ))
+    });
     Some(if all_logical {
         undefined_semantics("a direct term connection that shares terms with a connected bridi")
     } else {
@@ -517,14 +508,6 @@ pub(super) fn generated_direct_term_connective_primary_cmavo(
                 connective,
             ) => connective.0.value.cmavo(),
         },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_primary_cmavo(connective),
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.a.value.cmavo(),
-        },
     }
 }
 
@@ -536,9 +519,6 @@ pub(super) fn generated_direct_term_connective_question_token(
     let mut collector = GeneratedSpanCollector::default();
     match connective {
         GeneratedDirectTermConnective::Connected(connective) => {
-            connective.visit_in_order(&mut collector);
-        }
-        GeneratedDirectTermConnective::Bound(connective) => {
             connective.visit_in_order(&mut collector);
         }
     }
@@ -595,27 +575,6 @@ pub(super) fn generated_direct_term_connective_source(
                 connective,
             ) => Ok(token_text(&connective.0.value)),
         },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => Ok(generated_joik_connective_source(connective)),
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => {
-                let mut tokens = Vec::new();
-                if let Some(token) = &connective.na {
-                    tokens.push(token);
-                }
-                if let Some(token) = &connective.se {
-                    tokens.push(token);
-                }
-                tokens.push(&connective.a.value);
-                if let Some(token) = &connective.nai {
-                    tokens.push(&token.value);
-                }
-                Ok(connective_source_from_tokens(tokens))
-            }
-        },
     }
 }
 
@@ -639,14 +598,6 @@ pub(super) fn generated_direct_term_connective_has_se(
                 _,
             ) => false,
         },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_has_se(connective),
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.se.is_some(),
-        },
     }
 }
 
@@ -663,12 +614,6 @@ pub(super) fn generated_direct_term_connective_negates_left(
             jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::EkConnective(
                 connective,
             ) => connective.na.is_some(),
-            _ => false,
-        },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(connective) => {
-                connective.na.is_some()
-            }
             _ => false,
         },
     }
@@ -693,14 +638,6 @@ pub(super) fn generated_direct_term_connective_negates_right(
             jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::VuhuNonlogicalConnective(
                 _,
             ) => false,
-        },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_negates_right(connective),
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.nai.is_some(),
         },
     }
 }

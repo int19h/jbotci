@@ -22,10 +22,10 @@ use jbotci_syntax::generated_model::{
     BoundOrSimpleMeksoOperandSyntax, BoundSelbriSyntax, BoundTermSyntax, BridiRelativeClauseSyntax,
     BridiStatementContinuationSyntax, BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax,
     BridiTailConnectiveSyntax, BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax,
-    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, ClosedIntervalConnectiveSyntax,
-    CmevlaVocativeSumtiSyntax, CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax,
-    ConnectedSelbriContinuationSyntax, ConnectedSelbriSyntax, ConnectedTermSyntax,
-    CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
+    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, CeheTermSyntax,
+    ClosedIntervalConnectiveSyntax, CmevlaVocativeSumtiSyntax, CoSelbriSyntax,
+    ConnectedJaiInnerSelbriSyntax, ConnectedSelbriContinuationSyntax, ConnectedSelbriSyntax,
+    ConnectedTermSyntax, CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
     DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
     DirectForethoughtBridiConnectionSyntax, EkFragmentSyntax, ExpTagAtomRunSyntax,
@@ -40,23 +40,23 @@ use jbotci_syntax::generated_model::{
     IParagraphStatementConnectiveSyntax, IStatementConnectionSyntax,
     IStatementConnectionTailSyntax, IStatementConnectiveSyntax, InfixMeksoSyntax,
     InnerMeksoOperatorSyntax, JaiInnerTanruUnitSyntax, JaiModalTanruUnitSyntax,
-    JekConnectiveSyntax, JoiConnectiveSyntax, JoikConnectiveSyntax, KeTermsetSyntax,
-    LaheSumtiSyntax, LeadingIStatementSyntax, LeadingIndicatorSyntax,
-    LeadingTermTagTenseModalSyntax, LerfuStringMeksoSyntax, LerfuStringSumtiSyntax,
-    LetterStringContinuationSyntax, LetterStringSyntax, LetterTokensSyntax, LinkargsSyntax,
-    LinkedSumtiContinuationFragmentSyntax, LinkedSumtiFragmentSyntax, LinkedSumtiSyntax,
-    LinkedTanruUnitForCeiSyntax, LinkedTanruUnitSyntax, LinkedTermSyntax, MeksoBaseSyntax,
-    MeksoFragmentSyntax, MeksoOperandSyntax, MeksoOperatorContinuationSyntax, MeksoOperatorSyntax,
+    JekConnectiveSyntax, JoiConnectiveSyntax, JoikConnectiveSyntax, LaheSumtiSyntax,
+    LeadingIStatementSyntax, LeadingIndicatorSyntax, LeadingTermTagTenseModalSyntax,
+    LerfuStringMeksoSyntax, LerfuStringSumtiSyntax, LetterStringContinuationSyntax,
+    LetterStringSyntax, LetterTokensSyntax, LinkargsSyntax, LinkedSumtiContinuationFragmentSyntax,
+    LinkedSumtiFragmentSyntax, LinkedSumtiSyntax, LinkedTanruUnitForCeiSyntax,
+    LinkedTanruUnitSyntax, LinkedTermSyntax, LooseTermSyntax, MeksoBaseSyntax, MeksoFragmentSyntax,
+    MeksoOperandSyntax, MeksoOperatorContinuationSyntax, MeksoOperatorSyntax,
     MeksoPrecedenceSyntax, MeksoSyntax, ModalForethoughtConnectiveSyntax, ModalTenseSyntax,
     MultipleNaFragmentSyntax, NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax,
     NegatedSelbriSyntax, NihoParagraphSyntax, NodeRef as GeneratedNodeRef,
-    NoihaAdverbialTermSyntax, NuhiTermsetSyntax, NumberMeksoSyntax, NumberSumtiSyntax,
+    NoihaAdverbialTermSyntax, NonabsTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax,
     NumberWordContinuationSyntax, NumberWordsSyntax, OperatorGuhekConnectiveSyntax,
     OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
     ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
-    ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PeheTermsetOperandSyntax,
-    PendingIConnectiveSyntax, PlainBoSelbriSyntax, PlainBoTanruUnitSyntax, PlainLinkedSumtiSyntax,
-    PlainRelativeSumtiSyntax, PrenexFragmentSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
+    ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PendingIConnectiveSyntax,
+    PlainBoSelbriSyntax, PlainBoTanruUnitSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
+    PrenexFragmentSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
     PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
     QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
     QuantifierSumtiDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
@@ -69,7 +69,7 @@ use jbotci_syntax::generated_model::{
     SelbriMeksoOperandSyntax, SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax,
     SimpleBridiTailSyntax, SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
     SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
-    SimpleTermSyntax, SingleNaFragmentSyntax, SoiFreeModifierSyntax,
+    SimpleTermSyntax, SingleNaFragmentSyntax, SoiFreeModifierSyntax, StagBoundTermConnectionSyntax,
     StandardMeksoArrayElementSyntax, StandardStatementConnectiveSyntax,
     StatementAfterIConnectiveSyntax, StatementBaseSyntax, StatementConnectiveSyntax,
     StatementOrFragmentStatementSyntax, StatementOrFragmentSyntax, StatementSyntax, SubbridiSyntax,
@@ -77,7 +77,7 @@ use jbotci_syntax::generated_model::{
     SumtiBaseSyntax, SumtiBoundSyntax, SumtiConnectionTailSyntax, SumtiConnectiveSyntax,
     SumtiForethoughtSyntax, SumtiGroupedSyntax, SumtiMeksoOperandSyntax, SumtiSelbriSumtiSyntax,
     SumtiSelbriTanruUnitSyntax, SumtiSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSelbriSyntax, TaggedSumtiTermSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
+    TaggedSelbriSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
     TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalAtomSyntax, TenseModalBodySyntax,
     TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermSyntax, TermsFragmentSyntax,
@@ -101,7 +101,9 @@ use vec1::Vec1;
 use crate::facade::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
-use crate::generated_term_view::{GeneratedLinkedSumtiRef, GeneratedSimpleTermRef};
+use crate::generated_term_view::{
+    GeneratedLinkedSumtiRef, GeneratedSimpleTermRef, GeneratedTaggedTermRef,
+};
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, Adjunct, AdjunctData, AnchorMagnitude,
     AnchorRelation, AnchorRelationData, ArgumentValue, ArgumentValueData, ArgumentValueKind,
@@ -994,7 +996,7 @@ struct GeneratedTermAssignments<'syntax> {
 #[derive(Debug, Clone)]
 struct GeneratedModalTerm<'syntax> {
     tense_modal: &'syntax LeadingTermTagTenseModalSyntax,
-    tagged_sumti: Option<&'syntax TaggedSumtiTermSyntax>,
+    tagged_sumti: Option<GeneratedTaggedTermRef<'syntax>>,
     argument: Option<ArgumentValue>,
 }
 
@@ -1394,11 +1396,9 @@ enum GeneratedDistributedSumtiConnective<'syntax> {
 }
 
 #[invariant(::Connected(_) => true)]
-#[invariant(::Bound(_) => true)]
 #[derive(Debug, Clone, Copy)]
 enum GeneratedDirectTermConnective<'syntax> {
     Connected(&'syntax jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax),
-    Bound(&'syntax jbotci_syntax::generated_model::BoundTermConnectiveSyntax),
 }
 
 #[invariant(*continuation_count <= sumti.continuations.len())]
@@ -3345,14 +3345,16 @@ fn generated_numbered_sumti_assignments_for_term<'syntax>(
     match term {
         TermSyntax::TermsetGroup(termset) => {
             generated_numbered_sumti_assignments_for_simple_term(
-                GeneratedSimpleTermRef::from_simple(termset.leading_term.as_ref()),
+                GeneratedSimpleTermRef::from_loose(termset.leading_term.as_ref())
+                    .ok_or_else(grouped_termset_operand_undefined)?,
                 assignments,
                 assigned_places,
                 next_visible_place,
             )?;
             for continuation in &termset.continuations {
                 generated_numbered_sumti_assignments_for_simple_term(
-                    GeneratedSimpleTermRef::from_simple(continuation.trailing_term.as_ref()),
+                    GeneratedSimpleTermRef::from_nonabs(continuation.trailing_term.as_ref())
+                        .ok_or_else(grouped_termset_operand_undefined)?,
                     assignments,
                     assigned_places,
                     next_visible_place,
@@ -3360,22 +3362,10 @@ fn generated_numbered_sumti_assignments_for_term<'syntax>(
             }
             Ok(())
         }
-        TermSyntax::SimpleTerm(simple) => generated_numbered_sumti_assignments_for_simple_term(
-            GeneratedSimpleTermRef::from_simple(simple),
-            assignments,
-            assigned_places,
-            next_visible_place,
-        ),
-        TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-            leading_term,
-            continuations,
-        }) if continuations.is_empty() => {
-            let simple =
-                GeneratedSimpleTermRef::from_bound(leading_term.as_ref()).ok_or_else(|| {
-                    undefined_semantics(
-                        "a grouped direct term connection in the term-hierarchy dialect",
-                    )
-                })?;
+        _ => {
+            let simple = GeneratedSimpleTermRef::from_term(term).ok_or_else(|| {
+                invalid_graph("connected term reached numbered simple-term assignment".to_owned())
+            })?;
             generated_numbered_sumti_assignments_for_simple_term(
                 simple,
                 assignments,
@@ -3383,9 +3373,6 @@ fn generated_numbered_sumti_assignments_for_term<'syntax>(
                 next_visible_place,
             )
         }
-        _ => Err(invalid_graph(
-            "connected term reached numbered simple-term assignment".to_owned(),
-        )),
     }
 }
 
@@ -3477,44 +3464,39 @@ fn advance_next_visible_place_after_generated_term(
     match term {
         TermSyntax::TermsetGroup(termset) => {
             advance_next_visible_place_after_generated_simple_term(
-                GeneratedSimpleTermRef::from_simple(termset.leading_term.as_ref()),
+                GeneratedSimpleTermRef::from_loose(termset.leading_term.as_ref())
+                    .ok_or_else(grouped_termset_operand_undefined)?,
                 next_visible_place,
                 assigned_places,
             )?;
             for continuation in &termset.continuations {
                 advance_next_visible_place_after_generated_simple_term(
-                    GeneratedSimpleTermRef::from_simple(continuation.trailing_term.as_ref()),
+                    GeneratedSimpleTermRef::from_nonabs(continuation.trailing_term.as_ref())
+                        .ok_or_else(grouped_termset_operand_undefined)?,
                     next_visible_place,
                     assigned_places,
                 )?;
             }
             Ok(())
         }
-        TermSyntax::SimpleTerm(simple) => advance_next_visible_place_after_generated_simple_term(
-            GeneratedSimpleTermRef::from_simple(simple),
-            next_visible_place,
-            assigned_places,
-        ),
-        TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-            leading_term,
-            continuations,
-        }) if continuations.is_empty() => {
-            let simple =
-                GeneratedSimpleTermRef::from_bound(leading_term.as_ref()).ok_or_else(|| {
-                    undefined_semantics(
-                        "a grouped direct term connection in the term-hierarchy dialect",
-                    )
-                })?;
+        _ => {
+            let simple = GeneratedSimpleTermRef::from_term(term).ok_or_else(|| {
+                invalid_graph("connected term reached simple visible-place advancement".to_owned())
+            })?;
             advance_next_visible_place_after_generated_simple_term(
                 simple,
                 next_visible_place,
                 assigned_places,
             )
         }
-        _ => Err(invalid_graph(
-            "connected term reached simple visible-place advancement".to_owned(),
-        )),
     }
+}
+
+/// A CEhE operand that is itself a term connection has no defined place assignment yet.
+#[requires(true)]
+#[ensures(true)]
+fn grouped_termset_operand_undefined() -> SemanticsError {
+    undefined_semantics("a grouped term connection inside a CEhE termset")
 }
 
 #[requires(*next_visible_place > 0)]
@@ -4847,16 +4829,7 @@ fn relation_label_from_tanru_unit_atom(
 #[requires(true)]
 #[ensures(true)]
 fn simple_sumti_from_term(term: &TermSyntax) -> Option<&SumtiSyntax> {
-    let simple = match term {
-        TermSyntax::SimpleTerm(simple) => GeneratedSimpleTermRef::from_simple(simple),
-        TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-            leading_term,
-            continuations,
-        }) if continuations.is_empty() => {
-            GeneratedSimpleTermRef::from_bound(leading_term.as_ref())?
-        }
-        _ => return None,
-    };
+    let simple = GeneratedSimpleTermRef::from_term(term)?;
     let GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) = simple else {
         return None;
     };
@@ -4868,21 +4841,9 @@ fn simple_sumti_from_term(term: &TermSyntax) -> Option<&SumtiSyntax> {
 fn generated_simple_term_for_assignment(
     term: &TermSyntax,
 ) -> Result<GeneratedSimpleTermRef<'_>, SemanticsError> {
-    match term {
-        TermSyntax::SimpleTerm(simple) => Ok(GeneratedSimpleTermRef::from_simple(simple)),
-        TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-            leading_term,
-            continuations,
-        }) if continuations.is_empty() => GeneratedSimpleTermRef::from_bound(leading_term.as_ref())
-            .ok_or_else(|| {
-                undefined_semantics(
-                    "a grouped direct term connection in the term-hierarchy dialect",
-                )
-            }),
-        _ => Err(invalid_graph(
-            "connected term reached simple assignment lowering".to_owned(),
-        )),
-    }
+    GeneratedSimpleTermRef::from_term(term).ok_or_else(|| {
+        invalid_graph("connected term reached simple assignment lowering".to_owned())
+    })
 }
 
 #[requires(true)]
@@ -6727,80 +6688,113 @@ fn generated_forethought_bridi_connection_without_tail_terms_contains_current_le
 #[requires(true)]
 #[ensures(true)]
 fn generated_term_contains_current_level_keha(term: &TermSyntax) -> bool {
+    if let Some(leaf) = GeneratedSimpleTermRef::from_term(term) {
+        return generated_simple_term_contains_current_level_keha(leaf);
+    }
     match term {
         TermSyntax::PeheTermsetConnection(connection) => {
-            generated_pehe_termset_operand_contains_current_level_keha(&connection.leading_term)
+            generated_cehe_term_contains_current_level_keha(&connection.leading_term)
                 || connection.continuations.iter().any(|continuation| {
-                    generated_pehe_termset_operand_contains_current_level_keha(
-                        &continuation.trailing_term,
-                    )
+                    generated_cehe_term_contains_current_level_keha(&continuation.trailing_term)
                 })
-        }
-        TermSyntax::BoundTermConnection(connection) => {
-            generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-                &connection.leading_term,
-            )) || generated_simple_term_contains_current_level_keha(
-                GeneratedSimpleTermRef::from_simple(&connection.trailing_term),
-            )
         }
         TermSyntax::TermsetGroup(group) => {
-            generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-                &group.leading_term,
-            )) || group.continuations.iter().any(|continuation| {
-                generated_simple_term_contains_current_level_keha(
-                    GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
-                )
-            })
+            generated_termset_group_contains_current_level_keha(group)
         }
         TermSyntax::ConnectedTerm(connection) => {
-            generated_bound_term_contains_current_level_keha(&connection.leading_term)
-                || connection.continuations.iter().any(|continuation| {
-                    generated_bound_term_contains_current_level_keha(&continuation.trailing_term)
-                })
+            generated_connected_term_contains_current_level_keha(connection)
         }
-        TermSyntax::SimpleTerm(term) => generated_simple_term_contains_current_level_keha(
-            GeneratedSimpleTermRef::from_simple(term),
-        ),
+        TermSyntax::StagBoundTermConnection(connection) => {
+            generated_stag_bound_term_contains_current_level_keha(connection)
+        }
+        _ => unreachable!("term leaf conversion rejected a non-connection variant"),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_pehe_termset_operand_contains_current_level_keha(
-    operand: &PeheTermsetOperandSyntax,
-) -> bool {
-    match operand {
-        PeheTermsetOperandSyntax::BoundTermConnection(connection) => {
-            generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-                &connection.leading_term,
-            )) || generated_simple_term_contains_current_level_keha(
-                GeneratedSimpleTermRef::from_simple(&connection.trailing_term),
-            )
-        }
-        PeheTermsetOperandSyntax::StagBoundTermConnection(connection) => {
-            generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-                &connection.leading_term,
-            )) || connection.continuations.iter().any(|continuation| {
-                generated_simple_term_contains_current_level_keha(
-                    GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
-                )
-            })
-        }
-        PeheTermsetOperandSyntax::TermsetGroup(group) => {
-            generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-                &group.leading_term,
-            )) || group.continuations.iter().any(|continuation| {
-                generated_simple_term_contains_current_level_keha(
-                    GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
-                )
-            })
-        }
-        PeheTermsetOperandSyntax::SimpleTerm(term) => {
-            generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-                term,
-            ))
-        }
+fn generated_cehe_term_contains_current_level_keha(term: &CeheTermSyntax) -> bool {
+    if let Some(leaf) = GeneratedSimpleTermRef::from_cehe(term) {
+        return generated_simple_term_contains_current_level_keha(leaf);
     }
+    match term {
+        CeheTermSyntax::TermsetGroup(group) => {
+            generated_termset_group_contains_current_level_keha(group)
+        }
+        CeheTermSyntax::ConnectedTerm(connection) => {
+            generated_connected_term_contains_current_level_keha(connection)
+        }
+        CeheTermSyntax::StagBoundTermConnection(connection) => {
+            generated_stag_bound_term_contains_current_level_keha(connection)
+        }
+        _ => unreachable!("CEhE-level leaf conversion rejected a non-connection variant"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_loose_term_contains_current_level_keha(term: &LooseTermSyntax) -> bool {
+    if let Some(leaf) = GeneratedSimpleTermRef::from_loose(term) {
+        return generated_simple_term_contains_current_level_keha(leaf);
+    }
+    match term {
+        LooseTermSyntax::ConnectedTerm(connection) => {
+            generated_connected_term_contains_current_level_keha(connection)
+        }
+        LooseTermSyntax::StagBoundTermConnection(connection) => {
+            generated_stag_bound_term_contains_current_level_keha(connection)
+        }
+        _ => unreachable!("loose-level leaf conversion rejected a non-connection variant"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_nonabs_term_contains_current_level_keha(term: &NonabsTermSyntax) -> bool {
+    if let Some(leaf) = GeneratedSimpleTermRef::from_nonabs(term) {
+        return generated_simple_term_contains_current_level_keha(leaf);
+    }
+    match term {
+        NonabsTermSyntax::ConnectedTerm(connection) => {
+            generated_connected_term_contains_current_level_keha(connection)
+        }
+        NonabsTermSyntax::StagBoundTermConnection(connection) => {
+            generated_stag_bound_term_contains_current_level_keha(connection)
+        }
+        _ => unreachable!("nonabs-level leaf conversion rejected a non-connection variant"),
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_termset_group_contains_current_level_keha(group: &TermsetGroupSyntax) -> bool {
+    generated_loose_term_contains_current_level_keha(&group.leading_term)
+        || group.continuations.iter().any(|continuation| {
+            generated_nonabs_term_contains_current_level_keha(&continuation.trailing_term)
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_connected_term_contains_current_level_keha(connection: &ConnectedTermSyntax) -> bool {
+    generated_bound_term_contains_current_level_keha(&connection.leading_term)
+        || connection.continuations.iter().any(|continuation| {
+            generated_bound_term_contains_current_level_keha(&continuation.trailing_term)
+        })
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn generated_stag_bound_term_contains_current_level_keha(
+    connection: &StagBoundTermConnectionSyntax,
+) -> bool {
+    generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
+        &connection.leading_term,
+    )) || connection.continuations.iter().any(|continuation| {
+        generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
+            &continuation.trailing_term,
+        ))
+    })
 }
 
 #[requires(true)]
@@ -6812,13 +6806,7 @@ fn generated_bound_term_contains_current_level_keha(term: &BoundTermSyntax) -> b
     let BoundTermSyntax::StagBoundTermConnection(connection) = term else {
         unreachable!("bound-term leaf conversion rejected a non-connection variant")
     };
-    generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-        &connection.leading_term,
-    )) || connection.continuations.iter().any(|continuation| {
-        generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-            &continuation.trailing_term,
-        ))
-    })
+    generated_stag_bound_term_contains_current_level_keha(connection)
 }
 
 #[requires(true)]

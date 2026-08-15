@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.issue-796-stagless-bo-na-ku-rejected"
+lojban = "na ku .e bo na ku broda"
+tags = ["adhoc", "syntax", "term-hierarchy-epoch", "issue-796", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6 term hierarchy witness"
+description = "The NA KU witness of the removed stag-less BO term route; camxes-exp rejects the same surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 11], source-text = "bo", message = "unexpected cmavo" }]

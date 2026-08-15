@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.issue-796-stagless-bo-term-rejected"
+lojban = "pu ko'a .e bo ba ko'e broda"
+tags = ["adhoc", "syntax", "term-hierarchy-epoch", "issue-796", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6 term hierarchy witness"
+description = "camxes-standard has no term-level BO and camxes-exp requires the stag in absorption-safe positions, so the standard stag-less BO term route is removed (#796)."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [17, 21], source-text = "ko'e", message = "unexpected cmavo" }]

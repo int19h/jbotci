@@ -270,7 +270,7 @@ define_syntax_string_enum_binding!(
         ExperimentalConstruct::ExperimentalEmptyLinkargs => ("EXPERIMENTAL_EMPTY_LINKARGS", "experimental-empty-linkargs"),
         ExperimentalConstruct::ExperimentalBroadBoStatementConnective => ("EXPERIMENTAL_BROAD_BO_STATEMENT_CONNECTIVE", "experimental-broad-bo-statement-connective"),
         ExperimentalConstruct::ExperimentalBroadKePredicateContinuation => ("EXPERIMENTAL_BROAD_KE_PREDICATE_CONTINUATION", "experimental-broad-ke-predicate-continuation"),
-        ExperimentalConstruct::ExperimentalTermHierarchyBoConnection => ("EXPERIMENTAL_TERM_HIERARCHY_BO_CONNECTION", "experimental-term-hierarchy-bo-connection"),
+        ExperimentalConstruct::ExperimentalTermBoConnection => ("EXPERIMENTAL_TERM_BO_CONNECTION", "experimental-term-bo-connection"),
         ExperimentalConstruct::ExperimentalBareNaTerm => ("EXPERIMENTAL_BARE_NA_TERM", "experimental-bare-na-term"),
         ExperimentalConstruct::ExperimentalXohiTagSelbri => ("EXPERIMENTAL_XOHI_TAG_SELBRI", "experimental-xohi-tag-selbri"),
         ExperimentalConstruct::ExperimentalZantufaCmavo => ("EXPERIMENTAL_ZANTUFA_CMAVO", "experimental-zantufa-cmavo"),

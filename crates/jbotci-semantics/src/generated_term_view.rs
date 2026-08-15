@@ -7,16 +7,54 @@
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
+use std::sync::Arc;
+
 use jbotci_syntax::generated_model::{
-    BareNaTermSyntax, BoundTermSyntax, ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax,
-    ForethoughtTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LinkedTermSyntax,
-    NaKuTermSyntax, NoihaAdverbialTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
-    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
-    SumtiTermSyntax, TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax,
-    TenseTaggedLinkedSumtiSyntax,
+    BareNaTermSyntax, BoundTermSyntax, CeheTermSyntax, ElidedNaheFihoTagTermSyntax,
+    FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax,
+    LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax,
+    NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NuhiTermsetSyntax,
+    PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax,
+    SimpleTermSyntax, SoiAdverbialTermSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
+    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax,
+    TermSyntax,
 };
 
-/// A borrowed simple-term leaf shared by `SimpleTermSyntax` and `BoundTermSyntax`.
+/// A borrowed tag-led term leaf.
+///
+/// The absorption-guarded `TaggedSumtiTermSyntax` and its unguarded `nonabs` twin differ only by
+/// the `!selbri` assertion that decides where the term ends. That is a parse-time boundary rule
+/// with no semantic content, so lowering sees exactly one shape for both.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GeneratedTaggedTermRef<'syntax> {
+    pub(crate) tense_modal: &'syntax Arc<LeadingTermTagTenseModalSyntax>,
+    pub(crate) sumti: &'syntax Arc<TaggedOrElidedSumtiSyntax>,
+}
+
+impl<'syntax> GeneratedTaggedTermRef<'syntax> {
+    /// Borrow the absorption-guarded tag term.
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_guarded(term: &'syntax TaggedSumtiTermSyntax) -> Self {
+        Self {
+            tense_modal: &term.tense_modal,
+            sumti: &term.sumti,
+        }
+    }
+
+    /// Borrow the unguarded `nonabs` tag term.
+    #[requires(true)]
+    #[ensures(true)]
+    fn from_unguarded(term: &'syntax NonabsTaggedSumtiTermSyntax) -> Self {
+        Self {
+            tense_modal: &term.tense_modal,
+            sumti: &term.sumti,
+        }
+    }
+}
+
+/// A borrowed simple-term leaf shared by every level of the composed term hierarchy.
 #[invariant(::PlaceTaggedSumtiTerm(_) => true)]
 #[invariant(::JaiTaggedSumtiTerm(_) => true)]
 #[invariant(::ElidedNaheFihoTagTerm(_) => true)]
@@ -37,7 +75,7 @@ pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     JaiTaggedSumtiTerm(&'syntax JaiTaggedSumtiTermSyntax),
     ElidedNaheFihoTagTerm(&'syntax ElidedNaheFihoTagTermSyntax),
     TaggedSumtiBeforeTagTerm(&'syntax TaggedSumtiBeforeTagTermSyntax),
-    TaggedSumtiTerm(&'syntax TaggedSumtiTermSyntax),
+    TaggedSumtiTerm(GeneratedTaggedTermRef<'syntax>),
     NoihaAdverbialTerm(&'syntax NoihaAdverbialTermSyntax),
     FihoiAdverbialTerm(&'syntax FihoiAdverbialTermSyntax),
     SoiAdverbialTerm(&'syntax SoiAdverbialTermSyntax),
@@ -61,7 +99,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Self::TaggedSumtiBeforeTagTerm(term)
             }
-            SimpleTermSyntax::TaggedSumtiTerm(term) => Self::TaggedSumtiTerm(term),
+            SimpleTermSyntax::TaggedSumtiTerm(term) => {
+                Self::TaggedSumtiTerm(GeneratedTaggedTermRef::from_guarded(term))
+            }
             SimpleTermSyntax::NoihaAdverbialTerm(term) => Self::NoihaAdverbialTerm(term),
             SimpleTermSyntax::FihoiAdverbialTerm(term) => Self::FihoiAdverbialTerm(term),
             SimpleTermSyntax::SoiAdverbialTerm(term) => Self::SoiAdverbialTerm(term),
@@ -86,7 +126,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             BoundTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
                 Some(Self::TaggedSumtiBeforeTagTerm(term))
             }
-            BoundTermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(term)),
+            BoundTermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
+                GeneratedTaggedTermRef::from_guarded(term),
+            )),
             BoundTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
             BoundTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
             BoundTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
@@ -96,6 +138,125 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             BoundTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             BoundTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             BoundTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
+        }
+    }
+
+    /// Borrow a leaf from the PEhE level, or report that the node is a grouped connection.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn from_term(term: &'syntax TermSyntax) -> Option<Self> {
+        match term {
+            TermSyntax::PeheTermsetConnection(_)
+            | TermSyntax::TermsetGroup(_)
+            | TermSyntax::ConnectedTerm(_)
+            | TermSyntax::StagBoundTermConnection(_) => None,
+            TermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            TermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
+            TermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
+            TermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                Some(Self::TaggedSumtiBeforeTagTerm(term))
+            }
+            TermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
+                GeneratedTaggedTermRef::from_guarded(term),
+            )),
+            TermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
+            TermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
+            TermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            TermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
+            TermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
+            TermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            TermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
+            TermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
+            TermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
+        }
+    }
+
+    /// Borrow a leaf from the CEhE level, or report that the node is a grouped connection.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn from_cehe(term: &'syntax CeheTermSyntax) -> Option<Self> {
+        match term {
+            CeheTermSyntax::TermsetGroup(_)
+            | CeheTermSyntax::ConnectedTerm(_)
+            | CeheTermSyntax::StagBoundTermConnection(_) => None,
+            CeheTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            CeheTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
+            CeheTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
+            CeheTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                Some(Self::TaggedSumtiBeforeTagTerm(term))
+            }
+            CeheTermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
+                GeneratedTaggedTermRef::from_guarded(term),
+            )),
+            CeheTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
+            CeheTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
+            CeheTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            CeheTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
+            CeheTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
+            CeheTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            CeheTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
+            CeheTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
+            CeheTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
+        }
+    }
+
+    /// Borrow a leaf from the loose connective level, or report a grouped connection.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn from_loose(term: &'syntax LooseTermSyntax) -> Option<Self> {
+        match term {
+            LooseTermSyntax::ConnectedTerm(_) | LooseTermSyntax::StagBoundTermConnection(_) => None,
+            LooseTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            LooseTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
+            LooseTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
+            LooseTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                Some(Self::TaggedSumtiBeforeTagTerm(term))
+            }
+            LooseTermSyntax::TaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
+                GeneratedTaggedTermRef::from_guarded(term),
+            )),
+            LooseTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
+            LooseTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
+            LooseTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            LooseTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
+            LooseTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
+            LooseTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            LooseTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
+            LooseTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
+            LooseTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
+        }
+    }
+
+    /// Borrow a leaf from the unguarded `nonabs` level, or report a grouped connection.
+    ///
+    /// The unguarded tag leaf lowers exactly like its absorption-guarded twin.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn from_nonabs(term: &'syntax NonabsTermSyntax) -> Option<Self> {
+        match term {
+            NonabsTermSyntax::ConnectedTerm(_) | NonabsTermSyntax::StagBoundTermConnection(_) => {
+                None
+            }
+            NonabsTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            NonabsTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
+            NonabsTermSyntax::ElidedNaheFihoTagTerm(term) => {
+                Some(Self::ElidedNaheFihoTagTerm(term))
+            }
+            NonabsTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                Some(Self::TaggedSumtiBeforeTagTerm(term))
+            }
+            NonabsTermSyntax::NonabsTaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
+                GeneratedTaggedTermRef::from_unguarded(term),
+            )),
+            NonabsTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
+            NonabsTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
+            NonabsTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            NonabsTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
+            NonabsTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
+            NonabsTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            NonabsTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
+            NonabsTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
+            NonabsTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
         }
     }
 
