@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.loose-guard-bo-subsentence-rejected"
+lojban = "mi broda ko'a .e pu bo i do brode"
+tags = ["adhoc", "syntax", "term-hierarchy-epoch", "issue-791", "loose-guard", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6 term hierarchy witness"
+description = "camxes-exp tag_bo_subsentence reserves connective+stag+BO before I. camxes-exp then owns the surface with a sentence-level joik_jek stag BO I connection that jbotci does not implement, so the term tier yields and the statement family (epoch 11) inherits the acceptance gap."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 24], source-text = "i", message = "unexpected cmavo" }]

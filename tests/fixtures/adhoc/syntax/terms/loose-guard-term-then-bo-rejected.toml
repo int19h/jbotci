@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.loose-guard-term-then-bo-rejected"
+lojban = "mi broda ko'a .e pu bo do brode"
+tags = ["adhoc", "syntax", "term-hierarchy-epoch", "issue-791", "loose-guard", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6 term hierarchy witness"
+description = "With a preceding tail term the bridi-tail connection can no longer own the reserved shape, and the loose term tier still may not: camxes-exp rejects the surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [26, 31], source-text = "brode", message = "unexpected brivla" }]

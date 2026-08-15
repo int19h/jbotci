@@ -3065,7 +3065,8 @@ pub enum ExperimentalConstruct {
     ExperimentalEmptyLinkargs,
     ExperimentalBroadBoStatementConnective,
     ExperimentalBroadKePredicateContinuation,
-    ExperimentalTermHierarchyBoConnection,
+    ExperimentalTermBoConnection,
+    ExperimentalTermLooseConnection,
     ExperimentalBareNaTerm,
     ExperimentalXohiTagSelbri,
     ExperimentalZantufaCmavo,
@@ -3200,8 +3201,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalBroadKePredicateContinuation => {
                 "syntax.warning.experimental-broad-ke-bridi-continuation"
             }
-            Self::ExperimentalTermHierarchyBoConnection => {
-                "syntax.warning.experimental-term-hierarchy-bo-connection"
+            Self::ExperimentalTermBoConnection => "syntax.warning.experimental-term-bo-connection",
+            Self::ExperimentalTermLooseConnection => {
+                "syntax.warning.experimental-term-loose-connection"
             }
             Self::ExperimentalBareNaTerm => "syntax.warning.experimental-bare-na-term",
             Self::ExperimentalXohiTagSelbri => "syntax.warning.experimental-xohi-tag-selbri",
@@ -3345,9 +3347,8 @@ impl ExperimentalConstruct {
             Self::ExperimentalBroadKePredicateContinuation => {
                 "broad connective with KE/KEhE in a bridi/subbridi continuation"
             }
-            Self::ExperimentalTermHierarchyBoConnection => {
-                "experimental term-hierarchy BO connection"
-            }
+            Self::ExperimentalTermBoConnection => "BO-bound term or linked-argument connection",
+            Self::ExperimentalTermLooseConnection => "loose term or linked-argument connection",
             Self::ExperimentalBareNaTerm => "bare NA term/adverbial without KU",
             Self::ExperimentalXohiTagSelbri => "XOhI tag-to-selbri conversion",
             Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",
@@ -4489,7 +4490,11 @@ mod tests {
         assert_error_kind("te", SyntaxErrorKind::IncompleteSumti);
         assert_error_kind("nu", SyntaxErrorKind::IncompleteSelbri);
         assert_error_kind("ga'oga'i ki'a", SyntaxErrorKind::IncompleteSelbri);
-        assert_error_kind("because", SyntaxErrorKind::IncompleteSelbri);
+        // `because` lexes as `be cau se`: with the BE/BEI loose connection now default-enabled,
+        // the innermost unmet expectation after `cau` is the linked-term connective rather than a
+        // selbri tag, so the fragment classifies as an incomplete sumti. `nu` and `ga'oga'i ki'a`
+        // above keep IncompleteSelbri covered.
+        assert_error_kind("because", SyntaxErrorKind::IncompleteSumti);
         assert_error_kind("xi", SyntaxErrorKind::IncompleteFreeModifier);
         assert_error_kind("li peho suhi", SyntaxErrorKind::IncompleteMekso);
         assert_error_kind(

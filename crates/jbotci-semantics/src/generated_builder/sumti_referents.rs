@@ -52,25 +52,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 term,
                 termset,
             ),
-            TermSyntax::SimpleTerm(simple) => self.insert_generated_simple_term_assignment(
-                visible_arguments,
-                place_questions,
-                modal_terms,
-                formula_scopes,
-                coequal_scope_groups,
-                term_formula_scopes,
-                next_visible_place,
-                term,
-                GeneratedSimpleTermRef::from_simple(simple),
-            ),
-            TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-                leading_term,
-                continuations,
-            }) if continuations.is_empty() => {
-                let Some(simple) = GeneratedSimpleTermRef::from_bound(leading_term) else {
-                    return Err(undefined_semantics(
-                        "a grouped direct term connection in the term-hierarchy dialect",
-                    ));
+            _ if GeneratedSimpleTermRef::from_term(term).is_some() => {
+                let Some(simple) = GeneratedSimpleTermRef::from_term(term) else {
+                    unreachable!("term leaf conversion changed between the guard and its arm")
                 };
                 self.insert_generated_simple_term_assignment(
                     visible_arguments,
@@ -127,7 +111,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             term_formula_scopes,
             next_visible_place,
             termset.leading_term.as_ref(),
-            GeneratedSimpleTermRef::from_simple(&termset.leading_term),
+            GeneratedSimpleTermRef::from_loose(&termset.leading_term)
+                .ok_or_else(grouped_termset_operand_undefined)?,
         )?;
         for continuation in &termset.continuations {
             self.insert_generated_simple_term_assignment(
@@ -139,7 +124,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 term_formula_scopes,
                 next_visible_place,
                 continuation.trailing_term.as_ref(),
-                GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
+                GeneratedSimpleTermRef::from_nonabs(&continuation.trailing_term)
+                    .ok_or_else(grouped_termset_operand_undefined)?,
             )?;
         }
         push_generated_coequal_scope_group_or_individual_scopes(
@@ -313,7 +299,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn prepare_generated_modal_term<'syntax: 'tree>(
         &mut self,
-        term: &'syntax TaggedSumtiTermSyntax,
+        term: GeneratedTaggedTermRef<'syntax>,
         formula_scopes: &mut Vec<GeneratedArgumentQuantifierScope<'syntax>>,
     ) -> Result<GeneratedModalTerm<'syntax>, SemanticsError> {
         let argument = match term.sumti.as_ref() {
@@ -390,7 +376,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn build_adjunct_for_generated_tagged_sumti(
         &mut self,
-        term: &'tree TaggedSumtiTermSyntax,
+        term: GeneratedTaggedTermRef<'tree>,
     ) -> Result<Option<Adjunct>, SemanticsError> {
         self.build_adjunct_for_generated_tagged_sumti_with_visible_arguments(term, None)
     }
@@ -399,7 +385,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn build_adjunct_for_generated_tagged_sumti_with_visible_arguments(
         &mut self,
-        term: &'tree TaggedSumtiTermSyntax,
+        term: GeneratedTaggedTermRef<'tree>,
         visible_arguments: Option<&BTreeMap<usize, ArgumentValue>>,
     ) -> Result<Option<Adjunct>, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
@@ -417,7 +403,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn build_adjunct_for_generated_tagged_sumti_with_argument(
         &mut self,
-        term: &'tree TaggedSumtiTermSyntax,
+        term: GeneratedTaggedTermRef<'tree>,
         argument: ArgumentValue,
     ) -> Result<Option<Adjunct>, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
@@ -473,7 +459,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn build_adjunct_for_generated_tagged_sumti_with_predication_arguments(
         &mut self,
-        term: &'tree TaggedSumtiTermSyntax,
+        term: GeneratedTaggedTermRef<'tree>,
         arguments: Option<&BTreeMap<PlaceIndex, ArgumentValue>>,
     ) -> Result<Option<Adjunct>, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
@@ -1537,17 +1523,21 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<(), SemanticsError> {
         match term {
             TermSyntax::TermsetGroup(termset) => {
-                self.collect_generated_governed_termset_simple_member(
-                    GeneratedSimpleTermRef::from_simple(termset.leading_term.as_ref()),
-                    anchor,
-                    magnitude,
-                )?;
-                for continuation in &termset.continuations {
+                if let Some(simple) =
+                    GeneratedSimpleTermRef::from_loose(termset.leading_term.as_ref())
+                {
                     self.collect_generated_governed_termset_simple_member(
-                        GeneratedSimpleTermRef::from_simple(continuation.trailing_term.as_ref()),
-                        anchor,
-                        magnitude,
+                        simple, anchor, magnitude,
                     )?;
+                }
+                for continuation in &termset.continuations {
+                    if let Some(simple) =
+                        GeneratedSimpleTermRef::from_nonabs(continuation.trailing_term.as_ref())
+                    {
+                        self.collect_generated_governed_termset_simple_member(
+                            simple, anchor, magnitude,
+                        )?;
+                    }
                 }
                 Ok(())
             }
@@ -1615,7 +1605,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn apply_generated_tagged_term_event_modifier(
         &mut self,
         eventuality: SemanticObjectId,
-        term: &'tree TaggedSumtiTermSyntax,
+        term: GeneratedTaggedTermRef<'tree>,
     ) -> Result<bool, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
         if generated_tense_modal_resets_sticky_tense(tense_modal) {
@@ -1639,7 +1629,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn apply_generated_tagged_term_event_modifier_with_anchor(
         &mut self,
         eventuality: SemanticObjectId,
-        term: &'tree TaggedSumtiTermSyntax,
+        term: GeneratedTaggedTermRef<'tree>,
         anchor: Option<SemanticObjectId>,
     ) -> Result<bool, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();
@@ -1658,7 +1648,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn apply_generated_tagged_term_event_modifier_with_governed_termset(
         &mut self,
         eventuality: SemanticObjectId,
-        term: &'tree TaggedSumtiTermSyntax,
+        term: GeneratedTaggedTermRef<'tree>,
         governed: &GeneratedGovernedTermset,
     ) -> Result<bool, SemanticsError> {
         let tense_modal = term.tense_modal.as_ref();

@@ -427,7 +427,7 @@ pub(super) fn generated_sumti_connective_has_se(connective: &SumtiConnectiveSynt
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_direct_term_connective_is_logical(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> bool {
     matches!(
         generated_direct_term_connective_primary_cmavo(connective),
@@ -458,23 +458,13 @@ pub(super) fn generated_direct_term_connection_unsupported_error(
     terms: &[&TermSyntax],
 ) -> Option<SemanticsError> {
     let connection = terms.iter().copied().find_map(|term| match term {
-        TermSyntax::ConnectedTerm(connection) if !connection.continuations.is_empty() => Some(term),
-        TermSyntax::BoundTermConnection(_) => Some(term),
+        TermSyntax::ConnectedTerm(connection) => Some(connection),
         _ => None,
     })?;
-    let all_logical = match connection {
-        TermSyntax::ConnectedTerm(connection) => {
-            connection.continuations.iter().all(|continuation| {
-                generated_direct_term_connective_is_logical(
-                    GeneratedDirectTermConnective::Connected(&continuation.connective),
-                )
-            })
-        }
-        TermSyntax::BoundTermConnection(connection) => generated_direct_term_connective_is_logical(
-            GeneratedDirectTermConnective::Bound(&connection.connective),
-        ),
-        _ => unreachable!("the direct term connection search returned another term kind"),
-    };
+    let all_logical = connection
+        .continuations
+        .iter()
+        .all(|continuation| generated_direct_term_connective_is_logical(&continuation.connective));
     Some(if all_logical {
         undefined_semantics("a direct term connection that shares terms with a connected bridi")
     } else {
@@ -485,7 +475,7 @@ pub(super) fn generated_direct_term_connection_unsupported_error(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_direct_term_connective_formula_operator(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> FormulaOperator {
     match generated_direct_term_connective_primary_cmavo(connective) {
         Some(Cmavo::Ji) => FormulaOperator::ConnectiveQuestion,
@@ -500,48 +490,23 @@ pub(super) fn generated_direct_term_connective_formula_operator(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_direct_term_connective_primary_cmavo(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> Option<Cmavo> {
     match connective {
-        GeneratedDirectTermConnective::Connected(connective) => match connective {
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_primary_cmavo(connective),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JekConnective(
-                connective,
-            ) => connective.ja.value.cmavo(),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.a.value.cmavo(),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::VuhuNonlogicalConnective(
-                connective,
-            ) => connective.0.value.cmavo(),
-        },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_primary_cmavo(connective),
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.a.value.cmavo(),
-        },
+        TermAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_primary_cmavo(connective)
+        }
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => connective.a.value.cmavo(),
     }
 }
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_none_or(|token| token.cmavo() == Some(Cmavo::Ji)))]
 pub(super) fn generated_direct_term_connective_question_token(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> Option<Token> {
     let mut collector = GeneratedSpanCollector::default();
-    match connective {
-        GeneratedDirectTermConnective::Connected(connective) => {
-            connective.visit_in_order(&mut collector);
-        }
-        GeneratedDirectTermConnective::Bound(connective) => {
-            connective.visit_in_order(&mut collector);
-        }
-    }
+    connective.visit_in_order(&mut collector);
     collector
         .tokens
         .into_iter()
@@ -552,163 +517,70 @@ pub(super) fn generated_direct_term_connective_question_token(
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|source| !source.is_empty()) || ret.is_err())]
 pub(super) fn generated_direct_term_connective_source(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> Result<String, SemanticsError> {
     match connective {
-        GeneratedDirectTermConnective::Connected(connective) => match connective {
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => Ok(generated_joik_connective_source(connective)),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JekConnective(
-                connective,
-            ) => {
-                let mut tokens = Vec::new();
-                if let Some(token) = &connective.na {
-                    tokens.push(token);
-                }
-                if let Some(token) = &connective.se {
-                    tokens.push(token);
-                }
-                tokens.push(&connective.ja.value);
-                if let Some(token) = &connective.nai {
-                    tokens.push(&token.value);
-                }
-                Ok(connective_source_from_tokens(tokens))
+        TermAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            Ok(generated_joik_connective_source(connective))
+        }
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => {
+            let mut tokens = Vec::new();
+            if let Some(token) = &connective.na {
+                tokens.push(token);
             }
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => {
-                let mut tokens = Vec::new();
-                if let Some(token) = &connective.na {
-                    tokens.push(token);
-                }
-                if let Some(token) = &connective.se {
-                    tokens.push(token);
-                }
-                tokens.push(&connective.a.value);
-                if let Some(token) = &connective.nai {
-                    tokens.push(&token.value);
-                }
-                Ok(connective_source_from_tokens(tokens))
+            if let Some(token) = &connective.se {
+                tokens.push(token);
             }
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::VuhuNonlogicalConnective(
-                connective,
-            ) => Ok(token_text(&connective.0.value)),
-        },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => Ok(generated_joik_connective_source(connective)),
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => {
-                let mut tokens = Vec::new();
-                if let Some(token) = &connective.na {
-                    tokens.push(token);
-                }
-                if let Some(token) = &connective.se {
-                    tokens.push(token);
-                }
-                tokens.push(&connective.a.value);
-                if let Some(token) = &connective.nai {
-                    tokens.push(&token.value);
-                }
-                Ok(connective_source_from_tokens(tokens))
+            tokens.push(&connective.a.value);
+            if let Some(token) = &connective.nai {
+                tokens.push(&token.value);
             }
-        },
+            Ok(connective_source_from_tokens(tokens))
+        }
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_direct_term_connective_has_se(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> bool {
     match connective {
-        GeneratedDirectTermConnective::Connected(connective) => match connective {
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_has_se(connective),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JekConnective(
-                connective,
-            ) => connective.se.is_some(),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.se.is_some(),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::VuhuNonlogicalConnective(
-                _,
-            ) => false,
-        },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_has_se(connective),
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.se.is_some(),
-        },
+        TermAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_has_se(connective)
+        }
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => connective.se.is_some(),
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_direct_term_connective_negates_left(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> bool {
     match connective {
-        GeneratedDirectTermConnective::Connected(connective) => match connective {
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JekConnective(
-                connective,
-            ) => connective.na.is_some(),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.na.is_some(),
-            _ => false,
-        },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(connective) => {
-                connective.na.is_some()
-            }
-            _ => false,
-        },
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => connective.na.is_some(),
+        _ => false,
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_direct_term_connective_negates_right(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> bool {
     match connective {
-        GeneratedDirectTermConnective::Connected(connective) => match connective {
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_negates_right(connective),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::JekConnective(
-                connective,
-            ) => connective.nai.is_some(),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.nai.is_some(),
-            jbotci_syntax::generated_model::ConnectedTermConnectiveSyntax::VuhuNonlogicalConnective(
-                _,
-            ) => false,
-        },
-        GeneratedDirectTermConnective::Bound(connective) => match connective {
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::JoikConnective(
-                connective,
-            ) => generated_joik_connective_negates_right(connective),
-            jbotci_syntax::generated_model::BoundTermConnectiveSyntax::EkConnective(
-                connective,
-            ) => connective.nai.is_some(),
-        },
+        TermAfterthoughtConnectiveSyntax::JoikConnective(connective) => {
+            generated_joik_connective_negates_right(connective)
+        }
+        TermAfterthoughtConnectiveSyntax::EkConnective(connective) => connective.nai.is_some(),
     }
 }
 
 #[requires(generated_direct_term_connective_is_logical(connective))]
 #[ensures(ret.is_none() || ret.as_ref().is_some_and(|table| table.len() == 4))]
 pub(super) fn generated_direct_term_connective_truth_table(
-    connective: GeneratedDirectTermConnective<'_>,
+    connective: &TermAfterthoughtConnectiveSyntax,
 ) -> Option<String> {
     let operator = generated_direct_term_connective_formula_operator(connective);
     if operator == FormulaOperator::ConnectiveQuestion {

@@ -4766,7 +4766,6 @@ fn recovery_feature_condition_matches(
     dialect: generated_runtime::SyntaxGrammarDialect,
 ) -> bool {
     match name {
-        "TermHierarchy" => dialect.term_hierarchy_enabled,
         "Cbm" => dialect.cbm_enabled,
         "UnrestrictedFree" => dialect.unrestricted_free_enabled,
         "ZantufaAdverbials" => dialect.zantufa_adverbials_enabled,
@@ -5170,6 +5169,26 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                 if !generated_exp_run_is_single_unprefixed_fa(run) =>
             {
                 self.warn_first_token(ExperimentalConstruct::ExperimentalFlattenedTag, run);
+            }
+            // The loose (T3) term tier is a diagnosed extension: camxes-standard has no
+            // term-level connective at all. Its continuations own no token of their own -- the
+            // connective belongs to the `joik_connective` / `ek_connective` nodes the sumti and
+            // statement tiers share -- so the tier is diagnosed post-parse here, where the
+            // continuation node is complete and its first token is exactly its connective. The
+            // BO (T4) tier keeps its in-parser `warn` on the `bo` token it does own.
+            generated::generated_model::NodeRef::ConnectedTermContinuationSyntax(continuation) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalTermLooseConnection,
+                    continuation,
+                );
+            }
+            generated::generated_model::NodeRef::ConnectedLinkedTermContinuationSyntax(
+                continuation,
+            ) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalTermLooseConnection,
+                    continuation,
+                );
             }
             generated::generated_model::NodeRef::ZantufaTagSyntax(tag) => {
                 self.remove_nested_zantufa_warnings(tag);

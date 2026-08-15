@@ -56,6 +56,16 @@ pub mod generated_model {
         description_relative_subbridi: SubbridiSyntax;
         bare_continuable_relative_clause_list: RelativeClauseListSyntax;
         term: TermSyntax;
+        // Every level of the term ladder belongs here, as every level of the sumti, selbri and
+        // mekso ladders does. A rule outside this block is re-constructed inline at each of its
+        // reference sites, and the ladder levels nest, so omitting them multiplies the
+        // combinator graph rebuilt on every parse. That omission cost the epoch's first cut
+        // +72% CPU on the full fixture profile; see the epoch-6 ledger.
+        cehe_term: CeheTermSyntax;
+        loose_term: LooseTermSyntax;
+        nonabs_term: NonabsTermSyntax;
+        bound_term: BoundTermSyntax;
+        simple_term: SimpleTermSyntax;
         sumti: SumtiSyntax;
         sumti_grouped: SumtiGroupedSyntax;
         sumti_afterthought: SumtiAfterthoughtSyntax;
@@ -1224,71 +1234,212 @@ pub mod generated_model {
     alias "term" term_guard =
         (relation_word(), cmavo(Bu).not()).not();
 
-    // camxes-exp keeps a loose term continuation from consuming a connective plus the tag
-    // that belongs to a following BO/KE bridi tail or BO-led subsentence. The hierarchy makes
-    // that choice load-bearing, so preserve the standard dialect by enabling both lookaheads
-    // only with `term-hierarchy`.
-    alias "term connection" term_hierarchy_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection) = choice((
-        feature(TermHierarchy).not(),
+    // camxes-exp keeps a loose term continuation from consuming a connective plus the tag that
+    // belongs to a following BO/KE bridi tail or BO-led subsentence (camxes-exp.peg:138-140).
+    // The reservation is keyed to ARM ENGAGEMENT rather than to a dialect feature: the loose tier
+    // is a default-enabled diagnosed extension, so the guard must hold wherever a loose
+    // continuation is offered, in every profile and at every consumer.
+    alias "term connection" term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection) = (
         (
-            feature(TermHierarchy),
-            (
-                connected_term_connective,
-                arc(tense_modal),
-                choice((cmavo(Bo), cmavo(Ke))).wf(),
-                opt(cmavo(Cu).wf()),
-                choice((
-                    arc(selbri).ignored(),
-                    arc(forethought_bridi_connection).ignored(),
-                )),
-            ).not(),
-            (connected_term_connective, arc(tense_modal), cmavo(Bo), cmavo(I)).not(),
-        ).ignored(),
-    ));
+            term_afterthought_connective,
+            arc(tense_modal),
+            choice((cmavo(Bo), cmavo(Ke))).wf(),
+            opt(cmavo(Cu).wf()),
+            choice((
+                arc(selbri).ignored(),
+                arc(forethought_bridi_connection).ignored(),
+            )),
+        ).not(),
+        (term_afterthought_connective, arc(tense_modal), cmavo(Bo), cmavo(I)).not(),
+    ).ignored();
 
-    /// Sum node for term; selects among the `pehe_termset_connection`, `bound_term_connection`, `termset_group`, `connected_term`, and `simple_term` forms.
-    rule "term" term(statement, term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    /// The PEhE level of the composed term hierarchy: `terms_1 <- terms_2 (PEhE free* joik_jek
+    /// terms_2)*` (camxes.peg:114, camxes-exp.peg:121). Every consumer of a term sequence repeats
+    /// this level, which is exactly the upstream `terms <- terms_1+` shape.
+    ///
+    /// Like the levels below it, this rule re-lists the leaf inventory instead of nesting a sum
+    /// branch: a nested branch would add a public wrapper variant to Debug and serde output. The
+    /// binding-schema drift guard keeps every level's leaf inventory synchronized with
+    /// `simple_term`.
+    rule "term" term(statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
-        /// Uses the `bound_term_connection` product form, whose payload preserves `leading_term`, `connective`, `bo`, and `trailing_term`.
-        bound_term_connection,
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
-        /// Uses the nested `simple_term` sum form and preserves its selected alternative.
-        simple_term,
+        /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
+        stag_bound_term_connection,
+        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
+        place_tagged_sumti_term,
+        /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
+        jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
+        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
+        tagged_sumti_before_tag_term,
+        /// Uses the absorption-safe `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
+        tagged_sumti_term,
+        /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
+        noiha_adverbial_term,
+        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
+        fihoi_adverbial_term,
+        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
+        soi_adverbial_term,
+        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
+        na_ku_term,
+        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
+        sumti_term,
+        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
+        bare_na_term,
+        /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
+        forethought_termset,
+        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
+        nuhi_termset,
+        /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
+        ke_termset,
+    }
+
+    /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
+    /// (camxes.peg:116). It is the operand level of the PEhE connection above it.
+    rule "term" cehe_term(statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+        /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
+        termset_group,
+        /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
+        connected_term,
+        /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
+        stag_bound_term_connection,
+        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
+        place_tagged_sumti_term,
+        /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
+        jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
+        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
+        tagged_sumti_before_tag_term,
+        /// Uses the absorption-safe `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
+        tagged_sumti_term,
+        /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
+        noiha_adverbial_term,
+        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
+        fihoi_adverbial_term,
+        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
+        soi_adverbial_term,
+        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
+        na_ku_term,
+        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
+        sumti_term,
+        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
+        bare_na_term,
+        /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
+        forethought_termset,
+        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
+        nuhi_termset,
+        /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
+        ke_termset,
+    }
+
+    /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
+    /// abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
+    /// (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
+    rule "term" loose_term(statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+        /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
+        connected_term,
+        /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
+        stag_bound_term_connection,
+        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
+        place_tagged_sumti_term,
+        /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
+        jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
+        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
+        tagged_sumti_before_tag_term,
+        /// Uses the absorption-safe `tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
+        tagged_sumti_term,
+        /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
+        noiha_adverbial_term,
+        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
+        fihoi_adverbial_term,
+        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
+        soi_adverbial_term,
+        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
+        na_ku_term,
+        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
+        sumti_term,
+        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
+        bare_na_term,
+        /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
+        forethought_termset,
+        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
+        nuhi_termset,
+        /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
+        ke_termset,
+    }
+
+    /// The unguarded (`nonabs`) operand flavour of the CEhE continuation.
+    ///
+    /// Standard camxes reads a CEhE continuation as `nonabs_term` (camxes.peg:116, :128), whose
+    /// tag-led atom carries no absorption guard, so `ko'a ce'e pu broda` assigns `pu` with an
+    /// elided KU. camxes-exp instead reads the same continuation as a full absorption-safe
+    /// `abs_term` (camxes-exp.peg:122), which contributes the connective and BO tiers. The union
+    /// of the two sources is exactly this level: the guarded tiers with the unguarded leaf
+    /// inventory. The guard only ever fires when a selbri follows the atom directly, which is a
+    /// position no connective tier can occupy, so no surface outside the two sources is admitted.
+    rule "term" nonabs_term(statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+        /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
+        connected_term,
+        /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
+        stag_bound_term_connection,
+        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
+        place_tagged_sumti_term,
+        /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
+        jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
+        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
+        tagged_sumti_before_tag_term,
+        /// Uses the unguarded `nonabs_tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
+        nonabs_tagged_sumti_term,
+        /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
+        noiha_adverbial_term,
+        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
+        fihoi_adverbial_term,
+        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
+        soi_adverbial_term,
+        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
+        na_ku_term,
+        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
+        sumti_term,
+        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
+        bare_na_term,
+        /// Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.
+        forethought_termset,
+        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
+        nuhi_termset,
+        /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
+        ke_termset,
     }
 
     /// Product node for termset connection; preserves `leading_term` and `continuations` in source order.
-    rule "termset connection" pehe_termset_connection(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "termset connection" pehe_termset_connection(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
-        field leading_term <- arc(pehe_termset_operand(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
+        field leading_term <- arc(cehe_term);
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more pehe_termset_connection_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more pehe_termset_connection_continuation(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// Product node for termset connection continuation; preserves `pehe`, `connective`, and `trailing_term` in source order.
-    rule "termset connection continuation" pehe_termset_connection_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "termset connection continuation" pehe_termset_connection_continuation(statement, sumti, cehe_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The `Pehe` cmavo marker.
         field pehe <- cmavo(Pehe).wf();
-        /// The `statement_connective` connective joining the adjacent constituents of the `pehe_termset_connection_continuation` production.
-        field connective <- statement_connective;
+        /// The PEhE connective. camxes-standard spells the PEhE level `joik_jek` (camxes.peg:114),
+        /// which is the JOIK-or-JEK inventory; #806 carries that domain, so EK and VUhU are
+        /// rejected here with a documented-gap ledger row against camxes-exp's literal `joik_jek`.
+        field connective <- standard_statement_connective;
         /// The shared trailing term child syntax node.
-        field trailing_term <- arc(pehe_termset_operand(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
-    }
-
-    /// Sum node for term; selects among the `bound_term_connection`, `termset_group`, and `simple_term` forms.
-    rule "term" pehe_termset_operand(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
-        /// Uses the `bound_term_connection` product form, whose payload preserves `leading_term`, `connective`, `bo`, and `trailing_term`.
-        bound_term_connection,
-        /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
-        when feature(TermHierarchy) stag_bound_term_connection,
-        /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
-        termset_group,
-        /// Uses the nested `simple_term` sum form and preserves its selected alternative.
-        simple_term,
+        field trailing_term <- arc(cehe_term);
     }
 
     /// Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
@@ -1328,9 +1479,9 @@ pub mod generated_model {
     /// The leaf rules are deliberately listed directly rather than through `simple_term`: a
     /// nested sum branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-    rule "term" bound_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
-        /// Uses a hierarchy-only BO-bound connection with the mandatory absorption-safe stag.
-        when feature(TermHierarchy) stag_bound_term_connection,
+    rule "term" bound_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+        /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
+        stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
@@ -1361,85 +1512,64 @@ pub mod generated_model {
         ke_termset,
     }
 
-    /// A hierarchy-only BO-bound ordinary-term connection with one or more continuations.
+    /// The BO-bound ordinary-term connection with one or more continuations.
     ///
-    /// camxes-exp's absorption-safe `abs_term_2` requires the stag before BO. The operands
-    /// intentionally remain `simple_term`: sumti greediness must continue to own chains whose
-    /// trailing operand is a bare sumti, rather than silently changing their term-level grouping.
-    rule "term connection" stag_bound_term_connection(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    /// camxes-exp's absorption-safe `abs_term_2` requires the stag before BO
+    /// (camxes-exp.peg:154); camxes-standard has no term-level BO at all, so every occurrence is
+    /// diagnosed. The operands intentionally remain `simple_term`: sumti greediness must continue
+    /// to own chains whose trailing operand is a bare sumti, rather than silently changing their
+    /// term-level grouping.
+    rule "term connection" stag_bound_term_connection(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The first simple term at the BO-bound precedence level.
-        field leading_term <- arc(simple_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
+        field leading_term <- arc(simple_term);
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more stag_bound_term_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more stag_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// One mandatory-stag BO continuation at the absorption-safe term level.
-    rule "term connection continuation" stag_bound_term_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection continuation" stag_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The connective joining the adjacent simple terms.
-        field connective <- bound_term_connective;
+        field connective <- term_afterthought_connective;
         /// The mandatory camxes-exp `stag` before BO.
         field tense_modal <- arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection));
-        /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo).wf();
+        /// The `Bo` cmavo marker, which owns the experimental warning for the whole connection.
+        field bo <- cmavo(Bo).warn(ExperimentalTermBoConnection).wf();
         /// The simple term following BO.
-        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
+        field trailing_term <- arc(simple_term);
     }
 
-    /// Product node for term connection; preserves `leading_term`, `connective`, `bo`, and `trailing_term` in source order.
-    rule "term connection" bound_term_connection(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
-        assert feature(TermHierarchy).not();
-        assert term_guard();
-        /// The shared leading term child syntax node.
-        field leading_term <- arc(simple_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
-        assert zantufa_na_led_term_joik_guard();
-        /// The shared connective child syntax node.
-        field connective <- arc(bound_term_connective);
-        /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo).wf();
-        assert sumti.not();
-        /// The shared trailing term child syntax node.
-        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
-        assert sumti.not();
-    }
-
-    /// Sum node for term connective; selects among the `joik_connective` and `ek_connective` forms.
-    rule "term connective" bound_term_connective -> enum {
-        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
+    /// Sum node for the term-level connective inventory.
+    ///
+    /// Both camxes-exp term tiers spell their connective `joik_ek` (camxes-exp.peg:153-154), and
+    /// the owner-corrected domain for that position is JOIK or EK only (#795, #806). This
+    /// deliberately diverges from camxes-exp's literal `joik_ek`, which also admits VUhU and
+    /// reaches JA through its `joik`: the divergence is the I02 adjudication applied to the term
+    /// site, and the rejected surfaces are witnessed with a documented-gap ledger row.
+    rule "term connective" term_afterthought_connective -> enum {
+        /// A JOI-family connective.
         joik_connective,
-        /// Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.
+        /// An A-family connective.
         ek_connective,
     }
 
     /// Product node for term connection; preserves `leading_term` and `continuations` in source order.
-    rule "term connection" connected_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "term connection" connected_term(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
-        field leading_term <- arc(bound_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
-        /// Ordered sequence of zero or more continuations components.
-        field continuations <- [zero_or_more connected_term_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
+        field leading_term <- arc(bound_term);
+        /// Non-empty ordered sequence of continuations components.
+        field continuations <- [one_or_more connected_term_continuation(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// Product node for term connection continuation; preserves `connective` and `trailing_term` in source order.
-    rule "term connection continuation" connected_term_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
-        assert term_hierarchy_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
+    rule "term connection continuation" connected_term_continuation(statement, sumti, bound_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
         assert zantufa_na_led_term_joik_guard();
-        /// The `connected_term_connective` connective joining the adjacent constituents of the `connected_term_continuation` production.
-        field connective <- connected_term_connective;
+        /// The `term_afterthought_connective` connective joining the adjacent constituents of the `connected_term_continuation` production.
+        field connective <- term_afterthought_connective;
         /// The shared trailing term child syntax node.
-        field trailing_term <- arc(bound_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
-    }
-
-    /// Sum node for term connective; selects among the `joik_connective`, `jek_connective`, `ek_connective`, and `vuhu_nonlogical_connective` forms.
-    rule "term connective" connected_term_connective -> enum {
-        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
-        joik_connective,
-        /// Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.
-        jek_connective,
-        /// Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.
-        ek_connective,
-        /// Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.
-        vuhu_nonlogical_connective,
+        field trailing_term <- arc(bound_term);
     }
 
     // Zantufa's NA-led JOIK collides with the established successful baseline
@@ -1451,20 +1581,24 @@ pub mod generated_model {
     )).ignored();
 
     /// Product node for termset; preserves `leading_term` and `continuations` in source order.
-    rule "termset" termset_group(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    ///
+    /// This is the CEhE level. Its leading operand is the full loose/BO term level, while each
+    /// continuation takes the unguarded `nonabs` flavour, exactly as camxes.peg:116 pairs `term`
+    /// with `nonabs_term`.
+    rule "termset" termset_group(statement, sumti, loose_term, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         assert term_guard();
         /// The shared leading term child syntax node.
-        field leading_term <- arc(simple_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
+        field leading_term <- arc(loose_term);
         /// Non-empty ordered sequence of continuations components.
-        field continuations <- [one_or_more termset_group_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more termset_group_continuation(statement, sumti, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
     }
 
     /// Product node for termset continuation; preserves `cehe` and `trailing_term` in source order.
-    rule "termset continuation" termset_group_continuation(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "termset continuation" termset_group_continuation(statement, sumti, nonabs_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
         /// The `Cehe` cmavo marker.
         field cehe <- cmavo(Cehe).wf();
         /// The shared trailing term child syntax node.
-        field trailing_term <- arc(simple_term(statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci));
+        field trailing_term <- arc(nonabs_term);
     }
 
     /// Product node for termset; preserves `m_nuhi`, `gek`, `terms`, and 4 other fields in source order.
@@ -1660,6 +1794,25 @@ pub mod generated_model {
             letter_string,
         ));
         assert !selbri;
+        /// The shared sumti child syntax node.
+        field sumti <- arc(tagged_or_elided_sumti(sumti));
+    }
+
+    /// Product node for the unguarded (`nonabs`) tag term; preserves `tense_modal` and `sumti`.
+    ///
+    /// camxes-standard's `nonabs_term` (camxes.peg:128) is `term_1` without the absorption guard
+    /// `!(!tag selbri)`, so a tag with an elided KU may stand directly before the selbri. The
+    /// guarded twin is `tagged_sumti_term`; the two rules differ only by that assertion, and the
+    /// binding-schema drift guard keeps the flavoured leaf inventories aligned.
+    rule "tag" nonabs_tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, selbri, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert !modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        /// The shared tense modal child syntax node.
+        field tense_modal <- arc(leading_term_tag_tense_modal(
+            baseline_term_tense_modal.map_to(tense_modal),
+            selbri,
+            letter_tokens,
+            letter_string,
+        ));
         /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti));
     }
@@ -5948,10 +6101,10 @@ pub mod generated_model {
     /// These leaves are listed directly so ordinary links retain their established Debug and
     /// serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
     rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection) -> enum {
-        /// Uses a hierarchy-only loose connection over BO-bound linked terms.
-        when feature(TermHierarchy) connected_linked_term,
-        /// Uses a hierarchy-only BO-bound linked-term connection.
-        when feature(TermHierarchy) bound_linked_term_connection,
+        /// Uses the diagnosed loose connection over BO-bound linked terms.
+        connected_linked_term,
+        /// Uses the diagnosed BO-bound linked-term connection.
+        bound_linked_term_connection,
         /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_linked_sumti,
         /// Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.
@@ -5972,17 +6125,17 @@ pub mod generated_model {
 
     /// One loose linked-term continuation.
     rule "linked arguments" connected_linked_term_continuation(sumti, tense_modal, selbri, forethought_bridi_connection) -> struct {
-        assert term_hierarchy_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
+        assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
         /// The connective joining the adjacent linked terms.
-        field connective <- connected_term_connective;
+        field connective <- term_afterthought_connective;
         /// The BO-bound linked term following the connective.
         field trailing_link <- arc(bound_linked_term(sumti, tense_modal));
     }
 
     /// The optional-stag BO-bound level for BE/BEI arguments.
     rule "linked arguments" bound_linked_term(sumti, tense_modal) -> enum {
-        /// Uses a hierarchy-only BO-bound linked-term connection.
-        when feature(TermHierarchy) bound_linked_term_connection,
+        /// Uses the diagnosed BO-bound linked-term connection.
+        bound_linked_term_connection,
         /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_linked_sumti,
         /// Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.
@@ -6001,7 +6154,7 @@ pub mod generated_model {
         plain_linked_sumti,
     }
 
-    /// A hierarchy-only BO-bound BE/BEI connection with one or more continuations.
+    /// The diagnosed BO-bound BE/BEI connection with one or more continuations.
     rule "linked arguments" bound_linked_term_connection(sumti, tense_modal) -> struct {
         /// The first nonempty linked argument at the BO-bound precedence level.
         field leading_link <- arc(bound_linked_term_operand(sumti, tense_modal));
@@ -6012,11 +6165,11 @@ pub mod generated_model {
     /// One optional-stag BO continuation in a BE/BEI argument connection.
     rule "linked arguments" bound_linked_term_continuation(sumti, tense_modal) -> struct {
         /// The connective joining the adjacent linked arguments.
-        field connective <- bound_term_connective;
+        field connective <- term_afterthought_connective;
         /// The optional camxes-exp `stag`; unlike ordinary terms, links use the `term` flavor.
         field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
-        /// The `Bo` cmavo marker.
-        field bo <- cmavo(Bo).wf();
+        /// The `Bo` cmavo marker, which owns the experimental warning for the whole connection.
+        field bo <- cmavo(Bo).warn(ExperimentalTermBoConnection).wf();
         /// The nonempty linked argument following BO.
         field trailing_link <- arc(bound_linked_term_operand(sumti, tense_modal));
     }

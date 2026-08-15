@@ -74,7 +74,6 @@ define_dialect_features! {
     CaseInsensitive => "case-insensitive",
     PermissiveLexer => "permissive-lexer",
     SoiAdverbials => "soi-adverbials",
-    TermHierarchy => "term-hierarchy",
     UnrestrictedFree => "unrestricted-free",
     ZantufaAdverbials => "zantufa-adverbials",
     ZantufaConnectives => "zantufa-connectives",
@@ -1481,10 +1480,14 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
         ("gadganzu", "(+GADGANZU)"),
         ("case-insensitive", "(+CASE-INSENSITIVE)"),
         ("soi-adverbials", "(+SOI-ADVERBIALS)"),
-        ("term-hierarchy", "(+TERM-HIERARCHY)"),
+        // Deprecated no-op. The camxes-exp term hierarchy is no longer a dialect feature: its
+        // levels are default-enabled diagnosed extensions of the composed term grammar, so the
+        // former `TERM-HIERARCHY` feature has been retired. The name is retained so existing
+        // dialect strings keep resolving instead of failing on an unknown atom.
+        ("term-hierarchy", "()"),
         (
             "zantufa",
-            "(cbm soi-adverbials term-hierarchy +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MEX +ZANTUFA-MORPHOLOGY)",
+            "(cbm soi-adverbials +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MEX +ZANTUFA-MORPHOLOGY)",
         ),
         ("jboponei", "((po ↦ lo su'u) (nei ↦ kei))"),
         (

@@ -144,7 +144,6 @@ impl Default for SyntaxGrammarEnv {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[invariant(true)]
 pub(crate) struct SyntaxGrammarDialect {
-    pub term_hierarchy_enabled: bool,
     pub cbm_enabled: bool,
     pub unrestricted_free_enabled: bool,
     pub zantufa_adverbials_enabled: bool,
@@ -163,7 +162,6 @@ impl SyntaxGrammarDialect {
     pub(crate) fn from_options(options: &ParseOptions) -> Self {
         let features = &options.dialect.features;
         Self {
-            term_hierarchy_enabled: features.contains(&DialectFeature::TermHierarchy),
             cbm_enabled: features.contains(&DialectFeature::Cbm),
             unrestricted_free_enabled: features.contains(&DialectFeature::UnrestrictedFree),
             zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
@@ -185,7 +183,6 @@ impl SyntaxGrammarDialect {
 #[invariant(true)]
 #[allow(dead_code)]
 pub(crate) enum SyntaxGrammarFeature {
-    TermHierarchy,
     Cbm,
     UnrestrictedFree,
     ZantufaAdverbials,
@@ -203,7 +200,6 @@ impl SyntaxGrammarFeature {
     #[ensures(true)]
     fn enabled(self, dialect: SyntaxGrammarDialect) -> bool {
         match self {
-            Self::TermHierarchy => dialect.term_hierarchy_enabled,
             Self::Cbm => dialect.cbm_enabled,
             Self::UnrestrictedFree => dialect.unrestricted_free_enabled,
             Self::ZantufaAdverbials => dialect.zantufa_adverbials_enabled,
@@ -221,7 +217,6 @@ impl SyntaxGrammarFeature {
     #[ensures(!ret.is_empty())]
     fn expected_name(self) -> &'static str {
         match self {
-            Self::TermHierarchy => "TERM-HIERARCHY feature",
             Self::Cbm => "CBM feature",
             Self::UnrestrictedFree => "UNRESTRICTED-FREE feature",
             Self::ZantufaAdverbials => "ZANTUFA-ADVERBIALS feature",

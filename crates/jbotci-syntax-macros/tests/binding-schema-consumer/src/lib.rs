@@ -1127,20 +1127,51 @@ pub fn consume_syntax_binding_schema(input: TokenStream) -> TokenStream {
         })
         .sum::<usize>();
 
-    // These hierarchy levels deliberately repeat their leaf variants. Derive both sides from the
-    // exported grammar schema so adding a new leaf cannot silently introduce a nested wrapper or
-    // leave the experimental hierarchy behind.
-    let mut expected_bound_terms = variant_names(model_by_name(&summary, "SimpleTermSyntax"));
+    // Every level of the composed term hierarchy deliberately repeats the leaf variants of the
+    // level below it. Derive both sides from the exported grammar schema so adding a new leaf
+    // cannot silently introduce a nested wrapper or leave one level of the ladder behind. The
+    // levels are, from the tightest outward: SimpleTerm (leaves), BoundTerm (+ BO), LooseTerm
+    // (+ loose connective), CeheTerm (+ CEhE), Term (+ PEhE). NonabsTerm is the unguarded leaf
+    // flavour of LooseTerm: it carries the same connection variants and swaps exactly the
+    // absorption-guarded tag leaf for its unguarded twin.
+    let leaves = variant_names(model_by_name(&summary, "SimpleTermSyntax"));
+
+    let mut expected_bound_terms = leaves.clone();
     expected_bound_terms.insert("StagBoundTermConnection");
     let bound_terms_match =
         variant_names(model_by_name(&summary, "BoundTermSyntax")) == expected_bound_terms;
+
+    let mut expected_loose_terms = expected_bound_terms.clone();
+    expected_loose_terms.insert("ConnectedTerm");
+    let loose_terms_match =
+        variant_names(model_by_name(&summary, "LooseTermSyntax")) == expected_loose_terms;
+
+    let mut expected_cehe_terms = expected_loose_terms.clone();
+    expected_cehe_terms.insert("TermsetGroup");
+    let cehe_terms_match =
+        variant_names(model_by_name(&summary, "CeheTermSyntax")) == expected_cehe_terms;
+
+    let mut expected_terms = expected_cehe_terms.clone();
+    expected_terms.insert("PeheTermsetConnection");
+    let terms_match = variant_names(model_by_name(&summary, "TermSyntax")) == expected_terms;
+
+    let mut expected_nonabs_terms = expected_loose_terms.clone();
+    let guarded_tag_leaf = expected_nonabs_terms.remove("TaggedSumtiTerm");
+    expected_nonabs_terms.insert("NonabsTaggedSumtiTerm");
+    let nonabs_terms_match = guarded_tag_leaf
+        && variant_names(model_by_name(&summary, "NonabsTermSyntax")) == expected_nonabs_terms;
 
     let mut expected_linked_terms = variant_names(model_by_name(&summary, "LinkedSumtiSyntax"));
     expected_linked_terms.insert("ConnectedLinkedTerm");
     expected_linked_terms.insert("BoundLinkedTermConnection");
     let linked_terms_match =
         variant_names(model_by_name(&summary, "LinkedTermSyntax")) == expected_linked_terms;
-    let term_hierarchy_variants_valid = bound_terms_match && linked_terms_match;
+    let term_hierarchy_variants_valid = bound_terms_match
+        && loose_terms_match
+        && cehe_terms_match
+        && terms_match
+        && nonabs_terms_match
+        && linked_terms_match;
 
     format!(
         "const EXTERNAL_SCHEMA_PRODUCT_COUNT: usize = {products};\n\

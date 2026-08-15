@@ -1,0 +1,11 @@
+id = "adhoc.issues.issue-791.13-stagless-bo-chain-rejected"
+lojban = "pu ko'a .e bo ba ko'e .a vi ko'i broda"
+tags = ["issue-791", "recovery", "syntax", "term-hierarchy-epoch"]
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [17, 21], source-text = "ko'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [17, 21], source-text = "ko'e", message = "unexpected cmavo" }]

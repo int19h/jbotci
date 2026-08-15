@@ -71,85 +71,13 @@ impl<'builder, 'a, 'dict, 'tree> GeneratedPrenexTermCollector<'builder, 'a, 'dic
             is_topic,
         });
     }
-}
 
-impl<'builder, 'a, 'dict, 'tree> TreeWalker<'tree>
-    for GeneratedPrenexTermCollector<'builder, 'a, 'dict, 'tree>
-{
+    /// Collect one prenex term leaf, whichever hierarchy level listed it. `node` is the level node
+    /// that carried the leaf and supplies the diagnostic source span.
     #[requires(true)]
     #[ensures(true)]
-    fn walk_term(&mut self, node: &'tree TermSyntax) {
-        if self.error.is_some() {
-            return;
-        }
-        match node {
-            TermSyntax::TermsetGroup(_) | TermSyntax::SimpleTerm(_) => {
-                jbotci_syntax::generated_model::walk::term(self, node);
-            }
-            TermSyntax::ConnectedTerm(connection) if connection.continuations.is_empty() => {
-                jbotci_syntax::generated_model::walk::term(self, node);
-            }
-            _ => {
-                self.error = Some(invalid_graph(
-                    "connected term reached simple assignment lowering".to_owned(),
-                ));
-            }
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_term_termset_group(&mut self, node: &'tree TermsetGroupSyntax) {
-        self.start_group(node);
-        jbotci_syntax::generated_model::walk::term_termset_group(self, node);
-        self.end_group();
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_simple_term(&mut self, node: &'tree SimpleTermSyntax) {
-        if self.error.is_some() {
-            return;
-        }
-        match node {
-            SimpleTermSyntax::SumtiTerm(SumtiTermSyntax(sumti)) => {
-                self.push_sumti(sumti, true);
-            }
-            SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => {
-                if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.push_sumti(sumti, false);
-                }
-            }
-            SimpleTermSyntax::TaggedSumtiTerm(term) => {
-                if let TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
-                    self.push_sumti(sumti, false);
-                }
-            }
-            SimpleTermSyntax::NaKuTerm(_) | SimpleTermSyntax::BareNaTerm(_) => {
-                self.events.push(GeneratedPrenexTermEvent::Negation {
-                    source: self.builder.source_for_node(node, "prenex-negation"),
-                });
-            }
-            SimpleTermSyntax::NuhiTermset(_) | SimpleTermSyntax::KeTermset(_) => {
-                jbotci_syntax::generated_model::walk::simple_term(self, node);
-            }
-            _ => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_bound_term(&mut self, node: &'tree BoundTermSyntax) {
-        if self.error.is_some() {
-            return;
-        }
-        let Some(term) = GeneratedSimpleTermRef::from_bound(node) else {
-            self.error = Some(undefined_semantics(
-                "a grouped direct term connection in the term-hierarchy dialect",
-            ));
-            return;
-        };
-        match term {
+    fn collect_prenex_leaf<N: TreeNode>(&mut self, node: &N, leaf: GeneratedSimpleTermRef<'tree>) {
+        match leaf {
             GeneratedSimpleTermRef::SumtiTerm(SumtiTermSyntax(sumti)) => {
                 self.push_sumti(sumti, true);
             }
@@ -185,21 +113,123 @@ impl<'builder, 'a, 'dict, 'tree> TreeWalker<'tree>
             _ => {}
         }
     }
+}
+
+impl<'builder, 'a, 'dict, 'tree> TreeWalker<'tree>
+    for GeneratedPrenexTermCollector<'builder, 'a, 'dict, 'tree>
+{
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_term(&mut self, node: &'tree TermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        if let Some(leaf) = GeneratedSimpleTermRef::from_term(node) {
+            self.collect_prenex_leaf(node, leaf);
+            return;
+        }
+        match node {
+            TermSyntax::TermsetGroup(_) => {
+                jbotci_syntax::generated_model::walk::term(self, node);
+            }
+            _ => {
+                self.error = Some(invalid_graph(
+                    "connected term reached simple assignment lowering".to_owned(),
+                ));
+            }
+        }
+    }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_simple_term_nuhi_termset(&mut self, node: &'tree NuhiTermsetSyntax) {
+    fn walk_cehe_term(&mut self, node: &'tree CeheTermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        if let Some(leaf) = GeneratedSimpleTermRef::from_cehe(node) {
+            self.collect_prenex_leaf(node, leaf);
+            return;
+        }
+        match node {
+            CeheTermSyntax::TermsetGroup(_) => {
+                jbotci_syntax::generated_model::walk::cehe_term(self, node);
+            }
+            _ => {
+                self.error = Some(invalid_graph(
+                    "connected term reached simple assignment lowering".to_owned(),
+                ));
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_loose_term(&mut self, node: &'tree LooseTermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        let Some(leaf) = GeneratedSimpleTermRef::from_loose(node) else {
+            self.error = Some(invalid_graph(
+                "connected term reached simple assignment lowering".to_owned(),
+            ));
+            return;
+        };
+        self.collect_prenex_leaf(node, leaf);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_nonabs_term(&mut self, node: &'tree NonabsTermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        let Some(leaf) = GeneratedSimpleTermRef::from_nonabs(node) else {
+            self.error = Some(invalid_graph(
+                "connected term reached simple assignment lowering".to_owned(),
+            ));
+            return;
+        };
+        self.collect_prenex_leaf(node, leaf);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_term_termset_group(&mut self, node: &'tree TermsetGroupSyntax) {
         self.start_group(node);
-        jbotci_syntax::generated_model::walk::simple_term_nuhi_termset(self, node);
+        jbotci_syntax::generated_model::walk::term_termset_group(self, node);
         self.end_group();
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn walk_simple_term_ke_termset(&mut self, node: &'tree KeTermsetSyntax) {
+    fn walk_cehe_term_termset_group(&mut self, node: &'tree TermsetGroupSyntax) {
         self.start_group(node);
-        jbotci_syntax::generated_model::walk::simple_term_ke_termset(self, node);
+        jbotci_syntax::generated_model::walk::cehe_term_termset_group(self, node);
         self.end_group();
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_simple_term(&mut self, node: &'tree SimpleTermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        self.collect_prenex_leaf(node, GeneratedSimpleTermRef::from_simple(node));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn walk_bound_term(&mut self, node: &'tree BoundTermSyntax) {
+        if self.error.is_some() {
+            return;
+        }
+        let Some(term) = GeneratedSimpleTermRef::from_bound(node) else {
+            self.error = Some(undefined_semantics(
+                "a grouped BO-bound term connection in a prenex",
+            ));
+            return;
+        };
+        self.collect_prenex_leaf(node, term);
     }
 
     /// Termset delimiters and connectives may carry free modifiers containing
@@ -1624,43 +1654,36 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         term: &'tree TermSyntax,
         out: &mut Vec<ReciprocalExchange>,
     ) -> Result<(), SemanticsError> {
+        if let Some(simple) = GeneratedSimpleTermRef::from_term(term) {
+            return self.collect_generated_reciprocal_exchanges_from_simple_term(
+                predication,
+                simple,
+                out,
+            );
+        }
         match term {
             TermSyntax::TermsetGroup(termset) => {
-                self.collect_generated_reciprocal_exchanges_from_simple_term(
-                    predication,
-                    GeneratedSimpleTermRef::from_simple(termset.leading_term.as_ref()),
-                    out,
-                )?;
-                for continuation in &termset.continuations {
+                if let Some(simple) =
+                    GeneratedSimpleTermRef::from_loose(termset.leading_term.as_ref())
+                {
                     self.collect_generated_reciprocal_exchanges_from_simple_term(
                         predication,
-                        GeneratedSimpleTermRef::from_simple(continuation.trailing_term.as_ref()),
+                        simple,
                         out,
                     )?;
                 }
+                for continuation in &termset.continuations {
+                    if let Some(simple) =
+                        GeneratedSimpleTermRef::from_nonabs(continuation.trailing_term.as_ref())
+                    {
+                        self.collect_generated_reciprocal_exchanges_from_simple_term(
+                            predication,
+                            simple,
+                            out,
+                        )?;
+                    }
+                }
                 Ok(())
-            }
-            TermSyntax::SimpleTerm(simple) => self
-                .collect_generated_reciprocal_exchanges_from_simple_term(
-                    predication,
-                    GeneratedSimpleTermRef::from_simple(simple),
-                    out,
-                ),
-            TermSyntax::ConnectedTerm(ConnectedTermSyntax {
-                leading_term,
-                continuations,
-            }) if continuations.is_empty() => {
-                let simple =
-                    GeneratedSimpleTermRef::from_bound(leading_term.as_ref()).ok_or_else(|| {
-                        undefined_semantics(
-                            "a grouped direct term connection in the term-hierarchy dialect",
-                        )
-                    })?;
-                self.collect_generated_reciprocal_exchanges_from_simple_term(
-                    predication,
-                    simple,
-                    out,
-                )
             }
             _ => Ok(()),
         }

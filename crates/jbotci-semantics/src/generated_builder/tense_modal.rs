@@ -61,7 +61,9 @@ pub(super) fn validate_supported_bai_modal_markers(
 
 #[requires(true)]
 #[ensures(true)]
-pub(super) fn generated_tagged_sumti_term_has_event_modifier(term: &TaggedSumtiTermSyntax) -> bool {
+pub(super) fn generated_tagged_sumti_term_has_event_modifier(
+    term: GeneratedTaggedTermRef<'_>,
+) -> bool {
     generated_tense_modal_has_event_modifier(term.tense_modal.as_ref())
 }
 
@@ -184,7 +186,7 @@ pub(super) fn generated_logical_modal_connection_assignment_in_terms<'syntax>(
 ) -> Result<
     Option<(
         usize,
-        &'syntax TaggedSumtiTermSyntax,
+        GeneratedTaggedTermRef<'syntax>,
         GeneratedLogicalModalConnectionSpec<'syntax>,
     )>,
     SemanticsError,
@@ -218,7 +220,7 @@ pub(super) fn generated_logical_event_tense_connection_assignment_in_terms<'synt
     terms: &[&'syntax TermSyntax],
 ) -> Option<(
     usize,
-    &'syntax TaggedSumtiTermSyntax,
+    GeneratedTaggedTermRef<'syntax>,
     GeneratedConnectedEventTenseSpec,
 )> {
     let mut connection = None;
