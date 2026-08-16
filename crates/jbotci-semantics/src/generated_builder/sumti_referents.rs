@@ -3781,7 +3781,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         head: SemanticObjectId,
     ) -> Result<Option<RelativeClause>, SemanticsError> {
         let marker_text = token_text(&clause.association_marker.value);
-        if clause.association_marker.value.cmavo() == Some(Cmavo::Goi) {
+        // `goi` has no relative-phrase reading of its own: its meaning is the name assignment
+        // `build_generated_goi_associated_referent` performs, so the clause is not lowered a
+        // second time here. That holds only for the payloads the assignment can act on. The D4
+        // payload constituent is the whole shared term inventory (#794), and a payload carrying
+        // no sumti -- `NA KU`, a termset, any other leaf -- assigns nothing at all, so it falls
+        // through to the shared path below and is reported there, the way every other marker's
+        // unreadable payload already is, rather than vanishing from the graph.
+        if clause.association_marker.value.cmavo() == Some(Cmavo::Goi)
+            && GeneratedAssociationPayloadRef::from_payload(clause.sumti.as_ref())
+                .is_some_and(GeneratedAssociationPayloadRef::associates_a_sumti)
+        {
             return Ok(None);
         }
         let source = self.exact_source_for_node(clause, "relative-phrase");

@@ -478,6 +478,20 @@ impl<'syntax> GeneratedAssociationPayloadRef<'syntax> {
             Self::Plain(_) | Self::NaKu => None,
         }
     }
+
+    /// Whether the payload carries a sumti for an association to read.
+    ///
+    /// `NA KU` is a projected association shape but holds no sumti, so it joins the leaves that
+    /// project to nothing at all: both are payloads a `goi` assignment cannot act on. They are
+    /// the payloads that have to be reported rather than silently associating nothing.
+    #[requires(true)]
+    #[ensures(ret == !matches!(self, Self::NaKu))]
+    pub(crate) fn associates_a_sumti(self) -> bool {
+        match self {
+            Self::Plain(_) | Self::Tagged(_) | Self::PlaceTagged(_) => true,
+            Self::NaKu => false,
+        }
+    }
 }
 
 /// A borrowed grouping node: a term that is a connection of other terms rather than a leaf.
