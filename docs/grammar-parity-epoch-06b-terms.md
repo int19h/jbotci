@@ -415,7 +415,7 @@ which was its only parser-wired rule.
 | --- | --- | --- |
 | D3 termset shapes | #806 | complete, including the `forethought_termset` split |
 | D4 GOI and flavour-context payload width | #794 | complete |
-| D5 Zantufa term binding | #827 | not started |
+| D5 Zantufa term binding | #827 | **rescoped to epoch 6c**; groundwork probed and recorded below |
 | C7 consolidated expectations, comparer re-baseline, ratchet, peak RSS | — | not started |
 
 What each remaining section needs, concretely:
@@ -430,14 +430,75 @@ What each remaining section needs, concretely:
   diagnostics. FA joik-chains in the zantufa tag_term atom. The `ce'e`-as-BO
   fidelity note needs one witness pinning baseline CEhE ownership of
   `ko'a ce'e ko'e broda` in the zantufa profile plus a gap ledger row.
-- **C7.** Re-baseline `tools/compare-term-hierarchy-expectations.py` to
-  `git archive 3c3b84a5ba tests/fixtures` (the tool is fail-closed both ways and
-  its baseline must stay git-derivable — that was the 6a round-3 fix), extend the
-  classes only per the plan's C7 rules, review the comparer before the refresh,
-  then regenerate. The three deferred syntax expectations plus whatever the
-  `forethought_termset` split moves are the manual residue. Then the
-  semantics-coverage ratchet and the peak-RSS gate (epoch-vs-base ≤ +20% on the
-  full release fixture profile, measured AFTER the bulk regeneration, one volume).
+
+  **D5 is rescoped to epoch 6c** (lead ruling). It needs its own re-typing
+  regeneration — 34 files for the sumti tier's `bound_sumti_tail` sum and 5 for
+  the term tier's `StagBoundTermConnectionSyntax`, measured below — and this
+  epoch's expectation update is a *single consolidated* one. Half-landing D5
+  would either split that update in two or hold C7 open across another
+  implementation section, so #827 carries forward whole rather than partly. The
+  groundwork below is probed against all three running parsers at the snapshots
+  this note pins, and is the 6c seed: the next epoch starts from measured facts
+  rather than re-probing.
+
+### D5 groundwork: the four arms, measured
+
+| Surface | camxes-standard | camxes-exp | rolling Zantufa | jbotci now |
+| --- | --- | --- | --- | --- |
+| `pu ko'a bo ca ko'e broda` | rejects | rejects | accepts: `term_1 <- term_2 (joik_ek? BO_clause term_2)*`, connective absent, no stag (zantufa-1.9999.peg:28) | rejects, every profile |
+| `ko'a bo ko'e broda` | rejects | rejects | accepts: `sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)*` (zantufa-1.9999.peg:35) | rejects, every profile |
+| `jai ko'a broda` | rejects | rejects | accepts, `tag_term` | accepts `(zantufa)`, warned |
+| `jai pu ko'a broda` | rejects | rejects | accepts, `JAI_clause tag? sumti` | accepts `(zantufa)`, warned |
+| `jai ku broda` | rejects | rejects | accepts: `tag_term`'s payload is `(sumti / KU_elidible)`, so an EXPLICIT KU is a payload | **rejects** ← D5 delta |
+| `jai cu broda` | rejects | rejects | accepts, the same payload ELIDED | **rejects** ← D5 delta |
+| `jai broda` | accepts | accepts | accepts as the JAI **selbri** `tanru_unit_1`, not a term | accepts as the JAI selbri |
+| `fa je fe ko'a broda` | rejects | accepts | accepts: `FA_clause (joik FA_clause)*` inside `tag_term` (zantufa-1.9999.peg:31) | **rejects** ← D5 delta |
+| `ko'a ce'e ko'e broda` | CEhE termset group | CEhE termset group | a **sumti BO connection**: Zantufa lexes `BO <- ce'e / bo` (zantufa-1.9999.peg:529) | CEhE termset group, both profiles |
+
+`jai broda` is why the JAI term needs the structural negative predicate: Zantufa
+writes it `(FA_clause (joik FA_clause)* / JAI_clause tag?) !tanru_unit_1 (sumti /
+KU_elidible)` (zantufa-1.9999.peg:31), and without the `!tanru_unit_1` guard the
+elided-KU payload would swallow the selbri. The guard is the named DSL site the
+plan asks for.
+
+The `ce'e`-as-BO row is a meaning-changing reinterpretation of a surface that
+already parses, so under the standing ruling it is a documented gap plus a
+dedicated flag rather than a baseline re-pin, exactly as the 6a ledger forecast.
+
+One implementation cost is measured rather than estimated: the sumti tier's
+connectorless arm cannot be added without re-typing `sumti_bound.bound_tail`,
+whose single product `bound_sumti_tail` has to become a sum once a second tail
+shape exists — mechanism E forbids the nested-wrapper alternative. That is **34
+fixture files** (`BoundSumtiTailSyntax`), a bounded second regeneration rather
+than a bulk one; the term tier's arm adds a variant to seven ladder levels and
+re-types **5** (`StagBoundTermConnectionSyntax`). Neither number changes the
+design; both are recorded so the next session can size its own C7 pass.
+
+## C7: the consolidated regeneration
+
+The comparer is re-baselined to `git archive 3c3b84a5ba tests/fixtures` — epoch
+6b's own implementation base, which is the epoch-6a merge — so it stays
+git-derivable, which was the 6a round-3 fix. Two consequences follow from moving
+the baseline forward rather than reusing 6a's:
+
+- **The four epoch-6a classes must now find nothing.** Their work is already in
+  the baseline tree. They stay wired in rather than being deleted, because a
+  nonzero incidence would mean the archive is not the tree it claims to be.
+- **This epoch's own added fixtures have no baseline entry.** 6a's archive sat
+  at its C1-C6 tip, after its witnesses landed, so it had no such population.
+  6b's does. They are identified from `git diff --diff-filter=A EPOCH_BASE..HEAD`
+  rather than from mere absence, listed in their own pinned category, and never
+  classified — there is nothing to classify them against. A candidate the archive
+  lacks that git does not record as added by this epoch is still a hard error.
+
+One new mechanical class, `goi-payload-retyping`, carries the #794 payload swap.
+It is the exact one-to-one product-name mapping the ledger records above and
+nothing else: the three retired arms, each with its payload carried across
+verbatim, plus the `TenseModal(..)` wrapper for the tag-led arm. Everything else
+at that position — a FA payload changing arm, a leading-term tag split selecting
+a different arm, a widened leaf the old node could not spell, or any change to
+the payload's own content — diverges into manual residue. The class was exercised
+against synthetic positives and five negatives before the refresh.
 
 ## The six-configuration substitution
 
