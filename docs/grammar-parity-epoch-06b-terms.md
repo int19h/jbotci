@@ -256,7 +256,7 @@ visible-place advancement".
 | Section | Issue | State |
 | --- | --- | --- |
 | D3 termset shapes | #806 | complete, including the `forethought_termset` split above |
-| D4 GOI and flavour-context payload width | #794 | not started |
+| D4 GOI and flavour-context payload width | #794 | not started; the constituent design, the measured delta and one open lead decision are recorded below |
 | D5 Zantufa term binding | #827 | not started |
 | C7 consolidated expectations, comparer re-baseline, ratchet, peak RSS | — | not started |
 
@@ -272,7 +272,85 @@ The next session picks these up in that order. What each needs, concretely:
   the std negative set from Sol's GOI-width matrix (CEhE, PEhE and `.e bo` stay
   outside or reject), exp payload positives (`goi ba ko'e .e bo vi ko'i`), and
   GEhU/relative no-delta rows. The 6a ledger's intentional-partial row for the
-  zantufa GOI payload retires here.
+  zantufa GOI payload retires here. The groundwork below is probed, not
+  estimated.
+
+### D4 groundwork: what the constituent is, and what actually differs
+
+The three profiles spell the GOI payload as
+
+| Profile | Rule | Payload |
+| --- | --- | --- |
+| camxes-standard | `relative_clause_1 <- GOI_clause free* nonabs_term GEhU?` (camxes.peg:168) | ONE unguarded leaf — camxes-standard has no term-level connective tier at all |
+| camxes-exp | `relative_clause_1 <- GOI_clause free* term GEhU?` (camxes-exp.peg:207) | the **normal** flavour: `term_1 <- term_2 (joik_ek … term_2)*` over `term_2 <- term_3 (joik_ek stag? BO term_3)*` over the unguarded `tag_term` leaves (camxes-exp.peg:135-146) |
+| rolling Zantufa | `relative_clause <- GOI_clause term GEhU?` (zantufa-1.9999.peg:43) | its own `term <- term_1 (joik_ek term_1)*` over `term_1 <- term_2 (joik_ek? BO term_2)*` (zantufa-1.9999.peg:27-28) — the same shape with the connective ALSO optional, which is D5's connectorless BO |
+
+So the union constituent is one rule family, not three: **the loose tier over a
+BO tier whose stag is optional (and whose connective is optional under
+`ZantufaConnectives`, from D5) over the unguarded leaf inventory.** It differs
+from the existing `nonabs_term` in exactly one place — `nonabs_term`'s BO tier is
+`stag_bound_term_connection`, whose stag is MANDATORY because it models
+camxes-exp's absorption-safe `abs_term_2 <- abs_term_3 (joik_ek stag BO
+abs_term_3)*` (camxes-exp.peg:154). Everything else, including the leaf
+inventory and the T3 guard, is already what the constituent needs.
+
+The `bound_linked_term` family is the template because it is already the normal
+flavour: `bound_linked_term_continuation` spells `opt(arc(tense_modal…)) bo`
+(generated.rs, "One optional-stag BO continuation in a BE/BEI argument
+connection"), which is #816's other half.
+
+Measured delta — every row re-probed at `4ecf4bf7f2`:
+
+| Surface | camxes-standard | camxes-exp | rolling Zantufa | jbotci now |
+| --- | --- | --- | --- | --- |
+| `ko'a goi ko'e broda` | accepts | accepts | accepts | accepts |
+| `ko'a goi pu broda` (bare tag, elided KU) | accepts, payload is the `nonabs_term` tag leaf | accepts | rejects | accepts |
+| `ko'a goi na ku broda` | accepts | accepts | accepts | accepts |
+| `ko'a goi fa ko'e broda` (FA-tagged payload) | accepts | accepts | accepts | accepts — jbotci's `tense_modal` already admits `selmaho(Fa)`, so this row is a no-delta pin |
+| `ko'a goi ge ko'e gi pu broda` (termset payload) | accepts | accepts | rejects | **rejects** ← the leaf-inventory delta |
+| `ko'a goi ba ko'e .e bo vi ko'i broda` | rejects | accepts | accepts | **rejects** ← the whole D4 acceptance delta |
+| `ge ko'a gi ba ko'e .e bo vi ko'i broda` | rejects | accepts | accepts | **rejects** ← the `gek_termset` operand delta |
+| `ge ba ko'a .e bo vi ko'e gi ko'i broda` | rejects | accepts | accepts | **rejects** ← the same, leading operand |
+
+The std negative set is a set of *ownership* rows rather than rejection rows, and
+the trees were read rather than assumed. In camxes-standard
+`ko'a goi ko'e ce'e ko'i broda` gives the GOI payload only `ko'e` and leaves
+`ce'e ko'i` at the outer `terms_2` level with GEhU elided, and
+`ko'a goi ko'e .e ko'i broda` puts the `.e` connection INSIDE the payload's
+`sumti_2`, not at a term tier. Both already parse in jbotci and must keep their
+current shape; they are no-delta pins, not new acceptances.
+
+#### The cost the swap carries, and the recommendation
+
+The `relative_sumti` family the payload replaces has three arms —
+`tense_tagged_relative_sumti`, `na_ku_relative_sumti`, `plain_relative_sumti` —
+and each is the same *content* as a leaf of the shared inventory under a
+different product name (`nonabs_tagged_sumti_term`, `na_ku_term`, `sumti_term`).
+Adopting the shared constituent is therefore a re-**typing**, not an addition,
+and **646 fixture files** carry a `SumtiAssociationRelativeClause` expectation
+(measured, not estimated).
+
+Two dispositions are available and the choice belongs to the lead:
+
+1. **Adopt the shared constituent** (the plan's literal wording: "the GOI payload
+   widens *to it*", and the same constituent then serves the `gek_termset`
+   operand). The 646 files re-type, but the re-typing is one-to-one and
+   exhaustively provable — `RelativeSumti::{Plain,TenseTagged,NaKu}` →
+   `{SumtiTerm, NonabsTaggedSumtiTerm, NaKuTerm}` with identical payloads — so it
+   is a new mechanical comparer class of exactly the kind class (ii) already is,
+   not manual residue. **Recommended:** it is the only disposition that gives the
+   GOI payload the whole leaf inventory the two termset rows above need, and one
+   constituent serving both sites is the point of naming it.
+2. **Extend `relative_sumti` in place** with the two connection arms and leave its
+   three leaves alone. Mechanism E means no tree that does not select a new arm
+   changes shape, so all 646 files keep their expectations byte-for-byte — but the
+   GOI payload then still cannot take a termset or any other leaf the three arms
+   do not spell, so `ko'a goi ge ko'e gi pu broda` stays rejected and #794 is only
+   partly closed.
+
+Either way the constituent itself is the same new family; only the GOI site's
+wiring differs. Build the family first (it is what the `gek_termset` operand
+rows need regardless), then take the GOI-site decision.
 - **D5 (#827).** Connectorless BO at the term and sumti tiers, placed at the
   baseline BO-precedence levels; the arm grammar admits only the
   connector-ABSENT form AND a `#634`-pattern whole-candidate `reject_output`
