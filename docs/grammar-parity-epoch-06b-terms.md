@@ -620,3 +620,38 @@ omitted dialect, `()`, `(+zantufa-terms)`, `(+zantufa-connectives)`, both, and
 by the `ZantufaTerms`-off rejection rows plus a zantufa-**on** row pinning that
 the connective-present stag-less form stays owned by the exp T4-normal arm. The
 lead ACKed this substitution.
+
+## Pre-submission gate
+
+Run at `4e11fddb47`, the tip of the code and expectation commits; the ledger commit
+above it changes only this file, which nothing under test reads.
+
+| Gate | Result | Log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch06b-gate-fmt.log` |
+| `cargo test -r --workspace` | 2,312 passed, 0 failed, 16 ignored | `epoch06b-gate-workspace.log` |
+| `fixture-test --profile all` | 26,476 fixtures, 4 facets, 73,766 passed, 513 xfailed, **0 failed** | `epoch06b-gate-fixtures.log` |
+| Frozen tagged `term-hierarchy-epoch` facet | 90 fixtures, 94 passed, 0 failed | `epoch06b-gate-tagged-facet.log` |
+| Expensive contracts, all targets, release | 2,333 passed, 0 failed | `epoch06b-gate-expensive.log` |
+| `semantics-coverage` | checked 22,633, panics 0, unsupported 0 | `epoch06b-gate-coverage.log` |
+| Debug `jbotci` build | green | `epoch06b-gate-debug-jbotci.log` |
+| Debug `dx build` | green | `epoch06b-gate-dx.log` |
+| `maturin develop` + the four generated checks | all green | `epoch06b-gate-maturin-develop.log`, `epoch06b-gate-generate_*.log`, `epoch06b-gate-compose_stubs.log` |
+| Comparer, ratcheted | 665 changed / 644 + 0 + 0 + 0 + 0 mechanical / 21 manual, prose 0, witness re-pins 0, witness deltas 0, unpaired 0, epoch-new 30 | `comparer-final.txt` |
+| Peak RSS, full profile | base 5,731,944 KB → 5,782,268 KB, **+0.88%** (gate +20%) | `epoch06b-gate-fixtures*.log` |
+| Artifact ratchet | archive **+2.27%**, unpacked **+2.64%**, native `.so` **+2.47%** versus a base-built control (gate 5%) | `epoch06b-gate-wheel-build-*.log` |
+
+The fixture count moves 26,446 → 26,476 with this epoch's 30 witnesses, and the
+xfail count 514 → 513 because `corpus/camxes/16937`'s xfail retires — the same
+shape as epoch 6a's 515 → 514 for `corpus/camxes/20100`.
+
+Both wheels in the artifact row were built natively as manylinux 2.34, matching
+epoch 6a's caveat; the python-wheels workflow remains the acceptance authority for
+the 2.28 artifact. The first control pair was discarded and rebuilt: the epoch
+wheel had been produced after a `maturin develop`, so it packaged 15 `__pycache__`
+entries the base control did not, inflating the archive delta to +5.24% and the
+unpacked delta to +7.10% for purely local reasons. `__pycache__` is gitignored and
+CI builds from a clean checkout, so the shipped artifact was never affected; the
+rebuilt control is stripped and byte-compilation-free on both sides, and its
+native `.so` is byte-for-byte the same size as the contaminated build's, which
+confirms only packaging differed.
