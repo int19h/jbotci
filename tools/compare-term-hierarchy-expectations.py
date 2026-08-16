@@ -292,10 +292,16 @@ class DebugParser:
 
 # --- the ladder, transcribed from the grammar ------------------------------------------
 #
-# Every term-family position, with the rule that produced its operand at the epoch base
-# (`a8b4f06227`) and the ladder level that produces it now.  The 25 consumer sites keep
-# their arity and their level name, so they are listed by the field that holds the term.
-# Any term-family node that turns up at a position missing from this table is residue.
+# Every term-family position, with the rule that produced its operand in the baseline
+# archive (`ARCHIVE_COMMIT`, the epoch-6a merge) and the ladder level that produces it now.
+# The 25 consumer sites keep their arity and their level name, so they are listed by the
+# field that holds the term.  Any term-family node that turns up at a position missing from
+# this table is residue.
+#
+# Because the archive is the 6a merge rather than the pre-6a base, 6a's own re-levelings are
+# already applied on BOTH sides: the PEhE operand reads `cehe_term` and the TermsetGroup
+# operands `loose_term`/`nonabs_term` in the baseline too.  The only position whose level
+# actually moves in this epoch is the GOI payload.
 
 CONSUMER_POSITIONS: tuple[tuple[str, str], ...] = (
     ("ZantufaIauStatementTermsTailSyntax", "terms"),
@@ -331,13 +337,13 @@ POSITIONS: dict[tuple[str, str], tuple[str, str]] = {
 }
 POSITIONS.update(
     {
-        ("PeheTermsetConnectionSyntax", "leading_term"): ("pehe_termset_operand", "cehe_term"),
+        ("PeheTermsetConnectionSyntax", "leading_term"): ("cehe_term", "cehe_term"),
         ("PeheTermsetConnectionContinuationSyntax", "trailing_term"): (
-            "pehe_termset_operand",
+            "cehe_term",
             "cehe_term",
         ),
-        ("TermsetGroupSyntax", "leading_term"): ("simple_term", "loose_term"),
-        ("TermsetGroupContinuationSyntax", "trailing_term"): ("simple_term", "nonabs_term"),
+        ("TermsetGroupSyntax", "leading_term"): ("loose_term", "loose_term"),
+        ("TermsetGroupContinuationSyntax", "trailing_term"): ("nonabs_term", "nonabs_term"),
         ("ConnectedTermSyntax", "leading_term"): ("bound_term", "bound_term"),
         ("ConnectedTermContinuationSyntax", "trailing_term"): ("bound_term", "bound_term"),
         ("StagBoundTermConnectionSyntax", "leading_term"): ("simple_term", "simple_term"),
@@ -392,43 +398,63 @@ RELATIVE_SUMTI_ARMS = frozenset(
     {"PlainRelativeSumti", "TenseTaggedRelativeSumti", "NaKuRelativeSumti"}
 )
 
-OLD_LEVEL_INVENTORY: dict[str, frozenset[str]] = {
-    "relative_sumti": RELATIVE_SUMTI_ARMS,
-    "term": frozenset(
-        {"PeheTermsetConnection", "BoundTermConnection", "TermsetGroup", "ConnectedTerm"}
-        | {"SimpleTerm"}
-    ),
-    "pehe_termset_operand": frozenset(
-        {"BoundTermConnection", "StagBoundTermConnection", "TermsetGroup", "SimpleTerm"}
-    ),
-    "bound_term": frozenset({"StagBoundTermConnection"} | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})),
-    "simple_term": frozenset(ATOM_LEAVES - {"NonabsTaggedSumtiTerm"}),
-}
+# The two leaves epoch 6b adds to every pre-existing term level: D3's sourced NUhI-less
+# `gek_termset` and its `ZantufaConnectives`-gated companion.  Transcribed from the `rule
+# "term" …-> enum` arm lists of `crates/jbotci-syntax/src/grammar/generated.rs`, and diffed
+# arm-for-arm against the same lists at `ARCHIVE_COMMIT`: across `term`, `cehe_term`,
+# `loose_term`, `nonabs_term`, `bound_term` and `simple_term` these two names are the ONLY
+# difference between the baseline grammar and this one, which is what lets the old inventory
+# below be written as the new one minus this pair rather than transcribed twice.
+EPOCH_TERMSET_LEAVES = frozenset({"GekTermset", "ZantufaGekTermset"})
 
 NEW_LEVEL_INVENTORY: dict[str, frozenset[str]] = {
     "term": frozenset(
         {"PeheTermsetConnection", "TermsetGroup", "ConnectedTerm", "StagBoundTermConnection"}
         | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
+        | EPOCH_TERMSET_LEAVES
     ),
     "cehe_term": frozenset(
         {"TermsetGroup", "ConnectedTerm", "StagBoundTermConnection"}
         | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
+        | EPOCH_TERMSET_LEAVES
     ),
     "loose_term": frozenset(
-        {"ConnectedTerm", "StagBoundTermConnection"} | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
+        {"ConnectedTerm", "StagBoundTermConnection"}
+        | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
+        | EPOCH_TERMSET_LEAVES
     ),
     "nonabs_term": frozenset(
-        {"ConnectedTerm", "StagBoundTermConnection"} | (ATOM_LEAVES - {"TaggedSumtiTerm"})
+        {"ConnectedTerm", "StagBoundTermConnection"}
+        | (ATOM_LEAVES - {"TaggedSumtiTerm"})
+        | EPOCH_TERMSET_LEAVES
     ),
     "bound_term": frozenset(
-        {"StagBoundTermConnection"} | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
+        {"StagBoundTermConnection"}
+        | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
+        | EPOCH_TERMSET_LEAVES
     ),
-    "simple_term": frozenset(ATOM_LEAVES - {"NonabsTaggedSumtiTerm"}),
+    "simple_term": frozenset(
+        (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"}) | EPOCH_TERMSET_LEAVES
+    ),
     "normal_term": frozenset(
         {"ConnectedNormalTerm", "BoundNormalTermConnection"}
         | (ATOM_LEAVES - {"TaggedSumtiTerm"})
+        | EPOCH_TERMSET_LEAVES
     ),
     "<deleted>": frozenset(),
+}
+
+# The baseline archive is the epoch-6a MERGE, so the OLD side of every comparison is the
+# 6a-composed ladder, not the pre-6a flat `term` sum.  Each level therefore carries its new
+# inventory minus the two leaves D3 adds; `relative_sumti` is the one level 6b retires, and
+# `<deleted>` keeps the #796 route reachable so a stray occurrence still fails closed.
+OLD_LEVEL_INVENTORY: dict[str, frozenset[str]] = {
+    "relative_sumti": RELATIVE_SUMTI_ARMS,
+    **{
+        level: inventory - EPOCH_TERMSET_LEAVES
+        for level, inventory in NEW_LEVEL_INVENTORY.items()
+        if level not in {"normal_term", "<deleted>"}
+    },
 }
 
 # The exact one-to-one product-name mapping the #794 re-typing is allowed to apply, and
@@ -451,17 +477,28 @@ PEHE_CONNECTIVE_NAMES = frozenset({"JoikConnective", "JekConnective"})
 
 # The reviewed C7 result.  A re-run against the same archive must reproduce it exactly;
 # `--expect-changed`/`--expect-manual` override the pins for an exploratory run.
-EXPECTED_CHANGED = 18249
+EXPECTED_CHANGED = 665
+# The four epoch-6a classes are already applied in the re-baselined archive, so each must now
+# find exactly nothing; they stay wired in because a nonzero incidence would mean the archive
+# is not the tree it claims to be.  `goi-payload-retyping` is this epoch's only mechanical
+# class and carries 644 of the 646 baseline files holding a `SumtiAssociationRelativeClause`
+# expectation -- the two it does not carry, `cll/chrestomathy/forest-nymph` and
+# `corpus/alis/full-alice`, are manual residue for a co-occurring `ForethoughtTermset` change.
 EXPECTED_MECHANICAL = {
-    "flat-sum-wrapper": 18192,
-    "pehe-cehe-retyping": 5,
+    "flat-sum-wrapper": 0,
+    "goi-payload-retyping": 644,
+    "pehe-cehe-retyping": 0,
     "stagless-bo-route-rejection": 0,
-    "t3-loose-connection-warning": 13,
+    "t3-loose-connection-warning": 0,
 }
-EXPECTED_MANUAL = 49
-# Prose-only provenance edits.  The T3 ruling reversal rewrote the `description` of the two
-# witnesses whose text still described the tier as undiagnosed.
-EXPECTED_PROSE = 2
+# Individually reviewed in the epoch ledger's C7 section: 10 `ForethoughtTermsetSyntax` field
+# reshapes and 3 `ForethoughtTermset` -> `GekTermset` moves from the D3 split, plus 8 fixtures
+# whose rejection diagnostics moved under the D4 payload widening (one of which is the
+# retiring `corpus/camxes/16937` xfail).
+EXPECTED_MANUAL = 21
+# Prose-only provenance edits.  The T3 ruling reversal that produced epoch 6a's two is in the
+# baseline now, and this epoch edits no provenance prose of its own.
+EXPECTED_PROSE = 0
 # Fixtures epoch 6b ADDED after its baseline: D3's termset witnesses and D4's GOI-payload
 # witnesses.  They have no baseline entry, so they are pinned by count rather than classified.
 EXPECTED_NEW_WITNESSES = 30
