@@ -12,7 +12,7 @@ are therefore listed and pinned by count rather than classified.
 Usage (from the repository root, after the consolidated `fixture-rewrite` passes):
 
     python3 tools/compare-term-hierarchy-expectations.py tests/fixtures \\
-        --baseline-root /build/jbotci/scratch/epoch06/baseline-fixtures
+        --baseline-root /build/jbotci/scratch/06b-c7/baseline-fixtures
 
 `--baseline-root` is an archive of `tests/fixtures` taken *before* the rewrite; the
 positional argument is the rewritten tree.  The classifier reads the *old* Rust-Debug tree
