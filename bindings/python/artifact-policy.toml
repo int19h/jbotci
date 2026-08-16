@@ -1,135 +1,41 @@
-# Initial artifact size baselines are rounded-up review ceilings calibrated
-# from issue #564's native aarch64 release/strip wheel and standalone sdist.
-# The other platform ceilings conservatively account for object-format and
-# linker variation; the workflow records their exact first-run sizes.
-# `python_artifacts.py inspect` fails when an artifact grows beyond the
-# baseline plus the stated percentage. Update a baseline only after inspecting
-# the logical archive diff and explaining the increase in the pull request.
+# Mechanical limits that `python_artifacts.py inspect` asserts on every wheel
+# and source distribution the python-wheels workflow builds.
 #
-# `baseline_unpacked_bytes` provides the same ratchet for the sum of member
-# sizes, while `max_entries` catches accidental trees of many small files.
-
-# The sdist ratchets were recalibrated *downward* for #753, which retires the
-# smusni-v0 bundle's byte-mirrored generator-input tree along with the manifest
-# and source-artifact tables it attested. The bundle now reads the live
-# vendored dictionary snapshot instead of a second retained copy, so the
-# archive loses 42 members and about 11.6 MB of duplicated bytes — most of it
-# the ~9.9 MB dictionary. The remaining `build.rs` inputs are still packaged,
-# and `crates/jbotci-semantics/tests/smusni_v0_bundle.rs` proves it.
+# There are deliberately NO per-platform byte budgets here. Until 2026-08-16 this
+# file carried `baseline_bytes`, `baseline_unpacked_bytes` and
+# `max_growth_percent` ratchets per platform key. They were project-invented --
+# no publishing target imposes them -- and they fired on intended growth: epochs
+# 3, 4, 5, 6 and 6b of epic #801 each spent a commit recalibrating whichever
+# ceiling that epoch's larger generated parser and Python syntax models had
+# crossed. A gate whose every firing reports work going as planned is not a gate,
+# so the owner retired them.
 #
-# All three sdist ratchets move together, and the growth allowance is
-# unchanged. The byte baselines round up the *normalized* archive that
-# `inspect` receives, not Maturin's raw output, because that is the artifact
-# the ratchet compares: measured 3,633,818 archive bytes, 24,117,331 unpacked
-# bytes, and 253 members.
-#
-# Epic #801's deliberate generated-model growth through grammar-parity epoch 3
-# brought the normalized sdist to 275 entries and the Linux aarch64 wheel to
-# 95,029,675 unpacked bytes, within 5% of their prior ceilings. Recalibrate only
-# those two marginal ratchets here; the post-epoch-11 closing sweep will
-# re-ratchet the complete artifact policy after the generated model stabilizes.
-# Epoch 4's sumti-continuation model brings the stripped aarch64 wheel to
-# 22,106,247 archive bytes and 96,208,471 unpacked bytes. Both cross or remain
-# within 5% of the sdist-wheel ceiling, so round up that nearest ratchet only;
-# the 20% growth allowance and entry limit remain unchanged.
-# Epoch 5's selbri reconstruction brings the manylinux 2.28 aarch64 wheel to
-# 22,707,929 archive bytes and 98,781,023 unpacked bytes: 2.72% and 2.67% growth
-# respectively from epoch 4. Only the compressed Linux aarch64 artifact crosses
-# its existing ceiling, by 2.29%, so round that baseline to 19 MB; the unpacked
-# and entry ratchets retain ample headroom.
-# Epoch 6's composed term ladder grows the generated Python syntax models, which
-# brings the stripped aarch64 wheel to 22,858,010 archive bytes and 99,789,122
-# unpacked bytes across 24 entries: 0.67% and 0.92% growth over a control wheel
-# built from epoch base a8b4f06227 with identical flags on the same host, and
-# 0.66% / 1.02% over epoch 5. That is well inside the 5% audit band, but the
-# compressed artifact clears the 22.8 MB ceiling by 0.25%, so round only that
-# baseline up to 19.2 MB. The unpacked ratchet keeps 15% headroom and the entry
-# limit is untouched. Local container tooling could not produce the manylinux
-# 2.28 artifact for this measurement, so both wheels were built natively as
-# manylinux 2.34; the base control lands within 0.01% of epoch 5's container
-# number, which is what makes the delta comparable, and the python-wheels
-# workflow remains the acceptance authority for the 2.28 artifact itself.
-#
-# Epoch 6b's remaining term scope (#794/#806/#827) grows the generated model once
-# more, and this time it is the WINDOWS ratchet that is crossed: the epoch-6a base
-# `3c3b84a5ba` already sat at 97.4% of the compressed ceiling and 99.6% of the
-# unpacked one, so a routine epoch is enough to clear both. Measured on the
-# python-wheels workflow, base run 31894155620 against 6b run 31975124581:
-#
-#   platform        compressed base -> 6b            unpacked base -> 6b
-#   linux-x86_64    22,513,342 -> 23,012,908 +2.22%  107,209,368 -> 109,934,918 +2.54%
-#   linux-aarch64   21,540,424 -> 22,032,571 +2.29%   99,019,160 -> 101,489,310 +2.49%
-#   macos-x86_64    21,274,830 -> 21,767,950 +2.32%   94,319,289 ->  96,913,887 +2.75%
-#   macos-aarch64   20,315,483 -> 20,805,023 +2.41%   90,103,819 ->  92,530,897 +2.69%
-#   windows-x86_64  24,358,750 -> 25,014,521 +2.69%  112,108,598 -> see below
-#
-# Every platform moves by the same 2.2-2.8%, and the member-level diff of the
-# retained Linux wheels shows exactly where: `_native.abi3.so` +2,450,856 bytes
-# (+2.38%) and the four generated syntax modules +274,694 bytes, with every
-# hand-written module byte-identical and the entry count unchanged at 24. That is
-# the epoch's new grammar (D3's NUhI-less termsets, D4's normal-flavour term
-# ladder) in the generated parser and its Python model, which is the same
-# deliberate growth epochs 3, 4, 5 and 6 recalibrated for.
-#
-# Only windows-x86_64 crosses; the other seven keys keep 4% or more headroom. Its
-# compressed figure is exact -- it is the number `inspect` asserted on -- while its
-# unpacked figure could not be measured directly, because the wheel is inspected
-# before it is uploaded and the failing run therefore retained no Windows
-# artifact. Reconstructing it from the parts that ARE measured: the base Windows
-# wheel carries 112,108,598 - 4,208,560 = 107,900,038 bytes of native library, and
-# the four retained platforms grow their native library by 2.32% to 2.57%, which
-# puts the 6b Windows wheel between 114.9 MB and 115.2 MB unpacked.
-#
-# Both Windows baselines are therefore rounded up to clear the measured (and, for
-# unpacked, the reconstructed upper) figure by about 1%, the same margin epochs 5
-# and 6 left on the ratchet they moved: 20.2 MB compressed (ceiling 25,250,000)
-# and 93 MB unpacked (ceiling 116,250,000). The 25% growth allowance and the entry
-# limit are untouched, and the post-epoch-11 closing sweep still owns the complete
-# re-ratchet.
-[sizes.sdist]
-baseline_bytes = 3800000
-baseline_unpacked_bytes = 24200000
-max_growth_percent = 15
-max_entries = 320
+# Artifact size is still tracked, as audit methodology rather than as a hard
+# check: `inspect` writes an archive/unpacked/entry receipt for every artifact,
+# the acceptance job publishes them as a size table, and each epoch compares its
+# wheel against a control wheel built from the epoch base with identical flags on
+# the same host and records the delta in the epoch ledger. A surprising delta is
+# something to explain in review; it is not something CI fails on. Future epochs
+# therefore carry no ratchet-recalibration commits.
 
-[sizes.linux-x86_64]
-baseline_bytes = 20000000
-baseline_unpacked_bytes = 90000000
-max_growth_percent = 25
-max_entries = 32
+[limits]
+# One absolute per-file tripwire, shared by every wheel and the sdist. Its
+# provenance is PyPI's hard 100 MiB (104,857,600 byte) per-file upload limit: an
+# artifact above that cannot be published at all, whatever this project thinks of
+# its size. 95 MiB leaves enough margin to notice the approach in review before a
+# release run is the thing that discovers it.
+max_artifact_bytes = 99614720
 
-[sizes.linux-aarch64]
-baseline_bytes = 19200000
-baseline_unpacked_bytes = 96000000
-max_growth_percent = 20
-max_entries = 32
-
-[sizes.macos-x86_64]
-baseline_bytes = 20000000
-baseline_unpacked_bytes = 90000000
-max_growth_percent = 25
-max_entries = 32
-
-[sizes.macos-aarch64]
-baseline_bytes = 19000000
-baseline_unpacked_bytes = 85000000
-max_growth_percent = 25
-max_entries = 32
-
-[sizes.windows-x86_64]
-baseline_bytes = 20200000
-baseline_unpacked_bytes = 93000000
-max_growth_percent = 25
-max_entries = 32
-
-[sizes.sdist-wheel-x86_64]
-baseline_bytes = 20000000
-baseline_unpacked_bytes = 90000000
-max_growth_percent = 25
-max_entries = 32
-
-[sizes.sdist-wheel-aarch64]
-baseline_bytes = 18600000
-baseline_unpacked_bytes = 81000000
-max_growth_percent = 20
-max_entries = 32
+# Maximum logical members per archive. These archives package a fixed member
+# list, so the entry count is a shape check, not a size one: a jump means an
+# accidental tree of small files -- a `__pycache__`, a stray build directory, a
+# vendored subtree -- rather than the packaged code growing.
+[entries]
+sdist = 320
+linux-x86_64 = 32
+linux-aarch64 = 32
+macos-x86_64 = 32
+macos-aarch64 = 32
+windows-x86_64 = 32
+sdist-wheel-x86_64 = 32
+sdist-wheel-aarch64 = 32

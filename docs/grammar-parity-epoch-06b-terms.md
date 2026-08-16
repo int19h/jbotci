@@ -717,7 +717,7 @@ above it changes only this file, which nothing under test reads.
 | `maturin develop` + the four generated checks | all green | `epoch06b-gate-maturin-develop.log`, `epoch06b-gate-generate_*.log`, `epoch06b-gate-compose_stubs.log` |
 | Comparer, ratcheted | 665 changed / 644 + 0 + 0 + 0 + 0 mechanical / 21 manual, prose 0, witness re-pins 0, witness deltas 0, unpaired 0, epoch-new 30 | `comparer-final.txt` |
 | Peak RSS, full profile | base 5,731,944 KB → 5,782,268 KB, **+0.88%** (gate +20%) | `epoch06b-gate-fixtures*.log` |
-| Artifact ratchet | archive **+2.27%**, unpacked **+2.64%**, native `.so` **+2.47%** versus a base-built control (gate 5%) | `epoch06b-gate-wheel-build-*.log` |
+| Artifact size audit | archive **+2.27%**, unpacked **+2.64%**, native `.so` **+2.47%** versus a base-built control (audit band 5%) | `epoch06b-gate-wheel-build-*.log` |
 
 The fixture count moves 26,446 → 26,476 with this epoch's 30 witnesses, and the
 xfail count 514 → 513 because `corpus/camxes/16937`'s xfail retires — the same
@@ -733,3 +733,58 @@ CI builds from a clean checkout, so the shipped artifact was never affected; the
 rebuilt control is stripped and byte-compilation-free on both sides, and its
 native `.so` is byte-for-byte the same size as the contaminated build's, which
 confirms only packaging differed.
+
+## Owner ruling: the artifact size ratchets are retired
+
+CI's `Build windows-x86_64` leg failed this epoch at "Compare and inspect wheel"
+— 25,014,521 archive bytes against a 25,000,000 ceiling — and the first fix
+recalibrated that ceiling, as epochs 3, 4, 5 and 6 had each recalibrated whichever
+ceiling their own generated-model growth crossed. The owner ruled on 2026-08-16
+that the recalibration is the wrong response, and the ratchets themselves are:
+
+- The per-platform `baseline_bytes` / `baseline_unpacked_bytes` /
+  `max_growth_percent` budgets are **project-invented**. Nothing in the
+  publishing path imposes them; they were review ceilings picked from issue
+  #564's first artifacts and inherited since.
+- They fire on **intended** growth. This epic's whole substance is a larger
+  grammar, which is a larger generated parser and a larger generated Python
+  model, so a routine epoch is enough to clear them — five epochs in a row now,
+  each costing a commit that reports only that the work went as planned.
+
+They are therefore dropped entirely from `artifact-policy.toml` and
+`python_artifacts.py`. What replaces them:
+
+| Kept | Form | Provenance |
+| --- | --- | --- |
+| One absolute per-file tripwire | `max_artifact_bytes = 99614720` (95 MiB), shared by every wheel and the sdist | PyPI's hard 100 MiB per-file upload limit — an artifact above it cannot be published at all |
+| Entry-count and member checks | per-key `entries`, plus the unchanged required-member, forbidden-path and content assertions | shape checks, not size ones: they catch an accidental `__pycache__` or vendored subtree |
+| Epoch-versus-control comparison | the 5% band in the gate table above | **audit methodology**, recorded in the epoch ledger; not a CI gate |
+
+The receipts and the acceptance job's size table are unchanged, so every build
+still publishes its archive, unpacked and entry figures — size stays visible,
+it just stops failing builds. The epoch's own artifacts sit far under the new
+tripwire: the largest is the Windows wheel at 25.0 MB compressed, about a
+quarter of it. **Future epochs carry no ratchet-recalibration commits.**
+
+`f0691bcf13`, which recalibrated the two Windows baselines, is pushed history
+and stays; the commit above it supersedes its policy content and replaces its
+comment block. Its measurements are not wasted — the base-versus-6b table it
+recorded across all five platforms is exactly the audit the ruling keeps, and it
+is reproduced here:
+
+| Platform | Compressed base → 6b | Unpacked base → 6b |
+| --- | --- | --- |
+| linux-x86_64 | 22,513,342 → 23,012,908 (+2.22%) | 107,209,368 → 109,934,918 (+2.54%) |
+| linux-aarch64 | 21,540,424 → 22,032,571 (+2.29%) | 99,019,160 → 101,489,310 (+2.49%) |
+| macos-x86_64 | 21,274,830 → 21,767,950 (+2.32%) | 94,319,289 → 96,913,887 (+2.75%) |
+| macos-aarch64 | 20,315,483 → 20,805,023 (+2.41%) | 90,103,819 → 92,530,897 (+2.69%) |
+| windows-x86_64 | 24,358,750 → 25,014,521 (+2.69%) | 112,108,598 → not retained |
+
+Measured on the python-wheels workflow, base run 31894155620 against 6b run
+31975124581. Every platform moves by the same 2.2–2.8%, and the member-level diff
+of the retained Linux wheels shows where: `_native.abi3.so` +2,450,856 bytes
+(+2.38%) and the four generated syntax modules +274,694 bytes, with every
+hand-written module byte-identical and the entry count unchanged at 24. The
+Windows unpacked figure was never measurable — the wheel is inspected before it
+is uploaded, so the failing run retained no Windows artifact — which is itself an
+argument against a ratchet on a number the failure mode hides.

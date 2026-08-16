@@ -99,17 +99,31 @@ checkout path. `Cargo.lock` and `uv.lock` remain in the sdist as the
 deterministic dependency records. Re-enable generated SBOMs only when the
 upstream output can be made reproducible and path-neutral.
 
-## Size ratchet
+## Size limits and size tracking
 
-`artifact-policy.toml` records compressed and unpacked baselines per platform,
-an allowed growth percentage, and an entry-count ceiling. Inspection fails
-above those derived thresholds. A baseline update is not a routine snapshot
-refresh: inspect the logical member diff, explain the increase in the pull
-request, then record the reviewed artifact's actual sizes.
+`artifact-policy.toml` records two mechanical limits: one absolute per-file
+tripwire of 95 MiB, shared by every wheel and the sdist, and a per-key
+entry-count ceiling. Inspection fails above either. The tripwire's provenance is
+PyPI's hard 100 MiB per-file upload limit — above it an artifact cannot be
+published at all — and the entry count is a shape check that catches an
+accidental `__pycache__` or vendored subtree rather than the packaged code
+growing.
 
-The acceptance job downloads all receipts, requires all build and test matrix
-jobs to have succeeded, and publishes a Markdown size table. A green matrix
-leg cannot be replaced by a skipped leg.
+There are deliberately no per-platform byte budgets. The former baseline and
+growth-percentage ratchets were project-invented and fired on intended growth:
+five consecutive epic #801 epochs each spent a commit recalibrating whichever
+ceiling their larger generated parser crossed, so the owner retired them on
+2026-08-16.
+
+Size is still tracked, as audit evidence rather than as a gate. Every inspection
+writes an archive/unpacked/entry receipt; the acceptance job downloads all
+receipts, requires all build and test matrix jobs to have succeeded, and
+publishes a Markdown size table. A green matrix leg cannot be replaced by a
+skipped leg. Work that is expected to move artifact size — a grammar epoch, a
+new dependency — compares its wheel against a control wheel built from its base
+with identical flags on the same host and records the delta and the member-level
+diff behind it in that work's ledger. A surprising delta is something to explain
+in review; it is not something CI fails on.
 
 ## Owner reproduction
 

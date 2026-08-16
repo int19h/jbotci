@@ -616,6 +616,7 @@ is exactly this epoch's rule rename and narrowed connective inventories.
 Both wheels in the artifact row were built natively as manylinux 2.34, because
 local container tooling could not produce a 2.28 artifact on this host. The base
 control lands within 0.01% of epoch 5's container measurement, which is what
-makes the delta meaningful; `artifact-policy.toml` records the same caveat, and
-the python-wheels workflow remains the acceptance authority for the 2.28
-artifact.
+makes the delta meaningful, and the python-wheels workflow remains the
+acceptance authority for the 2.28 artifact. (`artifact-policy.toml` carried the
+same caveat until epoch 6b, whose owner ruling retired the size ratchets and the
+recalibration comments that recorded them.)
