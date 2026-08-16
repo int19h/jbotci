@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.nuhi-less-flat-termset-rejected"
+lojban = "ge ko'a ko'e gi ko'i broda"
+tags = ["adhoc", "syntax", "issue-806", "term-hierarchy-epoch", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6b #806 termset witness"
+description = "The three sourced termset shapes are NUhI-gek, NUhI-plain and the NUhI-less `gek_termset`, and the last of those pairs its operands by nesting, one term per position (camxes.peg:136-138, camxes-exp.peg:191-193). An unbalanced NUhI-less run therefore has no sourced reading at all: camxes-standard and camxes-exp both reject this surface, and so does jbotci once `forethought_termset` is NUhI-mandatory. The optional-NUhI node this replaces used to accept it with a flat branch shape no parser produces."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-word", byte-span = [21, 26], source-text = "broda", message = "unexpected word" }]

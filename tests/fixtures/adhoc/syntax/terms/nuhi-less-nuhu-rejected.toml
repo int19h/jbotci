@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.nuhi-less-nuhu-rejected"
+lojban = "ge ko'a nu'u gi ko'e broda"
+tags = ["adhoc", "syntax", "issue-806", "term-hierarchy-epoch", "recovery"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6b #806 termset witness"
+description = "NUhU closes a NUhI-opened term sequence and nothing else: camxes-standard and camxes-exp spell the slots only inside the NUhI arms of `termset` (camxes.peg:136), and rolling Zantufa has neither selma'o. The optional-NUhI node this replaces carried the NUhU slots into its NUhI-less reading, which no parser sources; all three reject this surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "nu'u", message = "unexpected cmavo" }]

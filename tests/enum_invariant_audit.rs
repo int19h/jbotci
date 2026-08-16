@@ -1792,6 +1792,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed termset validity is owned by the invariant-bearing ForethoughtTermsetSyntax node",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedForethoughtTermsetRef::Zantufa",
+        "borrowed termset validity is owned by the invariant-bearing ZantufaGekTermsetSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::Empty",
         "the empty linked-sumti leaf is a closed marker with no payload state to constrain",
     ),
@@ -1866,6 +1870,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::TaggedSumtiTerm",
         "borrowed leaf validity is owned by the invariant-bearing TaggedSumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaGekTermset",
+        "borrowed leaf validity is owned by the invariant-bearing ZantufaGekTermsetSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::ConnectedTerm",

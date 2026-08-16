@@ -3560,6 +3560,9 @@ fn generated_forethought_termset_in_term<'syntax>(
             GeneratedSimpleTermRef::GekTermset(termset) => {
                 Some(GeneratedForethoughtTermsetRef::Gek(termset))
             }
+            GeneratedSimpleTermRef::ZantufaGekTermset(termset) => {
+                Some(GeneratedForethoughtTermsetRef::Zantufa(termset))
+            }
             _ => None,
         };
     }
@@ -3574,6 +3577,9 @@ fn generated_forethought_termset_in_term<'syntax>(
             Some(GeneratedForethoughtTermsetRef::Nuhi(termset))
         }
         BoundTermSyntax::GekTermset(termset) => Some(GeneratedForethoughtTermsetRef::Gek(termset)),
+        BoundTermSyntax::ZantufaGekTermset(termset) => {
+            Some(GeneratedForethoughtTermsetRef::Zantufa(termset))
+        }
         _ => None,
     }
 }
@@ -6958,7 +6964,20 @@ fn generated_simple_term_contains_current_level_keha(term: GeneratedSimpleTermRe
                     .terms
                     .iter()
                     .any(|term| generated_term_contains_current_level_keha(term))
-                || termset.additional_branches.iter().any(|branch| {
+        }
+        GeneratedSimpleTermRef::ZantufaGekTermset(termset) => {
+            termset
+                .0
+                .terms
+                .iter()
+                .any(|term| generated_term_contains_current_level_keha(term))
+                || termset
+                    .0
+                    .first_branch
+                    .terms
+                    .iter()
+                    .any(|term| generated_term_contains_current_level_keha(term))
+                || termset.0.additional_branches.iter().any(|branch| {
                     branch
                         .terms
                         .iter()
@@ -12902,12 +12921,15 @@ mod tests {
                 "ca le nu mi klama le mi zdani cu mi tirna ra vau do",
                 "semantic interpretation is undefined for experimental Zantufa post-CU terms combined with statement-level suffix terms",
             ),
+            // The n-ary termset branches live in the `ZantufaConnectives`-gated NUhI-less arm,
+            // which is where rolling Zantufa spells them; the leading run is deliberately two
+            // terms wide so the balanced sourced `gek_termset` cannot claim the surface.
             (
-                "nu'i fa'ugi mi do gi do mi gi ko'a ko'e nu'u klama",
+                "fa'ugi mi do gi ko'a gi ko'e klama",
                 "semantic interpretation is undefined for an experimental n-ary modal, nonlogical, or FAhU forethought termset connection",
             ),
             (
-                "nu'i mu'igi mi do gi do mi gi ko'a ko'e nu'u klama",
+                "mu'igi mi do gi ko'a gi ko'e klama",
                 "semantic interpretation is undefined for an experimental n-ary modal, nonlogical, or FAhU forethought termset connection",
             ),
             (

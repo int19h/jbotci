@@ -2744,6 +2744,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             GeneratedSimpleTermRef::NaKuTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::BareNaTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::GekTermset(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::ZantufaGekTermset(term) => self.walk_node(term),
             GeneratedSimpleTermRef::ForethoughtTermset(term) => self.walk_node(term),
         }
     }
@@ -3495,7 +3496,15 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 for term in &term.first_branch.terms {
                     self.walk_node(term);
                 }
-                for branch in &term.additional_branches {
+            }
+            GeneratedSimpleTermRef::ZantufaGekTermset(term) => {
+                for term in &term.0.terms {
+                    self.walk_node(term);
+                }
+                for term in &term.0.first_branch.terms {
+                    self.walk_node(term);
+                }
+                for branch in &term.0.additional_branches {
                     for term in &branch.terms {
                         self.walk_node(term);
                     }
@@ -7120,7 +7129,15 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 for term in &term.first_branch.terms {
                     self.walk_node(term.as_ref());
                 }
-                for branch in &term.additional_branches {
+            }
+            GeneratedSimpleTermRef::ZantufaGekTermset(term) => {
+                for term in &term.0.terms {
+                    self.walk_node(term.as_ref());
+                }
+                for term in &term.0.first_branch.terms {
+                    self.walk_node(term.as_ref());
+                }
+                for branch in &term.0.additional_branches {
                     for term in &branch.terms {
                         self.walk_node(term.as_ref());
                     }
@@ -7993,7 +8010,11 @@ fn advance_cursor_for_generated_simple_term_shape(
         GeneratedSimpleTermRef::ForethoughtTermset(term) => {
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.terms);
             advance_cursor_for_generated_boxed_terms_shape(cursor, &term.first_branch.terms);
-            for branch in &term.additional_branches {
+        }
+        GeneratedSimpleTermRef::ZantufaGekTermset(term) => {
+            advance_cursor_for_generated_boxed_terms_shape(cursor, &term.0.terms);
+            advance_cursor_for_generated_boxed_terms_shape(cursor, &term.0.first_branch.terms);
+            for branch in &term.0.additional_branches {
                 advance_cursor_for_generated_boxed_terms_shape(cursor, &branch.terms);
             }
         }

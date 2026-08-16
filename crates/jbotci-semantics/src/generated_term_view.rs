@@ -25,7 +25,7 @@ use jbotci_syntax::generated_model::{
     SimpleTermSyntax, SoiAdverbialTermSyntax, StagBoundTermConnectionSyntax, SumtiTermSyntax,
     TaggedOrElidedSumtiSyntax, TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax,
     TenseTaggedLinkedSumtiSyntax, TermSyntax, TermsetGroupSyntax, TreeNode,
-    ZantufaForethoughtTermsetBranchSyntax,
+    ZantufaForethoughtTermsetBranchSyntax, ZantufaGekTermsetSyntax,
 };
 use jbotci_tree::TreeVisitor;
 
@@ -95,6 +95,7 @@ pub(crate) fn any_gek_termset_operand(
 #[invariant(::SumtiTerm(_) => true)]
 #[invariant(::BareNaTerm(_) => true)]
 #[invariant(::GekTermset(_) => true)]
+#[invariant(::ZantufaGekTermset(_) => true)]
 #[invariant(::ForethoughtTermset(_) => true)]
 #[invariant(::NuhiTermset(_) => true)]
 #[invariant(::KeTermset(_) => true)]
@@ -112,6 +113,7 @@ pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     SumtiTerm(&'syntax SumtiTermSyntax),
     BareNaTerm(&'syntax BareNaTermSyntax),
     GekTermset(&'syntax GekTermsetSyntax),
+    ZantufaGekTermset(&'syntax ZantufaGekTermsetSyntax),
     ForethoughtTermset(&'syntax ForethoughtTermsetSyntax),
     NuhiTermset(&'syntax NuhiTermsetSyntax),
     KeTermset(&'syntax KeTermsetSyntax),
@@ -139,6 +141,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             SimpleTermSyntax::SumtiTerm(term) => Self::SumtiTerm(term),
             SimpleTermSyntax::BareNaTerm(term) => Self::BareNaTerm(term),
             SimpleTermSyntax::GekTermset(term) => Self::GekTermset(term),
+            SimpleTermSyntax::ZantufaGekTermset(term) => Self::ZantufaGekTermset(term),
             SimpleTermSyntax::ForethoughtTermset(term) => Self::ForethoughtTermset(term),
             SimpleTermSyntax::NuhiTermset(term) => Self::NuhiTermset(term),
             SimpleTermSyntax::KeTermset(term) => Self::KeTermset(term),
@@ -167,6 +170,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             BoundTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             BoundTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             BoundTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
+            BoundTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             BoundTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             BoundTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             BoundTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -198,6 +202,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             TermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             TermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             TermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
+            TermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             TermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             TermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             TermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -228,6 +233,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             CeheTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             CeheTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             CeheTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
+            CeheTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             CeheTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             CeheTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             CeheTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -256,6 +262,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             LooseTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             LooseTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             LooseTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
+            LooseTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             LooseTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             LooseTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             LooseTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -290,6 +297,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             NonabsTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             NonabsTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
             NonabsTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
+            NonabsTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
             NonabsTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
             NonabsTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
             NonabsTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
@@ -430,17 +438,20 @@ impl<'syntax> GeneratedBridiTermRef<'syntax> {
 
 /// A forethought termset in a bridi term list, in whichever sourced shape it parsed as.
 ///
-/// Two of the three sourced termset shapes join two branches with a GEK/GIK pair and therefore
-/// lower as a logical connection: the NUhI-present arm, whose branches are `terms` sequences
-/// written out in source order, and the NUhI-less `gek_termset`, whose branches have to be
-/// recovered from a balanced operand tree. Everything downstream of "which terms are in which
-/// branch" is identical, so the shapes are distinguished only here.
+/// Three arms join their branches with a GEK/GIK pair and therefore lower as a logical connection:
+/// the NUhI-mandatory arm, whose two branches are `terms` sequences written out in source order;
+/// the NUhI-less `gek_termset`, whose two branches have to be recovered from a balanced operand
+/// tree; and rolling Zantufa's `gek_term`, whose branches are `term+` runs in source order and may
+/// number more than two. Everything downstream of "which terms are in which branch" is identical,
+/// so the shapes are distinguished only here.
 #[invariant(::Nuhi(_) => true)]
 #[invariant(::Gek(_) => true)]
+#[invariant(::Zantufa(_) => true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum GeneratedForethoughtTermsetRef<'syntax> {
     Nuhi(&'syntax ForethoughtTermsetSyntax),
     Gek(&'syntax GekTermsetSyntax),
+    Zantufa(&'syntax ZantufaGekTermsetSyntax),
 }
 
 impl<'syntax> GeneratedForethoughtTermsetRef<'syntax> {
@@ -451,6 +462,7 @@ impl<'syntax> GeneratedForethoughtTermsetRef<'syntax> {
         match self {
             Self::Nuhi(termset) => &termset.gek,
             Self::Gek(termset) => &termset.0.gek,
+            Self::Zantufa(termset) => &termset.0.gek,
         }
     }
 
@@ -463,16 +475,17 @@ impl<'syntax> GeneratedForethoughtTermsetRef<'syntax> {
             // The GIK alternative is listed before the recursive one, exactly as upstream orders
             // it, so the innermost pair is the one that carries the GIK.
             Self::Gek(termset) => innermost_gek_termset_gik(termset.0.operands.as_ref()),
+            Self::Zantufa(termset) => &termset.0.first_branch.gik,
         }
     }
 
-    /// The experimental Zantufa branches beyond the first two, which only the NUhI arm can carry.
+    /// The experimental Zantufa branches beyond the first two, which only its own arm can carry.
     #[requires(true)]
-    #[ensures(ret.is_empty() || matches!(self, Self::Nuhi(_)))]
+    #[ensures(ret.is_empty() || matches!(self, Self::Zantufa(_)))]
     pub(crate) fn additional_branches(self) -> &'syntax [ZantufaForethoughtTermsetBranchSyntax] {
         match self {
-            Self::Nuhi(termset) => &termset.additional_branches,
-            Self::Gek(_) => &[],
+            Self::Nuhi(_) | Self::Gek(_) => &[],
+            Self::Zantufa(termset) => &termset.0.additional_branches,
         }
     }
 
@@ -519,6 +532,24 @@ impl<'syntax> GeneratedForethoughtTermsetRef<'syntax> {
                 );
                 (leading, trailing)
             }
+            // Zantufa's `gek_term <- gek term+ (gik term+)+ GIhI?` writes each branch out as a
+            // whole run in source order, so the first two branches need no reconstruction; any
+            // further ones are `additional_branches`.
+            Self::Zantufa(termset) => (
+                termset
+                    .0
+                    .terms
+                    .iter()
+                    .map(|term| GeneratedBridiTermRef::Term(term.as_ref()))
+                    .collect(),
+                termset
+                    .0
+                    .first_branch
+                    .terms
+                    .iter()
+                    .map(|term| GeneratedBridiTermRef::Term(term.as_ref()))
+                    .collect(),
+            ),
         }
     }
 }

@@ -1420,6 +1420,7 @@ class _syntax_parser_ExperimentalConstruct(StrEnum):
     EXPERIMENTAL_ZANTUFA_CMAVO = 'experimental-zantufa-cmavo'
     EXPERIMENTAL_ZANTUFA_FORETHOUGHT_GIHI = 'experimental-zantufa-forethought-gihi'
     EXPERIMENTAL_ZANTUFA_NARY_FORETHOUGHT = 'experimental-zantufa-nary-forethought'
+    EXPERIMENTAL_ZANTUFA_GEK_TERMSET = 'experimental-zantufa-gek-termset'
     EXPERIMENTAL_ZANTUFA_SELBRI_ASSIGNMENT = 'experimental-zantufa-selbri-assignment'
     EXPERIMENTAL_ZANTUFA_KE_CO_GROUPING = 'experimental-zantufa-ke-co-grouping'
     EXPERIMENTAL_ZANTUFA_SELBRI_RELATIVE_PLACEMENT = 'experimental-zantufa-selbri-relative-placement'

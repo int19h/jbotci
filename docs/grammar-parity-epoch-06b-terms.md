@@ -99,21 +99,96 @@ level whose two operands are both bare sumti terms. The extent proof and the
 exhaustive `..`-free destructuring are recorded in the module's own
 documentation.
 
-### Two unsourced widenings this shape exposes
+## The `forethought_termset` split (lead ruling: option B)
 
-Both belong to the optional-NUhI `forethought_termset` node and are recorded
-here rather than closed, pending the disposition question below.
+The optional-NUhI `forethought_termset` node carried two widenings that nothing
+sources. Both were measured against all three running parsers:
 
-| Surface | camxes-standard | camxes-exp | rolling Zantufa | jbotci |
-| --- | --- | --- | --- | --- |
-| `ge ko'a nu'u gi ko'e broda` | rejects | rejects | rejects | **accepts** |
-| `nu'i ge A gi B gi C nu'u broda` (n-ary NUhI-present) | rejects | rejects | no NUhI selma'o at all | **accepts** |
+| Surface | camxes-standard | camxes-exp | rolling Zantufa | jbotci at `1a4a8914bb` | jbotci now |
+| --- | --- | --- | --- | --- | --- |
+| `ge ko'a nu'u gi ko'e broda` | rejects | rejects | rejects | **accepts** | rejects, every profile |
+| `nu'i ge A gi B gi C broda` (n-ary NUhI-present) | rejects | rejects | no NUhI selma'o at all | **accepts** (`+zantufa-connectives`) | rejects, every profile |
 
 Rolling Zantufa has neither NUhI nor NUhU: `nu'i` lexes as KE there, and its own
-NUhI-less termset is `gek_term <- gek term+ (gik term+)+ GIhI?`, with `term+`
-branches and no terminator slot. So the optional-NUhI node's NUhU slots are
-sourced by nothing, and its Zantufa n-ary branches and GIhI cannot be sourced in
-the NUhI-present arm they currently sit in.
+NUhI-less termset is `gek_term <- gek term+ (gik term+)+ GIhI?`
+(zantufa-1.9999.peg:32), with `term+` branches and no terminator slot. So the
+optional-NUhI node's NUhU slots were sourced by nothing, and its Zantufa n-ary
+branches and GIhI could not be sourced in the NUhI-present arm they sat in.
+
+The lead ruled option B. `forethought_termset` is now NUhI-**mandatory** — the
+sourced NUhI-gek arm and nothing else, its `m_nuhi` field replaced by a
+mandatory `nuhi` and its `additional_branches` and `gihi` fields removed — and
+rolling Zantufa's own shape becomes its own `ZantufaConnectives`-gated arm,
+`zantufa_gek_termset`, ordered behind the sourced `gek_termset` at every level
+that offers both. That is D3's "three distinct shapes" read literally, with the
+dialect's fourth shape gated as a dialect.
+
+### What the Zantufa arm is, and what it is not
+
+| Property | sourced `gek_termset` | `zantufa_gek_termset` |
+| --- | --- | --- |
+| Gate | none (union default) | `ZantufaConnectives` |
+| Operand position | one **unguarded** term | a whole `term+` run |
+| Branch count | two, paired by nesting | n-ary, in source order |
+| Terminator | none | optional GIhI |
+| Warning | none | `syntax.warning.experimental-zantufa-gek-termset` on the arm, plus the shared n-ary GI warning per branch beyond the first, plus the shared GIhI warning |
+
+The arm owns no token of its own — its GEK and its first GIK are the shapes every
+other forethought connection spells, and its GIhI is elidable — so it is
+diagnosed post-parse by `GeneratedConstructWarningVisitor`, anchored at the GEK
+that opens it, which is the T3 mechanism epoch 6a established.
+
+Zantufa's `gik <- GI_clause` (zantufa-1.9999.peg:72) carries no NAI, because
+Zantufa has no NAI selma'o at all. `ge ko'a ko'e gi nai ko'i broda` nevertheless
+parses there, with `nai` absorbed as a UI free modifier, so the first branch
+spells its connective the shared `gik_connective` and jbotci reads the NAI as a
+NAI. That is a reading difference on a surface both accept, not an acceptance
+widening; the gap row is below.
+
+### The Zantufa GEK-sumti ownership question (B6, one branch wider)
+
+Zantufa spells the GEK sumti connection n-ary as
+`sumti_3 <- (… / gek sumti (gik sumti)+ GIhI?) relative_clauses?`
+(zantufa-1.9999.peg:36), and gives `ge ko'a gi ko'e gi ko'i broda` to it rather
+than to `gek_term` — probed, not assumed. The new arm therefore carries its own
+whole-candidate `reject_output` classifier, `ZantufaBaselineGekSumtiRejection`,
+built on the same extent argument as the binary one: a candidate is
+sumti-connection-owned exactly when every operand position holds one bare sumti
+term, because `gek sumti (gik sumti)+` then reconstructs the identical extent,
+and no other shape has a counterpart in the sumti connection's branches. The
+GIhI slot does not enter the argument, since the sumti connection carries one
+too. Both classifiers are destructured exhaustively and without `..`.
+
+### Moved surfaces
+
+| Surface | Before | After |
+| --- | --- | --- |
+| `ge ko'a nu'u gi ko'e broda` | flat `ForethoughtTermset` | rejects (`syntax.unexpected-cmavo` at `nu'u`) |
+| `nu'i ge ko'a gi ko'e gi ko'i broda` | `ForethoughtTermset` with `additional_branches`, `+zantufa-connectives` | rejects |
+| `ge ko'a ko'e gi ko'i broda` (default) | flat `ForethoughtTermset` | rejects, as both camxes parsers do |
+| `ge ko'a ko'e gi ko'i broda` (`+zantufa-connectives`) | flat `ForethoughtTermset`, no warning | `ZantufaGekTermset`, warned |
+| `ge ko'a gi ko'e gi ko'i broda` (`zantufa`) | baseline n-ary GEK **sumti** connection | unchanged; now protected by the classifier rather than by arm order alone |
+| 14 fixture files carrying a `ForethoughtTermset` expectation | `m_nuhi`, `additional_branches`, `gihi` in the Debug shape | `nuhi`; the two removed fields gone. Individually-reviewed manual residue in C7, not a mechanical comparer class |
+
+### Witnesses
+
+| Fixture | Surface | What it pins |
+| --- | --- | --- |
+| `nuhi-less-flat-termset-rejected` | `ge ko'a ko'e gi ko'i broda` | an unbalanced NUhI-less run has no sourced reading; both camxes parsers reject it |
+| `nuhi-less-nuhu-rejected` | `ge ko'a nu'u gi ko'e broda` | the NUhU widening is gone |
+| `nuhi-less-nuhu-rejected-zantufa` | the same `(zantufa)` | and enabling the Zantufa arm does not restore it |
+| `nuhi-nary-termset-rejected-zantufa` | `nu'i ge ko'a gi ko'e gi ko'i broda` `(zantufa)` | the n-ary NUhI-present widening is gone |
+| `zantufa-gek-termset-unbalanced` | `ge ko'a ko'e gi ko'i broda` `(+zantufa-connectives)` | the arm, its `term+` runs, and its construct warning |
+| `zantufa-gek-termset-terms-feature-off-rejected` | the same `(+zantufa-terms)` | the gate is `ZantufaConnectives`, not `ZantufaTerms` |
+| `zantufa-gek-termset-nary-gihi` | `ge ko'a ko'e gi ko'i gi ko'u gi'i broda` `(zantufa)` | the n-ary branch sequence and the GIhI terminator together |
+| `zantufa-gek-termset-baseline-sumti-owned` | `ge ko'a gi ko'e gi ko'i broda` `(zantufa)` | the new classifier: the n-ary GEK sumti connection keeps the extent |
+| `zantufa-gek-termset-connection-formula` | `ge ba ko'a ca ko'e gi vi ko'i broda` `(zantufa)` | the arm lowers through the shared branch-splicing connection path: one `termSet`-locus `and` over the two spliced bridi |
+
+### Documented gap
+
+| Surface | Rolling Zantufa | jbotci | Disposition |
+| --- | --- | --- | --- |
+| `ge ko'a ko'e gi nai ko'i broda` | accepts; `nai` is a UI free modifier, since Zantufa has no NAI selma'o | accepts; `nai` is the baseline NAI on the GIK | Documented reading gap, not a flag candidate: the extent and the acceptance agree, and reading NAI as NAI is what jbotci does at every other GIK. No dialect can make `nai` a UI in jbotci's lexer. |
 
 ## The branch-formula type boundary, and the refactor that removed it
 
@@ -180,7 +255,7 @@ visible-place advancement".
 
 | Section | Issue | State |
 | --- | --- | --- |
-| D3 termset shapes | #806 | grammar, semantics and witnesses complete; the `forethought_termset` split is still open (below) |
+| D3 termset shapes | #806 | complete, including the `forethought_termset` split above |
 | D4 GOI and flavour-context payload width | #794 | not started |
 | D5 Zantufa term binding | #827 | not started |
 | C7 consolidated expectations, comparer re-baseline, ratchet, peak RSS | — | not started |
@@ -217,22 +292,7 @@ The next session picks these up in that order. What each needs, concretely:
   semantics-coverage ratchet and the peak-RSS gate (epoch-vs-base ≤ +20% on the
   full release fixture profile, measured AFTER the bulk regeneration, one volume).
 
-## Open: the `forethought_termset` split
-
-The optional-NUhI `forethought_termset` node still carries the two unsourced
-widenings tabulated above. The recommended disposition, sent to
-`lead-jbotci-801` and not yet answered, is to split it: `forethought_termset`
-becomes NUhI-**mandatory** (the sourced NUhI-gek arm only, dropping
-`additional_branches` and `gihi`), and rolling Zantufa's own shape
-`gek_term <- gek term+ (gik term+)+ GIhI?` becomes its own
-`ZantufaConnectives`-gated arm ordered behind the now-sourced `gek_termset`.
-That removes both widenings and matches D3's "three distinct shapes" literally.
-
-The cost is bounded and was measured rather than estimated: exactly 14 fixture
-files carry a `ForethoughtTermset` expectation, so the Debug-shape delta
-(`m_nuhi` becoming a mandatory `nuhi`, `additional_branches` and `gihi` removed)
-is 14 files of individually reviewable manual residue in C7 — not a mechanical
-comparer class and not a bulk regeneration.
+## The six-configuration substitution
 
 The six-configuration substitution this epoch applies is recorded here as well:
 epoch 6a retired `DialectFeature::TermHierarchy`, so the plan's "exp-off"

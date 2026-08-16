@@ -1285,6 +1285,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             GeneratedForethoughtTermsetRef::Gek(termset) => {
                 self.source_for_node(termset, "termset-connection-formula")
             }
+            GeneratedForethoughtTermsetRef::Zantufa(termset) => {
+                self.source_for_node(termset, "termset-connection-formula")
+            }
         };
         let modal_connection_spec = generated_modal_statement_connection_spec_for_tense_modal(gek);
         if !termset.additional_branches().is_empty()

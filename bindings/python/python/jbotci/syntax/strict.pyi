@@ -2824,13 +2824,41 @@ class TermSyntaxBareNaTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class TermSyntaxGekTermset:
+    'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['gek_termset']]]
+    def __new__(cls, gek_termset: GekTermsetSyntax) -> TermSyntaxGekTermset: ...
+    @property
+    def gek_termset(self) -> GekTermsetSyntax:
+        'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class TermSyntaxZantufaGekTermset:
+    'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_gek_termset']]]
+    def __new__(cls, zantufa_gek_termset: ZantufaGekTermsetSyntax) -> TermSyntaxZantufaGekTermset: ...
+    @property
+    def zantufa_gek_termset(self) -> ZantufaGekTermsetSyntax:
+        'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class TermSyntaxForethoughtTermset:
-    'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+    'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
     __match_args__: ClassVar[tuple[Literal['forethought_termset']]]
     def __new__(cls, forethought_termset: ForethoughtTermsetSyntax) -> TermSyntaxForethoughtTermset: ...
     @property
     def forethought_termset(self) -> ForethoughtTermsetSyntax:
-        'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+        'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -2873,7 +2901,7 @@ class TermSyntaxKeTermset:
 # branch: a nested branch would add a public wrapper variant to Debug and serde output. The
 # binding-schema drift guard keeps every level's leaf inventory synchronized with
 # `simple_term`.
-TermSyntax: TypeAlias = TermSyntaxPeheTermsetConnection | TermSyntaxTermsetGroup | TermSyntaxConnectedTerm | TermSyntaxStagBoundTermConnection | TermSyntaxPlaceTaggedSumtiTerm | TermSyntaxJaiTaggedSumtiTerm | TermSyntaxElidedNaheFihoTagTerm | TermSyntaxTaggedSumtiBeforeTagTerm | TermSyntaxTaggedSumtiTerm | TermSyntaxNoihaAdverbialTerm | TermSyntaxFihoiAdverbialTerm | TermSyntaxSoiAdverbialTerm | TermSyntaxNaKuTerm | TermSyntaxSumtiTerm | TermSyntaxBareNaTerm | TermSyntaxForethoughtTermset | TermSyntaxNuhiTermset | TermSyntaxKeTermset
+TermSyntax: TypeAlias = TermSyntaxPeheTermsetConnection | TermSyntaxTermsetGroup | TermSyntaxConnectedTerm | TermSyntaxStagBoundTermConnection | TermSyntaxPlaceTaggedSumtiTerm | TermSyntaxJaiTaggedSumtiTerm | TermSyntaxElidedNaheFihoTagTerm | TermSyntaxTaggedSumtiBeforeTagTerm | TermSyntaxTaggedSumtiTerm | TermSyntaxNoihaAdverbialTerm | TermSyntaxFihoiAdverbialTerm | TermSyntaxSoiAdverbialTerm | TermSyntaxNaKuTerm | TermSyntaxSumtiTerm | TermSyntaxBareNaTerm | TermSyntaxGekTermset | TermSyntaxZantufaGekTermset | TermSyntaxForethoughtTermset | TermSyntaxNuhiTermset | TermSyntaxKeTermset
 
 @final
 class CeheTermSyntaxTermsetGroup:
@@ -3072,13 +3100,41 @@ class CeheTermSyntaxBareNaTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class CeheTermSyntaxGekTermset:
+    'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['gek_termset']]]
+    def __new__(cls, gek_termset: GekTermsetSyntax) -> CeheTermSyntaxGekTermset: ...
+    @property
+    def gek_termset(self) -> GekTermsetSyntax:
+        'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class CeheTermSyntaxZantufaGekTermset:
+    'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_gek_termset']]]
+    def __new__(cls, zantufa_gek_termset: ZantufaGekTermsetSyntax) -> CeheTermSyntaxZantufaGekTermset: ...
+    @property
+    def zantufa_gek_termset(self) -> ZantufaGekTermsetSyntax:
+        'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class CeheTermSyntaxForethoughtTermset:
-    'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+    'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
     __match_args__: ClassVar[tuple[Literal['forethought_termset']]]
     def __new__(cls, forethought_termset: ForethoughtTermsetSyntax) -> CeheTermSyntaxForethoughtTermset: ...
     @property
     def forethought_termset(self) -> ForethoughtTermsetSyntax:
-        'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+        'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3115,7 +3171,7 @@ class CeheTermSyntaxKeTermset:
 
 # The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
 # (camxes.peg:116). It is the operand level of the PEhE connection above it.
-CeheTermSyntax: TypeAlias = CeheTermSyntaxTermsetGroup | CeheTermSyntaxConnectedTerm | CeheTermSyntaxStagBoundTermConnection | CeheTermSyntaxPlaceTaggedSumtiTerm | CeheTermSyntaxJaiTaggedSumtiTerm | CeheTermSyntaxElidedNaheFihoTagTerm | CeheTermSyntaxTaggedSumtiBeforeTagTerm | CeheTermSyntaxTaggedSumtiTerm | CeheTermSyntaxNoihaAdverbialTerm | CeheTermSyntaxFihoiAdverbialTerm | CeheTermSyntaxSoiAdverbialTerm | CeheTermSyntaxNaKuTerm | CeheTermSyntaxSumtiTerm | CeheTermSyntaxBareNaTerm | CeheTermSyntaxForethoughtTermset | CeheTermSyntaxNuhiTermset | CeheTermSyntaxKeTermset
+CeheTermSyntax: TypeAlias = CeheTermSyntaxTermsetGroup | CeheTermSyntaxConnectedTerm | CeheTermSyntaxStagBoundTermConnection | CeheTermSyntaxPlaceTaggedSumtiTerm | CeheTermSyntaxJaiTaggedSumtiTerm | CeheTermSyntaxElidedNaheFihoTagTerm | CeheTermSyntaxTaggedSumtiBeforeTagTerm | CeheTermSyntaxTaggedSumtiTerm | CeheTermSyntaxNoihaAdverbialTerm | CeheTermSyntaxFihoiAdverbialTerm | CeheTermSyntaxSoiAdverbialTerm | CeheTermSyntaxNaKuTerm | CeheTermSyntaxSumtiTerm | CeheTermSyntaxBareNaTerm | CeheTermSyntaxGekTermset | CeheTermSyntaxZantufaGekTermset | CeheTermSyntaxForethoughtTermset | CeheTermSyntaxNuhiTermset | CeheTermSyntaxKeTermset
 
 @final
 class LooseTermSyntaxConnectedTerm:
@@ -3300,13 +3356,41 @@ class LooseTermSyntaxBareNaTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class LooseTermSyntaxGekTermset:
+    'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['gek_termset']]]
+    def __new__(cls, gek_termset: GekTermsetSyntax) -> LooseTermSyntaxGekTermset: ...
+    @property
+    def gek_termset(self) -> GekTermsetSyntax:
+        'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class LooseTermSyntaxZantufaGekTermset:
+    'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_gek_termset']]]
+    def __new__(cls, zantufa_gek_termset: ZantufaGekTermsetSyntax) -> LooseTermSyntaxZantufaGekTermset: ...
+    @property
+    def zantufa_gek_termset(self) -> ZantufaGekTermsetSyntax:
+        'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class LooseTermSyntaxForethoughtTermset:
-    'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+    'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
     __match_args__: ClassVar[tuple[Literal['forethought_termset']]]
     def __new__(cls, forethought_termset: ForethoughtTermsetSyntax) -> LooseTermSyntaxForethoughtTermset: ...
     @property
     def forethought_termset(self) -> ForethoughtTermsetSyntax:
-        'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+        'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3344,7 +3428,7 @@ class LooseTermSyntaxKeTermset:
 # The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
 # abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
 # (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-LooseTermSyntax: TypeAlias = LooseTermSyntaxConnectedTerm | LooseTermSyntaxStagBoundTermConnection | LooseTermSyntaxPlaceTaggedSumtiTerm | LooseTermSyntaxJaiTaggedSumtiTerm | LooseTermSyntaxElidedNaheFihoTagTerm | LooseTermSyntaxTaggedSumtiBeforeTagTerm | LooseTermSyntaxTaggedSumtiTerm | LooseTermSyntaxNoihaAdverbialTerm | LooseTermSyntaxFihoiAdverbialTerm | LooseTermSyntaxSoiAdverbialTerm | LooseTermSyntaxNaKuTerm | LooseTermSyntaxSumtiTerm | LooseTermSyntaxBareNaTerm | LooseTermSyntaxForethoughtTermset | LooseTermSyntaxNuhiTermset | LooseTermSyntaxKeTermset
+LooseTermSyntax: TypeAlias = LooseTermSyntaxConnectedTerm | LooseTermSyntaxStagBoundTermConnection | LooseTermSyntaxPlaceTaggedSumtiTerm | LooseTermSyntaxJaiTaggedSumtiTerm | LooseTermSyntaxElidedNaheFihoTagTerm | LooseTermSyntaxTaggedSumtiBeforeTagTerm | LooseTermSyntaxTaggedSumtiTerm | LooseTermSyntaxNoihaAdverbialTerm | LooseTermSyntaxFihoiAdverbialTerm | LooseTermSyntaxSoiAdverbialTerm | LooseTermSyntaxNaKuTerm | LooseTermSyntaxSumtiTerm | LooseTermSyntaxBareNaTerm | LooseTermSyntaxGekTermset | LooseTermSyntaxZantufaGekTermset | LooseTermSyntaxForethoughtTermset | LooseTermSyntaxNuhiTermset | LooseTermSyntaxKeTermset
 
 @final
 class NonabsTermSyntaxConnectedTerm:
@@ -3529,13 +3613,41 @@ class NonabsTermSyntaxBareNaTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class NonabsTermSyntaxGekTermset:
+    'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['gek_termset']]]
+    def __new__(cls, gek_termset: GekTermsetSyntax) -> NonabsTermSyntaxGekTermset: ...
+    @property
+    def gek_termset(self) -> GekTermsetSyntax:
+        'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NonabsTermSyntaxZantufaGekTermset:
+    'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_gek_termset']]]
+    def __new__(cls, zantufa_gek_termset: ZantufaGekTermsetSyntax) -> NonabsTermSyntaxZantufaGekTermset: ...
+    @property
+    def zantufa_gek_termset(self) -> ZantufaGekTermsetSyntax:
+        'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class NonabsTermSyntaxForethoughtTermset:
-    'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+    'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
     __match_args__: ClassVar[tuple[Literal['forethought_termset']]]
     def __new__(cls, forethought_termset: ForethoughtTermsetSyntax) -> NonabsTermSyntaxForethoughtTermset: ...
     @property
     def forethought_termset(self) -> ForethoughtTermsetSyntax:
-        'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+        'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3579,7 +3691,7 @@ class NonabsTermSyntaxKeTermset:
 # of the two sources is exactly this level: the guarded tiers with the unguarded leaf
 # inventory. The guard only ever fires when a selbri follows the atom directly, which is a
 # position no connective tier can occupy, so no surface outside the two sources is admitted.
-NonabsTermSyntax: TypeAlias = NonabsTermSyntaxConnectedTerm | NonabsTermSyntaxStagBoundTermConnection | NonabsTermSyntaxPlaceTaggedSumtiTerm | NonabsTermSyntaxJaiTaggedSumtiTerm | NonabsTermSyntaxElidedNaheFihoTagTerm | NonabsTermSyntaxTaggedSumtiBeforeTagTerm | NonabsTermSyntaxNonabsTaggedSumtiTerm | NonabsTermSyntaxNoihaAdverbialTerm | NonabsTermSyntaxFihoiAdverbialTerm | NonabsTermSyntaxSoiAdverbialTerm | NonabsTermSyntaxNaKuTerm | NonabsTermSyntaxSumtiTerm | NonabsTermSyntaxBareNaTerm | NonabsTermSyntaxForethoughtTermset | NonabsTermSyntaxNuhiTermset | NonabsTermSyntaxKeTermset
+NonabsTermSyntax: TypeAlias = NonabsTermSyntaxConnectedTerm | NonabsTermSyntaxStagBoundTermConnection | NonabsTermSyntaxPlaceTaggedSumtiTerm | NonabsTermSyntaxJaiTaggedSumtiTerm | NonabsTermSyntaxElidedNaheFihoTagTerm | NonabsTermSyntaxTaggedSumtiBeforeTagTerm | NonabsTermSyntaxNonabsTaggedSumtiTerm | NonabsTermSyntaxNoihaAdverbialTerm | NonabsTermSyntaxFihoiAdverbialTerm | NonabsTermSyntaxSoiAdverbialTerm | NonabsTermSyntaxNaKuTerm | NonabsTermSyntaxSumtiTerm | NonabsTermSyntaxBareNaTerm | NonabsTermSyntaxGekTermset | NonabsTermSyntaxZantufaGekTermset | NonabsTermSyntaxForethoughtTermset | NonabsTermSyntaxNuhiTermset | NonabsTermSyntaxKeTermset
 
 @final
 class PeheTermsetConnectionSyntax:
@@ -3781,13 +3893,41 @@ class SimpleTermSyntaxBareNaTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class SimpleTermSyntaxGekTermset:
+    'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['gek_termset']]]
+    def __new__(cls, gek_termset: GekTermsetSyntax) -> SimpleTermSyntaxGekTermset: ...
+    @property
+    def gek_termset(self) -> GekTermsetSyntax:
+        'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SimpleTermSyntaxZantufaGekTermset:
+    'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_gek_termset']]]
+    def __new__(cls, zantufa_gek_termset: ZantufaGekTermsetSyntax) -> SimpleTermSyntaxZantufaGekTermset: ...
+    @property
+    def zantufa_gek_termset(self) -> ZantufaGekTermsetSyntax:
+        'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class SimpleTermSyntaxForethoughtTermset:
-    'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+    'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
     __match_args__: ClassVar[tuple[Literal['forethought_termset']]]
     def __new__(cls, forethought_termset: ForethoughtTermsetSyntax) -> SimpleTermSyntaxForethoughtTermset: ...
     @property
     def forethought_termset(self) -> ForethoughtTermsetSyntax:
-        'Uses the `forethought_termset` product form, whose payload preserves `m_nuhi`, `gek`, `terms`, and 4 other fields.'
+        'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3823,7 +3963,7 @@ class SimpleTermSyntaxKeTermset:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-SimpleTermSyntax: TypeAlias = SimpleTermSyntaxPlaceTaggedSumtiTerm | SimpleTermSyntaxJaiTaggedSumtiTerm | SimpleTermSyntaxElidedNaheFihoTagTerm | SimpleTermSyntaxTaggedSumtiBeforeTagTerm | SimpleTermSyntaxTaggedSumtiTerm | SimpleTermSyntaxNoihaAdverbialTerm | SimpleTermSyntaxFihoiAdverbialTerm | SimpleTermSyntaxSoiAdverbialTerm | SimpleTermSyntaxNaKuTerm | SimpleTermSyntaxSumtiTerm | SimpleTermSyntaxBareNaTerm | SimpleTermSyntaxForethoughtTermset | SimpleTermSyntaxNuhiTermset | SimpleTermSyntaxKeTermset
+SimpleTermSyntax: TypeAlias = SimpleTermSyntaxPlaceTaggedSumtiTerm | SimpleTermSyntaxJaiTaggedSumtiTerm | SimpleTermSyntaxElidedNaheFihoTagTerm | SimpleTermSyntaxTaggedSumtiBeforeTagTerm | SimpleTermSyntaxTaggedSumtiTerm | SimpleTermSyntaxNoihaAdverbialTerm | SimpleTermSyntaxFihoiAdverbialTerm | SimpleTermSyntaxSoiAdverbialTerm | SimpleTermSyntaxNaKuTerm | SimpleTermSyntaxSumtiTerm | SimpleTermSyntaxBareNaTerm | SimpleTermSyntaxGekTermset | SimpleTermSyntaxZantufaGekTermset | SimpleTermSyntaxForethoughtTermset | SimpleTermSyntaxNuhiTermset | SimpleTermSyntaxKeTermset
 
 @final
 class BoundTermSyntaxStagBoundTermConnection:
@@ -3994,13 +4134,41 @@ class BoundTermSyntaxBareNaTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class BoundTermSyntaxGekTermset:
+    'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['gek_termset']]]
+    def __new__(cls, gek_termset: GekTermsetSyntax) -> BoundTermSyntaxGekTermset: ...
+    @property
+    def gek_termset(self) -> GekTermsetSyntax:
+        'Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BoundTermSyntaxZantufaGekTermset:
+    'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_gek_termset']]]
+    def __new__(cls, zantufa_gek_termset: ZantufaGekTermsetSyntax) -> BoundTermSyntaxZantufaGekTermset: ...
+    @property
+    def zantufa_gek_termset(self) -> ZantufaGekTermsetSyntax:
+        'Uses the `zantufa_gek_termset` product form, whose payload preserves the classified\nrolling-Zantufa NUhI-less candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class BoundTermSyntaxForethoughtTermset:
-    'Uses the `forethought_termset` product form, whose payload preserves its connected term sequences.'
+    'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
     __match_args__: ClassVar[tuple[Literal['forethought_termset']]]
     def __new__(cls, forethought_termset: ForethoughtTermsetSyntax) -> BoundTermSyntaxForethoughtTermset: ...
     @property
     def forethought_termset(self) -> ForethoughtTermsetSyntax:
-        'Uses the `forethought_termset` product form, whose payload preserves its connected term sequences.'
+        'Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves\n`nuhi`, `gek`, `terms`, and 2 other fields.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4040,7 +4208,7 @@ class BoundTermSyntaxKeTermset:
 # The leaf rules are deliberately listed directly rather than through `simple_term`: a
 # nested sum branch would add a public wrapper variant to Debug and serde output. The
 # binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-BoundTermSyntax: TypeAlias = BoundTermSyntaxStagBoundTermConnection | BoundTermSyntaxPlaceTaggedSumtiTerm | BoundTermSyntaxJaiTaggedSumtiTerm | BoundTermSyntaxElidedNaheFihoTagTerm | BoundTermSyntaxTaggedSumtiBeforeTagTerm | BoundTermSyntaxTaggedSumtiTerm | BoundTermSyntaxNoihaAdverbialTerm | BoundTermSyntaxFihoiAdverbialTerm | BoundTermSyntaxSoiAdverbialTerm | BoundTermSyntaxNaKuTerm | BoundTermSyntaxSumtiTerm | BoundTermSyntaxBareNaTerm | BoundTermSyntaxForethoughtTermset | BoundTermSyntaxNuhiTermset | BoundTermSyntaxKeTermset
+BoundTermSyntax: TypeAlias = BoundTermSyntaxStagBoundTermConnection | BoundTermSyntaxPlaceTaggedSumtiTerm | BoundTermSyntaxJaiTaggedSumtiTerm | BoundTermSyntaxElidedNaheFihoTagTerm | BoundTermSyntaxTaggedSumtiBeforeTagTerm | BoundTermSyntaxTaggedSumtiTerm | BoundTermSyntaxNoihaAdverbialTerm | BoundTermSyntaxFihoiAdverbialTerm | BoundTermSyntaxSoiAdverbialTerm | BoundTermSyntaxNaKuTerm | BoundTermSyntaxSumtiTerm | BoundTermSyntaxBareNaTerm | BoundTermSyntaxGekTermset | BoundTermSyntaxZantufaGekTermset | BoundTermSyntaxForethoughtTermset | BoundTermSyntaxNuhiTermset | BoundTermSyntaxKeTermset
 
 @final
 class StagBoundTermConnectionSyntax:
@@ -4203,21 +4371,19 @@ class TermsetGroupContinuationSyntax:
 
 @final
 class ForethoughtTermsetSyntax:
-    'Product node for termset; preserves `m_nuhi`, `gek`, `terms`, and 4 other fields in source order.'
-    __match_args__: ClassVar[tuple[Literal['m_nuhi'], Literal['gek'], Literal['terms'], Literal['nuhu'], Literal['first_branch'], Literal['additional_branches'], Literal['gihi']]]
+    'The NUhI-gek forethought termset: `NUhI free* gek terms NUhU? free* gik terms NUhU? free*`\n(camxes.peg:136, camxes-exp.peg:191).\n\nThis is the first of the three sourced termset shapes. The NUhI is MANDATORY: the NUhI-less\nsurface is `gek_termset` in camxes-standard and camxes-exp alike, and rolling Zantufa\'s own\nNUhI-less shape has neither a NUhI selma\'o nor a NUhU slot, so an optional-NUhI reading of\nthis arm would source its NUhU slots and its branch count from nothing at all. Both operand\npositions are the full GUARDED `terms` sequences (B1), which is what separates this arm from\nthe NUhI-less one.\n\nProduct node for termset; preserves `nuhi`, `gek`, `terms`, and 2 other fields in source order.'
+    __match_args__: ClassVar[tuple[Literal['nuhi'], Literal['gek'], Literal['terms'], Literal['nuhu'], Literal['first_branch']]]
     def __new__(
         cls,
-        m_nuhi: WithFreeModifiers[Token, FreeModifierSyntax] | None,
+        nuhi: WithFreeModifiers[Token, FreeModifierSyntax],
         gek: ModalForethoughtConnectiveSyntax,
         terms: Sequence[TermSyntax],
         nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None,
         first_branch: ForethoughtTermsetBranchSyntax,
-        additional_branches: Sequence[ZantufaForethoughtTermsetBranchSyntax],
-        gihi: Token | None,
     ) -> ForethoughtTermsetSyntax: ...
     @property
-    def m_nuhi(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
-        'An optional NUhI marker introducing the forethought termset before its connective.'
+    def nuhi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
+        'The mandatory NUhI marker introducing the forethought termset before its connective.'
         ...
     @property
     def gek(self) -> ModalForethoughtConnectiveSyntax:
@@ -4234,14 +4400,6 @@ class ForethoughtTermsetSyntax:
     @property
     def first_branch(self) -> ForethoughtTermsetBranchSyntax:
         'The first GIK-led term-sequence branch paired with the opening connective.'
-        ...
-    @property
-    def additional_branches(self) -> tuple[ZantufaForethoughtTermsetBranchSyntax, ...]:
-        'Additional Zantufa GIK-led term-sequence branches, retained in source order.'
-        ...
-    @property
-    def gihi(self) -> Token | None:
-        'The optional experimental GIhI terminator following the complete branch sequence.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4276,15 +4434,79 @@ class ForethoughtTermsetBranchSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class ZantufaForethoughtTermsetBranchSyntax:
-    'Product node for termset; preserves `gik`, `terms`, and `nuhu` in source order.'
-    __match_args__: ClassVar[tuple[Literal['gik'], Literal['terms'], Literal['nuhu']]]
+class ZantufaGekTermsetSyntax:
+    'Rolling Zantufa\'s own NUhI-less termset: `gek_term <- gek term+ (gik term+)+ GIhI?`\n(zantufa-1.9999.peg:32), which Zantufa lists last in its `term_2` leaf inventory.\n\nIt differs from the sourced `gek_termset` in exactly the ways this arm exists to carry:\neach operand position is a whole `term+` run rather than a single term, so the branches need\nnot be balanced, the branch sequence is n-ary rather than binary, and a GIhI may close it.\nNone of that is sourced by camxes-standard or camxes-exp, so the arm is\n`ZantufaConnectives`-gated and ordered BEHIND the sourced `gek_termset` at every level that\noffers both.\n\nZantufa\'s `gik <- GI_clause` (zantufa-1.9999.peg:72) carries no NAI, because Zantufa has no\nNAI selma\'o at all — `gi nai` parses there with `nai` absorbed as a UI free modifier. The\nfirst branch nevertheless spells its connective the shared `gik_connective`: the surface is\naccepted by Zantufa either way, so this is a reading difference rather than a widening, and\njbotci reads NAI as NAI everywhere else a GIK appears. The 6b ledger carries the row.'
+    __match_args__: ClassVar[tuple[Literal['termset']]]
+    def __new__(cls, termset: ZantufaGekTermsetCandidateSyntax) -> ZantufaGekTermsetSyntax: ...
+    @property
+    def termset(self) -> ZantufaGekTermsetCandidateSyntax:
+        'The completed candidate, retained only when the GEK sumti connection — which Zantufa\nspells n-ary as `sumti_3 <- gek sumti (gik sumti)+ GIhI?` (zantufa-1.9999.peg:36) — does\nnot own its identical extent.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaGekTermsetCandidateSyntax:
+    'The classified body of rolling Zantufa\'s NUhI-less termset.'
+    __match_args__: ClassVar[tuple[Literal['gek'], Literal['terms'], Literal['first_branch'], Literal['additional_branches'], Literal['gihi']]]
     def __new__(
         cls,
-        gik: ZantufaExtraGikConnectiveSyntax,
+        gek: ModalForethoughtConnectiveSyntax,
         terms: Sequence[TermSyntax],
-        nuhu: WithFreeModifiers[Token, FreeModifierSyntax] | None,
-    ) -> ZantufaForethoughtTermsetBranchSyntax: ...
+        first_branch: ZantufaForethoughtTermsetFirstBranchSyntax,
+        additional_branches: Sequence[ZantufaForethoughtTermsetBranchSyntax],
+        gihi: Token | None,
+    ) -> ZantufaGekTermsetCandidateSyntax: ...
+    @property
+    def gek(self) -> ModalForethoughtConnectiveSyntax:
+        'The opening forethought connective that determines how the term sequences are combined.'
+        ...
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'The initial nonempty term sequence following the opening connective.'
+        ...
+    @property
+    def first_branch(self) -> ZantufaForethoughtTermsetFirstBranchSyntax:
+        'The first GIK-led term-sequence branch paired with the opening connective.'
+        ...
+    @property
+    def additional_branches(self) -> tuple[ZantufaForethoughtTermsetBranchSyntax, ...]:
+        'Additional Zantufa GIK-led term-sequence branches, retained in source order.'
+        ...
+    @property
+    def gihi(self) -> Token | None:
+        'The optional experimental GIhI terminator following the complete branch sequence.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaForethoughtTermsetFirstBranchSyntax:
+    'Product node for termset; preserves `gik` and `terms` in source order.'
+    __match_args__: ClassVar[tuple[Literal['gik'], Literal['terms']]]
+    def __new__(cls, gik: GikConnectiveSyntax, terms: Sequence[TermSyntax]) -> ZantufaForethoughtTermsetFirstBranchSyntax: ...
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GIK connective that introduces this branch and pairs with the opening connective.'
+        ...
+    @property
+    def terms(self) -> tuple[TermSyntax, ...]:
+        'The nonempty term sequence governed by this branch\'s GIK connective.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaForethoughtTermsetBranchSyntax:
+    'Product node for termset; preserves `gik` and `terms` in source order.'
+    __match_args__: ClassVar[tuple[Literal['gik'], Literal['terms']]]
+    def __new__(cls, gik: ZantufaExtraGikConnectiveSyntax, terms: Sequence[TermSyntax]) -> ZantufaForethoughtTermsetBranchSyntax: ...
     @property
     def gik(self) -> ZantufaExtraGikConnectiveSyntax:
         'The additional Zantufa GIK connective that introduces this branch.'
@@ -4293,9 +4515,128 @@ class ZantufaForethoughtTermsetBranchSyntax:
     def terms(self) -> tuple[TermSyntax, ...]:
         'The nonempty term sequence governed by this additional branch\'s GIK connective.'
         ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class GekTermsetSyntax:
+    'The NUhI-less forethought termset: `gek_termset <- gek terms_gik_terms` (camxes.peg:136,\ncamxes-exp.peg:191).\n\nThis is the third of the three sourced termset shapes, and the only one that carries\nneither NUhI nor a NUhU slot. Its operands are single unguarded terms rather than the\nguarded `terms` sequences the NUhI-present arm takes (B1), and they are paired by nesting\nrather than by concatenation.\n\nThe arm is extension-first against the baseline GEK sumti connection, which owns\n`ge ko\'a gi ko\'e broda` at `sumti_4` in camxes-standard and camxes-exp alike. Arm order\nalone cannot settle that, because a locally failing outer parse would let this arm reclaim\nthe extent on backtracking, so the completed candidate is classified instead.'
+    __match_args__: ClassVar[tuple[Literal['termset']]]
+    def __new__(cls, termset: GekTermsetCandidateSyntax) -> GekTermsetSyntax: ...
     @property
-    def nuhu(self) -> WithFreeModifiers[Token, FreeModifierSyntax] | None:
-        'The optional elidable NUhU terminator closing this branch\'s term sequence.'
+    def termset(self) -> GekTermsetCandidateSyntax:
+        'The completed NUhI-less candidate, retained only when the baseline GEK sumti connection\ndoes not own its identical extent.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class GekTermsetCandidateSyntax:
+    'The classified body of the NUhI-less forethought termset.'
+    __match_args__: ClassVar[tuple[Literal['gek'], Literal['operands']]]
+    def __new__(cls, gek: ModalForethoughtConnectiveSyntax, operands: BalancedTermsetOperandsSyntax) -> GekTermsetCandidateSyntax: ...
+    @property
+    def gek(self) -> ModalForethoughtConnectiveSyntax:
+        'The opening forethought connective that determines how the operands are combined.'
+        ...
+    @property
+    def operands(self) -> BalancedTermsetOperandsSyntax:
+        'The balanced operand tree. Unlike the NUhI-present arm, the operand sequence is not a\n`terms` run: each level contributes exactly one leading and one trailing operand.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BalancedTermsetOperandsSyntaxGikPairedTermsetOperands:
+    'Uses the `gik_paired_termset_operands` product form, whose payload preserves\n`leading_operand`, `gik`, and `trailing_operand`.'
+    __match_args__: ClassVar[tuple[Literal['gik_paired_termset_operands']]]
+    def __new__(cls, gik_paired_termset_operands: GikPairedTermsetOperandsSyntax) -> BalancedTermsetOperandsSyntaxGikPairedTermsetOperands: ...
+    @property
+    def gik_paired_termset_operands(self) -> GikPairedTermsetOperandsSyntax:
+        'Uses the `gik_paired_termset_operands` product form, whose payload preserves\n`leading_operand`, `gik`, and `trailing_operand`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BalancedTermsetOperandsSyntaxNestedPairedTermsetOperands:
+    'Uses the `nested_paired_termset_operands` product form, whose payload preserves\n`leading_operand`, `inner`, and `trailing_operand`.'
+    __match_args__: ClassVar[tuple[Literal['nested_paired_termset_operands']]]
+    def __new__(cls, nested_paired_termset_operands: NestedPairedTermsetOperandsSyntax) -> BalancedTermsetOperandsSyntaxNestedPairedTermsetOperands: ...
+    @property
+    def nested_paired_termset_operands(self) -> NestedPairedTermsetOperandsSyntax:
+        'Uses the `nested_paired_termset_operands` product form, whose payload preserves\n`leading_operand`, `inner`, and `trailing_operand`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# `terms_gik_terms <- nonabs_term (gik / terms_gik_terms) nonabs_term` (camxes.peg:138,
+# camxes-exp.peg:193).
+#
+# Each level pairs one leading operand with one trailing operand around a centre that is
+# either the GIK itself or the next nested pair, so an n-operand termset nests n/2 deep and
+# the outermost operands are the outermost pair. The GIK alternative is listed first, exactly
+# as upstream orders it, so the innermost pair is the one that finds the GIK.
+BalancedTermsetOperandsSyntax: TypeAlias = BalancedTermsetOperandsSyntaxGikPairedTermsetOperands | BalancedTermsetOperandsSyntaxNestedPairedTermsetOperands
+
+@final
+class GikPairedTermsetOperandsSyntax:
+    'The innermost operand pair, which is the one that carries the GIK.'
+    __match_args__: ClassVar[tuple[Literal['leading_operand'], Literal['gik'], Literal['trailing_operand']]]
+    def __new__(
+        cls,
+        leading_operand: NonabsTermSyntax,
+        gik: GikConnectiveSyntax,
+        trailing_operand: NonabsTermSyntax,
+    ) -> GikPairedTermsetOperandsSyntax: ...
+    @property
+    def leading_operand(self) -> NonabsTermSyntax:
+        'The operand before the GIK.'
+        ...
+    @property
+    def gik(self) -> GikConnectiveSyntax:
+        'The GIK connective that pairs with the opening forethought connective.'
+        ...
+    @property
+    def trailing_operand(self) -> NonabsTermSyntax:
+        'The operand after the GIK.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NestedPairedTermsetOperandsSyntax:
+    'An outer operand pair wrapped around the next nested pair.'
+    __match_args__: ClassVar[tuple[Literal['leading_operand'], Literal['inner'], Literal['trailing_operand']]]
+    def __new__(
+        cls,
+        leading_operand: NonabsTermSyntax,
+        inner: BalancedTermsetOperandsSyntax,
+        trailing_operand: NonabsTermSyntax,
+    ) -> NestedPairedTermsetOperandsSyntax: ...
+    @property
+    def leading_operand(self) -> NonabsTermSyntax:
+        'The operand before the nested pair.'
+        ...
+    @property
+    def inner(self) -> BalancedTermsetOperandsSyntax:
+        'The nested operand pair.'
+        ...
+    @property
+    def trailing_operand(self) -> NonabsTermSyntax:
+        'The operand after the nested pair.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
