@@ -416,7 +416,7 @@ which was its only parser-wired rule.
 | D3 termset shapes | #806 | complete, including the `forethought_termset` split |
 | D4 GOI and flavour-context payload width | #794 | complete |
 | D5 Zantufa term binding | #827 | **rescoped to epoch 6c**; groundwork probed and recorded below |
-| C7 consolidated expectations, comparer re-baseline, ratchet, peak RSS | — | not started |
+| C7 consolidated expectations, comparer re-baseline, ratchet, peak RSS | — | complete; results below |
 
 What each remaining section needs, concretely:
 
@@ -499,6 +499,115 @@ at that position — a FA payload changing arm, a leading-term tag split selecti
 a different arm, a widened leaf the old node could not spell, or any change to
 the payload's own content — diverges into manual residue. The class was exercised
 against synthetic positives and five negatives before the refresh.
+
+### The level-inventory half of the re-baseline
+
+Moving the archive forward also moves what the *old* side of every comparison is,
+and the first run after the refresh exposed the half that had not moved with it.
+`OLD_LEVEL_INVENTORY` and the old-level column of `POSITIONS` still described the
+pre-6a grammar — the flat `term` sum, `pehe_termset_operand`, `SimpleTerm`
+wrappers — while the archive is the 6a-composed ladder. Every fixture holding a
+plain `SumtiTerm` at a term position was therefore rejected as "not a member of
+the old term level" before the walk ever reached its GOI payload, which put 645
+of the 646 re-typed fixtures into manual residue and left the new class carrying
+7.
+
+Both inventories are now transcribed from the `rule "term" … -> enum` arm lists,
+and the transcription is checked arm-for-arm against `generated.rs` at each
+commit rather than asserted. That check is what licenses the shorthand: across
+`term`, `cehe_term`, `loose_term`, `nonabs_term`, `bound_term` and `simple_term`,
+the *only* difference between the grammar at `3c3b84a5ba` and the grammar now is
+D3's two new leaves, `gek_termset` and `zantufa_gek_termset`, so the old
+inventory is written as the new one minus that pair instead of transcribed a
+second time. Three positions lose a stale old level with it: the PEhE operand
+reads `cehe_term` on both sides, and the TermsetGroup operands `loose_term` and
+`nonabs_term`, because 6a's re-levelings are already applied in the baseline.
+
+### C7 result
+
+The comparer is green with the pins re-measured against the corrected classifier:
+
+| Category | Count |
+| --- | --- |
+| Changed pre-epoch fixtures | 665 |
+| `goi-payload-retyping` | 644 |
+| `flat-sum-wrapper`, `pehe-cehe-retyping`, `stagless-bo-route-rejection`, `t3-loose-connection-warning` | 0 each |
+| Manual residue | 21 |
+| Prose-only provenance edits | 0 |
+| Epoch-witness T3 re-pins / witness deltas / unpaired | 0 / 0 / 0 |
+| Epoch-new witnesses (authored, unclassifiable) | 30 |
+
+The four epoch-6a classes finding exactly nothing is the archive's own check:
+their work is in the baseline tree, so a nonzero incidence would mean the archive
+is not the tree it claims to be. The 646 baseline files carrying a
+`SumtiAssociationRelativeClause` expectation reconcile as 644 mechanical plus
+`cll/chrestomathy/forest-nymph` and `corpus/alis/full-alice`, which are manual for
+a co-occurring `ForethoughtTermset` change rather than for anything at the GOI
+position.
+
+### The 21 manual residue fixtures, individually
+
+All 14 baseline files carrying a `ForethoughtTermset` expectation are residue, as
+the D3 section forecast, and they split three ways:
+
+| Group | Count | Fixtures | Disposition |
+| --- | --- | --- | --- |
+| `ForethoughtTermsetSyntax` field reshape | 10 | `cll/chapter-09/section-9.8/c9e8d6`, `cll/chapter-14/section-14.11/c14e11d7`, `cll/chapter-14/section-14.15/c14e15d8`, `cll/chapter-14/section-14.15/c14e15d9`, `cll/chrestomathy/forest-nymph`, `corpus/camxes/12023`, `corpus/camxes/1451`, `corpus/camxes/1692`, `corpus/camxes/2646`, `corpus/camxes/2661` | `('m_nuhi', 'gek', 'terms', 'nuhu', 'first_branch', 'additional_branches', 'gihi')` became `('nuhi', 'gek', 'terms', 'nuhu', 'first_branch')` — the option-B split, NUhI now mandatory and the two unsourced fields gone. Every one of the ten keeps its NUhI, which is why the arm still matches |
+| `ForethoughtTermset` became `GekTermset` | 3 | `corpus/camxes/644`, `corpus/camxes/2481`, `corpus/alis/full-alice` | The three pre-existing NUhI-less GEK termsets D3 names, moving from the flat reading to the sourced nested one. `full-alice`'s `tersmu-json` is unchanged, which is the membership-rule evidence D3 records |
+| Rejection diagnostics moved | 8 | `corpus/camxes/12492`, `17294`, `19333`, `3095`, `3762`, `3784`, `6105`, `16937` | below |
+
+The eight diagnostic moves are all acceptance-preserving — every one of these
+surfaces was rejected before and is rejected now — and seven of them are the D4
+payload widening showing through the error vocabulary:
+
+- Six (`12492`, `17294`, `3095`, `3762`, `3784`, `6105`) keep their exact byte
+  span and source text and only generalise `syntax.unexpected-brivla` to
+  `syntax.unexpected-word`. All six are GOI-family surfaces — `mi ne sanji …`,
+  `vi ma pe gugde …`, `… no'u dunli …`, `… po skina` — where the payload position
+  used to admit only a sumti, so a brivla there was reported against the narrow
+  expectation. The shared constituent's expected set is the term inventory, and
+  the message follows it.
+- `19333` is the text `negatively`, which lexes as `ne ga ti ve ly`. The `ne`
+  opens a sumti-association phrase and the `ga` a GEK, so with termset payloads
+  admitted (SUM-05) the parse now reaches the end of the input before failing:
+  `syntax.unexpected-cmavo` at `ly` becomes `syntax.incomplete-free-modifier` at
+  EOF. A deeper parse of the same rejected surface, not a new acceptance.
+- `16937` is the retiring xfail, dispositioned above.
+
+### The xfail splice, and what validates it
+
+`fixture-rewrite` refuses any fixture carrying `expectations.syntax.xfail`, so the
+514 xfail fixtures cannot be regenerated in the consolidated pass; an xfail pin
+records a corpus-expected status that differs from the accepted one and must not
+be silently re-derived. Their trees are spliced instead: the fixture is copied
+without its `xfail` table, the copy is regenerated by the project's own writer,
+and the original `status` and `xfail` lines are put back, with the accepted status
+verified against `xfail.accepted-status` for every fixture.
+
+The pipeline is validated by the fixtures it must *not* change: 506 of the 514
+round-trip byte for byte through copy, regenerate and splice. 7 carried a stale
+tree and are re-pinned; `corpus/camxes/16937` is the eighth and is the one
+`accepted-status` mismatch the pass reports rather than writes.
+
+### Regeneration reconciliation
+
+The detached regeneration run reported seven of its twelve workers exiting 123.
+All seven are accounted for:
+
+| Worker | Cause | Disposition |
+| --- | --- | --- |
+| six workers | 12 unsupported facets across 9 fixtures | `corpus/camxes/16937` (syntax + both gentufa facets), `corpus/camxes/811` (both gentufa facets), and the 7 stale-tree xfails' syntax facets — the whole expected population |
+| `paths-11` | the driver's `find tests/fixtures -name '*.toml'` swept in the three **profile definition** files, which are not fixtures | Sorted last, so the abort fell after all 1,735 real fixtures in that shard. Re-running the shard without them rewrites 0 and exits 0 |
+
+`corpus/camxes/811` is pre-existing and takes a ledger note only: it pins an
+`[expectations.output.gentufa]` section on a text its own `[expectations.syntax]`
+records as a failure, so the derived facets cannot be rebuilt. Rebuilt at the
+epoch base `3c3b84a5ba` with the base binary it fails identically, same two
+facets and the same byte 34, so nothing in this epoch moved it.
+
+The whole 26,476-fixture tree was then re-run facet by facet as an idempotency
+check: every batch reports `rewrote 0`, and the only worker still exiting 123
+carries `811`'s two facets and nothing else.
 
 ## The six-configuration substitution
 
