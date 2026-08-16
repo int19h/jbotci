@@ -78,9 +78,9 @@ pub mod generated_model {
         // reason the ladder levels do.
         gek_termset: GekTermsetSyntax;
         balanced_termset_operands: BalancedTermsetOperandsSyntax;
-        // Rolling Zantufa's own NUhI-less termset is referenced from the same six leaf inventories
-        // and carries whole `term+` runs, so leaving it out would rebuild that subgraph six times
-        // over on every parse for exactly the reason recorded above.
+        // Rolling Zantufa's own NUhI-less termset is referenced from the same nine leaf
+        // inventories and carries whole `term+` runs, so leaving it out would rebuild that
+        // subgraph nine times over on every parse for exactly the reason recorded above.
         zantufa_gek_termset: ZantufaGekTermsetSyntax;
         sumti: SumtiSyntax;
         sumti_grouped: SumtiGroupedSyntax;

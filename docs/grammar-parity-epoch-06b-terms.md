@@ -61,9 +61,11 @@ Probed at base `3c3b84a5ba` and after the change:
 
 Exactly three pre-existing expectations move to the sourced shape, all of them
 NUhI-less GEK termsets: `corpus/camxes/644`, `corpus/camxes/2481` and
-`corpus/alis/full-alice`. Their `semantics.refs`, `tersmu-json` and `output`
-facets are unaffected; only the pinned syntax tree changes. They are regenerated
-with the epoch's single consolidated expectation update.
+`corpus/alis/full-alice`. Their `semantics.refs` and `tersmu-json` facets are
+unaffected — the load-bearing evidence that the reshape is a tree change and not
+a meaning change — but the `output.gentufa` facets do move with the tree they
+render, `corpus/alis/full-alice`'s pinned JSON digest included. They are
+regenerated with the epoch's single consolidated expectation update.
 
 ### Witnesses
 
@@ -326,6 +328,37 @@ narrow `relative_sumti` node had no FA arm and routed the surface through the
 epoch-5 FA-as-tag extension instead. Adopting the shared inventory replaces a
 diagnosed extension reading with the sourced one.
 
+### Both new tiers are diagnosed
+
+camxes-standard sources neither of the ladder's two connection tiers — it has no
+term-level connective at any position — so every surface that engages either one
+is an extension reading and carries a construct warning:
+
+| Tier | Product | Warning | Anchored at | Raised |
+| --- | --- | --- | --- | --- |
+| T3 loose | `connected_normal_term` | `syntax.warning.experimental-term-loose-connection` | the continuation's connective | post-parse, `GeneratedConstructWarningVisitor` |
+| T4 optional-stag BO | `bound_normal_term_connection` | `syntax.warning.experimental-term-bo-connection` | its own `bo` | in-parser `warn` |
+
+The split of raising site is the one the `nonabs_term` and `linked_term` ladders
+already use, for the same mechanical reason: a T3 continuation owns no token of
+its own — its connective is the shared `ek_connective` / `joik_connective` node —
+so there is nothing for an in-parser `warn` to attach to, while a T4 continuation
+owns its `bo`. All three loose tiers therefore share one warning category and one
+visitor arm shape, and their three continuation node types sit side by side in
+the visitor. This extends the two-node table in epoch 6a's
+`docs/grammar-parity-epoch-06-terms.md` ("Diagnosed tiers and the two warning
+mechanisms") with `ConnectedNormalTermContinuationSyntax`; that ledger's claim
+that there is no documented gap holds again once the arm below is in.
+
+Round-2 correction: the normal-flavour visitor arm was missing at first
+submission, so `ko'a goi ba ko'e .e ca ko'i broda` and both operand analogues
+parsed with **no diagnostic at all** while their `nonabs_term` siblings warned —
+a gap in the epoch's own T3/T4 discipline rather than a deliberate exemption. It
+is added with the three witnesses below. Nothing else moves with it: the tier is
+new this epoch and rejects at `3c3b84a5ba`, so no baseline fixture holds a
+`ConnectedNormalTermContinuation` for the warning to fire on, and the comparer's
+class (iv) `t3-loose-connection-warning` stays at zero.
+
 ### The re-typing, and the lead's option-1 ruling
 
 The `relative_sumti` family the payload replaces had three arms, each the same
@@ -358,6 +391,32 @@ lowered yet` rather than silently associating nothing. The FA arm reads the same
 payload sumti the tag arm does, so `ko'a goi fa ko'e broda` keeps the assigned
 name it had.
 
+That report reaches `goi` itself only after a round-2 fix. `goi` has no
+relative-phrase reading of its own — its meaning is the name assignment
+`build_generated_goi_associated_referent` performs — so
+`lower_generated_sumti_association_relative_clause` returned early on the marker
+and never reached the report at all. That was sound while the payload was the
+three-arm `relative_sumti` node, every arm of which the assignment could read;
+under the D4 inventory it is not, and the widening this epoch performs is exactly
+what makes the unreadable payloads parseable. The early return is now conditioned
+on the payload carrying a sumti for the assignment to act on, so a `goi` clause
+the assignment cannot read falls through to the shared path and is reported there
+the way the identical payload under `po` already was. Two payload classes reach
+it:
+
+| Surface | At first submission | Now |
+| --- | --- | --- |
+| `ko'a goi ge ko'e gi pu broda` (the flagship SUM-05 payload) | no `assignedNames`, **no diagnostic** — the clause vanished from the graph | a restrictive `relativePhrase` clause carrying both `GOI relative phrase marker is not semantically lowered yet` and `relative phrase payload is not a sumti-association term and is not semantically lowered yet` |
+| `ko'a goi na ku broda` | the same silent drop | the negated relative phrase `po` builds for the same payload, plus the unlowered-marker diagnostic — the two graphs are identical modulo the relation name and the spans |
+
+Both surfaces carry a `tersmu-json` facet from this round, so the graph is pinned
+rather than asserted, and the `goi-payload-na-ku` provenance's claim that the
+clause lowers to a negated relative phrase is true of the `goi` surface for the
+first time. No pre-epoch expectation moves with the fix: a termset payload did
+not parse at the GOI position at all before this epoch, and `NaKuRelativeSumti`
+occurs in exactly one baseline fixture, `corpus/camxes/229`, under `pe` rather
+than `goi`.
+
 The `gek_termset` operands moved from `NonabsTermSyntax` to `NormalTermSyntax`
 without touching a single lowering path: `GeneratedBridiTermRef` gained the three
 new levels and `GeneratedTermGroupingRef` the two new connection tiers, which is
@@ -375,6 +434,7 @@ consequence, the same way the five term-formula-scope walkers did in D3.
 | `goi-payload-termset` | `ko'a goi ge ko'e gi pu broda` | the leaf-inventory delta SUM-05 names |
 | `goi-payload-stagless-bo` | `ko'a goi ba ko'e .e bo vi ko'i broda` | the optional-stag BO tier, and its construct warning |
 | `goi-payload-stagless-bo-zantufa` | the same `(zantufa)` | the constituent carries no dialect gate |
+| `goi-payload-loose-connection` | `ko'a goi ba ko'e .e ca ko'i broda` | the loose T3 tier, and its construct warning |
 | `goi-payload-cehe-outside` | `ko'a goi ko'e ce'e ko'i broda` | the payload is one term: CEhE stays outside |
 | `goi-payload-pehe-outside` | `ko'a goi ko'e pe'e je ko'i broda` | the same, one level up |
 | `goi-payload-ek-inside-sumti` | `ko'a goi ko'e .e ko'i broda` | sumti greediness keeps the `.e` connection inside the payload sumti |
@@ -383,6 +443,8 @@ consequence, the same way the five term-formula-scope walkers did in D3.
 | `goi-payload-gehu-terminated` | `ko'a goi ko'e ge'u broda` | the explicit GEhU still closes the payload |
 | `gek-termset-operand-stagless-bo-trailing` | `ge ko'a gi ba ko'e .e bo vi ko'i broda` | the operand position takes the same constituent |
 | `gek-termset-operand-stagless-bo-leading` | `ge ba ko'a .e bo vi ko'e gi ko'i broda` | the same at the leading operand |
+| `gek-termset-operand-loose-connection-trailing` | `ge ko'a gi ba ko'e .e ca ko'i broda` | the T3 tier reaches the operand position too, warned |
+| `gek-termset-operand-loose-connection-leading` | `ge ba ko'a .e ca ko'e gi ko'i broda` | the same at the leading operand |
 
 The 6a deferral row for the rolling-Zantufa GOI payload is discharged except for
 its connectorless BO, which is D5's arm at the same tier.
@@ -508,13 +570,22 @@ and the first run after the refresh exposed the half that had not moved with it.
 pre-6a grammar — the flat `term` sum, `pehe_termset_operand`, `SimpleTerm`
 wrappers — while the archive is the 6a-composed ladder. Every fixture holding a
 plain `SumtiTerm` at a term position was therefore rejected as "not a member of
-the old term level" before the walk ever reached its GOI payload, which put 645
+the old term level" before the walk ever reached its GOI payload, which put 639
 of the 646 re-typed fixtures into manual residue and left the new class carrying
-7.
+7. (The commit message of `4e11fddb47`, which is history now, says 645 for the
+same figure; the preserved round-1 comparer output is the authority and it
+records 639 + 7 = 646.)
 
 Both inventories are now transcribed from the `rule "term" … -> enum` arm lists,
-and the transcription is checked arm-for-arm against `generated.rs` at each
-commit rather than asserted. That check is what licenses the shorthand: across
+and the transcription is re-derived from `generated.rs` rather than asserted, by
+`tools/tests/test_compare_term_hierarchy_expectations.py`: it extracts the arm
+lists from the DSL text at HEAD and at `ARCHIVE_COMMIT` and compares them to
+`NEW_LEVEL_INVENTORY`, `OLD_LEVEL_INVENTORY` and the level names `POSITIONS`
+uses, so a grammar edit that desynchronizes the comparer fails a committed test
+instead of silently widening manual residue. (It is a `tools/tests` unit test,
+run with the rest of that directory; those tests are not in the CI matrix, so it
+is a check the tree carries rather than one CI enforces.) That check is what
+licenses the shorthand: across
 `term`, `cehe_term`, `loose_term`, `nonabs_term`, `bound_term` and `simple_term`,
 the *only* difference between the grammar at `3c3b84a5ba` and the grammar now is
 D3's two new leaves, `gek_termset` and `zantufa_gek_termset`, so the old
@@ -535,7 +606,14 @@ The comparer is green with the pins re-measured against the corrected classifier
 | Manual residue | 21 |
 | Prose-only provenance edits | 0 |
 | Epoch-witness T3 re-pins / witness deltas / unpaired | 0 / 0 / 0 |
-| Epoch-new witnesses (authored, unclassifiable) | 30 |
+| Epoch-new witnesses (authored, unclassifiable) | 33 |
+
+Round 2 moved exactly one of these numbers: the three T3 witnesses it authors
+raise the epoch-new count from 30 to 33. Nothing in the pre-epoch population
+moves — neither the missing loose-tier warning nor the GOI v4-K report can reach
+a fixture whose surface did not parse into the new tier or the new payload at
+`3c3b84a5ba` — so `changed`, every mechanical class, manual residue and prose all
+re-measure identically.
 
 The four epoch-6a classes finding exactly nothing is the archive's own check:
 their work is in the baseline tree, so a nonzero incidence would mean the archive
