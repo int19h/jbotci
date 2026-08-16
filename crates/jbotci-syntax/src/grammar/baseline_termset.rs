@@ -31,7 +31,7 @@ use bityzba::{contract_trait, invariant, requires};
 
 use super::generated_model::{
     BalancedTermsetOperandsSyntax, GekTermsetCandidateSyntax, GikPairedTermsetOperandsSyntax,
-    NonabsTermSyntax, TermSyntax, ZantufaForethoughtTermsetBranchSyntax,
+    NormalTermSyntax, TermSyntax, ZantufaForethoughtTermsetBranchSyntax,
     ZantufaForethoughtTermsetFirstBranchSyntax, ZantufaGekTermsetCandidateSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
@@ -56,26 +56,26 @@ pub(crate) struct ZantufaBaselineGekSumtiRejection;
 
 #[requires(true)]
 #[ensures(true)]
-fn is_bare_sumti_operand(operand: &NonabsTermSyntax) -> bool {
+fn is_bare_sumti_operand(operand: &NormalTermSyntax) -> bool {
     match operand {
-        NonabsTermSyntax::SumtiTerm(_) => true,
-        NonabsTermSyntax::ConnectedTerm(_)
-        | NonabsTermSyntax::StagBoundTermConnection(_)
-        | NonabsTermSyntax::PlaceTaggedSumtiTerm(_)
-        | NonabsTermSyntax::JaiTaggedSumtiTerm(_)
-        | NonabsTermSyntax::ElidedNaheFihoTagTerm(_)
-        | NonabsTermSyntax::TaggedSumtiBeforeTagTerm(_)
-        | NonabsTermSyntax::NonabsTaggedSumtiTerm(_)
-        | NonabsTermSyntax::NoihaAdverbialTerm(_)
-        | NonabsTermSyntax::FihoiAdverbialTerm(_)
-        | NonabsTermSyntax::SoiAdverbialTerm(_)
-        | NonabsTermSyntax::NaKuTerm(_)
-        | NonabsTermSyntax::BareNaTerm(_)
-        | NonabsTermSyntax::GekTermset(_)
-        | NonabsTermSyntax::ZantufaGekTermset(_)
-        | NonabsTermSyntax::ForethoughtTermset(_)
-        | NonabsTermSyntax::NuhiTermset(_)
-        | NonabsTermSyntax::KeTermset(_) => false,
+        NormalTermSyntax::SumtiTerm(_) => true,
+        NormalTermSyntax::ConnectedNormalTerm(_)
+        | NormalTermSyntax::BoundNormalTermConnection(_)
+        | NormalTermSyntax::PlaceTaggedSumtiTerm(_)
+        | NormalTermSyntax::JaiTaggedSumtiTerm(_)
+        | NormalTermSyntax::ElidedNaheFihoTagTerm(_)
+        | NormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
+        | NormalTermSyntax::NonabsTaggedSumtiTerm(_)
+        | NormalTermSyntax::NoihaAdverbialTerm(_)
+        | NormalTermSyntax::FihoiAdverbialTerm(_)
+        | NormalTermSyntax::SoiAdverbialTerm(_)
+        | NormalTermSyntax::NaKuTerm(_)
+        | NormalTermSyntax::BareNaTerm(_)
+        | NormalTermSyntax::GekTermset(_)
+        | NormalTermSyntax::ZantufaGekTermset(_)
+        | NormalTermSyntax::ForethoughtTermset(_)
+        | NormalTermSyntax::NuhiTermset(_)
+        | NormalTermSyntax::KeTermset(_) => false,
     }
 }
 
@@ -108,26 +108,26 @@ fn valid<T>(value: &recovered::Recovered<T>) -> Option<&T> {
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_is_bare_sumti_operand(operand: &recovered::NonabsTermSyntax) -> bool {
+fn recovered_is_bare_sumti_operand(operand: &recovered::NormalTermSyntax) -> bool {
     match operand {
-        recovered::NonabsTermSyntax::SumtiTerm(_) => true,
-        recovered::NonabsTermSyntax::ConnectedTerm(_)
-        | recovered::NonabsTermSyntax::StagBoundTermConnection(_)
-        | recovered::NonabsTermSyntax::PlaceTaggedSumtiTerm(_)
-        | recovered::NonabsTermSyntax::JaiTaggedSumtiTerm(_)
-        | recovered::NonabsTermSyntax::ElidedNaheFihoTagTerm(_)
-        | recovered::NonabsTermSyntax::TaggedSumtiBeforeTagTerm(_)
-        | recovered::NonabsTermSyntax::NonabsTaggedSumtiTerm(_)
-        | recovered::NonabsTermSyntax::NoihaAdverbialTerm(_)
-        | recovered::NonabsTermSyntax::FihoiAdverbialTerm(_)
-        | recovered::NonabsTermSyntax::SoiAdverbialTerm(_)
-        | recovered::NonabsTermSyntax::NaKuTerm(_)
-        | recovered::NonabsTermSyntax::BareNaTerm(_)
-        | recovered::NonabsTermSyntax::GekTermset(_)
-        | recovered::NonabsTermSyntax::ZantufaGekTermset(_)
-        | recovered::NonabsTermSyntax::ForethoughtTermset(_)
-        | recovered::NonabsTermSyntax::NuhiTermset(_)
-        | recovered::NonabsTermSyntax::KeTermset(_) => false,
+        recovered::NormalTermSyntax::SumtiTerm(_) => true,
+        recovered::NormalTermSyntax::ConnectedNormalTerm(_)
+        | recovered::NormalTermSyntax::BoundNormalTermConnection(_)
+        | recovered::NormalTermSyntax::PlaceTaggedSumtiTerm(_)
+        | recovered::NormalTermSyntax::JaiTaggedSumtiTerm(_)
+        | recovered::NormalTermSyntax::ElidedNaheFihoTagTerm(_)
+        | recovered::NormalTermSyntax::TaggedSumtiBeforeTagTerm(_)
+        | recovered::NormalTermSyntax::NonabsTaggedSumtiTerm(_)
+        | recovered::NormalTermSyntax::NoihaAdverbialTerm(_)
+        | recovered::NormalTermSyntax::FihoiAdverbialTerm(_)
+        | recovered::NormalTermSyntax::SoiAdverbialTerm(_)
+        | recovered::NormalTermSyntax::NaKuTerm(_)
+        | recovered::NormalTermSyntax::BareNaTerm(_)
+        | recovered::NormalTermSyntax::GekTermset(_)
+        | recovered::NormalTermSyntax::ZantufaGekTermset(_)
+        | recovered::NormalTermSyntax::ForethoughtTermset(_)
+        | recovered::NormalTermSyntax::NuhiTermset(_)
+        | recovered::NormalTermSyntax::KeTermset(_) => false,
     }
 }
 

@@ -243,6 +243,13 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Some(GeneratedTermGroupingRef::StagBoundTermConnection(connection)) => {
                 self.collect_generated_term_formula_scopes_for_stag_bound_term(connection, scopes)
             }
+            Some(GeneratedTermGroupingRef::ConnectedNormalTerm(connection)) => self
+                .collect_generated_term_formula_scopes_for_connected_normal_term(
+                    connection, scopes,
+                ),
+            Some(GeneratedTermGroupingRef::BoundNormalTermConnection(connection)) => {
+                self.collect_generated_term_formula_scopes_for_bound_normal_term(connection, scopes)
+            }
             None => unreachable!("a term that is neither a leaf nor a grouping node"),
         }
     }
@@ -301,6 +308,46 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         for continuation in &connection.continuations {
             self.collect_generated_term_formula_scopes_for_bridi_term(
                 GeneratedBridiTermRef::Simple(&continuation.trailing_term),
+                scopes,
+            )?;
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn collect_generated_term_formula_scopes_for_connected_normal_term(
+        &self,
+        connection: &'tree ConnectedNormalTermSyntax,
+        scopes: &mut Vec<GeneratedTermFormulaScope>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_generated_term_formula_scopes_for_bridi_term(
+            GeneratedBridiTermRef::BoundNormal(&connection.leading_term),
+            scopes,
+        )?;
+        for continuation in &connection.continuations {
+            self.collect_generated_term_formula_scopes_for_bridi_term(
+                GeneratedBridiTermRef::BoundNormal(&continuation.trailing_term),
+                scopes,
+            )?;
+        }
+        Ok(())
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub(super) fn collect_generated_term_formula_scopes_for_bound_normal_term(
+        &self,
+        connection: &'tree BoundNormalTermConnectionSyntax,
+        scopes: &mut Vec<GeneratedTermFormulaScope>,
+    ) -> Result<(), SemanticsError> {
+        self.collect_generated_term_formula_scopes_for_bridi_term(
+            GeneratedBridiTermRef::NormalAtom(&connection.leading_term),
+            scopes,
+        )?;
+        for continuation in &connection.continuations {
+            self.collect_generated_term_formula_scopes_for_bridi_term(
+                GeneratedBridiTermRef::NormalAtom(&continuation.trailing_term),
                 scopes,
             )?;
         }

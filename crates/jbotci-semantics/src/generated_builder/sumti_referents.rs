@@ -3790,9 +3790,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .and_then(relative_phrase_kind_for_marker)
             .unwrap_or(RelativeClauseKind::Restrictive);
         let mode = predication_mode_for_relative_clause_kind(kind);
-        if let RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) = clause.sumti.as_ref()
+        let payload = GeneratedAssociationPayloadRef::from_payload(clause.sumti.as_ref());
+        if let Some(GeneratedAssociationPayloadRef::Tagged(tagged)) = payload
             && let Some(clause) = self.build_generated_modal_sumti_association_clause(
-                sumti,
+                tagged,
                 head,
                 kind,
                 marker_text.clone(),
@@ -3814,12 +3815,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "GOI relative phrase marker is not semantically lowered yet",
             ));
         }
-        if matches!(
-            clause.sumti.as_ref(),
-            RelativeSumtiSyntax::TenseTaggedRelativeSumti(_)
-        ) {
+        if payload.is_some_and(|payload| payload.tagged_sumti().is_some()) {
             diagnostics.push(diagnostic(
                 "modal relative phrase source relation is not semantically lowered yet",
+            ));
+        }
+        // The payload constituent is the whole shared term inventory (D4/#794), but only the
+        // shapes that carry a sumti have an association reading. Anything else is reported here
+        // rather than silently associating nothing.
+        if payload.is_none() {
+            diagnostics.push(diagnostic(
+                "relative phrase payload is not a sumti-association term and is not semantically lowered yet",
             ));
         }
         let associated_argument =
@@ -3844,10 +3850,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
         )?;
-        let formula = if matches!(
-            clause.sumti.as_ref(),
-            RelativeSumtiSyntax::NaKuRelativeSumti(_)
-        ) {
+        let formula = if matches!(payload, Some(GeneratedAssociationPayloadRef::NaKu)) {
             self.build_unary_formula(
                 FormulaOperator::Not,
                 formula,
@@ -3910,17 +3913,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
     pub(super) fn build_generated_relative_sumti_argument_object<'syntax: 'tree>(
         &mut self,
-        sumti: &'syntax RelativeSumtiSyntax,
+        sumti: &'syntax NormalTermSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        match sumti {
-            RelativeSumtiSyntax::PlainRelativeSumti(PlainRelativeSumtiSyntax(sumti)) => {
-                Ok(Some(self.build_sumti_referent(sumti)?))
+        match GeneratedAssociationPayloadRef::from_payload(sumti) {
+            Some(GeneratedAssociationPayloadRef::Plain(sumti)) => {
+                Ok(Some(self.build_sumti_referent(&sumti.0)?))
             }
-            RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                let argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
+            Some(
+                payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+                | GeneratedAssociationPayloadRef::PlaceTagged(_)),
+            ) => {
+                let argument = self.build_tagged_or_elided_sumti_argument(
+                    payload.tagged_sumti().expect("tag-led payload"),
+                )?;
                 Ok(argument.value)
             }
-            RelativeSumtiSyntax::NaKuRelativeSumti(_) => Ok(None),
+            Some(GeneratedAssociationPayloadRef::NaKu) | None => Ok(None),
         }
     }
 
@@ -4027,17 +4035,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn assigned_name_for_generated_relative_sumti(
         &self,
-        sumti: &'tree RelativeSumtiSyntax,
+        sumti: &'tree NormalTermSyntax,
         clause: &'tree SumtiAssociationRelativeClauseSyntax,
     ) -> Option<AssignedName> {
-        match sumti {
-            RelativeSumtiSyntax::PlainRelativeSumti(PlainRelativeSumtiSyntax(sumti)) => {
-                self.assigned_name_for_generated_sumti(sumti, clause)
+        match GeneratedAssociationPayloadRef::from_payload(sumti)? {
+            GeneratedAssociationPayloadRef::Plain(sumti) => {
+                self.assigned_name_for_generated_sumti(&sumti.0, clause)
             }
-            RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                self.assigned_name_for_generated_tagged_or_elided_sumti(&sumti.sumti, clause)
-            }
-            RelativeSumtiSyntax::NaKuRelativeSumti(_) => None,
+            payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+            | GeneratedAssociationPayloadRef::PlaceTagged(_)) => self
+                .assigned_name_for_generated_tagged_or_elided_sumti(
+                    payload.tagged_sumti()?,
+                    clause,
+                ),
+            GeneratedAssociationPayloadRef::NaKu => None,
         }
     }
 
@@ -4108,7 +4119,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn build_generated_modal_sumti_association_clause(
         &mut self,
-        sumti: &'tree TenseTaggedRelativeSumtiSyntax,
+        sumti: GeneratedTaggedTermRef<'tree>,
         head: SemanticObjectId,
         kind: RelativeClauseKind,
         marker_text: String,
@@ -4123,7 +4134,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let mode = predication_mode_for_relative_clause_kind(kind);
-        let associated_argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
+        let associated_argument = self.build_tagged_or_elided_sumti_argument(sumti.sumti)?;
         let mut arguments = BTreeMap::new();
         arguments.insert(argument_key(head_place), ArgumentValue::filled(head, None));
         arguments.insert(argument_key(visible_place), associated_argument);
@@ -4181,16 +4192,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
     pub(super) fn build_argument_for_generated_relative_sumti(
         &mut self,
-        sumti: &'tree RelativeSumtiSyntax,
+        sumti: &'tree NormalTermSyntax,
     ) -> Result<ArgumentValue, SemanticsError> {
-        match sumti {
-            RelativeSumtiSyntax::PlainRelativeSumti(PlainRelativeSumtiSyntax(sumti)) => {
-                self.build_argument_for_generated_sumti(sumti)
+        match GeneratedAssociationPayloadRef::from_payload(sumti) {
+            Some(GeneratedAssociationPayloadRef::Plain(sumti)) => {
+                self.build_argument_for_generated_sumti(&sumti.0)
             }
-            RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                self.build_tagged_or_elided_sumti_argument(&sumti.sumti)
+            Some(
+                payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+                | GeneratedAssociationPayloadRef::PlaceTagged(_)),
+            ) => self.build_tagged_or_elided_sumti_argument(
+                payload.tagged_sumti().expect("tag-led payload"),
+            ),
+            // `na ku` and every payload with no association reading leave the associated place
+            // elided rather than inventing a referent for it.
+            Some(GeneratedAssociationPayloadRef::NaKu) | None => {
+                self.build_elided_argument_for_place(2)
             }
-            RelativeSumtiSyntax::NaKuRelativeSumti(_) => self.build_elided_argument_for_place(2),
         }
     }
 

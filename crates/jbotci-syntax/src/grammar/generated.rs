@@ -66,6 +66,13 @@ pub mod generated_model {
         nonabs_term: NonabsTermSyntax;
         bound_term: BoundTermSyntax;
         simple_term: SimpleTermSyntax;
+        // The normal-flavour constituent is a second ladder over the same leaves, and it is not
+        // merely an optimization to declare it here: its own leaf inventory contains
+        // `gek_termset`, whose operands are this very level, so the family is genuinely cyclic
+        // and cannot be reconstructed inline at all.
+        normal_term: NormalTermSyntax;
+        bound_normal_term: BoundNormalTermSyntax;
+        normal_term_atom: NormalTermAtomSyntax;
         // The NUhI-less termset is referenced from every leaf inventory of the ladder, and its
         // operand tree is self-recursive (camxes.peg:136-138), so both belong here for the same
         // reason the ladder levels do.
@@ -315,7 +322,7 @@ pub mod generated_model {
     }
 
     /// Sum node for paragraph statement; selects among the `zantufa_statement_terms_statement`, `statement_or_fragment_statement`, and `fragment_statement` forms.
-    rule "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection) -> enum {
+    rule "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term) -> enum {
         /// Uses the `zantufa_statement_terms_statement` product form, whose payload preserves `statement` and `tail`.
         when feature(ZantufaTerms) zantufa_statement_terms_statement,
         /// Uses the `statement_or_fragment_statement` product form, whose payload preserves `statement`.
@@ -362,7 +369,7 @@ pub mod generated_model {
     }
 
     /// Sum node for fragment; selects among 12 forms including `prenex_fragment`, `selbri_fragment`, and `ek_fragment`.
-    rule "fragment" fragment_statement(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection) -> enum {
+    rule "fragment" fragment_statement(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term) -> enum {
         /// Uses the `prenex_fragment` product form, whose payload preserves `terms` and `zohu`.
         prenex_fragment,
         /// Uses the `selbri_fragment` product form, whose payload preserves `selbri`.
@@ -780,6 +787,7 @@ pub mod generated_model {
         description_relative_subbridi,
         tense_modal,
         description_relative_statement,
+    normal_term,
     ) = memo_scope(
         DescriptionRelative,
         relative_clause_list(
@@ -787,7 +795,8 @@ pub mod generated_model {
             description_relative_subbridi,
             tense_modal,
             description_relative_statement,
-        ),
+        normal_term,
+    ),
     ).recursive_output(bare_continuable_relative_clause_list);
 
     alias "selbri" description_relative_full_selbri(
@@ -796,32 +805,32 @@ pub mod generated_model {
     ) = selbri_without_terminal_relative.map_to(selbri);
 
     /// Product node for relative clauses; preserves `first` and `additional` in source order.
-    rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         /// The initial `relative_clause_atom` constituent before the continuations of the `relative_clause_list` production.
-        field first <- relative_clause_atom(sumti, subbridi, tense_modal, statement);
+        field first <- relative_clause_atom(sumti, subbridi, tense_modal, statement, normal_term);
         /// Ordered sequence of zero or more additional components.
-        field additional <- [zero_or_more relative_clause_tail(sumti, subbridi, tense_modal, statement)];
+        field additional <- [zero_or_more relative_clause_tail(sumti, subbridi, tense_modal, statement, normal_term)];
     }
 
     /// Transparent product node for relative clauses; preserves the `relative_clauses` component.
-    rule "relative clauses" relative_clause_fragment(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "relative clauses" relative_clause_fragment(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         #[tree_child(primary)]
         /// The `relative_clause_list` grammar result in the `relative_clauses` structural role of the `relative_clause_fragment` production.
-        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement, normal_term);
     }
 
     /// Transparent product node for linked arguments; preserves the `bei_links` component.
-    rule "linked arguments" linked_sumti_continuation_fragment(sumti, tense_modal, selbri, forethought_bridi_connection) -> struct {
+    rule "linked arguments" linked_sumti_continuation_fragment(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
         #[tree_child(primary)]
         /// Non-empty ordered sequence of bei links components.
-        field bei_links <- [one_or_more bei_link(sumti, tense_modal, selbri, forethought_bridi_connection)];
+        field bei_links <- [one_or_more bei_link(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term)];
     }
 
     /// Transparent product node for linked arguments; preserves the `linkargs` component.
-    rule "linked arguments" linked_sumti_fragment(sumti, tense_modal, selbri, forethought_bridi_connection) -> struct {
+    rule "linked arguments" linked_sumti_fragment(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
         #[tree_child(primary)]
         /// The `linkargs` grammar result in the `linkargs` structural role of the `linked_sumti_fragment` production.
-        field linkargs <- linkargs(sumti, tense_modal, selbri, forethought_bridi_connection);
+        field linkargs <- linkargs(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term);
     }
 
     /// Sum node for bridi; selects among the `bridi_with_leading_terms`, `bridi_with_post_cu_terms`, `bare_cu_bridi`, `bare_cu_terms_bridi`, and `relation_only_bridi` forms.
@@ -1270,7 +1279,7 @@ pub mod generated_model {
     /// branch: a nested branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps every level's leaf inventory synchronized with
     /// `simple_term`.
-    rule "term" term(gek_termset, zantufa_gek_termset, statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" term(gek_termset, zantufa_gek_termset, statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1317,7 +1326,7 @@ pub mod generated_model {
 
     /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
     /// (camxes.peg:116). It is the operand level of the PEhE connection above it.
-    rule "term" cehe_term(gek_termset, zantufa_gek_termset, statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" cehe_term(gek_termset, zantufa_gek_termset, statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1363,7 +1372,7 @@ pub mod generated_model {
     /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
     /// abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
     /// (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-    rule "term" loose_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" loose_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1413,7 +1422,7 @@ pub mod generated_model {
     /// of the two sources is exactly this level: the guarded tiers with the unguarded leaf
     /// inventory. The guard only ever fires when a selbri follows the atom directly, which is a
     /// position no connective tier can occupy, so no surface outside the two sources is admitted.
-    rule "term" nonabs_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" nonabs_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1476,7 +1485,7 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" simple_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
@@ -1518,7 +1527,7 @@ pub mod generated_model {
     /// The leaf rules are deliberately listed directly rather than through `simple_term`: a
     /// nested sum branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-    rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1624,6 +1633,204 @@ pub mod generated_model {
         feature(ZantufaConnectives).not(),
         (selmaho(Na), opt(selmaho(Se)), choice((selmaho(Joi), selmaho(Bihi)))).not(),
     )).ignored();
+
+    /// The NORMAL-flavour term constituent: the loose tier over an OPTIONAL-stag BO tier over
+    /// the unguarded leaf inventory.
+    ///
+    /// camxes-exp writes the term hierarchy twice. The absorption-safe `abs_term` flavour models
+    /// the ordinary sentence-term positions and is what the `nonabs_term` ladder above composes;
+    /// this is the other one, `term <- term_1`, `term_1 <- term_2 (joik_ek !tag_bo_ke_bridi_tail
+    /// !tag_bo_subsentence term_2)*`, `term_2 <- term_3 (joik_ek stag? BO_clause term_3)*`,
+    /// `term_3 <- sumti / tag_term / termset` (camxes-exp.peg:134-149). It differs from the
+    /// `abs_term` flavour in exactly two places: the stag before BO is OPTIONAL rather than
+    /// mandatory, and every operand position takes the unguarded `tag_term` rather than the
+    /// absorption-safe `abs_tag_term`.
+    ///
+    /// camxes-exp reaches it from three sites — the GOI payload (camxes-exp.peg:207), the
+    /// NUhI-less termset operands (camxes-exp.peg:172) and the BE/BEI links (camxes-exp.peg:255,
+    /// :266) — and camxes-standard spells the first two of those `nonabs_term`, its own bare
+    /// unguarded leaf with no connective tier at all (camxes.peg:128, :138). The union of the two
+    /// is therefore this family, and it is a family of its own rather than a widening of
+    /// `nonabs_term`: the CEhE continuation that also consumes `nonabs_term` is sourced by
+    /// camxes-standard's `nonabs_term` and camxes-exp's `abs_term` alone, so giving the whole
+    /// ladder an optional-stag BO tier would admit a surface no parser accepts there.
+    ///
+    /// jbotci models the BE/BEI site separately as the `linked_term` family, whose leaf inventory
+    /// is the four `linked_sumti` forms rather than the shared term leaves; widening that site is
+    /// #816's half of the same upstream rule and is not this epoch's scope.
+    ///
+    /// The leaves are re-listed directly rather than nested behind a sum branch, exactly as every
+    /// other ladder level does it (mechanism E): a nested branch would add a public wrapper
+    /// variant to Debug and serde output. The binding-schema drift guard keeps this inventory
+    /// synchronized with `simple_term`.
+    rule "term" normal_term(gek_termset, zantufa_gek_termset, statement, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+        /// Uses the `connected_normal_term` product form, whose payload preserves `leading_term` and `continuations`.
+        connected_normal_term,
+        /// Uses the `bound_normal_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
+        bound_normal_term_connection,
+        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
+        place_tagged_sumti_term,
+        /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
+        jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
+        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
+        tagged_sumti_before_tag_term,
+        /// Uses the unguarded `nonabs_tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
+        nonabs_tagged_sumti_term,
+        /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
+        noiha_adverbial_term,
+        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
+        fihoi_adverbial_term,
+        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
+        soi_adverbial_term,
+        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
+        na_ku_term,
+        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
+        sumti_term,
+        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
+        bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
+        /// Uses the `zantufa_gek_termset` product form, whose payload preserves the classified
+        /// rolling-Zantufa NUhI-less candidate.
+        zantufa_gek_termset,
+        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
+        /// `nuhi`, `gek`, `terms`, and 2 other fields.
+        forethought_termset,
+        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
+        nuhi_termset,
+        /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
+        ke_termset,
+    }
+
+    /// The normal-flavour loose connection with one or more continuations.
+    rule "term connection" connected_normal_term(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert term_guard();
+        /// The first normal-flavour term at the loose precedence level.
+        field leading_term <- arc(bound_normal_term);
+        /// The nonempty source-ordered loose continuation sequence.
+        field continuations <- [one_or_more connected_normal_term_continuation(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci)];
+    }
+
+    /// One normal-flavour loose continuation.
+    rule "term connection continuation" connected_normal_term_continuation(statement, sumti, bound_normal_term, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
+        assert zantufa_na_led_term_joik_guard();
+        /// The connective joining the adjacent normal-flavour terms.
+        field connective <- term_afterthought_connective;
+        /// The BO-bound normal-flavour term following the connective.
+        field trailing_term <- arc(bound_normal_term);
+    }
+
+    /// The optional-stag BO-bound level of the normal-flavour term constituent.
+    rule "term" bound_normal_term(gek_termset, zantufa_gek_termset, statement, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+        /// Uses the diagnosed optional-stag BO-bound normal-flavour connection.
+        bound_normal_term_connection,
+        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
+        place_tagged_sumti_term,
+        /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
+        jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
+        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
+        tagged_sumti_before_tag_term,
+        /// Uses the unguarded `nonabs_tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
+        nonabs_tagged_sumti_term,
+        /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
+        noiha_adverbial_term,
+        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
+        fihoi_adverbial_term,
+        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
+        soi_adverbial_term,
+        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
+        na_ku_term,
+        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
+        sumti_term,
+        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
+        bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
+        /// Uses the `zantufa_gek_termset` product form, whose payload preserves the classified
+        /// rolling-Zantufa NUhI-less candidate.
+        zantufa_gek_termset,
+        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
+        /// `nuhi`, `gek`, `terms`, and 2 other fields.
+        forethought_termset,
+        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
+        nuhi_termset,
+        /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
+        ke_termset,
+    }
+
+    /// The diagnosed optional-stag BO connection at the normal-flavour term level.
+    ///
+    /// camxes-standard has no term-level BO at all, so every occurrence is diagnosed, exactly as
+    /// the mandatory-stag twin `stag_bound_term_connection` is. Unlike that twin the operands are
+    /// the unguarded leaves, because camxes-exp's normal `term_2 <- term_3 (joik_ek stag?
+    /// BO_clause term_3)*` (camxes-exp.peg:143) takes the unguarded `tag_term` on both sides.
+    rule "term connection" bound_normal_term_connection(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert term_guard();
+        /// The first unguarded leaf at the BO-bound precedence level.
+        field leading_term <- arc(normal_term_atom);
+        /// The nonempty source-ordered BO-bound continuation sequence.
+        field continuations <- [one_or_more bound_normal_term_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+    }
+
+    /// One optional-stag BO continuation at the normal-flavour term level.
+    rule "term connection continuation" bound_normal_term_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+        /// The connective joining the adjacent normal-flavour terms.
+        field connective <- term_afterthought_connective;
+        /// The optional camxes-exp `stag`; unlike the absorption-safe tier, the normal flavour
+        /// leaves it out.
+        field tense_modal <- opt(arc(tense_modal.reject_output(crate::grammar::baseline_tag::ZantufaTagRejection)));
+        /// The `Bo` cmavo marker, which owns the experimental warning for the whole connection.
+        field bo <- cmavo(Bo).warn(ExperimentalTermBoConnection).wf();
+        /// The unguarded leaf following BO.
+        field trailing_term <- arc(normal_term_atom);
+    }
+
+    /// The unguarded leaf inventory of the normal-flavour term constituent.
+    ///
+    /// This is `term_3 <- sumti / tag_term / termset` (camxes-exp.peg:145) and camxes-standard's
+    /// bare `nonabs_term` (camxes.peg:128) at once: the same leaves `simple_term` lists, with the
+    /// unguarded `nonabs_tagged_sumti_term` in place of its absorption-guarded twin.
+    rule "term" normal_term_atom(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+        /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
+        place_tagged_sumti_term,
+        /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
+        jai_tagged_sumti_term,
+        /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
+        elided_nahe_fiho_tag_term,
+        /// Uses the `tagged_sumti_before_tag_term` product form, whose payload preserves `tense_modal`.
+        tagged_sumti_before_tag_term,
+        /// Uses the unguarded `nonabs_tagged_sumti_term` product form, whose payload preserves `tense_modal` and `sumti`.
+        nonabs_tagged_sumti_term,
+        /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
+        noiha_adverbial_term,
+        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
+        fihoi_adverbial_term,
+        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
+        soi_adverbial_term,
+        /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
+        na_ku_term,
+        /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
+        sumti_term,
+        /// Uses the `bare_na_term` product form, whose payload preserves `na`.
+        bare_na_term,
+        /// Uses the `gek_termset` product form, whose payload preserves the classified NUhI-less candidate.
+        gek_termset,
+        /// Uses the `zantufa_gek_termset` product form, whose payload preserves the classified
+        /// rolling-Zantufa NUhI-less candidate.
+        zantufa_gek_termset,
+        /// Uses the NUhI-mandatory `forethought_termset` product form, whose payload preserves
+        /// `nuhi`, `gek`, `terms`, and 2 other fields.
+        forethought_termset,
+        /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
+        nuhi_termset,
+        /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
+        ke_termset,
+    }
 
     /// Product node for termset; preserves `leading_term` and `continuations` in source order.
     ///
@@ -1750,18 +1957,18 @@ pub mod generated_model {
     /// `ge ko'a gi ko'e broda` at `sumti_4` in camxes-standard and camxes-exp alike. Arm order
     /// alone cannot settle that, because a locally failing outer parse would let this arm reclaim
     /// the extent on backtracking, so the completed candidate is classified instead.
-    rule "termset" gek_termset(balanced_termset_operands, nonabs_term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "termset" gek_termset(balanced_termset_operands, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         #[tree_child(primary)]
         /// The completed NUhI-less candidate, retained only when the baseline GEK sumti connection
         /// does not own its identical extent.
         field termset <- arc(
-            gek_termset_candidate(balanced_termset_operands, nonabs_term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci)
+            gek_termset_candidate(balanced_termset_operands, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci)
                 .reject_output(crate::grammar::baseline_termset::BaselineGekSumtiRejection)
         );
     }
 
     /// The classified body of the NUhI-less forethought termset.
-    rule "termset" gek_termset_candidate(balanced_termset_operands, nonabs_term, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+    rule "termset" gek_termset_candidate(balanced_termset_operands, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
         /// The opening forethought connective that determines how the operands are combined.
         field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The balanced operand tree. Unlike the NUhI-present arm, the operand sequence is not a
@@ -1769,14 +1976,14 @@ pub mod generated_model {
         field operands <- arc(balanced_termset_operands);
     }
 
-    /// `terms_gik_terms <- nonabs_term (gik / terms_gik_terms) nonabs_term` (camxes.peg:138,
+    /// `terms_gik_terms <- normal_term (gik / terms_gik_terms) normal_term` (camxes.peg:138,
     /// camxes-exp.peg:193).
     ///
     /// Each level pairs one leading operand with one trailing operand around a centre that is
     /// either the GIK itself or the next nested pair, so an n-operand termset nests n/2 deep and
     /// the outermost operands are the outermost pair. The GIK alternative is listed first, exactly
     /// as upstream orders it, so the innermost pair is the one that finds the GIK.
-    rule "termset" balanced_termset_operands(balanced_termset_operands, nonabs_term) -> enum {
+    rule "termset" balanced_termset_operands(balanced_termset_operands, normal_term) -> enum {
         /// Uses the `gik_paired_termset_operands` product form, whose payload preserves
         /// `leading_operand`, `gik`, and `trailing_operand`.
         gik_paired_termset_operands,
@@ -1786,23 +1993,23 @@ pub mod generated_model {
     }
 
     /// The innermost operand pair, which is the one that carries the GIK.
-    rule "termset" gik_paired_termset_operands(nonabs_term) -> struct {
+    rule "termset" gik_paired_termset_operands(normal_term) -> struct {
         /// The operand before the GIK.
-        field leading_operand <- arc(nonabs_term);
+        field leading_operand <- arc(normal_term);
         /// The GIK connective that pairs with the opening forethought connective.
         field gik <- gik_connective;
         /// The operand after the GIK.
-        field trailing_operand <- arc(nonabs_term);
+        field trailing_operand <- arc(normal_term);
     }
 
     /// An outer operand pair wrapped around the next nested pair.
-    rule "termset" nested_paired_termset_operands(balanced_termset_operands, nonabs_term) -> struct {
+    rule "termset" nested_paired_termset_operands(balanced_termset_operands, normal_term) -> struct {
         /// The operand before the nested pair.
-        field leading_operand <- arc(nonabs_term);
+        field leading_operand <- arc(normal_term);
         /// The nested operand pair.
         field inner <- arc(balanced_termset_operands);
         /// The operand after the nested pair.
-        field trailing_operand <- arc(nonabs_term);
+        field trailing_operand <- arc(normal_term);
     }
 
     /// Product node for termset; preserves `nuhi`, `termset`, and `nuhu` in source order.
@@ -1899,11 +2106,11 @@ pub mod generated_model {
     }
 
     /// Product node for place tag; preserves `fa` and `sumti` in source order.
-    rule "place tag" place_tagged_sumti_term(sumti) -> struct {
+    rule "place tag" place_tagged_sumti_term(sumti, normal_term) -> struct {
         /// A word from selmaho `Fa`.
         field fa <- selmaho(Fa).wf();
         /// The shared sumti child syntax node.
-        field sumti <- arc(tagged_or_elided_sumti(sumti));
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
     /// Product node for NA KU term; preserves `na` and `na_ku` in source order.
@@ -1949,7 +2156,7 @@ pub mod generated_model {
     }
 
     /// Product node for tag; preserves `tense_modal` and `sumti` in source order.
-    rule "tag" tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, selbri, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "tag" tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, selbri, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci, normal_term) -> struct {
         assert !modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(leading_term_tag_tense_modal(
@@ -1960,7 +2167,7 @@ pub mod generated_model {
         ));
         assert !selbri;
         /// The shared sumti child syntax node.
-        field sumti <- arc(tagged_or_elided_sumti(sumti));
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
     /// Product node for the unguarded (`nonabs`) tag term; preserves `tense_modal` and `sumti`.
@@ -1969,7 +2176,7 @@ pub mod generated_model {
     /// `!(!tag selbri)`, so a tag with an elided KU may stand directly before the selbri. The
     /// guarded twin is `tagged_sumti_term`; the two rules differ only by that assertion, and the
     /// binding-schema drift guard keeps the flavoured leaf inventories aligned.
-    rule "tag" nonabs_tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, selbri, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci) -> struct {
+    rule "tag" nonabs_tagged_sumti_term(tense_modal, baseline_term_tense_modal, sumti, selbri, letter_tokens, letter_string, zantufa_mex, zantufa_tcita_selci, normal_term) -> struct {
         assert !modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(leading_term_tag_tense_modal(
@@ -1979,18 +2186,18 @@ pub mod generated_model {
             letter_string,
         ));
         /// The shared sumti child syntax node.
-        field sumti <- arc(tagged_or_elided_sumti(sumti));
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
     /// Final experimental tag term for the A21 elided-FEhU NAhE/FIhO surface.
-    rule "tag" elided_nahe_fiho_tag_term(tense_modal, sumti) -> struct {
+    rule "tag" elided_nahe_fiho_tag_term(tense_modal, sumti, normal_term) -> struct {
         assert (selmaho(Nahe), cmavo(Fiho)).lookahead();
         /// The exact extension-owned NAhE/FIhO tag.
         field tense_modal <- arc(
             tense_modal.reject_output(crate::grammar::baseline_tag::NonElidedNaheFihoTagTermRejection)
         );
         /// The elided sumti following a final tag term.
-        field sumti <- arc(tagged_or_elided_sumti(sumti));
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
     /// Product node for tag; preserves `jai`, `tag`, and `sumti` in source order.
@@ -2094,7 +2301,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among the `sumti` and `tagged_elided_sumti` forms.
-    rule "sumti" tagged_or_elided_sumti(sumti) -> enum {
+    rule "sumti" tagged_or_elided_sumti(sumti, normal_term) -> enum {
         /// Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.
         sumti,
         /// Uses the `tagged_elided_sumti` product form, whose payload preserves `maybe_ku`.
@@ -2108,11 +2315,11 @@ pub mod generated_model {
     }
 
     /// Product node for sumti; preserves `base_sumti` and `vuho_attachment` in source order.
-    rule "sumti" sumti(sumti, sumti_grouped, subbridi, tense_modal, statement) -> struct {
+    rule "sumti" sumti(sumti, sumti_grouped, subbridi, tense_modal, statement, normal_term) -> struct {
         /// The shared base sumti child syntax node.
         field base_sumti <- arc(sumti_grouped);
         /// The optional vuho attachment component.
-        field vuho_attachment <- opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal, statement));
+        field vuho_attachment <- opt(vuho_sumti_attachment_tail(sumti, subbridi, tense_modal, statement, normal_term));
     }
 
     /// Product node for sumti connection; preserves `leading_sumti` and `grouped_tail` in source order.
@@ -2140,7 +2347,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among the `forethought_sumti` and `simple_sumti` forms.
-    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, selbri, letter_tokens, free_modifier, statement, zantufa_mex, zantufa_tcita_selci) -> enum {
+    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, selbri, letter_tokens, free_modifier, statement, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
         /// Uses the `forethought_sumti` product form, whose payload preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi`.
         forethought_sumti,
         /// Uses the `simple_sumti` product form, whose payload preserves `base_sumti` and `relative_clauses`.
@@ -2214,7 +2421,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti relative phrase; tries the structurally closed scoped-continuation route before baseline VUhO-relative ownership and the bare-VUhO extension.
-    rule "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> enum {
+    rule "sumti relative phrase" vuho_sumti_attachment_tail(sumti, subbridi, tense_modal, statement, normal_term) -> enum {
         /// Experimental VUhO-scoped continuation with required relatives and one required sumti continuation, reachable only immediately before explicit LUhU.
         experimental_vuho_scoped_sumti_attachment_tail,
         /// Baseline VUhO followed by a required relative-clause list.
@@ -2224,19 +2431,19 @@ pub mod generated_model {
     }
 
     /// Product node for baseline sumti relative phrase; preserves `vuho` and required `relative_clauses` in source order.
-    rule "sumti relative phrase" vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "sumti relative phrase" vuho_relative_sumti_attachment_tail(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         /// The `Vuho` cmavo marker.
         field vuho <- cmavo(Vuho).wf();
         /// The `relative_clause_list` grammar result in the `relative_clauses` structural role of the `vuho_relative_sumti_attachment_tail` production.
-        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement, normal_term);
     }
 
     /// Product node for the camxes-exp VUhO-scoped continuation; preserves `vuho`, required `relative_clauses`, and required `sumti_connection` in source order.
-    rule "sumti relative phrase" experimental_vuho_scoped_sumti_attachment_tail(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "sumti relative phrase" experimental_vuho_scoped_sumti_attachment_tail(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         /// The warning-gated `Vuho` marker that identifies experimental scoped ownership.
         field vuho <- cmavo(Vuho).warn(ExperimentalVuhoScopedAttachment).wf();
         /// Required relative clauses scoped together with the continuation.
-        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement);
+        field relative_clauses <- relative_clause_list(sumti, subbridi, tense_modal, statement, normal_term);
         /// The required sumti continuation child.
         field sumti_connection <- arc(sumti_connection_tail(sumti));
         // The explicit wrapper boundary makes closed-consumer ownership structural. Without this
@@ -2254,15 +2461,15 @@ pub mod generated_model {
     }
 
     /// Product node for sumti; preserves `base_sumti` and `relative_clauses` in source order.
-    rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement) -> struct {
+    rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, normal_term) -> struct {
         /// The shared base sumti child syntax node.
-        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement));
+        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, normal_term));
         /// The optional relative clauses component.
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement, normal_term));
     }
 
     /// Sum node for sumti; selects among the `sumti_base` and `quantified_sumti` forms.
-    rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement) -> enum {
+    rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, normal_term) -> enum {
         /// Uses the nested `sumti_base` sum form and preserves its selected alternative.
         sumti_base,
         /// Uses the `quantified_sumti` product form, whose payload preserves `quantifier` and `inner_sumti`.
@@ -2270,7 +2477,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among 16 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-    rule "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, description_relative_subbridi, description_relative_statement) -> enum {
+    rule "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, description_relative_subbridi, description_relative_statement, normal_term) -> enum {
         /// Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.
         scalar_negated_sumti_with_bo,
         /// Uses the `scalar_negated_sumti` product form, whose payload preserves `nahe`, `inner_sumti`, and `luhu`.
@@ -3269,11 +3476,11 @@ pub mod generated_model {
     }
 
     /// Product node for converted sumti; preserves `lahe`, `relative_clauses`, `inner_sumti`, and `luhu` in source order.
-    rule "converted sumti" lahe_sumti(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "converted sumti" lahe_sumti(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         /// A word from selmaho `Lahe`.
         field lahe <- selmaho(Lahe).wf();
         /// The optional relative clauses component.
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement, normal_term));
         #[tree_child(primary)]
         /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti);
@@ -3329,13 +3536,13 @@ pub mod generated_model {
     }
 
     /// Product node for scalar-negated sumti; preserves `nahe`, `bo`, optional `relative_clauses`, `inner_sumti`, and `luhu` in source order.
-    rule "scalar-negated sumti" scalar_negated_sumti_with_bo(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "scalar-negated sumti" scalar_negated_sumti_with_bo(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe);
         /// The `Bo` cmavo marker.
         field bo <- cmavo(Bo).wf();
         /// Optional relative clauses attached in the standard post-BO slot before the inner sumti.
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement, normal_term));
         #[tree_child(primary)]
         /// The shared inner sumti child syntax node.
         field inner_sumti <- arc(sumti);
@@ -3386,12 +3593,12 @@ pub mod generated_model {
     }
 
     /// Product node for name; preserves `la`, `relative_clauses`, and `names` in source order.
-    rule "name" name_sumti(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "name" name_sumti(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         assert feature(Cbm).not();
         /// A word from selmaho `La`.
         field la <- selmaho(La).wf();
         /// The optional relative clauses component.
-        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement));
+        field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement, normal_term));
         /// Non-empty ordered sequence of names components.
         field names <- [one_or_more cmevla_word()].wf();
     }
@@ -3409,7 +3616,7 @@ pub mod generated_model {
     }
 
     /// Product node for description; preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku` in source order.
-    rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The shared leading description head child syntax node.
         field leading_description_head <- arc(description_head());
         /// The `description_head_connective` connective joining the adjacent constituents of the `description_connection_sumti` production.
@@ -3417,35 +3624,35 @@ pub mod generated_model {
         /// The shared trailing description head child syntax node.
         field trailing_description_head <- arc(description_head());
         /// The `description_tail` grammar result in the `tail` structural role of the `description_connection_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `description`, `tail`, and `ku` in source order.
-    rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The `description_head` grammar result in the `description` structural role of the `descriptor_with_gadri_sumti` production.
         field description <- description_head();
         /// The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_gadri_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `outer_quantifier`, `description`, `tail`, and `ku` in source order.
-    rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The `quantifier` grammar result in the `outer_quantifier` structural role of the `descriptor_with_outer_quantifier_sumti` production.
         field outer_quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         /// The `description_head` grammar result in the `description` structural role of the `descriptor_with_outer_quantifier_sumti` production.
         field description <- description_head();
         /// The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_outer_quantifier_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement);
+        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `quantifier`, `selbri`, `ku`, and `relative_clauses` in source order.
-    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "description" descriptor_without_gadri_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `descriptor_without_gadri_sumti` production.
         field quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         assert !selmaho(Roi);
@@ -3459,19 +3666,19 @@ pub mod generated_model {
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
         /// The optional relative clauses component.
-        field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement));
+        field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term));
     }
 
     /// Product node for description tail; preserves `leading_tail_elements` and `tail` in source order.
-    rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The `leading_description_tail_elements` grammar result in the `leading_tail_elements` structural role of the `description_tail` production.
-        field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement);
+        field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement, normal_term);
         /// The shared tail child syntax node.
-        field tail <- arc(description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement));
+        field tail <- arc(description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term));
     }
 
     /// Sum node for description tail; selects among the `quantifier_relation_description_tail`, `quantifier_sumti_description_tail`, and `relation_description_tail` forms.
-    rule "description tail" description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement) -> enum {
+    rule "description tail" description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term) -> enum {
         /// Uses the `quantifier_relation_description_tail` product form, whose payload preserves `quantifier`, `selbri`, and `relative_clauses`.
         quantifier_relation_description_tail,
         /// Uses the `quantifier_sumti_description_tail` product form, whose payload preserves `quantifier` and `sumti`.
@@ -3481,11 +3688,11 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `tail_sumti` and `relative_clauses` in source order.
-    rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The optional tail sumti component.
         field tail_sumti <- opt(description_tail_sumti(sumti_base));
         /// The optional relative clauses component.
-        field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement));
+        field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term));
     }
 
     /// Transparent product node for description tail; preserves the `sumti` component.
@@ -3496,18 +3703,18 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `selbri` and `relative_clauses` in source order.
-    rule "description tail" relation_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "description tail" relation_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The shared selbri child syntax node.
         field selbri: std::sync::Arc<SelbriSyntax> <- arc(choice((
             feature(ZantufaSelbriReinterpretation).ignore_then(selbri),
             selbri_without_terminal_relative.map_recovered_to(selbri),
         )));
         /// The optional relative clauses component.
-        field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement));
+        field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term));
     }
 
     /// Product node for description tail; preserves `quantifier`, `selbri`, and `relative_clauses` in source order.
-    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "description tail" quantifier_relation_description_tail(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `quantifier_relation_description_tail` production.
         field quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         assert !selmaho(Roi);
@@ -3517,7 +3724,7 @@ pub mod generated_model {
             selbri_without_terminal_relative.map_recovered_to(selbri),
         )));
         /// The optional relative clauses component.
-        field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement));
+        field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term));
     }
 
     /// Product node for description tail; preserves `quantifier` and `sumti` in source order.
@@ -3600,9 +3807,9 @@ pub mod generated_model {
     }
 
     /// Product node for vocative phrase; preserves `leading_relative_clauses`, `selbri`, and `trailing_relative_clauses` in source order.
-    rule "vocative phrase" selbri_vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "vocative phrase" selbri_vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The optional leading relative clauses component.
-        field leading_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement));
+        field leading_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term));
         #[tree_child(primary)]
         /// The shared selbri child syntax node.
         field selbri: std::sync::Arc<SelbriSyntax> <- arc(choice((
@@ -3610,21 +3817,21 @@ pub mod generated_model {
             selbri_without_terminal_relative.map_recovered_to(selbri),
         )));
         /// The optional trailing relative clauses component.
-        field trailing_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement));
+        field trailing_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term));
     }
 
     /// Product node for vocative phrase; preserves `leading_relative_clauses`, `names`, and `trailing_relative_clauses` in source order.
-    rule "vocative phrase" cmevla_vocative_sumti(sumti, subbridi, tense_modal, statement, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "vocative phrase" cmevla_vocative_sumti(sumti, subbridi, tense_modal, statement, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The optional leading relative clauses component.
-        field leading_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement));
+        field leading_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term));
         /// Non-empty ordered sequence of names components.
         field names <- [one_or_more cmevla_word()].wf();
         /// The optional trailing relative clauses component.
-        field trailing_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement));
+        field trailing_relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term));
     }
 
     /// Sum node for vocative phrase; selects among the `selbri_vocative_sumti`, `cmevla_vocative_sumti`, and `sumti` forms.
-    rule "vocative phrase" vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement) -> enum {
+    rule "vocative phrase" vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement, normal_term) -> enum {
         /// Uses the `selbri_vocative_sumti` product form, whose payload preserves `leading_relative_clauses`, `selbri`, and `trailing_relative_clauses`.
         selbri_vocative_sumti,
         /// Uses the `cmevla_vocative_sumti` product form, whose payload preserves `leading_relative_clauses`, `names`, and `trailing_relative_clauses`.
@@ -3668,7 +3875,7 @@ pub mod generated_model {
     }
 
     /// Sum node for free modifier; selects among 9 forms including `text_replacement_free_modifier`, `zantufa_sei_statement_free_modifier`, and `sei_free_modifier`.
-    rule "free modifier" free_modifier(sumti, subbridi, selbri, selbri_without_terminal_relative, text, mekso, zantufa_mex_2, term, tense_modal, letter_tokens, letter_string, free_modifier, statement, description_relative_subbridi, description_relative_statement) -> enum {
+    rule "free modifier" free_modifier(sumti, subbridi, selbri, selbri_without_terminal_relative, text, mekso, zantufa_mex_2, term, tense_modal, letter_tokens, letter_string, free_modifier, statement, description_relative_subbridi, description_relative_statement, normal_term) -> enum {
         /// Uses the nested `text_replacement_free_modifier` sum form and preserves its selected alternative.
         text_replacement_free_modifier,
         /// Uses the `zantufa_sei_statement_free_modifier` product form, whose payload preserves `sei`, `statement`, and `sehu`.
@@ -3690,11 +3897,11 @@ pub mod generated_model {
     }
 
     /// Product node for vocative phrase; preserves `vocative_markers`, `sumti`, and `dohu` in source order.
-    rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "vocative phrase" vocative_free_modifier(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         /// The `vocative_marker_words` grammar result in the `vocative_markers` structural role of the `vocative_free_modifier` production.
         field vocative_markers <- vocative_marker_words().wf_when(UnrestrictedFree);
         /// The optional sumti component.
-        field sumti <- opt(arc(vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement)));
+        field sumti <- opt(arc(vocative_sumti(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, statement, description_relative_subbridi, description_relative_statement, normal_term)));
         /// The optional `Dohu` cmavo marker.
         field dohu <- opt(cmavo(Dohu).prohibited_wf()).elidable_terminator(Dohu);
     }
@@ -3853,7 +4060,7 @@ pub mod generated_model {
     }
 
     /// Sum node for relative clauses; gives the completed camxes-exp continuation route first choice, then reparses baseline ZIhE surfaces through the standard arm.
-    rule "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal, statement) -> enum {
+    rule "relative clauses" relative_clause_tail(sumti, subbridi, tense_modal, statement, normal_term) -> enum {
         /// Uses the ownership-filtered camxes-exp continuation route.
         relative_clause_exp_continuation,
         /// Uses the `joined_relative_clause_tail` product form, whose payload preserves `zihe` and `inner`.
@@ -3863,38 +4070,38 @@ pub mod generated_model {
     }
 
     /// A bare adjacent relative clause continuation from rolling Zantufa.
-    rule "Zantufa bare relative clause continuation" zantufa_bare_relative_clause_tail(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "Zantufa bare relative clause continuation" zantufa_bare_relative_clause_tail(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         #[tree_child(primary)]
         /// The adjacent relative clause, warned at its leading marker.
         field inner <- arc(
-            relative_clause_atom(sumti, subbridi, tense_modal, statement)
+            relative_clause_atom(sumti, subbridi, tense_modal, statement, normal_term)
         );
     }
 
     /// Transparent ownership wrapper for a camxes-exp relative-clause continuation.
-    rule "relative clause" relative_clause_exp_continuation(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "relative clause" relative_clause_exp_continuation(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         #[tree_child(primary)]
         /// The completed continuation, retained only when baseline ZIhE does not own its identical extent.
         field continuation <- arc(
-            exp_relative_continuation(sumti, subbridi, tense_modal, statement)
+            exp_relative_continuation(sumti, subbridi, tense_modal, statement, normal_term)
                 .reject_output(crate::grammar::baseline_relative::BaselineRelativeContinuationRejection)
         );
     }
 
     /// Product node for relative clause; preserves `zihe` and `inner` in source order.
-    rule "relative clause" joined_relative_clause_tail(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "relative clause" joined_relative_clause_tail(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         /// The `Zihe` cmavo marker.
         field zihe <- cmavo(Zihe).wf();
         /// The shared inner child syntax node.
-        field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement));
+        field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement, normal_term));
     }
 
     /// Product node for the camxes-exp relative-clause continuation; preserves `connective` and `inner` in source order.
-    rule "relative clause" exp_relative_continuation(sumti, subbridi, tense_modal, statement) -> struct {
+    rule "relative clause" exp_relative_continuation(sumti, subbridi, tense_modal, statement, normal_term) -> struct {
         /// The camxes-exp connective joining the adjacent relative clauses.
         field connective <- exp_relative_clause_connective;
         /// The shared inner child syntax node.
-        field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement));
+        field inner <- arc(relative_clause_atom(sumti, subbridi, tense_modal, statement, normal_term));
     }
 
     /// Product node for the exact camxes-exp `NA? SE? (JOI / JA / A) NAI?` relative-clause connective.
@@ -3915,7 +4122,7 @@ pub mod generated_model {
     }
 
     /// Sum node for relative clause; selects among the `sumti_association_relative_clause` and `bridi_relative_clause` forms.
-    rule "relative clause" relative_clause_atom(sumti, subbridi, tense_modal, statement) -> enum {
+    rule "relative clause" relative_clause_atom(sumti, subbridi, tense_modal, statement, normal_term) -> enum {
         /// Uses the `sumti_association_relative_clause` product form, whose payload preserves `association_marker`, `sumti`, and `gehu`.
         sumti_association_relative_clause,
         /// Uses the nested `bridi_relative_clause` sum form and preserves its selected alternative.
@@ -3923,45 +4130,21 @@ pub mod generated_model {
     }
 
     /// Product node for sumti association phrase; preserves `association_marker`, `sumti`, and `gehu` in source order.
-    rule "sumti association phrase" sumti_association_relative_clause(sumti, tense_modal) -> struct {
+    ///
+    /// The payload is the shared normal-flavour term constituent, which is what all three sources
+    /// spell here: `relative_clause_1 <- GOI_clause free* nonabs_term GEhU?` (camxes.peg:168),
+    /// `GOI_clause free* term GEhU?` (camxes-exp.peg:207) and `GOI_clause term GEhU?`
+    /// (zantufa-1.9999.peg:43). It is deliberately ONE term rather than a `terms` run: on
+    /// `ko'a goi ko'e ce'e ko'i broda` camxes-standard gives the payload only `ko'e` and leaves
+    /// `ce'e ko'i` at the enclosing `terms_2` level with GEhU elided, so neither the CEhE nor the
+    /// PEhE tier belongs inside the payload.
+    rule "sumti association phrase" sumti_association_relative_clause(normal_term) -> struct {
         /// A word from selmaho `Goi`.
         field association_marker <- selmaho(Goi).wf();
-        /// The shared sumti child syntax node.
-        field sumti <- arc(relative_sumti(sumti, tense_modal));
+        /// The shared normal-flavour term payload.
+        field sumti <- arc(normal_term);
         /// The optional `Gehu` cmavo marker.
         field gehu <- opt(cmavo(Gehu).wf()).elidable_terminator(Gehu);
-    }
-
-    /// Sum node for sumti association phrase; selects among the `tense_tagged_relative_sumti`, `na_ku_relative_sumti`, and `plain_relative_sumti` forms.
-    rule "sumti association phrase" relative_sumti(sumti, tense_modal) -> enum {
-        /// Uses the `tense_tagged_relative_sumti` product form, whose payload preserves `tense_modal` and `sumti`.
-        tense_tagged_relative_sumti,
-        /// Uses the `na_ku_relative_sumti` product form, whose payload preserves `na` and `ku`.
-        na_ku_relative_sumti,
-        /// Uses the `plain_relative_sumti` product form, whose payload preserves `sumti`.
-        plain_relative_sumti,
-    }
-
-    /// Product node for sumti association phrase; preserves `na` and `ku` in source order.
-    rule "sumti association phrase" na_ku_relative_sumti -> struct {
-        /// A word from selmaho `Na`.
-        field na <- selmaho(Na);
-        /// The `Ku` cmavo marker.
-        field ku <- cmavo(Ku).wf();
-    }
-
-    /// Product node for tagged sumti; preserves `tense_modal` and `sumti` in source order.
-    rule "tagged sumti" tense_tagged_relative_sumti(tense_modal, sumti) -> struct {
-        /// The shared tense modal child syntax node.
-        field tense_modal <- arc(tense_modal);
-        /// The shared sumti child syntax node.
-        field sumti <- arc(tagged_or_elided_sumti(sumti));
-    }
-
-    /// Transparent product node for sumti association phrase; preserves the `sumti` component.
-    rule "sumti association phrase" plain_relative_sumti(sumti) -> struct {
-        /// The shared sumti child syntax node.
-        field sumti <- arc(sumti);
     }
 
     /// Sum node for relative bridi; selects among the `zantufa_restrictive_statement_relative_clause`, `zantufa_incidental_statement_relative_clause`, `restrictive_bridi_relative_clause`, and `incidental_bridi_relative_clause` forms.
@@ -5449,7 +5632,7 @@ pub mod generated_model {
 
     /// Sum node for selbri; gives the full-operand Zantufa CEI owner first
     /// refusal before the standard tagged and untagged owners.
-    rule "selbri" selbri(selbri, co_selbri, cei_free_co_selbri, sumti, subbridi, tense_modal, statement, free_modifier, description_relative_subbridi, description_relative_statement) -> enum {
+    rule "selbri" selbri(selbri, co_selbri, cei_free_co_selbri, sumti, subbridi, tense_modal, statement, free_modifier, description_relative_subbridi, description_relative_statement, normal_term) -> enum {
         /// Faithful full-selbri CEI ownership selected by the meaning-changing flag.
         when feature(ZantufaSelbriReinterpretation) reinterpret_zantufa_assigned_selbri,
         /// Rolling-Zantufa selbri-level relative attachment.
@@ -5473,13 +5656,13 @@ pub mod generated_model {
 
     /// Rolling-Zantufa relative attachment at selbri level, before any CEI
     /// assignments in source order.
-    rule "Zantufa relative selbri" zantufa_relative_selbri(selbri, cei_free_co_selbri, sumti, tense_modal, description_relative_subbridi, description_relative_statement) -> struct {
+    rule "Zantufa relative selbri" zantufa_relative_selbri(selbri, cei_free_co_selbri, sumti, tense_modal, description_relative_subbridi, description_relative_statement, normal_term) -> struct {
         assert feature(ZantufaTerms);
         /// The level-2 selbri receiving the relative clause list.
         field leading_selbri <- arc(cei_free_co_selbri);
         /// The warning-bearing selbri-level relative clause list.
         field relative_clauses <- arc(
-            bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement)
+            bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement, normal_term)
         );
         /// Zero or more following full-selbri CEI assignments.
         field assignments <- [zero_or_more zantufa_selbri_assignment(selbri)];
@@ -5671,6 +5854,7 @@ pub mod generated_model {
         selbri,
         forethought_bridi_connection,
         tanru_unit,
+    normal_term,
     ) = linked_tanru_unit(
         tanru_unit_atom,
         sumti,
@@ -5678,6 +5862,7 @@ pub mod generated_model {
         statement,
         selbri,
         forethought_bridi_connection,
+    normal_term,
     ).map_to(tanru_unit);
 
     /// Product node for selbri; preserves `leading_selbri` and `co_tail` in source order.
@@ -5876,39 +6061,39 @@ pub mod generated_model {
 
     /// Product node for a complete tanru unit: an atom with optional linkargs,
     /// followed by zero or more CEI assignments.
-    rule "tanru unit" tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection) -> struct {
+    rule "tanru unit" tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term) -> struct {
         /// The first linked atom.
-        field base <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection));
+        field base <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term));
         /// Source-ordered CEI assignments.
-        field assignments <- [zero_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection)];
+        field assignments <- [zero_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term)];
     }
 
     /// Product node for one CEI assignment.
-    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection) -> struct {
+    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term) -> struct {
         /// The CEI marker.
         field cei <- cmavo(Cei).wf();
         /// The following linked atom.
-        field tanru_unit <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection));
+        field tanru_unit <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term));
     }
 
     /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
-    rule "tanru unit" linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection) -> struct {
+    rule "tanru unit" linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term) -> struct {
         /// The shared base child syntax node.
         field base <- arc(tanru_unit_atom);
         /// The optional linkargs component.
-        field linkargs <- opt(linkargs(sumti, tense_modal, selbri, forethought_bridi_connection));
+        field linkargs <- opt(linkargs(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term));
     }
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> struct {
+    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection));
+        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term));
     }
 
     /// Sum node for tanru unit; selects among the standard and gated Zantufa forms.
-    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
         /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
@@ -5980,23 +6165,23 @@ pub mod generated_model {
     }
 
     /// Product node for linked arguments; preserves `linkargs` and `base` in source order.
-    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal, statement, selbri, forethought_bridi_connection) -> struct {
+    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term) -> struct {
         /// The `linkargs` grammar result in the `linkargs` structural role of the `preposed_linkargs_tanru_unit` production.
-        field linkargs <- linkargs(sumti, tense_modal, selbri, forethought_bridi_connection);
+        field linkargs <- linkargs(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term);
         /// The shared base child syntax node.
         field base <- arc(tanru_unit);
     }
 
     /// Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom) -> struct {
+    rule "scalar-negated tanru unit" scalar_negated_tanru_unit(tanru_unit_atom, normal_term) -> struct {
         /// A word from selmaho `Nahe`.
         field nahe <- selmaho(Nahe).wf();
         /// The shared inner unit child syntax node.
-        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom));
+        field inner_unit <- arc(scalar_negated_tanru_inner_unit(tanru_unit_atom, normal_term));
     }
 
     /// The standard scalar-negation operand, restricted to exactly one tanru-unit atom.
-    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom) -> enum {
+    rule "scalar-negated tanru unit" scalar_negated_tanru_inner_unit(tanru_unit_atom, normal_term) -> enum {
         /// Uses the `tanru_unit_atom` product form, whose payload preserves `conversions` and `base`.
         tanru_unit_atom,
     }
@@ -6012,7 +6197,7 @@ pub mod generated_model {
     }
 
     /// Sum node for modal conversion; selects among 11 forms including `converted_jai_inner_tanru_unit`, `scalar_negated_jai_inner_tanru_unit`, and `sumti_selbri_tanru_unit`.
-    rule "modal conversion" jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string) -> enum {
+    rule "modal conversion" jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, normal_term) -> enum {
         /// Uses the `converted_jai_inner_tanru_unit` product form, whose payload preserves `se` and `inner_unit`.
         converted_jai_inner_tanru_unit,
         /// Uses the `scalar_negated_jai_inner_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.
@@ -6124,11 +6309,11 @@ pub mod generated_model {
     }
 
     /// Product node for sumti-to-selbri; preserves `me`, `sumti`, `mehu`, and `moi_marker` in source order.
-    rule "sumti-to-selbri" sumti_selbri_tanru_unit(sumti, letter_string) -> struct {
+    rule "sumti-to-selbri" sumti_selbri_tanru_unit(sumti, letter_string, normal_term) -> struct {
         /// The `Me` cmavo marker.
         field me <- cmavo(Me).wf();
         /// The shared sumti child syntax node.
-        field sumti <- arc(sumti_selbri_sumti(sumti, letter_string));
+        field sumti <- arc(sumti_selbri_sumti(sumti, letter_string, normal_term));
         /// The optional `Mehu` cmavo marker.
         field mehu <- opt(cmavo(Mehu).wf()).elidable_terminator(Mehu);
         /// The optional moi marker component.
@@ -6184,7 +6369,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti selbri; selects among the `sumti` and `me_lerfu_sumti` forms.
-    rule "sumti selbri" sumti_selbri_sumti(sumti, letter_string) -> enum {
+    rule "sumti selbri" sumti_selbri_sumti(sumti, letter_string, normal_term) -> enum {
         /// Uses the `sumti` product form, whose payload preserves `base_sumti` and `vuho_attachment`.
         sumti,
         /// Uses the `me_lerfu_sumti` product form, whose payload preserves `words`.
@@ -6250,7 +6435,7 @@ pub mod generated_model {
     }
 
     /// Sum node for linked arguments; selects among the `place_tagged_linked_sumti`, `tense_tagged_linked_sumti`, `plain_linked_sumti`, and `empty_linked_sumti` forms.
-    rule "linked arguments" linked_sumti(sumti, tense_modal) -> enum {
+    rule "linked arguments" linked_sumti(sumti, tense_modal, normal_term) -> enum {
         /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_linked_sumti,
         /// Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.
@@ -6265,7 +6450,7 @@ pub mod generated_model {
     ///
     /// These leaves are listed directly so ordinary links retain their established Debug and
     /// serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
-    rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection) -> enum {
+    rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> enum {
         /// Uses the diagnosed loose connection over BO-bound linked terms.
         connected_linked_term,
         /// Uses the diagnosed BO-bound linked-term connection.
@@ -6281,24 +6466,24 @@ pub mod generated_model {
     }
 
     /// A hierarchy-only loose connection over linked terms with one or more continuations.
-    rule "linked arguments" connected_linked_term(sumti, tense_modal, selbri, forethought_bridi_connection) -> struct {
+    rule "linked arguments" connected_linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
         /// The first BO-bound linked term at the loose precedence level.
-        field leading_link <- arc(bound_linked_term(sumti, tense_modal));
+        field leading_link <- arc(bound_linked_term(sumti, tense_modal, normal_term));
         /// The nonempty source-ordered loose continuation sequence.
-        field continuations <- [one_or_more connected_linked_term_continuation(sumti, tense_modal, selbri, forethought_bridi_connection)];
+        field continuations <- [one_or_more connected_linked_term_continuation(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term)];
     }
 
     /// One loose linked-term continuation.
-    rule "linked arguments" connected_linked_term_continuation(sumti, tense_modal, selbri, forethought_bridi_connection) -> struct {
+    rule "linked arguments" connected_linked_term_continuation(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
         assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
         /// The connective joining the adjacent linked terms.
         field connective <- term_afterthought_connective;
         /// The BO-bound linked term following the connective.
-        field trailing_link <- arc(bound_linked_term(sumti, tense_modal));
+        field trailing_link <- arc(bound_linked_term(sumti, tense_modal, normal_term));
     }
 
     /// The optional-stag BO-bound level for BE/BEI arguments.
-    rule "linked arguments" bound_linked_term(sumti, tense_modal) -> enum {
+    rule "linked arguments" bound_linked_term(sumti, tense_modal, normal_term) -> enum {
         /// Uses the diagnosed BO-bound linked-term connection.
         bound_linked_term_connection,
         /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
@@ -6310,7 +6495,7 @@ pub mod generated_model {
     }
 
     /// A nonempty linked-term operand; the empty BE/BEI marker form is intentionally excluded.
-    rule "linked arguments" bound_linked_term_operand(sumti, tense_modal) -> enum {
+    rule "linked arguments" bound_linked_term_operand(sumti, tense_modal, normal_term) -> enum {
         /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_linked_sumti,
         /// Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.
@@ -6320,15 +6505,15 @@ pub mod generated_model {
     }
 
     /// The diagnosed BO-bound BE/BEI connection with one or more continuations.
-    rule "linked arguments" bound_linked_term_connection(sumti, tense_modal) -> struct {
+    rule "linked arguments" bound_linked_term_connection(sumti, tense_modal, normal_term) -> struct {
         /// The first nonempty linked argument at the BO-bound precedence level.
-        field leading_link <- arc(bound_linked_term_operand(sumti, tense_modal));
+        field leading_link <- arc(bound_linked_term_operand(sumti, tense_modal, normal_term));
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more bound_linked_term_continuation(sumti, tense_modal)];
+        field continuations <- [one_or_more bound_linked_term_continuation(sumti, tense_modal, normal_term)];
     }
 
     /// One optional-stag BO continuation in a BE/BEI argument connection.
-    rule "linked arguments" bound_linked_term_continuation(sumti, tense_modal) -> struct {
+    rule "linked arguments" bound_linked_term_continuation(sumti, tense_modal, normal_term) -> struct {
         /// The connective joining the adjacent linked arguments.
         field connective <- term_afterthought_connective;
         /// The optional camxes-exp `stag`; unlike ordinary terms, links use the `term` flavor.
@@ -6336,23 +6521,23 @@ pub mod generated_model {
         /// The `Bo` cmavo marker, which owns the experimental warning for the whole connection.
         field bo <- cmavo(Bo).warn(ExperimentalTermBoConnection).wf();
         /// The nonempty linked argument following BO.
-        field trailing_link <- arc(bound_linked_term_operand(sumti, tense_modal));
+        field trailing_link <- arc(bound_linked_term_operand(sumti, tense_modal, normal_term));
     }
 
     /// Product node for linked arguments; preserves `fa` and `sumti` in source order.
-    rule "linked arguments" place_tagged_linked_sumti(sumti) -> struct {
+    rule "linked arguments" place_tagged_linked_sumti(sumti, normal_term) -> struct {
         /// A word from selmaho `Fa`.
         field fa <- selmaho(Fa).wf();
         /// The shared sumti child syntax node.
-        field sumti <- arc(tagged_or_elided_sumti(sumti));
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
     /// Product node for linked arguments; preserves `tense_modal` and `sumti` in source order.
-    rule "linked arguments" tense_tagged_linked_sumti(sumti, tense_modal) -> struct {
+    rule "linked arguments" tense_tagged_linked_sumti(sumti, tense_modal, normal_term) -> struct {
         /// The shared tense modal child syntax node.
         field tense_modal <- arc(tense_modal);
         /// The shared sumti child syntax node.
-        field sumti <- arc(tagged_or_elided_sumti(sumti));
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
     /// Transparent product node for linked arguments; preserves the `sumti` component.
@@ -6366,21 +6551,21 @@ pub mod generated_model {
     }
 
     /// Product node for linked arguments; preserves `bei` and `link` in source order.
-    rule "linked arguments" bei_link(sumti, tense_modal, selbri, forethought_bridi_connection) -> struct {
+    rule "linked arguments" bei_link(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
         /// The `Bei` cmavo marker.
         field bei <- cmavo(Bei).wf();
         /// The `linked_term` grammar result in the `link` structural role of the `bei_link` production.
-        field link <- linked_term(sumti, tense_modal, selbri, forethought_bridi_connection);
+        field link <- linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term);
     }
 
     /// Product node for linked arguments; preserves `be`, `first_link`, `bei_links`, and `beho` in source order.
-    rule "linked arguments" linkargs(sumti, tense_modal, selbri, forethought_bridi_connection) -> struct {
+    rule "linked arguments" linkargs(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
         /// The `Be` cmavo marker.
         field be <- cmavo(Be).wf();
         /// The initial `linked_term` constituent before the continuations of the `linkargs` production.
-        field first_link <- linked_term(sumti, tense_modal, selbri, forethought_bridi_connection);
+        field first_link <- linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term);
         /// Ordered sequence of zero or more bei links components.
-        field bei_links <- [zero_or_more bei_link(sumti, tense_modal, selbri, forethought_bridi_connection)];
+        field bei_links <- [zero_or_more bei_link(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term)];
         /// The optional `Beho` cmavo marker.
         field beho <- opt(cmavo(Beho).wf()).elidable_terminator(Beho);
     }

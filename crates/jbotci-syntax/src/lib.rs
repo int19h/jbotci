@@ -1621,12 +1621,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "tagged sumti",
-        parent: Some("sumti association phrase"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "descriptor connective",
         parent: Some("description"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,

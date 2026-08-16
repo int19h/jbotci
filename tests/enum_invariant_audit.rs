@@ -1760,8 +1760,28 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::NaKu",
+        "the NA KU association payload is a closed marker with no payload state to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::PlaceTagged",
+        "borrowed payload validity is owned by the invariant-bearing PlaceTaggedSumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::Plain",
+        "borrowed payload validity is owned by the invariant-bearing SumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::Tagged",
+        "borrowed payload validity is owned by the invariant-bearing tag-term node the view holds",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Bound",
         "borrowed term validity is owned by the invariant-bearing BoundTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::BoundNormal",
+        "borrowed term validity is owned by the invariant-bearing BoundNormalTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Cehe",
@@ -1774,6 +1794,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Nonabs",
         "borrowed term validity is owned by the invariant-bearing NonabsTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::NormalAtom",
+        "borrowed term validity is owned by the invariant-bearing NormalTermAtomSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Normal",
+        "borrowed term validity is owned by the invariant-bearing NormalTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Simple",
@@ -1874,6 +1902,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaGekTermset",
         "borrowed leaf validity is owned by the invariant-bearing ZantufaGekTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::BoundNormalTermConnection",
+        "borrowed grouping validity is owned by the invariant-bearing BoundNormalTermConnectionSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::ConnectedNormalTerm",
+        "borrowed grouping validity is owned by the invariant-bearing ConnectedNormalTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::ConnectedTerm",

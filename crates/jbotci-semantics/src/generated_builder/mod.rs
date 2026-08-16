@@ -19,12 +19,13 @@ use jbotci_syntax::generated_model::{
     AssignedProBridiTanruUnitSyntax, AtomRef as GeneratedAtomRef, AtomicMeksoOperatorSyntax,
     BareCuBridiSyntax, BareCuTermsBridiSyntax, BoGroupedBridiTailSyntax,
     BoGroupedBridiTailWithoutTailTermsSyntax, BoundMeksoOperandSyntax, BoundMeksoOperatorSyntax,
-    BoundOrSimpleMeksoOperandSyntax, BoundSelbriSyntax, BoundTermSyntax, BridiRelativeClauseSyntax,
-    BridiStatementContinuationSyntax, BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax,
-    BridiTailConnectiveSyntax, BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax,
-    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, CeheTermSyntax,
-    ClosedIntervalConnectiveSyntax, CmevlaVocativeSumtiSyntax, CoSelbriSyntax,
-    ConnectedJaiInnerSelbriSyntax, ConnectedSelbriContinuationSyntax, ConnectedSelbriSyntax,
+    BoundNormalTermConnectionSyntax, BoundOrSimpleMeksoOperandSyntax, BoundSelbriSyntax,
+    BoundTermSyntax, BridiRelativeClauseSyntax, BridiStatementContinuationSyntax,
+    BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax, BridiTailConnectiveSyntax,
+    BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax,
+    BridiWithPostCuTermsSyntax, CeheTermSyntax, ClosedIntervalConnectiveSyntax,
+    CmevlaVocativeSumtiSyntax, CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax,
+    ConnectedNormalTermSyntax, ConnectedSelbriContinuationSyntax, ConnectedSelbriSyntax,
     ConnectedTermSyntax, CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
     DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
@@ -50,24 +51,24 @@ use jbotci_syntax::generated_model::{
     MeksoPrecedenceSyntax, MeksoSyntax, ModalForethoughtConnectiveSyntax, ModalTenseSyntax,
     MultipleNaFragmentSyntax, NameSumtiSyntax, NegatedForethoughtBridiConnectionSyntax,
     NegatedSelbriSyntax, NihoParagraphSyntax, NodeRef as GeneratedNodeRef,
-    NoihaAdverbialTermSyntax, NonabsTermSyntax, NumberMeksoSyntax, NumberSumtiSyntax,
-    NumberWordContinuationSyntax, NumberWordsSyntax, OperatorGuhekConnectiveSyntax,
-    OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
+    NoihaAdverbialTermSyntax, NonabsTermSyntax, NormalTermSyntax, NumberMeksoSyntax,
+    NumberSumtiSyntax, NumberWordContinuationSyntax, NumberWordsSyntax,
+    OperatorGuhekConnectiveSyntax, OperatorSelbriTanruUnitSyntax, OrdinalTanruUnitSyntax,
     ParagraphStandardStatementConnectiveSyntax, ParagraphStatementSequenceSyntax, ParagraphSyntax,
     ParenthesizedMeksoOperandSyntax, PeheTermsetConnectionSyntax, PendingIConnectiveSyntax,
-    PlainBoSelbriSyntax, PlainBoTanruUnitSyntax, PlainLinkedSumtiSyntax, PlainRelativeSumtiSyntax,
-    PrenexFragmentSyntax, PrenexStatementSyntax, PrenexSubbridiSyntax,
-    PreposedIStatementConnectionSyntax, ProBridiTanruUnitSyntax, ProSumtiSyntax,
-    QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax, QuantifierRelationDescriptionTailSyntax,
-    QuantifierSumtiDescriptionTailSyntax, QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax,
-    RegularTextSyntax, RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax,
-    RelationOnlyBridiSyntax, RelativeClauseAtomSyntax, RelativeClauseFragmentSyntax,
-    RelativeClauseListSyntax, RelativeClauseTailSyntax, RelativeSumtiSyntax,
-    RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax, ReversePolishPartsSyntax,
-    ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax, ScalarNegatedTanruInnerUnitSyntax,
-    ScalarNegatedTanruUnitSyntax, SelbriAfterthoughtConnectiveSyntax, SelbriFragmentSyntax,
-    SelbriMeksoOperandSyntax, SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax,
-    SimpleBridiTailSyntax, SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
+    PlainBoSelbriSyntax, PlainBoTanruUnitSyntax, PlainLinkedSumtiSyntax, PrenexFragmentSyntax,
+    PrenexStatementSyntax, PrenexSubbridiSyntax, PreposedIStatementConnectionSyntax,
+    ProBridiTanruUnitSyntax, ProSumtiSyntax, QualifiedMeksoOperandSyntax, QuantifiedSumtiSyntax,
+    QuantifierRelationDescriptionTailSyntax, QuantifierSumtiDescriptionTailSyntax,
+    QuantifierSyntax, QuoteSyntax, QuotedSumtiSyntax, RegularTextSyntax,
+    RelationAfterthoughtConnectiveSyntax, RelationDescriptionTailSyntax, RelationOnlyBridiSyntax,
+    RelativeClauseAtomSyntax, RelativeClauseFragmentSyntax, RelativeClauseListSyntax,
+    RelativeClauseTailSyntax, RestrictiveBridiRelativeClauseSyntax, ReversePolishMeksoSyntax,
+    ReversePolishPartsSyntax, ScalarNegatedSumtiSyntax, ScalarNegatedSumtiWithBoSyntax,
+    ScalarNegatedTanruInnerUnitSyntax, ScalarNegatedTanruUnitSyntax,
+    SelbriAfterthoughtConnectiveSyntax, SelbriFragmentSyntax, SelbriMeksoOperandSyntax,
+    SelbriSimpleBridiTailSyntax, SelbriSyntax, SelbriVocativeSumtiSyntax, SimpleBridiTailSyntax,
+    SimpleBridiTailWithoutTailTermsSyntax, SimpleIntervalConnectiveSyntax,
     SimpleMeksoOperandSyntax, SimpleMeksoOperatorSyntax, SimpleParagraphSyntax, SimpleSumtiSyntax,
     SimpleTermSyntax, SingleNaFragmentSyntax, SoiFreeModifierSyntax, StagBoundTermConnectionSyntax,
     StandardMeksoArrayElementSyntax, StandardStatementConnectiveSyntax,
@@ -80,8 +81,8 @@ use jbotci_syntax::generated_model::{
     TaggedSelbriSyntax, TanruJaiInnerSelbriSyntax, TanruSelbriSyntax,
     TanruUnitAtomBaseForCeiSyntax, TanruUnitAtomBaseSyntax, TanruUnitAtomForCeiSyntax,
     TanruUnitAtomSyntax, TanruUnitSyntax, TenseModalAtomSyntax, TenseModalBodySyntax,
-    TenseModalSyntax, TenseTaggedRelativeSumtiSyntax, TermAfterthoughtConnectiveSyntax, TermSyntax,
-    TermsFragmentSyntax, TermsetGroupSyntax, TextGroupStatementSyntax, TextLeadingConnectiveSyntax,
+    TenseModalSyntax, TermAfterthoughtConnectiveSyntax, TermSyntax, TermsFragmentSyntax,
+    TermsetGroupSyntax, TextGroupStatementSyntax, TextLeadingConnectiveSyntax,
     TextNihoParagraphsSyntax, TextParagraphWithAdditionalNihoSyntax, TextParagraphsSyntax,
     TextSyntax, TreeNode, TreeWalkable, TreeWalker, UntaggedSelbriSyntax,
     VocativeFreeModifierSyntax, VocativeMarkerWordsSyntax, VocativeSumtiSyntax,
@@ -102,9 +103,9 @@ use crate::facade::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
 use crate::generated_term_view::{
-    GeneratedBridiTermRef, GeneratedForethoughtTermsetRef, GeneratedLinkedSumtiRef,
-    GeneratedSimpleTermRef, GeneratedTaggedTermRef, GeneratedTermGroupingRef,
-    any_gek_termset_operand,
+    GeneratedAssociationPayloadRef, GeneratedBridiTermRef, GeneratedForethoughtTermsetRef,
+    GeneratedLinkedSumtiRef, GeneratedSimpleTermRef, GeneratedTaggedTermRef,
+    GeneratedTermGroupingRef, any_gek_termset_operand,
 };
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, Adjunct, AdjunctData, AnchorMagnitude,
@@ -5998,18 +5999,21 @@ fn generated_sumti_is_assignable_reference(sumti: &SumtiSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_relative_sumti_is_assignable_reference(sumti: &RelativeSumtiSyntax) -> bool {
-    match sumti {
-        RelativeSumtiSyntax::PlainRelativeSumti(PlainRelativeSumtiSyntax(sumti)) => {
-            generated_sumti_is_assignable_reference(sumti)
+fn generated_relative_sumti_is_assignable_reference(sumti: &NormalTermSyntax) -> bool {
+    match GeneratedAssociationPayloadRef::from_payload(sumti) {
+        Some(GeneratedAssociationPayloadRef::Plain(sumti)) => {
+            generated_sumti_is_assignable_reference(&sumti.0)
         }
-        RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => match sumti.sumti.as_ref() {
+        Some(
+            payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+            | GeneratedAssociationPayloadRef::PlaceTagged(_)),
+        ) => match payload.tagged_sumti().expect("tag-led payload").as_ref() {
             TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
                 generated_sumti_is_assignable_reference(sumti)
             }
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
         },
-        RelativeSumtiSyntax::NaKuRelativeSumti(_) => false,
+        Some(GeneratedAssociationPayloadRef::NaKu) | None => false,
     }
 }
 
@@ -6781,128 +6785,85 @@ fn generated_forethought_bridi_connection_without_tail_terms_contains_current_le
     }
 }
 
+/// Report whether a term at any level of the composed hierarchy mentions a current-level KEhA.
+///
+/// The six ladder levels admit different connective tiers but the same leaves, and the view
+/// answers both questions level-independently, so this is one walk rather than one per level.
+#[requires(true)]
+#[ensures(true)]
+fn generated_bridi_term_contains_current_level_keha(term: GeneratedBridiTermRef<'_>) -> bool {
+    if let Some(leaf) = term.simple() {
+        return generated_simple_term_contains_current_level_keha(leaf);
+    }
+    match term.grouping() {
+        Some(GeneratedTermGroupingRef::PeheTermsetConnection(connection)) => {
+            generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Cehe(
+                &connection.leading_term,
+            )) || connection.continuations.iter().any(|continuation| {
+                generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Cehe(
+                    &continuation.trailing_term,
+                ))
+            })
+        }
+        Some(GeneratedTermGroupingRef::TermsetGroup(group)) => {
+            generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Loose(
+                &group.leading_term,
+            )) || group.continuations.iter().any(|continuation| {
+                generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Nonabs(
+                    &continuation.trailing_term,
+                ))
+            })
+        }
+        Some(GeneratedTermGroupingRef::ConnectedTerm(connection)) => {
+            generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Bound(
+                &connection.leading_term,
+            )) || connection.continuations.iter().any(|continuation| {
+                generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Bound(
+                    &continuation.trailing_term,
+                ))
+            })
+        }
+        Some(GeneratedTermGroupingRef::StagBoundTermConnection(connection)) => {
+            generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Simple(
+                &connection.leading_term,
+            )) || connection.continuations.iter().any(|continuation| {
+                generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Simple(
+                    &continuation.trailing_term,
+                ))
+            })
+        }
+        Some(GeneratedTermGroupingRef::ConnectedNormalTerm(connection)) => {
+            generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::BoundNormal(
+                &connection.leading_term,
+            )) || connection.continuations.iter().any(|continuation| {
+                generated_bridi_term_contains_current_level_keha(
+                    GeneratedBridiTermRef::BoundNormal(&continuation.trailing_term),
+                )
+            })
+        }
+        Some(GeneratedTermGroupingRef::BoundNormalTermConnection(connection)) => {
+            generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::NormalAtom(
+                &connection.leading_term,
+            )) || connection.continuations.iter().any(|continuation| {
+                generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::NormalAtom(
+                    &continuation.trailing_term,
+                ))
+            })
+        }
+        None => unreachable!("a term that is neither a leaf nor a grouping node"),
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn generated_term_contains_current_level_keha(term: &TermSyntax) -> bool {
-    if let Some(leaf) = GeneratedSimpleTermRef::from_term(term) {
-        return generated_simple_term_contains_current_level_keha(leaf);
-    }
-    match term {
-        TermSyntax::PeheTermsetConnection(connection) => {
-            generated_cehe_term_contains_current_level_keha(&connection.leading_term)
-                || connection.continuations.iter().any(|continuation| {
-                    generated_cehe_term_contains_current_level_keha(&continuation.trailing_term)
-                })
-        }
-        TermSyntax::TermsetGroup(group) => {
-            generated_termset_group_contains_current_level_keha(group)
-        }
-        TermSyntax::ConnectedTerm(connection) => {
-            generated_connected_term_contains_current_level_keha(connection)
-        }
-        TermSyntax::StagBoundTermConnection(connection) => {
-            generated_stag_bound_term_contains_current_level_keha(connection)
-        }
-        _ => unreachable!("term leaf conversion rejected a non-connection variant"),
-    }
+    generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Term(term))
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_cehe_term_contains_current_level_keha(term: &CeheTermSyntax) -> bool {
-    if let Some(leaf) = GeneratedSimpleTermRef::from_cehe(term) {
-        return generated_simple_term_contains_current_level_keha(leaf);
-    }
-    match term {
-        CeheTermSyntax::TermsetGroup(group) => {
-            generated_termset_group_contains_current_level_keha(group)
-        }
-        CeheTermSyntax::ConnectedTerm(connection) => {
-            generated_connected_term_contains_current_level_keha(connection)
-        }
-        CeheTermSyntax::StagBoundTermConnection(connection) => {
-            generated_stag_bound_term_contains_current_level_keha(connection)
-        }
-        _ => unreachable!("CEhE-level leaf conversion rejected a non-connection variant"),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_loose_term_contains_current_level_keha(term: &LooseTermSyntax) -> bool {
-    if let Some(leaf) = GeneratedSimpleTermRef::from_loose(term) {
-        return generated_simple_term_contains_current_level_keha(leaf);
-    }
-    match term {
-        LooseTermSyntax::ConnectedTerm(connection) => {
-            generated_connected_term_contains_current_level_keha(connection)
-        }
-        LooseTermSyntax::StagBoundTermConnection(connection) => {
-            generated_stag_bound_term_contains_current_level_keha(connection)
-        }
-        _ => unreachable!("loose-level leaf conversion rejected a non-connection variant"),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_nonabs_term_contains_current_level_keha(term: &NonabsTermSyntax) -> bool {
-    if let Some(leaf) = GeneratedSimpleTermRef::from_nonabs(term) {
-        return generated_simple_term_contains_current_level_keha(leaf);
-    }
-    match term {
-        NonabsTermSyntax::ConnectedTerm(connection) => {
-            generated_connected_term_contains_current_level_keha(connection)
-        }
-        NonabsTermSyntax::StagBoundTermConnection(connection) => {
-            generated_stag_bound_term_contains_current_level_keha(connection)
-        }
-        _ => unreachable!("nonabs-level leaf conversion rejected a non-connection variant"),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_termset_group_contains_current_level_keha(group: &TermsetGroupSyntax) -> bool {
-    generated_loose_term_contains_current_level_keha(&group.leading_term)
-        || group.continuations.iter().any(|continuation| {
-            generated_nonabs_term_contains_current_level_keha(&continuation.trailing_term)
-        })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_connected_term_contains_current_level_keha(connection: &ConnectedTermSyntax) -> bool {
-    generated_bound_term_contains_current_level_keha(&connection.leading_term)
-        || connection.continuations.iter().any(|continuation| {
-            generated_bound_term_contains_current_level_keha(&continuation.trailing_term)
-        })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_stag_bound_term_contains_current_level_keha(
-    connection: &StagBoundTermConnectionSyntax,
-) -> bool {
-    generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-        &connection.leading_term,
-    )) || connection.continuations.iter().any(|continuation| {
-        generated_simple_term_contains_current_level_keha(GeneratedSimpleTermRef::from_simple(
-            &continuation.trailing_term,
-        ))
-    })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_bound_term_contains_current_level_keha(term: &BoundTermSyntax) -> bool {
-    if let Some(term) = GeneratedSimpleTermRef::from_bound(term) {
-        return generated_simple_term_contains_current_level_keha(term);
-    }
-    let BoundTermSyntax::StagBoundTermConnection(connection) = term else {
-        unreachable!("bound-term leaf conversion rejected a non-connection variant")
-    };
-    generated_stag_bound_term_contains_current_level_keha(connection)
+fn generated_normal_term_contains_current_level_keha(term: &NormalTermSyntax) -> bool {
+    generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Normal(term))
 }
 
 #[requires(true)]
@@ -6952,7 +6913,7 @@ fn generated_simple_term_contains_current_level_keha(term: GeneratedSimpleTermRe
         }
         GeneratedSimpleTermRef::GekTermset(termset) => any_gek_termset_operand(
             &termset.0.operands,
-            &mut generated_nonabs_term_contains_current_level_keha,
+            &mut generated_normal_term_contains_current_level_keha,
         ),
         GeneratedSimpleTermRef::ForethoughtTermset(termset) => {
             termset

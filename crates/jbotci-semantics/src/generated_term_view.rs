@@ -15,17 +15,19 @@ use bityzba::{ensures, invariant, requires};
 use std::sync::Arc;
 
 use jbotci_syntax::generated_model::{
-    AtomRef, BalancedTermsetOperandsSyntax, BareNaTermSyntax, BoundTermSyntax, CeheTermSyntax,
+    AtomRef, BalancedTermsetOperandsSyntax, BareNaTermSyntax, BoundNormalTermConnectionSyntax,
+    BoundNormalTermSyntax, BoundTermSyntax, CeheTermSyntax, ConnectedNormalTermSyntax,
     ConnectedTermSyntax, ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax,
     ForethoughtTermsetSyntax, GekTermsetSyntax, GikConnectiveSyntax, JaiTaggedSumtiTermSyntax,
     KeTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax,
     ModalForethoughtConnectiveSyntax, NaKuTermSyntax, NodeRef, NoihaAdverbialTermSyntax,
-    NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NuhiTermsetSyntax, PeheTermsetConnectionSyntax,
-    PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax,
-    SimpleTermSyntax, SoiAdverbialTermSyntax, StagBoundTermConnectionSyntax, SumtiTermSyntax,
-    TaggedOrElidedSumtiSyntax, TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax,
-    TenseTaggedLinkedSumtiSyntax, TermSyntax, TermsetGroupSyntax, TreeNode,
-    ZantufaForethoughtTermsetBranchSyntax, ZantufaGekTermsetSyntax,
+    NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NormalTermAtomSyntax, NormalTermSyntax,
+    NuhiTermsetSyntax, PeheTermsetConnectionSyntax, PlaceTaggedLinkedSumtiSyntax,
+    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
+    StagBoundTermConnectionSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
+    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax,
+    TermSyntax, TermsetGroupSyntax, TreeNode, ZantufaForethoughtTermsetBranchSyntax,
+    ZantufaGekTermsetSyntax,
 };
 use jbotci_tree::TreeVisitor;
 
@@ -68,7 +70,7 @@ impl<'syntax> GeneratedTaggedTermRef<'syntax> {
 #[ensures(true)]
 pub(crate) fn any_gek_termset_operand(
     operands: &BalancedTermsetOperandsSyntax,
-    predicate: &mut impl FnMut(&NonabsTermSyntax) -> bool,
+    predicate: &mut impl FnMut(&NormalTermSyntax) -> bool,
 ) -> bool {
     match operands {
         BalancedTermsetOperandsSyntax::GikPairedTermsetOperands(pair) => {
@@ -304,6 +306,103 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
         }
     }
 
+    /// Borrow a leaf from the normal-flavour loose level, or report a grouped connection.
+    ///
+    /// The normal flavour is a second ladder over the same leaf inventory, so the leaves it
+    /// yields are exactly the ones the `nonabs` ladder yields; only the connective tiers above
+    /// them differ.
+    #[requires(true)]
+    #[ensures(ret.is_none() == matches!(term, NormalTermSyntax::ConnectedNormalTerm(_) | NormalTermSyntax::BoundNormalTermConnection(_)))]
+    pub(crate) fn from_normal(term: &'syntax NormalTermSyntax) -> Option<Self> {
+        match term {
+            NormalTermSyntax::ConnectedNormalTerm(_)
+            | NormalTermSyntax::BoundNormalTermConnection(_) => None,
+            NormalTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            NormalTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
+            NormalTermSyntax::ElidedNaheFihoTagTerm(term) => {
+                Some(Self::ElidedNaheFihoTagTerm(term))
+            }
+            NormalTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                Some(Self::TaggedSumtiBeforeTagTerm(term))
+            }
+            NormalTermSyntax::NonabsTaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
+                GeneratedTaggedTermRef::from_unguarded(term),
+            )),
+            NormalTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
+            NormalTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
+            NormalTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            NormalTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
+            NormalTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
+            NormalTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            NormalTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
+            NormalTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
+            NormalTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
+            NormalTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
+            NormalTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
+        }
+    }
+
+    /// Borrow a leaf from the normal-flavour BO-bound level, or report a grouped connection.
+    #[requires(true)]
+    #[ensures(ret.is_none() == matches!(term, BoundNormalTermSyntax::BoundNormalTermConnection(_)))]
+    pub(crate) fn from_bound_normal(term: &'syntax BoundNormalTermSyntax) -> Option<Self> {
+        match term {
+            BoundNormalTermSyntax::BoundNormalTermConnection(_) => None,
+            BoundNormalTermSyntax::PlaceTaggedSumtiTerm(term) => {
+                Some(Self::PlaceTaggedSumtiTerm(term))
+            }
+            BoundNormalTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
+            BoundNormalTermSyntax::ElidedNaheFihoTagTerm(term) => {
+                Some(Self::ElidedNaheFihoTagTerm(term))
+            }
+            BoundNormalTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                Some(Self::TaggedSumtiBeforeTagTerm(term))
+            }
+            BoundNormalTermSyntax::NonabsTaggedSumtiTerm(term) => Some(Self::TaggedSumtiTerm(
+                GeneratedTaggedTermRef::from_unguarded(term),
+            )),
+            BoundNormalTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
+            BoundNormalTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
+            BoundNormalTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            BoundNormalTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
+            BoundNormalTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
+            BoundNormalTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
+            BoundNormalTermSyntax::GekTermset(term) => Some(Self::GekTermset(term)),
+            BoundNormalTermSyntax::ZantufaGekTermset(term) => Some(Self::ZantufaGekTermset(term)),
+            BoundNormalTermSyntax::ForethoughtTermset(term) => Some(Self::ForethoughtTermset(term)),
+            BoundNormalTermSyntax::NuhiTermset(term) => Some(Self::NuhiTermset(term)),
+            BoundNormalTermSyntax::KeTermset(term) => Some(Self::KeTermset(term)),
+        }
+    }
+
+    /// Borrow the leaf of the normal-flavour atom level, which admits no connective tier.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn from_normal_atom(term: &'syntax NormalTermAtomSyntax) -> Self {
+        match term {
+            NormalTermAtomSyntax::PlaceTaggedSumtiTerm(term) => Self::PlaceTaggedSumtiTerm(term),
+            NormalTermAtomSyntax::JaiTaggedSumtiTerm(term) => Self::JaiTaggedSumtiTerm(term),
+            NormalTermAtomSyntax::ElidedNaheFihoTagTerm(term) => Self::ElidedNaheFihoTagTerm(term),
+            NormalTermAtomSyntax::TaggedSumtiBeforeTagTerm(term) => {
+                Self::TaggedSumtiBeforeTagTerm(term)
+            }
+            NormalTermAtomSyntax::NonabsTaggedSumtiTerm(term) => {
+                Self::TaggedSumtiTerm(GeneratedTaggedTermRef::from_unguarded(term))
+            }
+            NormalTermAtomSyntax::NoihaAdverbialTerm(term) => Self::NoihaAdverbialTerm(term),
+            NormalTermAtomSyntax::FihoiAdverbialTerm(term) => Self::FihoiAdverbialTerm(term),
+            NormalTermAtomSyntax::SoiAdverbialTerm(term) => Self::SoiAdverbialTerm(term),
+            NormalTermAtomSyntax::NaKuTerm(term) => Self::NaKuTerm(term),
+            NormalTermAtomSyntax::SumtiTerm(term) => Self::SumtiTerm(term),
+            NormalTermAtomSyntax::BareNaTerm(term) => Self::BareNaTerm(term),
+            NormalTermAtomSyntax::GekTermset(term) => Self::GekTermset(term),
+            NormalTermAtomSyntax::ZantufaGekTermset(term) => Self::ZantufaGekTermset(term),
+            NormalTermAtomSyntax::ForethoughtTermset(term) => Self::ForethoughtTermset(term),
+            NormalTermAtomSyntax::NuhiTermset(term) => Self::NuhiTermset(term),
+            NormalTermAtomSyntax::KeTermset(term) => Self::KeTermset(term),
+        }
+    }
+
     /// Describe experimental leaf forms that semantic lowering does not yet model.
     #[requires(true)]
     #[ensures(true)]
@@ -318,6 +417,69 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
     }
 }
 
+/// A borrowed sumti-association payload: the shapes a GOI-family relative phrase can lower.
+///
+/// The payload constituent is the shared normal-flavour term, because that is what all three
+/// sources spell at `relative_clause_1` (camxes.peg:168, camxes-exp.peg:207,
+/// zantufa-1.9999.peg:43). A sumti-association phrase relates its head to a SUMTI, so only the
+/// leaves that carry one have a reading, plus `NA KU`, which deliberately carries none and
+/// negates the phrase instead. Every other leaf of the shared inventory — a termset, an
+/// adverbial, a bare NA, or a term connection — reaches this projection as `None` and is
+/// reported rather than guessed at.
+#[invariant(::Plain(_) => true)]
+#[invariant(::Tagged(_) => true)]
+#[invariant(::PlaceTagged(_) => true)]
+#[invariant(::NaKu => true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum GeneratedAssociationPayloadRef<'syntax> {
+    Plain(&'syntax SumtiTermSyntax),
+    Tagged(GeneratedTaggedTermRef<'syntax>),
+    PlaceTagged(&'syntax PlaceTaggedSumtiTermSyntax),
+    NaKu,
+}
+
+impl<'syntax> GeneratedAssociationPayloadRef<'syntax> {
+    /// Project a payload term onto the association shapes, or report that it has no reading.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn from_payload(term: &'syntax NormalTermSyntax) -> Option<Self> {
+        match GeneratedSimpleTermRef::from_normal(term)? {
+            GeneratedSimpleTermRef::SumtiTerm(term) => Some(Self::Plain(term)),
+            GeneratedSimpleTermRef::TaggedSumtiTerm(term) => Some(Self::Tagged(term)),
+            GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTagged(term)),
+            GeneratedSimpleTermRef::NaKuTerm(_) => Some(Self::NaKu),
+            GeneratedSimpleTermRef::JaiTaggedSumtiTerm(_)
+            | GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(_)
+            | GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(_)
+            | GeneratedSimpleTermRef::NoihaAdverbialTerm(_)
+            | GeneratedSimpleTermRef::FihoiAdverbialTerm(_)
+            | GeneratedSimpleTermRef::SoiAdverbialTerm(_)
+            | GeneratedSimpleTermRef::BareNaTerm(_)
+            | GeneratedSimpleTermRef::GekTermset(_)
+            | GeneratedSimpleTermRef::ZantufaGekTermset(_)
+            | GeneratedSimpleTermRef::ForethoughtTermset(_)
+            | GeneratedSimpleTermRef::NuhiTermset(_)
+            | GeneratedSimpleTermRef::KeTermset(_) => None,
+        }
+    }
+
+    /// The payload sumti of a tag-led association, which may be an elided KU.
+    ///
+    /// Both tag-led shapes hold the same `tagged_or_elided_sumti` node: camxes-standard gives FA
+    /// its own `term` alternative (camxes.peg:128) while camxes-exp folds FA into `tense_modal`
+    /// and reaches the same surface through `tag_term` (camxes-exp.peg:149), so the two differ
+    /// only in which token introduces the payload.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self, Self::Tagged(_) | Self::PlaceTagged(_)))]
+    pub(crate) fn tagged_sumti(self) -> Option<&'syntax Arc<TaggedOrElidedSumtiSyntax>> {
+        match self {
+            Self::Tagged(term) => Some(term.sumti),
+            Self::PlaceTagged(term) => Some(&term.sumti),
+            Self::Plain(_) | Self::NaKu => None,
+        }
+    }
+}
+
 /// A borrowed grouping node: a term that is a connection of other terms rather than a leaf.
 ///
 /// Every level of the composed hierarchy admits a suffix of these tiers — the leaf level admits
@@ -328,12 +490,16 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
 #[invariant(::TermsetGroup(_) => true)]
 #[invariant(::ConnectedTerm(_) => true)]
 #[invariant(::StagBoundTermConnection(_) => true)]
+#[invariant(::ConnectedNormalTerm(_) => true)]
+#[invariant(::BoundNormalTermConnection(_) => true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum GeneratedTermGroupingRef<'syntax> {
     PeheTermsetConnection(&'syntax PeheTermsetConnectionSyntax),
     TermsetGroup(&'syntax TermsetGroupSyntax),
     ConnectedTerm(&'syntax ConnectedTermSyntax),
     StagBoundTermConnection(&'syntax StagBoundTermConnectionSyntax),
+    ConnectedNormalTerm(&'syntax ConnectedNormalTermSyntax),
+    BoundNormalTermConnection(&'syntax BoundNormalTermConnectionSyntax),
 }
 
 /// A borrowed term of the composed hierarchy, at whichever level the term list drew it from.
@@ -360,6 +526,9 @@ pub(crate) enum GeneratedTermGroupingRef<'syntax> {
 #[invariant(::Nonabs(_) => true)]
 #[invariant(::Bound(_) => true)]
 #[invariant(::Simple(_) => true)]
+#[invariant(::Normal(_) => true)]
+#[invariant(::BoundNormal(_) => true)]
+#[invariant(::NormalAtom(_) => true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum GeneratedBridiTermRef<'syntax> {
     Term(&'syntax TermSyntax),
@@ -368,6 +537,9 @@ pub(crate) enum GeneratedBridiTermRef<'syntax> {
     Nonabs(&'syntax NonabsTermSyntax),
     Bound(&'syntax BoundTermSyntax),
     Simple(&'syntax SimpleTermSyntax),
+    Normal(&'syntax NormalTermSyntax),
+    BoundNormal(&'syntax BoundNormalTermSyntax),
+    NormalAtom(&'syntax NormalTermAtomSyntax),
 }
 
 impl<'syntax> GeneratedBridiTermRef<'syntax> {
@@ -382,6 +554,9 @@ impl<'syntax> GeneratedBridiTermRef<'syntax> {
             Self::Nonabs(term) => GeneratedSimpleTermRef::from_nonabs(term),
             Self::Bound(term) => GeneratedSimpleTermRef::from_bound(term),
             Self::Simple(term) => Some(GeneratedSimpleTermRef::from_simple(term)),
+            Self::Normal(term) => GeneratedSimpleTermRef::from_normal(term),
+            Self::BoundNormal(term) => GeneratedSimpleTermRef::from_bound_normal(term),
+            Self::NormalAtom(term) => Some(GeneratedSimpleTermRef::from_normal_atom(term)),
         }
     }
 
@@ -410,6 +585,15 @@ impl<'syntax> GeneratedBridiTermRef<'syntax> {
             | Self::Bound(BoundTermSyntax::StagBoundTermConnection(connection)) => Some(
                 GeneratedTermGroupingRef::StagBoundTermConnection(connection),
             ),
+            Self::Normal(NormalTermSyntax::ConnectedNormalTerm(connection)) => {
+                Some(GeneratedTermGroupingRef::ConnectedNormalTerm(connection))
+            }
+            Self::Normal(NormalTermSyntax::BoundNormalTermConnection(connection))
+            | Self::BoundNormal(BoundNormalTermSyntax::BoundNormalTermConnection(connection)) => {
+                Some(GeneratedTermGroupingRef::BoundNormalTermConnection(
+                    connection,
+                ))
+            }
             _ => None,
         }
     }
@@ -432,6 +616,9 @@ impl<'syntax> GeneratedBridiTermRef<'syntax> {
             Self::Nonabs(term) => term.visit_in_order(visitor),
             Self::Bound(term) => term.visit_in_order(visitor),
             Self::Simple(term) => term.visit_in_order(visitor),
+            Self::Normal(term) => term.visit_in_order(visitor),
+            Self::BoundNormal(term) => term.visit_in_order(visitor),
+            Self::NormalAtom(term) => term.visit_in_order(visitor),
         }
     }
 }
@@ -567,15 +754,15 @@ fn collect_gek_termset_branches<'syntax>(
 ) {
     match operands {
         BalancedTermsetOperandsSyntax::GikPairedTermsetOperands(pair) => {
-            leading.push(GeneratedBridiTermRef::Nonabs(pair.leading_operand.as_ref()));
-            trailing.push(GeneratedBridiTermRef::Nonabs(
+            leading.push(GeneratedBridiTermRef::Normal(pair.leading_operand.as_ref()));
+            trailing.push(GeneratedBridiTermRef::Normal(
                 pair.trailing_operand.as_ref(),
             ));
         }
         BalancedTermsetOperandsSyntax::NestedPairedTermsetOperands(pair) => {
-            leading.push(GeneratedBridiTermRef::Nonabs(pair.leading_operand.as_ref()));
+            leading.push(GeneratedBridiTermRef::Normal(pair.leading_operand.as_ref()));
             collect_gek_termset_branches(pair.inner.as_ref(), leading, trailing);
-            trailing.push(GeneratedBridiTermRef::Nonabs(
+            trailing.push(GeneratedBridiTermRef::Normal(
                 pair.trailing_operand.as_ref(),
             ));
         }

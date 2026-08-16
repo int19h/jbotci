@@ -18,7 +18,9 @@ use jbotci_tree::TreeVisitor;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::generated_term_view::{GeneratedLinkedSumtiRef, GeneratedSimpleTermRef};
+use crate::generated_term_view::{
+    GeneratedAssociationPayloadRef, GeneratedLinkedSumtiRef, GeneratedSimpleTermRef,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[invariant(true)]
@@ -4392,14 +4394,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         _node: &'tree generated::EmptyLinkedSumtiSyntax,
     ) {
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_relative_sumti_na_ku_relative_sumti(
-        &mut self,
-        _node: &'tree generated::NaKuRelativeSumtiSyntax,
-    ) {
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -4965,7 +4959,7 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(_)
             | GeneratedSyntaxNodeRef::LinkedSumtiSyntaxEmptyLinkedSumti(_)
-            | GeneratedSyntaxNodeRef::RelativeSumtiSyntaxNaKuRelativeSumti(_)
+            | GeneratedSyntaxNodeRef::NormalTermSyntaxNaKuTerm(_)
             | GeneratedSyntaxNodeRef::SimpleBridiTailSyntaxForethoughtSimpleBridiTail(_)
             | GeneratedSyntaxNodeRef::SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms(_)
             | GeneratedSyntaxNodeRef::FreeModifierSyntaxTextReplacementFreeModifier(_)
@@ -6125,38 +6119,42 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_relative_sumti(&mut self, sumti: &'tree generated::RelativeSumtiSyntax) {
-        match sumti {
-            generated::RelativeSumtiSyntax::PlainRelativeSumti(sumti) => {
+    fn visit_relative_sumti(&mut self, sumti: &'tree generated::NormalTermSyntax) {
+        match GeneratedAssociationPayloadRef::from_payload(sumti) {
+            Some(GeneratedAssociationPayloadRef::Plain(sumti)) => {
                 self.visit_argument(&sumti.0);
             }
-            generated::RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                self.walk_node(&sumti.tense_modal);
-                self.walk_node(&sumti.sumti);
+            Some(GeneratedAssociationPayloadRef::Tagged(term)) => {
+                self.walk_node(term.tense_modal);
+                self.walk_node(term.sumti);
             }
-            generated::RelativeSumtiSyntax::NaKuRelativeSumti(_) => {}
+            Some(GeneratedAssociationPayloadRef::PlaceTagged(term)) => {
+                self.walk_node(&term.sumti);
+            }
+            Some(GeneratedAssociationPayloadRef::NaKu) => {}
+            // A payload with no association reading still contributes ordinary references from
+            // whatever it is; the shared term walk is exactly what every other term position uses.
+            None => self.walk_node(sumti),
         }
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn relative_sumti_id(
-        &self,
-        sumti: &'tree generated::RelativeSumtiSyntax,
-    ) -> Option<SumtiNodeId> {
-        match sumti {
-            generated::RelativeSumtiSyntax::PlainRelativeSumti(sumti) => {
+    fn relative_sumti_id(&self, sumti: &'tree generated::NormalTermSyntax) -> Option<SumtiNodeId> {
+        match GeneratedAssociationPayloadRef::from_payload(sumti)? {
+            GeneratedAssociationPayloadRef::Plain(sumti) => {
                 Some(SumtiNodeId(self.raw_for_node(sumti.0.as_ref())))
             }
-            generated::RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                match sumti.sumti.as_ref() {
+            payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+            | GeneratedAssociationPayloadRef::PlaceTagged(_)) => {
+                match payload.tagged_sumti()?.as_ref() {
                     generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
                         Some(SumtiNodeId(self.raw_for_node(sumti)))
                     }
                     generated::TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => None,
                 }
             }
-            generated::RelativeSumtiSyntax::NaKuRelativeSumti(_) => None,
+            GeneratedAssociationPayloadRef::NaKu => None,
         }
     }
 
@@ -7764,14 +7762,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         _node: &'tree generated::EmptyLinkedSumtiSyntax,
     ) {
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_relative_sumti_na_ku_relative_sumti(
-        &mut self,
-        _node: &'tree generated::NaKuRelativeSumtiSyntax,
-    ) {
-    }
 }
 
 #[requires(true)]
@@ -8564,19 +8554,22 @@ fn generated_simple_sumti_from_sumti(
 #[requires(true)]
 #[ensures(true)]
 fn generated_koha_assignable_cmavo_from_relative_sumti(
-    sumti: &generated::RelativeSumtiSyntax,
+    sumti: &generated::NormalTermSyntax,
 ) -> Option<Cmavo> {
-    let cmavo = match sumti {
-        generated::RelativeSumtiSyntax::PlainRelativeSumti(sumti) => {
+    let cmavo = match GeneratedAssociationPayloadRef::from_payload(sumti)? {
+        GeneratedAssociationPayloadRef::Plain(sumti) => {
             generated_argument_koha_cmavo_with_subscript(&sumti.0)?.0
         }
-        generated::RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-            let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = sumti.sumti.as_ref() else {
+        payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+        | GeneratedAssociationPayloadRef::PlaceTagged(_)) => {
+            let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) =
+                payload.tagged_sumti()?.as_ref()
+            else {
                 return None;
             };
             generated_argument_koha_cmavo_with_subscript(sumti)?.0
         }
-        generated::RelativeSumtiSyntax::NaKuRelativeSumti(_) => return None,
+        GeneratedAssociationPayloadRef::NaKu => return None,
     };
     is_assignable_koha(cmavo).then_some(cmavo)
 }
