@@ -5201,6 +5201,19 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     continuation,
                 );
             }
+            // The normal-flavour (D4) loose tier is the same extension one ladder over: it is
+            // sourced by camxes-exp's `term_1` and rolling Zantufa's `term` and by nothing in
+            // camxes-standard, which has no term-level connective at any position. Its
+            // continuations own no token of their own for the same reason the sibling tiers'
+            // do not, so it is diagnosed here under the same category.
+            generated::generated_model::NodeRef::ConnectedNormalTermContinuationSyntax(
+                continuation,
+            ) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalTermLooseConnection,
+                    continuation,
+                );
+            }
             generated::generated_model::NodeRef::ZantufaTagSyntax(tag) => {
                 self.remove_nested_zantufa_warnings(tag);
                 self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaTag, tag);

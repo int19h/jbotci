@@ -501,7 +501,9 @@ EXPECTED_MANUAL = 21
 EXPECTED_PROSE = 0
 # Fixtures epoch 6b ADDED after its baseline: D3's termset witnesses and D4's GOI-payload
 # witnesses.  They have no baseline entry, so they are pinned by count rather than classified.
-EXPECTED_NEW_WITNESSES = 30
+# Round 2 adds the three that pin the normal-flavour loose tier's construct warning, which the
+# first submission left undiagnosed.
+EXPECTED_NEW_WITNESSES = 33
 
 CLASS_GOI_PAYLOAD_RETYPING = "goi-payload-retyping"
 CLASS_FLAT_SUM_WRAPPER = "flat-sum-wrapper"
