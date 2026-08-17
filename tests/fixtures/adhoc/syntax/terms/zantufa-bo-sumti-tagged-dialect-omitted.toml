@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.zantufa-bo-sumti-tagged-dialect-omitted"
+lojban = "ko'a ba bo ko'e broda"
+tags = ["adhoc", "syntax", "issue-827", "term-hierarchy-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6c #827 Zantufa term binding witness"
+description = "The tag-bearing connectorless joint is Zantufa's alone; camxes-exp requires the connective before its optional stag."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 10], source-text = "bo", message = "unexpected cmavo" }]

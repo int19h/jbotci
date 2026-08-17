@@ -1,0 +1,13 @@
+id = "adhoc.syntax.terms.zantufa-jai-term-terms-axis-rejected"
+lojban = "jai ku broda"
+dialect = "(+zantufa-terms)"
+tags = ["adhoc", "syntax", "issue-827", "term-hierarchy-epoch", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6c #827 Zantufa term binding witness"
+description = "The gate row for the JAI term: ZANTUFA-TERMS opens the connectorless BO joints and not this."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [4, 6], source-text = "ku", message = "unexpected cmavo" }]

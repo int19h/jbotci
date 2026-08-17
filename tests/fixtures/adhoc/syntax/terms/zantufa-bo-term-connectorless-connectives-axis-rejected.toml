@@ -1,0 +1,13 @@
+id = "adhoc.syntax.terms.zantufa-bo-term-connectorless-connectives-axis-rejected"
+lojban = "pu ko'a bo ca ko'e broda"
+dialect = "(+zantufa-connectives)"
+tags = ["adhoc", "syntax", "issue-827", "term-hierarchy-epoch", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6c #827 Zantufa term binding witness"
+description = "Configuration row 4 of the six: ZANTUFA-CONNECTIVES carries Zantufa's connective widenings and does not open the connectorless joint, which carries no connective at all."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 10], source-text = "bo", message = "unexpected cmavo" }]
