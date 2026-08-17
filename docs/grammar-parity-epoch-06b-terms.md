@@ -788,3 +788,27 @@ hand-written module byte-identical and the entry count unchanged at 24. The
 Windows unpacked figure was never measurable — the wheel is inspected before it
 is uploaded, so the failing run retained no Windows artifact — which is itself an
 argument against a ratchet on a number the failure mode hides.
+
+## Round-2 gate, at the submitted head
+
+The full gate was re-run at `eade172099`, the head this epoch submits. Its
+per-step results are recorded in `/build/jbotci/logs/epoch06b-r2-gate-summary.txt`
+(2026-08-16T16:29:08 → 18:22:56), with one log per step alongside it. Every step
+exits 0 — fmt, fixtures, the frozen tagged facet, expensive contracts,
+`semantics-coverage`, the debug `jbotci` and `dx` builds, the artifact-tool
+tests, `maturin develop` and all four generated checks — except
+`cargo test -r --workspace`, which exited 101.
+
+That single failure is
+`jbotci-ide`'s `snapshot::completion::tests::memoized_mid_size_recovery_remains_grammar_filtered`,
+a wall-clock latency guard: "mid-size completion unexpectedly took
+2.131915945s" against its ~2s ceiling. It is load noise, not a regression. The
+gate run overlapped the expensive-contracts step and a concurrent CI run on the
+same box; the lead re-ran that test three times on an otherwise idle box and
+measured 1.44–1.55s, comfortably inside the ceiling, so no recalibration is
+warranted. CI's `Cargo tests` job passed at this same head.
+
+CI is green at `eade172099` across all 21 checks, including the
+`Build windows-x86_64` leg that failed earlier this epoch — it now passes under
+the no-ratchet policy above, with only the 95 MiB absolute tripwire and the
+shape checks in force.
