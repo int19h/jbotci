@@ -13,9 +13,16 @@
       "upstreamAccept": true,
       "defaultAccept": true,
       "zantufaAccept": true,
-      "defaultWarnings": ["ExperimentalZantufaMex"],
-      "zantufaWarnings": ["ExperimentalZantufaMex"],
-      "shapeMarkers": ["ZantufaPriorityRawMeksoQuantifier", "ForethoughtCallMekso"]
+      "defaultWarnings": [
+        "ExperimentalZantufaMex"
+      ],
+      "zantufaWarnings": [
+        "ExperimentalZantufaMex"
+      ],
+      "shapeMarkers": [
+        "ZantufaPriorityRawMeksoQuantifier",
+        "ForethoughtCallMekso"
+      ]
     },
     {
       "id": "statement-relative-clause",
@@ -25,8 +32,13 @@
       "defaultAccept": false,
       "zantufaAccept": true,
       "defaultWarnings": [],
-      "zantufaWarnings": ["ExperimentalZantufaStatementRelativeClause"],
-      "shapeMarkers": ["ZantufaRestrictiveStatementRelativeClause", "IStatementConnection"]
+      "zantufaWarnings": [
+        "ExperimentalZantufaStatementRelativeClause"
+      ],
+      "shapeMarkers": [
+        "ZantufaRestrictiveStatementRelativeClause",
+        "IStatementConnection"
+      ]
     },
     {
       "id": "grouped-bridi-tail",
@@ -36,8 +48,12 @@
       "defaultAccept": false,
       "zantufaAccept": true,
       "defaultWarnings": [],
-      "zantufaWarnings": ["ExperimentalZantufaGroupedBridiTail"],
-      "shapeMarkers": ["ZantufaGroupedBridiTail"]
+      "zantufaWarnings": [
+        "ExperimentalZantufaGroupedBridiTail"
+      ],
+      "shapeMarkers": [
+        "ZantufaGroupedBridiTail"
+      ]
     },
     {
       "id": "nary-forethought-statement",
@@ -51,7 +67,10 @@
         "ExperimentalZantufaNaryForethought",
         "ExperimentalZantufaForethoughtGihi"
       ],
-      "shapeMarkers": ["ForethoughtStatement", "additional_branches"]
+      "shapeMarkers": [
+        "ForethoughtStatement",
+        "additional_branches"
+      ]
     },
     {
       "id": "statement-abstraction",
@@ -61,8 +80,13 @@
       "defaultAccept": false,
       "zantufaAccept": true,
       "defaultWarnings": [],
-      "zantufaWarnings": ["ExperimentalZantufaStatementAbstraction"],
-      "shapeMarkers": ["ZantufaStatementAbstractionTanruUnit", "IStatementConnection"]
+      "zantufaWarnings": [
+        "ExperimentalZantufaStatementAbstraction"
+      ],
+      "shapeMarkers": [
+        "ZantufaStatementAbstractionTanruUnit",
+        "IStatementConnection"
+      ]
     },
     {
       "id": "trailing-operator-mex-quantifier",
@@ -72,8 +96,14 @@
       "defaultAccept": false,
       "zantufaAccept": true,
       "defaultWarnings": [],
-      "zantufaWarnings": ["ExperimentalZantufaMex"],
-      "shapeMarkers": ["ZantufaPriorityRawMeksoQuantifier", "ZantufaPriorityMex", "MaiFreeModifier"]
+      "zantufaWarnings": [
+        "ExperimentalZantufaMex"
+      ],
+      "shapeMarkers": [
+        "ZantufaPriorityRawMeksoQuantifier",
+        "ZantufaPriorityMex",
+        "MaiFreeModifier"
+      ]
     },
     {
       "id": "xi-mex-free-with-statement-terms",
@@ -83,8 +113,13 @@
       "defaultAccept": false,
       "zantufaAccept": true,
       "defaultWarnings": [],
-      "zantufaWarnings": ["ExperimentalZantufaMex"],
-      "shapeMarkers": ["ZantufaPriorityRawMeksoQuantifier", "ForethoughtCallMekso"]
+      "zantufaWarnings": [
+        "ExperimentalZantufaMex"
+      ],
+      "shapeMarkers": [
+        "ZantufaPriorityRawMeksoQuantifier",
+        "ForethoughtCallMekso"
+      ]
     },
     {
       "id": "nary-gek-termset",
@@ -94,8 +129,120 @@
       "defaultAccept": false,
       "zantufaAccept": true,
       "defaultWarnings": [],
-      "zantufaWarnings": ["ExperimentalZantufaGekTermset", "ExperimentalZantufaNaryForethought", "ExperimentalZantufaForethoughtGihi"],
-      "shapeMarkers": ["ZantufaGekTermset", "additional_branches"]
+      "zantufaWarnings": [
+        "ExperimentalZantufaGekTermset",
+        "ExperimentalZantufaNaryForethought",
+        "ExperimentalZantufaForethoughtGihi"
+      ],
+      "shapeMarkers": [
+        "ZantufaGekTermset",
+        "additional_branches"
+      ]
+    },
+    {
+      "id": "connectorless-bo-term",
+      "source": "pu ko'a bo ca ko'e broda",
+      "provenance": "zantufa-1.9999.peg:28 term_1 <- term_2 (joik_ek? BO_clause term_2)*, with the connective absent",
+      "upstreamAccept": true,
+      "defaultAccept": false,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": [
+        "ExperimentalZantufaConnectorlessBo"
+      ],
+      "shapeMarkers": [
+        "StagBoundTermConnection",
+        "ZantufaBoundTermContinuation"
+      ]
+    },
+    {
+      "id": "connectorless-bo-sumti",
+      "source": "ko'a bo ko'e broda",
+      "provenance": "zantufa-1.9999.peg:35 sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)*, with the connective absent",
+      "upstreamAccept": true,
+      "defaultAccept": false,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": [
+        "ExperimentalZantufaConnectorlessBo"
+      ],
+      "shapeMarkers": [
+        "ZantufaBoundSumtiTail"
+      ]
+    },
+    {
+      "id": "connectorless-bo-sumti-tagged",
+      "source": "ko'a ba bo ko'e broda",
+      "provenance": "zantufa-1.9999.peg:35, the same joint with its optional tag present",
+      "upstreamAccept": true,
+      "defaultAccept": false,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": [
+        "ExperimentalZantufaConnectorlessBo"
+      ],
+      "shapeMarkers": [
+        "ZantufaBoundSumtiTail",
+        "tense_modal"
+      ]
+    },
+    {
+      "id": "jai-term-explicit-ku",
+      "source": "jai pu ku broda",
+      "provenance": "zantufa-1.9999.peg:31 tag_term payload (sumti / KU_elidible), here an explicit KU",
+      "upstreamAccept": true,
+      "defaultAccept": false,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": [
+        "ExperimentalZantufaJaiTagTerm"
+      ],
+      "shapeMarkers": [
+        "JaiTaggedSumtiTerm",
+        "TaggedElidedSumti"
+      ]
+    },
+    {
+      "id": "jai-selbri-not-term",
+      "source": "mi jai pu broda",
+      "provenance": "zantufa-1.9999.peg:31 !tanru_unit_1 keeps the JAI term off a following tanru unit; :52 takes the JAI selbri instead",
+      "upstreamAccept": true,
+      "defaultAccept": true,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": [],
+      "shapeMarkers": [
+        "JaiModalTanruUnit"
+      ]
+    },
+    {
+      "id": "fa-joik-chained-place-tag",
+      "source": "fa je fe ko'a broda",
+      "provenance": "zantufa-1.9999.peg:31 tag_term <- (FA_clause (joik FA_clause)* / ...); Zantufa's JOI selma'o holds every JA word (:556)",
+      "upstreamAccept": true,
+      "defaultAccept": false,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": [
+        "ExperimentalZantufaJoikChainedPlaceTag"
+      ],
+      "shapeMarkers": [
+        "ZantufaJoikChainedPlaceTagTerm",
+        "JekConnective"
+      ]
+    },
+    {
+      "id": "cehe-stays-a-cehe-termset",
+      "source": "ko'a ce'e ko'e broda",
+      "provenance": "zantufa-1.9999.peg:529 BO <- ce'e / bo makes this a sumti BO connection upstream; jbotci keeps the baseline CEhE termset group, a documented gap",
+      "upstreamAccept": true,
+      "defaultAccept": true,
+      "zantufaAccept": true,
+      "defaultWarnings": [],
+      "zantufaWarnings": [],
+      "shapeMarkers": [
+        "TermsetGroup"
+      ]
     }
   ]
 }
