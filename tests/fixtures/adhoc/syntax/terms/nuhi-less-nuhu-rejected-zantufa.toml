@@ -1,0 +1,13 @@
+id = "adhoc.syntax.terms.nuhi-less-nuhu-rejected-zantufa"
+lojban = "ge ko'a nu'u gi ko'e broda"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-806", "term-hierarchy-epoch", "recovery", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6b #806 termset witness"
+description = "The Zantufa configuration of the removed NUhU widening. Rolling Zantufa's own NUhI-less termset `gek_term <- gek term+ (gik term+)+ GIhI?` (zantufa-1.9999.peg:32) has no NUhU slot either, so enabling the Zantufa arm does not restore the surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 12], source-text = "nu'u", message = "unexpected cmavo" }]

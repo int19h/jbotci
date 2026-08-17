@@ -38,10 +38,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
         next_visible_place: &mut usize,
-        term: &'syntax TermSyntax,
+        term: GeneratedBridiTermRef<'syntax>,
     ) -> Result<(), SemanticsError> {
-        match term {
-            TermSyntax::TermsetGroup(termset) => self.insert_generated_termset_group_assignment(
+        if let Some(simple) = term.simple() {
+            return self.insert_generated_simple_term_assignment(
                 visible_arguments,
                 place_questions,
                 modal_terms,
@@ -50,13 +50,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 term_formula_scopes,
                 next_visible_place,
                 term,
-                termset,
-            ),
-            _ if GeneratedSimpleTermRef::from_term(term).is_some() => {
-                let Some(simple) = GeneratedSimpleTermRef::from_term(term) else {
-                    unreachable!("term leaf conversion changed between the guard and its arm")
-                };
-                self.insert_generated_simple_term_assignment(
+                simple,
+            );
+        }
+        match term.grouping() {
+            Some(GeneratedTermGroupingRef::TermsetGroup(termset)) => self
+                .insert_generated_termset_group_assignment(
                     visible_arguments,
                     place_questions,
                     modal_terms,
@@ -65,9 +64,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     term_formula_scopes,
                     next_visible_place,
                     term,
-                    simple,
-                )
-            }
+                    termset,
+                ),
             // Shared choke point: a direct term connection (a `ConnectedTerm` with continuations or
             // a `BoundTermConnection`) reaches here only on lowering paths that no upstream guard
             // could build (e.g. terms shared across a `gi'e` bridi connection, which carry
@@ -88,7 +86,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(*next_visible_place > 0)]
     #[ensures(true)]
-    pub(super) fn insert_generated_termset_group_assignment<'syntax: 'tree, N: TreeNode>(
+    pub(super) fn insert_generated_termset_group_assignment<'syntax: 'tree>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
@@ -97,7 +95,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
         next_visible_place: &mut usize,
-        node: &N,
+        node: GeneratedBridiTermRef<'syntax>,
         termset: &'syntax TermsetGroupSyntax,
     ) -> Result<(), SemanticsError> {
         let mut local_formula_scopes = Vec::new();
@@ -110,7 +108,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &mut local_coequal_scope_groups,
             term_formula_scopes,
             next_visible_place,
-            termset.leading_term.as_ref(),
+            GeneratedBridiTermRef::Loose(&termset.leading_term),
             GeneratedSimpleTermRef::from_loose(&termset.leading_term)
                 .ok_or_else(grouped_termset_operand_undefined)?,
         )?;
@@ -123,14 +121,14 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 &mut local_coequal_scope_groups,
                 term_formula_scopes,
                 next_visible_place,
-                continuation.trailing_term.as_ref(),
+                GeneratedBridiTermRef::Nonabs(&continuation.trailing_term),
                 GeneratedSimpleTermRef::from_nonabs(&continuation.trailing_term)
                     .ok_or_else(grouped_termset_operand_undefined)?,
             )?;
         }
         push_generated_coequal_scope_group_or_individual_scopes(
             local_formula_scopes,
-            self.source_for_node(node, "quantifier-bundle"),
+            self.source_for_bridi_term(node, "quantifier-bundle"),
             formula_scopes,
             coequal_scope_groups,
         );
@@ -140,7 +138,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
 
     #[requires(*next_visible_place > 0)]
     #[ensures(true)]
-    pub(super) fn insert_generated_simple_term_assignment<'syntax: 'tree, N: TreeNode>(
+    pub(super) fn insert_generated_simple_term_assignment<'syntax: 'tree>(
         &mut self,
         visible_arguments: &mut BTreeMap<usize, ArgumentValue>,
         place_questions: &mut Vec<GeneratedPlaceQuestionAssignment>,
@@ -149,7 +147,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         coequal_scope_groups: &mut Vec<GeneratedArgumentQuantifierBundleScope<'syntax>>,
         term_formula_scopes: &mut Vec<GeneratedTermFormulaScope>,
         next_visible_place: &mut usize,
-        node: &N,
+        node: GeneratedBridiTermRef<'syntax>,
         simple: GeneratedSimpleTermRef<'syntax>,
     ) -> Result<(), SemanticsError> {
         if let Some(description) = simple.undefined_experimental_description() {
@@ -196,8 +194,8 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                     place_questions.push(new!(GeneratedPlaceQuestionAssignment {
                         introduced_by: token_text(&term.fa.value),
                         argument,
-                        parameter_source: self.source_for_node(node, "parameter"),
-                        binding_source: self.source_for_node(node, "place-question"),
+                        parameter_source: self.source_for_bridi_term(node, "parameter"),
+                        binding_source: self.source_for_bridi_term(node, "place-question"),
                     }));
                     *next_visible_place += 1;
                     return Ok(());
@@ -237,7 +235,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                 term_formula_scopes.push(GeneratedTermFormulaScope::Negation {
-                    source: self.source_for_node(node, "bridi-negation-boundary"),
+                    source: self.source_for_bridi_term(node, "bridi-negation-boundary"),
                 });
                 Ok(())
             }
@@ -253,12 +251,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         &mut local_coequal_scope_groups,
                         term_formula_scopes,
                         next_visible_place,
-                        term,
+                        GeneratedBridiTermRef::Term(term),
                     )?;
                 }
                 push_generated_coequal_scope_group_or_individual_scopes(
                     local_formula_scopes,
-                    self.source_for_node(node, "quantifier-bundle"),
+                    self.source_for_bridi_term(node, "quantifier-bundle"),
                     formula_scopes,
                     coequal_scope_groups,
                 );
@@ -277,12 +275,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                         &mut local_coequal_scope_groups,
                         term_formula_scopes,
                         next_visible_place,
-                        term,
+                        GeneratedBridiTermRef::Term(term),
                     )?;
                 }
                 push_generated_coequal_scope_group_or_individual_scopes(
                     local_formula_scopes,
-                    self.source_for_node(node, "quantifier-bundle"),
+                    self.source_for_bridi_term(node, "quantifier-bundle"),
                     formula_scopes,
                     coequal_scope_groups,
                 );
@@ -1266,12 +1264,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(self.pending_sumti_candidates.len() == old(self.pending_sumti_candidates.len()))]
     pub(super) fn with_pending_sumti_candidates_for_terms<T>(
         &mut self,
-        terms: &[&'tree TermSyntax],
+        terms: &[GeneratedBridiTermRef<'tree>],
         body: impl FnOnce(&mut Self) -> Result<T, SemanticsError>,
     ) -> Result<T, SemanticsError> {
         let old_len = self.pending_sumti_candidates.len();
         let mut candidates = Vec::new();
-        for term in terms {
+        for &term in terms {
             self.collect_pending_sumti_candidates_for_term(term, &mut candidates)?;
         }
         self.pending_sumti_candidates.extend(candidates);
@@ -1284,7 +1282,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn collect_pending_sumti_candidates_for_term(
         &self,
-        term: &'tree TermSyntax,
+        term: GeneratedBridiTermRef<'tree>,
         candidates: &mut Vec<GeneratedPendingSumtiCandidate<'tree>>,
     ) -> Result<(), SemanticsError> {
         let mut collector = GeneratedPendingSumtiCollector::default();
@@ -1362,11 +1360,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn apply_generated_tagged_term_event_modifiers_in_terms<'syntax: 'tree>(
         &mut self,
         eventuality: SemanticObjectId,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
     ) -> Result<(), SemanticsError> {
         self.with_pending_sumti_candidates_for_terms(terms, |builder| {
             let governed_termsets = builder.build_generated_governed_termsets_for_terms(terms)?;
-            for (index, term) in terms.iter().enumerate() {
+            for (index, &term) in terms.iter().enumerate() {
                 match generated_simple_term_for_assignment(term) {
                     Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) => {
                         if let Some(governed) = governed_termsets.get(&index) {
@@ -1404,11 +1402,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn generated_tagged_terms_need_prepared_event_modifier_arguments(
         &mut self,
-        terms: &[&TermSyntax],
+        terms: &[GeneratedBridiTermRef<'_>],
     ) -> Result<bool, SemanticsError> {
         for term in terms {
             let Ok(GeneratedSimpleTermRef::TaggedSumtiTerm(term)) =
-                generated_simple_term_for_assignment(term)
+                generated_simple_term_for_assignment(*term)
             else {
                 continue;
             };
@@ -1463,11 +1461,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|governed| governed.values().all(|termset| termset.anchor.is_some() || termset.magnitude.is_some())) || ret.is_err())]
     pub(super) fn build_generated_governed_termsets_for_terms<'syntax: 'tree>(
         &mut self,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
     ) -> Result<BTreeMap<usize, GeneratedGovernedTermset>, SemanticsError> {
         let mut by_termset = BTreeMap::<usize, GeneratedGovernedTermset>::new();
         let mut by_modifier = BTreeMap::<usize, GeneratedGovernedTermset>::new();
-        for (modifier_index, term) in terms.iter().enumerate() {
+        for (modifier_index, &term) in terms.iter().enumerate() {
             if !generated_tagged_term_governs_following_termset(term) {
                 continue;
             }
@@ -1497,7 +1495,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_generated_governed_termset<'syntax: 'tree>(
         &mut self,
         termset_index: usize,
-        termset: &'syntax TermSyntax,
+        termset: GeneratedBridiTermRef<'syntax>,
     ) -> Result<Option<GeneratedGovernedTermset>, SemanticsError> {
         let mut anchor = None;
         let mut magnitude = None;
@@ -1517,12 +1515,12 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn collect_generated_governed_termset_members<'syntax: 'tree>(
         &mut self,
-        term: &'syntax TermSyntax,
+        term: GeneratedBridiTermRef<'syntax>,
         anchor: &mut Option<SemanticObjectId>,
         magnitude: &mut Option<AnchorMagnitude>,
     ) -> Result<(), SemanticsError> {
-        match term {
-            TermSyntax::TermsetGroup(termset) => {
+        match term.grouping() {
+            Some(GeneratedTermGroupingRef::TermsetGroup(termset)) => {
                 if let Some(simple) =
                     GeneratedSimpleTermRef::from_loose(termset.leading_term.as_ref())
                 {
@@ -1580,7 +1578,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             GeneratedSimpleTermRef::NuhiTermset(termset) => {
                 for term in &termset.termset {
                     self.collect_generated_governed_termset_members(
-                        term.as_ref(),
+                        GeneratedBridiTermRef::Term(term.as_ref()),
                         anchor,
                         magnitude,
                     )?;
@@ -1589,7 +1587,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             GeneratedSimpleTermRef::KeTermset(termset) => {
                 for term in &termset.termset {
                     self.collect_generated_governed_termset_members(
-                        term.as_ref(),
+                        GeneratedBridiTermRef::Term(term.as_ref()),
                         anchor,
                         magnitude,
                     )?;
@@ -1883,7 +1881,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             &mut coequal_scope_groups,
             &mut term_formula_scopes,
             &mut next_visible_place,
-            term,
+            GeneratedBridiTermRef::Term(term),
         )?;
         if !modal_terms.is_empty() {
             return Err(invalid_graph(
@@ -1932,18 +1930,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let [term] = fragment.terms.as_slice() else {
             return Ok(None);
         };
+        let term = GeneratedBridiTermRef::Term(term);
         let fragment_text = token_list_text(self.tokens_for_node(fragment).iter());
-        if matches!(term, TermSyntax::ConnectedTerm(term) if !term.continuations.is_empty()) {
+        if matches!(
+            term.grouping(),
+            Some(GeneratedTermGroupingRef::ConnectedTerm(term)) if !term.continuations.is_empty()
+        ) {
             return Err(requires_discourse_context(&format!(
                 "the missing bridi proposition distributed by standalone connected-term fragment `{fragment_text}`"
             )));
         }
-        if matches!(term, TermSyntax::TermsetGroup(_))
-            || matches!(
-                generated_simple_term_for_assignment(term),
-                Ok(GeneratedSimpleTermRef::ForethoughtTermset(_))
-            )
-        {
+        if matches!(
+            term.grouping(),
+            Some(GeneratedTermGroupingRef::TermsetGroup(_))
+        ) || matches!(
+            generated_simple_term_for_assignment(term),
+            Ok(GeneratedSimpleTermRef::ForethoughtTermset(_))
+        ) {
             return Err(requires_discourse_context(&format!(
                 "the bridi place structure required by standalone termset fragment `{fragment_text}`"
             )));
@@ -1999,6 +2002,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             }
             _ => {}
         }
+        let GeneratedBridiTermRef::Term(term) = term else {
+            unreachable!("the standalone term fragment was built from a PEhE-level term")
+        };
         self.build_term_argument_object(term).map(Some)
     }
 
@@ -2454,10 +2460,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn split_generated_fai_terms<'syntax>(
         &mut self,
-        terms: Vec<&'syntax TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'syntax>>,
     ) -> Result<
         (
-            Vec<&'syntax TermSyntax>,
+            Vec<GeneratedBridiTermRef<'syntax>>,
             Vec<&'syntax TaggedOrElidedSumtiSyntax>,
         ),
         SemanticsError,
@@ -3775,7 +3781,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         head: SemanticObjectId,
     ) -> Result<Option<RelativeClause>, SemanticsError> {
         let marker_text = token_text(&clause.association_marker.value);
-        if clause.association_marker.value.cmavo() == Some(Cmavo::Goi) {
+        // `goi` has no relative-phrase reading of its own: its meaning is the name assignment
+        // `build_generated_goi_associated_referent` performs, so the clause is not lowered a
+        // second time here. That holds only for the payloads the assignment can act on. The D4
+        // payload constituent is the whole shared term inventory (#794), and a payload carrying
+        // no sumti -- `NA KU`, a termset, any other leaf -- assigns nothing at all, so it falls
+        // through to the shared path below and is reported there, the way every other marker's
+        // unreadable payload already is, rather than vanishing from the graph.
+        if clause.association_marker.value.cmavo() == Some(Cmavo::Goi)
+            && GeneratedAssociationPayloadRef::from_payload(clause.sumti.as_ref())
+                .is_some_and(GeneratedAssociationPayloadRef::associates_a_sumti)
+        {
             return Ok(None);
         }
         let source = self.exact_source_for_node(clause, "relative-phrase");
@@ -3784,9 +3800,10 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             .and_then(relative_phrase_kind_for_marker)
             .unwrap_or(RelativeClauseKind::Restrictive);
         let mode = predication_mode_for_relative_clause_kind(kind);
-        if let RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) = clause.sumti.as_ref()
+        let payload = GeneratedAssociationPayloadRef::from_payload(clause.sumti.as_ref());
+        if let Some(GeneratedAssociationPayloadRef::Tagged(tagged)) = payload
             && let Some(clause) = self.build_generated_modal_sumti_association_clause(
-                sumti,
+                tagged,
                 head,
                 kind,
                 marker_text.clone(),
@@ -3808,12 +3825,17 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 "GOI relative phrase marker is not semantically lowered yet",
             ));
         }
-        if matches!(
-            clause.sumti.as_ref(),
-            RelativeSumtiSyntax::TenseTaggedRelativeSumti(_)
-        ) {
+        if payload.is_some_and(|payload| payload.tagged_sumti().is_some()) {
             diagnostics.push(diagnostic(
                 "modal relative phrase source relation is not semantically lowered yet",
+            ));
+        }
+        // The payload constituent is the whole shared term inventory (D4/#794), but only the
+        // shapes that carry a sumti have an association reading. Anything else is reported here
+        // rather than silently associating nothing.
+        if payload.is_none() {
+            diagnostics.push(diagnostic(
+                "relative phrase payload is not a sumti-association term and is not semantically lowered yet",
             ));
         }
         let associated_argument =
@@ -3838,10 +3860,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             formula,
             SemanticObject::atom_formula(predication, source.clone(), Vec::new()),
         )?;
-        let formula = if matches!(
-            clause.sumti.as_ref(),
-            RelativeSumtiSyntax::NaKuRelativeSumti(_)
-        ) {
+        let formula = if matches!(payload, Some(GeneratedAssociationPayloadRef::NaKu)) {
             self.build_unary_formula(
                 FormulaOperator::Not,
                 formula,
@@ -3904,17 +3923,22 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|id| id.is_none_or(|id| crate::model::argument_object_kind_can_fill(id.object_kind()))) || ret.is_err())]
     pub(super) fn build_generated_relative_sumti_argument_object<'syntax: 'tree>(
         &mut self,
-        sumti: &'syntax RelativeSumtiSyntax,
+        sumti: &'syntax NormalTermSyntax,
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
-        match sumti {
-            RelativeSumtiSyntax::PlainRelativeSumti(PlainRelativeSumtiSyntax(sumti)) => {
-                Ok(Some(self.build_sumti_referent(sumti)?))
+        match GeneratedAssociationPayloadRef::from_payload(sumti) {
+            Some(GeneratedAssociationPayloadRef::Plain(sumti)) => {
+                Ok(Some(self.build_sumti_referent(&sumti.0)?))
             }
-            RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                let argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
+            Some(
+                payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+                | GeneratedAssociationPayloadRef::PlaceTagged(_)),
+            ) => {
+                let argument = self.build_tagged_or_elided_sumti_argument(
+                    payload.tagged_sumti().expect("tag-led payload"),
+                )?;
                 Ok(argument.value)
             }
-            RelativeSumtiSyntax::NaKuRelativeSumti(_) => Ok(None),
+            Some(GeneratedAssociationPayloadRef::NaKu) | None => Ok(None),
         }
     }
 
@@ -4021,17 +4045,20 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn assigned_name_for_generated_relative_sumti(
         &self,
-        sumti: &'tree RelativeSumtiSyntax,
+        sumti: &'tree NormalTermSyntax,
         clause: &'tree SumtiAssociationRelativeClauseSyntax,
     ) -> Option<AssignedName> {
-        match sumti {
-            RelativeSumtiSyntax::PlainRelativeSumti(PlainRelativeSumtiSyntax(sumti)) => {
-                self.assigned_name_for_generated_sumti(sumti, clause)
+        match GeneratedAssociationPayloadRef::from_payload(sumti)? {
+            GeneratedAssociationPayloadRef::Plain(sumti) => {
+                self.assigned_name_for_generated_sumti(&sumti.0, clause)
             }
-            RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                self.assigned_name_for_generated_tagged_or_elided_sumti(&sumti.sumti, clause)
-            }
-            RelativeSumtiSyntax::NaKuRelativeSumti(_) => None,
+            payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+            | GeneratedAssociationPayloadRef::PlaceTagged(_)) => self
+                .assigned_name_for_generated_tagged_or_elided_sumti(
+                    payload.tagged_sumti()?,
+                    clause,
+                ),
+            GeneratedAssociationPayloadRef::NaKu => None,
         }
     }
 
@@ -4102,7 +4129,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(true)]
     pub(super) fn build_generated_modal_sumti_association_clause(
         &mut self,
-        sumti: &'tree TenseTaggedRelativeSumtiSyntax,
+        sumti: GeneratedTaggedTermRef<'tree>,
         head: SemanticObjectId,
         kind: RelativeClauseKind,
         marker_text: String,
@@ -4117,7 +4144,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             return Ok(None);
         };
         let mode = predication_mode_for_relative_clause_kind(kind);
-        let associated_argument = self.build_tagged_or_elided_sumti_argument(&sumti.sumti)?;
+        let associated_argument = self.build_tagged_or_elided_sumti_argument(sumti.sumti)?;
         let mut arguments = BTreeMap::new();
         arguments.insert(argument_key(head_place), ArgumentValue::filled(head, None));
         arguments.insert(argument_key(visible_place), associated_argument);
@@ -4175,16 +4202,23 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     #[ensures(ret.as_ref().is_ok_and(|argument| argument.value.is_some()) || ret.is_err())]
     pub(super) fn build_argument_for_generated_relative_sumti(
         &mut self,
-        sumti: &'tree RelativeSumtiSyntax,
+        sumti: &'tree NormalTermSyntax,
     ) -> Result<ArgumentValue, SemanticsError> {
-        match sumti {
-            RelativeSumtiSyntax::PlainRelativeSumti(PlainRelativeSumtiSyntax(sumti)) => {
-                self.build_argument_for_generated_sumti(sumti)
+        match GeneratedAssociationPayloadRef::from_payload(sumti) {
+            Some(GeneratedAssociationPayloadRef::Plain(sumti)) => {
+                self.build_argument_for_generated_sumti(&sumti.0)
             }
-            RelativeSumtiSyntax::TenseTaggedRelativeSumti(sumti) => {
-                self.build_tagged_or_elided_sumti_argument(&sumti.sumti)
+            Some(
+                payload @ (GeneratedAssociationPayloadRef::Tagged(_)
+                | GeneratedAssociationPayloadRef::PlaceTagged(_)),
+            ) => self.build_tagged_or_elided_sumti_argument(
+                payload.tagged_sumti().expect("tag-led payload"),
+            ),
+            // `na ku` and every payload with no association reading leave the associated place
+            // elided rather than inventing a referent for it.
+            Some(GeneratedAssociationPayloadRef::NaKu) | None => {
+                self.build_elided_argument_for_place(2)
             }
-            RelativeSumtiSyntax::NaKuRelativeSumti(_) => self.build_elided_argument_for_place(2),
         }
     }
 

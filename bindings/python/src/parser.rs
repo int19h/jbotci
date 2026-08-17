@@ -277,6 +277,7 @@ define_syntax_string_enum_binding!(
         ExperimentalConstruct::ExperimentalZantufaCmavo => ("EXPERIMENTAL_ZANTUFA_CMAVO", "experimental-zantufa-cmavo"),
         ExperimentalConstruct::ExperimentalZantufaForethoughtGihi => ("EXPERIMENTAL_ZANTUFA_FORETHOUGHT_GIHI", "experimental-zantufa-forethought-gihi"),
         ExperimentalConstruct::ExperimentalZantufaNaryForethought => ("EXPERIMENTAL_ZANTUFA_NARY_FORETHOUGHT", "experimental-zantufa-nary-forethought"),
+        ExperimentalConstruct::ExperimentalZantufaGekTermset => ("EXPERIMENTAL_ZANTUFA_GEK_TERMSET", "experimental-zantufa-gek-termset"),
         ExperimentalConstruct::ExperimentalZantufaSelbriAssignment => ("EXPERIMENTAL_ZANTUFA_SELBRI_ASSIGNMENT", "experimental-zantufa-selbri-assignment"),
         ExperimentalConstruct::ExperimentalZantufaKeCoGrouping => ("EXPERIMENTAL_ZANTUFA_KE_CO_GROUPING", "experimental-zantufa-ke-co-grouping"),
         ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement => ("EXPERIMENTAL_ZANTUFA_SELBRI_RELATIVE_PLACEMENT", "experimental-zantufa-selbri-relative-placement"),

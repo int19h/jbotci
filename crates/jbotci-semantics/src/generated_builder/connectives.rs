@@ -455,12 +455,15 @@ pub(super) fn generated_direct_term_connective_is_logical(
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn generated_direct_term_connection_unsupported_error(
-    terms: &[&TermSyntax],
+    terms: &[GeneratedBridiTermRef<'_>],
 ) -> Option<SemanticsError> {
-    let connection = terms.iter().copied().find_map(|term| match term {
-        TermSyntax::ConnectedTerm(connection) => Some(connection),
-        _ => None,
-    })?;
+    let connection = terms
+        .iter()
+        .copied()
+        .find_map(|term| match term.grouping() {
+            Some(GeneratedTermGroupingRef::ConnectedTerm(connection)) => Some(connection),
+            _ => None,
+        })?;
     let all_logical = connection
         .continuations
         .iter()

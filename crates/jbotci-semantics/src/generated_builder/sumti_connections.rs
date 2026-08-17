@@ -83,7 +83,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_generated_logical_sumti_connection_formula_for_terms<'syntax: 'tree, F>(
         &mut self,
         relation: &str,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         place_limit: usize,
         conversions: &[WithFreeModifiers<Token, F>],
@@ -114,7 +114,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     >(
         &mut self,
         relation: &str,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         place_limit: usize,
         conversions: &[WithFreeModifiers<Token, F>],
@@ -125,7 +125,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     ) -> Result<Option<SemanticObjectId>, SemanticsError> {
         let has_distributed_sumti_connection = terms
             .iter()
-            .any(|term| generated_term_has_distributed_sumti_connection(term));
+            .any(|term| generated_term_has_distributed_sumti_connection(*term));
         let has_duplicate_numbered_assignments =
             generated_terms_have_duplicate_numbered_assignments(terms, first_visible_place)?;
         if !has_distributed_sumti_connection && !has_duplicate_numbered_assignments {
@@ -159,7 +159,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             Vec::<(usize, &'syntax ForethoughtSumtiSyntax)>::new();
         let mut next_visible_place = first_visible_place;
         let mut highest_assigned_place = 0usize;
-        for term in terms {
+        for &term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
             if let Some(description) = simple.undefined_experimental_description() {
                 return Err(undefined_semantics(description));
@@ -287,7 +287,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
-                        *term,
+                        term,
                         simple,
                         &mut term_formula_scopes,
                     )?;
@@ -695,7 +695,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     >(
         &mut self,
         relation: &str,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         place_limit: usize,
         conversions: &[WithFreeModifiers<Token, F>],
@@ -713,7 +713,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut next_visible_place = first_visible_place;
         let mut highest_assigned_place = 0usize;
 
-        for term in terms {
+        for &term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
             if let Some(description) = simple.undefined_experimental_description() {
                 return Err(undefined_semantics(description));
@@ -808,7 +808,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
-                        *term,
+                        term,
                         simple,
                         &mut term_formula_scopes,
                     )?;
@@ -879,7 +879,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     >(
         &mut self,
         relation: &str,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         base_arguments: &BTreeMap<usize, ArgumentValue>,
         first_visible_place: usize,
         place_limit: usize,
@@ -895,7 +895,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut term_formula_scopes = Vec::new();
         let mut next_visible_place = first_visible_place;
         let mut highest_assigned_place = arguments.keys().copied().max().unwrap_or(0);
-        for term in terms {
+        for &term in terms {
             let simple = generated_simple_term_for_assignment(term)?;
             if let Some(description) = simple.undefined_experimental_description() {
                 return Err(undefined_semantics(description));
@@ -976,7 +976,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 }
                 GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {
                     self.collect_generated_term_formula_scopes_for_simple_term(
-                        *term,
+                        term,
                         simple,
                         &mut term_formula_scopes,
                     )?;
@@ -1308,7 +1308,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     >(
         &mut self,
         relation: &str,
-        terms: &[&'syntax TermSyntax],
+        terms: &[GeneratedBridiTermRef<'syntax>],
         first_visible_place: usize,
         place_limit: usize,
         conversions: &[WithFreeModifiers<Token, F>],
@@ -2088,7 +2088,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_relation_question_formula_for_terms(
         &mut self,
         question: GeneratedRelationQuestionSyntax<'_>,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2169,7 +2169,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_relation_variable_formula_for_terms(
         &mut self,
         relation_variable: GeneratedRelationParameterSyntax<'_>,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2215,7 +2215,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_unspecified_relation_formula_for_terms(
         &mut self,
         unspecified_relation: GeneratedRelationParameterSyntax<'_>,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,
@@ -2240,7 +2240,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
     pub(super) fn build_relation_parameter_atom_formula_for_terms(
         &mut self,
         parameter: SemanticObjectId,
-        terms: Vec<&'tree TermSyntax>,
+        terms: Vec<GeneratedBridiTermRef<'tree>>,
         first_visible_place: usize,
         eventuality: Option<SemanticObjectId>,
         mode: PredicationMode,

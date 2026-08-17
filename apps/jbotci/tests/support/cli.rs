@@ -2974,7 +2974,6 @@ fn gentufa_detailed_syntax_errors_show_expectation_breakdown() {
         assert!(stderr.contains("replacement phrase"));
         assert!(stderr.contains("tag"));
         assert!(stderr.contains("NA, NAhE, SE"));
-        assert!(stderr.contains("{nu'i}"));
         assert!(stderr.contains("{pe'o}"));
         assert!(stderr.contains("bridi"));
         let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -3003,7 +3002,6 @@ fn gentufa_syntax_error_labels_unique_current_construct() {
         assert!(stderr.contains("syntax.incomplete-bridi"), "{stderr}");
         assert!(stderr.contains("needs one of:"), "{stderr}");
         assert!(stderr.contains("replacement phrase"), "{stderr}");
-        assert!(stderr.contains("{nu'i}"), "{stderr}");
         assert!(stderr.contains("{pe'o}"), "{stderr}");
         assert!(stderr.contains("while parsing bridi"), "{stderr}");
         assert_eq!(stderr.matches("while parsing bridi").count(), 1, "{stderr}");

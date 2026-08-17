@@ -896,6 +896,12 @@ mod tests {
         // The bare Zantufa MEX fragment is deliberately absent: epoch 4's
         // VUhU-as-sumti route gives it a local experimental warning, which the
         // cross-paragraph-diagnostic gate must conservatively reject.
+        //
+        // `nary-gek-termset` joined the set with epoch 6b's `forethought_termset`
+        // split (#806): rolling Zantufa's NUhI-less `gek_term` is now its own
+        // feature-gated arm, so in the default profile the sample rejects with a
+        // plain `syntax.unexpected-cmavo` and carries no local experimental
+        // warning for the gate to be conservative about.
         assert_eq!(
             passed_ids,
             [
@@ -904,6 +910,7 @@ mod tests {
                 "statement-abstraction",
                 "trailing-operator-mex-quantifier",
                 "xi-mex-free-with-statement-terms",
+                "nary-gek-termset",
             ]
         );
     }

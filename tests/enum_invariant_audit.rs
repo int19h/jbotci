@@ -1760,6 +1760,70 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::NaKu",
+        "the NA KU association payload is a closed marker with no payload state to constrain",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::PlaceTagged",
+        "borrowed payload validity is owned by the invariant-bearing PlaceTaggedSumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::Plain",
+        "borrowed payload validity is owned by the invariant-bearing SumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedAssociationPayloadRef::Tagged",
+        "borrowed payload validity is owned by the invariant-bearing tag-term node the view holds",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Bound",
+        "borrowed term validity is owned by the invariant-bearing BoundTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::BoundNormal",
+        "borrowed term validity is owned by the invariant-bearing BoundNormalTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Cehe",
+        "borrowed term validity is owned by the invariant-bearing CeheTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Loose",
+        "borrowed term validity is owned by the invariant-bearing LooseTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Nonabs",
+        "borrowed term validity is owned by the invariant-bearing NonabsTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::NormalAtom",
+        "borrowed term validity is owned by the invariant-bearing NormalTermAtomSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Normal",
+        "borrowed term validity is owned by the invariant-bearing NormalTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Simple",
+        "borrowed term validity is owned by the invariant-bearing SimpleTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTermRef::Term",
+        "borrowed term validity is owned by the invariant-bearing TermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedForethoughtTermsetRef::Gek",
+        "borrowed termset validity is owned by the invariant-bearing GekTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedForethoughtTermsetRef::Nuhi",
+        "borrowed termset validity is owned by the invariant-bearing ForethoughtTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedForethoughtTermsetRef::Zantufa",
+        "borrowed termset validity is owned by the invariant-bearing ZantufaGekTermsetSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::Empty",
         "the empty linked-sumti leaf is a closed marker with no payload state to constrain",
     ),
@@ -1790,6 +1854,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ForethoughtTermset",
         "borrowed leaf validity is owned by the invariant-bearing ForethoughtTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::GekTermset",
+        "borrowed leaf validity is owned by the invariant-bearing GekTermsetSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::JaiTaggedSumtiTerm",
@@ -1830,6 +1898,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::TaggedSumtiTerm",
         "borrowed leaf validity is owned by the invariant-bearing TaggedSumtiTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaGekTermset",
+        "borrowed leaf validity is owned by the invariant-bearing ZantufaGekTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::BoundNormalTermConnection",
+        "borrowed grouping validity is owned by the invariant-bearing BoundNormalTermConnectionSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::ConnectedNormalTerm",
+        "borrowed grouping validity is owned by the invariant-bearing ConnectedNormalTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::ConnectedTerm",
+        "borrowed grouping validity is owned by the invariant-bearing ConnectedTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::PeheTermsetConnection",
+        "borrowed grouping validity is owned by the invariant-bearing PeheTermsetConnectionSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::StagBoundTermConnection",
+        "borrowed grouping validity is owned by the invariant-bearing StagBoundTermConnectionSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTermGroupingRef::TermsetGroup",
+        "borrowed grouping validity is owned by the invariant-bearing TermsetGroupSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/model.rs:MathLiteralValue::Integer",

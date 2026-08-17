@@ -35,6 +35,7 @@ mod baseline_mex;
 mod baseline_relative;
 mod baseline_selbri;
 mod baseline_tag;
+mod baseline_termset;
 mod generated;
 mod generated_runtime;
 mod parse_error;
@@ -5182,7 +5183,30 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     continuation,
                 );
             }
+            // Rolling Zantufa's NUhI-less termset owns no token of its own -- its GEK and its
+            // first GIK are the shapes every other forethought connection spells, and its GIhI is
+            // elidable -- so the arm is diagnosed post-parse here, anchored at the GEK that opens
+            // it. Branches beyond the first keep the in-parser n-ary warning on their own GI.
+            generated::generated_model::NodeRef::ZantufaGekTermsetSyntax(termset) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaGekTermset,
+                    termset,
+                );
+            }
             generated::generated_model::NodeRef::ConnectedLinkedTermContinuationSyntax(
+                continuation,
+            ) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalTermLooseConnection,
+                    continuation,
+                );
+            }
+            // The normal-flavour (D4) loose tier is the same extension one ladder over: it is
+            // sourced by camxes-exp's `term_1` and rolling Zantufa's `term` and by nothing in
+            // camxes-standard, which has no term-level connective at any position. Its
+            // continuations own no token of their own for the same reason the sibling tiers'
+            // do not, so it is diagnosed here under the same category.
+            generated::generated_model::NodeRef::ConnectedNormalTermContinuationSyntax(
                 continuation,
             ) => {
                 self.warn_first_token(
@@ -7820,9 +7844,12 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn gates_zantufa_nary_forethought_termset_branches() {
+    fn gates_zantufa_gek_termset_arm() {
         run_on_normal_stack(|| {
-            let source = "nu'i ge mi gi do gi ti";
+            // The operand runs are unbalanced, so the sourced NUhI-less `gek_termset` -- which
+            // pairs one term per position -- cannot take this surface and neither can the
+            // NUhI-mandatory arm. Only rolling Zantufa's `gek_term` admits it.
+            let source = "ge mi ko'a gi do klama";
             let words = segment_words_with_modifiers(source).expect("valid morphology");
 
             assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
@@ -7833,10 +7860,10 @@ mod tests {
             let parsed = parse_source(source, &options);
             let debug_tree = format!("{:?}", parsed.parse_tree);
 
-            assert!(debug_tree.contains("ForethoughtTermset"));
+            assert!(debug_tree.contains("ZantufaGekTermset"), "{debug_tree}");
             assert!(has_warning_kind(
                 &parsed,
-                ExperimentalConstruct::ExperimentalZantufaNaryForethought
+                ExperimentalConstruct::ExperimentalZantufaGekTermset
             ));
         });
     }
@@ -7844,21 +7871,57 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_zantufa_nary_forethought_termset_option_grid() {
+    fn gates_zantufa_gek_termset_arm_on_connectives_not_terms() {
+        run_on_normal_stack(|| {
+            let source = "ge mi ko'a gi do klama";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            let dialect =
+                parse_dialect_definition("(+ZANTUFA-TERMS)").expect("valid dialect definition");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+
+            assert!(parse_syntax_tree(&words, &options).is_err());
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_unsourced_nuhi_termset_widenings() {
+        run_on_normal_stack(|| {
+            // Both widenings the optional-NUhI termset node used to carry. Neither camxes parser
+            // nor rolling Zantufa accepts either surface, and rolling Zantufa has no NUhI or NUhU
+            // selma'o at all, so enabling its arm does not restore them.
+            for source in ["ge mi nu'u gi do klama", "nu'i ge mi gi do gi ti klama"] {
+                let words = segment_words_with_modifiers(source).expect("valid morphology");
+                assert!(
+                    parse_syntax_tree(&words, &ParseOptions::default()).is_err(),
+                    "{source}"
+                );
+
+                let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
+                    .expect("valid dialect definition");
+                let options = ParseOptions::default().with_dialect_definition(&dialect);
+                assert!(parse_syntax_tree(&words, &options).is_err(), "{source}");
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn parses_zantufa_gek_termset_option_grid() {
         run_on_normal_stack(|| {
             let dialect = parse_dialect_definition("(+ZANTUFA-CONNECTIVES)")
                 .expect("valid dialect definition");
             let options = ParseOptions::default().with_dialect_definition(&dialect);
 
+            // Every row keeps the leading run unbalanced so the sourced `gek_termset` cannot
+            // claim it; what varies is the branch count and the GIhI terminator.
             for (source, extra_branch_count, has_gihi) in [
-                ("nu'i ge mi gi do", 0, false),
-                ("nu'i ge mi gi do gi ti", 1, false),
-                ("nu'i ge mi nu'u gi do nu'u gi ti nu'u", 1, false),
-                (
-                    "nu'i ge mi nu'u gi do nu'u gi ti nu'u gi ta nu'u gi'i",
-                    2,
-                    true,
-                ),
+                ("ge mi ko'a gi do klama", 0, false),
+                ("ge mi ko'a gi do gi ti klama", 1, false),
+                ("ge mi ko'a gi do gi ti gi'i klama", 1, true),
+                ("ge mi ko'a gi do gi ti gi ta gi'i klama", 2, true),
             ] {
                 let parsed = parse_source(source, &options);
                 assert_eq!(

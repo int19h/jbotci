@@ -1621,12 +1621,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "tagged sumti",
-        parent: Some("sumti association phrase"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "descriptor connective",
         parent: Some("description"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -3072,6 +3066,7 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaCmavo,
     ExperimentalZantufaForethoughtGihi,
     ExperimentalZantufaNaryForethought,
+    ExperimentalZantufaGekTermset,
     ExperimentalZantufaGek,
     ExperimentalZantufaPoihaBrigahi,
     ExperimentalZantufaJaiTagTerm,
@@ -3214,6 +3209,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaNaryForethought => {
                 "syntax.warning.experimental-zantufa-nary-forethought"
             }
+            Self::ExperimentalZantufaGekTermset => {
+                "syntax.warning.experimental-zantufa-gek-termset"
+            }
             Self::ExperimentalZantufaGek => "syntax.warning.experimental-zantufa-gek",
             Self::ExperimentalZantufaPoihaBrigahi => {
                 "syntax.warning.experimental-zantufa-poiha-brigahi"
@@ -3354,6 +3352,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaCmavo => "Zantufa experimental cmavo classification",
             Self::ExperimentalZantufaForethoughtGihi => "Zantufa GIhI forethought-chain terminator",
             Self::ExperimentalZantufaNaryForethought => "Zantufa n-ary forethought branch",
+            Self::ExperimentalZantufaGekTermset => "Zantufa NUhI-less GEK term-sequence termset",
             Self::ExperimentalZantufaGek => "Zantufa connective form",
             Self::ExperimentalZantufaPoihaBrigahi => {
                 "Zantufa POIhA briga'i term with KU terminator"

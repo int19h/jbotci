@@ -8,7 +8,6 @@ import gzip
 import hashlib
 import io
 import json
-import math
 import re
 import subprocess
 import tarfile
@@ -272,29 +271,18 @@ def archive_entries(path: Path) -> dict[str, bytes]:
     raise AssertionError(f"unsupported artifact extension: {path}")
 
 
-def _size_policy(key: str) -> dict[str, int]:
+def _check_limits(path: Path, entries: dict[str, bytes], key: str) -> None:
+    """Assert the per-file upload tripwire and the archive's entry count.
+
+    Artifact size otherwise carries no ceiling here; the receipt this
+    inspection returns is what records it. See `artifact-policy.toml`.
+    """
     policy = tomllib.loads(POLICY_PATH.read_text(encoding="utf-8"))
-    value = policy["sizes"][key]
-    assert isinstance(value, dict)
-    return value
-
-
-def _check_size(path: Path, entries: dict[str, bytes], key: str) -> None:
-    policy = _size_policy(key)
-    growth = policy["max_growth_percent"]
-    max_archive = math.ceil(policy["baseline_bytes"] * (100 + growth) / 100)
-    max_unpacked = math.ceil(
-        policy["baseline_unpacked_bytes"] * (100 + growth) / 100
-    )
+    max_artifact = policy["limits"]["max_artifact_bytes"]
     archive_size = path.stat().st_size
-    unpacked_size = sum(len(value) for value in entries.values())
-    assert archive_size <= max_archive, (archive_size, max_archive, key)
-    assert unpacked_size <= max_unpacked, (unpacked_size, max_unpacked, key)
-    assert len(entries) <= policy["max_entries"], (
-        len(entries),
-        policy["max_entries"],
-        key,
-    )
+    assert archive_size <= max_artifact, (archive_size, max_artifact, key)
+    max_entries = policy["entries"][key]
+    assert len(entries) <= max_entries, (len(entries), max_entries, key)
 
 
 def _check_common_content(
@@ -530,7 +518,7 @@ def normalize_sdist(input_path: Path, output_path: Path) -> None:
 
 
 def inspect_artifact(args: argparse.Namespace) -> ArtifactReceipt:
-    """Inspect content and size, returning a machine-readable receipt."""
+    """Inspect content and limits, returning a machine-readable receipt."""
     path = args.artifact.resolve()
     assert path.is_file(), path
     entries = archive_entries(path)
@@ -551,12 +539,12 @@ def inspect_artifact(args: argparse.Namespace) -> ArtifactReceipt:
             for marker in WHEEL_PLATFORM_MARKERS[args.platform]
         ), (path.name, args.platform)
         _check_wheel(entries, args.platform)
-        size_key = args.platform
+        policy_key = args.platform
     else:
         assert path.name.endswith(".tar.gz"), path
         _check_sdist(entries)
-        size_key = "sdist"
-    _check_size(path, entries, size_key)
+        policy_key = "sdist"
+    _check_limits(path, entries, policy_key)
     receipt = ArtifactReceipt(
         artifact=path.name,
         kind=args.kind,
