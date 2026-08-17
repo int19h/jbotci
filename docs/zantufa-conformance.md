@@ -38,7 +38,10 @@ constructs may emit their own construct-specific warning as well.
 | `gek_term <- gek term+ (gik term+)+ GIhI?` | `ZantufaTerms`, `ZantufaConnectives` | `feature-required` for extra branches and `GIhI` | Accepted through `forethought_termset` | Logical n-ary forms lower by folding termset branch formulas; modal, nonlogical, and `FAhU` n-ary cases diagnose explicitly |
 | `term_2 <- XOI statement SEhU?` and `FIhOI statement` | `ZantufaAdverbials` | `default-warning` | Accepted with full generated `statement` payloads | Statement payloads are visited and bound like ordinary nested statements |
 | `brigahi <- POIhA free* selbri KU? / NA ... KU?` | `ZantufaTerms`, `ZantufaAdverbials` | `default-warning` where distinguishable | POIhA/NOIhA and NA briga'i forms are accepted by the generated term grammar | POIhA/NOIhA lower through existing relation/adverbial paths; unsupported NA briga'i semantics diagnose explicitly |
-| `tag_term` with `tag`, `FA (joik FA)*`, and `JAI tag?` | `ZantufaTags` | `feature-required` for conflicting tag behavior | Accepted under `ZantufaTags` | Tag terms feed existing tagged-term semantics where the tag has a semantic modal target |
+| `tag_term` with `tag`, `FA (joik FA)*`, and `JAI tag?` | `ZantufaTags` | `feature-required` for conflicting tag behavior | Accepted under `ZantufaTags`, including the JOIK-chained place tag and the `(sumti / KU_elidible)` payload in both halves, with `!tanru_unit_1` asserted structurally so `jai broda` and `fa je fe broda` stay selbri | Tag terms feed existing tagged-term semantics where the tag has a semantic modal target; the JOIK-chained place tag names several places at once and diagnoses explicitly |
+| `term_1 <- term_2 (joik_ek? BO_clause term_2)*`, connective ABSENT | `ZantufaTerms` | `feature-required` | Accepted under `ZantufaTerms` as a continuation of the sourced BO connection, so one node may mix connectorless and connective-present joints as upstream does; the connective-present stag-less form stays the sourced camxes-exp arm's | Term-level BO connections reuse the existing term-grouping traversal, which does not read the connective |
+| `sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)*`, connective ABSENT | `ZantufaTerms` | `feature-required` | Accepted under `ZantufaTerms` at the BASELINE BO-precedence level, tag optional | No source says what a connective-less sumti connection means, so the referent builder diagnoses it explicitly rather than reading it as any particular connective |
+| `BO <- ce'e / bo` | — | documented gap | `ko'a ce'e ko'e broda` keeps the baseline CEhE termset group in every configuration, including `(zantufa)` | Baseline termset semantics; the Zantufa BO-connection reading is a fidelity-flag candidate, recorded and not minted |
 | `tag <- tcita_selci+ (joik tcita_selci+)*`, recursive `tcita_selci` | `ZantufaTags` | `feature-required` | Accepted by v1 connected tag grammar plus Zantufa recursive prefix atoms | Existing modal/tense semantics are reused; unsupported compound tags diagnose explicitly |
 | `relative_clause <- NOI statement KUhO?` | `ZantufaTerms` | `feature-required` | Accepted under `ZantufaTerms`; default keeps ordinary bridi relatives because an elided baseline `KUhO` can otherwise take the same prefix | Statement restrictions lower through the generated relative-clause builder; `ke'a` handling is preserved |
 | `LOhOI (joik LOhOI)* statement KUhAU?` | `ZantufaQuotes` | `default-warning` | Accepted by default for bridi-description sumti | Semantic lowering uses existing description/referent machinery where available |
@@ -66,7 +69,14 @@ The fixture currently covers:
 - n-ary forethought statement connectives with `gi'i`;
 - statement abstractions;
 - raw mex quantifiers with trailing operators and `MAI` free modifiers;
-- feature-gated `XI` plus operator-first raw mex in a statement.
+- feature-gated `XI` plus operator-first raw mex in a statement;
+- the connectorless BO joints at the term and sumti tiers, including the
+  tag-bearing one;
+- the JAI term with an explicit KU, and the JAI selbri that the `!tanru_unit_1`
+  guard keeps a selbri;
+- the JOIK-chained place tag;
+- `ce'e`, which upstream reads as a BO connection and v1 keeps as a CEhE termset
+  group.
 
 ## Semantic Boundary
 
