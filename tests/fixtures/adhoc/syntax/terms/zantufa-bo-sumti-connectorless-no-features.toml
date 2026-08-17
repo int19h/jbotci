@@ -1,0 +1,13 @@
+id = "adhoc.syntax.terms.zantufa-bo-sumti-connectorless-no-features"
+lojban = "ko'a bo ko'e broda"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-827", "term-hierarchy-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6c #827 Zantufa term binding witness"
+description = "Configuration row 2 of the six at the sumti tier: an explicitly empty dialect behaves exactly as the omitted one."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [5, 7], source-text = "bo", message = "unexpected cmavo" }]

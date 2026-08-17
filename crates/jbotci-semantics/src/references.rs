@@ -19,7 +19,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::generated_term_view::{
-    GeneratedAssociationPayloadRef, GeneratedLinkedSumtiRef, GeneratedSimpleTermRef,
+    GeneratedAssociationPayloadRef, GeneratedBoundSumtiTailRef, GeneratedLinkedSumtiRef,
+    GeneratedSimpleTermRef, bound_term_continuation_operand,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -2662,7 +2663,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             self.assign_simple_term(
                 cursors,
                 outer_term,
-                GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
+                GeneratedSimpleTermRef::from_simple(bound_term_continuation_operand(continuation)),
                 AssignmentSource::TermsetBranch,
             );
         }
@@ -2721,13 +2722,24 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 if let Some(tense_modal) = term.tag.as_deref() {
                     self.walk_node(tense_modal);
                 }
-                self.assign_argument_to_cursors(
-                    cursors,
-                    outer_term,
-                    &term.sumti,
-                    Some(fai_slot()),
-                    AssignmentSource::FaTerm,
-                );
+                // The payload may be an explicit or elided KU rather than an overt sumti
+                // (zantufa-1.9999.peg:31); there is no argument to assign in that case.
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.assign_argument_to_cursors(
+                        cursors,
+                        outer_term,
+                        sumti,
+                        Some(fai_slot()),
+                        AssignmentSource::FaTerm,
+                    );
+                }
+            }
+            GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(term) => {
+                // A JOIK-chained place tag names several places at once, which no lowering
+                // reads yet; the payload is still walked so its own references are recorded.
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.walk_node(sumti);
+                }
             }
             GeneratedSimpleTermRef::NuhiTermset(term) => {
                 for term in &term.termset {
@@ -3460,6 +3472,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(term) => {
                 self.walk_node(&term.tense_modal);
+                self.walk_node(&term.sumti);
+            }
+            GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(term) => {
                 self.walk_node(&term.sumti);
             }
             GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
@@ -5618,10 +5633,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) -> bool {
         let handled = self.visit_sumti_forethought(argument_id, &sumti.leading_sumti);
         if let Some(tail) = sumti.bound_tail.as_ref() {
-            if let Some(tense_modal) = tail.tense_modal.as_deref() {
+            let tail = GeneratedBoundSumtiTailRef::from_tail(tail);
+            if let Some(tense_modal) = tail.tense_modal {
                 self.walk_node(tense_modal);
             }
-            self.visit_sumti_bound(argument_id, &tail.trailing_sumti);
+            self.visit_sumti_bound(argument_id, tail.trailing_sumti);
             return false;
         }
         handled
@@ -7112,7 +7128,14 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 if let Some(tense_modal) = term.tag.as_deref() {
                     self.walk_node(tense_modal);
                 }
-                self.visit_argument(&term.sumti);
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.visit_argument(sumti);
+                }
+            }
+            GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(term) => {
+                if let generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) = term.sumti.as_ref() {
+                    self.visit_argument(sumti);
+                }
             }
             // The operand tree is walked directly rather than through the whole termset node, so
             // the opening forethought connective is skipped exactly as it is for the NUhI-present
@@ -7965,7 +7988,7 @@ fn advance_cursor_for_generated_stag_bound_term_shape(
     for continuation in &connection.continuations {
         advance_cursor_for_generated_simple_term_shape(
             cursor,
-            GeneratedSimpleTermRef::from_simple(&continuation.trailing_term),
+            GeneratedSimpleTermRef::from_simple(bound_term_continuation_operand(continuation)),
         );
     }
 }

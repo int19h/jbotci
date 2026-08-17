@@ -1,26 +1,48 @@
 #!/usr/bin/env python3
 """Fail-closed classifier for the epoch-6 term-hierarchy expectation regeneration.
 
-EPOCH 6b RE-BASELINE.  The baseline archive moved from the epoch-6a C1-C6 tip to the
-epoch-6a MERGE (`ARCHIVE_COMMIT`), which is epoch 6b's implementation base, so the four
-epoch-6a classes below are already applied in the baseline and must now classify nothing at
-all; they stay in place because a nonzero incidence would mean the baseline is not the tree
-it claims to be.  6b contributes one class of its own, `goi-payload-retyping`, and one new
-population: fixtures this epoch ADDED, which have no baseline entry to compare against and
-are therefore listed and pinned by count rather than classified.
+EPOCH 6c RE-BASELINE.  The baseline archive is `ARCHIVE_COMMIT`, the epoch-6b merge and this
+epoch's own implementation base, so every class earlier epochs contributed is already applied
+in the baseline and must now classify nothing at all; they stay in place because a nonzero
+incidence would mean the baseline is not the tree it claims to be.  6c contributes two classes
+of its own, `bo-joint-sum-wrapper` and `jai-payload-widening`, and one population that is
+listed rather than classified: fixtures this epoch ADDED, which have no baseline entry to
+compare against.
 
 Usage (from the repository root, after the consolidated `fixture-rewrite` passes):
 
     python3 tools/compare-term-hierarchy-expectations.py tests/fixtures \\
-        --baseline-root /build/jbotci/scratch/06b-c7/baseline-fixtures
+        --baseline-root /build/jbotci/scratch/06c/baseline-fixtures
 
-`--baseline-root` is an archive of `tests/fixtures` taken *before* the rewrite; the
-positional argument is the rewritten tree.  The classifier reads the *old* Rust-Debug tree
-and rewrites it with exactly the mechanical shapes the epoch plan approves.  The rewritten
-old tree must then equal the new tree byte for byte; anything else is emitted as manual
-residue for an individual ledger disposition.  Nothing is inferred from the new tree, from
-fixture text, or from a span-only comparison, so an ownership change can never be laundered
-as a re-leveling.
+`--baseline-root` is an archive of `tests/fixtures` taken *before* the rewrite; the positional
+argument is the rewritten tree.  The classifier reads the *old* Rust-Debug tree and rewrites it
+with exactly the mechanical shapes the epoch plan approves.  The rewritten old tree must then
+equal the new tree byte for byte; anything else is emitted as manual residue for an individual
+ledger disposition.  Nothing is inferred from the new tree, from fixture text, or from a
+span-only comparison, so an ownership change can never be laundered as a re-typing.
+
+Class `bo-joint-sum-wrapper` (#827) — the BO joints that became sums
+    Rolling Zantufa admits a BO joint with no connective at all, which no sourced grammar does,
+    so the joint positions that used to hold a single product now hold a two-arm sum: the
+    sourced arm and the Zantufa connectorless one.  Three positions move, and the rewrite at
+    each is the same one-to-one wrap with the payload carried across verbatim:
+
+    * `SumtiBoundSyntax.bound_tail`: `BoundSumtiTailSyntax` gains the `BoundSumtiTail` wrapper.
+    * `StagBoundTermConnectionSyntax.continuations`: `StagBoundTermContinuationSyntax` gains
+      the `StagBoundTermContinuation` wrapper.
+    * `BoundNormalTermConnectionSyntax.continuations`: `BoundNormalTermContinuationSyntax`
+      gains the `BoundNormalTermContinuation` wrapper.
+
+    The class is fail-closed on both sides: the old value must be exactly the sourced product
+    with its own field names, and the payload must survive the wrap field for field.  A
+    Zantufa arm can never appear on the old side -- the baseline grammar has no such node --
+    so an old value that is already wrapped, or wrapped in the Zantufa arm, is residue.
+
+Class `jai-payload-widening` (#827) — the JAI term payload
+    The Zantufa JAI term's payload became the shared `(sumti / KU_elidible)` node every other
+    tag-led term takes, so an overt sumti payload gains the `Sumti` arm wrapper.  The elided
+    and explicit-KU payloads are new surfaces with no baseline entry, so only the overt arm can
+    appear on the old side; anything else at that position is residue.
 
 Class (i) `flat-sum-wrapper` — the wrapper paths of the five former `term` sum siblings
     The old flat `term` sum was `pehe_termset_connection / bound_term_connection /
@@ -73,29 +95,6 @@ Class (ii) `pehe-cehe-retyping` — PEhE and CEhE operand re-typing
 Class (iii) from the plan, sumti-term pass-through, is PROHIBITED and deliberately not
 implemented: it would accept ownership changes at identical spans.
 
-Class `goi-payload-retyping` (#794) — the GOI payload node replaced by the shared constituent
-    The payload of `sumti_association_relative_clause` moved from the three-arm
-    `relative_sumti` node to the shared normal-flavour term constituent, because that is what
-    all three profiles spell there.  Each of the three retired arms is the same *content* as
-    a leaf of the shared inventory under a different product name, so the rewrite is a
-    one-to-one rename with the payload carried across:
-
-    * `plain_relative_sumti` -> `sumti_term`: both are transparent one-field wrappers over
-      the same `sumti`, so the payload is carried verbatim.
-    * `na_ku_relative_sumti` -> `na_ku_term`: the same two token values, with the second
-      field named `na_ku` rather than `ku`.
-    * `tense_tagged_relative_sumti` -> `nonabs_tagged_sumti_term`: the same `sumti`, with the
-      term flavour's `LeadingTermTagTenseModal` wrapper added around the tense modal.  Only
-      the exact `TenseModal(..)` fallback wrapper is mechanical; where the leading-term tag
-      split selects a DIFFERENT arm the tag itself was re-read, which is residue.
-
-    The mapping is exhaustive and closed: `place_tagged_sumti_term` is deliberately not in
-    it, because a FA payload changes ARM rather than name -- camxes-standard gives FA its own
-    `term` alternative, which the narrow node had no counterpart for -- and also drops the
-    epoch-5 FA-as-tag warning, so every FA payload is manual residue.  Anything else at the
-    position, including any leaf of the widened inventory that the old node could not spell,
-    diverges and is residue.
-
 Class (iv) `t3-loose-connection-warning` — the T3 construct warning
     The loose (T3) tier is a diagnosed extension, so every loose continuation now carries
     `syntax.warning.experimental-term-loose-connection` anchored on its connective token.
@@ -133,8 +132,8 @@ ownership change can survive the comparison; excluding them would move 1,769 pre
 fixtures into hand-written residue rows without adding any safety.  The VUhO attachment is
 excluded because that *is* a term-versus-sumti ownership surface (epoch-4 residual, D6).
 
-The baseline archive is exactly `git archive 3c3b84a5ba tests/fixtures` (`ARCHIVE_COMMIT`),
-the fixture tree at the epoch-6a merge, so it is reproducible rather than hand-assembled.
+The baseline archive is exactly `git archive 2397912147 tests/fixtures` (`ARCHIVE_COMMIT`),
+the fixture tree at the epoch-6b merge, so it is reproducible rather than hand-assembled.
 Every candidate fixture must therefore have a baseline entry and every baseline entry must
 have a candidate: an unpaired fixture on either side is a hard error, never a skip.  The one
 exception is a fixture this epoch ADDED, which is identified from
@@ -148,6 +147,14 @@ The one value the classifier does not compare exactly is the `description` prose
 the entries must correspond one for one and agree on every other key -- and a fixture whose
 prose moved is listed in the report with its number pinned like the mechanical classes, so an
 unreviewed prose edit still fails the run.
+
+Epoch-new witnesses are not classified, so the only thing standing behind them is what they
+pin.  A witness that omits `expectations.syntax.diagnostics` pins its tree and leaves its
+warning stream unspecified, which is how a construct can quietly stop warning -- or start --
+without any expectation moving.  Every epoch-new witness must therefore carry the key, empty
+where the expectation is silence, and one that does not is a hard error rather than a count.
+The check is on the key's presence, not its contents: what the warnings ARE is the writer's
+output and the reviewer's artifact, and only their absence from the fixture is mechanical.
 """
 
 from __future__ import annotations
@@ -164,11 +171,13 @@ import threading
 import tomllib
 from typing import Any, Iterator
 
-EPOCH_BASE = "3c3b84a5ba"
+EPOCH_BASE = "2397912147"
 # The commit whose `tests/fixtures` tree the baseline archive reproduces byte for byte.
-# Epoch 6b re-baselines to its own implementation base, the epoch-6a merge, so the four
-# epoch-6a classes below are already applied in the baseline and must now find nothing.
-ARCHIVE_COMMIT = "3c3b84a5ba"
+# Epoch 6c re-baselines to its own implementation base, the epoch-6b merge, so every class
+# earlier epochs contributed is already applied in the baseline and must now find nothing;
+# they stay wired in because a nonzero incidence would mean the archive is not the tree it
+# claims to be.
+ARCHIVE_COMMIT = "2397912147"
 
 
 @dataclass(frozen=True)
@@ -293,15 +302,16 @@ class DebugParser:
 # --- the ladder, transcribed from the grammar ------------------------------------------
 #
 # Every term-family position, with the rule that produced its operand in the baseline
-# archive (`ARCHIVE_COMMIT`, the epoch-6a merge) and the ladder level that produces it now.
+# archive (`ARCHIVE_COMMIT`, the epoch-6b merge) and the ladder level that produces it now.
 # The 25 consumer sites keep their arity and their level name, so they are listed by the
 # field that holds the term.  Any term-family node that turns up at a position missing from
 # this table is residue.
 #
-# Because the archive is the 6a merge rather than the pre-6a base, 6a's own re-levelings are
-# already applied on BOTH sides: the PEhE operand reads `cehe_term` and the TermsetGroup
-# operands `loose_term`/`nonabs_term` in the baseline too.  The only position whose level
-# actually moves in this epoch is the GOI payload.
+# Because the archive is the 6b merge rather than an earlier base, every re-leveling 6a and 6b
+# performed is already applied on BOTH sides: the PEhE operand reads `cehe_term`, the
+# TermsetGroup operands `loose_term`/`nonabs_term` and the GOI payload `normal_term` in the
+# baseline too.  No position's level moves in this epoch; what moves is the shape at three BO
+# joints and one payload, which the sum-wrapper table below carries.
 
 CONSUMER_POSITIONS: tuple[tuple[str, str], ...] = (
     ("ZantufaIauStatementTermsTailSyntax", "terms"),
@@ -348,13 +358,40 @@ POSITIONS.update(
         ("ConnectedTermContinuationSyntax", "trailing_term"): ("bound_term", "bound_term"),
         ("StagBoundTermConnectionSyntax", "leading_term"): ("simple_term", "simple_term"),
         ("StagBoundTermContinuationSyntax", "trailing_term"): ("simple_term", "simple_term"),
-        # #794: the GOI payload node is replaced by the shared normal-flavour constituent.
-        ("SumtiAssociationRelativeClauseSyntax", "sumti"): ("relative_sumti", "normal_term"),
+        # #794's shared normal-flavour payload constituent, in the baseline since epoch 6b.
+        ("SumtiAssociationRelativeClauseSyntax", "sumti"): ("normal_term", "normal_term"),
         # The #796 route, deleted by this epoch; it can only appear on the old side.
         ("BoundTermConnectionSyntax", "leading_term"): ("simple_term", "<deleted>"),
         ("BoundTermConnectionSyntax", "trailing_term"): ("simple_term", "<deleted>"),
     }
 )
+
+# Epoch 6c: the positions whose single product became a two-arm sum, and the wrap each one
+# takes.  `(parent Debug struct, field) -> (sum arm, sourced product, class)`.  Every one of
+# these is a pure wrap: the sourced product keeps its own name and every field it had, and the
+# Zantufa arm that shares the sum with it has no baseline counterpart at all.
+SUM_WRAPPER_POSITIONS: dict[tuple[str, str], tuple[str, str, str]] = {
+    ("SumtiBoundSyntax", "bound_tail"): (
+        "BoundSumtiTail",
+        "BoundSumtiTailSyntax",
+        "bo-joint-sum-wrapper",
+    ),
+    ("StagBoundTermConnectionSyntax", "continuations"): (
+        "StagBoundTermContinuation",
+        "StagBoundTermContinuationSyntax",
+        "bo-joint-sum-wrapper",
+    ),
+    ("BoundNormalTermConnectionSyntax", "continuations"): (
+        "BoundNormalTermContinuation",
+        "BoundNormalTermContinuationSyntax",
+        "bo-joint-sum-wrapper",
+    ),
+    ("JaiTaggedSumtiTermSyntax", "sumti"): (
+        "Sumti",
+        "SumtiSyntax",
+        "jai-payload-widening",
+    ),
+}
 
 ATOM_LEAVES = frozenset(
     {
@@ -370,6 +407,7 @@ ATOM_LEAVES = frozenset(
         "NaKuTerm",
         "SumtiTerm",
         "BareNaTerm",
+        "ZantufaJoikChainedPlaceTagTerm",
         "ForethoughtTermset",
         "NuhiTermset",
         "KeTermset",
@@ -390,82 +428,75 @@ TERM_CONNECTION_NAMES = frozenset(
     }
 )
 
-# The three arms of the retired `relative_sumti` GOI payload node, and the leaves the shared
-# normal-flavour constituent that replaced it admits (#794).  Only the three arms are a
-# mechanical re-typing; every other member of the new inventory is a surface that did not
-# parse in the payload position before, so it can never appear on the old side.
-RELATIVE_SUMTI_ARMS = frozenset(
-    {"PlainRelativeSumti", "TenseTaggedRelativeSumti", "NaKuRelativeSumti"}
-)
+# The leaves epoch 6b added -- D3's sourced NUhI-less `gek_termset` and its
+# `ZantufaConnectives`-gated companion -- are in the baseline now.  This epoch adds exactly one
+# leaf to every term level: the `ZANTUFA-TAGS`-gated JOIK-chained place tag (D5-3).  Transcribed
+# from the `rule "term" ... -> enum` arm lists of `crates/jbotci-syntax/src/grammar/generated.rs`
+# and diffed arm-for-arm against the same lists at `ARCHIVE_COMMIT`: across all nine levels this
+# one name is the ONLY difference, which is what lets the old inventory below be written as the
+# new one minus it rather than transcribed twice.
+EPOCH_LEAF_DELTA = frozenset({"ZantufaJoikChainedPlaceTagTerm"})
 
-# The two leaves epoch 6b adds to every pre-existing term level: D3's sourced NUhI-less
-# `gek_termset` and its `ZantufaConnectives`-gated companion.  Transcribed from the `rule
-# "term" …-> enum` arm lists of `crates/jbotci-syntax/src/grammar/generated.rs`, and diffed
-# arm-for-arm against the same lists at `ARCHIVE_COMMIT`: across `term`, `cehe_term`,
-# `loose_term`, `nonabs_term`, `bound_term` and `simple_term` these two names are the ONLY
-# difference between the baseline grammar and this one, which is what lets the old inventory
-# below be written as the new one minus this pair rather than transcribed twice.
-EPOCH_TERMSET_LEAVES = frozenset({"GekTermset", "ZantufaGekTermset"})
+# The two termset leaves epoch 6b added, kept as a named constant because the levels below are
+# written in terms of the shared atom set and these are not atoms.
+BASELINE_TERMSET_LEAVES = frozenset({"GekTermset", "ZantufaGekTermset"})
 
 NEW_LEVEL_INVENTORY: dict[str, frozenset[str]] = {
     "term": frozenset(
         {"PeheTermsetConnection", "TermsetGroup", "ConnectedTerm", "StagBoundTermConnection"}
         | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
-        | EPOCH_TERMSET_LEAVES
+        | BASELINE_TERMSET_LEAVES
     ),
     "cehe_term": frozenset(
         {"TermsetGroup", "ConnectedTerm", "StagBoundTermConnection"}
         | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
-        | EPOCH_TERMSET_LEAVES
+        | BASELINE_TERMSET_LEAVES
     ),
     "loose_term": frozenset(
         {"ConnectedTerm", "StagBoundTermConnection"}
         | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
-        | EPOCH_TERMSET_LEAVES
+        | BASELINE_TERMSET_LEAVES
     ),
     "nonabs_term": frozenset(
         {"ConnectedTerm", "StagBoundTermConnection"}
         | (ATOM_LEAVES - {"TaggedSumtiTerm"})
-        | EPOCH_TERMSET_LEAVES
+        | BASELINE_TERMSET_LEAVES
     ),
     "bound_term": frozenset(
         {"StagBoundTermConnection"}
         | (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"})
-        | EPOCH_TERMSET_LEAVES
+        | BASELINE_TERMSET_LEAVES
     ),
     "simple_term": frozenset(
-        (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"}) | EPOCH_TERMSET_LEAVES
+        (ATOM_LEAVES - {"NonabsTaggedSumtiTerm"}) | BASELINE_TERMSET_LEAVES
     ),
     "normal_term": frozenset(
         {"ConnectedNormalTerm", "BoundNormalTermConnection"}
         | (ATOM_LEAVES - {"TaggedSumtiTerm"})
-        | EPOCH_TERMSET_LEAVES
+        | BASELINE_TERMSET_LEAVES
+    ),
+    "bound_normal_term": frozenset(
+        {"BoundNormalTermConnection"}
+        | (ATOM_LEAVES - {"TaggedSumtiTerm"})
+        | BASELINE_TERMSET_LEAVES
+    ),
+    "normal_term_atom": frozenset(
+        (ATOM_LEAVES - {"TaggedSumtiTerm"}) | BASELINE_TERMSET_LEAVES
     ),
     "<deleted>": frozenset(),
 }
 
-# The baseline archive is the epoch-6a MERGE, so the OLD side of every comparison is the
-# 6a-composed ladder, not the pre-6a flat `term` sum.  Each level therefore carries its new
-# inventory minus the two leaves D3 adds; `relative_sumti` is the one level 6b retires, and
-# `<deleted>` keeps the #796 route reachable so a stray occurrence still fails closed.
+# The baseline archive is the epoch-6b MERGE, so the OLD side of every comparison is the
+# composed ladder with 6b's own levels already in it -- including `normal_term`, which is why
+# the GOI payload position below now reads the same level on both sides.  Each level therefore
+# carries its new inventory minus this epoch's one added leaf; `<deleted>` keeps the #796 route
+# reachable so a stray occurrence still fails closed.
 OLD_LEVEL_INVENTORY: dict[str, frozenset[str]] = {
-    "relative_sumti": RELATIVE_SUMTI_ARMS,
-    **{
-        level: inventory - EPOCH_TERMSET_LEAVES
-        for level, inventory in NEW_LEVEL_INVENTORY.items()
-        if level not in {"normal_term", "<deleted>"}
-    },
+    level: inventory - EPOCH_LEAF_DELTA
+    for level, inventory in NEW_LEVEL_INVENTORY.items()
+    if level != "<deleted>"
 }
-
-# The exact one-to-one product-name mapping the #794 re-typing is allowed to apply, and
-# nothing else.  `place_tagged_sumti_term` is deliberately absent: a FA payload changes ARM
-# rather than name -- camxes-standard gives FA its own `term` alternative, which the narrow
-# node had no counterpart for -- and it also drops a warning, so every FA payload is manual.
-GOI_RETYPING: dict[str, tuple[str, str]] = {
-    "PlainRelativeSumti": ("SumtiTerm", "SumtiTermSyntax"),
-    "NaKuRelativeSumti": ("NaKuTerm", "NaKuTermSyntax"),
-    "TenseTaggedRelativeSumti": ("NonabsTaggedSumtiTerm", "NonabsTaggedSumtiTermSyntax"),
-}
+OLD_LEVEL_INVENTORY["<deleted>"] = frozenset()
 
 # The #791 tripwire node types (Kimi R3).  A diff that touches one of them is never
 # mechanical: the epoch plan requires stopping and fixing the grammar rather than the
@@ -475,42 +506,42 @@ TRIPWIRE_NAMES = frozenset({"ConnectedTerm", "ConnectedLinkedTerm", "LinkedSumti
 
 PEHE_CONNECTIVE_NAMES = frozenset({"JoikConnective", "JekConnective"})
 
-# The reviewed C7 result.  A re-run against the same archive must reproduce it exactly;
-# `--expect-changed`/`--expect-manual` override the pins for an exploratory run.
-EXPECTED_CHANGED = 665
-# The four epoch-6a classes are already applied in the re-baselined archive, so each must now
-# find exactly nothing; they stay wired in because a nonzero incidence would mean the archive
-# is not the tree it claims to be.  `goi-payload-retyping` is this epoch's only mechanical
-# class and carries 644 of the 646 baseline files holding a `SumtiAssociationRelativeClause`
-# expectation -- the two it does not carry, `cll/chrestomathy/forest-nymph` and
-# `corpus/alis/full-alice`, are manual residue for a co-occurring `ForethoughtTermset` change.
+# The reviewed regeneration result.  A re-run against the same archive must reproduce it
+# exactly; `--expect-changed`/`--expect-manual` override the pins for an exploratory run.
+# 44 pre-epoch fixtures move: the 42 that carry one of the re-typed joints and the two xfail
+# fixtures whose recovered trees carry one, spliced rather than rewritten.
+EXPECTED_CHANGED = 44
+# Every class earlier epochs contributed is already applied in the re-baselined archive, so
+# each must now find exactly nothing; they stay wired in because a nonzero incidence would mean
+# the archive is not the tree it claims to be.  This epoch's two classes carry all 44: the BO
+# joints that became sums, and the one fixture holding a JAI term whose payload widened.
 EXPECTED_MECHANICAL = {
+    "bo-joint-sum-wrapper": 43,
+    "jai-payload-widening": 1,
     "flat-sum-wrapper": 0,
-    "goi-payload-retyping": 644,
+    "goi-payload-retyping": 0,
     "pehe-cehe-retyping": 0,
     "stagless-bo-route-rejection": 0,
     "t3-loose-connection-warning": 0,
 }
-# Individually reviewed in the epoch ledger's C7 section: 10 `ForethoughtTermsetSyntax` field
-# reshapes and 3 `ForethoughtTermset` -> `GekTermset` moves from the D3 split, plus 8 fixtures
-# whose rejection diagnostics moved under the D4 payload widening (one of which is the
-# retiring `corpus/camxes/16937` xfail).
-EXPECTED_MANUAL = 21
-# Prose-only provenance edits.  The T3 ruling reversal that produced epoch 6a's two is in the
-# baseline now, and this epoch edits no provenance prose of its own.
+# No fixture needed an individual disposition: every pre-epoch move is one of the two wraps.
+EXPECTED_MANUAL = 0
+# Prose-only provenance edits.  This epoch edits no provenance prose of its own.
 EXPECTED_PROSE = 0
-# Fixtures epoch 6b ADDED after its baseline: D3's termset witnesses and D4's GOI-payload
-# witnesses.  They have no baseline entry, so they are pinned by count rather than classified.
-# Round 2 adds the three that pin the normal-flavour loose tier's construct warning, which the
-# first submission left undiagnosed.
-EXPECTED_NEW_WITNESSES = 33
+# Fixtures this epoch ADDED: the D5 witnesses.  They have no baseline entry, so they are
+# pinned by count rather than classified.
+EXPECTED_NEW_WITNESSES = 38
 
+CLASS_BO_JOINT_SUM_WRAPPER = "bo-joint-sum-wrapper"
+CLASS_JAI_PAYLOAD_WIDENING = "jai-payload-widening"
 CLASS_GOI_PAYLOAD_RETYPING = "goi-payload-retyping"
 CLASS_FLAT_SUM_WRAPPER = "flat-sum-wrapper"
 CLASS_PEHE_CEHE_RETYPING = "pehe-cehe-retyping"
 CLASS_BO_ROUTE_REJECTION = "stagless-bo-route-rejection"
 CLASS_T3_LOOSE_WARNING = "t3-loose-connection-warning"
 MECHANICAL_CLASSES = (
+    CLASS_BO_JOINT_SUM_WRAPPER,
+    CLASS_JAI_PAYLOAD_WIDENING,
     CLASS_GOI_PAYLOAD_RETYPING,
     CLASS_FLAT_SUM_WRAPPER,
     CLASS_PEHE_CEHE_RETYPING,
@@ -640,49 +671,6 @@ def rewrite_term_position(
     if old.name not in OLD_LEVEL_INVENTORY.get(old_level, frozenset()):
         raise Divergence(path, f"{old.name} is not a member of the old {old_level} level")
 
-    # #794: the GOI payload re-typing.  The three arms of the retired `relative_sumti` node
-    # are each the same CONTENT as a leaf of the shared term inventory under a different
-    # product name, so the rewrite is a one-to-one rename with the payload carried across
-    # unchanged -- plus, for the tag-led arm, the term flavour's `LeadingTermTagTenseModal`
-    # wrapper around the tense modal.  Anything the mapping does not name exactly, and any
-    # payload whose fields are not the expected ones, is residue.
-    if old_level == "relative_sumti":
-        if (parent.name, field) != ("SumtiAssociationRelativeClauseSyntax", "sumti"):
-            raise Divergence(path, "GOI payload re-typing outside a sumti-association clause")
-        new_name, new_struct = GOI_RETYPING[old.name]
-        require_new_level_admits(new_name, new_level, path)
-        payload = single_arg(old, old.name)
-        if payload is None or not isinstance(payload, Form):
-            raise Divergence(path, f"{old.name} does not wrap exactly one payload")
-        if payload.name != f"{old.name}Syntax":
-            raise Divergence(path, f"{old.name} payload is {payload.name}")
-        classes.add(CLASS_GOI_PAYLOAD_RETYPING)
-        if old.name == "PlainRelativeSumti":
-            if payload.args is None or len(payload.args) != 1 or payload.fields is not None:
-                raise Divergence(path, "PlainRelativeSumtiSyntax is not a one-field wrapper")
-            return Form(name=new_name, args=(Form(name=new_struct, args=payload.args),))
-        keys = tuple(key for key, _ in payload.fields or ())
-        if old.name == "NaKuRelativeSumti":
-            if keys != ("na", "ku"):
-                raise Divergence(path, f"unexpected NaKuRelativeSumtiSyntax fields {keys}")
-            renamed = tuple(
-                ("na_ku" if key == "ku" else key, value) for key, value in payload.fields or ()
-            )
-            return Form(name=new_name, args=(Form(name=new_struct, fields=renamed),))
-        if keys != ("tense_modal", "sumti"):
-            raise Divergence(path, f"unexpected TenseTaggedRelativeSumtiSyntax fields {keys}")
-        fields = dict(payload.fields or ())
-        wrapped = tuple(
-            (
-                key,
-                Form(name="TenseModal", args=(value,)) if key == "tense_modal" else value,
-            )
-            for key, value in payload.fields or ()
-        )
-        if not isinstance(fields["tense_modal"], Form):
-            raise Divergence(path, "tagged GOI payload has no tense modal node")
-        return Form(name=new_name, args=(Form(name=new_struct, fields=wrapped),))
-
     # Class (i): the degenerate zero-continuation `connected_term` wrapper.
     payload = single_arg(old, "ConnectedTerm")
     if payload is not None:
@@ -743,6 +731,7 @@ def compare_tree(
     classes: set[str],
     path: str = "",
     position: tuple[Form, str, tuple[str, str]] | None = None,
+    list_position: tuple[Form, str] | None = None,
 ) -> None:
     """Structural comparison of the rewritten old tree against the new tree."""
     if position is not None:
@@ -771,12 +760,14 @@ def compare_tree(
             ) == []:
                 raise Divergence(path, "regenerated tree has a zero-continuation ConnectedTerm")
             for (key, old_child), (_, new_child) in zip(old.fields, new.fields or ()):
+                child_path = f"{path}.{key}" if path else key
                 compare_tree(
-                    old_child,
+                    wrap_sum_position(old_child, old, key, child_path, classes),
                     new_child,
                     classes,
-                    f"{path}.{key}" if path else key,
+                    child_path,
                     _position_for(old, key),
+                    (old, key) if (old.name, key) in SUM_WRAPPER_POSITIONS else None,
                 )
         if old.args is not None:
             if len(old.args) != len(new.args or ()):
@@ -791,7 +782,11 @@ def compare_tree(
         if len(old) != len(new):
             raise Divergence(path, f"sequence length {len(old)} became {len(new)}")
         for index, (old_child, new_child) in enumerate(zip(old, new)):
-            compare_tree(old_child, new_child, classes, f"{path}[{index}]", position)
+            element_path = f"{path}[{index}]"
+            if list_position is not None:
+                parent, field = list_position
+                old_child = wrap_sum_position(old_child, parent, field, element_path, classes)
+            compare_tree(old_child, new_child, classes, element_path, position, list_position)
         return
 
     if isinstance(old, tuple) or isinstance(new, tuple):
@@ -810,6 +805,28 @@ def _position_for(parent: Form, field: str) -> tuple[Form, str, tuple[str, str]]
     if levels is None:
         return None
     return parent, field, levels
+
+
+def wrap_sum_position(old: Any, parent: Form, field: str, path: str, classes: set[str]) -> Any:
+    """Apply the epoch-6c sum wrap at one joint position, or leave the value alone.
+
+    The wrap is applied only to the exact sourced product the baseline grammar could produce
+    there; every other value falls through unchanged and is compared structurally, which is
+    what turns an unexpected shape into manual residue instead of a laundered rewrite.
+    """
+    wrap = SUM_WRAPPER_POSITIONS.get((parent.name, field))
+    if wrap is None or not isinstance(old, Form):
+        return old
+    arm, product, class_name = wrap
+    if old.name == "Some":
+        if old.args is None or len(old.args) != 1:
+            return old
+        inner = wrap_sum_position(old.args[0], parent, field, path, classes)
+        return old if inner is old.args[0] else Form(name="Some", args=(inner,))
+    if old.name != product:
+        return old
+    classes.add(class_name)
+    return Form(name=arm, args=(old,))
 
 
 def assert_no_retired_shapes(tree: str, path: str) -> None:
@@ -1045,6 +1062,28 @@ def collect_jobs(
     return jobs, witness_jobs, unpaired, epoch_new
 
 
+def epoch_new_missing_diagnostics(candidate_root: Path, epoch_new: list[str]) -> list[str]:
+    """Epoch-new witnesses that pin no `expectations.syntax.diagnostics` list.
+
+    An epoch-new witness has no baseline entry, so no class checks it and the authored
+    expectation is the whole audit.  Omitting the key leaves the warning stream unpinned,
+    and `fixture-rewrite` fills the list only where the key already exists, so the omission
+    is also self-perpetuating.  A witness with no `expectations.syntax` at all cannot carry
+    the key and is reported for the same reason: the exception has to be argued here rather
+    than fall out of a lookup that quietly finds nothing.
+    """
+    offenders: list[str] = []
+    for repository_path in epoch_new:
+        relative = Path(repository_path).relative_to("tests/fixtures")
+        document = tomllib.loads((candidate_root / relative).read_text(encoding="utf-8"))
+        syntax = document.get("expectations", {}).get("syntax")
+        if syntax is None:
+            offenders.append(f"{repository_path}: no expectations.syntax to pin diagnostics on")
+        elif "diagnostics" not in syntax:
+            offenders.append(f"{repository_path}: expectations.syntax pins no diagnostics list")
+    return sorted(offenders)
+
+
 def run(args: argparse.Namespace) -> int:
     witnesses = set(
         subprocess.run(
@@ -1102,6 +1141,13 @@ def run(args: argparse.Namespace) -> int:
     lines.extend(f"  {path}" for path in sorted(witness_rewarns))
     lines.append(f"epoch-new witnesses (authored, unclassifiable): {len(epoch_new)}")
     lines.extend(f"  {path}" for path in sorted(epoch_new))
+    unpinned_diagnostics = epoch_new_missing_diagnostics(args.candidate, epoch_new)
+    if unpinned_diagnostics:
+        lines.append(
+            "epoch-new witnesses without a diagnostics pin (must be empty): "
+            f"{len(unpinned_diagnostics)}"
+        )
+        lines.extend(f"  {entry}" for entry in unpinned_diagnostics)
     if unpaired:
         lines.append(f"unpaired fixtures (must be empty): {len(unpaired)}")
         lines.extend(f"  {entry}" for entry in sorted(unpaired))
@@ -1126,6 +1172,7 @@ def run(args: argparse.Namespace) -> int:
                     "witness_rewarns": sorted(witness_rewarns),
                     "witness_deltas": sorted(witness_deltas),
                     "epoch_new": sorted(epoch_new),
+                    "epoch_new_missing_diagnostics": unpinned_diagnostics,
                 },
                 indent=2,
                 sort_keys=True,
@@ -1141,6 +1188,12 @@ def run(args: argparse.Namespace) -> int:
         return 1
     if witness_deltas:
         print("error: epoch witnesses may only take the additive T3 warning re-pin")
+        return 1
+    if unpinned_diagnostics:
+        print(
+            "error: every epoch-new witness must pin expectations.syntax.diagnostics, "
+            "empty where the expectation is silence"
+        )
         return 1
     if len(jobs) != args.expect_changed:
         print(f"error: expected {args.expect_changed} changed pre-epoch fixtures")

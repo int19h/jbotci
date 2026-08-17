@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.zantufa-bo-sumti-connectorless-dialect-omitted"
+lojban = "ko'a bo ko'e broda"
+tags = ["adhoc", "syntax", "issue-827", "term-hierarchy-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6c #827 Zantufa term binding witness"
+description = "Configuration row 1 of the six at the sumti tier, and the rejection row: every sourced BO joint requires its connective."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [5, 7], source-text = "bo", message = "unexpected cmavo" }]

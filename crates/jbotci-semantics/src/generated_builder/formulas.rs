@@ -307,7 +307,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         for continuation in &connection.continuations {
             self.collect_generated_term_formula_scopes_for_bridi_term(
-                GeneratedBridiTermRef::Simple(&continuation.trailing_term),
+                GeneratedBridiTermRef::Simple(bound_term_continuation_operand(continuation)),
                 scopes,
             )?;
         }
@@ -347,7 +347,9 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         )?;
         for continuation in &connection.continuations {
             self.collect_generated_term_formula_scopes_for_bridi_term(
-                GeneratedBridiTermRef::NormalAtom(&continuation.trailing_term),
+                GeneratedBridiTermRef::NormalAtom(normal_term_bo_continuation_operand(
+                    continuation,
+                )),
                 scopes,
             )?;
         }

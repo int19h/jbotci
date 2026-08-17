@@ -1860,6 +1860,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing GekTermsetSyntax node",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm",
+        "borrowed leaf validity is owned by the invariant-bearing ZantufaJoikChainedPlaceTagTermSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::JaiTaggedSumtiTerm",
         "borrowed leaf validity is owned by the invariant-bearing JaiTaggedSumtiTermSyntax node",
     ),

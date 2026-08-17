@@ -1,0 +1,12 @@
+id = "adhoc.syntax.terms.zantufa-bo-term-connectorless-dialect-omitted"
+lojban = "pu ko'a bo ca ko'e broda"
+tags = ["adhoc", "syntax", "issue-827", "term-hierarchy-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-6c #827 Zantufa term binding witness"
+description = "Configuration row 1 of the six: with no dialect at all the connectorless BO term joint is not offered. camxes-standard and camxes-exp both require the connective before BO."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [8, 10], source-text = "bo", message = "unexpected cmavo" }]

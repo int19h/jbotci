@@ -2684,6 +2684,20 @@ class TermSyntaxPlaceTaggedSumtiTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class TermSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> TermSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class TermSyntaxJaiTaggedSumtiTerm:
     'Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.'
     __match_args__: ClassVar[tuple[Literal['jai_tagged_sumti_term']]]
@@ -2901,7 +2915,7 @@ class TermSyntaxKeTermset:
 # branch: a nested branch would add a public wrapper variant to Debug and serde output. The
 # binding-schema drift guard keeps every level's leaf inventory synchronized with
 # `simple_term`.
-TermSyntax: TypeAlias = TermSyntaxPeheTermsetConnection | TermSyntaxTermsetGroup | TermSyntaxConnectedTerm | TermSyntaxStagBoundTermConnection | TermSyntaxPlaceTaggedSumtiTerm | TermSyntaxJaiTaggedSumtiTerm | TermSyntaxElidedNaheFihoTagTerm | TermSyntaxTaggedSumtiBeforeTagTerm | TermSyntaxTaggedSumtiTerm | TermSyntaxNoihaAdverbialTerm | TermSyntaxFihoiAdverbialTerm | TermSyntaxSoiAdverbialTerm | TermSyntaxNaKuTerm | TermSyntaxSumtiTerm | TermSyntaxBareNaTerm | TermSyntaxGekTermset | TermSyntaxZantufaGekTermset | TermSyntaxForethoughtTermset | TermSyntaxNuhiTermset | TermSyntaxKeTermset
+TermSyntax: TypeAlias = TermSyntaxPeheTermsetConnection | TermSyntaxTermsetGroup | TermSyntaxConnectedTerm | TermSyntaxStagBoundTermConnection | TermSyntaxPlaceTaggedSumtiTerm | TermSyntaxZantufaJoikChainedPlaceTagTerm | TermSyntaxJaiTaggedSumtiTerm | TermSyntaxElidedNaheFihoTagTerm | TermSyntaxTaggedSumtiBeforeTagTerm | TermSyntaxTaggedSumtiTerm | TermSyntaxNoihaAdverbialTerm | TermSyntaxFihoiAdverbialTerm | TermSyntaxSoiAdverbialTerm | TermSyntaxNaKuTerm | TermSyntaxSumtiTerm | TermSyntaxBareNaTerm | TermSyntaxGekTermset | TermSyntaxZantufaGekTermset | TermSyntaxForethoughtTermset | TermSyntaxNuhiTermset | TermSyntaxKeTermset
 
 @final
 class CeheTermSyntaxTermsetGroup:
@@ -2953,6 +2967,20 @@ class CeheTermSyntaxPlaceTaggedSumtiTerm:
     @property
     def place_tagged_sumti_term(self) -> RecoveredField[PlaceTaggedSumtiTermSyntax]:
         'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class CeheTermSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> CeheTermSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3171,7 +3199,7 @@ class CeheTermSyntaxKeTermset:
 
 # The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
 # (camxes.peg:116). It is the operand level of the PEhE connection above it.
-CeheTermSyntax: TypeAlias = CeheTermSyntaxTermsetGroup | CeheTermSyntaxConnectedTerm | CeheTermSyntaxStagBoundTermConnection | CeheTermSyntaxPlaceTaggedSumtiTerm | CeheTermSyntaxJaiTaggedSumtiTerm | CeheTermSyntaxElidedNaheFihoTagTerm | CeheTermSyntaxTaggedSumtiBeforeTagTerm | CeheTermSyntaxTaggedSumtiTerm | CeheTermSyntaxNoihaAdverbialTerm | CeheTermSyntaxFihoiAdverbialTerm | CeheTermSyntaxSoiAdverbialTerm | CeheTermSyntaxNaKuTerm | CeheTermSyntaxSumtiTerm | CeheTermSyntaxBareNaTerm | CeheTermSyntaxGekTermset | CeheTermSyntaxZantufaGekTermset | CeheTermSyntaxForethoughtTermset | CeheTermSyntaxNuhiTermset | CeheTermSyntaxKeTermset
+CeheTermSyntax: TypeAlias = CeheTermSyntaxTermsetGroup | CeheTermSyntaxConnectedTerm | CeheTermSyntaxStagBoundTermConnection | CeheTermSyntaxPlaceTaggedSumtiTerm | CeheTermSyntaxZantufaJoikChainedPlaceTagTerm | CeheTermSyntaxJaiTaggedSumtiTerm | CeheTermSyntaxElidedNaheFihoTagTerm | CeheTermSyntaxTaggedSumtiBeforeTagTerm | CeheTermSyntaxTaggedSumtiTerm | CeheTermSyntaxNoihaAdverbialTerm | CeheTermSyntaxFihoiAdverbialTerm | CeheTermSyntaxSoiAdverbialTerm | CeheTermSyntaxNaKuTerm | CeheTermSyntaxSumtiTerm | CeheTermSyntaxBareNaTerm | CeheTermSyntaxGekTermset | CeheTermSyntaxZantufaGekTermset | CeheTermSyntaxForethoughtTermset | CeheTermSyntaxNuhiTermset | CeheTermSyntaxKeTermset
 
 @final
 class LooseTermSyntaxConnectedTerm:
@@ -3209,6 +3237,20 @@ class LooseTermSyntaxPlaceTaggedSumtiTerm:
     @property
     def place_tagged_sumti_term(self) -> RecoveredField[PlaceTaggedSumtiTermSyntax]:
         'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class LooseTermSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> LooseTermSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3428,7 +3470,7 @@ class LooseTermSyntaxKeTermset:
 # The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
 # abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
 # (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-LooseTermSyntax: TypeAlias = LooseTermSyntaxConnectedTerm | LooseTermSyntaxStagBoundTermConnection | LooseTermSyntaxPlaceTaggedSumtiTerm | LooseTermSyntaxJaiTaggedSumtiTerm | LooseTermSyntaxElidedNaheFihoTagTerm | LooseTermSyntaxTaggedSumtiBeforeTagTerm | LooseTermSyntaxTaggedSumtiTerm | LooseTermSyntaxNoihaAdverbialTerm | LooseTermSyntaxFihoiAdverbialTerm | LooseTermSyntaxSoiAdverbialTerm | LooseTermSyntaxNaKuTerm | LooseTermSyntaxSumtiTerm | LooseTermSyntaxBareNaTerm | LooseTermSyntaxGekTermset | LooseTermSyntaxZantufaGekTermset | LooseTermSyntaxForethoughtTermset | LooseTermSyntaxNuhiTermset | LooseTermSyntaxKeTermset
+LooseTermSyntax: TypeAlias = LooseTermSyntaxConnectedTerm | LooseTermSyntaxStagBoundTermConnection | LooseTermSyntaxPlaceTaggedSumtiTerm | LooseTermSyntaxZantufaJoikChainedPlaceTagTerm | LooseTermSyntaxJaiTaggedSumtiTerm | LooseTermSyntaxElidedNaheFihoTagTerm | LooseTermSyntaxTaggedSumtiBeforeTagTerm | LooseTermSyntaxTaggedSumtiTerm | LooseTermSyntaxNoihaAdverbialTerm | LooseTermSyntaxFihoiAdverbialTerm | LooseTermSyntaxSoiAdverbialTerm | LooseTermSyntaxNaKuTerm | LooseTermSyntaxSumtiTerm | LooseTermSyntaxBareNaTerm | LooseTermSyntaxGekTermset | LooseTermSyntaxZantufaGekTermset | LooseTermSyntaxForethoughtTermset | LooseTermSyntaxNuhiTermset | LooseTermSyntaxKeTermset
 
 @final
 class NonabsTermSyntaxConnectedTerm:
@@ -3466,6 +3508,20 @@ class NonabsTermSyntaxPlaceTaggedSumtiTerm:
     @property
     def place_tagged_sumti_term(self) -> RecoveredField[PlaceTaggedSumtiTermSyntax]:
         'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NonabsTermSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> NonabsTermSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3691,7 +3747,7 @@ class NonabsTermSyntaxKeTermset:
 # of the two sources is exactly this level: the guarded tiers with the unguarded leaf
 # inventory. The guard only ever fires when a selbri follows the atom directly, which is a
 # position no connective tier can occupy, so no surface outside the two sources is admitted.
-NonabsTermSyntax: TypeAlias = NonabsTermSyntaxConnectedTerm | NonabsTermSyntaxStagBoundTermConnection | NonabsTermSyntaxPlaceTaggedSumtiTerm | NonabsTermSyntaxJaiTaggedSumtiTerm | NonabsTermSyntaxElidedNaheFihoTagTerm | NonabsTermSyntaxTaggedSumtiBeforeTagTerm | NonabsTermSyntaxNonabsTaggedSumtiTerm | NonabsTermSyntaxNoihaAdverbialTerm | NonabsTermSyntaxFihoiAdverbialTerm | NonabsTermSyntaxSoiAdverbialTerm | NonabsTermSyntaxNaKuTerm | NonabsTermSyntaxSumtiTerm | NonabsTermSyntaxBareNaTerm | NonabsTermSyntaxGekTermset | NonabsTermSyntaxZantufaGekTermset | NonabsTermSyntaxForethoughtTermset | NonabsTermSyntaxNuhiTermset | NonabsTermSyntaxKeTermset
+NonabsTermSyntax: TypeAlias = NonabsTermSyntaxConnectedTerm | NonabsTermSyntaxStagBoundTermConnection | NonabsTermSyntaxPlaceTaggedSumtiTerm | NonabsTermSyntaxZantufaJoikChainedPlaceTagTerm | NonabsTermSyntaxJaiTaggedSumtiTerm | NonabsTermSyntaxElidedNaheFihoTagTerm | NonabsTermSyntaxTaggedSumtiBeforeTagTerm | NonabsTermSyntaxNonabsTaggedSumtiTerm | NonabsTermSyntaxNoihaAdverbialTerm | NonabsTermSyntaxFihoiAdverbialTerm | NonabsTermSyntaxSoiAdverbialTerm | NonabsTermSyntaxNaKuTerm | NonabsTermSyntaxSumtiTerm | NonabsTermSyntaxBareNaTerm | NonabsTermSyntaxGekTermset | NonabsTermSyntaxZantufaGekTermset | NonabsTermSyntaxForethoughtTermset | NonabsTermSyntaxNuhiTermset | NonabsTermSyntaxKeTermset
 
 @final
 class PeheTermsetConnectionSyntax:
@@ -3746,6 +3802,20 @@ class SimpleTermSyntaxPlaceTaggedSumtiTerm:
     @property
     def place_tagged_sumti_term(self) -> RecoveredField[PlaceTaggedSumtiTermSyntax]:
         'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SimpleTermSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> SimpleTermSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3963,7 +4033,7 @@ class SimpleTermSyntaxKeTermset:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-SimpleTermSyntax: TypeAlias = SimpleTermSyntaxPlaceTaggedSumtiTerm | SimpleTermSyntaxJaiTaggedSumtiTerm | SimpleTermSyntaxElidedNaheFihoTagTerm | SimpleTermSyntaxTaggedSumtiBeforeTagTerm | SimpleTermSyntaxTaggedSumtiTerm | SimpleTermSyntaxNoihaAdverbialTerm | SimpleTermSyntaxFihoiAdverbialTerm | SimpleTermSyntaxSoiAdverbialTerm | SimpleTermSyntaxNaKuTerm | SimpleTermSyntaxSumtiTerm | SimpleTermSyntaxBareNaTerm | SimpleTermSyntaxGekTermset | SimpleTermSyntaxZantufaGekTermset | SimpleTermSyntaxForethoughtTermset | SimpleTermSyntaxNuhiTermset | SimpleTermSyntaxKeTermset
+SimpleTermSyntax: TypeAlias = SimpleTermSyntaxPlaceTaggedSumtiTerm | SimpleTermSyntaxZantufaJoikChainedPlaceTagTerm | SimpleTermSyntaxJaiTaggedSumtiTerm | SimpleTermSyntaxElidedNaheFihoTagTerm | SimpleTermSyntaxTaggedSumtiBeforeTagTerm | SimpleTermSyntaxTaggedSumtiTerm | SimpleTermSyntaxNoihaAdverbialTerm | SimpleTermSyntaxFihoiAdverbialTerm | SimpleTermSyntaxSoiAdverbialTerm | SimpleTermSyntaxNaKuTerm | SimpleTermSyntaxSumtiTerm | SimpleTermSyntaxBareNaTerm | SimpleTermSyntaxGekTermset | SimpleTermSyntaxZantufaGekTermset | SimpleTermSyntaxForethoughtTermset | SimpleTermSyntaxNuhiTermset | SimpleTermSyntaxKeTermset
 
 @final
 class BoundTermSyntaxStagBoundTermConnection:
@@ -3987,6 +4057,20 @@ class BoundTermSyntaxPlaceTaggedSumtiTerm:
     @property
     def place_tagged_sumti_term(self) -> RecoveredField[PlaceTaggedSumtiTermSyntax]:
         'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BoundTermSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> BoundTermSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4208,20 +4292,76 @@ class BoundTermSyntaxKeTermset:
 # The leaf rules are deliberately listed directly rather than through `simple_term`: a
 # nested sum branch would add a public wrapper variant to Debug and serde output. The
 # binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-BoundTermSyntax: TypeAlias = BoundTermSyntaxStagBoundTermConnection | BoundTermSyntaxPlaceTaggedSumtiTerm | BoundTermSyntaxJaiTaggedSumtiTerm | BoundTermSyntaxElidedNaheFihoTagTerm | BoundTermSyntaxTaggedSumtiBeforeTagTerm | BoundTermSyntaxTaggedSumtiTerm | BoundTermSyntaxNoihaAdverbialTerm | BoundTermSyntaxFihoiAdverbialTerm | BoundTermSyntaxSoiAdverbialTerm | BoundTermSyntaxNaKuTerm | BoundTermSyntaxSumtiTerm | BoundTermSyntaxBareNaTerm | BoundTermSyntaxGekTermset | BoundTermSyntaxZantufaGekTermset | BoundTermSyntaxForethoughtTermset | BoundTermSyntaxNuhiTermset | BoundTermSyntaxKeTermset
+BoundTermSyntax: TypeAlias = BoundTermSyntaxStagBoundTermConnection | BoundTermSyntaxPlaceTaggedSumtiTerm | BoundTermSyntaxZantufaJoikChainedPlaceTagTerm | BoundTermSyntaxJaiTaggedSumtiTerm | BoundTermSyntaxElidedNaheFihoTagTerm | BoundTermSyntaxTaggedSumtiBeforeTagTerm | BoundTermSyntaxTaggedSumtiTerm | BoundTermSyntaxNoihaAdverbialTerm | BoundTermSyntaxFihoiAdverbialTerm | BoundTermSyntaxSoiAdverbialTerm | BoundTermSyntaxNaKuTerm | BoundTermSyntaxSumtiTerm | BoundTermSyntaxBareNaTerm | BoundTermSyntaxGekTermset | BoundTermSyntaxZantufaGekTermset | BoundTermSyntaxForethoughtTermset | BoundTermSyntaxNuhiTermset | BoundTermSyntaxKeTermset
 
 @final
 class StagBoundTermConnectionSyntax:
     'The BO-bound ordinary-term connection with one or more continuations.\n\ncamxes-exp\'s absorption-safe `abs_term_2` requires the stag before BO\n(camxes-exp.peg:154); camxes-standard has no term-level BO at all, so every occurrence is\ndiagnosed. The operands intentionally remain `simple_term`: sumti greediness must continue\nto own chains whose trailing operand is a bare sumti, rather than silently changing their\nterm-level grouping.'
     __match_args__: ClassVar[tuple[Literal['leading_term'], Literal['continuations']]]
-    def __new__(cls, leading_term: RecoveredField[SimpleTermSyntax], continuations: Sequence[RecoveredField[StagBoundTermContinuationSyntax]]) -> StagBoundTermConnectionSyntax: ...
+    def __new__(cls, leading_term: RecoveredField[SimpleTermSyntax], continuations: Sequence[RecoveredField[BoundTermContinuationSyntax]]) -> StagBoundTermConnectionSyntax: ...
     @property
     def leading_term(self) -> RecoveredField[SimpleTermSyntax]:
         'The first simple term at the BO-bound precedence level.'
         ...
     @property
-    def continuations(self) -> tuple[RecoveredField[StagBoundTermContinuationSyntax], ...]:
+    def continuations(self) -> tuple[RecoveredField[BoundTermContinuationSyntax], ...]:
         'The nonempty source-ordered BO-bound continuation sequence.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BoundTermContinuationSyntaxStagBoundTermContinuation:
+    'Uses the sourced mandatory-stag `stag_bound_term_continuation` product form.'
+    __match_args__: ClassVar[tuple[Literal['stag_bound_term_continuation']]]
+    def __new__(cls, stag_bound_term_continuation: RecoveredField[StagBoundTermContinuationSyntax]) -> BoundTermContinuationSyntaxStagBoundTermContinuation: ...
+    @property
+    def stag_bound_term_continuation(self) -> RecoveredField[StagBoundTermContinuationSyntax]:
+        'Uses the sourced mandatory-stag `stag_bound_term_continuation` product form.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BoundTermContinuationSyntaxZantufaBoundTermContinuation:
+    'Uses rolling Zantufa\'s connectorless `zantufa_bound_term_continuation` product form.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_bound_term_continuation']]]
+    def __new__(cls, zantufa_bound_term_continuation: RecoveredField[ZantufaBoundTermContinuationSyntax]) -> BoundTermContinuationSyntaxZantufaBoundTermContinuation: ...
+    @property
+    def zantufa_bound_term_continuation(self) -> RecoveredField[ZantufaBoundTermContinuationSyntax]:
+        'Uses rolling Zantufa\'s connectorless `zantufa_bound_term_continuation` product form.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# The two BO continuation shapes at the absorption-safe term level.
+#
+# camxes-exp's `abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*`
+# (camxes-exp.peg:154) requires both the connective and the stag; rolling Zantufa's
+# `term_1 <- term_2 (joik_ek? BO_clause term_2)*` (zantufa-1.9999.peg:28) requires
+# neither. The connector-absent continuation is therefore an alternative of its own
+# rather than a relaxation of the sourced one, and a single connection node may mix the
+# two exactly as Zantufa's own flat continuation list does.
+BoundTermContinuationSyntax: TypeAlias = BoundTermContinuationSyntaxStagBoundTermContinuation | BoundTermContinuationSyntaxZantufaBoundTermContinuation
+
+@final
+class ZantufaBoundTermContinuationSyntax:
+    'One connectorless BO continuation at the absorption-safe term level.\n\nThe operand stays the guarded `simple_term`, which is the flavour this ladder carries;\nZantufa has one term ladder rather than two, and its `term_2` leaf inventory writes the\nabsorption guard into `tag_term` itself (zantufa-1.9999.peg:31), so the guarded leaves\nare the faithful operand here.'
+    __match_args__: ClassVar[tuple[Literal['bo'], Literal['trailing_term']]]
+    def __new__(cls, bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], trailing_term: RecoveredField[SimpleTermSyntax]) -> ZantufaBoundTermContinuationSyntax: ...
+    @property
+    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The `Bo` cmavo marker, which owns the experimental warning for the continuation.'
+        ...
+    @property
+    def trailing_term(self) -> RecoveredField[SimpleTermSyntax]:
+        'The simple term following BO, classified by the same ownership rule the sumti tier\napplies to its recursive operand.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4369,6 +4509,20 @@ class NormalTermSyntaxPlaceTaggedSumtiTerm:
     @property
     def place_tagged_sumti_term(self) -> RecoveredField[PlaceTaggedSumtiTermSyntax]:
         'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NormalTermSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> NormalTermSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4614,7 +4768,7 @@ class NormalTermSyntaxKeTermset:
 # other ladder level does it (mechanism E): a nested branch would add a public wrapper
 # variant to Debug and serde output. The binding-schema drift guard keeps this inventory
 # synchronized with `simple_term`.
-NormalTermSyntax: TypeAlias = NormalTermSyntaxConnectedNormalTerm | NormalTermSyntaxBoundNormalTermConnection | NormalTermSyntaxPlaceTaggedSumtiTerm | NormalTermSyntaxJaiTaggedSumtiTerm | NormalTermSyntaxElidedNaheFihoTagTerm | NormalTermSyntaxTaggedSumtiBeforeTagTerm | NormalTermSyntaxNonabsTaggedSumtiTerm | NormalTermSyntaxNoihaAdverbialTerm | NormalTermSyntaxFihoiAdverbialTerm | NormalTermSyntaxSoiAdverbialTerm | NormalTermSyntaxNaKuTerm | NormalTermSyntaxSumtiTerm | NormalTermSyntaxBareNaTerm | NormalTermSyntaxGekTermset | NormalTermSyntaxZantufaGekTermset | NormalTermSyntaxForethoughtTermset | NormalTermSyntaxNuhiTermset | NormalTermSyntaxKeTermset
+NormalTermSyntax: TypeAlias = NormalTermSyntaxConnectedNormalTerm | NormalTermSyntaxBoundNormalTermConnection | NormalTermSyntaxPlaceTaggedSumtiTerm | NormalTermSyntaxZantufaJoikChainedPlaceTagTerm | NormalTermSyntaxJaiTaggedSumtiTerm | NormalTermSyntaxElidedNaheFihoTagTerm | NormalTermSyntaxTaggedSumtiBeforeTagTerm | NormalTermSyntaxNonabsTaggedSumtiTerm | NormalTermSyntaxNoihaAdverbialTerm | NormalTermSyntaxFihoiAdverbialTerm | NormalTermSyntaxSoiAdverbialTerm | NormalTermSyntaxNaKuTerm | NormalTermSyntaxSumtiTerm | NormalTermSyntaxBareNaTerm | NormalTermSyntaxGekTermset | NormalTermSyntaxZantufaGekTermset | NormalTermSyntaxForethoughtTermset | NormalTermSyntaxNuhiTermset | NormalTermSyntaxKeTermset
 
 @final
 class ConnectedNormalTermSyntax:
@@ -4674,6 +4828,20 @@ class BoundNormalTermSyntaxPlaceTaggedSumtiTerm:
     @property
     def place_tagged_sumti_term(self) -> RecoveredField[PlaceTaggedSumtiTermSyntax]:
         'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BoundNormalTermSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> BoundNormalTermSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4891,20 +5059,75 @@ class BoundNormalTermSyntaxKeTermset:
     def __eq__(self, other: object, /) -> bool: ...
 
 # The optional-stag BO-bound level of the normal-flavour term constituent.
-BoundNormalTermSyntax: TypeAlias = BoundNormalTermSyntaxBoundNormalTermConnection | BoundNormalTermSyntaxPlaceTaggedSumtiTerm | BoundNormalTermSyntaxJaiTaggedSumtiTerm | BoundNormalTermSyntaxElidedNaheFihoTagTerm | BoundNormalTermSyntaxTaggedSumtiBeforeTagTerm | BoundNormalTermSyntaxNonabsTaggedSumtiTerm | BoundNormalTermSyntaxNoihaAdverbialTerm | BoundNormalTermSyntaxFihoiAdverbialTerm | BoundNormalTermSyntaxSoiAdverbialTerm | BoundNormalTermSyntaxNaKuTerm | BoundNormalTermSyntaxSumtiTerm | BoundNormalTermSyntaxBareNaTerm | BoundNormalTermSyntaxGekTermset | BoundNormalTermSyntaxZantufaGekTermset | BoundNormalTermSyntaxForethoughtTermset | BoundNormalTermSyntaxNuhiTermset | BoundNormalTermSyntaxKeTermset
+BoundNormalTermSyntax: TypeAlias = BoundNormalTermSyntaxBoundNormalTermConnection | BoundNormalTermSyntaxPlaceTaggedSumtiTerm | BoundNormalTermSyntaxZantufaJoikChainedPlaceTagTerm | BoundNormalTermSyntaxJaiTaggedSumtiTerm | BoundNormalTermSyntaxElidedNaheFihoTagTerm | BoundNormalTermSyntaxTaggedSumtiBeforeTagTerm | BoundNormalTermSyntaxNonabsTaggedSumtiTerm | BoundNormalTermSyntaxNoihaAdverbialTerm | BoundNormalTermSyntaxFihoiAdverbialTerm | BoundNormalTermSyntaxSoiAdverbialTerm | BoundNormalTermSyntaxNaKuTerm | BoundNormalTermSyntaxSumtiTerm | BoundNormalTermSyntaxBareNaTerm | BoundNormalTermSyntaxGekTermset | BoundNormalTermSyntaxZantufaGekTermset | BoundNormalTermSyntaxForethoughtTermset | BoundNormalTermSyntaxNuhiTermset | BoundNormalTermSyntaxKeTermset
 
 @final
 class BoundNormalTermConnectionSyntax:
     'The diagnosed optional-stag BO connection at the normal-flavour term level.\n\ncamxes-standard has no term-level BO at all, so every occurrence is diagnosed, exactly as\nthe mandatory-stag twin `stag_bound_term_connection` is. Unlike that twin the operands are\nthe unguarded leaves, because camxes-exp\'s normal `term_2 <- term_3 (joik_ek stag?\nBO_clause term_3)*` (camxes-exp.peg:143) takes the unguarded `tag_term` on both sides.'
     __match_args__: ClassVar[tuple[Literal['leading_term'], Literal['continuations']]]
-    def __new__(cls, leading_term: RecoveredField[NormalTermAtomSyntax], continuations: Sequence[RecoveredField[BoundNormalTermContinuationSyntax]]) -> BoundNormalTermConnectionSyntax: ...
+    def __new__(cls, leading_term: RecoveredField[NormalTermAtomSyntax], continuations: Sequence[RecoveredField[NormalTermBoContinuationSyntax]]) -> BoundNormalTermConnectionSyntax: ...
     @property
     def leading_term(self) -> RecoveredField[NormalTermAtomSyntax]:
         'The first unguarded leaf at the BO-bound precedence level.'
         ...
     @property
-    def continuations(self) -> tuple[RecoveredField[BoundNormalTermContinuationSyntax], ...]:
+    def continuations(self) -> tuple[RecoveredField[NormalTermBoContinuationSyntax], ...]:
         'The nonempty source-ordered BO-bound continuation sequence.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NormalTermBoContinuationSyntaxBoundNormalTermContinuation:
+    'Uses the sourced optional-stag `bound_normal_term_continuation` product form.'
+    __match_args__: ClassVar[tuple[Literal['bound_normal_term_continuation']]]
+    def __new__(cls, bound_normal_term_continuation: RecoveredField[BoundNormalTermContinuationSyntax]) -> NormalTermBoContinuationSyntaxBoundNormalTermContinuation: ...
+    @property
+    def bound_normal_term_continuation(self) -> RecoveredField[BoundNormalTermContinuationSyntax]:
+        'Uses the sourced optional-stag `bound_normal_term_continuation` product form.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NormalTermBoContinuationSyntaxZantufaBoundNormalTermContinuation:
+    'Uses rolling Zantufa\'s connectorless `zantufa_bound_normal_term_continuation`\nproduct form.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_bound_normal_term_continuation']]]
+    def __new__(cls, zantufa_bound_normal_term_continuation: RecoveredField[ZantufaBoundNormalTermContinuationSyntax]) -> NormalTermBoContinuationSyntaxZantufaBoundNormalTermContinuation: ...
+    @property
+    def zantufa_bound_normal_term_continuation(self) -> RecoveredField[ZantufaBoundNormalTermContinuationSyntax]:
+        'Uses rolling Zantufa\'s connectorless `zantufa_bound_normal_term_continuation`\nproduct form.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# The two BO continuation shapes at the normal-flavour term level.
+#
+# The normal flavour already leaves the stag optional (#816, camxes-exp.peg:143), so the
+# Zantufa delta here is exactly the missing connective and nothing else — which is also
+# the B3 ownership boundary: `ko'a goi ba ko'e .e bo vi ko'i broda` carries the
+# connective and stays the sourced arm's, while `ko'a goi pu ko'e bo ca ko'i broda`
+# carries none and is Zantufa's alone (camxes-exp rejects it).
+NormalTermBoContinuationSyntax: TypeAlias = NormalTermBoContinuationSyntaxBoundNormalTermContinuation | NormalTermBoContinuationSyntaxZantufaBoundNormalTermContinuation
+
+@final
+class ZantufaBoundNormalTermContinuationSyntax:
+    'One connectorless BO continuation at the normal-flavour term level.'
+    __match_args__: ClassVar[tuple[Literal['bo'], Literal['trailing_term']]]
+    def __new__(cls, bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], trailing_term: RecoveredField[NormalTermAtomSyntax]) -> ZantufaBoundNormalTermContinuationSyntax: ...
+    @property
+    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The `Bo` cmavo marker, which owns the experimental warning for the continuation.'
+        ...
+    @property
+    def trailing_term(self) -> RecoveredField[NormalTermAtomSyntax]:
+        'The unguarded leaf following BO, classified by the same ownership rule.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4951,6 +5174,20 @@ class NormalTermAtomSyntaxPlaceTaggedSumtiTerm:
     @property
     def place_tagged_sumti_term(self) -> RecoveredField[PlaceTaggedSumtiTermSyntax]:
         'Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NormalTermAtomSyntaxZantufaJoikChainedPlaceTagTerm:
+    'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_joik_chained_place_tag_term']]]
+    def __new__(cls, zantufa_joik_chained_place_tag_term: RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]) -> NormalTermAtomSyntaxZantufaJoikChainedPlaceTagTerm: ...
+    @property
+    def zantufa_joik_chained_place_tag_term(self) -> RecoveredField[ZantufaJoikChainedPlaceTagTermSyntax]:
+        'Uses rolling Zantufa\'s JOIK-chained `zantufa_joik_chained_place_tag_term` product\nform, whose payload preserves `fa`, `continuations`, and `sumti`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5172,7 +5409,7 @@ class NormalTermAtomSyntaxKeTermset:
 # This is `term_3 <- sumti / tag_term / termset` (camxes-exp.peg:145) and camxes-standard's
 # bare `nonabs_term` (camxes.peg:128) at once: the same leaves `simple_term` lists, with the
 # unguarded `nonabs_tagged_sumti_term` in place of its absorption-guarded twin.
-NormalTermAtomSyntax: TypeAlias = NormalTermAtomSyntaxPlaceTaggedSumtiTerm | NormalTermAtomSyntaxJaiTaggedSumtiTerm | NormalTermAtomSyntaxElidedNaheFihoTagTerm | NormalTermAtomSyntaxTaggedSumtiBeforeTagTerm | NormalTermAtomSyntaxNonabsTaggedSumtiTerm | NormalTermAtomSyntaxNoihaAdverbialTerm | NormalTermAtomSyntaxFihoiAdverbialTerm | NormalTermAtomSyntaxSoiAdverbialTerm | NormalTermAtomSyntaxNaKuTerm | NormalTermAtomSyntaxSumtiTerm | NormalTermAtomSyntaxBareNaTerm | NormalTermAtomSyntaxGekTermset | NormalTermAtomSyntaxZantufaGekTermset | NormalTermAtomSyntaxForethoughtTermset | NormalTermAtomSyntaxNuhiTermset | NormalTermAtomSyntaxKeTermset
+NormalTermAtomSyntax: TypeAlias = NormalTermAtomSyntaxPlaceTaggedSumtiTerm | NormalTermAtomSyntaxZantufaJoikChainedPlaceTagTerm | NormalTermAtomSyntaxJaiTaggedSumtiTerm | NormalTermAtomSyntaxElidedNaheFihoTagTerm | NormalTermAtomSyntaxTaggedSumtiBeforeTagTerm | NormalTermAtomSyntaxNonabsTaggedSumtiTerm | NormalTermAtomSyntaxNoihaAdverbialTerm | NormalTermAtomSyntaxFihoiAdverbialTerm | NormalTermAtomSyntaxSoiAdverbialTerm | NormalTermAtomSyntaxNaKuTerm | NormalTermAtomSyntaxSumtiTerm | NormalTermAtomSyntaxBareNaTerm | NormalTermAtomSyntaxGekTermset | NormalTermAtomSyntaxZantufaGekTermset | NormalTermAtomSyntaxForethoughtTermset | NormalTermAtomSyntaxNuhiTermset | NormalTermAtomSyntaxKeTermset
 
 @final
 class TermsetGroupSyntax:
@@ -5747,6 +5984,51 @@ class PlaceTaggedSumtiTermSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ZantufaJoikChainedPlaceTagTermSyntax:
+    'Rolling Zantufa\'s JOIK-chained place tag: the `FA_clause (joik FA_clause)*` half of\n`tag_term` (zantufa-1.9999.peg:31), with the chain required.\n\ncamxes-exp reaches the same surface through its own `joik` at a different tier, and\ncamxes-standard rejects it outright; jbotci gives the chain its own leaf rather than a\n`zero_or_more` continuation on the shared FA term, because an optional continuation list\nwould re-type all 1,342 baseline FA fixtures to record a list that is empty in every one\nof them. Requiring at least one JOIK-led continuation also makes the arm structurally\ndisjoint from the shared FA term, exactly as `zantufa_ke_co_grouped_tanru_unit` is from\nstandard KE: a plain `fa ko\'a` can never reach it, so arm order cannot change which\nnode a sourced surface gets.\n\nThe `!tanru_unit_1` guard is Zantufa\'s and applies to both halves of its `tag_term`, so\nit is asserted here for the same reason the JAI term asserts it: with the payload\nelidable, `fa je fe broda` would otherwise take the chain, elide its KU and leave the\nselbri to be found again.'
+    __match_args__: ClassVar[tuple[Literal['fa'], Literal['continuations'], Literal['sumti']]]
+    def __new__(
+        cls,
+        fa: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        continuations: Sequence[RecoveredField[ZantufaJoikChainedPlaceTagContinuationSyntax]],
+        sumti: RecoveredField[TaggedOrElidedSumtiSyntax],
+    ) -> ZantufaJoikChainedPlaceTagTermSyntax: ...
+    @property
+    def fa(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'A word from selmaho `Fa`.'
+        ...
+    @property
+    def continuations(self) -> tuple[RecoveredField[ZantufaJoikChainedPlaceTagContinuationSyntax], ...]:
+        'The nonempty source-ordered JOIK-led FA continuation sequence.'
+        ...
+    @property
+    def sumti(self) -> RecoveredField[TaggedOrElidedSumtiSyntax]:
+        'The shared sumti child syntax node, overt or KU-terminated.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaJoikChainedPlaceTagContinuationSyntax:
+    'One JOIK-led continuation of a Zantufa place-tag chain.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['fa']]]
+    def __new__(cls, connective: RecoveredField[StandardStatementConnectiveSyntax], fa: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]) -> ZantufaJoikChainedPlaceTagContinuationSyntax: ...
+    @property
+    def connective(self) -> RecoveredField[StandardStatementConnectiveSyntax]:
+        'The connective joining the adjacent place tags. Zantufa spells this position `joik`\nrather than `joik_ek`, so the EK inventory is not admitted; its own JOI selma\'o\n(zantufa-1.9999.peg:556) nevertheless holds every JA word as well as the JOI ones,\nso the sourced domain here is JOIK-or-JEK, which is what `fa je fe ko\'a broda`\nneeds. Words Zantufa lexes into JOI and jbotci lexes elsewhere — `ji`, which is an\nA word here — are a documented gap rather than a widening of this position.'
+        ...
+    @property
+    def fa(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The place tag this continuation contributes, which owns the chain\'s warning.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class NaKuTermSyntax:
     'Product node for NA KU term; preserves `na` and `na_ku` in source order.'
     __match_args__: ClassVar[tuple[Literal['na'], Literal['na_ku']]]
@@ -5848,13 +6130,13 @@ class ElidedNaheFihoTagTermSyntax:
 
 @final
 class JaiTaggedSumtiTermSyntax:
-    'Product node for tag; preserves `jai`, `tag`, and `sumti` in source order.'
+    'Rolling Zantufa\'s JAI term: `JAI_clause tag? !tanru_unit_1 (sumti / KU_elidible)`\n(zantufa-1.9999.peg:31).\n\nThe payload is the same `(sumti / KU_elidible)` every tag-led term takes, so the sumti\nmay be overt (`jai pu ko\'a broda`), replaced by an explicit KU (`jai ku broda`), or\nelided outright (`jai cu broda`). All three are Zantufa\'s and no other parser\'s.\n\n`!tanru_unit_1` is what keeps the elided payload from swallowing the selbri: `jai broda`\nand `mi jai pu broda` are the JAI **selbri** `tanru_unit_1` in every parser including\nZantufa (:52), and without the guard this term would take the JAI, elide its KU and\nleave `broda` to be found again as the sentence\'s selbri. The guard is structural — the\ntanru-unit atom is asserted absent at the payload position, not approximated by a token\nclass — because the boundary it draws is exactly where a tanru unit may begin.\n\nProduct node for tag; preserves `jai`, `tag`, and `sumti` in source order.'
     __match_args__: ClassVar[tuple[Literal['jai'], Literal['tag'], Literal['sumti']]]
     def __new__(
         cls,
         jai: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
         tag: RecoveredField[TenseModalSyntax] | None,
-        sumti: RecoveredField[SumtiSyntax],
+        sumti: RecoveredField[TaggedOrElidedSumtiSyntax],
     ) -> JaiTaggedSumtiTermSyntax: ...
     @property
     def jai(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
@@ -5865,8 +6147,8 @@ class JaiTaggedSumtiTermSyntax:
         'The optional tag component.'
         ...
     @property
-    def sumti(self) -> RecoveredField[SumtiSyntax]:
-        'The shared sumti child syntax node.'
+    def sumti(self) -> RecoveredField[TaggedOrElidedSumtiSyntax]:
+        'The shared sumti child syntax node, overt or KU-terminated.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -6224,19 +6506,65 @@ class SumtiAfterthoughtSyntax:
 class SumtiBoundSyntax:
     'Product node for sumti connection; preserves `leading_sumti` and `bound_tail` in source order.'
     __match_args__: ClassVar[tuple[Literal['leading_sumti'], Literal['bound_tail']]]
-    def __new__(cls, leading_sumti: RecoveredField[SumtiForethoughtSyntax], bound_tail: RecoveredField[BoundSumtiTailSyntax] | None) -> SumtiBoundSyntax: ...
+    def __new__(cls, leading_sumti: RecoveredField[SumtiForethoughtSyntax], bound_tail: RecoveredField[SumtiBoundTailSyntax] | None) -> SumtiBoundSyntax: ...
     @property
     def leading_sumti(self) -> RecoveredField[SumtiForethoughtSyntax]:
         'The shared leading sumti child syntax node.'
         ...
     @property
-    def bound_tail(self) -> RecoveredField[BoundSumtiTailSyntax] | None:
+    def bound_tail(self) -> RecoveredField[SumtiBoundTailSyntax] | None:
         'The optional bound tail component.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SumtiBoundTailSyntaxBoundSumtiTail:
+    'Uses the sourced `bound_sumti_tail` product form, whose payload preserves\n`connective`, `tense_modal`, `bo`, and `trailing_sumti`.'
+    __match_args__: ClassVar[tuple[Literal['bound_sumti_tail']]]
+    def __new__(cls, bound_sumti_tail: RecoveredField[BoundSumtiTailSyntax]) -> SumtiBoundTailSyntaxBoundSumtiTail: ...
+    @property
+    def bound_sumti_tail(self) -> RecoveredField[BoundSumtiTailSyntax]:
+        'Uses the sourced `bound_sumti_tail` product form, whose payload preserves\n`connective`, `tense_modal`, `bo`, and `trailing_sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SumtiBoundTailSyntaxZantufaBoundSumtiTail:
+    'Uses rolling Zantufa\'s connectorless `zantufa_bound_sumti_tail` product form,\nwhose payload preserves `tense_modal`, `bo`, and `trailing_sumti`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_bound_sumti_tail']]]
+    def __new__(cls, zantufa_bound_sumti_tail: RecoveredField[ZantufaBoundSumtiTailSyntax]) -> SumtiBoundTailSyntaxZantufaBoundSumtiTail: ...
+    @property
+    def zantufa_bound_sumti_tail(self) -> RecoveredField[ZantufaBoundSumtiTailSyntax]:
+        'Uses rolling Zantufa\'s connectorless `zantufa_bound_sumti_tail` product form,\nwhose payload preserves `tense_modal`, `bo`, and `trailing_sumti`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# The two BO-bound tail shapes of the sumti connection.
+#
+# camxes-standard and camxes-exp both require the connective before the optional stag —
+# `sumti_3 <- sumti_4 ((ek / joik) stag? BO_clause sumti_3)?` (camxes.peg:143) — while
+# rolling Zantufa writes the same tier `sumti_2 <- sumti_3 (joik_ek? tag? BO_clause
+# sumti_3)*` (zantufa-1.9999.peg:35), where the connective is OPTIONAL. The jbotci arm
+# carries only the delta: the connector-ABSENT form, which no other parser accepts and
+# which is therefore disjoint from the sourced shape by its own marker (B3). The two
+# shapes are alternatives of one sum rather than one widened product, so the sourced
+# arm's own shape stays exactly what its sources spell.
+#
+# This is the BASELINE BO-precedence level, not Zantufa's rule *number*: Zantufa
+# renumbers its sumti ladder — its `sumti_1` is the loose tier and its `sumti_2` the BO
+# tier, while the baseline backbone jbotci composes puts the loose tier at `sumti_2` and
+# BO at `sumti_3`. Placing the arm by name rather than by tier would bind looser than
+# both the baseline BO connection and the loose connection above it.
+SumtiBoundTailSyntax: TypeAlias = SumtiBoundTailSyntaxBoundSumtiTail | SumtiBoundTailSyntaxZantufaBoundSumtiTail
 
 @final
 class SumtiForethoughtSyntaxForethoughtSumti:
@@ -6368,6 +6696,33 @@ class BoundSumtiTailSyntax:
     @property
     def trailing_sumti(self) -> RecoveredField[SumtiBoundSyntax]:
         'The shared trailing sumti child syntax node.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaBoundSumtiTailSyntax:
+    'Rolling Zantufa\'s connectorless BO sumti tail: the `joik_ek`-less reading of\n`sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)*` (zantufa-1.9999.peg:35).\n\nThe tag stays optional, exactly as Zantufa spells it, so `ko\'a bo ko\'e` and\n`ko\'a ba bo ko\'e` are both this arm; what the arm may never carry is the connective,\nwhich is the whole marker that separates it from the sourced tail above.\n\nThe trailing operand is classified rather than taken as parsed: it is the one place a\nconnector-absent arm can still end up owning an extent that carries a connective, since\njbotci spells the BO chain by recursion where Zantufa spells it as a flat continuation\nlist. `crate::grammar::baseline_bo::ConnectivePresentSumtiBoRejection` is where that\nquestion is answered rather than assumed, and its answer is that the sourced owner can\nnever take this arm\'s extent, so it rejects nothing and every candidate stays here. The\nnested sourced tail keeps the position Zantufa gives it because returning it would not\nhand it to the sourced owner at all, only push the surface onto the term tier and change\nwhat it means; see that type for the ownership argument and the measurement.'
+    __match_args__: ClassVar[tuple[Literal['tense_modal'], Literal['bo'], Literal['trailing_sumti']]]
+    def __new__(
+        cls,
+        tense_modal: RecoveredField[TenseModalSyntax] | None,
+        bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        trailing_sumti: RecoveredField[SumtiBoundSyntax],
+    ) -> ZantufaBoundSumtiTailSyntax: ...
+    @property
+    def tense_modal(self) -> RecoveredField[TenseModalSyntax] | None:
+        'The optional tense modal component.'
+        ...
+    @property
+    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The `Bo` cmavo marker, which owns the experimental warning for the whole tail.'
+        ...
+    @property
+    def trailing_sumti(self) -> RecoveredField[SumtiBoundSyntax]:
+        'The trailing sumti, classified against the sourced owner\'s extent.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...

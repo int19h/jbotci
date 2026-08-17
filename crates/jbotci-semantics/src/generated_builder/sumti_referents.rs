@@ -4492,22 +4492,25 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
             let Some(tail) = &sumti.bound_tail else {
                 return Ok(leading);
             };
+            let tail = GeneratedBoundSumtiTailRef::from_tail(tail);
             if tail
                 .tense_modal
-                .as_deref()
                 .is_some_and(generated_tense_modal_is_experimental_fa_tag)
             {
                 return Err(undefined_semantics(
                     "an experimental FA tag in a sumti connection",
                 ));
             }
-            let trailing = builder.build_sumti_bound_referent(&tail.trailing_sumti)?;
-            builder.build_connected_generated_sumti_referent(
-                sumti,
-                leading,
-                tail.connective.as_ref(),
-                trailing,
-            )
+            // Rolling Zantufa's connectorless BO joins two sumti with no connective at all
+            // (zantufa-1.9999.peg:35), and no source says what the resulting referent is; the
+            // connection is reported rather than read as any particular connective.
+            let Some(connective) = tail.connective else {
+                return Err(undefined_semantics(
+                    "an experimental Zantufa connectorless BO sumti connection",
+                ));
+            };
+            let trailing = builder.build_sumti_bound_referent(tail.trailing_sumti)?;
+            builder.build_connected_generated_sumti_referent(sumti, leading, connective, trailing)
         })
         .map(|(referent, _built)| referent)
     }
