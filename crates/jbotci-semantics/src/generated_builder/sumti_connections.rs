@@ -154,7 +154,11 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         let mut term_formula_scopes = Vec::new();
         let mut connective = None;
         let mut pending_connections = Vec::<(usize, &'syntax SumtiAfterthoughtSyntax)>::new();
-        let mut pending_bound_connections = Vec::<(usize, &'syntax SumtiBoundSyntax)>::new();
+        let mut pending_bound_connections = Vec::<(
+            usize,
+            &'syntax SumtiBoundSyntax,
+            &'syntax BoundSumtiTailSyntax,
+        )>::new();
         let mut pending_forethought_connections =
             Vec::<(usize, &'syntax ForethoughtSumtiSyntax)>::new();
         let mut next_visible_place = first_visible_place;
@@ -184,18 +188,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                                 bo: false,
                             }));
                         pending_connections.push((place, afterthought));
-                    } else if let Some(bound) = generated_sumti_bound_for_distribution(sumti) {
-                        let tail = bound
-                            .bound_tail
-                            .as_ref()
-                            .expect("bound distribution has tail");
+                    } else if let Some((bound, tail)) =
+                        generated_sumti_bound_for_distribution(sumti)
+                    {
                         connective =
                             connective.or(Some(GeneratedDistributedSumtiConnective::Argument {
                                 connective: tail.connective.as_ref(),
                                 tense_modal: tail.tense_modal.as_deref(),
                                 bo: true,
                             }));
-                        pending_bound_connections.push((place, bound));
+                        pending_bound_connections.push((place, bound, tail));
                     } else if let Some(forethought) =
                         generated_sumti_forethought_for_distribution(sumti)
                     {
@@ -249,18 +251,16 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                                 bo: false,
                             }));
                         pending_connections.push((place, afterthought));
-                    } else if let Some(bound) = generated_sumti_bound_for_distribution(sumti) {
-                        let tail = bound
-                            .bound_tail
-                            .as_ref()
-                            .expect("bound distribution has tail");
+                    } else if let Some((bound, tail)) =
+                        generated_sumti_bound_for_distribution(sumti)
+                    {
                         connective =
                             connective.or(Some(GeneratedDistributedSumtiConnective::Argument {
                                 connective: tail.connective.as_ref(),
                                 tense_modal: tail.tense_modal.as_deref(),
                                 bo: true,
                             }));
-                        pending_bound_connections.push((place, bound));
+                        pending_bound_connections.push((place, bound, tail));
                     } else if let Some(forethought) =
                         generated_sumti_forethought_for_distribution(sumti)
                     {
@@ -323,11 +323,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
                 },
             )?;
         }
-        for (place, bound) in pending_bound_connections {
-            let tail = bound
-                .bound_tail
-                .as_ref()
-                .expect("bound distribution has tail");
+        for (place, bound, tail) in pending_bound_connections {
             insert_generated_alternative_argument(
                 &mut alternatives,
                 place,
@@ -1621,11 +1617,7 @@ impl<'a, 'dict, 'tree> GeneratedGraphBuilder<'a, 'dict, 'tree> {
         sumti: &'syntax SumtiSyntax,
     ) -> Result<Option<GeneratedDistributedSumtiConnective<'syntax>>, SemanticsError> {
         let Some(afterthought) = generated_sumti_afterthought_for_distribution(sumti) else {
-            if let Some(bound) = generated_sumti_bound_for_distribution(sumti) {
-                let tail = bound
-                    .bound_tail
-                    .as_ref()
-                    .expect("bound distribution has tail");
+            if let Some((bound, tail)) = generated_sumti_bound_for_distribution(sumti) {
                 insert_generated_alternative_argument(
                     arguments,
                     place,

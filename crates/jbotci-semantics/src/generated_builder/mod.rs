@@ -20,14 +20,14 @@ use jbotci_syntax::generated_model::{
     BareCuBridiSyntax, BareCuTermsBridiSyntax, BoGroupedBridiTailSyntax,
     BoGroupedBridiTailWithoutTailTermsSyntax, BoundMeksoOperandSyntax, BoundMeksoOperatorSyntax,
     BoundNormalTermConnectionSyntax, BoundOrSimpleMeksoOperandSyntax, BoundSelbriSyntax,
-    BoundTermSyntax, BridiRelativeClauseSyntax, BridiStatementContinuationSyntax,
-    BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax, BridiTailConnectiveSyntax,
-    BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax, BridiWithLeadingTermsSyntax,
-    BridiWithPostCuTermsSyntax, CeheTermSyntax, ClosedIntervalConnectiveSyntax,
-    CmevlaVocativeSumtiSyntax, CoSelbriSyntax, ConnectedJaiInnerSelbriSyntax,
-    ConnectedNormalTermSyntax, ConnectedSelbriContinuationSyntax, ConnectedSelbriSyntax,
-    ConnectedTermSyntax, CuTermsBridiTailSyntax, DescriptionHeadSyntax, DescriptionTailBodySyntax,
-    DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
+    BoundSumtiTailSyntax, BoundTermSyntax, BridiRelativeClauseSyntax,
+    BridiStatementContinuationSyntax, BridiStatementSyntax, BridiSubbridiSyntax, BridiSyntax,
+    BridiTailConnectiveSyntax, BridiTailSyntax, BridiTailWithPossibleTailTermsSyntax,
+    BridiWithLeadingTermsSyntax, BridiWithPostCuTermsSyntax, CeheTermSyntax,
+    ClosedIntervalConnectiveSyntax, CmevlaVocativeSumtiSyntax, CoSelbriSyntax,
+    ConnectedJaiInnerSelbriSyntax, ConnectedNormalTermSyntax, ConnectedSelbriContinuationSyntax,
+    ConnectedSelbriSyntax, ConnectedTermSyntax, CuTermsBridiTailSyntax, DescriptionHeadSyntax,
+    DescriptionTailBodySyntax, DescriptionTailSyntax, DescriptorWithGadriSumtiSyntax,
     DescriptorWithOuterQuantifierSumtiSyntax, DescriptorWithoutGadriSumtiSyntax,
     DirectForethoughtBridiConnectionSyntax, EkFragmentSyntax, ExpTagAtomRunSyntax,
     ExpTagAtomSyntax, ExperimentalConnectiveMeksoOperatorSyntax, ExplicitXauhaLohoiTextSyntax,
@@ -103,9 +103,10 @@ use crate::facade::{
     SemanticBuildOptions, SemanticsError, SemanticsErrorKind, dictionary_relation_place_count,
 };
 use crate::generated_term_view::{
-    GeneratedAssociationPayloadRef, GeneratedBridiTermRef, GeneratedForethoughtTermsetRef,
-    GeneratedLinkedSumtiRef, GeneratedSimpleTermRef, GeneratedTaggedTermRef,
-    GeneratedTermGroupingRef, any_gek_termset_operand,
+    GeneratedAssociationPayloadRef, GeneratedBoundSumtiTailRef, GeneratedBridiTermRef,
+    GeneratedForethoughtTermsetRef, GeneratedLinkedSumtiRef, GeneratedSimpleTermRef,
+    GeneratedTaggedTermRef, GeneratedTermGroupingRef, any_gek_termset_operand,
+    bound_term_continuation_operand, normal_term_bo_continuation_operand, sourced_bound_sumti_tail,
 };
 use crate::model::{
     AbstractionKind, Actuality, ActualityKind, Adjunct, AdjunctData, AnchorMagnitude,
@@ -5206,6 +5207,11 @@ fn generated_logical_sumti_connection_for_branch(
         }
         GeneratedDistributedSumtiBranch::SumtiBound(sumti) => {
             if let Some(tail) = &sumti.bound_tail {
+                // A connectorless Zantufa tail has no connective to distribute over, so it is
+                // not a logical connection at all; it is reported where it is lowered.
+                let Some(tail) = sourced_bound_sumti_tail(tail) else {
+                    return Ok(None);
+                };
                 if generated_sumti_connective_is_logical(tail.connective.as_ref())
                     && !generated_sumti_connective_is_interval(tail.connective.as_ref())
                 {
@@ -5616,7 +5622,9 @@ fn generated_sumti_afterthought_for_distribution(
 
 #[requires(true)]
 #[ensures(true)]
-fn generated_sumti_bound_for_distribution(sumti: &SumtiSyntax) -> Option<&SumtiBoundSyntax> {
+fn generated_sumti_bound_for_distribution(
+    sumti: &SumtiSyntax,
+) -> Option<(&SumtiBoundSyntax, &BoundSumtiTailSyntax)> {
     if !generated_sumti_vuho_attachment_is_distribution_transparent(sumti)
         || sumti.base_sumti.grouped_tail.is_some()
     {
@@ -5627,10 +5635,10 @@ fn generated_sumti_bound_for_distribution(sumti: &SumtiSyntax) -> Option<&SumtiB
         return None;
     }
     let bound = afterthought.leading_sumti.as_ref();
-    let tail = bound.bound_tail.as_ref()?;
+    let tail = sourced_bound_sumti_tail(bound.bound_tail.as_ref()?)?;
     (generated_sumti_connective_is_logical(tail.connective.as_ref())
         && !generated_sumti_connective_is_interval(tail.connective.as_ref()))
-    .then_some(bound)
+    .then_some((bound, tail))
 }
 
 #[requires(true)]
@@ -6828,7 +6836,7 @@ fn generated_bridi_term_contains_current_level_keha(term: GeneratedBridiTermRef<
                 &connection.leading_term,
             )) || connection.continuations.iter().any(|continuation| {
                 generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::Simple(
-                    &continuation.trailing_term,
+                    bound_term_continuation_operand(continuation),
                 ))
             })
         }
@@ -6846,7 +6854,7 @@ fn generated_bridi_term_contains_current_level_keha(term: GeneratedBridiTermRef<
                 &connection.leading_term,
             )) || connection.continuations.iter().any(|continuation| {
                 generated_bridi_term_contains_current_level_keha(GeneratedBridiTermRef::NormalAtom(
-                    &continuation.trailing_term,
+                    normal_term_bo_continuation_operand(continuation),
                 ))
             })
         }
@@ -6879,9 +6887,18 @@ fn generated_simple_term_contains_current_level_keha(term: GeneratedSimpleTermRe
             }
             TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
         },
-        GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => {
-            generated_sumti_contains_current_level_keha(&term.sumti)
-        }
+        GeneratedSimpleTermRef::JaiTaggedSumtiTerm(term) => match term.sumti.as_ref() {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                generated_sumti_contains_current_level_keha(sumti)
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
+        },
+        GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(term) => match term.sumti.as_ref() {
+            TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                generated_sumti_contains_current_level_keha(sumti)
+            }
+            TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => false,
+        },
         GeneratedSimpleTermRef::TaggedSumtiTerm(term) => match term.sumti.as_ref() {
             TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
                 generated_sumti_contains_current_level_keha(sumti)
@@ -7003,7 +7020,9 @@ fn generated_sumti_afterthought_contains_current_level_keha(
 fn generated_sumti_bound_contains_current_level_keha(sumti: &SumtiBoundSyntax) -> bool {
     generated_sumti_forethought_contains_current_level_keha(&sumti.leading_sumti)
         || sumti.bound_tail.as_ref().is_some_and(|tail| {
-            generated_sumti_bound_contains_current_level_keha(&tail.trailing_sumti)
+            generated_sumti_bound_contains_current_level_keha(
+                GeneratedBoundSumtiTailRef::from_tail(tail).trailing_sumti,
+            )
         })
 }
 

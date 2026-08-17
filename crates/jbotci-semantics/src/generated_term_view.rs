@@ -16,18 +16,20 @@ use std::sync::Arc;
 
 use jbotci_syntax::generated_model::{
     AtomRef, BalancedTermsetOperandsSyntax, BareNaTermSyntax, BoundNormalTermConnectionSyntax,
-    BoundNormalTermSyntax, BoundTermSyntax, CeheTermSyntax, ConnectedNormalTermSyntax,
-    ConnectedTermSyntax, ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax,
-    ForethoughtTermsetSyntax, GekTermsetSyntax, GikConnectiveSyntax, JaiTaggedSumtiTermSyntax,
-    KeTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax,
-    ModalForethoughtConnectiveSyntax, NaKuTermSyntax, NodeRef, NoihaAdverbialTermSyntax,
-    NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NormalTermAtomSyntax, NormalTermSyntax,
-    NuhiTermsetSyntax, PeheTermsetConnectionSyntax, PlaceTaggedLinkedSumtiSyntax,
-    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
-    StagBoundTermConnectionSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseTaggedLinkedSumtiSyntax,
-    TermSyntax, TermsetGroupSyntax, TreeNode, ZantufaForethoughtTermsetBranchSyntax,
-    ZantufaGekTermsetSyntax,
+    BoundNormalTermSyntax, BoundSumtiTailSyntax, BoundTermContinuationSyntax, BoundTermSyntax,
+    CeheTermSyntax, ConnectedNormalTermSyntax, ConnectedTermSyntax, ElidedNaheFihoTagTermSyntax,
+    FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax, GekTermsetSyntax, GikConnectiveSyntax,
+    JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax,
+    LooseTermSyntax, ModalForethoughtConnectiveSyntax, NaKuTermSyntax, NodeRef,
+    NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NormalTermAtomSyntax,
+    NormalTermBoContinuationSyntax, NormalTermSyntax, NuhiTermsetSyntax,
+    PeheTermsetConnectionSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
+    PlainLinkedSumtiSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
+    StagBoundTermConnectionSyntax, SumtiBoundSyntax, SumtiBoundTailSyntax, SumtiConnectiveSyntax,
+    SumtiTermSyntax, TaggedOrElidedSumtiSyntax, TaggedSumtiBeforeTagTermSyntax,
+    TaggedSumtiTermSyntax, TenseModalSyntax, TenseTaggedLinkedSumtiSyntax, TermSyntax,
+    TermsetGroupSyntax, TreeNode, ZantufaForethoughtTermsetBranchSyntax, ZantufaGekTermsetSyntax,
+    ZantufaJoikChainedPlaceTagTermSyntax,
 };
 use jbotci_tree::TreeVisitor;
 
@@ -65,6 +67,88 @@ impl<'syntax> GeneratedTaggedTermRef<'syntax> {
     }
 }
 
+/// A borrowed BO-bound sumti tail, sourced or Zantufa-connectorless.
+///
+/// The two arms of `sumti_bound_tail` differ by exactly one field: the sourced tail carries the
+/// connective its sources require, and rolling Zantufa's connectorless tail carries none
+/// (zantufa-1.9999.peg:35). Everything a traversal needs — the optional tag and the trailing
+/// operand — is shared, so structural passes take this view and only the lowerings that read a
+/// connective have to ask for it.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GeneratedBoundSumtiTailRef<'syntax> {
+    pub(crate) connective: Option<&'syntax SumtiConnectiveSyntax>,
+    pub(crate) tense_modal: Option<&'syntax TenseModalSyntax>,
+    pub(crate) trailing_sumti: &'syntax Arc<SumtiBoundSyntax>,
+}
+
+impl<'syntax> GeneratedBoundSumtiTailRef<'syntax> {
+    /// Borrow either BO-bound tail shape.
+    #[requires(true)]
+    #[ensures(ret.connective.is_some() == matches!(tail, SumtiBoundTailSyntax::BoundSumtiTail(_)))]
+    pub(crate) fn from_tail(tail: &'syntax SumtiBoundTailSyntax) -> Self {
+        match tail {
+            SumtiBoundTailSyntax::BoundSumtiTail(tail) => Self {
+                connective: Some(tail.connective.as_ref()),
+                tense_modal: tail.tense_modal.as_deref(),
+                trailing_sumti: &tail.trailing_sumti,
+            },
+            SumtiBoundTailSyntax::ZantufaBoundSumtiTail(tail) => Self {
+                connective: None,
+                tense_modal: tail.tense_modal.as_deref(),
+                trailing_sumti: &tail.trailing_sumti,
+            },
+        }
+    }
+}
+
+/// Borrow the sourced BO-bound sumti tail, or `None` for the Zantufa connectorless one.
+///
+/// Every connection lowering that reads a connective goes through here, so a connectorless tail
+/// can never reach one of them with an invented connective.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn sourced_bound_sumti_tail(
+    tail: &SumtiBoundTailSyntax,
+) -> Option<&BoundSumtiTailSyntax> {
+    match tail {
+        SumtiBoundTailSyntax::BoundSumtiTail(tail) => Some(tail),
+        SumtiBoundTailSyntax::ZantufaBoundSumtiTail(_) => None,
+    }
+}
+
+/// Borrow the operand of an absorption-safe BO term continuation, sourced or connectorless.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn bound_term_continuation_operand(
+    continuation: &BoundTermContinuationSyntax,
+) -> &Arc<SimpleTermSyntax> {
+    match continuation {
+        BoundTermContinuationSyntax::StagBoundTermContinuation(continuation) => {
+            &continuation.trailing_term
+        }
+        BoundTermContinuationSyntax::ZantufaBoundTermContinuation(continuation) => {
+            &continuation.trailing_term
+        }
+    }
+}
+
+/// Borrow the operand of a normal-flavour BO term continuation, sourced or connectorless.
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn normal_term_bo_continuation_operand(
+    continuation: &NormalTermBoContinuationSyntax,
+) -> &Arc<NormalTermAtomSyntax> {
+    match continuation {
+        NormalTermBoContinuationSyntax::BoundNormalTermContinuation(continuation) => {
+            &continuation.trailing_term
+        }
+        NormalTermBoContinuationSyntax::ZantufaBoundNormalTermContinuation(continuation) => {
+            &continuation.trailing_term
+        }
+    }
+}
+
 /// Report whether any operand of a NUhI-less forethought termset satisfies a predicate.
 #[requires(true)]
 #[ensures(true)]
@@ -86,6 +170,7 @@ pub(crate) fn any_gek_termset_operand(
 
 /// A borrowed simple-term leaf shared by every level of the composed term hierarchy.
 #[invariant(::PlaceTaggedSumtiTerm(_) => true)]
+#[invariant(::ZantufaJoikChainedPlaceTagTerm(_) => true)]
 #[invariant(::JaiTaggedSumtiTerm(_) => true)]
 #[invariant(::ElidedNaheFihoTagTerm(_) => true)]
 #[invariant(::TaggedSumtiBeforeTagTerm(_) => true)]
@@ -104,6 +189,7 @@ pub(crate) fn any_gek_termset_operand(
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     PlaceTaggedSumtiTerm(&'syntax PlaceTaggedSumtiTermSyntax),
+    ZantufaJoikChainedPlaceTagTerm(&'syntax ZantufaJoikChainedPlaceTagTermSyntax),
     JaiTaggedSumtiTerm(&'syntax JaiTaggedSumtiTermSyntax),
     ElidedNaheFihoTagTerm(&'syntax ElidedNaheFihoTagTermSyntax),
     TaggedSumtiBeforeTagTerm(&'syntax TaggedSumtiBeforeTagTermSyntax),
@@ -128,6 +214,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
     pub(crate) fn from_simple(term: &'syntax SimpleTermSyntax) -> Self {
         match term {
             SimpleTermSyntax::PlaceTaggedSumtiTerm(term) => Self::PlaceTaggedSumtiTerm(term),
+            SimpleTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Self::ZantufaJoikChainedPlaceTagTerm(term)
+            }
             SimpleTermSyntax::JaiTaggedSumtiTerm(term) => Self::JaiTaggedSumtiTerm(term),
             SimpleTermSyntax::ElidedNaheFihoTagTerm(term) => Self::ElidedNaheFihoTagTerm(term),
             SimpleTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
@@ -157,6 +246,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
         match term {
             BoundTermSyntax::StagBoundTermConnection(_) => None,
             BoundTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            BoundTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
+            }
             BoundTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             BoundTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             BoundTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
@@ -189,6 +281,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             | TermSyntax::ConnectedTerm(_)
             | TermSyntax::StagBoundTermConnection(_) => None,
             TermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            TermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
+            }
             TermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             TermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             TermSyntax::TaggedSumtiBeforeTagTerm(term) => {
@@ -220,6 +315,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             | CeheTermSyntax::ConnectedTerm(_)
             | CeheTermSyntax::StagBoundTermConnection(_) => None,
             CeheTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            CeheTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
+            }
             CeheTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             CeheTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             CeheTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
@@ -249,6 +347,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
         match term {
             LooseTermSyntax::ConnectedTerm(_) | LooseTermSyntax::StagBoundTermConnection(_) => None,
             LooseTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            LooseTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
+            }
             LooseTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             LooseTermSyntax::ElidedNaheFihoTagTerm(term) => Some(Self::ElidedNaheFihoTagTerm(term)),
             LooseTermSyntax::TaggedSumtiBeforeTagTerm(term) => {
@@ -282,6 +383,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 None
             }
             NonabsTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            NonabsTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
+            }
             NonabsTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             NonabsTermSyntax::ElidedNaheFihoTagTerm(term) => {
                 Some(Self::ElidedNaheFihoTagTerm(term))
@@ -318,6 +422,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             NormalTermSyntax::ConnectedNormalTerm(_)
             | NormalTermSyntax::BoundNormalTermConnection(_) => None,
             NormalTermSyntax::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTaggedSumtiTerm(term)),
+            NormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
+            }
             NormalTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             NormalTermSyntax::ElidedNaheFihoTagTerm(term) => {
                 Some(Self::ElidedNaheFihoTagTerm(term))
@@ -351,6 +458,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             BoundNormalTermSyntax::PlaceTaggedSumtiTerm(term) => {
                 Some(Self::PlaceTaggedSumtiTerm(term))
             }
+            BoundNormalTermSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Some(Self::ZantufaJoikChainedPlaceTagTerm(term))
+            }
             BoundNormalTermSyntax::JaiTaggedSumtiTerm(term) => Some(Self::JaiTaggedSumtiTerm(term)),
             BoundNormalTermSyntax::ElidedNaheFihoTagTerm(term) => {
                 Some(Self::ElidedNaheFihoTagTerm(term))
@@ -381,6 +491,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
     pub(crate) fn from_normal_atom(term: &'syntax NormalTermAtomSyntax) -> Self {
         match term {
             NormalTermAtomSyntax::PlaceTaggedSumtiTerm(term) => Self::PlaceTaggedSumtiTerm(term),
+            NormalTermAtomSyntax::ZantufaJoikChainedPlaceTagTerm(term) => {
+                Self::ZantufaJoikChainedPlaceTagTerm(term)
+            }
             NormalTermAtomSyntax::JaiTaggedSumtiTerm(term) => Self::JaiTaggedSumtiTerm(term),
             NormalTermAtomSyntax::ElidedNaheFihoTagTerm(term) => Self::ElidedNaheFihoTagTerm(term),
             NormalTermAtomSyntax::TaggedSumtiBeforeTagTerm(term) => {
@@ -412,6 +525,9 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
             Self::FihoiAdverbialTerm(_) => Some("an experimental FIhOI adverbial term"),
             Self::SoiAdverbialTerm(_) => Some("an experimental SOI/XOI adverbial term"),
             Self::JaiTaggedSumtiTerm(_) => Some("an experimental Zantufa JAI tag term"),
+            Self::ZantufaJoikChainedPlaceTagTerm(_) => {
+                Some("an experimental Zantufa JOIK-chained place tag")
+            }
             _ => None,
         }
     }
@@ -449,6 +565,7 @@ impl<'syntax> GeneratedAssociationPayloadRef<'syntax> {
             GeneratedSimpleTermRef::PlaceTaggedSumtiTerm(term) => Some(Self::PlaceTagged(term)),
             GeneratedSimpleTermRef::NaKuTerm(_) => Some(Self::NaKu),
             GeneratedSimpleTermRef::JaiTaggedSumtiTerm(_)
+            | GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm(_)
             | GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(_)
             | GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(_)
             | GeneratedSimpleTermRef::NoihaAdverbialTerm(_)

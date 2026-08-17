@@ -1279,7 +1279,7 @@ pub mod generated_model {
     /// branch: a nested branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps every level's leaf inventory synchronized with
     /// `simple_term`.
-    rule "term" term(gek_termset, zantufa_gek_termset, statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" term(gek_termset, zantufa_gek_termset, statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1290,6 +1290,9 @@ pub mod generated_model {
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1326,7 +1329,7 @@ pub mod generated_model {
 
     /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
     /// (camxes.peg:116). It is the operand level of the PEhE connection above it.
-    rule "term" cehe_term(gek_termset, zantufa_gek_termset, statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" cehe_term(gek_termset, zantufa_gek_termset, statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1335,6 +1338,9 @@ pub mod generated_model {
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1372,13 +1378,16 @@ pub mod generated_model {
     /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
     /// abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
     /// (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-    rule "term" loose_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" loose_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1422,13 +1431,16 @@ pub mod generated_model {
     /// of the two sources is exactly this level: the guarded tiers with the unguarded leaf
     /// inventory. The guard only ever fires when a selbri follows the atom directly, which is a
     /// position no connective tier can occupy, so no surface outside the two sources is admitted.
-    rule "term" nonabs_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" nonabs_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1485,9 +1497,12 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" simple_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1527,11 +1542,14 @@ pub mod generated_model {
     /// The leaf rules are deliberately listed directly rather than through `simple_term`: a
     /// nested sum branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-    rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1578,7 +1596,39 @@ pub mod generated_model {
         /// The first simple term at the BO-bound precedence level.
         field leading_term <- arc(simple_term);
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more stag_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+    }
+
+    /// The two BO continuation shapes at the absorption-safe term level.
+    ///
+    /// camxes-exp's `abs_term_2 <- abs_term_3 (joik_ek stag BO_clause abs_term_3)*`
+    /// (camxes-exp.peg:154) requires both the connective and the stag; rolling Zantufa's
+    /// `term_1 <- term_2 (joik_ek? BO_clause term_2)*` (zantufa-1.9999.peg:28) requires
+    /// neither. The connector-absent continuation is therefore an alternative of its own
+    /// rather than a relaxation of the sourced one, and a single connection node may mix the
+    /// two exactly as Zantufa's own flat continuation list does.
+    rule "term connection continuation" bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+        /// Uses the sourced mandatory-stag `stag_bound_term_continuation` product form.
+        stag_bound_term_continuation,
+        /// Uses rolling Zantufa's connectorless `zantufa_bound_term_continuation` product form.
+        when feature(ZantufaTerms) zantufa_bound_term_continuation,
+    }
+
+    /// One connectorless BO continuation at the absorption-safe term level.
+    ///
+    /// The operand stays the guarded `simple_term`, which is the flavour this ladder carries;
+    /// Zantufa has one term ladder rather than two, and its `term_2` leaf inventory writes the
+    /// absorption guard into `tag_term` itself (zantufa-1.9999.peg:31), so the guarded leaves
+    /// are the faithful operand here.
+    rule "term connection continuation" zantufa_bound_term_continuation(statement, sumti, simple_term, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert feature(ZantufaTerms);
+        /// The `Bo` cmavo marker, which owns the experimental warning for the continuation.
+        field bo <- cmavo(Bo).warn(ExperimentalZantufaConnectorlessBo).wf();
+        /// The simple term following BO, classified by the same ownership rule the sumti tier
+        /// applies to its recursive operand.
+        field trailing_term <- arc(
+            simple_term.reject_output(crate::grammar::baseline_bo::ConnectivePresentTermBoRejection)
+        );
     }
 
     /// One mandatory-stag BO continuation at the absorption-safe term level.
@@ -1663,13 +1713,16 @@ pub mod generated_model {
     /// other ladder level does it (mechanism E): a nested branch would add a public wrapper
     /// variant to Debug and serde output. The binding-schema drift guard keeps this inventory
     /// synchronized with `simple_term`.
-    rule "term" normal_term(gek_termset, zantufa_gek_termset, statement, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" normal_term(gek_termset, zantufa_gek_termset, statement, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `connected_normal_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_normal_term,
         /// Uses the `bound_normal_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
         bound_normal_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1724,11 +1777,14 @@ pub mod generated_model {
     }
 
     /// The optional-stag BO-bound level of the normal-flavour term constituent.
-    rule "term" bound_normal_term(gek_termset, zantufa_gek_termset, statement, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" bound_normal_term(gek_termset, zantufa_gek_termset, statement, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the diagnosed optional-stag BO-bound normal-flavour connection.
         bound_normal_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -1774,7 +1830,33 @@ pub mod generated_model {
         /// The first unguarded leaf at the BO-bound precedence level.
         field leading_term <- arc(normal_term_atom);
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more bound_normal_term_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+        field continuations <- [one_or_more normal_term_bo_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci)];
+    }
+
+    /// The two BO continuation shapes at the normal-flavour term level.
+    ///
+    /// The normal flavour already leaves the stag optional (#816, camxes-exp.peg:143), so the
+    /// Zantufa delta here is exactly the missing connective and nothing else — which is also
+    /// the B3 ownership boundary: `ko'a goi ba ko'e .e bo vi ko'i broda` carries the
+    /// connective and stays the sourced arm's, while `ko'a goi pu ko'e bo ca ko'i broda`
+    /// carries none and is Zantufa's alone (camxes-exp rejects it).
+    rule "term connection continuation" normal_term_bo_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> enum {
+        /// Uses the sourced optional-stag `bound_normal_term_continuation` product form.
+        bound_normal_term_continuation,
+        /// Uses rolling Zantufa's connectorless `zantufa_bound_normal_term_continuation`
+        /// product form.
+        when feature(ZantufaTerms) zantufa_bound_normal_term_continuation,
+    }
+
+    /// One connectorless BO continuation at the normal-flavour term level.
+    rule "term connection continuation" zantufa_bound_normal_term_continuation(statement, sumti, normal_term_atom, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci) -> struct {
+        assert feature(ZantufaTerms);
+        /// The `Bo` cmavo marker, which owns the experimental warning for the continuation.
+        field bo <- cmavo(Bo).warn(ExperimentalZantufaConnectorlessBo).wf();
+        /// The unguarded leaf following BO, classified by the same ownership rule.
+        field trailing_term <- arc(
+            normal_term_atom.reject_output(crate::grammar::baseline_bo::ConnectivePresentNormalTermBoRejection)
+        );
     }
 
     /// One optional-stag BO continuation at the normal-flavour term level.
@@ -1795,9 +1877,12 @@ pub mod generated_model {
     /// This is `term_3 <- sumti / tag_term / termset` (camxes-exp.peg:145) and camxes-standard's
     /// bare `nonabs_term` (camxes.peg:128) at once: the same leaves `simple_term` lists, with the
     /// unguarded `nonabs_tagged_sumti_term` in place of its absorption-guarded twin.
-    rule "term" normal_term_atom(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "term" normal_term_atom(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
+        /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
+        /// form, whose payload preserves `fa`, `continuations`, and `sumti`.
+        when feature(ZantufaTags) zantufa_joik_chained_place_tag_term,
         /// Uses the `jai_tagged_sumti_term` product form, whose payload preserves `jai`, `tag`, and `sumti`.
         jai_tagged_sumti_term,
         /// Uses the `elided_nahe_fiho_tag_term` product form for the sourced final tag-term fragment.
@@ -2109,8 +2194,61 @@ pub mod generated_model {
     rule "place tag" place_tagged_sumti_term(sumti, normal_term) -> struct {
         /// A word from selmaho `Fa`.
         field fa <- selmaho(Fa).wf();
+        assert zantufa_place_tag_chain_guard();
         /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
+    }
+
+    // Zantufa writes its place tag as ONE greedy alternative, `FA_clause (joik FA_clause)*`
+    // (zantufa-1.9999.peg:31), so the chain is consumed before the payload position is reached
+    // at all. jbotci gives the chain its own leaf, and a term that has already matched is never
+    // re-entered, so the shared FA term has to decline the chained surface itself rather than
+    // merely being listed after it: without this guard `fa je fe ko'a broda` matches `fa` with
+    // an elided KU here and the chain arm is never tried. The guard is inert wherever the
+    // chain arm is, so no profile without ZANTUFA-TAGS can see it.
+    alias "place tag" zantufa_place_tag_chain_guard = choice((
+        feature(ZantufaTags).not(),
+        (standard_statement_connective, selmaho(Fa)).not(),
+    )).ignored();
+
+    /// Rolling Zantufa's JOIK-chained place tag: the `FA_clause (joik FA_clause)*` half of
+    /// `tag_term` (zantufa-1.9999.peg:31), with the chain required.
+    ///
+    /// camxes-exp reaches the same surface through its own `joik` at a different tier, and
+    /// camxes-standard rejects it outright; jbotci gives the chain its own leaf rather than a
+    /// `zero_or_more` continuation on the shared FA term, because an optional continuation list
+    /// would re-type all 1,342 baseline FA fixtures to record a list that is empty in every one
+    /// of them. Requiring at least one JOIK-led continuation also makes the arm structurally
+    /// disjoint from the shared FA term, exactly as `zantufa_ke_co_grouped_tanru_unit` is from
+    /// standard KE: a plain `fa ko'a` can never reach it, so arm order cannot change which
+    /// node a sourced surface gets.
+    ///
+    /// The `!tanru_unit_1` guard is Zantufa's and applies to both halves of its `tag_term`, so
+    /// it is asserted here for the same reason the JAI term asserts it: with the payload
+    /// elidable, `fa je fe broda` would otherwise take the chain, elide its KU and leave the
+    /// selbri to be found again.
+    rule "place tag" zantufa_joik_chained_place_tag_term(sumti, normal_term, tanru_unit_atom) -> struct {
+        assert feature(ZantufaTags);
+        /// A word from selmaho `Fa`.
+        field fa <- selmaho(Fa).wf();
+        /// The nonempty source-ordered JOIK-led FA continuation sequence.
+        field continuations <- [one_or_more zantufa_joik_chained_place_tag_continuation()];
+        assert !tanru_unit_atom;
+        /// The shared sumti child syntax node, overt or KU-terminated.
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
+    }
+
+    /// One JOIK-led continuation of a Zantufa place-tag chain.
+    rule "place tag continuation" zantufa_joik_chained_place_tag_continuation -> struct {
+        /// The connective joining the adjacent place tags. Zantufa spells this position `joik`
+        /// rather than `joik_ek`, so the EK inventory is not admitted; its own JOI selma'o
+        /// (zantufa-1.9999.peg:556) nevertheless holds every JA word as well as the JOI ones,
+        /// so the sourced domain here is JOIK-or-JEK, which is what `fa je fe ko'a broda`
+        /// needs. Words Zantufa lexes into JOI and jbotci lexes elsewhere — `ji`, which is an
+        /// A word here — are a documented gap rather than a widening of this position.
+        field connective <- standard_statement_connective;
+        /// The place tag this continuation contributes, which owns the chain's warning.
+        field fa <- selmaho(Fa).warn(ExperimentalZantufaJoikChainedPlaceTag).wf();
     }
 
     /// Product node for NA KU term; preserves `na` and `na_ku` in source order.
@@ -2200,15 +2338,30 @@ pub mod generated_model {
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
+    /// Rolling Zantufa's JAI term: `JAI_clause tag? !tanru_unit_1 (sumti / KU_elidible)`
+    /// (zantufa-1.9999.peg:31).
+    ///
+    /// The payload is the same `(sumti / KU_elidible)` every tag-led term takes, so the sumti
+    /// may be overt (`jai pu ko'a broda`), replaced by an explicit KU (`jai ku broda`), or
+    /// elided outright (`jai cu broda`). All three are Zantufa's and no other parser's.
+    ///
+    /// `!tanru_unit_1` is what keeps the elided payload from swallowing the selbri: `jai broda`
+    /// and `mi jai pu broda` are the JAI **selbri** `tanru_unit_1` in every parser including
+    /// Zantufa (:52), and without the guard this term would take the JAI, elide its KU and
+    /// leave `broda` to be found again as the sentence's selbri. The guard is structural — the
+    /// tanru-unit atom is asserted absent at the payload position, not approximated by a token
+    /// class — because the boundary it draws is exactly where a tanru unit may begin.
+    ///
     /// Product node for tag; preserves `jai`, `tag`, and `sumti` in source order.
-    rule "tag" jai_tagged_sumti_term(tense_modal, sumti) -> struct {
+    rule "tag" jai_tagged_sumti_term(tense_modal, sumti, tanru_unit_atom, normal_term) -> struct {
         assert feature(ZantufaTags);
         /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).warn(ExperimentalZantufaJaiTagTerm).wf();
         /// The optional tag component.
         field tag <- opt(arc(tense_modal));
-        /// The shared sumti child syntax node.
-        field sumti <- arc(sumti);
+        assert !tanru_unit_atom;
+        /// The shared sumti child syntax node, overt or KU-terminated.
+        field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
 
     /// Sum node for tag; selects among 8 forms including `pu_before_nahe_leading_term_tag_tense`, `pu_distance_before_tag_leading_term_tag_tense`, and `zi_before_zi_leading_term_tag_tense`.
@@ -2343,7 +2496,32 @@ pub mod generated_model {
         /// The shared leading sumti child syntax node.
         field leading_sumti <- arc(sumti_forethought);
         /// The optional bound tail component.
-        field bound_tail <- opt(bound_sumti_tail(sumti_bound, tense_modal));
+        field bound_tail <- opt(sumti_bound_tail(sumti_bound, tense_modal));
+    }
+
+    /// The two BO-bound tail shapes of the sumti connection.
+    ///
+    /// camxes-standard and camxes-exp both require the connective before the optional stag —
+    /// `sumti_3 <- sumti_4 ((ek / joik) stag? BO_clause sumti_3)?` (camxes.peg:143) — while
+    /// rolling Zantufa writes the same tier `sumti_2 <- sumti_3 (joik_ek? tag? BO_clause
+    /// sumti_3)*` (zantufa-1.9999.peg:35), where the connective is OPTIONAL. The jbotci arm
+    /// carries only the delta: the connector-ABSENT form, which no other parser accepts and
+    /// which is therefore disjoint from the sourced shape by its own marker (B3). The two
+    /// shapes are alternatives of one sum rather than one widened product, so the sourced
+    /// arm's own shape stays exactly what its sources spell.
+    ///
+    /// This is the BASELINE BO-precedence level, not Zantufa's rule *number*: Zantufa
+    /// renumbers its sumti ladder — its `sumti_1` is the loose tier and its `sumti_2` the BO
+    /// tier, while the baseline backbone jbotci composes puts the loose tier at `sumti_2` and
+    /// BO at `sumti_3`. Placing the arm by name rather than by tier would bind looser than
+    /// both the baseline BO connection and the loose connection above it.
+    rule "sumti connection" sumti_bound_tail(sumti_bound, tense_modal) -> enum {
+        /// Uses the sourced `bound_sumti_tail` product form, whose payload preserves
+        /// `connective`, `tense_modal`, `bo`, and `trailing_sumti`.
+        bound_sumti_tail,
+        /// Uses rolling Zantufa's connectorless `zantufa_bound_sumti_tail` product form,
+        /// whose payload preserves `tense_modal`, `bo`, and `trailing_sumti`.
+        when feature(ZantufaTerms) zantufa_bound_sumti_tail,
     }
 
     /// Sum node for sumti; selects among the `forethought_sumti` and `simple_sumti` forms.
@@ -2395,6 +2573,30 @@ pub mod generated_model {
         field bo <- cmavo(Bo).wf();
         /// The shared trailing sumti child syntax node.
         field trailing_sumti <- arc(sumti_bound);
+    }
+
+    /// Rolling Zantufa's connectorless BO sumti tail: the `joik_ek`-less reading of
+    /// `sumti_2 <- sumti_3 (joik_ek? tag? BO_clause sumti_3)*` (zantufa-1.9999.peg:35).
+    ///
+    /// The tag stays optional, exactly as Zantufa spells it, so `ko'a bo ko'e` and
+    /// `ko'a ba bo ko'e` are both this arm; what the arm may never carry is the connective,
+    /// which is the whole marker that separates it from the sourced tail above.
+    ///
+    /// The trailing operand is classified rather than taken as parsed: it is the one place a
+    /// connector-absent arm can still end up owning an extent that carries a connective, since
+    /// jbotci spells the BO chain by recursion where Zantufa spells it as a flat continuation
+    /// list. `crate::grammar::baseline_bo::ConnectivePresentSumtiBoRejection` returns that
+    /// extent to the sourced owner; see that type for the ownership argument.
+    rule "sumti connection" zantufa_bound_sumti_tail(sumti_bound, tense_modal) -> struct {
+        assert feature(ZantufaTerms);
+        /// The optional tense modal component.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The `Bo` cmavo marker, which owns the experimental warning for the whole tail.
+        field bo <- cmavo(Bo).warn(ExperimentalZantufaConnectorlessBo).wf();
+        /// The trailing sumti, classified against the sourced owner's extent.
+        field trailing_sumti <- arc(
+            sumti_bound.reject_output(crate::grammar::baseline_bo::ConnectivePresentSumtiBoRejection)
+        );
     }
 
     /// Product node for sumti connective; preserves `connective` and `sumti` in source order.

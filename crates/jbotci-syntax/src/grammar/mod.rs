@@ -31,6 +31,7 @@ use crate::{
     WithIndicatorsData, syntax_construct_is_descendant_of, syntax_immediate_child_under,
 };
 
+mod baseline_bo;
 mod baseline_mex;
 mod baseline_relative;
 mod baseline_selbri;

@@ -972,6 +972,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "place tag continuation",
+        parent: Some("place tag"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "NA KU term",
         parent: Some("term"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -3070,6 +3076,8 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaGek,
     ExperimentalZantufaPoihaBrigahi,
     ExperimentalZantufaJaiTagTerm,
+    ExperimentalZantufaConnectorlessBo,
+    ExperimentalZantufaJoikChainedPlaceTag,
     ExperimentalZantufaTag,
     ExperimentalZantufaGroupedBridiTail,
     ExperimentalZantufaStatementTerms,
@@ -3219,6 +3227,12 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaJaiTagTerm => {
                 "syntax.warning.experimental-zantufa-jai-tag-term"
             }
+            Self::ExperimentalZantufaConnectorlessBo => {
+                "syntax.warning.experimental-zantufa-connectorless-bo"
+            }
+            Self::ExperimentalZantufaJoikChainedPlaceTag => {
+                "syntax.warning.experimental-zantufa-joik-chained-place-tag"
+            }
             Self::ExperimentalZantufaTag => "syntax.warning.experimental-zantufa-tag",
             Self::ExperimentalZantufaGroupedBridiTail => {
                 "syntax.warning.experimental-zantufa-grouped-bridi-tail"
@@ -3358,6 +3372,10 @@ impl ExperimentalConstruct {
                 "Zantufa POIhA briga'i term with KU terminator"
             }
             Self::ExperimentalZantufaJaiTagTerm => "Zantufa JAI tag term",
+            Self::ExperimentalZantufaConnectorlessBo => {
+                "Zantufa connectorless BO term or sumti connection"
+            }
+            Self::ExperimentalZantufaJoikChainedPlaceTag => "Zantufa JOIK-chained place tag",
             Self::ExperimentalZantufaTag => "experimental Zantufa tag form",
             Self::ExperimentalZantufaGroupedBridiTail => "Zantufa KE bridi-tail grouping",
             Self::ExperimentalZantufaStatementTerms => "Zantufa statement-level trailing terms",

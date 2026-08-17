@@ -1176,6 +1176,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "generated syntax migration placeholder audited by generated semantics and renderer tests",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBoundSumtiTailRef",
+        "borrowed BO-tail view delegates validity to the invariant-bearing sourced or Zantufa tail it was built from",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTaggedTermRef",
         "borrowed tag-term view delegates validity to the invariant-bearing guarded or unguarded tag term it was built from",
     ),
@@ -1681,6 +1685,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineRelativeContinuationRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentNormalTermBoRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentSumtiBoRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentTermBoRejection",
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
     (
