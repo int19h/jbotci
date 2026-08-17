@@ -902,6 +902,16 @@ mod tests {
         // feature-gated arm, so in the default profile the sample rejects with a
         // plain `syntax.unexpected-cmavo` and carries no local experimental
         // warning for the gate to be conservative about.
+        //
+        // Epoch 6c's samples (#827) join it for the same two reasons. The three
+        // connectorless BO joints and the explicit-KU JAI term are ZANTUFA-gated,
+        // so the default profile rejects each with a plain diagnostic and no local
+        // warning; `mi jai pu broda` and `ko'a ce'e ko'e broda` are ordinary
+        // baseline parses in every profile -- the JAI selbri and the CEhE termset
+        // group -- so they carry no warning either. `fa-joik-chained-place-tag` is
+        // deliberately absent: `fa je fe` takes epoch 5's FA-as-tag route in the
+        // default profile, whose local experimental warning the gate must be
+        // conservative about.
         assert_eq!(
             passed_ids,
             [
@@ -911,6 +921,12 @@ mod tests {
                 "trailing-operator-mex-quantifier",
                 "xi-mex-free-with-statement-terms",
                 "nary-gek-termset",
+                "connectorless-bo-term",
+                "connectorless-bo-sumti",
+                "connectorless-bo-sumti-tagged",
+                "jai-term-explicit-ku",
+                "jai-selbri-not-term",
+                "cehe-stays-a-cehe-termset",
             ]
         );
     }
