@@ -911,14 +911,108 @@ pub mod generated_model {
         field bridi_tail <- arc(bridi_tail);
     }
 
-    /// Sum node for bridi tail; selects among the `zantufa_grouped_bridi_tail`, `bridi_tail_with_possible_tail_terms`, and `bridi_tail_without_tail_terms` forms.
+    /// Sum node for bridi tail; selects among the Zantufa continuation priority wrappers, the
+    /// `zantufa_grouped_bridi_tail`, `bridi_tail_with_possible_tail_terms`, and
+    /// `bridi_tail_without_tail_terms` forms.
     rule "bridi tail" bridi_tail(bridi_tail, bo_grouped_bridi_tail, bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> enum {
-        /// Uses the `zantufa_grouped_bridi_tail` product form, whose payload preserves `ke`, `bridi_tail`, `kehe`, `tail_terms`, and `vau`.
-        when feature(ZantufaTerms) zantufa_grouped_bridi_tail,
+        /// Rolling Zantufa's unbound top continuation, filtered by the completed-candidate
+        /// baseline classifier. It must precede the ordinary forms because its own operand is
+        /// the flat level those forms start from, so a shorter successful flat parse would
+        /// otherwise hide a longer JOIK-led or tag-bearing continuation.
+        when feature(ZantufaConnectives) zantufa_priority_continued_bridi_tail,
+        /// The tail-terms-free mirror of the same priority wrapper.
+        when feature(ZantufaConnectives) zantufa_priority_continued_bridi_tail_without_tail_terms,
+        /// Rolling Zantufa's KE-led bridi tail, filtered by the completed-candidate ownership
+        /// guard that stands in for its `!(selbri_2 KEhE)` lookahead.
+        when feature(ZantufaTerms) zantufa_priority_grouped_bridi_tail,
         /// Uses the `bridi_tail_with_possible_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
         bridi_tail_with_possible_tail_terms,
         /// Uses the `bridi_tail_without_tail_terms` product form, whose payload preserves `first` and `ke_continuation`.
         bridi_tail_without_tail_terms,
+    }
+
+    /// Priority wrapper for rolling Zantufa's unbound top continuation
+    /// (zantufa-1.9999.peg:20). The arm is deliberately extension-first, so the completed
+    /// candidate is filtered by [`crate::grammar::baseline_bridi_tail`], which returns every
+    /// extent the baseline flat chain or the adopted camxes-exp CU arms can also cover.
+    rule "bridi tail" zantufa_priority_continued_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+        #[tree_child(primary)]
+        /// The completed continuation candidate after baseline-ownership filtering.
+        field bridi_tail <- arc(
+            zantufa_continued_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal)
+                .reject_output(crate::grammar::baseline_bridi_tail::BaselineTailContinuationRejection)
+        );
+    }
+
+    /// The tail-terms-free mirror of [`zantufa_priority_continued_bridi_tail`].
+    rule "bridi tail" zantufa_priority_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+        #[tree_child(primary)]
+        /// The completed continuation candidate after baseline-ownership filtering.
+        field bridi_tail <- arc(
+            zantufa_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal)
+                .reject_output(crate::grammar::baseline_bridi_tail::BaselineTailContinuationWithoutTailTermsRejection)
+        );
+    }
+
+    /// Product node for bridi tail; rolling Zantufa's `bridi_tail <- bridi_tail_1 (joik_gihek
+    /// tag? CU_elidible bridi_tail_1)*` (zantufa-1.9999.peg:20). The continuation list is
+    /// non-empty so that the arm is structurally distinct from a bare flat tail.
+    rule "bridi tail" zantufa_continued_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+        /// The leading flat-level tail the continuations extend.
+        field first <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
+        /// Non-empty ordered sequence of unbound top-level continuations.
+        field continuations <- [one_or_more zantufa_tail_continuation(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal)];
+    }
+
+    /// The tail-terms-free mirror of [`zantufa_continued_bridi_tail`].
+    rule "bridi tail" zantufa_continued_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+        /// The leading flat-level tail the continuations extend.
+        field first <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
+        /// Non-empty ordered sequence of unbound top-level continuations.
+        field continuations <- [one_or_more zantufa_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal)];
+    }
+
+    /// Product node for bridi tail connective; one element of rolling Zantufa's unbound top
+    /// continuation. The construct owns no token that is its alone -- its connective is the
+    /// shared GIhA/JOI/JA spelling and both the tag and the CU are optional -- so the warning is
+    /// attached post-parse by the standing visitor, anchored at the connective that opens it.
+    rule "bridi tail connective" zantufa_tail_continuation(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal) -> struct {
+        /// The `joik_gihek` connective opening this continuation, the shared tail connective
+        /// whose Zantufa arms this dialect turns on.
+        field connective <- bridi_tail_connective;
+        /// The optional tag between the connective and the operand.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The optional `Cu` cmavo marker.
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        /// The flat-level tail this continuation governs.
+        field bridi_tail <- arc(afterthought_bridi_tail(bo_grouped_bridi_tail, selbri, subbridi, term, tense_modal));
+    }
+
+    /// The tail-terms-free mirror of [`zantufa_tail_continuation`].
+    rule "bridi tail connective" zantufa_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+        /// The `joik_gihek` connective opening this continuation, the shared tail connective
+        /// whose Zantufa arms this dialect turns on.
+        field connective <- bridi_tail_connective;
+        /// The optional tag between the connective and the operand.
+        field tense_modal <- opt(arc(tense_modal));
+        /// The optional `Cu` cmavo marker.
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        /// The flat-level tail this continuation governs.
+        field bridi_tail <- arc(afterthought_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, selbri, subbridi, term, tense_modal));
+    }
+
+    /// Priority wrapper for rolling Zantufa's KE-led bridi tail. Zantufa spells the ownership
+    /// boundary as the token lookahead `KE !(selbri_2 KEhE) bridi_tail KEhE? tail_terms`
+    /// (zantufa-1.9999.peg:23); jbotci spells the same boundary as a completed-candidate
+    /// classifier, because the level the lookahead names is reachable through the tail itself and
+    /// no token prefix distinguishes the two readings.
+    rule "bridi tail" zantufa_priority_grouped_bridi_tail(bridi_tail, term) -> struct {
+        #[tree_child(primary)]
+        /// The completed KE-tail candidate after grouped-tanru and forethought-KE filtering.
+        field bridi_tail <- arc(
+            zantufa_grouped_bridi_tail(bridi_tail, term)
+                .reject_output(crate::grammar::baseline_bridi_tail::GroupedTanruKeTailRejection)
+        );
     }
 
     /// Product node for bridi tail; preserves `ke`, `bridi_tail`, `kehe`, `tail_terms`, and `vau` in source order.
@@ -977,7 +1071,7 @@ pub mod generated_model {
         /// The shared first child syntax node.
         field first <- arc(simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal));
         /// The optional bo continuation component.
-        field bo_continuation <- opt(arc(bridi_tail_bo_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal)));
+        field bo_continuation <- opt(arc(bridi_tail_bo_joint_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal)));
     }
 
     /// Product node for bridi tail; preserves `first` and `bo_continuation` in source order.
@@ -985,7 +1079,58 @@ pub mod generated_model {
         /// The shared first child syntax node.
         field first <- arc(simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal));
         /// The optional bo continuation component.
-        field bo_continuation <- opt(arc(bridi_tail_bo_continuation(bo_grouped_bridi_tail, term, tense_modal)));
+        field bo_continuation <- opt(arc(bridi_tail_bo_joint(bo_grouped_bridi_tail, term, tense_modal)));
+    }
+
+    /// Sum node for bridi tail connective; the BO-level joint carries the connective-led
+    /// continuation and rolling Zantufa's connectiveless `tag BO` opening
+    /// (zantufa-1.9999.peg:22). The two arms are structurally disjoint -- the Zantufa arm has no
+    /// connective at all, and the connective is mandatory in the sourced one -- so arm order
+    /// cannot change which node a sourced surface gets, and no classifier is needed. The other
+    /// half of the source's `(tag / joik_gihek tag?)` needs no arm of its own: `joik_gihek tag?
+    /// BO` is the connective arm's own shape once the shared `bridi_tail_connective` admits the
+    /// JOIK half.
+    rule "bridi tail connective" bridi_tail_bo_joint(bo_grouped_bridi_tail, term, tense_modal) -> enum {
+        /// The connective-led BO continuation.
+        bridi_tail_bo_continuation,
+        /// Rolling Zantufa's connectiveless tag-led BO continuation.
+        when feature(ZantufaConnectives) zantufa_tag_bo_bridi_tail_continuation,
+    }
+
+    /// The tail-terms-free mirror of [`bridi_tail_bo_joint`].
+    rule "bridi tail connective" bridi_tail_bo_joint_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> enum {
+        /// The connective-led BO continuation.
+        bridi_tail_bo_continuation_without_tail_terms,
+        /// Rolling Zantufa's connectiveless tag-led BO continuation.
+        when feature(ZantufaConnectives) zantufa_tag_bo_bridi_tail_continuation_without_tail_terms,
+    }
+
+    /// Rolling Zantufa's connectiveless `tag BO` bridi-tail joint (zantufa-1.9999.peg:22).
+    rule "bridi tail connective" zantufa_tag_bo_bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal) -> struct {
+        /// The tag that opens this joint; required, since its absence is the sourced shape.
+        field tense_modal <- arc(tense_modal);
+        /// The `Bo` cmavo marker.
+        field bo <- cmavo(Bo).wf();
+        /// The optional `Cu` cmavo marker.
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        /// The shared bridi tail child syntax node.
+        field bridi_tail <- arc(bo_grouped_bridi_tail);
+        /// Ordered sequence of zero or more tail terms components.
+        field tail_terms <- [zero_or_more term];
+        /// The optional `Vau` cmavo marker.
+        field vau <- opt(arc(cmavo(Vau).wf())).elidable_terminator(Vau);
+    }
+
+    /// The tail-terms-free mirror of [`zantufa_tag_bo_bridi_tail_continuation`].
+    rule "bridi tail connective" zantufa_tag_bo_bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal) -> struct {
+        /// The tag that opens this joint; required, since its absence is the sourced shape.
+        field tense_modal <- arc(tense_modal);
+        /// The `Bo` cmavo marker.
+        field bo <- cmavo(Bo).wf();
+        /// The optional `Cu` cmavo marker.
+        field cu <- opt(arc(cmavo(Cu).wf()));
+        /// The shared bridi tail child syntax node.
+        field bridi_tail <- arc(bo_grouped_bridi_tail_without_tail_terms);
     }
 
     /// Sum node for bridi tail; selects among the `forethought_simple_bridi_tail_without_tail_terms` and `selbri_simple_bridi_tail_without_tail_terms` forms.
@@ -4846,10 +4991,25 @@ pub mod generated_model {
         field nai <- opt(cmavo(Nai).wf());
     }
 
-    /// Sum node for bridi tail connective; selects among the `gihek_connective` and `relation_connective_as_bridi_tail` forms.
+    /// Sum node for bridi tail connective. The sourced inventory at every bridi-tail joint is
+    /// GIhA alone (camxes.peg:77-79) and D1 narrows this node to it; rolling Zantufa writes
+    /// `joik_gihek <- joik / gihek` (zantufa-1.9999.peg:70) at every one of its tail joints
+    /// instead, and its JOI selma'o holds the JA words as well as the JOI ones (:556), which is
+    /// the domain jbotci splits between `joik_connective` and `jek_connective`. Widening this one
+    /// shared node is what the source's own shape asks for -- one joint, a wider connective --
+    /// and it widens the flat joint, the BO joint and the KE join together, including the
+    /// `!(tag? BO)` and `!(tag? KE)` guards that are already written over this node.
+    ///
+    /// The Zantufa arms precede the unsourced relation arm D1 deletes, so that a JOIK-led joint
+    /// selects the arm that survives this epoch rather than the one that does not. A GIhA-led
+    /// joint still selects `gihek_connective`, which is why the widening churns no expectation.
     rule "bridi tail connective" bridi_tail_connective -> enum {
         /// Uses the `gihek_connective` product form, whose payload preserves `na`, `se`, `giha`, and `nai`.
         gihek_connective,
+        /// Rolling Zantufa's JOIK half of `joik_gihek`.
+        when feature(ZantufaConnectives) joik_connective,
+        /// Rolling Zantufa's JA half of `joik_gihek`, which its JOI selma'o also holds.
+        when feature(ZantufaConnectives) jek_connective,
         /// Uses the `relation_connective_as_bridi_tail` product form, whose payload preserves `connective`.
         relation_connective_as_bridi_tail,
     }

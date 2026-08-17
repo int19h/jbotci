@@ -32,6 +32,7 @@ use crate::{
 };
 
 mod baseline_bo;
+mod baseline_bridi_tail;
 mod baseline_mex;
 mod baseline_relative;
 mod baseline_selbri;
@@ -5159,6 +5160,24 @@ fn generated_exp_run_is_single_unprefixed_fa(
         )
 }
 
+/// Report whether a bridi-tail joint's shared connective selected one of the arms rolling
+/// Zantufa contributes to it. The sum is matched exhaustively so that a further spelling has to
+/// answer this question for itself.
+#[requires(true)]
+#[ensures(true)]
+fn generated_tail_connective_is_zantufa(
+    connective: &generated::generated_model::BridiTailConnectiveSyntax,
+) -> bool {
+    match connective {
+        generated::generated_model::BridiTailConnectiveSyntax::JoikConnective(_)
+        | generated::generated_model::BridiTailConnectiveSyntax::JekConnective(_) => true,
+        generated::generated_model::BridiTailConnectiveSyntax::GihekConnective(_)
+        | generated::generated_model::BridiTailConnectiveSyntax::RelationConnectiveAsBridiTail(_) => {
+            false
+        }
+    }
+}
+
 impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     type Node = generated::generated_model::NodeRef<'tree>;
     type Atom = generated::generated_model::AtomRef<'tree>;
@@ -5181,6 +5200,90 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
             generated::generated_model::NodeRef::ConnectedTermContinuationSyntax(continuation) => {
                 self.warn_first_token(
                     ExperimentalConstruct::ExperimentalTermLooseConnection,
+                    continuation,
+                );
+            }
+            // Rolling Zantufa's three additional bridi-tail joints own no token that is theirs
+            // alone: the connective is the shared GIhA/JOI/JA spelling, the tag is the shared
+            // tag machinery, the BO and the CU are the sourced words, and the top continuation's
+            // tag and CU are both optional. Each is therefore diagnosed post-parse here, anchored
+            // at its own first token, which is the connective or the tag that opens the joint.
+            // The unbound top continuation warns ONCE for the whole construct rather than once
+            // per element: the repeated group is one node and one decision.
+            generated::generated_model::NodeRef::ZantufaContinuedBridiTailSyntax(tail) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
+                    tail.continuations.first(),
+                );
+            }
+            generated::generated_model::NodeRef::ZantufaContinuedBridiTailWithoutTailTermsSyntax(
+                tail,
+            ) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
+                    tail.continuations.first(),
+                );
+            }
+            // The same category covers the sourced joints when the shared connective selects one
+            // of the arms rolling Zantufa adds to it (zantufa-1.9999.peg:70). Those joints own no
+            // token of their own in that reading either -- the JOI/JA spelling is the one every
+            // other connective tier shares -- so the warning is attached here, anchored at the
+            // connective that opens the joint. The top continuation is deliberately not in this
+            // list: it warns once for its whole list at the node above, and warning here as well
+            // would count one construct twice.
+            generated::generated_model::NodeRef::BridiTailContinuationSyntax(continuation)
+                if generated_tail_connective_is_zantufa(&continuation.connective) =>
+            {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
+                    continuation,
+                );
+            }
+            generated::generated_model::NodeRef::BridiTailContinuationWithoutTailTermsSyntax(
+                continuation,
+            ) if generated_tail_connective_is_zantufa(&continuation.connective) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
+                    continuation,
+                );
+            }
+            generated::generated_model::NodeRef::BridiTailBoContinuationSyntax(continuation)
+                if generated_tail_connective_is_zantufa(&continuation.connective) =>
+            {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
+                    continuation,
+                );
+            }
+            generated::generated_model::NodeRef::BridiTailBoContinuationWithoutTailTermsSyntax(
+                continuation,
+            ) if generated_tail_connective_is_zantufa(&continuation.connective) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
+                    continuation,
+                );
+            }
+            generated::generated_model::NodeRef::BridiTailKeContinuationSyntax(continuation)
+                if generated_tail_connective_is_zantufa(&continuation.connective) =>
+            {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
+                    continuation,
+                );
+            }
+            generated::generated_model::NodeRef::ZantufaTagBoBridiTailContinuationSyntax(
+                continuation,
+            ) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
+                    continuation,
+                );
+            }
+            generated::generated_model::NodeRef::ZantufaTagBoBridiTailContinuationWithoutTailTermsSyntax(
+                continuation,
+            ) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
                     continuation,
                 );
             }
