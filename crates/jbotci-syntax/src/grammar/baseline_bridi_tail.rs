@@ -48,8 +48,10 @@
 use bityzba::{contract_trait, invariant, requires};
 
 use super::generated_model::{
-    AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax, BridiTailConnectiveSyntax,
-    BridiTailSyntax, SimpleBridiTailSyntax, ZantufaContinuedBridiTailSyntax,
+    AfterthoughtBridiTailSyntax, BoGroupedBridiTailSyntax,
+    BoGroupedBridiTailWithoutTailTermsSyntax, BridiTailConnectiveSyntax,
+    BridiTailContinuationSyntax, BridiTailContinuationWithoutTailTermsSyntax, BridiTailSyntax,
+    SimpleBridiTailSyntax, SimpleBridiTailWithoutTailTermsSyntax, ZantufaContinuedBridiTailSyntax,
     ZantufaContinuedBridiTailWithoutTailTermsSyntax, ZantufaGroupedBridiTailSyntax,
     ZantufaTailContinuationSyntax, ZantufaTailContinuationWithoutTailTermsSyntax, recovered,
 };
@@ -69,6 +71,16 @@ pub(crate) struct BaselineTailContinuationWithoutTailTermsRejection;
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GroupedTanruKeTailRejection;
+
+/// The flat joint's guard against pairing a Zantufa connective with a camxes-exp operand prefix.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ExpPrefixUnderZantufaConnectiveRejection;
+
+/// The tail-terms-free twin of [`ExpPrefixUnderZantufaConnectiveRejection`].
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ExpPrefixUnderZantufaConnectiveWithoutTailTermsRejection;
 
 #[requires(true)]
 #[ensures(true)]
@@ -148,10 +160,12 @@ enum KeBodyShape {
 #[ensures(true)]
 fn bo_grouped_shape(operand: &BoGroupedBridiTailSyntax) -> KeBodyShape {
     let BoGroupedBridiTailSyntax {
+        cu,
         first,
         bo_continuation,
     } = operand;
-    if bo_continuation.is_some() {
+    // A leading CU or a BO joint is content no baseline group can hold.
+    if cu.is_some() || bo_continuation.is_some() {
         return KeBodyShape::TailOnly;
     }
     match first.as_ref() {
@@ -163,6 +177,7 @@ fn bo_grouped_shape(operand: &BoGroupedBridiTailSyntax) -> KeBodyShape {
                 KeBodyShape::TailOnly
             }
         }
+        SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(_) => KeBodyShape::TailOnly,
     }
 }
 
@@ -269,10 +284,11 @@ fn recovered_continued_tail_without_tail_terms_has_owner(
 #[ensures(true)]
 fn recovered_bo_grouped_shape(operand: &recovered::BoGroupedBridiTailSyntax) -> KeBodyShape {
     let recovered::BoGroupedBridiTailSyntax {
+        cu,
         first,
         bo_continuation,
     } = operand;
-    if bo_continuation.is_some() {
+    if cu.is_some() || bo_continuation.is_some() {
         return KeBodyShape::TailOnly;
     }
     match valid(first.as_ref()) {
@@ -287,6 +303,9 @@ fn recovered_bo_grouped_shape(operand: &recovered::BoGroupedBridiTailSyntax) -> 
                 }
                 _ => KeBodyShape::TailOnly,
             }
+        }
+        Some(recovered::SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(_)) => {
+            KeBodyShape::TailOnly
         }
     }
 }
@@ -422,5 +441,115 @@ impl OutputRejection<recovered::Recovered<recovered::ZantufaGroupedBridiTailSynt
         value: &recovered::Recovered<recovered::ZantufaGroupedBridiTailSyntax>,
     ) -> bool {
         valid(value).is_some_and(recovered_grouped_ke_tail_has_baseline_reading)
+    }
+}
+
+/// Report whether a bridi-tail joint's connective is one of the arms rolling Zantufa adds.
+#[requires(true)]
+#[ensures(true)]
+fn connective_is_zantufa(connective: &BridiTailConnectiveSyntax) -> bool {
+    !continuation_has_owner(connective, false)
+}
+
+/// Report whether a flat-joint operand opens with camxes-exp's own prefix.
+#[requires(true)]
+#[ensures(true)]
+fn operand_carries_exp_prefix(operand: &BoGroupedBridiTailSyntax) -> bool {
+    operand.cu.is_some()
+        || matches!(
+            operand.first.as_ref(),
+            SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(_)
+        )
+}
+
+/// The tail-terms-free twin of [`operand_carries_exp_prefix`].
+#[requires(true)]
+#[ensures(true)]
+fn operand_without_tail_terms_carries_exp_prefix(
+    operand: &BoGroupedBridiTailWithoutTailTermsSyntax,
+) -> bool {
+    operand.cu.is_some()
+        || matches!(
+            operand.first.as_ref(),
+            SimpleBridiTailWithoutTailTermsSyntax::ExpPrefixedSimpleBridiTailWithoutTailTerms(_)
+        )
+}
+
+#[contract_trait]
+impl OutputRejection<BridiTailContinuationSyntax> for ExpPrefixUnderZantufaConnectiveRejection {
+    fn rejected_name(&self) -> &'static str {
+        "Zantufa flat bridi-tail joint over a camxes-exp prefix"
+    }
+
+    fn rejects(&self, value: &BridiTailContinuationSyntax) -> bool {
+        connective_is_zantufa(&value.connective) && operand_carries_exp_prefix(&value.bridi_tail)
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::BridiTailContinuationSyntax>>
+    for ExpPrefixUnderZantufaConnectiveRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "Zantufa flat bridi-tail joint over a camxes-exp prefix"
+    }
+
+    fn rejects(
+        &self,
+        value: &recovered::Recovered<recovered::BridiTailContinuationSyntax>,
+    ) -> bool {
+        valid(value).is_some_and(|value| {
+            valid(&value.connective)
+                .is_some_and(|connective| !recovered_connective_has_owner(connective, false))
+                && valid(value.bridi_tail.as_ref()).is_some_and(|operand| {
+                    operand.cu.is_some()
+                        || matches!(
+                            valid(operand.first.as_ref()),
+                            Some(recovered::SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(_))
+                        )
+                })
+        })
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<BridiTailContinuationWithoutTailTermsSyntax>
+    for ExpPrefixUnderZantufaConnectiveWithoutTailTermsRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "Zantufa flat bridi-tail joint over a camxes-exp prefix"
+    }
+
+    fn rejects(&self, value: &BridiTailContinuationWithoutTailTermsSyntax) -> bool {
+        connective_is_zantufa(&value.connective)
+            && operand_without_tail_terms_carries_exp_prefix(&value.bridi_tail)
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::BridiTailContinuationWithoutTailTermsSyntax>>
+    for ExpPrefixUnderZantufaConnectiveWithoutTailTermsRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "Zantufa flat bridi-tail joint over a camxes-exp prefix"
+    }
+
+    fn rejects(
+        &self,
+        value: &recovered::Recovered<recovered::BridiTailContinuationWithoutTailTermsSyntax>,
+    ) -> bool {
+        valid(value).is_some_and(|value| {
+            valid(&value.connective).is_some_and(|connective| {
+                !recovered_connective_has_owner(connective, false)
+            }) && valid(value.bridi_tail.as_ref()).is_some_and(|operand| {
+                operand.cu.is_some()
+                    || matches!(
+                        valid(operand.first.as_ref()),
+                        Some(
+                            recovered::SimpleBridiTailWithoutTailTermsSyntax::ExpPrefixedSimpleBridiTailWithoutTailTerms(_)
+                        )
+                    )
+            })
+        })
     }
 }

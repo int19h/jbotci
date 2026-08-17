@@ -5200,6 +5200,19 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     continuation,
                 );
             }
+            // camxes-exp's `(terms CU_elidible?)*` prefix owns no token of its own either: its
+            // terms are the shared term machinery and its CU is the sourced word. The run of
+            // groups is diagnosed here, ONCE for the whole run, because the run is one node and
+            // one ownership decision; the bare `bridi_tail_2` leading CU keeps its in-parser
+            // warning on the CU token it does own, and the two never fire for one construct.
+            generated::generated_model::NodeRef::ExpPrefixedSimpleBridiTailSyntax(tail) => {
+                self.warn_first_token(ExperimentalConstruct::ExperimentalCuTermsSelbri, tail);
+            }
+            generated::generated_model::NodeRef::ExpPrefixedSimpleBridiTailWithoutTailTermsSyntax(
+                tail,
+            ) => {
+                self.warn_first_token(ExperimentalConstruct::ExperimentalCuTermsSelbri, tail);
+            }
             // Rolling Zantufa's three additional bridi-tail joints own no token that is theirs
             // alone: the connective is the shared GIhA/JOI/JA spelling, the tag is the shared
             // tag machinery, the BO and the CU are the sourced words, and the top continuation's
@@ -8774,7 +8787,10 @@ mod tests {
             &parsed,
             ExperimentalConstruct::ExperimentalCuTermsSelbri
         ));
-        assert!(format!("{:?}", parsed.parse_tree).contains("CuTermsBridiTail"));
+        assert!(
+            format!("{:?}", parsed.parse_tree).contains("ExpPrefixedSimpleBridiTail"),
+            "the second CU group is camxes-exp's own bridi_tail_3 prefix"
+        );
     }
 
     #[test]

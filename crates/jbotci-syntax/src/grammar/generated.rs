@@ -815,16 +815,18 @@ pub mod generated_model {
         field linkargs <- linkargs;
     }
 
-    /// Sum node for bridi; selects among the `bridi_with_leading_terms`, `bridi_with_post_cu_terms`, `bare_cu_bridi`, `bare_cu_terms_bridi`, and `relation_only_bridi` forms.
+    /// Sum node for bridi; selects among the `bridi_with_leading_terms`, `bare_cu_bridi`, and
+    /// `relation_only_bridi` forms.
+    ///
+    /// camxes-standard's sentence carries one leading `terms CU_elidible? free*` group
+    /// (camxes.peg:26) and camxes-exp puts every further group inside `bridi_tail_3`, so the
+    /// second outer group jbotci used to model here as `bridi_with_post_cu_terms` /
+    /// `bare_cu_terms_bridi` over a shared `cu_terms_bridi_tail` is now the tail's own prefix.
     rule "bridi" bridi(term, selbri, subbridi, tense_modal, bridi_tail) -> enum {
         /// Uses the `bridi_with_leading_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.
         bridi_with_leading_terms,
-        /// Uses the `bridi_with_post_cu_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.
-        bridi_with_post_cu_terms,
         /// Uses the `bare_cu_bridi` product form, whose payload preserves `cu` and `bridi_tail`.
         bare_cu_bridi,
-        /// Uses the `bare_cu_terms_bridi` product form, whose payload preserves `cu` and `bridi_tail`.
-        bare_cu_terms_bridi,
         /// Uses the `relation_only_bridi` product form, whose payload preserves `bridi_tail`.
         relation_only_bridi,
     }
@@ -839,16 +841,6 @@ pub mod generated_model {
         field bridi_tail <- arc(bridi_tail);
     }
 
-    /// Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.
-    rule "bridi" bridi_with_post_cu_terms(term, bridi_tail) -> struct {
-        /// Non-empty ordered sequence of leading terms components.
-        field leading_terms <- [one_or_more term];
-        /// The `Cu` cmavo marker.
-        field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
-        /// The shared bridi tail child syntax node.
-        field bridi_tail <- arc(cu_terms_bridi_tail(term, bridi_tail));
-    }
-
     /// Product node for bridi; preserves `cu` and `bridi_tail` in source order.
     rule "bridi" bare_cu_bridi(bridi_tail) -> struct {
         /// The `Cu` cmavo marker.
@@ -857,24 +849,8 @@ pub mod generated_model {
         field bridi_tail <- arc(bridi_tail);
     }
 
-    /// Product node for bridi; preserves `cu` and `bridi_tail` in source order.
-    rule "bridi" bare_cu_terms_bridi(term, bridi_tail) -> struct {
-        /// The `Cu` cmavo marker.
-        field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
-        /// The shared bridi tail child syntax node.
-        field bridi_tail <- arc(cu_terms_bridi_tail(term, bridi_tail));
-    }
-
     /// Transparent product node for bridi; preserves the `bridi_tail` component.
     rule "bridi" relation_only_bridi(bridi_tail) -> struct {
-        /// The shared bridi tail child syntax node.
-        field bridi_tail <- arc(bridi_tail);
-    }
-
-    /// Product node for bridi tail; preserves `terms` and `bridi_tail` in source order.
-    rule "bridi tail" cu_terms_bridi_tail(term, bridi_tail) -> struct {
-        /// Non-empty ordered sequence of terms components.
-        field terms <- [one_or_more term];
         /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
     }
@@ -1018,7 +994,8 @@ pub mod generated_model {
         /// The source-ordered `bridi_tails` chain assembled by the `afterthought_bridi_tail_without_tail_terms` production.
         field bridi_tails <- chain(
             first: arc(bo_grouped_bridi_tail_without_tail_terms),
-            zero_or_more: bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal),
+            zero_or_more: bridi_tail_continuation_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, term, tense_modal)
+                .reject_output(crate::grammar::baseline_bridi_tail::ExpPrefixUnderZantufaConnectiveWithoutTailTermsRejection),
             element: bridi_tail,
         );
     }
@@ -1028,13 +1005,16 @@ pub mod generated_model {
         /// The source-ordered `bridi_tails` chain assembled by the `afterthought_bridi_tail` production.
         field bridi_tails <- chain(
             first: arc(bo_grouped_bridi_tail),
-            zero_or_more: bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal),
+            zero_or_more: bridi_tail_continuation(bo_grouped_bridi_tail, term, tense_modal)
+                .reject_output(crate::grammar::baseline_bridi_tail::ExpPrefixUnderZantufaConnectiveRejection),
             element: bridi_tail,
         );
     }
 
     /// Product node for bridi tail; preserves `first` and `bo_continuation` in source order.
     rule "bridi tail" bo_grouped_bridi_tail_without_tail_terms(bo_grouped_bridi_tail_without_tail_terms, forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal) -> struct {
+        /// camxes-exp's leading `CU_elidible? free*` at this level (camxes-exp.peg:107).
+        field cu <- opt(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
         /// The shared first child syntax node.
         field first <- arc(simple_bridi_tail_without_tail_terms(forethought_bridi_connection_without_tail_terms, selbri, subbridi, term, tense_modal));
         /// The optional bo continuation component.
@@ -1043,6 +1023,10 @@ pub mod generated_model {
 
     /// Product node for bridi tail; preserves `first` and `bo_continuation` in source order.
     rule "bridi tail" bo_grouped_bridi_tail(bo_grouped_bridi_tail, forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> struct {
+        /// camxes-exp's leading `CU_elidible? free*` at this level (camxes-exp.peg:107). The
+        /// sourced joints carry no CU of their own, so every adopted CU after a tail connective
+        /// is this one, on the operand, which is where camxes-exp puts it.
+        field cu <- opt(arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf()));
         /// The shared first child syntax node.
         field first <- arc(simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal));
         /// The optional bo continuation component.
@@ -1106,14 +1090,54 @@ pub mod generated_model {
         forethought_simple_bridi_tail_without_tail_terms,
         /// Uses the `selbri_simple_bridi_tail_without_tail_terms` product form, whose payload preserves `selbri` and `vau`.
         selbri_simple_bridi_tail_without_tail_terms,
+        /// The tail-terms-free mirror of camxes-exp's prefixed arm.
+        exp_prefixed_simple_bridi_tail_without_tail_terms,
     }
 
-    /// Sum node for bridi tail; selects among the `forethought_simple_bridi_tail` and `selbri_simple_bridi_tail` forms.
+    /// Sum node for bridi tail; selects among the `forethought_simple_bridi_tail`,
+    /// `selbri_simple_bridi_tail` and camxes-exp's prefixed forms.
+    ///
+    /// camxes-exp writes `bridi_tail_3 <- (terms CU_elidible?)* selbri tail_terms / gek_sentence`
+    /// (camxes-exp.peg:108), so the repetition belongs to the selbri alternative alone and never
+    /// to the GEK one. The prefixed arm is last because the boundary it shares with the sourced
+    /// arms is decided the sourced way: `gi'e pu brode` is a tagged selbri, which the selbri arm
+    /// reaches first over the identical extent, and only `gi'e pu cu brode` -- where no tagged
+    /// selbri can be built -- falls through to the prefix.
     rule "bridi tail" simple_bridi_tail(forethought_bridi_connection, selbri, subbridi, term, tense_modal) -> enum {
         /// Uses the `forethought_simple_bridi_tail` product form, whose payload preserves `connection`.
         forethought_simple_bridi_tail,
         /// Uses the `selbri_simple_bridi_tail` product form, whose payload preserves `selbri`, `terms`, and `vau`.
         selbri_simple_bridi_tail,
+        /// Uses camxes-exp's prefixed form, whose payload preserves `prefixes` and `tail`.
+        exp_prefixed_simple_bridi_tail,
+    }
+
+    /// One `terms CU_elidible?` group of camxes-exp's `bridi_tail_3` prefix
+    /// (camxes-exp.peg:108). The CU is the group's own, which is what lets the groups repeat.
+    rule "bridi tail" exp_tail_terms_prefix(term) -> struct {
+        /// Non-empty ordered sequence of this group's terms.
+        field terms <- [one_or_more term];
+        /// The optional `Cu` cmavo marker closing this group.
+        field cu <- opt(arc(cmavo(Cu).wf()));
+    }
+
+    /// camxes-exp's prefixed `bridi_tail_3`: one or more `terms CU_elidible?` groups before the
+    /// selbri tail (camxes-exp.peg:108). Requiring a group is what makes the arm structurally
+    /// distinct from the sourced one; the construct is diagnosed post-parse by the standing
+    /// visitor, once for the whole run of groups, because the run is one node and one decision.
+    rule "bridi tail" exp_prefixed_simple_bridi_tail(selbri, term) -> struct {
+        /// Non-empty ordered sequence of the leading term groups.
+        field prefixes <- [one_or_more exp_tail_terms_prefix(term)];
+        /// The selbri tail the groups lead.
+        field tail <- arc(selbri_simple_bridi_tail(selbri, term));
+    }
+
+    /// The tail-terms-free mirror of [`exp_prefixed_simple_bridi_tail`].
+    rule "bridi tail" exp_prefixed_simple_bridi_tail_without_tail_terms(selbri, term) -> struct {
+        /// Non-empty ordered sequence of the leading term groups.
+        field prefixes <- [one_or_more exp_tail_terms_prefix(term)];
+        /// The selbri tail the groups lead.
+        field tail <- arc(selbri_simple_bridi_tail_without_tail_terms(selbri));
     }
 
     /// Transparent product node for forethought bridi connection; preserves the `connection` component.

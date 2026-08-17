@@ -20,8 +20,9 @@ use thiserror::Error;
 
 use crate::generated_term_view::{
     GeneratedAssociationPayloadRef, GeneratedBoundSumtiTailRef, GeneratedBridiTailBoJointRef,
-    GeneratedBridiTailBoJointWithoutTailTermsRef, GeneratedLinkedSumtiRef, GeneratedSimpleTermRef,
-    bound_term_continuation_operand,
+    GeneratedBridiTailBoJointWithoutTailTermsRef, GeneratedLinkedSumtiRef,
+    GeneratedSelbriBridiTailRef, GeneratedSelbriBridiTailWithoutTailTermsRef,
+    GeneratedSimpleTermRef, bound_term_continuation_operand,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -1543,10 +1544,20 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         gek_branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
-            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(tail) => {
-                let relation_frame = self.analyze_relation(&tail.selbri);
+            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(_)
+            | generated::SimpleBridiTailWithoutTailTermsSyntax::ExpPrefixedSimpleBridiTailWithoutTailTerms(_) => {
+                let Some(selbri_tail) =
+                    GeneratedSelbriBridiTailWithoutTailTermsRef::from_simple(tail)
+                else {
+                    return GeneratedBridiTailAnalysis {
+                        frames: Vec::new(),
+                        terms: Vec::new(),
+                        branch_cursors: None,
+                    };
+                };
+                let relation_frame = self.analyze_relation(&selbri_tail.tail.selbri);
                 let frame = self.add_frame(
-                    self.raw_for_node(tail),
+                    self.raw_for_node(selbri_tail.tail),
                     PlaceFrameKind::BridiTail,
                     None,
                     None,
@@ -1554,7 +1565,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 );
                 GeneratedBridiTailAnalysis {
                     frames: vec![frame],
-                    terms: Vec::new(),
+                    terms: selbri_tail.prefix_terms().collect(),
                     branch_cursors: None,
                 }
             }
@@ -1580,16 +1591,28 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         gek_branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
-            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(tail) => {
-                let relation_frame = self.analyze_relation(&tail.selbri);
-                let mut terms = tail.terms.iter().collect::<Vec<_>>();
+            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(_)
+            | generated::SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(_) => {
+                let Some(selbri_tail) = GeneratedSelbriBridiTailRef::from_simple(tail) else {
+                    return GeneratedBridiTailAnalysis {
+                        frames: Vec::new(),
+                        terms: Vec::new(),
+                        branch_cursors: None,
+                    };
+                };
+                let relation_frame = self.analyze_relation(&selbri_tail.tail.selbri);
+                // The prefix groups' terms fill places ahead of the tail's own, in source order.
+                let mut terms = selbri_tail
+                    .prefix_terms()
+                    .chain(selbri_tail.tail.terms.iter())
+                    .collect::<Vec<_>>();
                 if let Some(seltau_frame) = self.co_seltau_term_frame(relation_frame) {
                     let mut cursors = vec![self.cursor_with_existing_assignments(seltau_frame, 2)];
                     self.assign_term_refs(&mut cursors, &terms, AssignmentSource::CoSeltauTerm);
                     terms.clear();
                 }
                 let frame = self.add_frame(
-                    self.raw_for_node(tail),
+                    self.raw_for_node(selbri_tail.tail),
                     PlaceFrameKind::BridiTail,
                     None,
                     None,
@@ -5280,17 +5303,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
                 self.visit_bridi_tail(&bridi.bridi_tail);
             }
-            generated::BridiSyntax::BridiWithPostCuTerms(bridi) => {
-                for term in &bridi.leading_terms {
-                    self.walk_node(term);
-                }
-                self.visit_cu_terms_bridi_tail(&bridi.bridi_tail);
-            }
             generated::BridiSyntax::BareCuBridi(bridi) => {
                 self.visit_bridi_tail(&bridi.bridi_tail);
-            }
-            generated::BridiSyntax::BareCuTermsBridi(bridi) => {
-                self.visit_cu_terms_bridi_tail(&bridi.bridi_tail);
             }
             generated::BridiSyntax::RelationOnlyBridi(bridi) => {
                 self.visit_bridi_tail(&bridi.0);
@@ -5306,15 +5320,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         if was_top_predicate {
             self.note_predicate_mention(predicate_id.0);
         }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_cu_terms_bridi_tail(&mut self, tail: &'tree generated::CuTermsBridiTailSyntax) {
-        for term in &tail.terms {
-            self.walk_node(term);
-        }
-        self.visit_bridi_tail(&tail.bridi_tail);
     }
 
     #[requires(true)]
@@ -5439,9 +5444,16 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_simple_bridi_tail(&mut self, tail: &'tree generated::SimpleBridiTailSyntax) {
         match tail {
-            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(tail) => {
-                self.visit_relation(&tail.selbri);
-                for term in &tail.terms {
+            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(_)
+            | generated::SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(_) => {
+                let Some(selbri_tail) = GeneratedSelbriBridiTailRef::from_simple(tail) else {
+                    return;
+                };
+                for term in selbri_tail.prefix_terms() {
+                    self.walk_node(term);
+                }
+                self.visit_relation(&selbri_tail.tail.selbri);
+                for term in &selbri_tail.tail.terms {
                     self.walk_node(term);
                 }
             }
@@ -5458,8 +5470,17 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         tail: &'tree generated::SimpleBridiTailWithoutTailTermsSyntax,
     ) {
         match tail {
-            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(tail) => {
-                self.visit_relation(&tail.selbri);
+            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(_)
+            | generated::SimpleBridiTailWithoutTailTermsSyntax::ExpPrefixedSimpleBridiTailWithoutTailTerms(_) => {
+                let Some(selbri_tail) =
+                    GeneratedSelbriBridiTailWithoutTailTermsRef::from_simple(tail)
+                else {
+                    return;
+                };
+                for term in selbri_tail.prefix_terms() {
+                    self.walk_node(term);
+                }
+                self.visit_relation(&selbri_tail.tail.selbri);
             }
             generated::SimpleBridiTailWithoutTailTermsSyntax::ForethoughtSimpleBridiTailWithoutTailTerms(tail) => {
                 self.visit_forethought_bridi_connection_without_tail_terms(&tail.0);
@@ -7872,10 +7893,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 fn generated_bridi_leading_terms(bridi: &generated::BridiSyntax) -> &[generated::TermSyntax] {
     match bridi {
         generated::BridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.leading_terms,
-        generated::BridiSyntax::BridiWithPostCuTerms(bridi) => &bridi.leading_terms,
-        generated::BridiSyntax::BareCuBridi(_)
-        | generated::BridiSyntax::BareCuTermsBridi(_)
-        | generated::BridiSyntax::RelationOnlyBridi(_) => &[],
+        generated::BridiSyntax::BareCuBridi(_) | generated::BridiSyntax::RelationOnlyBridi(_) => {
+            &[]
+        }
     }
 }
 
@@ -7884,9 +7904,7 @@ fn generated_bridi_leading_terms(bridi: &generated::BridiSyntax) -> &[generated:
 fn generated_bridi_tail(bridi: &generated::BridiSyntax) -> &generated::BridiTailSyntax {
     match bridi {
         generated::BridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.bridi_tail,
-        generated::BridiSyntax::BridiWithPostCuTerms(bridi) => &bridi.bridi_tail.bridi_tail,
         generated::BridiSyntax::BareCuBridi(bridi) => &bridi.bridi_tail,
-        generated::BridiSyntax::BareCuTermsBridi(bridi) => &bridi.bridi_tail.bridi_tail,
         generated::BridiSyntax::RelationOnlyBridi(bridi) => &bridi.0,
     }
 }

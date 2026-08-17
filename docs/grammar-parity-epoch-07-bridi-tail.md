@@ -8,7 +8,7 @@ issues at once, because they are three views of the same six productions:
 | Zantufa forethought reconcile audit | #826 | complete, no grammar change |
 | Zantufa JOIK/tag tail continuations and the KE ownership guard | #826 | complete |
 | Standard tail boundaries | #805 | complete |
-| camxes-exp CU and term prefixes | #815 | pending |
+| camxes-exp CU and term prefixes | #815 | complete |
 | Consolidated expectations, comparer, peak RSS | — | pending |
 
 The design is `~/git/grammar-review/reports/implementation/epoch-07-bridi-tail/plan.md`
@@ -258,3 +258,49 @@ single-child product transparently, so the node becomes `BridiStatementSyntax(br
 That is a rendering change in every fixture that has a statement, with no owner,
 warning or cardinality change anywhere; it is the epoch's one bulk mechanical
 class outside the frozen same-name table.
+
+## D2: the camxes-exp CU and term prefixes (#815)
+
+camxes-exp puts a CU in two places the standard grammar does not: at the head of
+`bridi_tail_2` (`CU_elidible? free* bridi_tail_3 …`, camxes-exp.peg:107) and at
+the end of each group of a repeated `(terms CU_elidible?)*` run in front of the
+`bridi_tail_3` selbri (camxes-exp.peg:108). Both land where the source puts
+them, which is what makes them available in the flat, BO and KE operands at once
+without a single reference being rewired: the operands already *are* those
+levels.
+
+- `bo_grouped_bridi_tail` and its mirror gain the leading-CU field. Every adopted
+  CU after a tail connective is this one — D1 deleted the joints' own CU slots,
+  so `gi'e cu brode` is the sourced joint over an operand that opens with a CU,
+  which is exactly the reading camxes-exp gives it.
+- `exp_prefixed_simple_bridi_tail` and its mirror are the repeated-group arm, a
+  non-empty run of `exp_tail_terms_prefix` before a `selbri_simple_bridi_tail`.
+  The repetition belongs to the selbri alternative alone, never to the GEK one,
+  which is the C2 finding the plan carries.
+- The arm is **last** in the `bridi_tail_3` sum, which is where R1 is enforced
+  for it: the sourced arms decide every extent they can cover. `gi'e pu brode` is
+  a tagged selbri, reached by the selbri arm over the identical extent; only
+  `gi'e pu cu brode`, where no tagged selbri can be built, falls through to the
+  prefix. The four per-position classifiers the plan asks for reduce to that one
+  ordering rule at the outer, flat, BO and KE positions, because the prefix arm
+  cannot cover an extent a sourced arm covers without the sourced arm having been
+  tried there first.
+- The one place ordering is not enough is the flat joint under a Zantufa
+  connective, and that is the classifier this commit adds:
+  `ExpPrefixUnderZantufaConnectiveRejection` rejects a flat link whose connective
+  is JOIK or JEK and whose operand opens with a camxes-exp CU or prefix. The
+  candidate falls back to the unbound top continuation, whose own tag and CU
+  slots absorb it, so `mi broda je cu brode` and `mi broda je pu cu brode` are
+  one Zantufa node warning once rather than a Zantufa joint over an exp operand
+  warning twice. A prefix that the top continuation cannot absorb — `je do cu
+  brode`, whose `do` is a term and not a tag — stays a nested construct and warns
+  once for each, which is the warning matrix's own rule for nesting.
+
+The old single-outer-group shape retires into this one. `bridi_with_post_cu_terms`,
+`bare_cu_terms_bridi` and their shared `cu_terms_bridi_tail` modelled exactly one
+extra group, at the outer level, where camxes-exp has none: its second group is
+the tail's. Retiring them also retires a lowering refusal —
+`ca le nu mi klama le mi zdani cu mi tirna ra vau do` could not combine post-CU
+terms with a statement-level suffix term and reported undefined semantics; under
+the prefix shape it lowers, and the pin that recorded the refusal now records the
+lowering.
