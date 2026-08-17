@@ -125,6 +125,66 @@ carried by the same construction cost: it now reports 1.30 s, stable across
 three consecutive isolated runs, which is below the pre-epoch base as well as
 the bound.
 
+### The same omission at the BE/BEI site (#862)
+
+Round 2 tried the identical fix on the linked-argument ladder, found that it
+reaches into the epoch-5 selbri tanru-unit family, and reverted it rather than
+widen the epoch. #862 is that follow-up, and the audit it asked for found the
+defect in one family, not two.
+
+The BE/BEI ladder had it: `linkargs` → `linked_term` → `bound_linked_term` →
+`bound_linked_term_operand` nest and each level had two reference sites, so the
+loose level was rebuilt 11 times per parse, the leaves 99 times, and
+`tagged_or_elided_sumti` — the largest subgraph the links reach — 243 times.
+Declaring the four levels drops those to 1, 3 and 51, and takes the grammar's
+total inline rule constructions from 9,044 to 8,162 (−9.8%).
+
+The selbri tanru-unit family did **not** have it: `tanru_unit`,
+`cei_free_tanru_unit`, `tanru_unit_atom` and `jai_inner_tanru_unit` are all
+already in the family, and nothing in it is rebuilt more than three times. What
+round 2 hit there was the *parameter* cascade, not a second missing
+declaration — and declaring `linkargs` itself, rather than only the three
+ladder levels, is what contains it: the tanru-unit family reaches the ladder
+through that one production, so it takes `linkargs` as a parameter and never
+threads the ladder's operands at all. The threading that remains is `linkargs`
+through `tanru_unit_atom`, and it *removes* parameters on net, because a level
+that becomes a parameter also releases the operands it was only passing along.
+
+Full release fixture profile, three measured runs per state, same fixture tree
+on the scratch volume with a warm cache, against base `04d0c9adea`:
+
+| Full release fixture profile | Base | With the fix |
+| --- | ---: | ---: |
+| Wall clock, median of 3 | 350.8 s | **341.5 s (−2.7%)** |
+| CPU (user + sys), median of 3 | 962.2 s | **907.0 s (−5.7%)** |
+| Peak RSS | 5,812,100 KB | 5,811,132 KB (−0.02%) |
+
+Wall clock is the noisier of the two on this host — base spans 331.2 / 350.8 /
+353.4 s across its three runs, a 6.7% spread that swallows the delta — while
+CPU is stable and consistently down: 918.7 / 962.2 / 962.7 s for base against
+897.8 / 913.6 / 907.0 s for the fix. The pass counts are identical in all six
+runs (26,517 fixtures, 73,809 / 513 / 0).
+
+Isolated parse throughput, `jbotci gentufa --benchmark 300`, median iteration,
+two runs per text:
+
+| Text | Base | With the fix |
+| --- | ---: | ---: |
+| `mi klama le zarci` | 8.09 / 8.06 ms | **7.63 / 7.70 ms (−5.3%)** |
+| `lo nu mi citka lo plise cu se pluka mi` | 10.86 / 10.64 ms | **10.14 / 10.23 ms (−5.1%)** |
+| `mi klama be fa la .alis. bei le zarci bei le zdani be'o gi'e prami do` | 11.15 / 11.27 ms | **10.79 / 10.74 ms (−4.3%)** |
+
+The gain is smaller than the term ladder's because this defect was never a
+regression. The BE/BEI ladder predates epoch 6 and the base being measured
+against is therefore the healthy tree, not a 72%-inflated one; the term ladder's
+−8.6% was recovering an epoch-introduced cost on top of the same kind of
+residue. The shape is the same either way — a fixed per-parse construction
+charge, largest on short texts.
+
+Two further families still carry it and are out of #862's scope: the number-word
+run and the tense interval-property/offset family sit at 514 and 498 inline
+constructions apiece, which is most of the remaining 8,162.
+
 ### Two parameters, never conflated
 
 The plan separates *guard content* from *operand width*; the implementation

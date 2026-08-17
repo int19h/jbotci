@@ -105,6 +105,20 @@ pub mod generated_model {
         cei_free_tanru_unit: TanruUnitSyntax;
         tanru_unit_atom: TanruUnitAtomSyntax;
         jai_inner_tanru_unit: JaiInnerTanruUnitSyntax;
+        // The BE/BEI linked-argument ladder is the term ladder's shape at the link site, and it
+        // belongs here for the same reason: `linkargs` -> `linked_term` -> `bound_linked_term` ->
+        // `bound_linked_term_operand` nest, and each level had two reference sites, so leaving
+        // them out of the family rebuilt the whole subgraph 11 times per parse at the loose level
+        // and 99 times at the leaves — which in turn rebuilt `tagged_or_elided_sumti`, the
+        // largest subgraph the links reach, 243 times instead of 51.
+        //
+        // Declaring `linkargs` rather than only the three ladder levels is what keeps the fix from
+        // widening: the tanru-unit family reaches the ladder only through this one production, so
+        // it takes `linkargs` as a parameter and never has to thread the ladder's own operands.
+        linkargs: LinkargsSyntax;
+        linked_term: LinkedTermSyntax;
+        bound_linked_term: BoundLinkedTermSyntax;
+        bound_linked_term_operand: BoundLinkedTermOperandSyntax;
         tense_modal: TenseModalSyntax;
         baseline_term_tense_modal: BaselineTermTenseModalSyntax;
         mekso: MeksoSyntax;
@@ -322,7 +336,7 @@ pub mod generated_model {
     }
 
     /// Sum node for paragraph statement; selects among the `zantufa_statement_terms_statement`, `statement_or_fragment_statement`, and `fragment_statement` forms.
-    rule "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term) -> enum {
+    rule "paragraph statement" statement_or_fragment(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term, linkargs, linked_term) -> enum {
         /// Uses the `zantufa_statement_terms_statement` product form, whose payload preserves `statement` and `tail`.
         when feature(ZantufaTerms) zantufa_statement_terms_statement,
         /// Uses the `statement_or_fragment_statement` product form, whose payload preserves `statement`.
@@ -369,7 +383,7 @@ pub mod generated_model {
     }
 
     /// Sum node for fragment; selects among 12 forms including `prenex_fragment`, `selbri_fragment`, and `ek_fragment`.
-    rule "fragment" fragment_statement(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term) -> enum {
+    rule "fragment" fragment_statement(statement, term, sumti, subbridi, selbri, mekso, tense_modal, letter_tokens, free_modifier, forethought_bridi_connection, normal_term, linkargs, linked_term) -> enum {
         /// Uses the `prenex_fragment` product form, whose payload preserves `terms` and `zohu`.
         prenex_fragment,
         /// Uses the `selbri_fragment` product form, whose payload preserves `selbri`.
@@ -820,17 +834,17 @@ pub mod generated_model {
     }
 
     /// Transparent product node for linked arguments; preserves the `bei_links` component.
-    rule "linked arguments" linked_sumti_continuation_fragment(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "linked arguments" linked_sumti_continuation_fragment(linked_term) -> struct {
         #[tree_child(primary)]
         /// Non-empty ordered sequence of bei links components.
-        field bei_links <- [one_or_more bei_link(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term)];
+        field bei_links <- [one_or_more bei_link(linked_term)];
     }
 
     /// Transparent product node for linked arguments; preserves the `linkargs` component.
-    rule "linked arguments" linked_sumti_fragment(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "linked arguments" linked_sumti_fragment(linkargs) -> struct {
         #[tree_child(primary)]
         /// The `linkargs` grammar result in the `linkargs` structural role of the `linked_sumti_fragment` production.
-        field linkargs <- linkargs(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term);
+        field linkargs <- linkargs;
     }
 
     /// Sum node for bridi; selects among the `bridi_with_leading_terms`, `bridi_with_post_cu_terms`, `bare_cu_bridi`, `bare_cu_terms_bridi`, and `relation_only_bridi` forms.
@@ -6054,21 +6068,11 @@ pub mod generated_model {
 
     alias "tanru unit" cei_free_tanru_unit(
         tanru_unit_atom,
-        sumti,
-        tense_modal,
-        statement,
-        selbri,
-        forethought_bridi_connection,
         tanru_unit,
-    normal_term,
+        linkargs,
     ) = linked_tanru_unit(
         tanru_unit_atom,
-        sumti,
-        tense_modal,
-        statement,
-        selbri,
-        forethought_bridi_connection,
-    normal_term,
+        linkargs,
     ).map_to(tanru_unit);
 
     /// Product node for selbri; preserves `leading_selbri` and `co_tail` in source order.
@@ -6267,39 +6271,39 @@ pub mod generated_model {
 
     /// Product node for a complete tanru unit: an atom with optional linkargs,
     /// followed by zero or more CEI assignments.
-    rule "tanru unit" tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "tanru unit" tanru_unit(tanru_unit_atom, linkargs) -> struct {
         /// The first linked atom.
-        field base <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term));
+        field base <- arc(linked_tanru_unit(tanru_unit_atom, linkargs));
         /// Source-ordered CEI assignments.
-        field assignments <- [zero_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term)];
+        field assignments <- [zero_or_more pro_bridi_tanru_unit_assignment(tanru_unit_atom, linkargs)];
     }
 
     /// Product node for one CEI assignment.
-    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "pro-bridi assignment" pro_bridi_tanru_unit_assignment(tanru_unit_atom, linkargs) -> struct {
         /// The CEI marker.
         field cei <- cmavo(Cei).wf();
         /// The following linked atom.
-        field tanru_unit <- arc(linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term));
+        field tanru_unit <- arc(linked_tanru_unit(tanru_unit_atom, linkargs));
     }
 
     /// Product node for tanru unit; preserves `base` and `linkargs` in source order.
-    rule "tanru unit" linked_tanru_unit(tanru_unit_atom, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "tanru unit" linked_tanru_unit(tanru_unit_atom, linkargs) -> struct {
         /// The shared base child syntax node.
         field base <- arc(tanru_unit_atom);
         /// The optional linkargs component.
-        field linkargs <- opt(linkargs(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term));
+        field linkargs <- opt(linkargs);
     }
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term) -> struct {
+    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term));
+        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs));
     }
 
     /// Sum node for tanru unit; selects among the standard and gated Zantufa forms.
-    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
         /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
@@ -6371,9 +6375,9 @@ pub mod generated_model {
     }
 
     /// Product node for linked arguments; preserves `linkargs` and `base` in source order.
-    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, sumti, tense_modal, statement, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, linkargs) -> struct {
         /// The `linkargs` grammar result in the `linkargs` structural role of the `preposed_linkargs_tanru_unit` production.
-        field linkargs <- linkargs(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term);
+        field linkargs <- linkargs;
         /// The shared base child syntax node.
         field base <- arc(tanru_unit);
     }
@@ -6656,7 +6660,7 @@ pub mod generated_model {
     ///
     /// These leaves are listed directly so ordinary links retain their established Debug and
     /// serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
-    rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> enum {
+    rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term, bound_linked_term, bound_linked_term_operand) -> enum {
         /// Uses the diagnosed loose connection over BO-bound linked terms.
         connected_linked_term,
         /// Uses the diagnosed BO-bound linked-term connection.
@@ -6672,24 +6676,24 @@ pub mod generated_model {
     }
 
     /// A hierarchy-only loose connection over linked terms with one or more continuations.
-    rule "linked arguments" connected_linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "linked arguments" connected_linked_term(tense_modal, selbri, forethought_bridi_connection, bound_linked_term) -> struct {
         /// The first BO-bound linked term at the loose precedence level.
-        field leading_link <- arc(bound_linked_term(sumti, tense_modal, normal_term));
+        field leading_link <- arc(bound_linked_term);
         /// The nonempty source-ordered loose continuation sequence.
-        field continuations <- [one_or_more connected_linked_term_continuation(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term)];
+        field continuations <- [one_or_more connected_linked_term_continuation(tense_modal, selbri, forethought_bridi_connection, bound_linked_term)];
     }
 
     /// One loose linked-term continuation.
-    rule "linked arguments" connected_linked_term_continuation(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "linked arguments" connected_linked_term_continuation(tense_modal, selbri, forethought_bridi_connection, bound_linked_term) -> struct {
         assert term_loose_connection_guard(tense_modal, selbri, forethought_bridi_connection);
         /// The connective joining the adjacent linked terms.
         field connective <- term_afterthought_connective;
         /// The BO-bound linked term following the connective.
-        field trailing_link <- arc(bound_linked_term(sumti, tense_modal, normal_term));
+        field trailing_link <- arc(bound_linked_term);
     }
 
     /// The optional-stag BO-bound level for BE/BEI arguments.
-    rule "linked arguments" bound_linked_term(sumti, tense_modal, normal_term) -> enum {
+    rule "linked arguments" bound_linked_term(sumti, tense_modal, normal_term, bound_linked_term_operand) -> enum {
         /// Uses the diagnosed BO-bound linked-term connection.
         bound_linked_term_connection,
         /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
@@ -6711,15 +6715,15 @@ pub mod generated_model {
     }
 
     /// The diagnosed BO-bound BE/BEI connection with one or more continuations.
-    rule "linked arguments" bound_linked_term_connection(sumti, tense_modal, normal_term) -> struct {
+    rule "linked arguments" bound_linked_term_connection(tense_modal, bound_linked_term_operand) -> struct {
         /// The first nonempty linked argument at the BO-bound precedence level.
-        field leading_link <- arc(bound_linked_term_operand(sumti, tense_modal, normal_term));
+        field leading_link <- arc(bound_linked_term_operand);
         /// The nonempty source-ordered BO-bound continuation sequence.
-        field continuations <- [one_or_more bound_linked_term_continuation(sumti, tense_modal, normal_term)];
+        field continuations <- [one_or_more bound_linked_term_continuation(tense_modal, bound_linked_term_operand)];
     }
 
     /// One optional-stag BO continuation in a BE/BEI argument connection.
-    rule "linked arguments" bound_linked_term_continuation(sumti, tense_modal, normal_term) -> struct {
+    rule "linked arguments" bound_linked_term_continuation(tense_modal, bound_linked_term_operand) -> struct {
         /// The connective joining the adjacent linked arguments.
         field connective <- term_afterthought_connective;
         /// The optional camxes-exp `stag`; unlike ordinary terms, links use the `term` flavor.
@@ -6727,7 +6731,7 @@ pub mod generated_model {
         /// The `Bo` cmavo marker, which owns the experimental warning for the whole connection.
         field bo <- cmavo(Bo).warn(ExperimentalTermBoConnection).wf();
         /// The nonempty linked argument following BO.
-        field trailing_link <- arc(bound_linked_term_operand(sumti, tense_modal, normal_term));
+        field trailing_link <- arc(bound_linked_term_operand);
     }
 
     /// Product node for linked arguments; preserves `fa` and `sumti` in source order.
@@ -6757,21 +6761,21 @@ pub mod generated_model {
     }
 
     /// Product node for linked arguments; preserves `bei` and `link` in source order.
-    rule "linked arguments" bei_link(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "linked arguments" bei_link(linked_term) -> struct {
         /// The `Bei` cmavo marker.
         field bei <- cmavo(Bei).wf();
         /// The `linked_term` grammar result in the `link` structural role of the `bei_link` production.
-        field link <- linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term);
+        field link <- linked_term;
     }
 
     /// Product node for linked arguments; preserves `be`, `first_link`, `bei_links`, and `beho` in source order.
-    rule "linked arguments" linkargs(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term) -> struct {
+    rule "linked arguments" linkargs(linked_term) -> struct {
         /// The `Be` cmavo marker.
         field be <- cmavo(Be).wf();
         /// The initial `linked_term` constituent before the continuations of the `linkargs` production.
-        field first_link <- linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term);
+        field first_link <- linked_term;
         /// Ordered sequence of zero or more bei links components.
-        field bei_links <- [zero_or_more bei_link(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term)];
+        field bei_links <- [zero_or_more bei_link(linked_term)];
         /// The optional `Beho` cmavo marker.
         field beho <- opt(cmavo(Beho).wf()).elidable_terminator(Beho);
     }
