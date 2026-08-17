@@ -284,3 +284,43 @@ witnessed.
 The tree moves 26,479 → 26,515 with this epoch's 36 witnesses; the xfail count is
 unchanged at 513, because the two xfail fixtures this epoch touches keep their
 pins and only their trees move.
+
+## Pre-submission gate
+
+Run at `f436f0e61c`, the tip of the code, expectation and ledger commits; the
+conformance-ledger commit above it changes only documentation, which nothing
+under test reads.
+
+| Gate | Result | Log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch06c-gate-fmt.log` |
+| `cargo test -r --workspace` | 2,312 passed, 0 failed, 16 ignored | `epoch06c-gate-workspace.log` |
+| `fixture-test --profile all` | 26,515 fixtures, 4 facets, 73,807 passed, 513 xfailed, **0 failed** | `epoch06c-gate-fixtures.log` |
+| Tagged `term-hierarchy-epoch` facet | 129 fixtures, 135 passed, 0 failed | `epoch06c-gate-tagged-facet.log` |
+| Frozen check set (tagged facet, syntax only) | 129 fixtures, 129 passed, 0 failed | `epoch06c-gate-frozen-facet.log` |
+| Expensive contracts, all targets, release | 2,333 passed, 0 failed | `epoch06c-gate-expensive.log` |
+| `semantics-coverage` | checked 22,659, panics 0, unsupported 0 | `epoch06c-gate-coverage.log` |
+| Debug `jbotci` build | green | `epoch06c-gate-debug-jbotci.log` |
+| Debug `dx build` | green | `epoch06c-gate-dx.log` |
+| `maturin develop` + the four generated checks | all green | `epoch06c-maturin-develop.log` |
+| Level-inventory unit test | 7 tests, green | `epoch06c-gate-inventory-test.log` |
+| Comparer | 44 changed / 43 + 1 + 0 + 0 + 0 + 0 + 0 mechanical / 0 manual, prose 0, witness re-pins 0, epoch-new 36 | `epoch06c-gate-comparer.log` |
+| Peak RSS, full profile | base 5,770,904 KB → 5,818,608 KB, **+0.83%** (gate +20%) | `epoch06c-base-fixtures.log`, `epoch06c-gate-fixtures.log` |
+
+The peak-RSS base is measured rather than carried over: the epoch base
+`2397912147` is checked out in its own worktree, built with its own target
+directory, and run through the same one-volume `fixture-test --profile all`
+under `/usr/bin/time -v`. Its fixture count is the pre-epoch 26,479.
+
+`semantics-coverage` reports 156 `other-error` fixtures, which is where the
+connectorless BO sumti connection lands: it is a principled
+`semantic interpretation is undefined for …` refusal rather than the
+`does not yet support` class the ratchet counts, exactly as the JAI tag term has
+been since it was introduced. Nothing about a connective-less joint says which
+connective it means, so the builder reports instead of guessing.
+
+The artifact-size audit is not in this table: the owner retired the per-platform
+size ratchets on 2026-08-16, and epoch 6b's ledger records the replacement — one
+absolute 95 MiB per-file tripwire, the entry-count and member checks, and a
+comparison band that is audit methodology rather than a gate. This epoch adds no
+budgets and recalibrates none.
