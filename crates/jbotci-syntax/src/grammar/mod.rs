@@ -5171,10 +5171,7 @@ fn generated_tail_connective_is_zantufa(
     match connective {
         generated::generated_model::BridiTailConnectiveSyntax::JoikConnective(_)
         | generated::generated_model::BridiTailConnectiveSyntax::JekConnective(_) => true,
-        generated::generated_model::BridiTailConnectiveSyntax::GihekConnective(_)
-        | generated::generated_model::BridiTailConnectiveSyntax::RelationConnectiveAsBridiTail(_) => {
-            false
-        }
+        generated::generated_model::BridiTailConnectiveSyntax::GihekConnective(_) => false,
     }
 }
 
@@ -5224,8 +5221,10 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     tail.continuations.first(),
                 );
             }
-            // The same category covers the sourced joints when the shared connective selects one
-            // of the arms rolling Zantufa adds to it (zantufa-1.9999.peg:70). Those joints own no
+            // The same category covers the two sourced joints rolling Zantufa widens when the
+            // shared connective selects one of the arms it adds (zantufa-1.9999.peg:70). The KE
+            // join is not among them: its connective is GIhA alone, because rolling Zantufa
+            // spells no KE join at that level. Those joints own no
             // token of their own in that reading either -- the JOI/JA spelling is the one every
             // other connective tier shares -- so the warning is attached here, anchored at the
             // connective that opens the joint. The top continuation is deliberately not in this
@@ -5258,14 +5257,6 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
             generated::generated_model::NodeRef::BridiTailBoContinuationWithoutTailTermsSyntax(
                 continuation,
             ) if generated_tail_connective_is_zantufa(&continuation.connective) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaTailContinuation,
-                    continuation,
-                );
-            }
-            generated::generated_model::NodeRef::BridiTailKeContinuationSyntax(continuation)
-                if generated_tail_connective_is_zantufa(&continuation.connective) =>
-            {
                 self.warn_first_token(
                     ExperimentalConstruct::ExperimentalZantufaTailContinuation,
                     continuation,

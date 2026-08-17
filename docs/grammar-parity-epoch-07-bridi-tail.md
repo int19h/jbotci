@@ -6,8 +6,8 @@ issues at once, because they are three views of the same six productions:
 | Section | Issue | State |
 | --- | --- | --- |
 | Zantufa forethought reconcile audit | #826 | complete, no grammar change |
-| Zantufa JOIK/tag tail continuations and the KE ownership guard | #826 | in progress |
-| Standard tail boundaries | #805 | pending |
+| Zantufa JOIK/tag tail continuations and the KE ownership guard | #826 | complete |
+| Standard tail boundaries | #805 | complete |
 | camxes-exp CU and term prefixes | #815 | pending |
 | Consolidated expectations, comparer, peak RSS | — | pending |
 
@@ -223,3 +223,38 @@ group is one node and one ownership decision. That is the plan's warning matrix
 rule — one warning per maximal construct, repeated groups inside one construct
 counting once — and nested constructs still warn once each at their own anchors,
 because each is its own node.
+
+## D1: the standard boundaries (#805)
+
+camxes-standard's tail inventory is GIhA and nothing else — the flat chain, the
+BO joint and the top KE join all spell `gihek` (camxes.peg:76-79) — and its only
+statement join is an I (camxes.peg:20-22). jbotci carried four routes past those
+boundaries that no source spells. D1 deletes all four.
+
+| deleted route | what it admitted | what happens now |
+| --- | --- | --- |
+| `relation_connective_as_bridi_tail` | JOIK, JEK, EK and VUhU at every tail joint | GIhA plus the Zantufa arms D3 gates; `ganse su'i zukte nirna` and `ganse ji zukte nirna` reject |
+| `bo_bridi_statement_continuation` | an I-less BO envelope over a full subbridi | the sourced tail BO joint and the I-led statement BO envelope keep every surface with an owner |
+| `ke_bridi_statement_continuation` | an I-less KE envelope over a full subbridi | those surfaces reject |
+| `bridi_tail_ke_continuation` | the KE join under a widened connective | both families take the GIhA-only `gihek_bridi_tail_ke_continuation` |
+| the joints' own `cu` fields | a CU between a tail connective and its right operand | camxes-exp's CU is the operand's own leading `bridi_tail_2` CU, which D2 adds |
+
+The KE row is the one worth stating plainly, because C-b's own note claimed the
+widened connective reached the KE join: it does not, and it should not. Rolling
+Zantufa spells no KE join at the top level at all. Its KE-led tail is a
+`bridi_tail_3` alternative, which jbotci already carries separately as
+`zantufa_grouped_bridi_tail`, so the KE join is GIhA's alone in every dialect.
+
+Two consumers of the legacy shared `relation_afterthought_connective` die with
+those routes, and the third — the JAI mini-ladder inside a selbri — is a selbri
+connection rather than a bridi-tail one, so it converts to the selbri family's
+JOIK/JEK inventory. With no consumer left, the node retires. Its reader family
+retires with it into `GeneratedJoikJekConnectiveRef`, a borrowed view over the
+two payloads every remaining tier spells, which also drops the per-connection
+clone the selbri tier was paying to reach it.
+
+`bridi_statement` keeps its name and its one child, and the macro renders a
+single-child product transparently, so the node becomes `BridiStatementSyntax(bridi)`.
+That is a rendering change in every fixture that has a statement, with no owner,
+warning or cardinality change anywhere; it is the epoch's one bulk mechanical
+class outside the frozen same-name table.

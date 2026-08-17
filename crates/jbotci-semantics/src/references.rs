@@ -3824,27 +3824,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_bridi_statement(&mut self, node: &'tree generated::BridiStatementSyntax) {
-        self.analyze_predicate(&node.bridi);
-        for continuation in &node.continuations {
-            match continuation {
-                generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.walk_node(&continuation.trailing_subbridi);
-                }
-                generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.walk_node(&continuation.trailing_subbridi);
-                }
-            }
-        }
+        self.analyze_predicate(&node.0);
     }
 
     #[requires(true)]
@@ -5630,7 +5610,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) -> Option<BridiNodeId> {
         match statement {
             generated::StatementBaseSyntax::BridiStatement(statement) => {
-                Some(BridiNodeId(self.raw_for_node(&statement.bridi)))
+                Some(BridiNodeId(self.raw_for_node(&statement.0)))
             }
             generated::StatementBaseSyntax::PrenexStatement(statement) => {
                 self.statement_main_predicate_id(&statement.inner_statement)
@@ -7496,27 +7476,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_bridi_statement(&mut self, node: &'tree generated::BridiStatementSyntax) {
-        self.visit_predicate(&node.bridi);
-        for continuation in &node.continuations {
-            match continuation {
-                generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.visit_subbridi(&continuation.trailing_subbridi);
-                }
-                generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.visit_subbridi(&continuation.trailing_subbridi);
-                }
-            }
-        }
+        self.visit_predicate(&node.0);
     }
 
     #[requires(true)]

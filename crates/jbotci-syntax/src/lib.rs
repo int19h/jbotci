@@ -1477,12 +1477,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "bridi continuation",
-        parent: Some("statement"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "text connective",
         parent: Some("text"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,

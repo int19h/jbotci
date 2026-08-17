@@ -88,10 +88,6 @@ fn continuation_has_owner(connective: &BridiTailConnectiveSyntax, tagged: bool) 
     !tagged
         && match connective {
             BridiTailConnectiveSyntax::GihekConnective(_) => true,
-            // The unsourced relation arm is what the flat joint spells for a non-GIhA connective
-            // today, so a continuation led by one has that arm as its owner for exactly as long
-            // as D1 leaves it standing.
-            BridiTailConnectiveSyntax::RelationConnectiveAsBridiTail(_) => true,
             BridiTailConnectiveSyntax::JoikConnective(_)
             | BridiTailConnectiveSyntax::JekConnective(_) => false,
         }
@@ -241,8 +237,7 @@ fn recovered_connective_has_owner(
 ) -> bool {
     !tagged
         && match connective {
-            recovered::BridiTailConnectiveSyntax::GihekConnective(_)
-            | recovered::BridiTailConnectiveSyntax::RelationConnectiveAsBridiTail(_) => true,
+            recovered::BridiTailConnectiveSyntax::GihekConnective(_) => true,
             recovered::BridiTailConnectiveSyntax::JoikConnective(_)
             | recovered::BridiTailConnectiveSyntax::JekConnective(_) => false,
         }
