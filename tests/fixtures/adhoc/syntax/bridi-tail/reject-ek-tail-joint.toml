@@ -1,0 +1,12 @@
+id = "adhoc.syntax.bridi-tail.reject-ek-tail-joint"
+lojban = "mi broda .e pu cu brode"
+tags = ["adhoc", "syntax", "bridi-tail-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-7 bridi-tail ownership matrix witness"
+description = "R4 with I02 provenance: EK-as-gihek is unadopted, so no arm owns the surface."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "pu", message = "unexpected cmavo" }]
