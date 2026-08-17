@@ -132,8 +132,8 @@ ownership change can survive the comparison; excluding them would move 1,769 pre
 fixtures into hand-written residue rows without adding any safety.  The VUhO attachment is
 excluded because that *is* a term-versus-sumti ownership surface (epoch-4 residual, D6).
 
-The baseline archive is exactly `git archive 3c3b84a5ba tests/fixtures` (`ARCHIVE_COMMIT`),
-the fixture tree at the epoch-6a merge, so it is reproducible rather than hand-assembled.
+The baseline archive is exactly `git archive 2397912147 tests/fixtures` (`ARCHIVE_COMMIT`),
+the fixture tree at the epoch-6b merge, so it is reproducible rather than hand-assembled.
 Every candidate fixture must therefore have a baseline entry and every baseline entry must
 have a candidate: an unpaired fixture on either side is a hard error, never a skip.  The one
 exception is a fixture this epoch ADDED, which is identified from
@@ -147,6 +147,14 @@ The one value the classifier does not compare exactly is the `description` prose
 the entries must correspond one for one and agree on every other key -- and a fixture whose
 prose moved is listed in the report with its number pinned like the mechanical classes, so an
 unreviewed prose edit still fails the run.
+
+Epoch-new witnesses are not classified, so the only thing standing behind them is what they
+pin.  A witness that omits `expectations.syntax.diagnostics` pins its tree and leaves its
+warning stream unspecified, which is how a construct can quietly stop warning -- or start --
+without any expectation moving.  Every epoch-new witness must therefore carry the key, empty
+where the expectation is silence, and one that does not is a hard error rather than a count.
+The check is on the key's presence, not its contents: what the warnings ARE is the writer's
+output and the reviewer's artifact, and only their absence from the fixture is mechanical.
 """
 
 from __future__ import annotations
@@ -294,15 +302,16 @@ class DebugParser:
 # --- the ladder, transcribed from the grammar ------------------------------------------
 #
 # Every term-family position, with the rule that produced its operand in the baseline
-# archive (`ARCHIVE_COMMIT`, the epoch-6a merge) and the ladder level that produces it now.
+# archive (`ARCHIVE_COMMIT`, the epoch-6b merge) and the ladder level that produces it now.
 # The 25 consumer sites keep their arity and their level name, so they are listed by the
 # field that holds the term.  Any term-family node that turns up at a position missing from
 # this table is residue.
 #
-# Because the archive is the 6a merge rather than the pre-6a base, 6a's own re-levelings are
-# already applied on BOTH sides: the PEhE operand reads `cehe_term` and the TermsetGroup
-# operands `loose_term`/`nonabs_term` in the baseline too.  The only position whose level
-# actually moves in this epoch is the GOI payload.
+# Because the archive is the 6b merge rather than an earlier base, every re-leveling 6a and 6b
+# performed is already applied on BOTH sides: the PEhE operand reads `cehe_term`, the
+# TermsetGroup operands `loose_term`/`nonabs_term` and the GOI payload `normal_term` in the
+# baseline too.  No position's level moves in this epoch; what moves is the shape at three BO
+# joints and one payload, which the sum-wrapper table below carries.
 
 CONSUMER_POSITIONS: tuple[tuple[str, str], ...] = (
     ("ZantufaIauStatementTermsTailSyntax", "terms"),
@@ -521,7 +530,7 @@ EXPECTED_MANUAL = 0
 EXPECTED_PROSE = 0
 # Fixtures this epoch ADDED: the D5 witnesses.  They have no baseline entry, so they are
 # pinned by count rather than classified.
-EXPECTED_NEW_WITNESSES = 36
+EXPECTED_NEW_WITNESSES = 38
 
 CLASS_BO_JOINT_SUM_WRAPPER = "bo-joint-sum-wrapper"
 CLASS_JAI_PAYLOAD_WIDENING = "jai-payload-widening"
@@ -1053,6 +1062,28 @@ def collect_jobs(
     return jobs, witness_jobs, unpaired, epoch_new
 
 
+def epoch_new_missing_diagnostics(candidate_root: Path, epoch_new: list[str]) -> list[str]:
+    """Epoch-new witnesses that pin no `expectations.syntax.diagnostics` list.
+
+    An epoch-new witness has no baseline entry, so no class checks it and the authored
+    expectation is the whole audit.  Omitting the key leaves the warning stream unpinned,
+    and `fixture-rewrite` fills the list only where the key already exists, so the omission
+    is also self-perpetuating.  A witness with no `expectations.syntax` at all cannot carry
+    the key and is reported for the same reason: the exception has to be argued here rather
+    than fall out of a lookup that quietly finds nothing.
+    """
+    offenders: list[str] = []
+    for repository_path in epoch_new:
+        relative = Path(repository_path).relative_to("tests/fixtures")
+        document = tomllib.loads((candidate_root / relative).read_text(encoding="utf-8"))
+        syntax = document.get("expectations", {}).get("syntax")
+        if syntax is None:
+            offenders.append(f"{repository_path}: no expectations.syntax to pin diagnostics on")
+        elif "diagnostics" not in syntax:
+            offenders.append(f"{repository_path}: expectations.syntax pins no diagnostics list")
+    return sorted(offenders)
+
+
 def run(args: argparse.Namespace) -> int:
     witnesses = set(
         subprocess.run(
@@ -1110,6 +1141,13 @@ def run(args: argparse.Namespace) -> int:
     lines.extend(f"  {path}" for path in sorted(witness_rewarns))
     lines.append(f"epoch-new witnesses (authored, unclassifiable): {len(epoch_new)}")
     lines.extend(f"  {path}" for path in sorted(epoch_new))
+    unpinned_diagnostics = epoch_new_missing_diagnostics(args.candidate, epoch_new)
+    if unpinned_diagnostics:
+        lines.append(
+            "epoch-new witnesses without a diagnostics pin (must be empty): "
+            f"{len(unpinned_diagnostics)}"
+        )
+        lines.extend(f"  {entry}" for entry in unpinned_diagnostics)
     if unpaired:
         lines.append(f"unpaired fixtures (must be empty): {len(unpaired)}")
         lines.extend(f"  {entry}" for entry in sorted(unpaired))
@@ -1134,6 +1172,7 @@ def run(args: argparse.Namespace) -> int:
                     "witness_rewarns": sorted(witness_rewarns),
                     "witness_deltas": sorted(witness_deltas),
                     "epoch_new": sorted(epoch_new),
+                    "epoch_new_missing_diagnostics": unpinned_diagnostics,
                 },
                 indent=2,
                 sort_keys=True,
@@ -1149,6 +1188,12 @@ def run(args: argparse.Namespace) -> int:
         return 1
     if witness_deltas:
         print("error: epoch witnesses may only take the additive T3 warning re-pin")
+        return 1
+    if unpinned_diagnostics:
+        print(
+            "error: every epoch-new witness must pin expectations.syntax.diagnostics, "
+            "empty where the expectation is silence"
+        )
         return 1
     if len(jobs) != args.expect_changed:
         print(f"error: expected {args.expect_changed} changed pre-epoch fixtures")

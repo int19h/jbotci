@@ -3,7 +3,7 @@
 `compare-term-hierarchy-expectations.py` decides membership from `NEW_LEVEL_INVENTORY` and
 `OLD_LEVEL_INVENTORY`, which are hand-transcriptions of the `rule "term" … -> enum` arm lists
 in `crates/jbotci-syntax/src/grammar/generated.rs` — at HEAD for the new side and at
-`ARCHIVE_COMMIT` (the epoch-6a merge, which is the baseline archive's commit) for the old.  A
+`ARCHIVE_COMMIT` (the epoch-6b merge, which is the baseline archive's commit) for the old.  A
 transcription that drifts from the grammar silently weakens every mechanical class: a leaf the
 comparer does not know about makes its fixture "not a member of the level" and drops it into
 manual residue, and a leaf the comparer knows about but the grammar no longer spells would let
@@ -13,14 +13,19 @@ Epoch 6b's first comparer run failed in exactly the first way and put 639 of the
 fixtures into residue, so the transcription is re-derived here rather than asserted.  The
 extraction is deliberately a regex over the DSL text and not an import of the grammar: the
 point is to read the same source a human transcribes from.
+
+The second class of test here covers the comparer's completeness check on epoch-new witnesses,
+which are the one population no mechanical class inspects.
 """
 
 from __future__ import annotations
 
 import importlib.util
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -153,6 +158,104 @@ class TermLevelInventoryTest(unittest.TestCase):
             with self.subTest(position=position):
                 self.assertIn(old_level, COMPARATOR.OLD_LEVEL_INVENTORY)
                 self.assertIn(new_level, COMPARATOR.NEW_LEVEL_INVENTORY)
+
+
+class EpochNewDiagnosticsPinTest(unittest.TestCase):
+    """The completeness check on epoch-new witnesses, exercised on a synthetic tree.
+
+    Nothing classifies an epoch-new witness, so the pin it carries is the whole audit; the
+    check is run against fixtures written here rather than against the repository's, so both
+    the accept and the reject side are exercised whatever the tree happens to hold.
+    """
+
+    def _tree(self, fixtures: dict[str, str]) -> Path:
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        for name, contents in fixtures.items():
+            path = root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(contents, encoding="utf-8")
+        return root
+
+    def test_a_pinned_witness_is_accepted_whether_or_not_the_list_is_empty(self) -> None:
+        root = self._tree(
+            {
+                "adhoc/warned.toml": 'id = "warned"\nlojban = "ko\'a bo ko\'e broda"\n\n'
+                "[expectations.syntax]\n"
+                'status = "success"\n'
+                'raw = "tree"\n'
+                'diagnostics = [{ severity = "warning", code = "x", byte-span = [0, 2],'
+                ' source-text = "ko\'a", message = "m" }]\n',
+                "adhoc/silent.toml": 'id = "silent"\nlojban = "ko\'a broda"\n\n'
+                "[expectations.syntax]\n"
+                'status = "success"\n'
+                'raw = "tree"\n'
+                "diagnostics = []\n",
+            }
+        )
+        self.assertEqual(
+            COMPARATOR.epoch_new_missing_diagnostics(
+                root, ["tests/fixtures/adhoc/warned.toml", "tests/fixtures/adhoc/silent.toml"]
+            ),
+            [],
+        )
+
+    def test_an_unpinned_witness_is_reported(self) -> None:
+        root = self._tree(
+            {
+                "adhoc/unpinned.toml": 'id = "unpinned"\nlojban = "ko\'a bo ko\'e broda"\n\n'
+                "[expectations.syntax]\n"
+                'status = "success"\n'
+                'raw = "tree"\n',
+            }
+        )
+        self.assertEqual(
+            COMPARATOR.epoch_new_missing_diagnostics(root, ["tests/fixtures/adhoc/unpinned.toml"]),
+            ["tests/fixtures/adhoc/unpinned.toml: expectations.syntax pins no diagnostics list"],
+        )
+
+    def test_a_witness_without_a_syntax_expectation_is_reported(self) -> None:
+        # Reported rather than skipped: a fixture that pins no syntax at all cannot carry the
+        # key, and that exception has to be argued in this function rather than fall out of a
+        # lookup that quietly finds nothing.
+        root = self._tree(
+            {
+                "adhoc/morphology-only.toml": 'id = "morphology-only"\nlojban = "ko\'a"\n\n'
+                "[expectations.morphology]\n"
+                'status = "success"\n',
+            }
+        )
+        self.assertEqual(
+            COMPARATOR.epoch_new_missing_diagnostics(
+                root, ["tests/fixtures/adhoc/morphology-only.toml"]
+            ),
+            [
+                "tests/fixtures/adhoc/morphology-only.toml: "
+                "no expectations.syntax to pin diagnostics on"
+            ],
+        )
+
+    def test_every_epoch_new_witness_in_the_repository_is_pinned(self) -> None:
+        # The check above is only worth having if it is also true of the tree it guards.
+        witnesses = subprocess.run(
+            [
+                "git",
+                "diff",
+                "--diff-filter=A",
+                "--name-only",
+                f"{COMPARATOR.EPOCH_BASE}..HEAD",
+                "--",
+                "tests/fixtures",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.split()
+        self.assertEqual(len(witnesses), COMPARATOR.EXPECTED_NEW_WITNESSES)
+        self.assertEqual(
+            COMPARATOR.epoch_new_missing_diagnostics(REPO_ROOT / "tests/fixtures", witnesses), []
+        )
 
 
 if __name__ == "__main__":

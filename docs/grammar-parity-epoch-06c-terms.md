@@ -134,6 +134,15 @@ this epoch's head:
 | `ko'a goi pu ko'e bo ca ko'i broda` | reject | reject | accept | reject | accept | accept |
 | `ko'a goi ba ko'e .e bo vi ko'i broda` | accept | accept | accept | accept | accept | accept |
 
+Both tiers witness all six rows: `zantufa-bo-term-connectorless-*` and
+`zantufa-bo-sumti-connectorless-*` each carry the omitted, `()`, terms-axis,
+connectives-axis, both-axes and `(zantufa)` configurations, and each fixture's
+provenance names the row it is. Both arms name the same feature, so on the
+current grammar the sumti tier's `()` and both-axes rows cannot say anything the
+term tier's do not; they are pinned anyway, because naming one feature twice is
+an implementation fact rather than a property of the surfaces, and if the two
+ever diverge the sumti tier would otherwise move with nothing failing.
+
 Both BO arms are keyed to `ZANTUFA-TERMS` rather than `ZANTUFA-CONNECTIVES`:
 what they add is a term/sumti binding whose defining property is that it carries
 no connective at all, and the connectives axis is where Zantufa's connective
@@ -255,7 +264,7 @@ The four earlier classes stay wired, and must find nothing.
 | `flat-sum-wrapper`, `goi-payload-retyping`, `pehe-cehe-retyping`, `stagless-bo-route-rejection`, `t3-loose-connection-warning` | 0 each |
 | Manual residue | 0 |
 | Prose-only provenance edits | 0 |
-| Epoch-new witnesses (authored, unclassifiable) | 36 |
+| Epoch-new witnesses (authored, unclassifiable) | 38 |
 
 The level-inventory half of the re-baseline moves with the archive. Both
 inventories are re-derived against the baseline grammar and re-checked by
@@ -264,6 +273,32 @@ inventories are re-derived against the baseline grammar and re-checked by
 tag, at all nine levels — and gains a case asserting that the wrap table names
 rules the baseline grammar actually has, so a typo there fails the test instead
 of silently inflating manual residue.
+
+## What pins an epoch-new witness
+
+An epoch-new witness has no baseline entry, so no mechanical class inspects it:
+what it pins is the whole audit. Every one of the 38 therefore carries an exact
+`expectations.syntax.diagnostics` list — the full warning stream where warnings
+fire, and an explicitly empty list where the expectation is silence. Five success
+witnesses are silent, and each says something by being so: the two `ce'e`
+baseline-CEhE readings, the two JAI selbri-absorbed forms and the unchanged plain
+FA term all take arms this epoch did not touch, and a warning appearing on any of
+them would mean a new arm had captured the surface. Omitting the key is not a
+weaker pin but no pin
+at all: the tree stays fixed while the construct is free to stop warning, or
+start, with nothing failing. `fixture-rewrite` also fills the list only where the
+key already exists, so an omission perpetuates itself.
+
+The comparer enforces this rather than trusting it. It already derives the
+epoch-new set from `git diff --diff-filter=A`, and it now reports every member of
+that set that pins no diagnostics list and exits 1, alongside the unpaired-fixture
+and witness-delta gates; a witness with no `expectations.syntax` at all is
+reported for the same reason rather than skipped. Four cases in
+`tools/tests/test_compare_term_hierarchy_expectations.py` exercise the check on a
+synthetic tree from both sides and assert the property of the repository tree
+itself, and the gate run below was repeated against a copy of the fixture tree
+with one witness's pin deleted: the tool reports that witness by name and exits
+1, so the check is fail-closed in the tool and not only in its unit test.
 
 ## The ASK carried to the lead
 
@@ -281,11 +316,11 @@ witnessed.
 
 ## Fixture counts
 
-The tree moves 26,479 → 26,515 with this epoch's 36 witnesses; the xfail count is
+The tree moves 26,479 → 26,517 with this epoch's 38 witnesses; the xfail count is
 unchanged at 513, because the two xfail fixtures this epoch touches keep their
 pins and only their trees move.
 
-## Pre-submission gate
+## Pre-submission gate (round 1)
 
 Run at `f436f0e61c`, the tip of the code, expectation and ledger commits; the
 conformance-ledger commit above it changes only documentation, which nothing
@@ -324,3 +359,54 @@ size ratchets on 2026-08-16, and epoch 6b's ledger records the replacement — o
 absolute 95 MiB per-file tripwire, the entry-count and member checks, and a
 comparison band that is audit methodology rather than a gate. This epoch adds no
 budgets and recalibrates none.
+
+## CI at the round-1 head
+
+All 22 checks pass at `d472c7b17a`, the head this epoch first submitted: `Cargo
+tests`, `Generated syntax and stubs`, the five wheel builds, the
+source-distribution round trip, `Python artifact acceptance`, the ten
+per-interpreter wheel tests, `CLI release tooling` and the F2LLM goldens. The
+wheel legs pass under the no-ratchet policy, with only the absolute 95 MiB
+tripwire and the shape checks in force.
+
+## Round 2
+
+The round-1 review returned a formal PASS, and the lead directed a second round
+on the code review's findings anyway. The round-2 delta is the diagnostics pins
+and the check behind them, the two sumti-tier configuration rows, three comment
+corrections, and this section; no grammar rule, no classifier and no expectation
+tree moves.
+
+| Change | Where |
+| --- | --- |
+| Exact `diagnostics` on the 23 success witnesses that omitted them | `tests/fixtures/adhoc/syntax/terms/zantufa-*.toml` |
+| Fail-closed completeness check + 4 cases | `tools/compare-term-hierarchy-expectations.py`, `tools/tests/test_compare_term_hierarchy_expectations.py` |
+| Sumti-tier configuration rows 2 and 5 | `zantufa-bo-sumti-connectorless-{no-features,both-axes}.toml` |
+| Comparer prose named the 6a archive while its constants named the 6b one | `tools/compare-term-hierarchy-expectations.py`, its unit test |
+| The `zantufa_bound_sumti_tail` comment stated the opposite of the classifier's ACKed disposition | `crates/jbotci-syntax/src/grammar/generated.rs` |
+
+That last one is worth its own line, because the correction is the whole point of
+measuring: the comment said `ConnectivePresentSumtiBoRejection` "returns that
+extent to the sourced owner", and it does not. The classifier rejects nothing —
+every `sourced_owner_takes_*` function carries `#[ensures(!ret)]` — because the
+measurement above found that returning the nested sourced tail would not hand it
+to the sourced owner at all, only push the surface onto the term tier and change
+what it means. `baseline_bo.rs` and this ledger were already right; the DSL
+comment was not, and it is the copy that reaches readers through the generated
+Python model, which is regenerated with it.
+
+| Gate | Result | Log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch06c-r2-fmt.log` |
+| Frozen check set (tagged facet, syntax only) | 131 fixtures, 131 passed, 0 failed | `epoch06c-r2-frozen-facet.log` |
+| Tagged `term-hierarchy-epoch` facet, all facets | 131 fixtures, 137 passed, 0 failed | `epoch06c-r2-tagged-facet.log` |
+| Level-inventory + witness-pin unit tests | 11 tests, green | `epoch06c-r2-inventory-test.log` |
+| Comparer | 44 changed / 43 + 1 + 0 + 0 + 0 + 0 + 0 mechanical / 0 manual, prose 0, witness re-pins 0, epoch-new 38, unpinned 0 | `epoch06c-r2-comparer.log` |
+| `maturin develop` + the four generated checks | all green | `epoch06c-r2-maturin.log` |
+
+The heavy suites in the round-1 table are not re-run and do not need to be: the
+only Rust source this round touches is a doc comment, the fixture deltas are
+additive `diagnostics` leaves plus two new adhoc witnesses, and the comparer and
+its test are not in any of them. The comparer is re-run because its epoch-new
+count moved, and the generated checks because the corrected comment is copied
+into the Python model.

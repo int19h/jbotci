@@ -2585,8 +2585,12 @@ pub mod generated_model {
     /// The trailing operand is classified rather than taken as parsed: it is the one place a
     /// connector-absent arm can still end up owning an extent that carries a connective, since
     /// jbotci spells the BO chain by recursion where Zantufa spells it as a flat continuation
-    /// list. `crate::grammar::baseline_bo::ConnectivePresentSumtiBoRejection` returns that
-    /// extent to the sourced owner; see that type for the ownership argument.
+    /// list. `crate::grammar::baseline_bo::ConnectivePresentSumtiBoRejection` is where that
+    /// question is answered rather than assumed, and its answer is that the sourced owner can
+    /// never take this arm's extent, so it rejects nothing and every candidate stays here. The
+    /// nested sourced tail keeps the position Zantufa gives it because returning it would not
+    /// hand it to the sourced owner at all, only push the surface onto the term tier and change
+    /// what it means; see that type for the ownership argument and the measurement.
     rule "sumti connection" zantufa_bound_sumti_tail(sumti_bound, tense_modal) -> struct {
         assert feature(ZantufaTerms);
         /// The optional tense modal component.
