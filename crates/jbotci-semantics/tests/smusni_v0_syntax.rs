@@ -40,7 +40,15 @@ fn every_frozen_lisp_sample_obeys_the_v0_serialization_grammar() {
 
     for block in blocks {
         let source = block.source.replace("⟦body⟧", SAMPLE_BODY);
-        if source.trim_start().starts_with("(Smusni") {
+        // Semicolon comments are datum-level whitespace, so a block may open
+        // with its Lojban source as a comment line; dispatch on the first
+        // non-comment content.
+        let is_document = source
+            .lines()
+            .map(str::trim_start)
+            .find(|line| !line.is_empty() && !line.starts_with(';'))
+            .is_some_and(|line| line.starts_with("(Smusni"));
+        if is_document {
             let document = parse_v0_document(&source).unwrap_or_else(|error| {
                 panic!(
                     "sample Lisp block {} is not a v0 document: {error}",
