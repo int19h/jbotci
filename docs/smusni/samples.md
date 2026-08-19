@@ -8,12 +8,20 @@ is a complete `Smusni` datum.
 The English glosses explain the represented distinction and are not claimed as
 word-for-word translations.
 
+When a block has a corresponding Lojban source text, that text appears as a
+leading `;` line comment in the Lisp tradition; the notation parser consumes
+semicolon comments as whitespace, so they never affect the parsed document and
+never appear in rendered output. Where several source spellings exist, the
+comment shows the most sensible one. A block without such a comment
+demonstrates shape only and has no single corresponding Lojban text.
+
 ## 1. Predication, closure, and assertion
 
 `mi klama` assembles predicate content, closes its remaining defaultable places,
 and then explicitly constructs an assertion act:
 
 ```lisp
+; mi klama
 (Smusni 0
   (Assert
     (klama Speaker)))
@@ -40,6 +48,7 @@ Here the saturated predicate term is mentioned as a value. It is not coerced to
 A literal skip uses a keyword. The plain value after `:2` fills current x3:
 
 ```lisp
+; klama fe ti tu
 (Smusni 0
   (Assert
     (klama :2 This Yonder)))
@@ -48,6 +57,7 @@ A literal skip uses a keyword. The plain value after `:2` fills current x3:
 An actual place question uses computed `At` and no later plain operand:
 
 ```lisp
+; klama fu ti fi'a ti
 (Smusni 0
   (Ask
     (OpenQ
@@ -58,7 +68,7 @@ An actual place question uses computed `At` and no later plain operand:
 Two computed fills whose candidate domains overlap do not print as two `At`
 forms. Projection fails at the smallest content position, because answer
 substitution could assign both values to the same place. Its registered reason
-is `smusni.projection.at.overlapping-candidates`, and the failure is attributed
+is `smusni.projection.computed-fill-domain-noninjective`, and the failure is attributed
 to the actual smallest reachable model owner rather than to an invented
 `ComputedPlaceAssignment` model type.
 
@@ -66,6 +76,7 @@ to the actual smallest reachable model owner rather than to an invented
 numbers and plain traversal skips the hole:
 
 ```lisp
+; mi klama ti zi'o ti ti
 (Smusni 0
   (Assert
     ((DropPlace klama 3)
@@ -82,6 +93,7 @@ x2 `Speaker` fills base x1. The base order needs no labels, and there is no
 `Se` node:
 
 ```lisp
+; ti se klama mi
 (Smusni 0
   (Assert
     (klama Speaker This)))
@@ -90,6 +102,7 @@ x2 `Speaker` fills base x1. The base order needs no labels, and there is no
 A converted property is an ordinary lambda over the permuted base fill:
 
 ```lisp
+; lo ka se klama
 (Smusni 0
   (Let (($destination-property
           (Fn ((Referents Entity)) Content)
@@ -102,6 +115,7 @@ If the converted binary relation itself escapes into an ordered function place,
 it eta-expands:
 
 ```lisp
+; se tavla
 (λ (($new-x1 (Referents Entity))
     ($new-x2 (Referents Entity)))
   (tavla $new-x2 $new-x1))
@@ -116,6 +130,7 @@ grammar-shaped records. Their applications follow the effective row of the
 head relation:
 
 ```lisp
+; mi sutra klama ti
 (Smusni 0
   (Assert
     ((Tanru sutra klama)
@@ -124,6 +139,7 @@ head relation:
 ```
 
 ```lisp
+; ti na'e melbi
 (Smusni 0
   (Assert
     ((Scalar OtherThan melbi)
@@ -138,6 +154,7 @@ the renderer does not infer either from an English gloss.
 A `sepi'o` modal shares the event of the main clause with a `pilno` predication:
 
 ```lisp
+; mi klama ti sepi'o ti
 (Smusni 0
   (Assert
     (∃
@@ -151,6 +168,7 @@ Direct `fi'o pilno` uses the place map represented by that tag rather than
 assuming the `sepi'o` map:
 
 ```lisp
+; mi klama ti fi'o pilno be ti fe'u mi
 (Smusni 0
   (Assert
     (∃
@@ -182,6 +200,7 @@ reduces to the standard `fi'o se purci` analysis, so the event is x1 of
 `purci` and the utterance time is x2:
 
 ```lisp
+; mi pu citka
 (Smusni 0
   (Assert
     (∃
@@ -197,6 +216,7 @@ helper, whose definition projects `muvdu` by deleting only the unrepresented
 route place:
 
 ```lisp
+; mi mo'i ri'u cadzu
 (Smusni 0
   (Assert
     (∃
@@ -238,6 +258,7 @@ Source `ka'e` uses the transparent capability helper. Its host property keeps
 the candidate bearer and possible event explicit:
 
 ```lisp
+; mi ka'e klama ti
 (Smusni 0
   (Assert
     (InnatelyCapable
@@ -251,6 +272,7 @@ The helper deletes no `kakne` place: its condition place remains an ordinary
 contextual argument. Actuality is a separate predicate, not assertion force:
 
 ```lisp
+; mi ca'a citka
 (Smusni 0
   (Assert
     (∃
@@ -263,7 +285,7 @@ contextual argument. Actuality is a separate predicate, not assertion force:
 An aspect whose boundary/checkpoint relation has not yet been verified makes
 projection fail rather than producing an English-gloss constructor or an
 approximate `cfari` predication. Its registered reason is
-`smusni.projection.tag.coha.unverified-boundary`, and the failure is attributed
+`smusni.projection.event-facet-reduction-unregistered`, and the failure is attributed
 to the actual reachable owner containing the inline aspect value, not to a
 synthetic `EventContour` object.
 
@@ -273,6 +295,7 @@ specimen in the specification represents nested binder identity rather than a
 second canonical spelling of this graph:
 
 ```lisp
+; mi pu pu citka
 (Smusni 0
   (Assert
     (∃
@@ -289,6 +312,7 @@ Sticky `ki` is not a discourse-state node in the output. For source
 inheriting event:
 
 ```lisp
+; mi puki klama ti .i ti batci ta
 (Smusni 0
   (Do
     (Assert
@@ -316,7 +340,7 @@ outside `Do` with `Let` when inert or `Bind` when computed, and both repeated
 Version 0 does not pretend that a graph-owned noncurrent deictic ground is the
 current speech situation. Until that registered reduction exists, projection
 fails at the smallest referential value with reason
-`smusni.projection.deictic.noncurrent-ground`, attributed to the real
+`smusni.projection.reference-description-unrepresentable`, attributed to the real
 graph-owned ground referent rather than to an invented semantic-object type.
 
 ## 5. Explicit `Close` for shared predicate terms
@@ -324,6 +348,7 @@ graph-owned ground referent rather than to an invented semantic-object type.
 An inline known-row predicate closes implicitly at `Assert`:
 
 ```lisp
+; ti melbi
 (Smusni 0
   (Assert
     (melbi This)))
@@ -359,6 +384,7 @@ one lexical closure-site identity reused by both applications during this
 performance:
 
 ```lisp
+; mi .e ti klama
 (Smusni 0
   (Let (($goer-property (Fn ((Referents Entity)) Content)
           (λ (($x (Referents Entity)))
@@ -373,7 +399,7 @@ The two applications substitute different x1 values; they do not mint new
 identities for klama's omitted destination, origin, route, or means sites.
 
 A nondefaultable higher-order gap cannot be silently closed. Projection fails
-with reason `smusni.projection.close.nondefaultable-place`, attributed to the
+with reason `smusni.projection.predicate-closure-unlicensed`, attributed to the
 actual reachable semantic-model owner; `PredicateTerm` is notation IR and is
 never fabricated as a model object.
 
@@ -393,6 +419,7 @@ A successful conjunction can introduce a reference for its right operand and
 the later discourse:
 
 ```lisp
+; lo mlatu cu jbena gi'e blabi .i ri ciska
 (Smusni 0
   (Bind (($cat (Referents Entity)
           (Refer
@@ -416,6 +443,7 @@ An ordinary xorlo reference is fixed for the force segment, so it scopes
 outside visible negation:
 
 ```lisp
+; lo mlatu na jbena
 (Smusni 0
   (Bind (($cat (Referents Entity)
           (Refer
@@ -430,6 +458,7 @@ By contrast, the individual variable introduced inside this negated
 quantifier is both lexically and dynamically local:
 
 ```lisp
+; no da mlatu gi'e jbena
 (Smusni 0
   (Assert
     (¬
@@ -445,6 +474,7 @@ When the graph says both operands use the same identity, one lexical binder
 must span both. This donkey-style normalization uses an explicit quantifier:
 
 ```lisp
+; ganai da mlatu gi'e jbena gi da ciska
 (Smusni 0
   (Assert
     (∀
@@ -466,6 +496,7 @@ conditional is rejected with a registered invalid-graph reason.
 `lo mlatu` uses the veridical property directly:
 
 ```lisp
+; lo mlatu cu blabi
 (Smusni 0
   (Bind (($cat (Referents Entity)
           (Refer
@@ -481,6 +512,7 @@ A `le` description composes the speaker-description relation rather than
 asserting that the referent is extensionally a cat:
 
 ```lisp
+; le mlatu cu blabi
 (Smusni 0
   (Bind (($described (Referents Entity)
           (Refer
@@ -495,6 +527,7 @@ asserting that the referent is extensionally a cat:
 A name description uses a sign and the graph's naming relation:
 
 ```lisp
+; la .alis. klama
 (Smusni 0
   (Bind (($named (Referents Entity)
           (Refer
@@ -508,6 +541,7 @@ A name description uses a sign and the graph's naming relation:
 indefinite selection:
 
 ```lisp
+; lo'e mlatu
 (Bind (($typical-cat (Referents Entity)
         (Typical
           (λ (($x (Referents Entity)))
@@ -522,6 +556,7 @@ A speaker-owned stereotype keeps its describer as an ordinary operand rather
 than hiding it in the constructor:
 
 ```lisp
+; le'e mlatu
 (Bind (($stereotypical-cat (Referents Entity)
         (Stereotypical
           Speaker
@@ -538,6 +573,7 @@ Source `lo mlatu poi blabi` contributes both veridical predicates inside one
 reference property:
 
 ```lisp
+; lo mlatu poi blabi cu jbena
 (Smusni 0
   (Bind (($white-cat (Referents Entity)
           (Refer
@@ -557,6 +593,7 @@ quantifier restriction. Schematically, the latter has this shape (with the
 source-licensed singular apple basis written explicitly):
 
 ```lisp
+; mi lebna re lo mu plise ku poi xunre
 (Smusni 0
   (Bind (($apples (Referents Entity)
           (Refer
@@ -620,6 +657,7 @@ helper's normative definition removes `skicu` x3; no audience is fabricated
 for the `voi` relation:
 
 ```lisp
+; le gerku voi blabi cu jbena
 (Smusni 0
   (Bind (($thing (Referents Entity)
           (Refer
@@ -639,6 +677,7 @@ In `lo gerku noi blabi cu melbi`, the main beauty content is the first operand
 and the white relative clause is the supplementary second operand:
 
 ```lisp
+; lo gerku noi blabi cu melbi
 (Smusni 0
   (Bind (($dog (Referents Entity)
           (Refer
@@ -655,6 +694,7 @@ negation and question force. Under the preceding `$dog` binding, the relevant
 handler-anchored act fragments are:
 
 ```lisp
+; lo gerku noi blabi cu na melbi
 (Assert
   (Supplement
     (¬ (melbi $dog))
@@ -662,6 +702,7 @@ handler-anchored act fragments are:
 ```
 
 ```lisp
+; xu lo gerku noi blabi cu melbi
 (Ask
   (Polar
     (Supplement
@@ -680,6 +721,7 @@ Multiple clauses retain their connector rather than a list of `Relative`
 records:
 
 ```lisp
+; lo gerku poi blabi gi'a bunre zi'e poi citka lo cidja
 (λ (($x (Referents Entity)))
   (∧
     (gerku $x)
@@ -692,6 +734,7 @@ records:
 A graph-owned `goi` alias becomes identity sharing:
 
 ```lisp
+; mi tavla le pendo goi ko'a
 (Let (($friend (Referents Entity) $antecedent))
   (Assert
     (tavla Speaker $friend)))
@@ -704,6 +747,7 @@ The final two blocks are fragments.
 Source `ro` uses the importing `Every` constructor:
 
 ```lisp
+; ro mlatu cu jbena
 (Smusni 0
   (Assert
     ((Every
@@ -735,6 +779,7 @@ The other generalized-quantifier helpers have the same restriction-then-scope
 application shape. Existential and negative examples are:
 
 ```lisp
+; su'o gerku cu bajra
 (Smusni 0
   (Assert
     ((Some
@@ -745,6 +790,7 @@ application shape. Existential and negative examples are:
 ```
 
 ```lisp
+; no gerku cu batci mi
 (Smusni 0
   (Assert
     ((No
@@ -758,6 +804,7 @@ A lower-bound cardinal helper additionally requires a pure restriction, a pure
 nuclear scope, and the registered singular counting basis:
 
 ```lisp
+; su'o re gerku cu bajra
 (Smusni 0
   (Assert
     ((AtLeast 2
@@ -773,6 +820,7 @@ operator and retain the same purity and counting-basis gate.
 The mathematical nonimporting universal remains available directly:
 
 ```lisp
+; ro da zo'u ganai da mlatu gi da jbena
 (Smusni 0
   (Assert
     (∀
@@ -787,6 +835,7 @@ The mathematical nonimporting universal remains available directly:
 An outer exact count is ordinary cardinality of singular satisfiers:
 
 ```lisp
+; ci gerku cu bajra
 (Smusni 0
   (Assert
     (= (Card
@@ -802,6 +851,7 @@ One fixed plural reference can instead be constrained through a singular-member
 set without identifying the reference with that set:
 
 ```lisp
+; lo ci gerku cu bajra
 (Smusni 0
   (Bind (($dogs (Referents Entity)
           (Refer
@@ -822,6 +872,7 @@ set without identifying the reference with that set:
 `Combine` is plural reference formation, not set union:
 
 ```lisp
+; mi tavla la .alis. jo'u la .bob.
 (Assert
   (tavla Speaker
     (Combine $alis $bob)))
@@ -831,6 +882,7 @@ set without identifying the reference with that set:
 values, so the list is singleton-lifted for ordinary sumti use:
 
 ```lisp
+; la .alis. ce'o la .bob. ce'o la .carol.
 (Singleton (List $alis $bob $carol))
 ```
 
@@ -841,6 +893,7 @@ relations; they do not turn the base reference into a mathematical set by
 coercion. For `lo'i gerku`:
 
 ```lisp
+; lo'i gerku
 (Smusni 0
   (Bind (($base (Referents Entity)
           (Refer
@@ -857,6 +910,7 @@ The parallel `loi gerku` shape changes only the outer object sort and lexical
 relation:
 
 ```lisp
+; loi gerku
 (Smusni 0
   (Bind (($base (Referents Entity)
           (Refer
@@ -879,6 +933,7 @@ The `GQ`, its nuclear-scope function, and their application each have stable
 identity. A witness is available only after that same application succeeds:
 
 ```lisp
+; ci gerku cu bajra .i ri tatpi
 (Smusni 0
   (Let (($gq (GQ Entity)
           (Exactly 3
@@ -899,7 +954,7 @@ identity. A witness is available only after that same application succeeds:
 This is not equivalent to counting members of `$dogs` after the fact. The full
 quantifier function, scope function, and success identity remain explicit. A
 request before successful execution is rejected at the `(Referents Entity)`
-position with reason `smusni.projection.witness.before-success`, attributed to
+position with reason `smusni.projection.quantifier-effect-export-illegal`, attributed to
 the actual reachable quantifier owner. `WitnessRequest` and
 `QuantifierApplication` are not model object types and therefore never appear
 in the failure record.
@@ -911,6 +966,7 @@ profile, two generalized quantifiers with one polyadic nuclear scope reduce to
 mutually constrained, coordinate-exhaustive sets:
 
 ```lisp
+; ci gerku ce'e re prenu cu nelci
 (Smusni 0
   (Assert
     (∃
@@ -949,7 +1005,7 @@ this stronger than arbitrary complete-product subset selection: if four dogs
 all like the same two people, the displayed `Exactly 3`/`Exactly 2` content is
 false. A graph which retains one coequal quantifier-bundle locus but lacks the
 verified coordinate-closed profile fails at the `Content` position with reason
-`smusni.projection.termset.profile-unverified`, attributed to that `Formula`
+`smusni.projection.simultaneous-termset-unlicensed`, attributed to that `Formula`
 object. A graph already elaborated as an ordered
 quantifier nest instead renders that ordinary nesting; the renderer does not
 guess that it was formerly simultaneous.
@@ -959,6 +1015,7 @@ guess that it was formerly simultaneous.
 A property abstraction needs only `λ`:
 
 ```lisp
+; lo ka melbi
 (Smusni 0
   (Mention
     (λ (($x (Referents Entity)))
@@ -970,6 +1027,7 @@ An event abstraction is a reference computation whose property shares the event
 with all facets:
 
 ```lisp
+; lo nu mi pu vi klama
 (Smusni 0
   (Bind (($event (Referents Eventuality)
           (Refer
@@ -987,6 +1045,7 @@ event reference; no event-facet record or opaque PascalCase name is needed.
 Reification is an explicit level crossing:
 
 ```lisp
+; lo du'u mi klama
 (Smusni 0
   (Mention
     (Reify
@@ -997,6 +1056,7 @@ The inline predicate closes because `Reify` expects `Content`. An explicit
 semantic scale fills the full-arity crossing:
 
 ```lisp
+; lo ni mi klama
 (Smusni 0
   (Mention
     (Measure
@@ -1008,11 +1068,47 @@ This last sample is normal output only when `DistanceScale` is a verified member
 of the version-0 scale table; otherwise projection fails with a registered
 reason.
 
+`su'u` is the generic abstractor, and its `Abstract` crossing carries CLL
+11.9's categorizing "type x2" as the trailing operand. An explicit `be`
+categorizer is an ordinary graph operand:
+
+```lisp
+; lo su'u mi klama kei be lo fasnu
+(Smusni 0
+  (Bind (($kind (Referents Entity)
+          (Refer
+            (λ (($x (Referents Entity)))
+              (fasnu $x)))))
+    (Mention
+      (Abstract
+        (klama Speaker)
+        $kind))))
+```
+
+An omitted categorizer is a contextually understood kind at the declared
+default type `Referents<Entity>`; the one-operand spelling
+`(Abstract content)` is exact notation sugar for this local `Bind` of a fresh
+`Context` computation:
+
+```lisp
+; lo su'u mi klama
+(Smusni 0
+  (Bind (($kind (Referents Entity) Context))
+    (Mention
+      (Abstract
+        (klama Speaker)
+        $kind))))
+```
+
+The default's type is spec-declared, not inferred from context; kinds enter
+the graph as entity referents, exactly as 11.59's `lo fasnu` does.
+
 ## 14. First-class acts and utterance facts
 
 An act can be bound, targeted, and later performed:
 
 ```lisp
+; ti melbi .i ku'i mi klama
 (Smusni 0
   (Let (($prior-act (Act Assertion)
           (Assert
@@ -1031,6 +1127,7 @@ There is no `TargetFocus`; the target is statically `Act<Assertion>`.
 An utterance with metadata and two co-realized acts keeps its token:
 
 ```lisp
+; ti melbi .i ku'i mi klama
 (Smusni 0
   (Let (($prior-act (Act Assertion)
           (Assert
@@ -1060,6 +1157,7 @@ asserted. The nested `Utterance` is a `TranscriptEntry` datum and is not
 performed or contracted:
 
 ```lisp
+; mi cusku lu mi klama li'u
 (Smusni 0
   (Assert
     (Utters
@@ -1076,6 +1174,7 @@ That reports an utterance relation; it does not perform the nested transcript.
 Address and directive force are first-class acts on the ordinary `Do` spine:
 
 ```lisp
+; doi ko klama ti
 (Smusni 0
   (Do
     (Vocative Audience)
@@ -1104,6 +1203,7 @@ At a non-spine `Discourse` position, the level crossings are explicit. This
 Discourse transitions remain visible when the graph owns them:
 
 ```lisp
+; ni'o ti melbi
 (Smusni 0
   (NewTopic
     (Perform
@@ -1112,6 +1212,7 @@ Discourse transitions remain visible when the graph owns them:
 ```
 
 ```lisp
+; no'i mi klama
 (Smusni 0
   (Resume
     (Perform
@@ -1124,6 +1225,7 @@ Discourse transitions remain visible when the graph owns them:
 A polar direct question:
 
 ```lisp
+; xu mi klama
 (Smusni 0
   (Ask
     (Polar
@@ -1133,6 +1235,7 @@ A polar direct question:
 An open argument question:
 
 ```lisp
+; ma klama
 (Smusni 0
   (Ask
     (OpenQ
@@ -1144,6 +1247,7 @@ A relation question can bind an open-row predicate term when the answer's full
 place structure is not yet known:
 
 ```lisp
+; ti mo
 (Smusni 0
   (Ask
     (OpenQ
@@ -1160,6 +1264,7 @@ place structure is not yet known:
 A two-variable question retains an ordered heterogeneous answer tuple:
 
 ```lisp
+; ma klama ma
 (Smusni 0
   (Ask
     (OpenQ
@@ -1171,6 +1276,7 @@ A two-variable question retains an ordered heterogeneous answer tuple:
 An indirect question is an inert object:
 
 ```lisp
+; lo du'u ma cortu
 (Smusni 0
   (Mention
     (QuestionOf
@@ -1182,6 +1288,7 @@ An indirect question is an inert object:
 Positive polar answer content says which answer was selected:
 
 ```lisp
+; go'i (as answer to: xu mi klama)
 (Smusni 0
   (Assert
     (Answer
@@ -1196,6 +1303,7 @@ none is spelled — the omitted operand is the canonical form of an answer whose
 exhaustivity is genuinely undetermined:
 
 ```lisp
+; lo du'u ma kau cortu
 (Smusni 0
   (Assert
     (Answer
@@ -1214,6 +1322,7 @@ When the graph does contain the ordered answer values, the tuple and
 exhaustivity are explicit:
 
 ```lisp
+; mi klama ti (as exhaustive answer to: ma klama ma)
 (Smusni 0
   (Assert
     (Answer
@@ -1244,6 +1353,7 @@ polarity or contextual answer:
 An extensional graph-owned host can place a reference outside negation:
 
 ```lisp
+; mi na nelci lo cukta
 (Smusni 0
   (Bind (($book (Referents Entity)
           (Refer
@@ -1257,6 +1367,7 @@ An extensional graph-owned host can place a reference outside negation:
 Inside an intensional desire place, a de-dicto reference remains local:
 
 ```lisp
+; mi djica lo nu mi pilno lo karce (de dicto reading)
 (Smusni 0
   (Assert
     (djica Speaker
@@ -1274,6 +1385,7 @@ Inside an intensional desire place, a de-dicto reference remains local:
 An explicit legal de-re owner may move `$car` outside that boundary:
 
 ```lisp
+; mi djica lo nu mi pilno lo karce (de re reading)
 (Smusni 0
   (Bind (($car (Referents Entity)
           (Refer
@@ -1292,6 +1404,7 @@ A nested description remains inside the outer description property unless its
 own owner says otherwise:
 
 ```lisp
+; lo pilno be lo karce cu klama
 (Smusni 0
   (Bind (($driver (Referents Entity)
           (Refer
@@ -1314,6 +1427,7 @@ extensional reading.
 Respectively is tuple/list construction plus typed `ZipWith`:
 
 ```lisp
+; mi fa'u do tavla do fa'u mi
 (Smusni 0
   (Assert
     (ZipWith
@@ -1327,6 +1441,7 @@ Respectively is tuple/list construction plus typed `ZipWith`:
 Set and interval operations use conventional mathematical notation:
 
 ```lisp
+; da cmima lo'i gerku ku'a lo'i blabi
 (Smusni 0
   (Assert
     (∃
@@ -1342,6 +1457,7 @@ Set and interval operations use conventional mathematical notation:
 ```
 
 ```lisp
+; li no ga'o bi'o ke'i pa
 (Smusni 0
   (Mention
     (Interval 0 1 Closed Open)))
@@ -1355,6 +1471,7 @@ reason; it is never printed as an arbitrary PascalCase atom.
 Opaque quotation preserves text without interpreting it:
 
 ```lisp
+; lo'u mi klama le'u
 (Smusni 0
   (Mention
     (OpaqueQuote "mi klama")))
@@ -1364,6 +1481,7 @@ A structured quotation can mention a complete transcript entry without
 performing it:
 
 ```lisp
+; lu mi klama li'u
 (Smusni 0
   (Mention
     (StructuredQuote
@@ -1377,12 +1495,14 @@ performing it:
 Raw name and sentence signs preserve their kind without minting a token:
 
 ```lisp
+; lu'e la .alis.
 (Smusni 0
   (Mention
     (NameSign "alis")))
 ```
 
 ```lisp
+; lu'e lo du'u mi klama
 (Smusni 0
   (Mention
     (SentenceSign
@@ -1408,6 +1528,7 @@ interpretation:
 When interpretation is represented, the result family is explicit:
 
 ```lisp
+; la'e lu mi klama li'u
 (InterpretContent $sentence-sign)
 (Let (($directive (Act Directive)
         (InterpretAct $performative-sign)))
@@ -1481,6 +1602,7 @@ debugging output, not smusni documents, and no consumer ever receives one.
 Requested dictionary cards occupy the optional third document slot:
 
 ```lisp
+; mi klama
 (Smusni 0
   (Assert
     (klama Speaker))
