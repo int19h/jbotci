@@ -157,14 +157,12 @@ fn gentufa_renders_both_syntax_errors_exactly() {
 #[requires(true)]
 #[ensures(true)]
 fn morphology_errors_suppress_syntax_in_every_syntax_command() {
-    for command in ["gentufa"] {
-        let run = capture_cli(&["jbotci", command, MORPHOLOGY_MULTI_ERROR_SOURCE]);
+    let run = capture_cli(&["jbotci", "gentufa", MORPHOLOGY_MULTI_ERROR_SOURCE]);
 
-        assert_eq!(run.status, CliStatus::Failure, "{command}");
-        assert!(run.stdout.is_empty(), "{command}");
-        assert_eq!(run.stderr, expected_morphology_stderr(2), "{command}");
-        assert!(!run.stderr.contains("syntax."), "{command}");
-    }
+    assert_eq!(run.status, CliStatus::Failure);
+    assert!(run.stdout.is_empty());
+    assert_eq!(run.stderr, expected_morphology_stderr(2));
+    assert!(!run.stderr.contains("syntax."));
 
     let blocks = capture_cli(&[
         "jbotci",
