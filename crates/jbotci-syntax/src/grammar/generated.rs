@@ -2454,10 +2454,21 @@ pub mod generated_model {
     // an explicit VAU closing the term list ahead of the tag got there. The reservation sits
     // exactly where the source puts it -- after the parsed tag and before the elidable payload --
     // so an explicit `ku` (`mi broda pu ku bo brode`) is still a term and still a rejection, and
-    // an overt sumti payload is untouched. The guard is inert without the joint it reserves for,
-    // so no profile without ZANTUFA-CONNECTIVES can see it.
+    // an overt sumti payload is untouched.
+    //
+    // The source spells `!BO` with no gate, and its effect is not confined to the tail joint:
+    // the same lookahead is why `pu bo ko'a broda` is a rejection in rolling Zantufa, as it is
+    // in both camxes references. Epoch 6c's connectorless term-level BO arm, enabled by
+    // ZANTUFA-TERMS, reaches exactly that surface, so gating the reservation on
+    // ZANTUFA-CONNECTIVES alone would leave a Zantufa projection preserving a defect all three
+    // references reject. The reservation is therefore active whenever either feature is on and
+    // inert only when both are off, which is the only configuration whose reading it would
+    // change without a Zantufa arm behind it.
     alias "tag" zantufa_tag_bo_joint_reservation = choice((
-        feature(ZantufaConnectives).not(),
+        choice((
+            feature(ZantufaConnectives),
+            feature(ZantufaTerms),
+        )).not(),
         cmavo(Bo).not(),
     )).ignored();
 

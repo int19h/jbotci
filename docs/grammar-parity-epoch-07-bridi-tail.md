@@ -135,11 +135,13 @@ joints that exist, not joints of their own, and that is how they land:
   closing that term list — which the source does not require — got there. Round 3
   adds the reservation to the two tag-term leaves that feed tail terms,
   `tagged_sumti_term` and `nonabs_tagged_sumti_term`, as
-  `zantufa_tag_bo_joint_reservation`, a `ZantufaConnectives`-gated inert guard in
-  the `zantufa_place_tag_chain_guard` idiom. It sits exactly where the source puts
-  it, after the parsed tag and before the elidable payload, so an explicit KU is
-  still a term and `mi broda pu ku bo brode` is still a rejection in every
-  dialect. Full prose and the measured cells are in the round-3 section.
+  `zantufa_tag_bo_joint_reservation`, an inert guard in the
+  `zantufa_place_tag_chain_guard` idiom, active whenever `ZantufaConnectives` or
+  `ZantufaTerms` is on and inert only when both are off. It sits exactly where the
+  source puts it, after the parsed tag and before the elidable payload, so an
+  explicit KU is still a term and `mi broda pu ku bo brode` is still a rejection in
+  every dialect. Full prose and the measured cells are in the round-3 section; the
+  round-4 section records why the gate covers the terms axis too.
 
 The flat joint deliberately does **not** become a sum. It cannot: it is a chain
 link, and the chain's element type is resolved through a named field of the link
@@ -538,7 +540,7 @@ No pin needed a new rule to explain it, so none is a stop-and-ask.
 | `corpus/alis/full-alice` loses its syntax, Gentufa and Tersmu coverage | TEMPORARY, tracked by **#866**. The 152 KB text flips on exactly one site, and the flip is parity rather than regression — camxes rejects the same EK-over-tail shape in its own right (`corpus/camxes/4148`). Nothing in the grammar waits on it: the fixture pins the rejection and its frontier now, and the one-site text repair in #866 restores all three expectation blocks. Booked as a gap rather than softened, because the coverage is real and is genuinely absent until #866 lands. |
 | the KE join is not widened by rolling Zantufa | Rolling Zantufa spells no KE join at the top level at all; its KE-led tail is a `bridi_tail_3` alternative, which jbotci carries separately. The C-b note that claimed otherwise is corrected in the D1 section. |
 | rolling Zantufa's `!BO` reservation in `tag_term` was missing — CLOSED in round 3 | Round 1 landed the connectiveless `tag BO` joint arm without the `!BO` half of the source's own `tag_term` (zantufa-1.9999.peg:31), so the tail-term list absorbed the tag first and the joint was reachable only behind an explicit VAU the source does not require. Under the full preset the epoch-6c term-level connectorless BO arm reached the tag before the joint did and the parse then failed, which is a wrong-owner reach rather than a clean rejection. Round 3 adds the gated reservation to both tag-term leaves; ten dialect-axis witnesses plus three explicit-KU rejection rows pin the result. Recorded here because the round-1 D3-2 prose claimed the arm "lands" while it reached only one of its own canonical surfaces. |
-| the `!BO` reservation is feature-gated where rolling Zantufa's is unconditional | Zantufa spells `!BO` in `tag_term` with no gate at all, so it holds on every surface its grammar admits. jbotci's reservation is gated on `ZANTUFA-CONNECTIVES`, because that is the feature that creates the joint it reserves for and because an ungated guard would move the default projection. The visible residue is one axis: with `ZANTUFA-TERMS` alone, `pu bo ko'a broda` still takes epoch 6c's term-level connectorless BO reading, where rolling Zantufa and both camxes references reject. With `ZANTUFA-CONNECTIVES` on — the gate, both axes, and the full preset — head now rejects with the source. The four `zantufa-tag-bo-term-reservation-*` witnesses pin all four configurations, so the residual divergence is measured rather than assumed; closing it means deciding whether the terms axis should carry the reservation on its own, which is a 6c-scope question rather than this epoch's. |
+| the `!BO` reservation was gated on `ZANTUFA-CONNECTIVES` alone — CLOSED in round 4 | Round 3 gated the reservation on the feature that creates the joint it reserves for, which left one axis diverging: with `ZANTUFA-TERMS` alone, `pu bo ko'a broda` still took epoch 6c's term-level connectorless BO reading where camxes-standard, camxes-exp *and* rolling Zantufa all reject. That is a Zantufa projection preserving an exposed defect, which the epic's acceptance policy forbids. Round 4 widens the gate to `ZANTUFA-CONNECTIVES` **or** `ZANTUFA-TERMS`: `ZANTUFA-TERMS` is exactly the feature that enables the 6c arm, so activating there removes the defect at its source rather than around it. The guard stays inert when both are off, which is the only configuration with no Zantufa arm behind it, so the default, `()`, omitted, std and exp projections are byte-identical — the frozen facets and the unchanged comparer class counts are the evidence. The terms-axis witness flips to the same `unexpected-cmavo` rejection at `bo` its three siblings pin, so all four configurations now agree with all three references. Zantufa's own `!BO` is still unconditional where jbotci's is two-feature gated; that residue is not observable, because the arms it would apply to exist only behind those two features. |
 | rolling Zantufa's `!gek_bridi_tail` reservation in the same source line is NOT adopted | Same line, other half. For `pu ge broda gi brode` camxes-standard and rolling Zantufa both accept and camxes-exp rejects (measured against `camxes.js`, `camxes-exp.js` and `zantufa-1.9999.js`; camxes-exp fails at the GEK), but the two accepting references disagree on ownership: R1 keeps the baseline reading — a tagged leading term, then the GEK-led tail — while rolling Zantufa attaches the tag to the tail through `!gek_bridi_tail`. This is a *reinterpretation*, not an acceptance difference, so under the standing reinterpretation ruling it is recorded rather than minted: adopting it needs its own feature-gated reservation and its own decision, and combining it with the `!BO` repair would have changed ownership under cover of a reachability fix. The fidelity-flag candidate is named `ZANTUFA-GEK-TAIL-TAG-REINTERPRETATION` here for the follow-up to pick up; nothing is added to the flag inventory by this epoch. `adhoc/syntax/bridi-tail/zantufa-gek-tail-leading-tag-baseline-owned` measures the baseline ownership at the default dialect so the gap has a witness. |
 
 ## The C-e stop-and-ask
@@ -767,6 +769,9 @@ alias "tag" zantufa_tag_bo_joint_reservation = choice((
 
 `assert`ed, it succeeds without consuming anything whenever the feature is off,
 so every projection that does not enable `ZANTUFA-CONNECTIVES` is byte-identical.
+(Round 4 widens that gate to `ZANTUFA-CONNECTIVES` **or** `ZANTUFA-TERMS`; the
+round-4 section below has the reason and the re-measured cells. Everything else in
+this subsection, including the placement argument, is unchanged by that.)
 Placement matters and follows the source: the reservation sits **after** the
 parsed tag and **before** the elidable payload, so an overt sumti payload is
 untouched and an explicit KU still makes the tag a complete term. That is why
@@ -913,6 +918,12 @@ raise peak resident set. The round-2 pair stands.
 | `maturin develop` + the four generated checks | green | `epoch07-r3-maturin.log`, `epoch07-r3-gen-*.log` |
 | peak RSS | **not measured — see above** | — |
 
+The comparer and comparer-unit-test rows were re-run *after* the round-3 commit
+(`epoch07-r3-comparer2.log`, `epoch07-r3-comparer-test2.log`), because the
+comparer's pairing check reads the baseline out of git and therefore needs the
+round's own commit in place; every other row in the table ran before that commit,
+on a source tree identical to the committed one.
+
 The comparer's class counts are unchanged from round 2 by construction: this
 round adds no fixture that existed at the base, so every file it touches is
 epoch-new and lands in the pinned added-witness list rather than in a class.
@@ -928,3 +939,148 @@ empty anchor block, being inert — plus the field- and resume-index shift the
 extra `assert` slot causes in the two guarded leaves. Every `first` token set in
 the file is byte-identical as a multiset before and after, which is the check
 that the reservation changed no anchor's reachable token set.
+
+## Round 4 — the one residual on the `!BO` reservation
+
+Round 3 was reviewed at `32a6503d87` and came back CHANGES with a single
+residual. H1's placement, M2, M3 and L4 were all confirmed; round 4 changes
+nothing about any of them.
+
+### The gate was one feature too narrow
+
+The reservation as round 3 shipped it was
+
+```
+alias "tag" zantufa_tag_bo_joint_reservation = choice((
+    feature(ZantufaConnectives).not(),
+    cmavo(Bo).not(),
+)).ignored();
+```
+
+— active only where `ZANTUFA-CONNECTIVES` creates the tail joint it reserves
+for. That reasoning is right about the joint and wrong about the reservation's
+other consequence. The source's `!BO` in `tag_term` (zantufa-1.9999.peg:31) is
+not written for the joint alone: it is also why `pu bo ko'a broda` is a
+rejection in rolling Zantufa, exactly as it is in camxes-standard and
+camxes-exp. The arm that accepts that surface in jbotci is epoch 6c's
+connectorless term-level BO continuation, and that arm is enabled by
+`ZANTUFA-TERMS`, not by `ZANTUFA-CONNECTIVES`. So the narrow gate left the
+`(+zantufa-terms)` projection accepting a surface all three references reject —
+a Zantufa projection preserving an exposed baseline defect, which the epic's
+acceptance policy does not allow.
+
+Round 4 widens the gate to cover the terms axis, keeping the same inert-lookahead
+idiom and consuming nothing:
+
+```
+alias "tag" zantufa_tag_bo_joint_reservation = choice((
+    choice((
+        feature(ZantufaConnectives),
+        feature(ZantufaTerms),
+    )).not(),
+    cmavo(Bo).not(),
+)).ignored();
+```
+
+The inert branch is now the not-of-both: the guard stands aside only when
+*neither* feature is on, which is the one configuration where no Zantufa arm sits
+behind the BO it would reserve. Everything else about the reservation — its
+placement after the parsed tag and before the elidable payload, the explicit-KU
+rejection, the untouched overt-sumti payload — is unchanged, so nothing in the
+round-3 H1 argument is re-opened.
+
+### What moved, and what provably did not
+
+The whole observable delta is the `(+zantufa-terms)` cell of one surface:
+
+| surface | camxes | camxes-exp | rolling Zantufa | `()` / default | `(+zantufa-connectives)` | `(+zantufa-terms)` | both axes | `(zantufa)` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `pu bo ko'a broda` (round 3) | R | R | R | R | R | **A** | R | R |
+| `pu bo ko'a broda` (round 4) | R | R | R | R | R | **R** | R | R |
+
+The round-4 rejection is byte-for-byte the one its three siblings already pin:
+`syntax.unexpected-cmavo` at `bo`, byte span `[3, 5]`, and no other diagnostic.
+`zantufa-tag-bo-term-reservation-terms-axis` is flipped to it by the project's
+own writer and hand-checked against the sibling pins; the provenance note on all
+four witnesses is corrected to say the gate now covers both axes.
+
+The tail surface the reservation exists for is a rejection on the terms axis
+either way, because the joint arm needs `ZANTUFA-CONNECTIVES`; what changes is
+*how* it is rejected. Measured on the round-3 and round-4 binaries back to back,
+`mi broda pu bo brode` under `(+zantufa-terms)` alone was
+
+```
+error[syntax.unexpected-brivla] at `brode`
+warning[syntax.warning.experimental-zantufa-connectorless-bo] at `bo`
+(mi [bróda {pu ([bo ‼brode‼] ‼‼)}])
+```
+
+— the 6c term arm reaching the tag first, warning for a connection it then could
+not complete — and is now
+
+```
+error[syntax.unexpected-cmavo] at `bo`
+‼mi broda pu bo brode‼
+```
+
+the clean reservation rejection at the BO, with no warning for a reading that
+never happened. No fixture pins that cell, so nothing is regenerated for it. The
+explicit-KU control is untouched on the same axis: `mi broda pu ku bo brode` is
+byte-identical on both binaries, since an explicit KU closes the term before the
+reservation's position is reached.
+
+Nothing else in the corpus can move, and the full profile confirms that nothing
+did. The reservation is reachable only where one of the two features is on, and
+`ZANTUFA-CONNECTIVES` already had it in round 3, so the newly covered population
+is exactly the eleven `(+zantufa-terms)`-only fixtures in the tree. Ten of them
+have no tag-then-BO position at all, and epoch 6c's own connectorless-BO
+witnesses — `zantufa-bo-term-connectorless-terms-axis`
+(`pu ko'a bo ca ko'e broda`) and `zantufa-bo-sumti-connectorless-terms-axis`
+(`ko'a bo ko'e broda`) — carry an overt sumti after every tag, so the token at
+the reservation's position is never BO; both parse byte-identically on the two
+binaries. The default, explicitly empty `()`, omitted, camxes-standard and
+camxes-exp projections are byte-identical too, which is what the frozen facets
+and the unchanged comparer class counts measure; the four canonical joint
+surfaces (`pu bo ko'a broda`, `mi broda pu bo brode`, `mi broda do pu bo brode`,
+`mi broda vau pu bo brode`) were also diffed directly across `()`, the omitted
+default, `(+zantufa-connectives)`, both axes and `(zantufa)` and are identical on
+every one.
+
+The recovery-anchor snapshot does **not** move this round. Round 3's regeneration
+already accounted for the alias and for the extra `assert` slot in the two
+guarded leaves; round 4 rewrites only the alias body, adding no rule, no field
+and no assert, and the alias's anchor block was already empty because the guard
+is inert. `rules` stays at 602 and the file is unchanged on disk —
+`generated_recovery_anchor_metadata_snapshot_matches` passes without an update,
+and the multiset of all 3,493 `first` lines is trivially identical, being the
+same bytes.
+
+### The round-4 gate
+
+No peak-RSS pair this round, for the round-3 reason: the only grammar change is a
+zero-width lookahead that now fails earlier in one more configuration. It
+allocates nothing and cannot raise peak resident set. The round-2 pair stands.
+
+| component | result | log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch07-r4-fmt.log` |
+| `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,649 passed, 0 failed | `epoch07-r4-workspace.log` |
+| `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,648 passed, 0 failed | `epoch07-r4-expensive.log` |
+| `fixture-test --profile all` | 26,573 fixtures, 3 facets, 72,519 passed, 519 xfailed, 0 failed | `epoch07-r4-fixtures-all.log` |
+| tagged facet `bridi-tail-epoch` | 56 fixtures, 56 passed, 0 failed | `epoch07-r4-tagged-facet.log` |
+| frozen syntax facet, same tag | 56 fixtures, 56 passed, 0 failed | `epoch07-r4-frozen-facet.log` |
+| comparer | 19,769 changed / 19,286 + 19,695 + 456 + 33 + 0 mechanical / 73 manual / 0 prose / 56 epoch-new | `epoch07-r4-comparer.log` |
+| comparer unit tests | 11 tests, green | `epoch07-r4-comparer-test.log` |
+| `cargo build -p jbotci` (debug) | green | `epoch07-r4-debug-jbotci.log` |
+| `dx build` (debug) | green | `epoch07-r4-dx.log` |
+| peak RSS | **not measured — see above** | — |
+
+As in round 3, the comparer and its unit tests run after the round's commit,
+because the comparer's pairing check reads the baseline out of git; every other
+row ran before the commit on an identical source tree. Its output is *byte*-identical
+to round 3's — same 19,769 changed, same five class counts, same 73-line manual
+residue, same 56 epoch-new witnesses — which is the direct evidence that no
+projection outside the terms axis moved: this round adds no fixture, and the one
+witness it rewrites was already epoch-new and therefore already listed rather
+than classified. The baseline root is `git archive 67cc7e4b5a tests/fixtures`,
+re-derived for this round and verified byte-identical to the one round 3 used.
