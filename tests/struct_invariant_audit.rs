@@ -601,11 +601,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockCollector",
-        "transient Gentufa block-collector walk state whose frame stack, root slot, and id cursor are unconstrained between visitor events; the blocks it emits are audited by the jbotci-gentufa block-layout tests and the gentufa-brackets/tree/json fixture facets",
+        "transient Gentufa block-collector walk state whose frame stack, root slot, and id cursor are constrained by walk phase rather than by any snapshot predicate: the enter/exit frame contracts own stack depth and top-frame kind, push_payload accepts a second top-level payload only when it is empty, and the id cursor starts at the syntax index node count and is handed out and saturatingly incremented by allocate_id; validity is maintained by those transitions rather than by any predicate over one snapshot, and the blocks it emits are audited by the jbotci-gentufa block-layout tests and the gentufa-brackets/tree/json fixture facets",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockPayload",
-        "push-only Gentufa payload accumulator of children, leaf parts, and their merged source range, with no invalid combination of the three; the merged spans are audited by the jbotci-gentufa leaf-part depth and morphology-leaf block tests",
+        "push-only Gentufa payload accumulator whose source_range is maintained as a function of its contents rather than chosen independently: push_node, push_leaf_part, and extend merge each pushed child span and leaf-part range into it, and the chain exit recomputes it from the flattened children; the merged spans are audited by the jbotci-gentufa leaf-part depth, chain-split, and morphology-leaf block tests",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedFieldFrame",
@@ -613,7 +613,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedNodeFrame",
-        "open Gentufa node frame carrying an allocated node id, constructor label, reference markers, and accumulating payload with no cross-field constraint; labels and markers are audited by the jbotci-gentufa block tests and the gentufa fixture facets",
+        "open Gentufa node frame whose allocated node id, reference markers, and accumulating payload are independently valid and whose constructor label is nonempty for every frame that exists: enter_node_frame is the only construction site and requires a nonempty label, nothing mutates it afterwards, and generated_block_tree_node_from_frame re-checks it when the frame is consumed; the frame stays a plain mutable frame because the collector accumulates into payload through &mut while it is open, and labels and markers are audited by syntax_constructor_labels_degrade_to_non_empty_text, the jbotci-gentufa block tests, and the gentufa fixture facets",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GentufaBlockAnnotation",
@@ -1029,7 +1029,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedIndexedSyntaxNode",
-        "index entry pairing a generated node reference with its recorded metadata, where every metadata value is valid for every node; entry contents are audited by generated_syntax_index_records_root_and_ordered_spans",
+        "index entry pairing a generated node reference with metadata the builder makes correspond to it: enter_node sets id and preorder from the entry's own position in the node vector, parent and depth from the open node stack, and leaf_start from the running leaf cursor, exit_node closes leaf_end, and record_source_span widens the first and last source spans of every open ancestor; that correspondence is maintained by the builder's visit order rather than by a predicate over one entry, and it is audited by generated_syntax_index_records_root_and_ordered_spans and the semantics-refs fixture facet",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedPlaceAnalysisBuilder",

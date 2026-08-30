@@ -1258,7 +1258,7 @@ impl<'tree> TreeVisitor<'tree> for GeneratedBlockCollector<'_, '_, '_, 'tree, tr
     }
 }
 
-#[requires(true)]
+#[requires(!frame.label.is_empty())]
 #[ensures(true)]
 fn generated_block_tree_node_from_frame(
     frame: GeneratedNodeFrame,
