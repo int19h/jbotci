@@ -16,13 +16,12 @@ use std::sync::Arc;
 use jbotci_syntax::generated_model::{
     BareNaTermSyntax, BoGroupedBridiTailSyntax, BoGroupedBridiTailWithoutTailTermsSyntax,
     BoundTermContinuationSyntax, BoundTermSyntax, BridiTailBoJointSyntax,
-    BridiTailBoJointWithoutTailTermsSyntax, BridiTailConnectiveSyntax, CeheTermSyntax,
-    ElidedNaheFihoTagTermSyntax, ExpTailTermsPrefixSyntax, FihoiAdverbialTermSyntax,
-    ForethoughtTermsetSyntax, GekTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax,
-    LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax,
-    NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NormalTermSyntax,
-    NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
-    PlainLinkedSumtiSyntax, SelbriSimpleBridiTailSyntax,
+    BridiTailBoJointWithoutTailTermsSyntax, CeheTermSyntax, ElidedNaheFihoTagTermSyntax,
+    ExpTailTermsPrefixSyntax, FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax, GekTermsetSyntax,
+    JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax,
+    LooseTermSyntax, NaKuTermSyntax, NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax,
+    NonabsTermSyntax, NormalTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
+    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SelbriSimpleBridiTailSyntax,
     SelbriSimpleBridiTailWithoutTailTermsSyntax, SimpleBridiTailSyntax,
     SimpleBridiTailWithoutTailTermsSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
     SumtiBoundSyntax, SumtiBoundTailSyntax, SumtiConnectiveSyntax, SumtiTermSyntax,
@@ -102,15 +101,13 @@ impl<'syntax> GeneratedBoundSumtiTailRef<'syntax> {
 
 /// A borrowed BO-level bridi-tail joint, sourced or Zantufa-connectorless.
 ///
-/// The arms of `bridi_tail_bo_joint` differ by exactly one field, the same way the BO-bound sumti
-/// tail's do: the sourced joint carries the connective its sources require, and rolling Zantufa's
-/// connectorless `tag BO` opening carries none (zantufa-1.9999.peg:22). Everything a traversal
-/// needs — the tag, the operand and the trailing terms — is shared, so structural passes take
-/// this view and only the lowerings that read a connective have to ask for it.
+/// The arms of `bridi_tail_bo_joint` differ by their connective, which the sourced joint requires
+/// and rolling Zantufa's connectorless `tag BO` opening spells not at all
+/// (zantufa-1.9999.peg:22). Everything the surviving passes need — the tag, the operand and the
+/// trailing terms — is shared, so they take this view and never have to match the arms.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GeneratedBridiTailBoJointRef<'syntax> {
-    pub(crate) connective: Option<&'syntax BridiTailConnectiveSyntax>,
     pub(crate) tense_modal: Option<&'syntax TenseModalSyntax>,
     pub(crate) bridi_tail: &'syntax Arc<BoGroupedBridiTailSyntax>,
     pub(crate) tail_terms: &'syntax [TermSyntax],
@@ -119,17 +116,15 @@ pub(crate) struct GeneratedBridiTailBoJointRef<'syntax> {
 impl<'syntax> GeneratedBridiTailBoJointRef<'syntax> {
     /// Borrow either BO-joint shape.
     #[requires(true)]
-    #[ensures(ret.connective.is_some() == matches!(joint, BridiTailBoJointSyntax::BridiTailBoContinuation(_)))]
+    #[ensures(matches!(joint, BridiTailBoJointSyntax::ZantufaTagBoBridiTailContinuation(_)) -> ret.tense_modal.is_some(), "the Zantufa arm's tag is required, so the view always exposes it")]
     pub(crate) fn from_joint(joint: &'syntax BridiTailBoJointSyntax) -> Self {
         match joint {
             BridiTailBoJointSyntax::BridiTailBoContinuation(continuation) => Self {
-                connective: Some(&continuation.connective),
                 tense_modal: continuation.tense_modal.as_deref(),
                 bridi_tail: &continuation.bridi_tail,
                 tail_terms: &continuation.tail_terms,
             },
             BridiTailBoJointSyntax::ZantufaTagBoBridiTailContinuation(continuation) => Self {
-                connective: None,
                 tense_modal: Some(&continuation.tense_modal),
                 bridi_tail: &continuation.bridi_tail,
                 tail_terms: &continuation.tail_terms,
@@ -142,7 +137,6 @@ impl<'syntax> GeneratedBridiTailBoJointRef<'syntax> {
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
-    pub(crate) connective: Option<&'syntax BridiTailConnectiveSyntax>,
     pub(crate) tense_modal: Option<&'syntax TenseModalSyntax>,
     pub(crate) bridi_tail: &'syntax Arc<BoGroupedBridiTailWithoutTailTermsSyntax>,
 }
@@ -150,20 +144,18 @@ pub(crate) struct GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
 impl<'syntax> GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
     /// Borrow either BO-joint shape.
     #[requires(true)]
-    #[ensures(ret.connective.is_some() == matches!(joint, BridiTailBoJointWithoutTailTermsSyntax::BridiTailBoContinuationWithoutTailTerms(_)))]
+    #[ensures(matches!(joint, BridiTailBoJointWithoutTailTermsSyntax::ZantufaTagBoBridiTailContinuationWithoutTailTerms(_)) -> ret.tense_modal.is_some(), "the Zantufa arm's tag is required, so the view always exposes it")]
     pub(crate) fn from_joint(joint: &'syntax BridiTailBoJointWithoutTailTermsSyntax) -> Self {
         match joint {
             BridiTailBoJointWithoutTailTermsSyntax::BridiTailBoContinuationWithoutTailTerms(
                 continuation,
             ) => Self {
-                connective: Some(&continuation.connective),
                 tense_modal: continuation.tense_modal.as_deref(),
                 bridi_tail: &continuation.bridi_tail,
             },
             BridiTailBoJointWithoutTailTermsSyntax::ZantufaTagBoBridiTailContinuationWithoutTailTerms(
                 continuation,
             ) => Self {
-                connective: None,
                 tense_modal: Some(&continuation.tense_modal),
                 bridi_tail: &continuation.bridi_tail,
             },

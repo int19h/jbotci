@@ -231,15 +231,20 @@ fn recovered_continued_tail_has_owner(
         first: _,
         continuations,
     } = candidate;
-    continuations.iter().filter_map(valid).all(|continuation| {
-        let recovered::ZantufaTailContinuationSyntax {
-            connective,
-            tense_modal,
-            cu: _,
-            bridi_tail: _,
-        } = continuation;
-        valid(connective).is_some_and(|connective| {
-            recovered_connective_has_owner(connective, tense_modal.is_some())
+    continuations.iter().all(|continuation| {
+        // Fail closed: a continuation the recovery pass could not complete is not evidence that
+        // a baseline or adopted-exp owner exists over this extent, so it keeps the whole
+        // candidate here exactly as a JOIK/JEK or tagged one would.
+        valid(continuation).is_some_and(|continuation| {
+            let recovered::ZantufaTailContinuationSyntax {
+                connective,
+                tense_modal,
+                cu: _,
+                bridi_tail: _,
+            } = continuation;
+            valid(connective).is_some_and(|connective| {
+                recovered_connective_has_owner(connective, tense_modal.is_some())
+            })
         })
     })
 }
@@ -267,15 +272,18 @@ fn recovered_continued_tail_without_tail_terms_has_owner(
         first: _,
         continuations,
     } = candidate;
-    continuations.iter().filter_map(valid).all(|continuation| {
-        let recovered::ZantufaTailContinuationWithoutTailTermsSyntax {
-            connective,
-            tense_modal,
-            cu: _,
-            bridi_tail: _,
-        } = continuation;
-        valid(connective).is_some_and(|connective| {
-            recovered_connective_has_owner(connective, tense_modal.is_some())
+    continuations.iter().all(|continuation| {
+        // Fail closed for the same reason the with-tail-terms twin does.
+        valid(continuation).is_some_and(|continuation| {
+            let recovered::ZantufaTailContinuationWithoutTailTermsSyntax {
+                connective,
+                tense_modal,
+                cu: _,
+                bridi_tail: _,
+            } = continuation;
+            valid(connective).is_some_and(|connective| {
+                recovered_connective_has_owner(connective, tense_modal.is_some())
+            })
         })
     })
 }

@@ -2440,9 +2440,26 @@ pub mod generated_model {
             letter_string,
         ));
         assert !selbri;
+        assert zantufa_tag_bo_joint_reservation();
         /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }
+
+    // Rolling Zantufa reserves the BO that opens a bridi-tail joint from the term that would
+    // otherwise swallow the tag before it: its `tag_term` is
+    // `!gek (tag !(!tag selbri) !gek_bridi_tail !BO / ...)` (zantufa-1.9999.peg:31), and the
+    // `!BO` half is what makes `bridi_tail_2 <- bridi_tail_3 ((tag / joik_gihek tag?) BO_clause
+    // ...)` (:22) reachable at all. Without it the tail-term list here takes `pu` with an elided
+    // KU and `mi broda pu bo brode` never reaches `zantufa_tag_bo_bridi_tail_continuation`; only
+    // an explicit VAU closing the term list ahead of the tag got there. The reservation sits
+    // exactly where the source puts it -- after the parsed tag and before the elidable payload --
+    // so an explicit `ku` (`mi broda pu ku bo brode`) is still a term and still a rejection, and
+    // an overt sumti payload is untouched. The guard is inert without the joint it reserves for,
+    // so no profile without ZANTUFA-CONNECTIVES can see it.
+    alias "tag" zantufa_tag_bo_joint_reservation = choice((
+        feature(ZantufaConnectives).not(),
+        cmavo(Bo).not(),
+    )).ignored();
 
     /// Product node for the unguarded (`nonabs`) tag term; preserves `tense_modal` and `sumti`.
     ///
@@ -2459,6 +2476,7 @@ pub mod generated_model {
             letter_tokens,
             letter_string,
         ));
+        assert zantufa_tag_bo_joint_reservation();
         /// The shared sumti child syntax node.
         field sumti <- arc(tagged_or_elided_sumti(sumti, normal_term));
     }

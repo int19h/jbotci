@@ -126,6 +126,21 @@ joints that exist, not joints of their own, and that is how they land:
   forbids it — so arm order cannot change which node a sourced surface gets, and
   no classifier is needed.
 
+  The arm is not enough on its own, and round 1 shipped it without the second
+  half. Rolling Zantufa's `tag_term` is
+  `!gek (tag !(!tag selbri) !gek_bridi_tail !BO / ...)` (zantufa-1.9999.peg:31),
+  and the `!BO` lookahead is what keeps a tail term from swallowing the tag that
+  opens this joint. Without it the selbri tail's own `[zero_or_more term]` takes
+  `pu` with an elided KU and the joint is never reached, so only an explicit VAU
+  closing that term list — which the source does not require — got there. Round 3
+  adds the reservation to the two tag-term leaves that feed tail terms,
+  `tagged_sumti_term` and `nonabs_tagged_sumti_term`, as
+  `zantufa_tag_bo_joint_reservation`, a `ZantufaConnectives`-gated inert guard in
+  the `zantufa_place_tag_chain_guard` idiom. It sits exactly where the source puts
+  it, after the parsed tag and before the elidable payload, so an explicit KU is
+  still a term and `mi broda pu ku bo brode` is still a rejection in every
+  dialect. Full prose and the measured cells are in the round-3 section.
+
 The flat joint deliberately does **not** become a sum. It cannot: it is a chain
 link, and the chain's element type is resolved through a named field of the link
 production, so a sum link has no inferable element type. The widened connective
@@ -522,6 +537,9 @@ No pin needed a new rule to explain it, so none is a stop-and-ask.
 | `je do cu brode` is a nested construct, not a rejection | The top continuation's slots are a tag and a CU, so a prefix group whose term is not a tag cannot be absorbed into one Zantufa node. The surface stays a Zantufa joint over a camxes-exp operand and warns once for each, which is the warning matrix's own rule for nesting rather than an exception to it. |
 | `corpus/alis/full-alice` loses its syntax, Gentufa and Tersmu coverage | TEMPORARY, tracked by **#866**. The 152 KB text flips on exactly one site, and the flip is parity rather than regression — camxes rejects the same EK-over-tail shape in its own right (`corpus/camxes/4148`). Nothing in the grammar waits on it: the fixture pins the rejection and its frontier now, and the one-site text repair in #866 restores all three expectation blocks. Booked as a gap rather than softened, because the coverage is real and is genuinely absent until #866 lands. |
 | the KE join is not widened by rolling Zantufa | Rolling Zantufa spells no KE join at the top level at all; its KE-led tail is a `bridi_tail_3` alternative, which jbotci carries separately. The C-b note that claimed otherwise is corrected in the D1 section. |
+| rolling Zantufa's `!BO` reservation in `tag_term` was missing — CLOSED in round 3 | Round 1 landed the connectiveless `tag BO` joint arm without the `!BO` half of the source's own `tag_term` (zantufa-1.9999.peg:31), so the tail-term list absorbed the tag first and the joint was reachable only behind an explicit VAU the source does not require. Under the full preset the epoch-6c term-level connectorless BO arm reached the tag before the joint did and the parse then failed, which is a wrong-owner reach rather than a clean rejection. Round 3 adds the gated reservation to both tag-term leaves; ten dialect-axis witnesses plus three explicit-KU rejection rows pin the result. Recorded here because the round-1 D3-2 prose claimed the arm "lands" while it reached only one of its own canonical surfaces. |
+| the `!BO` reservation is feature-gated where rolling Zantufa's is unconditional | Zantufa spells `!BO` in `tag_term` with no gate at all, so it holds on every surface its grammar admits. jbotci's reservation is gated on `ZANTUFA-CONNECTIVES`, because that is the feature that creates the joint it reserves for and because an ungated guard would move the default projection. The visible residue is one axis: with `ZANTUFA-TERMS` alone, `pu bo ko'a broda` still takes epoch 6c's term-level connectorless BO reading, where rolling Zantufa and both camxes references reject. With `ZANTUFA-CONNECTIVES` on — the gate, both axes, and the full preset — head now rejects with the source. The four `zantufa-tag-bo-term-reservation-*` witnesses pin all four configurations, so the residual divergence is measured rather than assumed; closing it means deciding whether the terms axis should carry the reservation on its own, which is a 6c-scope question rather than this epoch's. |
+| rolling Zantufa's `!gek_bridi_tail` reservation in the same source line is NOT adopted | Same line, other half. For `pu ge broda gi brode` camxes-standard and rolling Zantufa both accept and camxes-exp rejects (measured against `camxes.js`, `camxes-exp.js` and `zantufa-1.9999.js`; camxes-exp fails at the GEK), but the two accepting references disagree on ownership: R1 keeps the baseline reading — a tagged leading term, then the GEK-led tail — while rolling Zantufa attaches the tag to the tail through `!gek_bridi_tail`. This is a *reinterpretation*, not an acceptance difference, so under the standing reinterpretation ruling it is recorded rather than minted: adopting it needs its own feature-gated reservation and its own decision, and combining it with the `!BO` repair would have changed ownership under cover of a reachability fix. The fidelity-flag candidate is named `ZANTUFA-GEK-TAIL-TAG-REINTERPRETATION` here for the follow-up to pick up; nothing is added to the flag inventory by this epoch. `adhoc/syntax/bridi-tail/zantufa-gek-tail-leading-tag-baseline-owned` measures the baseline ownership at the default dialect so the gap has a witness. |
 
 ## The C-e stop-and-ask
 
@@ -587,7 +605,8 @@ claim is made from it.
 
 ## Fixture counts
 
-The tree moves 26,517 → 26,553 with this epoch's 36 witnesses. The xfail count
+The tree moves 26,517 → 26,553 with round 1's 36 witnesses, and 26,553 → 26,573
+with round 3's twenty (the round-3 section lists them). The xfail count
 moves 513 → 519: no xfail retires or inverts, and the six added are the corpus
 entries this epoch's D2 adoption newly accepts, dispositioned above. That is the
 first increase in the arc — epochs 6 and 6b each retired one — and it is what
@@ -711,3 +730,201 @@ tersmu blocks it no longer reads), and the head is 3,455,884 KB against
 fact *lower* on the head (470.40s against 495.34s) while wall clock is higher
 (4:17 against 3:33), which is contention from other work on a shared box, not a
 property of the change.
+
+## Round 3 — the four review corrections
+
+Round 2 was reviewed at `fe3492cdc3` and came back CHANGES with four findings.
+Round 3 is exactly those four corrections on top of that commit; the round-1 and
+round-2 commits are untouched.
+
+### H1 — the connectiveless `tag BO` joint was reachable only behind an explicit VAU
+
+The finding is a reachability defect, not a missing arm. `bridi_tail_bo_joint`
+already carried `zantufa_tag_bo_bridi_tail_continuation`, but the tail-term list
+in front of it absorbed the tag first, so the only surface that reached the joint
+was the one the round-1 witness used — `mi broda vau pu bo brode`, where the VAU
+closes the term list. Rolling Zantufa needs no VAU: its `tag_term` is
+
+```
+!gek (tag !(!tag selbri) !gek_bridi_tail !BO / ...)      zantufa-1.9999.peg:31
+```
+
+and the `!BO` lookahead is exactly what reserves the BO that opens the joint at
+`:22` from the term that would otherwise swallow the tag ahead of it. jbotci's
+two tag-term leaves that feed tail terms — `tagged_sumti_term`, whose only
+structural guard was `assert !selbri`, and `nonabs_tagged_sumti_term`, which has
+none — carried no such reservation.
+
+The correction adds `zantufa_tag_bo_joint_reservation` to both, spelled in the
+DSL's existing inert-guard idiom (the one `zantufa_place_tag_chain_guard` uses):
+
+```
+alias "tag" zantufa_tag_bo_joint_reservation = choice((
+    feature(ZantufaConnectives).not(),
+    cmavo(Bo).not(),
+)).ignored();
+```
+
+`assert`ed, it succeeds without consuming anything whenever the feature is off,
+so every projection that does not enable `ZANTUFA-CONNECTIVES` is byte-identical.
+Placement matters and follows the source: the reservation sits **after** the
+parsed tag and **before** the elidable payload, so an overt sumti payload is
+untouched and an explicit KU still makes the tag a complete term. That is why
+`mi broda pu ku bo brode` stays a rejection in every dialect, as it is in rolling
+Zantufa itself.
+
+The measured cells, against `camxes.js`, `camxes-exp.js` and `zantufa-1.9999.js`
+on one side and the round-3 head binary on the other:
+
+| surface | camxes | camxes-exp | rolling Zantufa | head `()` / default | head `(+zantufa-connectives)` | head `(+zantufa-connectives +zantufa-terms)` | head `(zantufa)` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `mi broda pu bo brode` | R | R | A | R | **A** | **A** | **A** |
+| `mi broda do pu bo brode` | R | R | A | R | **A** | **A** | **A** |
+| `mi broda pu ku bo brode` | R | R | R | R | R | R | R |
+| `mi broda vau pu bo brode` | R | R | A | R | A | A | A |
+
+The three accepting rows carry exactly one warning,
+`syntax.warning.experimental-zantufa-tail-continuation`, anchored on the tag.
+Nothing about the warning matrix moves: the joint was already the warning's
+owner, and the reservation only changes which surfaces reach it.
+
+Ownership on the leading-term row is the point of the second surface. Before the
+reservation, `mi broda do pu bo brode` under the full preset was first mis-owned
+by epoch 6c's term-level connectorless BO arm — `do (pu [bo brode])`, a
+wrong-owner reach — and then failed. After it, `do` stays a tail term of the
+first bridi tail and the joint owns `pu bo brode`:
+`(mi [{bróda do} {pu bo bróde}])`, with `ZantufaTagBoBridiTailContinuation` in
+the raw tree. 6c's own witnesses are unaffected, and structurally cannot be: its
+connectorless-BO surfaces (`pu ko'a bo ca ko'e broda` and its five dialect-axis
+rows, `zantufa-bo-goi-payload-connectorless`, `zantufa-bo-normal-term-mixed-chain`)
+all carry an overt sumti after the tag, so the token at the reservation's
+position is never BO. The full profile confirms it: no pre-existing fixture
+changed.
+
+The reservation also has a term-level consequence, and it is a parity gain
+rather than a cost. `pu bo ko'a broda` is rejected by camxes-standard,
+camxes-exp *and* rolling Zantufa — the source's own unconditional `!BO` stops
+`pu` from being a term with an elided KU before a BO — while epoch 6c's
+connectorless term-level BO arm accepted it. With the reservation, head rejects
+it wherever `ZANTUFA-CONNECTIVES` is on, which is the gate, both axes and the
+full preset; with `ZANTUFA-TERMS` alone the 6c reading survives, because the
+reservation is gated on the feature that creates the joint. Four
+`zantufa-tag-bo-term-reservation-*` witnesses pin all four configurations and a
+gap-ledger row records the one axis that still diverges. Nothing else in the
+tree moves: the full profile reports no pre-existing fixture changed.
+
+Ten new dialect-axis witnesses pin the two VAU-less surfaces across
+`(+zantufa-connectives)`, `(zantufa)`, `(+zantufa-connectives +zantufa-terms)`,
+`()` and the omitted default; three more pin the explicit-KU rejection across
+the gate, the full preset and the no-feature control. There is no `(standard)`
+builtin dialect in this repository — no fixture in the tree names one — so the
+standard-side control is the pair epoch 6c uses for it, the explicitly empty
+`()` and the omitted default, which measure identically here. The round-1 VAU
+witness stays exactly as it was.
+
+### M2 — the recovered continuation classifiers were fail-open
+
+`recovered_continued_tail_has_owner` and its tail-terms-free twin filtered the
+continuation list through `valid` before `.all(...)`, so a list of only
+recovered prefix/error elements passed vacuously and a mixed list was judged on
+its completed elements alone. Either way the priority wrapper then rejected a
+candidate for which no complete owner had actually been established — the
+opposite of what "every continuation is a tag-less GIhA continuation" asserts.
+Both now use the fail-closed form `baseline_tag.rs` already uses at its own
+recovered classifier: `.all(|c| valid(c).is_some_and(...))`.
+
+Two recovery fixtures pin the populations, both under `(+zantufa-connectives)`:
+
+| fixture | surface | recovered continuation list |
+| --- | --- | --- |
+| `adhoc/recovery/syntax/zantufa-tail-continuation-all-invalid` | `mi broda je cu gi brode` | one element, invalid |
+| `adhoc/recovery/syntax/zantufa-tail-continuation-mixed-invalid` | `mi broda je cu gi brode gi'e brodi` | invalid, then a complete tag-less GIhA |
+
+Both pin diagnostics on the strict and recovered facets and the recovered tree's
+valid-token and recovery-item lists; the mixed one keeps `gi'e bródi` in its
+valid tokens, which is the completed GIhA element the old form judged the whole
+list by. The change is observable, not merely defensive: built from `HEAD` and
+from the corrected tree back to back, the all-invalid surface's recovered tree
+differs at the statement envelope (`IStatementConnection` before, plain
+`StatementBase(BridiStatement(...))` after). The mixed surface's classifier
+verdict differs by construction — fail-open true on the one completed element,
+fail-closed false — and its tree is pinned at the corrected value.
+
+### M3 — the `!gek_bridi_tail` half of the same source line, recorded not minted
+
+Ledger only; no grammar change. `pu ge broda gi brode` is an ownership
+difference rather than an acceptance one, and it is the sibling of H1's `!BO` on
+the very same `tag_term` line. Measured:
+
+| surface | camxes | camxes-exp | rolling Zantufa | head, default |
+| --- | --- | --- | --- | --- |
+| `pu ge broda gi brode` | A | **R** | A | A |
+| `mi pu ge broda gi brode` | A | **R** | A | A |
+
+The round-2 review recorded camxes-exp as accepting these; re-probed against
+`camxes-exp.js` it rejects both at the GEK (`Expected [,] but "b" found`), so the
+cell is recorded as measured. The two accepting references still disagree about
+what the tag attaches to: R1 keeps the baseline reading — a tagged leading term,
+then the GEK-led tail — while rolling Zantufa attaches the tag to the tail
+through `!gek_bridi_tail`. Head reads it the baseline way,
+`TaggedSumtiTermSyntax` before `DirectForethoughtBridiConnectionSyntax`, and
+silently.
+
+Under the standing reinterpretation ruling a differing-extent dialect overlap of
+this kind is baseline-first plus a documented gap, with the fidelity flag named
+rather than added; the gap-ledger row above does that and names
+`ZANTUFA-GEK-TAIL-TAG-REINTERPRETATION` as the candidate. Adopting it needs its
+own feature-gated reservation and its own decision, which is precisely why it is
+not folded into the `!BO` repair.
+`adhoc/syntax/bridi-tail/zantufa-gek-tail-leading-tag-baseline-owned` pins the
+surface at the default dialect with `diagnostics = []`, so the baseline
+ownership is measured rather than assumed.
+
+### L4 — the dead `connective` view fields
+
+`GeneratedBridiTailBoJointRef` and its tail-terms-free twin carried a
+`connective` field whose only readers were in the generated-builder files #869
+deleted. Every surviving consumer — `references.rs` at its two BO-joint analysis
+sites and its two visitor sites — reads only the tag, the operand and the tail
+terms. The field, its `ensures` clause and the doc prose describing it are
+removed; `BridiTailConnectiveSyntax` is no longer imported by the file. The
+postcondition is not weakened to `true`: what remains true of the view is that
+the Zantufa arm's tag is mandatory, so both `from_joint` methods now pin
+`matches!(joint, …ZantufaTagBoBridiTailContinuation(_)) -> ret.tense_modal.is_some()`.
+
+### The round-3 gate
+
+No peak-RSS pair this round. The only grammar change is a zero-width lookahead
+that fails earlier than the term it guards; it allocates nothing and cannot
+raise peak resident set. The round-2 pair stands.
+
+| component | result | log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch07-r3-fmt.log` |
+| `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,649 passed, 0 failed | `epoch07-r3-workspace.log` |
+| `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,648 passed, 0 failed | `epoch07-r3-expensive.log` |
+| `fixture-test --profile all` | 26,573 fixtures, 3 facets, 72,519 passed, 519 xfailed, 0 failed | `epoch07-r3-fixtures-all.log` |
+| tagged facet `bridi-tail-epoch` | 56 fixtures, 56 passed, 0 failed | `epoch07-r3-tagged-facet.log` |
+| frozen syntax facet, same tag | 56 fixtures, 56 passed, 0 failed | `epoch07-r3-frozen-facet.log` |
+| comparer | 19,769 changed / 19,286 + 19,695 + 456 + 33 + 0 mechanical / 73 manual / 0 prose / 56 epoch-new | `epoch07-r3-comparer2.log` |
+| comparer unit tests | 11 tests, green | `epoch07-r3-comparer-test2.log` |
+| `cargo build -p jbotci` (debug) | green | `epoch07-r3-debug-jbotci.log` |
+| `dx build` (debug) | green | `epoch07-r3-dx.log` |
+| `maturin develop` + the four generated checks | green | `epoch07-r3-maturin.log`, `epoch07-r3-gen-*.log` |
+| peak RSS | **not measured — see above** | — |
+
+The comparer's class counts are unchanged from round 2 by construction: this
+round adds no fixture that existed at the base, so every file it touches is
+epoch-new and lands in the pinned added-witness list rather than in a class.
+`EXPECTED_NEW_WITNESSES` therefore moves 36 → 56 and nothing else does. The
+comparer's unit tests run under `unittest` here; `pytest` is not installed on
+this box, and the eleven tests are the same eleven either way.
+
+The first gate attempt failed one target,
+`grammar::tests::generated_recovery_anchor_metadata_snapshot_matches`, and the
+snapshot is regenerated rather than waived. Its whole diff is `rules: 601 → 602`
+for the new `zantufa_tag_bo_joint_reservation` alias — which contributes an
+empty anchor block, being inert — plus the field- and resume-index shift the
+extra `assert` slot causes in the two guarded leaves. Every `first` token set in
+the file is byte-identical as a multiset before and after, which is the check
+that the reservation changed no anchor's reachable token set.
