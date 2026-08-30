@@ -1,0 +1,12 @@
+id = "adhoc.syntax.bridi-tail.reject-jacu-tail"
+lojban = "mi broda ja cu brode"
+tags = ["adhoc", "syntax", "bridi-tail-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-7 bridi-tail ownership matrix witness"
+description = "I03 non-adoption: JACU is an adjudicated camxes-exp non-adoption; the baseline dialect rejects it."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [12, 14], source-text = "cu", message = "unexpected cmavo" }]

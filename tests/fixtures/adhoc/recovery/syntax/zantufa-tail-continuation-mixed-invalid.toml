@@ -1,0 +1,18 @@
+id = "adhoc.recovery.syntax.zantufa-tail-continuation-mixed-invalid"
+lojban = "mi broda je cu gi brode gi'e brodi"
+dialect = "(+zantufa-connectives)"
+tags = ["adhoc", "recovery", "syntax", "bridi-tail-epoch", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-7 bridi-tail ownership matrix witness"
+description = "Round-3 M2: the recovered top-continuation list mixes an element recovery could not complete with a complete tag-less GIhA continuation. One owned element is not evidence that the whole candidate is owned, so the fail-closed classifier keeps it here; the previous filter_map form judged the list on the completed element alone."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "bróda", "gi'e", "bródi"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17], [18, 23]] }] }

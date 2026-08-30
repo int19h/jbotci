@@ -1955,6 +1955,7 @@ class _syntax_parser_ExperimentalConstruct(StrEnum):
     EXPERIMENTAL_ZANTUFA_JOIK_CHAINED_PLACE_TAG = 'experimental-zantufa-joik-chained-place-tag'
     EXPERIMENTAL_ZANTUFA_TAG = 'experimental-zantufa-tag'
     EXPERIMENTAL_ZANTUFA_GROUPED_BRIDI_TAIL = 'experimental-zantufa-grouped-bridi-tail'
+    EXPERIMENTAL_ZANTUFA_TAIL_CONTINUATION = 'experimental-zantufa-tail-continuation'
     EXPERIMENTAL_ZANTUFA_STATEMENT_TERMS = 'experimental-zantufa-statement-terms'
     EXPERIMENTAL_ZANTUFA_STATEMENT_RELATIVE_CLAUSE = 'experimental-zantufa-statement-relative-clause'
     EXPERIMENTAL_ZANTUFA_STATEMENT_FREE_MODIFIER = 'experimental-zantufa-statement-free-modifier'

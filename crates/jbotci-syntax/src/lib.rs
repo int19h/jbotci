@@ -1477,12 +1477,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "bridi continuation",
-        parent: Some("statement"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "text connective",
         parent: Some("text"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -3080,6 +3074,7 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaJoikChainedPlaceTag,
     ExperimentalZantufaTag,
     ExperimentalZantufaGroupedBridiTail,
+    ExperimentalZantufaTailContinuation,
     ExperimentalZantufaStatementTerms,
     ExperimentalZantufaStatementRelativeClause,
     ExperimentalZantufaStatementFreeModifier,
@@ -3237,6 +3232,9 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaGroupedBridiTail => {
                 "syntax.warning.experimental-zantufa-grouped-bridi-tail"
             }
+            Self::ExperimentalZantufaTailContinuation => {
+                "syntax.warning.experimental-zantufa-tail-continuation"
+            }
             Self::ExperimentalZantufaStatementTerms => {
                 "syntax.warning.experimental-zantufa-statement-terms"
             }
@@ -3378,6 +3376,7 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaJoikChainedPlaceTag => "Zantufa JOIK-chained place tag",
             Self::ExperimentalZantufaTag => "experimental Zantufa tag form",
             Self::ExperimentalZantufaGroupedBridiTail => "Zantufa KE bridi-tail grouping",
+            Self::ExperimentalZantufaTailContinuation => "Zantufa JOIK/tag bridi-tail continuation",
             Self::ExperimentalZantufaStatementTerms => "Zantufa statement-level trailing terms",
             Self::ExperimentalZantufaStatementRelativeClause => {
                 "Zantufa statement payload in relative clause"

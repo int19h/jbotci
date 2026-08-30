@@ -1,0 +1,18 @@
+id = "adhoc.recovery.syntax.zantufa-tail-continuation-all-invalid"
+lojban = "mi broda je cu gi brode"
+dialect = "(+zantufa-connectives)"
+tags = ["adhoc", "recovery", "syntax", "bridi-tail-epoch", "zantufa"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-7 bridi-tail ownership matrix witness"
+description = "Round-3 M2: the recovered top-continuation list has exactly one element and recovery could not complete it. The fail-closed classifier reports no baseline or adopted-exp owner over this extent, where the previous filter_map form passed vacuously and let the priority wrapper reject a candidate that had no complete owner."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [18, 23], source-text = "brode", message = "unexpected brivla" }]
+tree = { valid-tokens = ["mi", "bróda"], recovery-items = [{ kind = "invalid", error-index = 0, byte-spans = [[9, 11], [12, 14], [15, 17], [18, 23]] }] }

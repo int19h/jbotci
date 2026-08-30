@@ -1668,150 +1668,12 @@ fn generated_bridi_statement_tree_value(
             syntax_index,
         );
     };
-    let mut value = required_generated_syntax_subtree_value_with_index(
-        statement.bridi.as_ref(),
+    required_generated_syntax_subtree_value_with_index(
+        statement.0.as_ref(),
         source,
         options,
         syntax_index,
-    );
-    for continuation in &statement.continuations {
-        value = TreeValue::Node(TreeNode {
-            constructor: "ExperimentalBridiContinuation",
-            entries: vec![
-                TreeEntry {
-                    label: Some("leading_statement"),
-                    value,
-                },
-                TreeEntry {
-                    label: Some("continuation"),
-                    value: generated_bridi_statement_continuation_tree_value(
-                        continuation,
-                        source,
-                        options,
-                        syntax_index,
-                    ),
-                },
-            ],
-        });
-    }
-    value
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_bridi_statement_continuation_tree_value(
-    continuation: &generated_model::BridiStatementContinuationSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    match continuation {
-        generated_model::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-            bo_bridi_statement_continuation,
-        ) => {
-            let continuation = bo_bridi_statement_continuation;
-            let mut entries = vec![TreeEntry {
-                label: Some("connective"),
-                value: generated_bridi_tail_connective_tree_value(
-                    &continuation.connective,
-                    source,
-                    options,
-                    syntax_index,
-                ),
-            }];
-            if let Some(tense_modal) = &continuation.tense_modal {
-                entries.push(TreeEntry {
-                    label: Some("tense_modal"),
-                    value: required_generated_syntax_subtree_value_with_index(
-                        tense_modal.as_ref(),
-                        source,
-                        options,
-                        syntax_index,
-                    ),
-                });
-            }
-            entries.push(TreeEntry {
-                label: Some("marker"),
-                value: generated_with_free_modifiers_token_tree_value(
-                    &continuation.bo,
-                    source,
-                    options,
-                ),
-            });
-            entries.push(TreeEntry {
-                label: Some("trailing_subbridi"),
-                value: required_generated_syntax_subtree_value_with_index(
-                    continuation.trailing_subbridi.as_ref(),
-                    source,
-                    options,
-                    syntax_index,
-                ),
-            });
-            TreeValue::Node(TreeNode {
-                constructor: "BridiStatementContinuation",
-                entries,
-            })
-        }
-        generated_model::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-            ke_bridi_statement_continuation,
-        ) => {
-            let continuation = ke_bridi_statement_continuation;
-            let mut entries = vec![TreeEntry {
-                label: Some("connective"),
-                value: generated_relation_afterthought_connective_tree_value(
-                    &continuation.connective,
-                    source,
-                    options,
-                    syntax_index,
-                ),
-            }];
-            if let Some(tense_modal) = &continuation.tense_modal {
-                entries.push(TreeEntry {
-                    label: Some("tense_modal"),
-                    value: required_generated_syntax_subtree_value_with_index(
-                        tense_modal.as_ref(),
-                        source,
-                        options,
-                        syntax_index,
-                    ),
-                });
-            }
-            let mut marker_entries = vec![TreeEntry {
-                label: Some("ke"),
-                value: generated_with_free_modifiers_token_tree_value(
-                    &continuation.ke,
-                    source,
-                    options,
-                ),
-            }];
-            if let Some(kehe) = &continuation.kehe {
-                marker_entries.push(TreeEntry {
-                    label: Some("kehe"),
-                    value: generated_with_free_modifiers_token_tree_value(kehe, source, options),
-                });
-            }
-            entries.push(TreeEntry {
-                label: Some("marker"),
-                value: TreeValue::Node(TreeNode {
-                    constructor: "KeGrouped",
-                    entries: marker_entries,
-                }),
-            });
-            entries.push(TreeEntry {
-                label: Some("trailing_subbridi"),
-                value: required_generated_syntax_subtree_value_with_index(
-                    continuation.trailing_subbridi.as_ref(),
-                    source,
-                    options,
-                    syntax_index,
-                ),
-            });
-            TreeValue::Node(TreeNode {
-                constructor: "BridiStatementContinuation",
-                entries,
-            })
-        }
-    }
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -2060,22 +1922,6 @@ fn generated_statement_connective_tree_value(
 #[ensures(true)]
 fn generated_text_leading_connective_tree_value(
     connective: &generated_model::TextLeadingConnectiveSyntax,
-    source: &str,
-    options: TreeRenderOptions,
-    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
-) -> TreeValue {
-    collapse_value(required_generated_syntax_subtree_value_with_index(
-        connective,
-        source,
-        options,
-        syntax_index,
-    ))
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn generated_relation_afterthought_connective_tree_value(
-    connective: &generated_model::RelationAfterthoughtConnectiveSyntax,
     source: &str,
     options: TreeRenderOptions,
     syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
@@ -2464,25 +2310,6 @@ fn generated_paragraph_standard_statement_connective_constructor(
                 "NonLogical"
             }
         }
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn generated_relation_afterthought_connective_constructor(
-    connective: &generated_model::RelationAfterthoughtConnectiveSyntax,
-) -> &'static str {
-    match connective {
-        generated_model::RelationAfterthoughtConnectiveSyntax::JoikConnective(joik_connective) => {
-            generated_joik_connective_constructor(joik_connective)
-        }
-        generated_model::RelationAfterthoughtConnectiveSyntax::JekConnective { .. } => "Selbri",
-        generated_model::RelationAfterthoughtConnectiveSyntax::EkConnective { .. } => {
-            "Afterthought"
-        }
-        generated_model::RelationAfterthoughtConnectiveSyntax::VuhuNonlogicalConnective {
-            ..
-        } => "NonLogical",
     }
 }
 

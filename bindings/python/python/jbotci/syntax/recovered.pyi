@@ -1236,116 +1236,12 @@ class ZantufaForethoughtStatementBranchSyntax:
 
 @final
 class BridiStatementSyntax:
-    'Product node for statement; preserves `bridi` and `continuations` in source order.'
-    __match_args__: ClassVar[tuple[Literal['bridi'], Literal['continuations']]]
-    def __new__(cls, bridi: RecoveredField[BridiSyntax], continuations: Sequence[RecoveredField[BridiStatementContinuationSyntax]]) -> BridiStatementSyntax: ...
+    'Product node for statement; preserves the `bridi` component.\n\ncamxes-standard joins statements only through an I (camxes.peg:20-22); the BO and KE\nenvelopes this production used to carry after a bare bridi were jbotci\'s own, over full\nsubbridi operands no source spells at this level. D1 deletes them: the sourced GIhA tail\nBO and KE joins and the I-led statement BO envelope already carry every surface that has\nan owner, and the I-less KE ones flip to reject.'
+    __match_args__: ClassVar[tuple[Literal['bridi']]]
+    def __new__(cls, bridi: RecoveredField[BridiSyntax]) -> BridiStatementSyntax: ...
     @property
     def bridi(self) -> RecoveredField[BridiSyntax]:
         'The shared bridi child syntax node.'
-        ...
-    @property
-    def continuations(self) -> tuple[RecoveredField[BridiStatementContinuationSyntax], ...]:
-        'Ordered sequence of zero or more continuations components.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class BridiStatementContinuationSyntaxBoBridiStatementContinuation:
-    'Uses the `bo_bridi_statement_continuation` product form, whose payload preserves `connective`, `tense_modal`, `bo`, and `trailing_subbridi`.'
-    __match_args__: ClassVar[tuple[Literal['bo_bridi_statement_continuation']]]
-    def __new__(cls, bo_bridi_statement_continuation: RecoveredField[BoBridiStatementContinuationSyntax]) -> BridiStatementContinuationSyntaxBoBridiStatementContinuation: ...
-    @property
-    def bo_bridi_statement_continuation(self) -> RecoveredField[BoBridiStatementContinuationSyntax]:
-        'Uses the `bo_bridi_statement_continuation` product form, whose payload preserves `connective`, `tense_modal`, `bo`, and `trailing_subbridi`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class BridiStatementContinuationSyntaxKeBridiStatementContinuation:
-    'Uses the `ke_bridi_statement_continuation` product form, whose payload preserves `connective`, `tense_modal`, `ke`, `trailing_subbridi`, and `kehe`.'
-    __match_args__: ClassVar[tuple[Literal['ke_bridi_statement_continuation']]]
-    def __new__(cls, ke_bridi_statement_continuation: RecoveredField[KeBridiStatementContinuationSyntax]) -> BridiStatementContinuationSyntaxKeBridiStatementContinuation: ...
-    @property
-    def ke_bridi_statement_continuation(self) -> RecoveredField[KeBridiStatementContinuationSyntax]:
-        'Uses the `ke_bridi_statement_continuation` product form, whose payload preserves `connective`, `tense_modal`, `ke`, `trailing_subbridi`, and `kehe`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for bridi continuation; selects among the `bo_bridi_statement_continuation` and `ke_bridi_statement_continuation` forms.
-BridiStatementContinuationSyntax: TypeAlias = BridiStatementContinuationSyntaxBoBridiStatementContinuation | BridiStatementContinuationSyntaxKeBridiStatementContinuation
-
-@final
-class BoBridiStatementContinuationSyntax:
-    'Product node for bridi continuation; preserves `connective`, `tense_modal`, `bo`, and `trailing_subbridi` in source order.'
-    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['bo'], Literal['trailing_subbridi']]]
-    def __new__(
-        cls,
-        connective: RecoveredField[BridiTailConnectiveSyntax],
-        tense_modal: RecoveredField[TenseModalSyntax] | None,
-        bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        trailing_subbridi: RecoveredField[SubbridiSyntax],
-    ) -> BoBridiStatementContinuationSyntax: ...
-    @property
-    def connective(self) -> RecoveredField[BridiTailConnectiveSyntax]:
-        'The `bridi_tail_connective` connective joining the adjacent constituents of the `bo_bridi_statement_continuation` production.'
-        ...
-    @property
-    def tense_modal(self) -> RecoveredField[TenseModalSyntax] | None:
-        'The optional tense modal component.'
-        ...
-    @property
-    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The `Bo` cmavo marker.'
-        ...
-    @property
-    def trailing_subbridi(self) -> RecoveredField[SubbridiSyntax]:
-        'The shared trailing subbridi child syntax node.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class KeBridiStatementContinuationSyntax:
-    'Product node for bridi continuation; preserves `connective`, `tense_modal`, `ke`, `trailing_subbridi`, and `kehe` in source order.'
-    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['ke'], Literal['trailing_subbridi'], Literal['kehe']]]
-    def __new__(
-        cls,
-        connective: RecoveredField[RelationAfterthoughtConnectiveSyntax],
-        tense_modal: RecoveredField[TenseModalSyntax] | None,
-        ke: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        trailing_subbridi: RecoveredField[SubbridiSyntax],
-        kehe: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
-    ) -> KeBridiStatementContinuationSyntax: ...
-    @property
-    def connective(self) -> RecoveredField[RelationAfterthoughtConnectiveSyntax]:
-        'The `relation_afterthought_connective` connective joining the adjacent constituents of the `ke_bridi_statement_continuation` production.'
-        ...
-    @property
-    def tense_modal(self) -> RecoveredField[TenseModalSyntax] | None:
-        'The optional tense modal component.'
-        ...
-    @property
-    def ke(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The `Ke` cmavo marker.'
-        ...
-    @property
-    def trailing_subbridi(self) -> RecoveredField[SubbridiSyntax]:
-        'The shared trailing subbridi child syntax node.'
-        ...
-    @property
-    def kehe(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Kehe` cmavo marker.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -1487,20 +1383,6 @@ class BridiSyntaxBridiWithLeadingTerms:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BridiSyntaxBridiWithPostCuTerms:
-    'Uses the `bridi_with_post_cu_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.'
-    __match_args__: ClassVar[tuple[Literal['bridi_with_post_cu_terms']]]
-    def __new__(cls, bridi_with_post_cu_terms: RecoveredField[BridiWithPostCuTermsSyntax]) -> BridiSyntaxBridiWithPostCuTerms: ...
-    @property
-    def bridi_with_post_cu_terms(self) -> RecoveredField[BridiWithPostCuTermsSyntax]:
-        'Uses the `bridi_with_post_cu_terms` product form, whose payload preserves `leading_terms`, `cu`, and `bridi_tail`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class BridiSyntaxBareCuBridi:
     'Uses the `bare_cu_bridi` product form, whose payload preserves `cu` and `bridi_tail`.'
     __match_args__: ClassVar[tuple[Literal['bare_cu_bridi']]]
@@ -1508,20 +1390,6 @@ class BridiSyntaxBareCuBridi:
     @property
     def bare_cu_bridi(self) -> RecoveredField[BareCuBridiSyntax]:
         'Uses the `bare_cu_bridi` product form, whose payload preserves `cu` and `bridi_tail`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class BridiSyntaxBareCuTermsBridi:
-    'Uses the `bare_cu_terms_bridi` product form, whose payload preserves `cu` and `bridi_tail`.'
-    __match_args__: ClassVar[tuple[Literal['bare_cu_terms_bridi']]]
-    def __new__(cls, bare_cu_terms_bridi: RecoveredField[BareCuTermsBridiSyntax]) -> BridiSyntaxBareCuTermsBridi: ...
-    @property
-    def bare_cu_terms_bridi(self) -> RecoveredField[BareCuTermsBridiSyntax]:
-        'Uses the `bare_cu_terms_bridi` product form, whose payload preserves `cu` and `bridi_tail`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -1542,8 +1410,14 @@ class BridiSyntaxRelationOnlyBridi:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for bridi; selects among the `bridi_with_leading_terms`, `bridi_with_post_cu_terms`, `bare_cu_bridi`, `bare_cu_terms_bridi`, and `relation_only_bridi` forms.
-BridiSyntax: TypeAlias = BridiSyntaxBridiWithLeadingTerms | BridiSyntaxBridiWithPostCuTerms | BridiSyntaxBareCuBridi | BridiSyntaxBareCuTermsBridi | BridiSyntaxRelationOnlyBridi
+# Sum node for bridi; selects among the `bridi_with_leading_terms`, `bare_cu_bridi`, and
+# `relation_only_bridi` forms.
+#
+# camxes-standard's sentence carries one leading `terms CU_elidible? free*` group
+# (camxes.peg:26) and camxes-exp puts every further group inside `bridi_tail_3`, so the
+# second outer group jbotci used to model here as `bridi_with_post_cu_terms` /
+# `bare_cu_terms_bridi` over a shared `cu_terms_bridi_tail` is now the tail's own prefix.
+BridiSyntax: TypeAlias = BridiSyntaxBridiWithLeadingTerms | BridiSyntaxBareCuBridi | BridiSyntaxRelationOnlyBridi
 
 @final
 class BridiWithLeadingTermsSyntax:
@@ -1573,61 +1447,16 @@ class BridiWithLeadingTermsSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BridiWithPostCuTermsSyntax:
-    'Product node for bridi; preserves `leading_terms`, `cu`, and `bridi_tail` in source order.'
-    __match_args__: ClassVar[tuple[Literal['leading_terms'], Literal['cu'], Literal['bridi_tail']]]
-    def __new__(
-        cls,
-        leading_terms: Sequence[RecoveredField[TermSyntax]],
-        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        bridi_tail: RecoveredField[CuTermsBridiTailSyntax],
-    ) -> BridiWithPostCuTermsSyntax: ...
-    @property
-    def leading_terms(self) -> tuple[RecoveredField[TermSyntax], ...]:
-        'Non-empty ordered sequence of leading terms components.'
-        ...
-    @property
-    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The `Cu` cmavo marker.'
-        ...
-    @property
-    def bridi_tail(self) -> RecoveredField[CuTermsBridiTailSyntax]:
-        'The shared bridi tail child syntax node.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class BareCuBridiSyntax:
-    'Product node for bridi; preserves `cu` and `bridi_tail` in source order.'
+    'Product node for bridi; preserves `cu` and `bridi_tail` in source order.\n\nA leading-termless CU before the selbri is camxes-exp\'s alone: camxes-standard\'s\nsentence spells `terms CU_elidible?` (camxes.peg:26), so with no terms there is no CU\nslot at all. The cell is therefore adopted rather than baseline, and R2 gives every\nnon-baseline cell a warning, so the CU carries one. `mi cu broda` is untouched: its\nleading term sends it to `bridi_with_leading_terms`, whose CU is the sourced one.'
     __match_args__: ClassVar[tuple[Literal['cu'], Literal['bridi_tail']]]
     def __new__(cls, cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], bridi_tail: RecoveredField[BridiTailSyntax]) -> BareCuBridiSyntax: ...
     @property
     def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The `Cu` cmavo marker.'
+        'The `Cu` cmavo marker, camxes-exp\'s leading-termless CU.'
         ...
     @property
     def bridi_tail(self) -> RecoveredField[BridiTailSyntax]:
-        'The shared bridi tail child syntax node.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class BareCuTermsBridiSyntax:
-    'Product node for bridi; preserves `cu` and `bridi_tail` in source order.'
-    __match_args__: ClassVar[tuple[Literal['cu'], Literal['bridi_tail']]]
-    def __new__(cls, cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]], bridi_tail: RecoveredField[CuTermsBridiTailSyntax]) -> BareCuTermsBridiSyntax: ...
-    @property
-    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The `Cu` cmavo marker.'
-        ...
-    @property
-    def bridi_tail(self) -> RecoveredField[CuTermsBridiTailSyntax]:
         'The shared bridi tail child syntax node.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -1650,17 +1479,13 @@ class RelationOnlyBridiSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class CuTermsBridiTailSyntax:
-    'Product node for bridi tail; preserves `terms` and `bridi_tail` in source order.'
-    __match_args__: ClassVar[tuple[Literal['terms'], Literal['bridi_tail']]]
-    def __new__(cls, terms: Sequence[RecoveredField[TermSyntax]], bridi_tail: RecoveredField[BridiTailSyntax]) -> CuTermsBridiTailSyntax: ...
+class BridiTailSyntaxZantufaPriorityContinuedBridiTail:
+    'Rolling Zantufa\'s unbound top continuation, filtered by the completed-candidate\nbaseline classifier. It must precede the ordinary forms because its own operand is\nthe flat level those forms start from, so a shorter successful flat parse would\notherwise hide a longer JOIK-led or tag-bearing continuation.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_priority_continued_bridi_tail']]]
+    def __new__(cls, zantufa_priority_continued_bridi_tail: RecoveredField[ZantufaPriorityContinuedBridiTailSyntax]) -> BridiTailSyntaxZantufaPriorityContinuedBridiTail: ...
     @property
-    def terms(self) -> tuple[RecoveredField[TermSyntax], ...]:
-        'Non-empty ordered sequence of terms components.'
-        ...
-    @property
-    def bridi_tail(self) -> RecoveredField[BridiTailSyntax]:
-        'The shared bridi tail child syntax node.'
+    def zantufa_priority_continued_bridi_tail(self) -> RecoveredField[ZantufaPriorityContinuedBridiTailSyntax]:
+        'Rolling Zantufa\'s unbound top continuation, filtered by the completed-candidate\nbaseline classifier. It must precede the ordinary forms because its own operand is\nthe flat level those forms start from, so a shorter successful flat parse would\notherwise hide a longer JOIK-led or tag-bearing continuation.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -1668,13 +1493,27 @@ class CuTermsBridiTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BridiTailSyntaxZantufaGroupedBridiTail:
-    'Uses the `zantufa_grouped_bridi_tail` product form, whose payload preserves `ke`, `bridi_tail`, `kehe`, `tail_terms`, and `vau`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_grouped_bridi_tail']]]
-    def __new__(cls, zantufa_grouped_bridi_tail: RecoveredField[ZantufaGroupedBridiTailSyntax]) -> BridiTailSyntaxZantufaGroupedBridiTail: ...
+class BridiTailSyntaxZantufaPriorityContinuedBridiTailWithoutTailTerms:
+    'The tail-terms-free mirror of the same priority wrapper.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_priority_continued_bridi_tail_without_tail_terms']]]
+    def __new__(cls, zantufa_priority_continued_bridi_tail_without_tail_terms: RecoveredField[ZantufaPriorityContinuedBridiTailWithoutTailTermsSyntax]) -> BridiTailSyntaxZantufaPriorityContinuedBridiTailWithoutTailTerms: ...
     @property
-    def zantufa_grouped_bridi_tail(self) -> RecoveredField[ZantufaGroupedBridiTailSyntax]:
-        'Uses the `zantufa_grouped_bridi_tail` product form, whose payload preserves `ke`, `bridi_tail`, `kehe`, `tail_terms`, and `vau`.'
+    def zantufa_priority_continued_bridi_tail_without_tail_terms(self) -> RecoveredField[ZantufaPriorityContinuedBridiTailWithoutTailTermsSyntax]:
+        'The tail-terms-free mirror of the same priority wrapper.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BridiTailSyntaxZantufaPriorityGroupedBridiTail:
+    'Rolling Zantufa\'s KE-led bridi tail, filtered by the completed-candidate ownership\nguard that stands in for its `!(selbri_2 KEhE)` lookahead.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_priority_grouped_bridi_tail']]]
+    def __new__(cls, zantufa_priority_grouped_bridi_tail: RecoveredField[ZantufaPriorityGroupedBridiTailSyntax]) -> BridiTailSyntaxZantufaPriorityGroupedBridiTail: ...
+    @property
+    def zantufa_priority_grouped_bridi_tail(self) -> RecoveredField[ZantufaPriorityGroupedBridiTailSyntax]:
+        'Rolling Zantufa\'s KE-led bridi tail, filtered by the completed-candidate ownership\nguard that stands in for its `!(selbri_2 KEhE)` lookahead.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -1709,8 +1548,152 @@ class BridiTailSyntaxBridiTailWithoutTailTerms:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for bridi tail; selects among the `zantufa_grouped_bridi_tail`, `bridi_tail_with_possible_tail_terms`, and `bridi_tail_without_tail_terms` forms.
-BridiTailSyntax: TypeAlias = BridiTailSyntaxZantufaGroupedBridiTail | BridiTailSyntaxBridiTailWithPossibleTailTerms | BridiTailSyntaxBridiTailWithoutTailTerms
+# Sum node for bridi tail; selects among the Zantufa continuation priority wrappers, the
+# `zantufa_grouped_bridi_tail`, `bridi_tail_with_possible_tail_terms`, and
+# `bridi_tail_without_tail_terms` forms.
+BridiTailSyntax: TypeAlias = BridiTailSyntaxZantufaPriorityContinuedBridiTail | BridiTailSyntaxZantufaPriorityContinuedBridiTailWithoutTailTerms | BridiTailSyntaxZantufaPriorityGroupedBridiTail | BridiTailSyntaxBridiTailWithPossibleTailTerms | BridiTailSyntaxBridiTailWithoutTailTerms
+
+@final
+class ZantufaPriorityContinuedBridiTailSyntax:
+    'Priority wrapper for rolling Zantufa\'s unbound top continuation\n(zantufa-1.9999.peg:20). The arm is deliberately extension-first, so the completed\ncandidate is filtered by [`crate::grammar::baseline_bridi_tail`], which returns every\nextent the baseline flat chain or the adopted camxes-exp CU arms can also cover.'
+    __match_args__: ClassVar[tuple[Literal['bridi_tail']]]
+    def __new__(cls, bridi_tail: RecoveredField[ZantufaContinuedBridiTailSyntax]) -> ZantufaPriorityContinuedBridiTailSyntax: ...
+    @property
+    def bridi_tail(self) -> RecoveredField[ZantufaContinuedBridiTailSyntax]:
+        'The completed continuation candidate after baseline-ownership filtering.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaPriorityContinuedBridiTailWithoutTailTermsSyntax:
+    'The tail-terms-free mirror of [`zantufa_priority_continued_bridi_tail`].'
+    __match_args__: ClassVar[tuple[Literal['bridi_tail']]]
+    def __new__(cls, bridi_tail: RecoveredField[ZantufaContinuedBridiTailWithoutTailTermsSyntax]) -> ZantufaPriorityContinuedBridiTailWithoutTailTermsSyntax: ...
+    @property
+    def bridi_tail(self) -> RecoveredField[ZantufaContinuedBridiTailWithoutTailTermsSyntax]:
+        'The completed continuation candidate after baseline-ownership filtering.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaContinuedBridiTailSyntax:
+    'Product node for bridi tail; rolling Zantufa\'s `bridi_tail <- bridi_tail_1 (joik_gihek\ntag? CU_elidible bridi_tail_1)*` (zantufa-1.9999.peg:20). The continuation list is\nnon-empty so that the arm is structurally distinct from a bare flat tail.'
+    __match_args__: ClassVar[tuple[Literal['first'], Literal['continuations']]]
+    def __new__(cls, first: RecoveredField[AfterthoughtBridiTailSyntax], continuations: Sequence[RecoveredField[ZantufaTailContinuationSyntax]]) -> ZantufaContinuedBridiTailSyntax: ...
+    @property
+    def first(self) -> RecoveredField[AfterthoughtBridiTailSyntax]:
+        'The leading flat-level tail the continuations extend.'
+        ...
+    @property
+    def continuations(self) -> tuple[RecoveredField[ZantufaTailContinuationSyntax], ...]:
+        'Non-empty ordered sequence of unbound top-level continuations.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaContinuedBridiTailWithoutTailTermsSyntax:
+    'The tail-terms-free mirror of [`zantufa_continued_bridi_tail`].'
+    __match_args__: ClassVar[tuple[Literal['first'], Literal['continuations']]]
+    def __new__(cls, first: RecoveredField[AfterthoughtBridiTailWithoutTailTermsSyntax], continuations: Sequence[RecoveredField[ZantufaTailContinuationWithoutTailTermsSyntax]]) -> ZantufaContinuedBridiTailWithoutTailTermsSyntax: ...
+    @property
+    def first(self) -> RecoveredField[AfterthoughtBridiTailWithoutTailTermsSyntax]:
+        'The leading flat-level tail the continuations extend.'
+        ...
+    @property
+    def continuations(self) -> tuple[RecoveredField[ZantufaTailContinuationWithoutTailTermsSyntax], ...]:
+        'Non-empty ordered sequence of unbound top-level continuations.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaTailContinuationSyntax:
+    'Product node for bridi tail connective; one element of rolling Zantufa\'s unbound top\ncontinuation. The construct owns no token that is its alone -- its connective is the\nshared GIhA/JOI/JA spelling and both the tag and the CU are optional -- so the warning is\nattached post-parse by the standing visitor, anchored at the connective that opens it.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['cu'], Literal['bridi_tail']]]
+    def __new__(
+        cls,
+        connective: RecoveredField[BridiTailConnectiveSyntax],
+        tense_modal: RecoveredField[TenseModalSyntax] | None,
+        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        bridi_tail: RecoveredField[AfterthoughtBridiTailSyntax],
+    ) -> ZantufaTailContinuationSyntax: ...
+    @property
+    def connective(self) -> RecoveredField[BridiTailConnectiveSyntax]:
+        'The `joik_gihek` connective opening this continuation, the shared tail connective\nwhose Zantufa arms this dialect turns on.'
+        ...
+    @property
+    def tense_modal(self) -> RecoveredField[TenseModalSyntax] | None:
+        'The optional tag between the connective and the operand.'
+        ...
+    @property
+    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Cu` cmavo marker.'
+        ...
+    @property
+    def bridi_tail(self) -> RecoveredField[AfterthoughtBridiTailSyntax]:
+        'The flat-level tail this continuation governs.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaTailContinuationWithoutTailTermsSyntax:
+    'The tail-terms-free mirror of [`zantufa_tail_continuation`].'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['cu'], Literal['bridi_tail']]]
+    def __new__(
+        cls,
+        connective: RecoveredField[BridiTailConnectiveSyntax],
+        tense_modal: RecoveredField[TenseModalSyntax] | None,
+        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        bridi_tail: RecoveredField[AfterthoughtBridiTailWithoutTailTermsSyntax],
+    ) -> ZantufaTailContinuationWithoutTailTermsSyntax: ...
+    @property
+    def connective(self) -> RecoveredField[BridiTailConnectiveSyntax]:
+        'The `joik_gihek` connective opening this continuation, the shared tail connective\nwhose Zantufa arms this dialect turns on.'
+        ...
+    @property
+    def tense_modal(self) -> RecoveredField[TenseModalSyntax] | None:
+        'The optional tag between the connective and the operand.'
+        ...
+    @property
+    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Cu` cmavo marker.'
+        ...
+    @property
+    def bridi_tail(self) -> RecoveredField[AfterthoughtBridiTailWithoutTailTermsSyntax]:
+        'The flat-level tail this continuation governs.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaPriorityGroupedBridiTailSyntax:
+    'Priority wrapper for rolling Zantufa\'s KE-led bridi tail. Zantufa spells the ownership\nboundary as the token lookahead `KE !(selbri_2 KEhE) bridi_tail KEhE? tail_terms`\n(zantufa-1.9999.peg:23); jbotci spells the same boundary as a completed-candidate\nclassifier, because the level the lookahead names is reachable through the tail itself and\nno token prefix distinguishes the two readings.'
+    __match_args__: ClassVar[tuple[Literal['bridi_tail']]]
+    def __new__(cls, bridi_tail: RecoveredField[ZantufaGroupedBridiTailSyntax]) -> ZantufaPriorityGroupedBridiTailSyntax: ...
+    @property
+    def bridi_tail(self) -> RecoveredField[ZantufaGroupedBridiTailSyntax]:
+        'The completed KE-tail candidate after grouped-tanru and forethought-KE filtering.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class ZantufaGroupedBridiTailSyntax:
@@ -1753,13 +1736,13 @@ class ZantufaGroupedBridiTailSyntax:
 class BridiTailWithoutTailTermsSyntax:
     'Product node for bridi tail; preserves `first` and `ke_continuation` in source order.'
     __match_args__: ClassVar[tuple[Literal['first'], Literal['ke_continuation']]]
-    def __new__(cls, first: RecoveredField[AfterthoughtBridiTailWithoutTailTermsSyntax], ke_continuation: RecoveredField[BridiTailKeContinuationSyntax] | None) -> BridiTailWithoutTailTermsSyntax: ...
+    def __new__(cls, first: RecoveredField[AfterthoughtBridiTailWithoutTailTermsSyntax], ke_continuation: RecoveredField[GihekBridiTailKeContinuationSyntax] | None) -> BridiTailWithoutTailTermsSyntax: ...
     @property
     def first(self) -> RecoveredField[AfterthoughtBridiTailWithoutTailTermsSyntax]:
         'The shared first child syntax node.'
         ...
     @property
-    def ke_continuation(self) -> RecoveredField[BridiTailKeContinuationSyntax] | None:
+    def ke_continuation(self) -> RecoveredField[GihekBridiTailKeContinuationSyntax] | None:
         'The optional ke continuation component.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -1816,14 +1799,23 @@ class AfterthoughtBridiTailSyntax:
 @final
 class BoGroupedBridiTailWithoutTailTermsSyntax:
     'Product node for bridi tail; preserves `first` and `bo_continuation` in source order.'
-    __match_args__: ClassVar[tuple[Literal['first'], Literal['bo_continuation']]]
-    def __new__(cls, first: RecoveredField[SimpleBridiTailWithoutTailTermsSyntax], bo_continuation: RecoveredField[BridiTailBoContinuationWithoutTailTermsSyntax] | None) -> BoGroupedBridiTailWithoutTailTermsSyntax: ...
+    __match_args__: ClassVar[tuple[Literal['cu'], Literal['first'], Literal['bo_continuation']]]
+    def __new__(
+        cls,
+        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        first: RecoveredField[SimpleBridiTailWithoutTailTermsSyntax],
+        bo_continuation: RecoveredField[BridiTailBoJointWithoutTailTermsSyntax] | None,
+    ) -> BoGroupedBridiTailWithoutTailTermsSyntax: ...
+    @property
+    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'camxes-exp\'s leading `CU_elidible? free*` at this level (camxes-exp.peg:107).'
+        ...
     @property
     def first(self) -> RecoveredField[SimpleBridiTailWithoutTailTermsSyntax]:
         'The shared first child syntax node.'
         ...
     @property
-    def bo_continuation(self) -> RecoveredField[BridiTailBoContinuationWithoutTailTermsSyntax] | None:
+    def bo_continuation(self) -> RecoveredField[BridiTailBoJointWithoutTailTermsSyntax] | None:
         'The optional bo continuation component.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
@@ -1834,15 +1826,167 @@ class BoGroupedBridiTailWithoutTailTermsSyntax:
 @final
 class BoGroupedBridiTailSyntax:
     'Product node for bridi tail; preserves `first` and `bo_continuation` in source order.'
-    __match_args__: ClassVar[tuple[Literal['first'], Literal['bo_continuation']]]
-    def __new__(cls, first: RecoveredField[SimpleBridiTailSyntax], bo_continuation: RecoveredField[BridiTailBoContinuationSyntax] | None) -> BoGroupedBridiTailSyntax: ...
+    __match_args__: ClassVar[tuple[Literal['cu'], Literal['first'], Literal['bo_continuation']]]
+    def __new__(
+        cls,
+        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        first: RecoveredField[SimpleBridiTailSyntax],
+        bo_continuation: RecoveredField[BridiTailBoJointSyntax] | None,
+    ) -> BoGroupedBridiTailSyntax: ...
+    @property
+    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'camxes-exp\'s leading `CU_elidible? free*` at this level (camxes-exp.peg:107). The\nsourced joints carry no CU of their own, so every adopted CU after a tail connective\nis this one, on the operand, which is where camxes-exp puts it.'
+        ...
     @property
     def first(self) -> RecoveredField[SimpleBridiTailSyntax]:
         'The shared first child syntax node.'
         ...
     @property
-    def bo_continuation(self) -> RecoveredField[BridiTailBoContinuationSyntax] | None:
+    def bo_continuation(self) -> RecoveredField[BridiTailBoJointSyntax] | None:
         'The optional bo continuation component.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BridiTailBoJointSyntaxBridiTailBoContinuation:
+    'The connective-led BO continuation.'
+    __match_args__: ClassVar[tuple[Literal['bridi_tail_bo_continuation']]]
+    def __new__(cls, bridi_tail_bo_continuation: RecoveredField[BridiTailBoContinuationSyntax]) -> BridiTailBoJointSyntaxBridiTailBoContinuation: ...
+    @property
+    def bridi_tail_bo_continuation(self) -> RecoveredField[BridiTailBoContinuationSyntax]:
+        'The connective-led BO continuation.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BridiTailBoJointSyntaxZantufaTagBoBridiTailContinuation:
+    'Rolling Zantufa\'s connectiveless tag-led BO continuation.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_tag_bo_bridi_tail_continuation']]]
+    def __new__(cls, zantufa_tag_bo_bridi_tail_continuation: RecoveredField[ZantufaTagBoBridiTailContinuationSyntax]) -> BridiTailBoJointSyntaxZantufaTagBoBridiTailContinuation: ...
+    @property
+    def zantufa_tag_bo_bridi_tail_continuation(self) -> RecoveredField[ZantufaTagBoBridiTailContinuationSyntax]:
+        'Rolling Zantufa\'s connectiveless tag-led BO continuation.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for bridi tail connective; the BO-level joint carries the connective-led
+# continuation and rolling Zantufa's connectiveless `tag BO` opening
+# (zantufa-1.9999.peg:22). The two arms are structurally disjoint -- the Zantufa arm has no
+# connective at all, and the connective is mandatory in the sourced one -- so arm order
+# cannot change which node a sourced surface gets, and no classifier is needed. The other
+# half of the source's `(tag / joik_gihek tag?)` needs no arm of its own: `joik_gihek tag?
+# BO` is the connective arm's own shape once the shared `bridi_tail_connective` admits the
+# JOIK half.
+BridiTailBoJointSyntax: TypeAlias = BridiTailBoJointSyntaxBridiTailBoContinuation | BridiTailBoJointSyntaxZantufaTagBoBridiTailContinuation
+
+@final
+class BridiTailBoJointWithoutTailTermsSyntaxBridiTailBoContinuationWithoutTailTerms:
+    'The connective-led BO continuation.'
+    __match_args__: ClassVar[tuple[Literal['bridi_tail_bo_continuation_without_tail_terms']]]
+    def __new__(cls, bridi_tail_bo_continuation_without_tail_terms: RecoveredField[BridiTailBoContinuationWithoutTailTermsSyntax]) -> BridiTailBoJointWithoutTailTermsSyntaxBridiTailBoContinuationWithoutTailTerms: ...
+    @property
+    def bridi_tail_bo_continuation_without_tail_terms(self) -> RecoveredField[BridiTailBoContinuationWithoutTailTermsSyntax]:
+        'The connective-led BO continuation.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BridiTailBoJointWithoutTailTermsSyntaxZantufaTagBoBridiTailContinuationWithoutTailTerms:
+    'Rolling Zantufa\'s connectiveless tag-led BO continuation.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_tag_bo_bridi_tail_continuation_without_tail_terms']]]
+    def __new__(cls, zantufa_tag_bo_bridi_tail_continuation_without_tail_terms: RecoveredField[ZantufaTagBoBridiTailContinuationWithoutTailTermsSyntax]) -> BridiTailBoJointWithoutTailTermsSyntaxZantufaTagBoBridiTailContinuationWithoutTailTerms: ...
+    @property
+    def zantufa_tag_bo_bridi_tail_continuation_without_tail_terms(self) -> RecoveredField[ZantufaTagBoBridiTailContinuationWithoutTailTermsSyntax]:
+        'Rolling Zantufa\'s connectiveless tag-led BO continuation.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# The tail-terms-free mirror of [`bridi_tail_bo_joint`].
+BridiTailBoJointWithoutTailTermsSyntax: TypeAlias = BridiTailBoJointWithoutTailTermsSyntaxBridiTailBoContinuationWithoutTailTerms | BridiTailBoJointWithoutTailTermsSyntaxZantufaTagBoBridiTailContinuationWithoutTailTerms
+
+@final
+class ZantufaTagBoBridiTailContinuationSyntax:
+    'Rolling Zantufa\'s connectiveless `tag BO` bridi-tail joint (zantufa-1.9999.peg:22).'
+    __match_args__: ClassVar[tuple[Literal['tense_modal'], Literal['bo'], Literal['cu'], Literal['bridi_tail'], Literal['tail_terms'], Literal['vau']]]
+    def __new__(
+        cls,
+        tense_modal: RecoveredField[TenseModalSyntax],
+        bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        bridi_tail: RecoveredField[BoGroupedBridiTailSyntax],
+        tail_terms: Sequence[RecoveredField[TermSyntax]],
+        vau: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ZantufaTagBoBridiTailContinuationSyntax: ...
+    @property
+    def tense_modal(self) -> RecoveredField[TenseModalSyntax]:
+        'The tag that opens this joint; required, since its absence is the sourced shape.'
+        ...
+    @property
+    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The `Bo` cmavo marker.'
+        ...
+    @property
+    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Cu` cmavo marker.'
+        ...
+    @property
+    def bridi_tail(self) -> RecoveredField[BoGroupedBridiTailSyntax]:
+        'The shared bridi tail child syntax node.'
+        ...
+    @property
+    def tail_terms(self) -> tuple[RecoveredField[TermSyntax], ...]:
+        'Ordered sequence of zero or more tail terms components.'
+        ...
+    @property
+    def vau(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Vau` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaTagBoBridiTailContinuationWithoutTailTermsSyntax:
+    'The tail-terms-free mirror of [`zantufa_tag_bo_bridi_tail_continuation`].'
+    __match_args__: ClassVar[tuple[Literal['tense_modal'], Literal['bo'], Literal['cu'], Literal['bridi_tail']]]
+    def __new__(
+        cls,
+        tense_modal: RecoveredField[TenseModalSyntax],
+        bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+        bridi_tail: RecoveredField[BoGroupedBridiTailWithoutTailTermsSyntax],
+    ) -> ZantufaTagBoBridiTailContinuationWithoutTailTermsSyntax: ...
+    @property
+    def tense_modal(self) -> RecoveredField[TenseModalSyntax]:
+        'The tag that opens this joint; required, since its absence is the sourced shape.'
+        ...
+    @property
+    def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The `Bo` cmavo marker.'
+        ...
+    @property
+    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Cu` cmavo marker.'
+        ...
+    @property
+    def bridi_tail(self) -> RecoveredField[BoGroupedBridiTailWithoutTailTermsSyntax]:
+        'The shared bridi tail child syntax node.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -1877,8 +2021,22 @@ class SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
+@final
+class SimpleBridiTailWithoutTailTermsSyntaxExpPrefixedSimpleBridiTailWithoutTailTerms:
+    'The tail-terms-free mirror of camxes-exp\'s prefixed arm.'
+    __match_args__: ClassVar[tuple[Literal['exp_prefixed_simple_bridi_tail_without_tail_terms']]]
+    def __new__(cls, exp_prefixed_simple_bridi_tail_without_tail_terms: RecoveredField[ExpPrefixedSimpleBridiTailWithoutTailTermsSyntax]) -> SimpleBridiTailWithoutTailTermsSyntaxExpPrefixedSimpleBridiTailWithoutTailTerms: ...
+    @property
+    def exp_prefixed_simple_bridi_tail_without_tail_terms(self) -> RecoveredField[ExpPrefixedSimpleBridiTailWithoutTailTermsSyntax]:
+        'The tail-terms-free mirror of camxes-exp\'s prefixed arm.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
 # Sum node for bridi tail; selects among the `forethought_simple_bridi_tail_without_tail_terms` and `selbri_simple_bridi_tail_without_tail_terms` forms.
-SimpleBridiTailWithoutTailTermsSyntax: TypeAlias = SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms | SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms
+SimpleBridiTailWithoutTailTermsSyntax: TypeAlias = SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms | SimpleBridiTailWithoutTailTermsSyntaxSelbriSimpleBridiTailWithoutTailTerms | SimpleBridiTailWithoutTailTermsSyntaxExpPrefixedSimpleBridiTailWithoutTailTerms
 
 @final
 class SimpleBridiTailSyntaxForethoughtSimpleBridiTail:
@@ -1908,8 +2066,84 @@ class SimpleBridiTailSyntaxSelbriSimpleBridiTail:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for bridi tail; selects among the `forethought_simple_bridi_tail` and `selbri_simple_bridi_tail` forms.
-SimpleBridiTailSyntax: TypeAlias = SimpleBridiTailSyntaxForethoughtSimpleBridiTail | SimpleBridiTailSyntaxSelbriSimpleBridiTail
+@final
+class SimpleBridiTailSyntaxExpPrefixedSimpleBridiTail:
+    'Uses camxes-exp\'s prefixed form, whose payload preserves `prefixes` and `tail`.'
+    __match_args__: ClassVar[tuple[Literal['exp_prefixed_simple_bridi_tail']]]
+    def __new__(cls, exp_prefixed_simple_bridi_tail: RecoveredField[ExpPrefixedSimpleBridiTailSyntax]) -> SimpleBridiTailSyntaxExpPrefixedSimpleBridiTail: ...
+    @property
+    def exp_prefixed_simple_bridi_tail(self) -> RecoveredField[ExpPrefixedSimpleBridiTailSyntax]:
+        'Uses camxes-exp\'s prefixed form, whose payload preserves `prefixes` and `tail`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for bridi tail; selects among the `forethought_simple_bridi_tail`,
+# `selbri_simple_bridi_tail` and camxes-exp's prefixed forms.
+#
+# camxes-exp writes `bridi_tail_3 <- (terms CU_elidible?)* selbri tail_terms / gek_sentence`
+# (camxes-exp.peg:108), so the repetition belongs to the selbri alternative alone and never
+# to the GEK one. The prefixed arm is last because the boundary it shares with the sourced
+# arms is decided the sourced way: `gi'e pu brode` is a tagged selbri, which the selbri arm
+# reaches first over the identical extent, and only `gi'e pu cu brode` -- where no tagged
+# selbri can be built -- falls through to the prefix.
+SimpleBridiTailSyntax: TypeAlias = SimpleBridiTailSyntaxForethoughtSimpleBridiTail | SimpleBridiTailSyntaxSelbriSimpleBridiTail | SimpleBridiTailSyntaxExpPrefixedSimpleBridiTail
+
+@final
+class ExpTailTermsPrefixSyntax:
+    'One `terms CU_elidible?` group of camxes-exp\'s `bridi_tail_3` prefix\n(camxes-exp.peg:108). The CU is the group\'s own, which is what lets the groups repeat.'
+    __match_args__: ClassVar[tuple[Literal['terms'], Literal['cu']]]
+    def __new__(cls, terms: Sequence[RecoveredField[TermSyntax]], cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None) -> ExpTailTermsPrefixSyntax: ...
+    @property
+    def terms(self) -> tuple[RecoveredField[TermSyntax], ...]:
+        'Non-empty ordered sequence of this group\'s terms.'
+        ...
+    @property
+    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Cu` cmavo marker closing this group.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpPrefixedSimpleBridiTailSyntax:
+    'camxes-exp\'s prefixed `bridi_tail_3`: one or more `terms CU_elidible?` groups before the\nselbri tail (camxes-exp.peg:108). Requiring a group is what makes the arm structurally\ndistinct from the sourced one; the construct is diagnosed post-parse by the standing\nvisitor, once for the whole run of groups, because the run is one node and one decision.'
+    __match_args__: ClassVar[tuple[Literal['prefixes'], Literal['tail']]]
+    def __new__(cls, prefixes: Sequence[RecoveredField[ExpTailTermsPrefixSyntax]], tail: RecoveredField[SelbriSimpleBridiTailSyntax]) -> ExpPrefixedSimpleBridiTailSyntax: ...
+    @property
+    def prefixes(self) -> tuple[RecoveredField[ExpTailTermsPrefixSyntax], ...]:
+        'Non-empty ordered sequence of the leading term groups.'
+        ...
+    @property
+    def tail(self) -> RecoveredField[SelbriSimpleBridiTailSyntax]:
+        'The selbri tail the groups lead.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpPrefixedSimpleBridiTailWithoutTailTermsSyntax:
+    'The tail-terms-free mirror of [`exp_prefixed_simple_bridi_tail`].'
+    __match_args__: ClassVar[tuple[Literal['prefixes'], Literal['tail']]]
+    def __new__(cls, prefixes: Sequence[RecoveredField[ExpTailTermsPrefixSyntax]], tail: RecoveredField[SelbriSimpleBridiTailWithoutTailTermsSyntax]) -> ExpPrefixedSimpleBridiTailWithoutTailTermsSyntax: ...
+    @property
+    def prefixes(self) -> tuple[RecoveredField[ExpTailTermsPrefixSyntax], ...]:
+        'Non-empty ordered sequence of the leading term groups.'
+        ...
+    @property
+    def tail(self) -> RecoveredField[SelbriSimpleBridiTailWithoutTailTermsSyntax]:
+        'The selbri tail the groups lead.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class ForethoughtSimpleBridiTailWithoutTailTermsSyntax:
@@ -2300,55 +2534,8 @@ class NegatedForethoughtBridiConnectionWithoutTailTermsSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BridiTailKeContinuationSyntax:
-    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.'
-    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['ke'], Literal['bridi_tail'], Literal['kehe'], Literal['tail_terms'], Literal['vau']]]
-    def __new__(
-        cls,
-        connective: RecoveredField[BridiTailConnectiveSyntax],
-        tense_modal: RecoveredField[TenseModalSyntax] | None,
-        ke: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        bridi_tail: RecoveredField[BridiTailSyntax],
-        kehe: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
-        tail_terms: Sequence[RecoveredField[TermSyntax]],
-        vau: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
-    ) -> BridiTailKeContinuationSyntax: ...
-    @property
-    def connective(self) -> RecoveredField[BridiTailConnectiveSyntax]:
-        'The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_ke_continuation` production.'
-        ...
-    @property
-    def tense_modal(self) -> RecoveredField[TenseModalSyntax] | None:
-        'The optional tense modal component.'
-        ...
-    @property
-    def ke(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The `Ke` cmavo marker.'
-        ...
-    @property
-    def bridi_tail(self) -> RecoveredField[BridiTailSyntax]:
-        'The shared bridi tail child syntax node.'
-        ...
-    @property
-    def kehe(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Kehe` cmavo marker.'
-        ...
-    @property
-    def tail_terms(self) -> tuple[RecoveredField[TermSyntax], ...]:
-        'Ordered sequence of zero or more tail terms components.'
-        ...
-    @property
-    def vau(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Vau` cmavo marker.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class GihekBridiTailKeContinuationSyntax:
-    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.'
+    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `ke`, and 4 other fields in source order.\nProduct node for bridi tail connective; camxes-standard\'s one top-level tail join,\n`gihek stag? KE_clause bridi_tail KEhE_clause? tail_terms` (camxes.peg:76). Its connective\nis GIhA alone in both families: the wider `bridi_tail_connective` belongs to the joints\nrolling Zantufa actually widens, and rolling Zantufa spells no KE join at this level at\nall -- its KE-led tail is a `bridi_tail_3` alternative, which jbotci carries separately as\n`zantufa_grouped_bridi_tail`.'
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['ke'], Literal['bridi_tail'], Literal['kehe'], Literal['tail_terms'], Literal['vau']]]
     def __new__(
         cls,
@@ -2395,14 +2582,13 @@ class GihekBridiTailKeContinuationSyntax:
 
 @final
 class BridiTailBoContinuationWithoutTailTermsSyntax:
-    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, `cu`, and `bridi_tail` in source order.'
-    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['bo'], Literal['cu'], Literal['bridi_tail']]]
+    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, and `bridi_tail` in source order.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['bo'], Literal['bridi_tail']]]
     def __new__(
         cls,
         connective: RecoveredField[BridiTailConnectiveSyntax],
         tense_modal: RecoveredField[TenseModalSyntax] | None,
         bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
         bridi_tail: RecoveredField[BoGroupedBridiTailWithoutTailTermsSyntax],
     ) -> BridiTailBoContinuationWithoutTailTermsSyntax: ...
     @property
@@ -2418,10 +2604,6 @@ class BridiTailBoContinuationWithoutTailTermsSyntax:
         'The `Bo` cmavo marker.'
         ...
     @property
-    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Cu` cmavo marker.'
-        ...
-    @property
     def bridi_tail(self) -> RecoveredField[BoGroupedBridiTailWithoutTailTermsSyntax]:
         'The shared bridi tail child syntax node.'
         ...
@@ -2432,14 +2614,13 @@ class BridiTailBoContinuationWithoutTailTermsSyntax:
 
 @final
 class BridiTailBoContinuationSyntax:
-    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, and 4 other fields in source order.'
-    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['bo'], Literal['cu'], Literal['bridi_tail'], Literal['tail_terms'], Literal['vau']]]
+    'Product node for bridi tail connective; preserves `connective`, `tense_modal`, `bo`, and 3 other fields in source order.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tense_modal'], Literal['bo'], Literal['bridi_tail'], Literal['tail_terms'], Literal['vau']]]
     def __new__(
         cls,
         connective: RecoveredField[BridiTailConnectiveSyntax],
         tense_modal: RecoveredField[TenseModalSyntax] | None,
         bo: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
         bridi_tail: RecoveredField[BoGroupedBridiTailSyntax],
         tail_terms: Sequence[RecoveredField[TermSyntax]],
         vau: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
@@ -2455,10 +2636,6 @@ class BridiTailBoContinuationSyntax:
     @property
     def bo(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
         'The `Bo` cmavo marker.'
-        ...
-    @property
-    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Cu` cmavo marker.'
         ...
     @property
     def bridi_tail(self) -> RecoveredField[BoGroupedBridiTailSyntax]:
@@ -2479,21 +2656,12 @@ class BridiTailBoContinuationSyntax:
 
 @final
 class BridiTailContinuationWithoutTailTermsSyntax:
-    'Product node for bridi tail connective; preserves `connective`, `cu`, and `bridi_tail` in source order.'
-    __match_args__: ClassVar[tuple[Literal['connective'], Literal['cu'], Literal['bridi_tail']]]
-    def __new__(
-        cls,
-        connective: RecoveredField[BridiTailConnectiveSyntax],
-        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
-        bridi_tail: RecoveredField[BoGroupedBridiTailWithoutTailTermsSyntax],
-    ) -> BridiTailContinuationWithoutTailTermsSyntax: ...
+    'Product node for bridi tail connective; preserves `connective` and `bridi_tail` in source order.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['bridi_tail']]]
+    def __new__(cls, connective: RecoveredField[BridiTailConnectiveSyntax], bridi_tail: RecoveredField[BoGroupedBridiTailWithoutTailTermsSyntax]) -> BridiTailContinuationWithoutTailTermsSyntax: ...
     @property
     def connective(self) -> RecoveredField[BridiTailConnectiveSyntax]:
         'The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_continuation_without_tail_terms` production.'
-        ...
-    @property
-    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Cu` cmavo marker.'
         ...
     @property
     def bridi_tail(self) -> RecoveredField[BoGroupedBridiTailWithoutTailTermsSyntax]:
@@ -2506,12 +2674,11 @@ class BridiTailContinuationWithoutTailTermsSyntax:
 
 @final
 class BridiTailContinuationSyntax:
-    'Product node for bridi tail connective; preserves `connective`, `cu`, `bridi_tail`, `tail_terms`, and `vau` in source order.'
-    __match_args__: ClassVar[tuple[Literal['connective'], Literal['cu'], Literal['bridi_tail'], Literal['tail_terms'], Literal['vau']]]
+    'Product node for bridi tail connective; preserves `connective`, `bridi_tail`, `tail_terms`, and `vau` in source order.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['bridi_tail'], Literal['tail_terms'], Literal['vau']]]
     def __new__(
         cls,
         connective: RecoveredField[BridiTailConnectiveSyntax],
-        cu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
         bridi_tail: RecoveredField[BoGroupedBridiTailSyntax],
         tail_terms: Sequence[RecoveredField[TermSyntax]],
         vau: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
@@ -2519,10 +2686,6 @@ class BridiTailContinuationSyntax:
     @property
     def connective(self) -> RecoveredField[BridiTailConnectiveSyntax]:
         'The `bridi_tail_connective` connective joining the adjacent constituents of the `bridi_tail_continuation` production.'
-        ...
-    @property
-    def cu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Cu` cmavo marker.'
         ...
     @property
     def bridi_tail(self) -> RecoveredField[BoGroupedBridiTailSyntax]:
@@ -12339,65 +12502,6 @@ class OperandConnectiveSyntaxEkConnective:
 OperandConnectiveSyntax: TypeAlias = OperandConnectiveSyntaxJoikConnective | OperandConnectiveSyntaxEkConnective
 
 @final
-class RelationAfterthoughtConnectiveSyntaxJoikConnective:
-    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
-    __match_args__: ClassVar[tuple[Literal['joik_connective']]]
-    def __new__(cls, joik_connective: RecoveredField[JoikConnectiveSyntax]) -> RelationAfterthoughtConnectiveSyntaxJoikConnective: ...
-    @property
-    def joik_connective(self) -> RecoveredField[JoikConnectiveSyntax]:
-        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class RelationAfterthoughtConnectiveSyntaxJekConnective:
-    'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
-    __match_args__: ClassVar[tuple[Literal['jek_connective']]]
-    def __new__(cls, jek_connective: RecoveredField[JekConnectiveSyntax]) -> RelationAfterthoughtConnectiveSyntaxJekConnective: ...
-    @property
-    def jek_connective(self) -> RecoveredField[JekConnectiveSyntax]:
-        'Uses the `jek_connective` product form, whose payload preserves `na`, `se`, `ja`, and `nai`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class RelationAfterthoughtConnectiveSyntaxEkConnective:
-    'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
-    __match_args__: ClassVar[tuple[Literal['ek_connective']]]
-    def __new__(cls, ek_connective: RecoveredField[EkConnectiveSyntax]) -> RelationAfterthoughtConnectiveSyntaxEkConnective: ...
-    @property
-    def ek_connective(self) -> RecoveredField[EkConnectiveSyntax]:
-        'Uses the `ek_connective` product form, whose payload preserves `na`, `se`, `a`, and `nai`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class RelationAfterthoughtConnectiveSyntaxVuhuNonlogicalConnective:
-    'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
-    __match_args__: ClassVar[tuple[Literal['vuhu_nonlogical_connective']]]
-    def __new__(cls, vuhu_nonlogical_connective: RecoveredField[VuhuNonlogicalConnectiveSyntax]) -> RelationAfterthoughtConnectiveSyntaxVuhuNonlogicalConnective: ...
-    @property
-    def vuhu_nonlogical_connective(self) -> RecoveredField[VuhuNonlogicalConnectiveSyntax]:
-        'Uses the `vuhu_nonlogical_connective` product form, whose payload preserves `vuhu`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for selbri connective; selects among the `joik_connective`, `jek_connective`, `ek_connective`, and `vuhu_nonlogical_connective` forms.
-RelationAfterthoughtConnectiveSyntax: TypeAlias = RelationAfterthoughtConnectiveSyntaxJoikConnective | RelationAfterthoughtConnectiveSyntaxJekConnective | RelationAfterthoughtConnectiveSyntaxEkConnective | RelationAfterthoughtConnectiveSyntaxVuhuNonlogicalConnective
-
-@final
 class SelbriAfterthoughtConnectiveSyntaxJoikConnective:
     'A JOI-family connective.'
     __match_args__: ClassVar[tuple[Literal['joik_connective']]]
@@ -13097,35 +13201,46 @@ class BridiTailConnectiveSyntaxGihekConnective:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BridiTailConnectiveSyntaxRelationConnectiveAsBridiTail:
-    'Uses the `relation_connective_as_bridi_tail` product form, whose payload preserves `connective`.'
-    __match_args__: ClassVar[tuple[Literal['relation_connective_as_bridi_tail']]]
-    def __new__(cls, relation_connective_as_bridi_tail: RecoveredField[RelationConnectiveAsBridiTailSyntax]) -> BridiTailConnectiveSyntaxRelationConnectiveAsBridiTail: ...
+class BridiTailConnectiveSyntaxJoikConnective:
+    'Rolling Zantufa\'s JOIK half of `joik_gihek`.'
+    __match_args__: ClassVar[tuple[Literal['joik_connective']]]
+    def __new__(cls, joik_connective: RecoveredField[JoikConnectiveSyntax]) -> BridiTailConnectiveSyntaxJoikConnective: ...
     @property
-    def relation_connective_as_bridi_tail(self) -> RecoveredField[RelationConnectiveAsBridiTailSyntax]:
-        'Uses the `relation_connective_as_bridi_tail` product form, whose payload preserves `connective`.'
+    def joik_connective(self) -> RecoveredField[JoikConnectiveSyntax]:
+        'Rolling Zantufa\'s JOIK half of `joik_gihek`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
-
-# Sum node for bridi tail connective; selects among the `gihek_connective` and `relation_connective_as_bridi_tail` forms.
-BridiTailConnectiveSyntax: TypeAlias = BridiTailConnectiveSyntaxGihekConnective | BridiTailConnectiveSyntaxRelationConnectiveAsBridiTail
 
 @final
-class RelationConnectiveAsBridiTailSyntax:
-    'Transparent product node for bridi tail connective; preserves the `connective` component.'
-    __match_args__: ClassVar[tuple[Literal['connective']]]
-    def __new__(cls, connective: RecoveredField[RelationAfterthoughtConnectiveSyntax]) -> RelationConnectiveAsBridiTailSyntax: ...
+class BridiTailConnectiveSyntaxJekConnective:
+    'Rolling Zantufa\'s JA half of `joik_gihek`, which its JOI selma\'o also holds.'
+    __match_args__: ClassVar[tuple[Literal['jek_connective']]]
+    def __new__(cls, jek_connective: RecoveredField[JekConnectiveSyntax]) -> BridiTailConnectiveSyntaxJekConnective: ...
     @property
-    def connective(self) -> RecoveredField[RelationAfterthoughtConnectiveSyntax]:
-        'The shared connective child syntax node.'
+    def jek_connective(self) -> RecoveredField[JekConnectiveSyntax]:
+        'Rolling Zantufa\'s JA half of `joik_gihek`, which its JOI selma\'o also holds.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for bridi tail connective. The sourced inventory at every bridi-tail joint is
+# GIhA alone (camxes.peg:77-79) and D1 narrows this node to it; rolling Zantufa writes
+# `joik_gihek <- joik / gihek` (zantufa-1.9999.peg:70) at every one of its tail joints
+# instead, and its JOI selma'o holds the JA words as well as the JOI ones (:556), which is
+# the domain jbotci splits between `joik_connective` and `jek_connective`. Widening this one
+# shared node is what the source's own shape asks for -- one joint, a wider connective --
+# and it widens the flat joint, the BO joint and the KE join together, including the
+# `!(tag? BO)` and `!(tag? KE)` guards that are already written over this node.
+#
+# The Zantufa arms precede the unsourced relation arm D1 deletes, so that a JOIK-led joint
+# selects the arm that survives this epoch rather than the one that does not. A GIhA-led
+# joint still selects `gihek_connective`, which is why the widening churns no expectation.
+BridiTailConnectiveSyntax: TypeAlias = BridiTailConnectiveSyntaxGihekConnective | BridiTailConnectiveSyntaxJoikConnective | BridiTailConnectiveSyntaxJekConnective
 
 @final
 class ModalForethoughtConnectiveSyntaxZantufaGaBoForethoughtConnective:
@@ -17900,10 +18015,10 @@ class ConnectedJaiInnerSelbriSyntax:
 class ConnectedJaiInnerSelbriContinuationSyntax:
     'Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.'
     __match_args__: ClassVar[tuple[Literal['connective'], Literal['trailing_selbri']]]
-    def __new__(cls, connective: RecoveredField[RelationAfterthoughtConnectiveSyntax], trailing_selbri: RecoveredField[TanruJaiInnerSelbriSyntax]) -> ConnectedJaiInnerSelbriContinuationSyntax: ...
+    def __new__(cls, connective: RecoveredField[SelbriAfterthoughtConnectiveSyntax], trailing_selbri: RecoveredField[TanruJaiInnerSelbriSyntax]) -> ConnectedJaiInnerSelbriContinuationSyntax: ...
     @property
-    def connective(self) -> RecoveredField[RelationAfterthoughtConnectiveSyntax]:
-        'The `relation_afterthought_connective` connective joining the adjacent constituents of the `connected_jai_inner_selbri_continuation` production.'
+    def connective(self) -> RecoveredField[SelbriAfterthoughtConnectiveSyntax]:
+        'The `selbri_afterthought_connective` connective joining the adjacent constituents of\nthe `connected_jai_inner_selbri_continuation` production. This mini-ladder is a\nselbri connection, not a bridi-tail one, so its inventory is the selbri family\'s\nJOIK/JEK -- the EK and VUhU spellings the legacy shared node also held have no\nsource at a selbri joint (camxes.peg:172-176).'
         ...
     @property
     def trailing_selbri(self) -> RecoveredField[TanruJaiInnerSelbriSyntax]:

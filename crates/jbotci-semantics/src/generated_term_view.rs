@@ -14,16 +14,19 @@ use bityzba::{ensures, invariant, requires};
 use std::sync::Arc;
 
 use jbotci_syntax::generated_model::{
-    BareNaTermSyntax, BoundTermContinuationSyntax, BoundTermSyntax, CeheTermSyntax,
-    ElidedNaheFihoTagTermSyntax, FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax,
-    GekTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LeadingTermTagTenseModalSyntax,
-    LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax, NoihaAdverbialTermSyntax,
-    NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NormalTermSyntax, NuhiTermsetSyntax,
-    PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax,
-    SimpleTermSyntax, SoiAdverbialTermSyntax, SumtiBoundSyntax, SumtiBoundTailSyntax,
-    SumtiConnectiveSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
-    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseModalSyntax,
-    TenseTaggedLinkedSumtiSyntax, TermSyntax, ZantufaGekTermsetSyntax,
+    BareNaTermSyntax, BoGroupedBridiTailSyntax, BoGroupedBridiTailWithoutTailTermsSyntax,
+    BoundTermContinuationSyntax, BoundTermSyntax, BridiTailBoJointSyntax,
+    BridiTailBoJointWithoutTailTermsSyntax, CeheTermSyntax, ElidedNaheFihoTagTermSyntax,
+    ExpTailTermsPrefixSyntax, FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax, GekTermsetSyntax,
+    JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax,
+    LooseTermSyntax, NaKuTermSyntax, NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax,
+    NonabsTermSyntax, NormalTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
+    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SelbriSimpleBridiTailSyntax,
+    SelbriSimpleBridiTailWithoutTailTermsSyntax, SimpleBridiTailSyntax,
+    SimpleBridiTailWithoutTailTermsSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
+    SumtiBoundSyntax, SumtiBoundTailSyntax, SumtiConnectiveSyntax, SumtiTermSyntax,
+    TaggedOrElidedSumtiSyntax, TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax,
+    TenseModalSyntax, TenseTaggedLinkedSumtiSyntax, TermSyntax, ZantufaGekTermsetSyntax,
     ZantufaJoikChainedPlaceTagTermSyntax,
 };
 
@@ -93,6 +96,151 @@ impl<'syntax> GeneratedBoundSumtiTailRef<'syntax> {
                 trailing_sumti: &tail.trailing_sumti,
             },
         }
+    }
+}
+
+/// A borrowed BO-level bridi-tail joint, sourced or Zantufa-connectorless.
+///
+/// The arms of `bridi_tail_bo_joint` differ by their connective, which the sourced joint requires
+/// and rolling Zantufa's connectorless `tag BO` opening spells not at all
+/// (zantufa-1.9999.peg:22). Everything the surviving passes need — the tag, the operand and the
+/// trailing terms — is shared, so they take this view and never have to match the arms.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GeneratedBridiTailBoJointRef<'syntax> {
+    pub(crate) tense_modal: Option<&'syntax TenseModalSyntax>,
+    pub(crate) bridi_tail: &'syntax Arc<BoGroupedBridiTailSyntax>,
+    pub(crate) tail_terms: &'syntax [TermSyntax],
+}
+
+impl<'syntax> GeneratedBridiTailBoJointRef<'syntax> {
+    /// Borrow either BO-joint shape.
+    #[requires(true)]
+    #[ensures(matches!(joint, BridiTailBoJointSyntax::ZantufaTagBoBridiTailContinuation(_)) -> ret.tense_modal.is_some(), "the Zantufa arm's tag is required, so the view always exposes it")]
+    pub(crate) fn from_joint(joint: &'syntax BridiTailBoJointSyntax) -> Self {
+        match joint {
+            BridiTailBoJointSyntax::BridiTailBoContinuation(continuation) => Self {
+                tense_modal: continuation.tense_modal.as_deref(),
+                bridi_tail: &continuation.bridi_tail,
+                tail_terms: &continuation.tail_terms,
+            },
+            BridiTailBoJointSyntax::ZantufaTagBoBridiTailContinuation(continuation) => Self {
+                tense_modal: Some(&continuation.tense_modal),
+                bridi_tail: &continuation.bridi_tail,
+                tail_terms: &continuation.tail_terms,
+            },
+        }
+    }
+}
+
+/// The tail-terms-free twin of [`GeneratedBridiTailBoJointRef`].
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
+    pub(crate) tense_modal: Option<&'syntax TenseModalSyntax>,
+    pub(crate) bridi_tail: &'syntax Arc<BoGroupedBridiTailWithoutTailTermsSyntax>,
+}
+
+impl<'syntax> GeneratedBridiTailBoJointWithoutTailTermsRef<'syntax> {
+    /// Borrow either BO-joint shape.
+    #[requires(true)]
+    #[ensures(matches!(joint, BridiTailBoJointWithoutTailTermsSyntax::ZantufaTagBoBridiTailContinuationWithoutTailTerms(_)) -> ret.tense_modal.is_some(), "the Zantufa arm's tag is required, so the view always exposes it")]
+    pub(crate) fn from_joint(joint: &'syntax BridiTailBoJointWithoutTailTermsSyntax) -> Self {
+        match joint {
+            BridiTailBoJointWithoutTailTermsSyntax::BridiTailBoContinuationWithoutTailTerms(
+                continuation,
+            ) => Self {
+                tense_modal: continuation.tense_modal.as_deref(),
+                bridi_tail: &continuation.bridi_tail,
+            },
+            BridiTailBoJointWithoutTailTermsSyntax::ZantufaTagBoBridiTailContinuationWithoutTailTerms(
+                continuation,
+            ) => Self {
+                tense_modal: Some(&continuation.tense_modal),
+                bridi_tail: &continuation.bridi_tail,
+            },
+        }
+    }
+}
+
+/// A borrowed selbri-led `bridi_tail_3`, sourced or camxes-exp-prefixed.
+///
+/// camxes-exp writes the level as `(terms CU_elidible?)* selbri tail_terms` (camxes-exp.peg:108).
+/// The groups before the selbri hold the same bridi terms the sourced level puts after it, and
+/// they fill places in the same order, so every pass that walks the level takes this one shape
+/// and reads the leading run first.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GeneratedSelbriBridiTailRef<'syntax> {
+    pub(crate) prefixes: &'syntax [ExpTailTermsPrefixSyntax],
+    pub(crate) tail: &'syntax SelbriSimpleBridiTailSyntax,
+}
+
+impl<'syntax> GeneratedSelbriBridiTailRef<'syntax> {
+    /// Borrow either selbri-led shape, or `None` for the forethought alternative.
+    #[requires(true)]
+    #[ensures(ret.is_none() == matches!(tail, SimpleBridiTailSyntax::ForethoughtSimpleBridiTail(_)))]
+    pub(crate) fn from_simple(tail: &'syntax SimpleBridiTailSyntax) -> Option<Self> {
+        match tail {
+            SimpleBridiTailSyntax::SelbriSimpleBridiTail(tail) => Some(Self {
+                prefixes: &[],
+                tail,
+            }),
+            SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(prefixed) => Some(Self {
+                prefixes: &prefixed.prefixes,
+                tail: &prefixed.tail,
+            }),
+            SimpleBridiTailSyntax::ForethoughtSimpleBridiTail(_) => None,
+        }
+    }
+
+    /// The prefix groups' terms, in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn prefix_terms(&self) -> impl Iterator<Item = &'syntax TermSyntax> + use<'syntax> {
+        self.prefixes.iter().flat_map(|prefix| prefix.terms.iter())
+    }
+}
+
+/// The tail-terms-free twin of [`GeneratedSelbriBridiTailRef`].
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct GeneratedSelbriBridiTailWithoutTailTermsRef<'syntax> {
+    pub(crate) prefixes: &'syntax [ExpTailTermsPrefixSyntax],
+    pub(crate) tail: &'syntax SelbriSimpleBridiTailWithoutTailTermsSyntax,
+}
+
+impl<'syntax> GeneratedSelbriBridiTailWithoutTailTermsRef<'syntax> {
+    /// Borrow either selbri-led shape, or `None` for the forethought alternative.
+    #[requires(true)]
+    #[ensures(ret.is_none() == matches!(tail, SimpleBridiTailWithoutTailTermsSyntax::ForethoughtSimpleBridiTailWithoutTailTerms(_)))]
+    pub(crate) fn from_simple(
+        tail: &'syntax SimpleBridiTailWithoutTailTermsSyntax,
+    ) -> Option<Self> {
+        match tail {
+            SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(tail) => {
+                Some(Self {
+                    prefixes: &[],
+                    tail,
+                })
+            }
+            SimpleBridiTailWithoutTailTermsSyntax::ExpPrefixedSimpleBridiTailWithoutTailTerms(
+                prefixed,
+            ) => Some(Self {
+                prefixes: &prefixed.prefixes,
+                tail: &prefixed.tail,
+            }),
+            SimpleBridiTailWithoutTailTermsSyntax::ForethoughtSimpleBridiTailWithoutTailTerms(
+                _,
+            ) => None,
+        }
+    }
+
+    /// The prefix groups' terms, in source order.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn prefix_terms(&self) -> impl Iterator<Item = &'syntax TermSyntax> + use<'syntax> {
+        self.prefixes.iter().flat_map(|prefix| prefix.terms.iter())
     }
 }
 

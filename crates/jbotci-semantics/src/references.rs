@@ -19,7 +19,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::generated_term_view::{
-    GeneratedAssociationPayloadRef, GeneratedBoundSumtiTailRef, GeneratedLinkedSumtiRef,
+    GeneratedAssociationPayloadRef, GeneratedBoundSumtiTailRef, GeneratedBridiTailBoJointRef,
+    GeneratedBridiTailBoJointWithoutTailTermsRef, GeneratedLinkedSumtiRef,
+    GeneratedSelbriBridiTailRef, GeneratedSelbriBridiTailWithoutTailTermsRef,
     GeneratedSimpleTermRef, bound_term_continuation_operand,
 };
 
@@ -1154,11 +1156,21 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         gek_branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
-            generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
+            generated::BridiTailSyntax::ZantufaPriorityGroupedBridiTail(tail) => {
+                let tail = tail.0.as_ref();
                 let mut analysis =
                     self.analyze_bridi_tail(&tail.bridi_tail, gek_branch_initial_place);
                 analysis.terms.extend(tail.tail_terms.iter());
                 analysis
+            }
+            generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTail(tail) => {
+                self.analyze_zantufa_continued_bridi_tail(&tail.0, gek_branch_initial_place)
+            }
+            generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTailWithoutTailTerms(tail) => {
+                self.analyze_zantufa_continued_bridi_tail_without_tail_terms(
+                    &tail.0,
+                    gek_branch_initial_place,
+                )
             }
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
                 self.analyze_bridi_tail_with_possible_tail_terms(tail, gek_branch_initial_place)
@@ -1166,6 +1178,88 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::BridiTailSyntax::BridiTailWithoutTailTerms(tail) => {
                 self.analyze_bridi_tail_without_tail_terms(tail, gek_branch_initial_place)
             }
+        }
+    }
+
+    /// Analyse rolling Zantufa's unbound top continuation. Its shape is the flat chain's one
+    /// level up -- a leading tail and a non-empty run of continuations over the same level -- so
+    /// its branches propagate exactly the way the flat chain's do.
+    #[requires(true)]
+    #[ensures(true)]
+    fn analyze_zantufa_continued_bridi_tail(
+        &mut self,
+        tail: &'tree generated::ZantufaContinuedBridiTailSyntax,
+        gek_branch_initial_place: u8,
+    ) -> GeneratedBridiTailAnalysis<'tree> {
+        let mut analysis =
+            self.analyze_afterthought_bridi_tail(&tail.first, gek_branch_initial_place);
+        let mut branch_cursors = Some(self.consume_branch_tail_cursors(&mut analysis));
+        for continuation in &tail.continuations {
+            if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                self.walk_node(tense_modal);
+            }
+            let mut next = self.analyze_afterthought_bridi_tail(
+                &continuation.bridi_tail,
+                gek_branch_initial_place,
+            );
+            if let Some(cursors) = branch_cursors.as_mut() {
+                let next_cursors = self.consume_branch_tail_cursors(&mut next);
+                cursors.extend(next_cursors);
+            }
+            analysis.frames.extend(next.frames);
+        }
+        let frame = self.add_frame(
+            self.raw_for_node(tail),
+            PlaceFrameKind::BridiTail,
+            None,
+            None,
+            propagation_connective_branches(analysis.frames),
+        );
+        GeneratedBridiTailAnalysis {
+            frames: vec![frame],
+            terms: analysis.terms,
+            branch_cursors,
+        }
+    }
+
+    /// The tail-terms-free twin of [`Self::analyze_zantufa_continued_bridi_tail`].
+    #[requires(true)]
+    #[ensures(true)]
+    fn analyze_zantufa_continued_bridi_tail_without_tail_terms(
+        &mut self,
+        tail: &'tree generated::ZantufaContinuedBridiTailWithoutTailTermsSyntax,
+        gek_branch_initial_place: u8,
+    ) -> GeneratedBridiTailAnalysis<'tree> {
+        let mut analysis = self.analyze_afterthought_bridi_tail_without_tail_terms(
+            &tail.first,
+            gek_branch_initial_place,
+        );
+        let mut branch_cursors = Some(self.consume_branch_tail_cursors(&mut analysis));
+        for continuation in &tail.continuations {
+            if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                self.walk_node(tense_modal);
+            }
+            let mut next = self.analyze_afterthought_bridi_tail_without_tail_terms(
+                &continuation.bridi_tail,
+                gek_branch_initial_place,
+            );
+            if let Some(cursors) = branch_cursors.as_mut() {
+                let next_cursors = self.consume_branch_tail_cursors(&mut next);
+                cursors.extend(next_cursors);
+            }
+            analysis.frames.extend(next.frames);
+        }
+        let frame = self.add_frame(
+            self.raw_for_node(tail),
+            PlaceFrameKind::BridiTail,
+            None,
+            None,
+            propagation_connective_branches(analysis.frames),
+        );
+        GeneratedBridiTailAnalysis {
+            frames: vec![frame],
+            terms: analysis.terms,
+            branch_cursors,
         }
     }
 
@@ -1369,11 +1463,13 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             } else {
                 self.consume_branch_tail_cursors(&mut analysis)
             };
-            if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+            let continuation =
+                GeneratedBridiTailBoJointWithoutTailTermsRef::from_joint(continuation);
+            if let Some(tense_modal) = continuation.tense_modal {
                 self.walk_node(tense_modal);
             }
             let mut next = self.analyze_bo_grouped_bridi_tail_without_tail_terms(
-                &continuation.bridi_tail,
+                continuation.bridi_tail,
                 gek_branch_initial_place,
             );
             let next_cursors = self.consume_branch_tail_cursors(&mut next);
@@ -1410,17 +1506,18 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             } else {
                 self.consume_branch_tail_cursors(&mut analysis)
             };
-            if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+            let continuation = GeneratedBridiTailBoJointRef::from_joint(continuation);
+            if let Some(tense_modal) = continuation.tense_modal {
                 self.walk_node(tense_modal);
             }
             let mut next = self
-                .analyze_bo_grouped_bridi_tail(&continuation.bridi_tail, gek_branch_initial_place);
+                .analyze_bo_grouped_bridi_tail(continuation.bridi_tail, gek_branch_initial_place);
             let next_cursors = self.consume_branch_tail_cursors(&mut next);
             analysis.frames.extend(next.frames);
             active_cursors.extend(next_cursors);
             self.assign_terms(
                 &mut active_cursors,
-                &continuation.tail_terms,
+                continuation.tail_terms,
                 AssignmentSource::SharedTailTerm,
             );
             branch_cursors = Some(active_cursors);
@@ -1447,10 +1544,20 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         gek_branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
-            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(tail) => {
-                let relation_frame = self.analyze_relation(&tail.selbri);
+            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(_)
+            | generated::SimpleBridiTailWithoutTailTermsSyntax::ExpPrefixedSimpleBridiTailWithoutTailTerms(_) => {
+                let Some(selbri_tail) =
+                    GeneratedSelbriBridiTailWithoutTailTermsRef::from_simple(tail)
+                else {
+                    return GeneratedBridiTailAnalysis {
+                        frames: Vec::new(),
+                        terms: Vec::new(),
+                        branch_cursors: None,
+                    };
+                };
+                let relation_frame = self.analyze_relation(&selbri_tail.tail.selbri);
                 let frame = self.add_frame(
-                    self.raw_for_node(tail),
+                    self.raw_for_node(selbri_tail.tail),
                     PlaceFrameKind::BridiTail,
                     None,
                     None,
@@ -1458,7 +1565,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 );
                 GeneratedBridiTailAnalysis {
                     frames: vec![frame],
-                    terms: Vec::new(),
+                    terms: selbri_tail.prefix_terms().collect(),
                     branch_cursors: None,
                 }
             }
@@ -1484,16 +1591,28 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
         gek_branch_initial_place: u8,
     ) -> GeneratedBridiTailAnalysis<'tree> {
         match tail {
-            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(tail) => {
-                let relation_frame = self.analyze_relation(&tail.selbri);
-                let mut terms = tail.terms.iter().collect::<Vec<_>>();
+            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(_)
+            | generated::SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(_) => {
+                let Some(selbri_tail) = GeneratedSelbriBridiTailRef::from_simple(tail) else {
+                    return GeneratedBridiTailAnalysis {
+                        frames: Vec::new(),
+                        terms: Vec::new(),
+                        branch_cursors: None,
+                    };
+                };
+                let relation_frame = self.analyze_relation(&selbri_tail.tail.selbri);
+                // The prefix groups' terms fill places ahead of the tail's own, in source order.
+                let mut terms = selbri_tail
+                    .prefix_terms()
+                    .chain(selbri_tail.tail.terms.iter())
+                    .collect::<Vec<_>>();
                 if let Some(seltau_frame) = self.co_seltau_term_frame(relation_frame) {
                     let mut cursors = vec![self.cursor_with_existing_assignments(seltau_frame, 2)];
                     self.assign_term_refs(&mut cursors, &terms, AssignmentSource::CoSeltauTerm);
                     terms.clear();
                 }
                 let frame = self.add_frame(
-                    self.raw_for_node(tail),
+                    self.raw_for_node(selbri_tail.tail),
                     PlaceFrameKind::BridiTail,
                     None,
                     None,
@@ -3728,27 +3847,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_bridi_statement(&mut self, node: &'tree generated::BridiStatementSyntax) {
-        self.analyze_predicate(&node.bridi);
-        for continuation in &node.continuations {
-            match continuation {
-                generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.walk_node(&continuation.trailing_subbridi);
-                }
-                generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.walk_node(&continuation.trailing_subbridi);
-                }
-            }
-        }
+        self.analyze_predicate(&node.0);
     }
 
     #[requires(true)]
@@ -5204,17 +5303,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
                 self.visit_bridi_tail(&bridi.bridi_tail);
             }
-            generated::BridiSyntax::BridiWithPostCuTerms(bridi) => {
-                for term in &bridi.leading_terms {
-                    self.walk_node(term);
-                }
-                self.visit_cu_terms_bridi_tail(&bridi.bridi_tail);
-            }
             generated::BridiSyntax::BareCuBridi(bridi) => {
                 self.visit_bridi_tail(&bridi.bridi_tail);
-            }
-            generated::BridiSyntax::BareCuTermsBridi(bridi) => {
-                self.visit_cu_terms_bridi_tail(&bridi.bridi_tail);
             }
             generated::BridiSyntax::RelationOnlyBridi(bridi) => {
                 self.visit_bridi_tail(&bridi.0);
@@ -5234,21 +5324,33 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
-    fn visit_cu_terms_bridi_tail(&mut self, tail: &'tree generated::CuTermsBridiTailSyntax) {
-        for term in &tail.terms {
-            self.walk_node(term);
-        }
-        self.visit_bridi_tail(&tail.bridi_tail);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
     fn visit_bridi_tail(&mut self, tail: &'tree generated::BridiTailSyntax) {
         match tail {
-            generated::BridiTailSyntax::ZantufaGroupedBridiTail(tail) => {
+            generated::BridiTailSyntax::ZantufaPriorityGroupedBridiTail(tail) => {
+                let tail = tail.0.as_ref();
                 self.visit_bridi_tail(&tail.bridi_tail);
                 for term in &tail.tail_terms {
                     self.walk_node(term);
+                }
+            }
+            generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTail(tail) => {
+                let tail = tail.0.as_ref();
+                self.visit_afterthought_bridi_tail(&tail.first);
+                for continuation in &tail.continuations {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.visit_afterthought_bridi_tail(&continuation.bridi_tail);
+                }
+            }
+            generated::BridiTailSyntax::ZantufaPriorityContinuedBridiTailWithoutTailTerms(tail) => {
+                let tail = tail.0.as_ref();
+                self.visit_afterthought_bridi_tail_without_tail_terms(&tail.first);
+                for continuation in &tail.continuations {
+                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+                        self.walk_node(tense_modal);
+                    }
+                    self.visit_afterthought_bridi_tail_without_tail_terms(&continuation.bridi_tail);
                 }
             }
             generated::BridiTailSyntax::BridiTailWithPossibleTailTerms(tail) => {
@@ -5310,11 +5412,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     fn visit_bo_grouped_bridi_tail(&mut self, tail: &'tree generated::BoGroupedBridiTailSyntax) {
         self.visit_simple_bridi_tail(&tail.first);
         if let Some(continuation) = tail.bo_continuation.as_deref() {
-            if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+            let continuation = GeneratedBridiTailBoJointRef::from_joint(continuation);
+            if let Some(tense_modal) = continuation.tense_modal {
                 self.walk_node(tense_modal);
             }
-            self.visit_bo_grouped_bridi_tail(&continuation.bridi_tail);
-            for term in &continuation.tail_terms {
+            self.visit_bo_grouped_bridi_tail(continuation.bridi_tail);
+            for term in continuation.tail_terms {
                 self.walk_node(term);
             }
         }
@@ -5328,10 +5431,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) {
         self.visit_simple_bridi_tail_without_tail_terms(&tail.first);
         if let Some(continuation) = tail.bo_continuation.as_deref() {
-            if let Some(tense_modal) = continuation.tense_modal.as_deref() {
+            let continuation =
+                GeneratedBridiTailBoJointWithoutTailTermsRef::from_joint(continuation);
+            if let Some(tense_modal) = continuation.tense_modal {
                 self.walk_node(tense_modal);
             }
-            self.visit_bo_grouped_bridi_tail_without_tail_terms(&continuation.bridi_tail);
+            self.visit_bo_grouped_bridi_tail_without_tail_terms(continuation.bridi_tail);
         }
     }
 
@@ -5339,9 +5444,16 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     #[ensures(true)]
     fn visit_simple_bridi_tail(&mut self, tail: &'tree generated::SimpleBridiTailSyntax) {
         match tail {
-            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(tail) => {
-                self.visit_relation(&tail.selbri);
-                for term in &tail.terms {
+            generated::SimpleBridiTailSyntax::SelbriSimpleBridiTail(_)
+            | generated::SimpleBridiTailSyntax::ExpPrefixedSimpleBridiTail(_) => {
+                let Some(selbri_tail) = GeneratedSelbriBridiTailRef::from_simple(tail) else {
+                    return;
+                };
+                for term in selbri_tail.prefix_terms() {
+                    self.walk_node(term);
+                }
+                self.visit_relation(&selbri_tail.tail.selbri);
+                for term in &selbri_tail.tail.terms {
                     self.walk_node(term);
                 }
             }
@@ -5358,8 +5470,17 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         tail: &'tree generated::SimpleBridiTailWithoutTailTermsSyntax,
     ) {
         match tail {
-            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(tail) => {
-                self.visit_relation(&tail.selbri);
+            generated::SimpleBridiTailWithoutTailTermsSyntax::SelbriSimpleBridiTailWithoutTailTerms(_)
+            | generated::SimpleBridiTailWithoutTailTermsSyntax::ExpPrefixedSimpleBridiTailWithoutTailTerms(_) => {
+                let Some(selbri_tail) =
+                    GeneratedSelbriBridiTailWithoutTailTermsRef::from_simple(tail)
+                else {
+                    return;
+                };
+                for term in selbri_tail.prefix_terms() {
+                    self.walk_node(term);
+                }
+                self.visit_relation(&selbri_tail.tail.selbri);
             }
             generated::SimpleBridiTailWithoutTailTermsSyntax::ForethoughtSimpleBridiTailWithoutTailTerms(tail) => {
                 self.visit_forethought_bridi_connection_without_tail_terms(&tail.0);
@@ -5510,7 +5631,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) -> Option<BridiNodeId> {
         match statement {
             generated::StatementBaseSyntax::BridiStatement(statement) => {
-                Some(BridiNodeId(self.raw_for_node(&statement.bridi)))
+                Some(BridiNodeId(self.raw_for_node(&statement.0)))
             }
             generated::StatementBaseSyntax::PrenexStatement(statement) => {
                 self.statement_main_predicate_id(&statement.inner_statement)
@@ -7376,27 +7497,7 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     #[requires(true)]
     #[ensures(true)]
     fn walk_bridi_statement(&mut self, node: &'tree generated::BridiStatementSyntax) {
-        self.visit_predicate(&node.bridi);
-        for continuation in &node.continuations {
-            match continuation {
-                generated::BridiStatementContinuationSyntax::BoBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.visit_subbridi(&continuation.trailing_subbridi);
-                }
-                generated::BridiStatementContinuationSyntax::KeBridiStatementContinuation(
-                    continuation,
-                ) => {
-                    if let Some(tense_modal) = continuation.tense_modal.as_deref() {
-                        self.walk_node(tense_modal);
-                    }
-                    self.visit_subbridi(&continuation.trailing_subbridi);
-                }
-            }
-        }
+        self.visit_predicate(&node.0);
     }
 
     #[requires(true)]
@@ -7792,10 +7893,9 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
 fn generated_bridi_leading_terms(bridi: &generated::BridiSyntax) -> &[generated::TermSyntax] {
     match bridi {
         generated::BridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.leading_terms,
-        generated::BridiSyntax::BridiWithPostCuTerms(bridi) => &bridi.leading_terms,
-        generated::BridiSyntax::BareCuBridi(_)
-        | generated::BridiSyntax::BareCuTermsBridi(_)
-        | generated::BridiSyntax::RelationOnlyBridi(_) => &[],
+        generated::BridiSyntax::BareCuBridi(_) | generated::BridiSyntax::RelationOnlyBridi(_) => {
+            &[]
+        }
     }
 }
 
@@ -7804,9 +7904,7 @@ fn generated_bridi_leading_terms(bridi: &generated::BridiSyntax) -> &[generated:
 fn generated_bridi_tail(bridi: &generated::BridiSyntax) -> &generated::BridiTailSyntax {
     match bridi {
         generated::BridiSyntax::BridiWithLeadingTerms(bridi) => &bridi.bridi_tail,
-        generated::BridiSyntax::BridiWithPostCuTerms(bridi) => &bridi.bridi_tail.bridi_tail,
         generated::BridiSyntax::BareCuBridi(bridi) => &bridi.bridi_tail,
-        generated::BridiSyntax::BareCuTermsBridi(bridi) => &bridi.bridi_tail.bridi_tail,
         generated::BridiSyntax::RelationOnlyBridi(bridi) => &bridi.0,
     }
 }
