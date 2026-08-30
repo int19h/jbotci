@@ -138,9 +138,6 @@ jobs:
       - name: Run fixture tests
         run: cargo run -r -p xtask-full -- fixture-test --profile all
 
-      - name: Enforce semantics corpus coverage ratchet
-        run: cargo run -r -p xtask-full -- semantics-coverage
-
       - name: Assert native application graphs contain no wgpu
         run: |
           cargo tree -p jbotci > "${RUNNER_TEMP}/jbotci-native-tree.txt"

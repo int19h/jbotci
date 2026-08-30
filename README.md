@@ -1,6 +1,6 @@
 # jbotci 
 
-Lojban parser, semantic analyzer, dictionary with semantic search, gismu generation, lujvo composition and decomposition, and language server.
+Lojban parser, reference analysis, dictionary with semantic search, gismu generation, lujvo composition and decomposition, and language server.
 
 ## Installing
 
@@ -123,4 +123,4 @@ EmbeddingGemma entries are preserved.
 `vendor/cll` tracks the
 [int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.2` release.
 It is kept as a submodule because CLL examples and references are part of the
-core parser and semantics development loop.
+core parser and reference-analysis development loop.

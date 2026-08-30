@@ -157,14 +157,12 @@ fn gentufa_renders_both_syntax_errors_exactly() {
 #[requires(true)]
 #[ensures(true)]
 fn morphology_errors_suppress_syntax_in_every_syntax_command() {
-    for command in ["gentufa", "tersmu"] {
-        let run = capture_cli(&["jbotci", command, MORPHOLOGY_MULTI_ERROR_SOURCE]);
+    let run = capture_cli(&["jbotci", "gentufa", MORPHOLOGY_MULTI_ERROR_SOURCE]);
 
-        assert_eq!(run.status, CliStatus::Failure, "{command}");
-        assert!(run.stdout.is_empty(), "{command}");
-        assert_eq!(run.stderr, expected_morphology_stderr(2), "{command}");
-        assert!(!run.stderr.contains("syntax."), "{command}");
-    }
+    assert_eq!(run.status, CliStatus::Failure);
+    assert!(run.stdout.is_empty());
+    assert_eq!(run.stderr, expected_morphology_stderr(2));
+    assert!(!run.stderr.contains("syntax."));
 
     let blocks = capture_cli(&[
         "jbotci",
@@ -197,20 +195,6 @@ fn gentufa_blocks_svg_renders_recovered_regions_without_changing_diagnostics() {
 
     assert_eq!(run.status, CliStatus::Failure);
     assert_recovered_blocks_svg(&run.stdout);
-    assert_eq!(
-        run.stderr,
-        expected_syntax_stderr(DiagnosticDetailMode::Summary, 2)
-    );
-}
-
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn tersmu_renders_all_syntax_errors_without_semantic_output() {
-    let run = capture_cli(&["jbotci", "tersmu", SYNTAX_MULTI_ERROR_SOURCE]);
-
-    assert_eq!(run.status, CliStatus::Failure);
-    assert!(run.stdout.is_empty());
     assert_eq!(
         run.stderr,
         expected_syntax_stderr(DiagnosticDetailMode::Summary, 2)
@@ -268,7 +252,7 @@ fn max_errors_one_caps_both_recovery_phases_at_the_first_diagnostic() {
 #[requires(true)]
 #[ensures(true)]
 fn max_errors_uses_parser_defaults_and_rejects_zero_for_every_parsing_command() {
-    for command in ["gentufa", "tersmu", "vlasei"] {
+    for command in ["gentufa", "vlasei"] {
         let error = Cli::try_parse_from(["jbotci", command, "--max-errors", "0", "mi"])
             .expect_err("zero recovery error cap must be rejected");
         assert_eq!(error.kind(), ErrorKind::ValueValidation, "{command}");
@@ -290,13 +274,6 @@ fn max_errors_uses_parser_defaults_and_rejects_zero_for_every_parsing_command() 
         panic!("gentufa command should parse as gentufa");
     };
     assert_eq!(gentufa.max_errors, None);
-
-    let tersmu = Cli::try_parse_from(["jbotci", "tersmu", "mi"])
-        .expect("default tersmu arguments should parse");
-    let Command::Tersmu(tersmu) = tersmu.command else {
-        panic!("tersmu command should parse as tersmu");
-    };
-    assert_eq!(tersmu.max_errors, None);
 
     let vlasei = Cli::try_parse_from(["jbotci", "vlasei", "mi"])
         .expect("default vlasei arguments should parse");

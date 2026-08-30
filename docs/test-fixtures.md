@@ -70,7 +70,7 @@ Every facet is optional so exporters can land expectations incrementally. The
 long-term goal is one uniform fixture format for CLL, muplis, camxes corpus,
 and ad hoc regression cases. Test runners should allow selection by both
 fixture groups and facet, for example all CLL chapter 18 syntax tests or all
-CLL plus muplis semantics tests.
+CLL plus muplis reference-analysis tests.
 
 Tags are for ad hoc organization that is not already captured by provenance,
 path, or structured selectors. For example, CLL chapter membership belongs in

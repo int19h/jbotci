@@ -138,7 +138,7 @@ DEALINGS IN THE FONT SOFTWARE.
 jbotci embeds text, examples, and the formal grammar from
 [colojban 1.3.2](https://github.com/int19h/cll/tree/v1.3.2), a modified fork of
 *The Complete Lojban Language* by John Woldemar Cowan. This material powers the
-grammar reference (the `cukta` tool) and drives parser and semantics
+grammar reference (the `cukta` tool) and drives parser and reference-analysis
 development. Its lineage is the official CLL 1.1, followed by the UnCLL
 `geklojban-1.2.16` revision, followed by the colojban 1.3.2 fork vendored here.
 The book carries the following notice, which its license requires us to

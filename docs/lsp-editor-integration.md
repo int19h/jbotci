@@ -467,7 +467,8 @@ order of value:
 - **Parametrized parse command**: `jbotci.parse(text?)` opening a virtual
   read-only result tab (`TextDocumentContentProvider`, `jbotci-parse:`
   scheme); command palette (input box), "Parse selection" context menu,
-  per-paragraph code lens. Same pattern later for tersmu. All of these consume
+  per-paragraph code lens. Same pattern later for the semantic analysis that
+  succeeds the retired tersmu implementation (#869). All of these consume
   `jbotci-ide` queries — never a second pipeline.
 - **Markdown preview integration** via the built-in extension's
   `extendMarkdownIt` API: pandi-decorated or gentufa-rendered preview.
@@ -489,8 +490,8 @@ Findings (verified 2026-07-14):
 - `GeneratedReferenceAnalysis::analyze` takes `&GeneratedTextSyntax` — the
   **valid** model only (`crates/jbotci-semantics/src/references.rs:486`).
   There is no mention of the recovered model anywhere in `jbotci-semantics`
-  (8,713 lines in references.rs alone); the tersmu semantic builder is
-  likewise valid-only.
+  (8,713 lines in references.rs alone); the tersmu semantic builder, which has
+  since been retired (#869), was likewise valid-only.
 - The output layer confirms the gap is load-bearing:
   `pretty_recovered_generated_model_tree_with_options` tries
   `try_into_valid()` and renders references only if that succeeds — i.e. only

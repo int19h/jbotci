@@ -7,12 +7,10 @@ use axum::http::header::CONTENT_TYPE;
 use axum::http::{Response, StatusCode};
 use base64::Engine;
 use bityzba::{invariant, requires};
-use jbotci_cli::projection::ProjectionFailureEnvelope;
 use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolGentufaRequest, ToolGimfihiRequest,
-    ToolJvozbaRequest, ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest,
-    ToolVlaseiRequest, run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_tersmu,
-    run_tool_vlasei, tool_request_schema,
+    ToolJvozbaRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, ToolVlaseiRequest,
+    run_tool_gentufa, run_tool_gimfihi, run_tool_jvozba, run_tool_vlasei, tool_request_schema,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -33,18 +31,6 @@ const LOJBAN_GRAMMAR_MIME: &str = "text/plain; charset=utf-8";
 const LOJBAN_GRAMMAR_DESCRIPTION: &str = "The formal EBNF grammar of Lojban — the official machine grammar that `gentufa` implements, \
      prefixed with a guide to its non-standard notation (`&`, `...`, `//`, `#`). Read this to \
      understand or generate Lojban syntax.";
-
-/// The SFN-XML tersmu document schema, embedded from `jbotci-semantics` so
-/// the server stays self-contained and the resource works on any transport.
-const SFN_XML_SCHEMA_URI: &str = "jbotci:///tersmu/sfn-xml-v0.xsd";
-const SFN_XML_SCHEMA_NAME: &str = "sfn-xml-schema";
-const SFN_XML_SCHEMA_TITLE: &str = "SFN-XML v0 document schema";
-const SFN_XML_SCHEMA_MIME: &str = "application/xml";
-const SFN_XML_SCHEMA_DESCRIPTION: &str = "The XSD 1.0 schema of the complete SFN-XML tersmu document that `tersmu --format xml` \
-     emits — the compact scoped form, the `WORDS` word-card section, and the `TYPED-GRAPH` fallback form. \
-     Every element and attribute carries reference documentation in `xs:annotation`, including the \
-     ID/IDREF discipline and the constructs that resist XSD 1.0 typing. Read this to interpret or \
-     validate tersmu XML output.";
 
 #[invariant(true)]
 #[derive(Debug, Deserialize)]
@@ -131,7 +117,6 @@ pub(crate) async fn mcp_post(
                 .and_then(Value::as_str);
             match uri {
                 Some(LOJBAN_GRAMMAR_URI) => grammar_resource_contents(),
-                Some(SFN_XML_SCHEMA_URI) => sfn_xml_schema_resource_contents(),
                 Some(other) => {
                     return json_response(
                         StatusCode::OK,
@@ -209,7 +194,7 @@ fn initialize_result() -> Value {
             "title": SERVER_TITLE,
             "version": env!("CARGO_PKG_VERSION")
         },
-        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `tersmu` for deep logical meaning, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format; `tersmu` defaults to canonical, self-describing SFN-XML. Request `smusni` for the experimental human-readable typed S-expression notation or `json` for the canonical interchange graph."
+        "instructions": "jbotci is a Lojban toolkit. Choose a tool by task: `cukta` for the reference grammar (CLL), `vlacku` for dictionary word lookups, `gentufa` to parse a sentence's grammar, `vlasei` for word-level morphology, `jvozba` to build a compound word, `gimfihi` to invent a new root word. Tools default to a readable text (or image) format."
     })
 }
 
@@ -253,8 +238,8 @@ fn mcp_tools() -> Vec<Value> {
             "Lojban morphology",
             "Split Lojban text into words and classify each one (gismu, cmavo, lujvo, cmevla, \
              fu'ivla, …). This is word-level analysis — for the grammar of a whole sentence use \
-             `gentufa`, and for its meaning use `tersmu`. Recoverable errors return marked partial \
-             output plus diagnostics. Defaults to a readable tree.",
+             `gentufa`. Recoverable errors return marked partial output plus diagnostics. Defaults \
+             to a readable tree.",
             tool_request_schema::<ToolVlaseiRequest>(),
         ),
         tool_definition(
@@ -262,8 +247,8 @@ fn mcp_tools() -> Vec<Value> {
             "Parse Lojban grammar",
             "Parse Lojban text into its grammar (syntax) tree — the authoritative way to see how a \
              sentence is structured and which word fills each role. For word-level analysis only use \
-             `vlasei`; for logical meaning use `tersmu`. Recoverable errors return a marked partial \
-             tree plus diagnostics. Defaults to a readable tree with place references.",
+             `vlasei`. Recoverable errors return a marked partial tree plus diagnostics. Defaults \
+             to a readable tree with place references.",
             tool_request_schema::<ToolGentufaRequest>(),
         ),
         tool_definition(
@@ -274,73 +259,19 @@ fn mcp_tools() -> Vec<Value> {
              `vlacku`). Returns a ranked table.",
             tool_request_schema::<ToolGimfihiRequest>(),
         ),
-        tool_definition(
-            "tersmu",
-            "Lojban semantics",
-            "Compute the deep semantic/logical meaning of Lojban text. The default is canonical \
-             scoped SFN-XML: the `SFN` root begins with an embedded, authoritative `KEY`; the \
-             ordinary scoped form places shared graph definitions in scoped `DEFS` before the \
-             semantic body. UPPERCASE names are structural elements and attributes, PascalCase \
-             values are sorts, and lowercase content words occur only as data values. Simple ID \
-             and number lists are space-separated attributes; semantic structure remains \
-             element-valued, child order is fixed, and childless elements self-close. `ID=` \
-             defines a shared graph node (except that `DEICTIC-GROUND` role \
-             references define speech-situation referents); `REF=` and named `*-REF=` attributes \
-             point to discourse referents, later references reuse the exact node, and `GROUND=` \
-             points to a deictic-ground unit. IDs are opaque; distinct IDs assert neither identity \
-             nor non-identity. `EXISTS`, `FORALL`, and `CARDINALITY` bind a `VARIABLE`; use sites \
-             carry `REF=`, while `RESTRICTION` and `BODY` are explicit siblings. `EXISTS` has no \
-             `RESTRICTION`; the other binders always write one, even when empty. `ADJUNCT` adds a \
-             predicate-keyed optional participant: compact lexical adjuncts use `PREDICATE=` and \
-             flat `ARG` children, composite adjuncts use `BODY`, `FILL=\"true\"` marks the unique \
-             explicit non-host filled place, and `APPLIES-TO` links the host. `REF=\"SOME\"` is a \
-             distinct elided node per occurrence, without asserting non-identity. `DEICTIC-GROUND`, \
-             selected by `UTTERANCE GROUND=`, is the shared speech situation identified by its \
-             speaker, audience, time, and place referents; grounds share one definition exactly \
-             when those four referents are pairwise identical. Silence is noncommittal: references \
-             are number-neutral unless an explicit description quantity, cardinality binder, or \
-             mass restriction commits number; an unmarked referent inside a quantifier may be \
-             shared or vary with the bound variable, while `SAME-FOR-ALL` marks known sharing and \
-             `POSSIBLY-DIFFERENT-PER=` names a strict subset of enclosing binders on which it may \
-             depend; and an absent facet attribute means `UNSPECIFIED` (no commitment). That facet default is \
-             distinct from an absent XML structure: do not invent an `UNSPECIFIED` value or a \
-             negative claim for arbitrary absent elements or attributes. With definitions on (the \
-             default), a `WORDS` section follows the `KEY`: one structured `WORD` card per content \
-             word, whose `DEF` and `NOTES` dictionary prose uses `ARG INDEX=\"n\"` place markup in \
-             the same argument vocabulary as predications; `KNOWN=\"false\"` marks a \
-             dictionary-absent word, and `COMPOSITE-APPROX` shows the mechanical, suggestive-only \
-             composition of a dictionary-absent compound through the same `KIND-COMPOSITION` idiom \
-             as the body. The `SFN FORM=\"TYPED-GRAPH\"` \
-             fallback uses its own embedded `KEY` and `OBJECT`/`FIELD`/`RECORD`/`LIST`/`ITEM`/`REFERENCE` \
-             typed vocabulary; follow that key instead of the ordinary scoped vocabulary. The \
-             complete document schema (XSD 1.0, with per-element reference documentation) is \
-             queryable as the `jbotci:///tersmu/sfn-xml-v0.xsd` resource. Request \
-             `smusni` for the experimental human-readable typed S-expression notation or `json` for the canonical interchange graph. \
-             For grammar use `gentufa`, for morphology use `vlasei`.",
-            tool_request_schema::<ToolTersmuRequest>(),
-        ),
     ]
 }
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn mcp_resources() -> Vec<Value> {
-    vec![
-        json!({
-            "uri": LOJBAN_GRAMMAR_URI,
-            "name": LOJBAN_GRAMMAR_NAME,
-            "title": LOJBAN_GRAMMAR_TITLE,
-            "description": LOJBAN_GRAMMAR_DESCRIPTION,
-            "mimeType": LOJBAN_GRAMMAR_MIME,
-        }),
-        json!({
-            "uri": SFN_XML_SCHEMA_URI,
-            "name": SFN_XML_SCHEMA_NAME,
-            "title": SFN_XML_SCHEMA_TITLE,
-            "description": SFN_XML_SCHEMA_DESCRIPTION,
-            "mimeType": SFN_XML_SCHEMA_MIME,
-        }),
-    ]
+    vec![json!({
+        "uri": LOJBAN_GRAMMAR_URI,
+        "name": LOJBAN_GRAMMAR_NAME,
+        "title": LOJBAN_GRAMMAR_TITLE,
+        "description": LOJBAN_GRAMMAR_DESCRIPTION,
+        "mimeType": LOJBAN_GRAMMAR_MIME,
+    })]
 }
 
 #[requires(true)]
@@ -353,20 +284,6 @@ fn grammar_resource_contents() -> Value {
             "title": LOJBAN_GRAMMAR_TITLE,
             "mimeType": LOJBAN_GRAMMAR_MIME,
             "text": LOJBAN_GRAMMAR_EBNF,
-        }]
-    })
-}
-
-#[requires(true)]
-#[ensures(ret.is_object())]
-fn sfn_xml_schema_resource_contents() -> Value {
-    json!({
-        "contents": [{
-            "uri": SFN_XML_SCHEMA_URI,
-            "name": SFN_XML_SCHEMA_NAME,
-            "title": SFN_XML_SCHEMA_TITLE,
-            "mimeType": SFN_XML_SCHEMA_MIME,
-            "text": jbotci_semantics::SFN_XML_SCHEMA_XSD,
         }]
     })
 }
@@ -419,7 +336,6 @@ async fn call_tool(params: ToolCallParams, tool_services: ToolServices) -> Value
             })
             .await
         }
-        "tersmu" => call_typed_tool(arguments, run_tool_tersmu).await,
         _ => tool_error_result(format!("Unknown tool: {name}")),
     }
 }
@@ -467,13 +383,6 @@ fn tool_output_result(output: ToolRenderedOutput) -> Value {
         output.status,
         ToolStatus::Failure | ToolStatus::InvalidInput
     ) {
-        // A smusni projection failure carries the same structured envelope the
-        // HTTP profile returns: a concise readable summary first, then the
-        // envelope as one JSON text item. Nothing here reparses the rendered
-        // diagnostics (specification section 16.3).
-        if let Some(envelope) = &output.projection_failure {
-            return projection_failure_error_result(envelope);
-        }
         return tool_error_result(tool_error_text(&output));
     }
     let mut content = Vec::new();
@@ -528,34 +437,6 @@ fn tool_error_text(output: &ToolRenderedOutput) -> String {
         return text;
     }
     format!("tool failed with status {:?}", output.status)
-}
-
-/// The MCP presentation of one structured projection failure.
-#[requires(true)]
-#[ensures(ret["isError"] == true)]
-fn projection_failure_error_result(envelope: &ProjectionFailureEnvelope) -> Value {
-    let mut summary = format!(
-        "{}: the {} projection of this input failed with {} registered projection error(s)",
-        envelope.code, envelope.format, envelope.total
-    );
-    if envelope.truncated {
-        summary.push_str(&format!("; {} of them are carried here", envelope.returned));
-    }
-    if let Some(first) = envelope.diagnostics.first() {
-        summary.push_str(&format!(
-            "\nfirst error {}: {}",
-            first.reason_id, first.message
-        ));
-    }
-    let serialized = serde_json::to_string_pretty(envelope)
-        .unwrap_or_else(|error| format!("{{\"serializationError\":{error:?}}}"));
-    json!({
-        "content": [
-            { "type": "text", "text": summary },
-            { "type": "text", "text": serialized }
-        ],
-        "isError": true
-    })
 }
 
 #[requires(true)]
@@ -629,7 +510,6 @@ mod tests {
             stdout: "([mi ‼ku‼] [.i do])\n".as_bytes().to_vec(),
             stderr: "error[syntax.unexpected-cmavo]: unexpected cmavo\n".to_owned(),
             content_type: Some("text/plain; charset=utf-8".to_owned()),
-            projection_failure: None,
         };
 
         let result = tool_output_result(output);

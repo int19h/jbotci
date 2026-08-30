@@ -1,66 +1,10 @@
 extern crate bityzba;
 
-use std::error::Error;
-use std::path::PathBuf;
-
 #[allow(unused_imports)]
 use bityzba::{ensures, requires};
 
-#[path = "codegen/smusni_v0_bundle.rs"]
-mod smusni_v0_bundle;
-#[path = "codegen/smusni_v0_completeness.rs"]
-mod smusni_v0_completeness;
-#[path = "codegen/smusni_v0_dispositions.rs"]
-mod smusni_v0_dispositions;
-#[path = "codegen/smusni_v0_kernel.rs"]
-mod smusni_v0_kernel;
-#[path = "codegen/smusni_v0_surface.rs"]
-mod smusni_v0_surface;
-
-use smusni_v0_bundle::{BundleMode, BundlePaths};
-
 #[requires(true)]
 #[ensures(true)]
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     bityzba::require_contracts().unwrap();
-    let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
-    let paths = BundlePaths::for_manifest_dir(
-        &manifest_dir,
-        PathBuf::from(std::env::var("OUT_DIR")?).join("lexical_scope_policies.rs"),
-    );
-    let dispositions = smusni_v0_dispositions::projected_dispositions();
-    let mode = match std::env::var("JBOTCI_SMUSNI_V0_BUNDLE_MODE") {
-        Err(std::env::VarError::NotPresent) => BundleMode::Check,
-        Ok(value) if value == "check" => BundleMode::Check,
-        Ok(value) if value == "generate" => BundleMode::Generate,
-        Ok(value) => return Err(format!("unknown smusni-v0 bundle mode {value:?}").into()),
-        Err(error) => return Err(error.into()),
-    };
-    smusni_v0_bundle::run(&paths, &dispositions, mode)?;
-    for relative in smusni_v0_bundle::bundle_rerun_paths() {
-        println!(
-            "cargo:rerun-if-changed={}",
-            paths.root.join(relative).display()
-        );
-    }
-    for relative in smusni_v0_bundle::repository_rerun_paths() {
-        println!(
-            "cargo:rerun-if-changed={}",
-            paths.repository_root.join(relative).display()
-        );
-    }
-    // `build.rs` includes these through `#[path]`, and cargo tracks only the
-    // script itself, so each generator module needs its own rerun trigger.
-    for module in [
-        "codegen/smusni_v0_bundle.rs",
-        "codegen/smusni_v0_completeness.rs",
-        "codegen/smusni_v0_dispositions.rs",
-        "codegen/smusni_v0_kernel.rs",
-        "codegen/smusni_v0_sexpr.rs",
-        "codegen/smusni_v0_surface.rs",
-    ] {
-        println!("cargo:rerun-if-changed={module}");
-    }
-    println!("cargo:rerun-if-env-changed=JBOTCI_SMUSNI_V0_BUNDLE_MODE");
-    Ok(())
 }

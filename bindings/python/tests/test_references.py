@@ -523,7 +523,7 @@ def test_payload_values_follow_rust_equality_and_hashability() -> None:
         hash(first_target)
 
 
-def test_high_level_analyze_retains_parse_products_without_tersmu_surface() -> None:
+def test_high_level_analyze_retains_parse_products_without_semantic_graph_surface() -> None:
     result = jbotci.analyze("mi tavla do", source_id="reference-test")
 
     assert isinstance(result, jbotci.AnalyzedText)

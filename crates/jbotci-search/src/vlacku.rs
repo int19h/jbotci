@@ -320,9 +320,8 @@ pub struct VlackuCard {
     pub word: String,
     pub word_type: String,
     /// False marks a synthesized card for a word with no dictionary entry
-    /// carrying a definition (the text-card equivalent of the tersmu XML
-    /// `KNOWN="false"` attribute); renderers must flag such cards explicitly
-    /// so they do not read as definition-less known entries.
+    /// carrying a definition; renderers must flag such cards explicitly so
+    /// they do not read as definition-less known entries.
     pub known: bool,
     pub selmaho: Option<String>,
     pub author: Option<VlackuAuthor>,
@@ -373,18 +372,10 @@ pub struct ParsedWordDictionaryMatch {
 struct ParsedWordLookupTarget {
     lookup_text: String,
     is_lujvo: bool,
-    match_requirement: DictionaryMatchRequirement,
     byte_start: usize,
     byte_end: usize,
     char_start: usize,
     char_end: usize,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum DictionaryMatchRequirement {
-    AllowSyntheticMissing,
-    ExactEntry,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -487,34 +478,6 @@ pub fn dictionary_matches_for_word_likes(
     let mut matches = Vec::new();
     for word_like in words {
         for target in dictionary_lookup_targets(word_like) {
-            let cards = dictionary_cards_for_lookup_target(dictionary, &target);
-            if cards.is_empty() {
-                continue;
-            }
-            let target = target.into_data();
-            matches.push(new!(ParsedWordDictionaryMatch {
-                lookup_text: target.lookup_text,
-                byte_start: target.byte_start,
-                byte_end: target.byte_end,
-                char_start: target.char_start,
-                char_end: target.char_end,
-                cards,
-            }));
-        }
-    }
-    matches
-}
-
-#[requires(true)]
-#[ensures(words.is_empty() -> ret.is_empty())]
-#[ensures(ret.iter().all(|parsed_match| !parsed_match.cards.is_empty()))]
-pub fn dictionary_matches_for_content_word_likes(
-    dictionary: &Dictionary<'_>,
-    words: &[WordLike],
-) -> Vec<ParsedWordDictionaryMatch> {
-    let mut matches = Vec::new();
-    for word_like in words {
-        for target in content_dictionary_lookup_targets(word_like) {
             let cards = dictionary_cards_for_lookup_target(dictionary, &target);
             if cards.is_empty() {
                 continue;
@@ -692,30 +655,17 @@ fn dictionary_cards_for_lookup_target(
     target: &ParsedWordLookupTarget,
 ) -> Vec<VlackuCard> {
     let options = parsed_word_vlacku_options();
-    let exact_entries = dictionary
+    let exact_definition_found = dictionary
         .lookup_words(&target.lookup_text)
-        .collect::<Vec<_>>();
-    if target.match_requirement == DictionaryMatchRequirement::ExactEntry
-        && exact_entries.is_empty()
-    {
-        return Vec::new();
-    }
-    let exact_definition_found = exact_entries
-        .iter()
         .any(|entry| !entry.definition.trim().is_empty());
     let output = if target.is_lujvo && !exact_definition_found {
         cards_for_lujvo(dictionary, &target.lookup_text, &options)
     } else {
         cards_for_valsi(dictionary, &target.lookup_text, &options)
     };
-    match (target.match_requirement, output.outcome) {
-        (DictionaryMatchRequirement::ExactEntry, VlackuOutcome::ValidMissing)
-        | (_, VlackuOutcome::Invalid) => Vec::new(),
-        (
-            DictionaryMatchRequirement::AllowSyntheticMissing,
-            VlackuOutcome::Found | VlackuOutcome::ValidMissing,
-        )
-        | (DictionaryMatchRequirement::ExactEntry, VlackuOutcome::Found) => output.cards,
+    match output.outcome {
+        VlackuOutcome::Invalid => Vec::new(),
+        VlackuOutcome::Found | VlackuOutcome::ValidMissing => output.cards,
     }
 }
 
@@ -747,89 +697,6 @@ fn dictionary_lookup_targets(word_like: &WordLike) -> Vec<ParsedWordLookupTarget
     let mut targets = Vec::new();
     push_dictionary_lookup_targets(word_like, &mut targets);
     targets
-}
-
-#[requires(true)]
-#[ensures(ret.iter().all(|target| !target.lookup_text.is_empty()))]
-fn content_dictionary_lookup_targets(word_like: &WordLike) -> Vec<ParsedWordLookupTarget> {
-    let mut targets = Vec::new();
-    push_content_dictionary_lookup_targets(word_like, &mut targets);
-    targets
-}
-
-// Owner doctrine: cmavo semantics are what the semantic graph expresses. If
-// comprehension suffers without cmavo definitions, improve the notation;
-// definitions never return. This filter relies exclusively on typed morphology
-// classes (`WordKind` and the morphology-defined `ZeiCompound` brivla).
-#[requires(true)]
-#[ensures(targets.len() >= old(targets.len()))]
-fn push_content_dictionary_lookup_targets(
-    word_like: &WordLike,
-    targets: &mut Vec<ParsedWordLookupTarget>,
-) {
-    match word_like.as_data() {
-        data!(WordLike::PlainWord(word)) => {
-            push_word_content_lookup_target(word, targets);
-        }
-        data!(WordLike::QuotedWord { word, .. }) => {
-            // The quoted word is the referenced content; the `zo` quote marker
-            // is not.
-            push_word_content_lookup_target(word, targets);
-        }
-        data!(WordLike::SelmahoQuotedWord { word, .. }) => {
-            // Same: define the referenced word, not the `ma'oi` marker.
-            push_word_content_lookup_target(word, targets);
-        }
-        data!(WordLike::QuotedWords { quoted_words, .. }) => {
-            for word in quoted_words {
-                push_word_content_lookup_target(word, targets);
-            }
-        }
-        // `zoi` quotes non-Lojban text (no dictionary entry by construction);
-        // the remaining delimited quotes reference no defined word.
-        data!(WordLike::DelimitedNonLojbanQuote { .. })
-        | data!(WordLike::DelimitedWordQuote { .. }) => {}
-        // A lerfu word is a BY letteral, hence a cmavo by morphology.
-        data!(WordLike::LerfuWord { .. }) => {}
-        data!(WordLike::ZeiCompound { .. }) => {
-            // `zei` constructs a brivla. Its compound spelling cannot equal a
-            // single-cmavo dictionary key, so this lookup cannot add a cmavo
-            // card.
-            if let Some(target) = word_like_lookup_target(word_like) {
-                targets.push(target);
-            }
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(
-    matches!(word.kind(), WordKind::Cmavo) ->
-        targets.len() == old(targets.len())
-)]
-#[ensures(
-    matches!(
-        word.kind(),
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla | WordKind::Cmevla
-    ) -> targets.len() == old(targets.len()) + 1
-)]
-fn push_word_content_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
-    match word.kind() {
-        WordKind::Gismu | WordKind::Lujvo | WordKind::Fuhivla => {
-            push_word_lookup_target(word, targets);
-        }
-        WordKind::Cmevla => {
-            // A morphology-valid cmevla is content only when the dictionary
-            // has an exact entry; synthetic ValidMissing cards are vlacku
-            // behavior, not definition grounding.
-            push_word_lookup_target_with_requirement(
-                word,
-                DictionaryMatchRequirement::ExactEntry,
-                targets,
-            );
-        }
-        WordKind::Cmavo => {}
-    }
 }
 
 #[requires(true)]
@@ -880,26 +747,11 @@ fn push_dictionary_lookup_targets(word_like: &WordLike, targets: &mut Vec<Parsed
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn push_word_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
-    push_word_lookup_target_with_requirement(
-        word,
-        DictionaryMatchRequirement::AllowSyntheticMissing,
-        targets,
-    );
-}
-
-#[requires(true)]
 #[ensures(targets.len() == old(targets.len()) + 1)]
-fn push_word_lookup_target_with_requirement(
-    word: &Word,
-    match_requirement: DictionaryMatchRequirement,
-    targets: &mut Vec<ParsedWordLookupTarget>,
-) {
+fn push_word_lookup_target(word: &Word, targets: &mut Vec<ParsedWordLookupTarget>) {
     targets.push(new!(ParsedWordLookupTarget {
         lookup_text: word_lookup_text(word),
         is_lujvo: word.kind() == WordKind::Lujvo,
-        match_requirement,
         byte_start: word.span().byte_start,
         byte_end: word.span().byte_end,
         char_start: word.span().char_start,
@@ -926,7 +778,6 @@ fn word_like_lookup_target(word_like: &WordLike) -> Option<ParsedWordLookupTarge
     Some(new!(ParsedWordLookupTarget {
         lookup_text,
         is_lujvo: matches!(word_like.as_data(), data!(WordLike::ZeiCompound { .. })),
-        match_requirement: DictionaryMatchRequirement::AllowSyntheticMissing,
         byte_start,
         byte_end,
         char_start,
@@ -2892,57 +2743,5 @@ mod tests {
                 .map(|card| card.word.as_str()),
             Some("abu zei sance")
         );
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn content_word_dictionary_matches_follow_typed_morphology_classes() {
-        let words = segment_words_with_modifiers("mi .banan. klama ti klupe zo klama abu")
-            .expect("morphology");
-        let matches =
-            dictionary_matches_for_content_word_likes(jbotci_dictionary_data::english(), &words);
-        assert_eq!(
-            matches
-                .iter()
-                .map(|parsed_match| parsed_match.lookup_text.as_str())
-                .collect::<Vec<_>>(),
-            vec!["klama", "klupe", "klama"]
-        );
-        assert!(matches.iter().all(|parsed_match| {
-            parsed_match
-                .cards
-                .iter()
-                .all(|card| card.word_type != "cmavo")
-        }));
-        assert!(
-            matches
-                .iter()
-                .all(|parsed_match| parsed_match.lookup_text != "banan"),
-            "an unattested cmevla must not produce a synthetic missing card"
-        );
-
-        let dictionary_cmevla =
-            segment_words_with_modifiers(".abeced.").expect("dictionary cmevla morphology");
-        let dictionary_cmevla_matches = dictionary_matches_for_content_word_likes(
-            jbotci_dictionary_data::english(),
-            &dictionary_cmevla,
-        );
-        assert_eq!(dictionary_cmevla_matches.len(), 1);
-        assert_eq!(dictionary_cmevla_matches[0].lookup_text, "abeced");
-        assert_eq!(dictionary_cmevla_matches[0].cards[0].word, "abeced");
-
-        let zei_words =
-            segment_words_with_modifiers("mi zei klama").expect("ZEI compound morphology");
-        assert_eq!(zei_words.len(), 1);
-        let zei_targets = content_dictionary_lookup_targets(&zei_words[0]);
-        assert_eq!(zei_targets.len(), 1);
-        assert_eq!(zei_targets[0].lookup_text, "mi zei klama");
-        assert!(zei_targets[0].is_lujvo);
-        let zei_matches = dictionary_matches_for_content_word_likes(
-            jbotci_dictionary_data::english(),
-            &zei_words,
-        );
-        assert!(zei_matches.is_empty());
     }
 }

@@ -47,9 +47,12 @@ define_string_enum! {
 define_string_enum! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     #[serde(rename_all = "kebab-case")]
-    // `SemanticProjection` is the phase after a graph exists: the input parsed
-    // and built a semantic graph, and the requested projection could not
-    // represent it.
+    // `SemanticProjection` is the phase past parsing: the input is
+    // grammatical, and semantic analysis could not represent it in the
+    // requested form. It has no in-tree producer since the legacy tersmu
+    // implementation was retired (#869); it is kept as the generic phase for
+    // that stage, and `apps/jbotci/src/lsp.rs` still maps it to its own LSP
+    // diagnostic source.
     pub enum DiagnosticPhase {
         Morphology => "morphology",
         Syntax => "syntax",

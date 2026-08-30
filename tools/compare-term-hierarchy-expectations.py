@@ -1001,7 +1001,7 @@ def compare_fixture(
             if bracket_token_projection(old_value) != bracket_token_projection(new_value):
                 residue.append("gentufa.brackets token projection changed")
             continue
-        # Diagnostics, statuses, digests, semantics refs, tersmu output and every other leaf
+        # Diagnostics, statuses, digests, semantics refs and every other leaf
         # are deliberately exact.
         residue.append(joined)
     if not classes and old != new and not residue and not prose:

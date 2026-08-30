@@ -62,7 +62,7 @@ RUST_ONLY_CONCEPTS: dict[tuple[str, str], tuple[str, str]] = {
     ),
     ("jbotci_dictionary", "places"): (
         "implementation-representation",
-        "Definition place-marker parsing and line segmentation are Rust-side definition-text rendering machinery shared by the output and semantics crates (moved from jbotci-output, which is outside the Python API scope); Python dictionary results carry the raw definition and notes text and no line-formatting internals.",
+        "Definition place-marker parsing and line segmentation are Rust-side definition-text rendering machinery used by the output crate (moved from jbotci-output, which is outside the Python API scope); Python dictionary results carry the raw definition and notes text and no line-formatting internals.",
     ),
     ("jbotci_syntax", "with_recovery_reachability_instrumentation"): (
         "implementation-representation",

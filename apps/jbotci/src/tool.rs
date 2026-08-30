@@ -119,11 +119,6 @@ pub struct ToolRenderedOutput {
     pub stdout: Vec<u8>,
     pub stderr: String,
     pub content_type: Option<String>,
-    /// The structured smusni projection-failure envelope, present exactly when
-    /// a requested smusni projection failed (jbotci#753). Transports carry
-    /// this value through; specification section 16.1 forbids recovering the
-    /// same structure by parsing `stderr` back.
-    pub projection_failure: Option<ProjectionFailureEnvelope>,
 }
 
 impl ToolRenderedOutput {
@@ -134,14 +129,12 @@ impl ToolRenderedOutput {
         stdout: Vec<u8>,
         stderr: String,
         content_type: Option<&'static str>,
-        projection_failure: Option<ProjectionFailureEnvelope>,
     ) -> Self {
         Self {
             status: status.into(),
             stdout,
             stderr,
             content_type: content_type.map(str::to_owned),
-            projection_failure,
         }
     }
 
@@ -1498,128 +1491,6 @@ impl TryFrom<ToolGimfihiCommandInput> for Command {
     }
 }
 
-/// Output format for a model-facing `tersmu` semantic analysis. `xml` is the
-/// default, `smusni` is the typed S-expression notation, and `json` is the
-/// canonical interchange graph.
-#[invariant(::Json => true)]
-#[invariant(::Smusni => true)]
-#[invariant(::Xml => true)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, schemars::JsonSchema,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum ToolTersmuFormat {
-    /// Canonical `lojban-semantics-json-1` flat id-graph.
-    Json,
-    /// Experimental human-readable typed S-expression notation.
-    Smusni,
-    /// Canonical scoped SFN-XML rendering of the semantic graph.
-    Xml,
-}
-
-impl Default for ToolTersmuFormat {
-    #[requires(true)]
-    #[ensures(ret == ToolTersmuFormat::Xml)]
-    fn default() -> Self {
-        Self::Xml
-    }
-}
-
-impl ToolTersmuFormat {
-    #[requires(true)]
-    #[ensures(ret == matches!(self, Self::Smusni | Self::Xml))]
-    fn supports_definitions(self) -> bool {
-        matches!(self, Self::Smusni | Self::Xml)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn command_format(self) -> TersmuFormat {
-        match self {
-            Self::Json => TersmuFormat::Json,
-            Self::Smusni => TersmuFormat::Smusni,
-            Self::Xml => TersmuFormat::Xml,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(self == Self::Json -> ret == APPLICATION_JSON_CONTENT_TYPE)]
-    #[ensures(self == Self::Smusni -> ret == TEXT_PLAIN_CONTENT_TYPE)]
-    #[ensures(self == Self::Xml -> ret == APPLICATION_XML_CONTENT_TYPE)]
-    fn content_type(self, _show_defs: bool) -> &'static str {
-        match self {
-            Self::Json => APPLICATION_JSON_CONTENT_TYPE,
-            Self::Smusni => TEXT_PLAIN_CONTENT_TYPE,
-            // XML with definitions is again one well-formed document: the
-            // structured WORDS section lives inside the SFN root (#709).
-            Self::Xml => APPLICATION_XML_CONTENT_TYPE,
-        }
-    }
-}
-
-/// Build the deep semantic representation of Lojban text. The canonical result
-/// is the `lojban-semantics-json-1` graph; optional human formats are pure
-/// renderings of that same graph. Reach for this when you need logical meaning,
-/// beyond morphology (`vlasei`) or grammar (`gentufa`).
-#[invariant(true)]
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-pub struct ToolTersmuRequest {
-    /// The Lojban text to interpret.
-    pub text: String,
-    /// How to render the graph. Defaults to canonical scoped SFN-XML. Use
-    /// `smusni` for the alternative human-readable typed S-expression document
-    /// or `json` for the canonical interchange graph. The XML output obeys the
-    /// tersmu interpretation contract documented in the tool description.
-    #[serde(default)]
-    pub format: ToolTersmuFormat,
-    /// Optional dialect selector: a builtin dialect name (e.g. `zantufa`,
-    /// `gadganzu`, `ce-ki-tau`) or a parenthesized formula combining them, e.g.
-    /// `(cbm ce-ki-tau)`. Omit for standard Lojban.
-    #[serde(default)]
-    pub dialect: Option<String>,
-    /// Show dictionary definitions for content words (gismu, lujvo, fu'ivla,
-    /// and dictionary-backed cmevla). Cmavo definitions are never included:
-    /// cmavo semantics are exactly what the semantic graph expresses.
-    /// Definitions ground the interpretation and are on by default; set this
-    /// to `false` to save tokens. The shape is per-format: `xml` embeds a
-    /// structured `WORDS` section inside the single SFN document (one `WORD`
-    /// card per content word, with `ARG INDEX="n"` place markup inside `DEF`
-    /// and `NOTES`); `smusni` embeds typed `(Word ...)` cards. The flag is
-    /// suppressed for `json` so it remains one pure document.
-    #[serde(default = "tool_show_defs_default")]
-    pub show_defs: bool,
-    /// Carry tense forward across sentences as an advancing narrative "story
-    /// time", instead of anchoring every sentence to speech time. Off by
-    /// default.
-    #[serde(default)]
-    pub story_time: bool,
-    /// Spaces per indent level. Defaults to 2 (pretty-printed for readability);
-    /// set `0` for compact single-line JSON to save tokens.
-    #[serde(default)]
-    pub indent: Option<usize>,
-}
-
-impl From<ToolTersmuRequest> for Command {
-    #[requires(true)]
-    #[ensures(true)]
-    fn from(request: ToolTersmuRequest) -> Self {
-        let show_defs = request.show_defs && request.format.supports_definitions();
-        Self::Tersmu(TersmuInput {
-            file: None,
-            format: request.format.command_format(),
-            max_errors: None,
-            trace: None,
-            dialect: request.dialect,
-            show_defs,
-            story_time: request.story_time,
-            // Explicit JSON remains pretty-printed by default; `0` opts into compact.
-            indent: Some(request.indent.unwrap_or(2)),
-            text: vec![request.text],
-        })
-    }
-}
-
 #[requires(true)]
 #[ensures(ret)]
 fn tool_show_defs_default() -> bool {
@@ -1759,79 +1630,6 @@ fn tool_gimfihi_source_to_input(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-pub fn run_tool_tersmu(request: ToolTersmuRequest) -> Result<ToolRenderedOutput> {
-    Ok(run_tool_tersmu_rendering(request, false)?.0)
-}
-
-/// Gate-oriented tersmu result (jbotci#723): the rendering plus the declared
-/// compact-representation incompatibility records of the candidate's semantic
-/// graph, each in its exact `<INCOMPATIBILITY .../>` declaration form. Records
-/// exist only for candidates that reach a semantic graph; a parse-level
-/// rejection carries the usual diagnostics and an empty list.
-#[invariant(compact_incompatibilities.iter().all(|record| !record.trim().is_empty()), "declared incompatibility records cannot be empty")]
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ToolTersmuAnalysis {
-    pub rendered: ToolRenderedOutput,
-    pub compact_incompatibilities: Vec<String>,
-}
-
-/// Run the production tersmu gate once and return both the rendering and the
-/// declared incompatibility records, computed from the same semantic graph
-/// (jbotci#723).
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-pub fn run_tool_tersmu_with_analysis(request: ToolTersmuRequest) -> Result<ToolTersmuAnalysis> {
-    let (rendered, compact_incompatibilities) = run_tool_tersmu_rendering(request, true)?;
-    Ok(new!(ToolTersmuAnalysis {
-        rendered,
-        compact_incompatibilities,
-    }))
-}
-
-/// Run the tersmu command once for a tool transport, keeping both structured
-/// channels. The projection-failure envelope is truncated to the documented
-/// transport record limit, which records the total and the omission.
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_tool_tersmu_rendering(
-    request: ToolTersmuRequest,
-    collect_incompatibilities: bool,
-) -> Result<(ToolRenderedOutput, Vec<String>)> {
-    let content_type = request.format.content_type(request.show_defs);
-    let Command::Tersmu(input) = Command::from(request) else {
-        unreachable!("ToolTersmuRequest always converts to Command::Tersmu")
-    };
-    let mut stdout = Vec::new();
-    let mut stderr = Vec::new();
-    let (status, compact_incompatibilities, projection_failure) = commands::run_tersmu_for_tool(
-        input,
-        &mut stdout,
-        &mut stderr,
-        CliColorPolicy::never(),
-        cli_diagnostic_detail(false),
-        cli_glyph_style(false),
-        DEFAULT_DIAGNOSTIC_TERMINAL_WIDTH,
-        None,
-        collect_incompatibilities,
-    )?;
-    let stderr =
-        String::from_utf8(stderr).context("jbotci tool diagnostics were not valid UTF-8")?;
-    let projection_failure = projection_failure
-        .map(|envelope| envelope.limited(Some(crate::projection::TRANSPORT_RECORD_LIMIT)));
-    Ok((
-        ToolRenderedOutput::new(
-            status,
-            stdout,
-            stderr,
-            Some(content_type),
-            projection_failure,
-        ),
-        compact_incompatibilities,
-    ))
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn run_tool_command(
     command: Command,
     content_type: Option<&'static str>,
@@ -1866,12 +1664,10 @@ fn run_tool_command_with_context(
         stdout,
         stderr,
         content_type,
-        None,
     ))
 }
 
 const TEXT_PLAIN_CONTENT_TYPE: &str = "text/plain; charset=utf-8";
-const APPLICATION_XML_CONTENT_TYPE: &str = "application/xml; charset=utf-8";
 const APPLICATION_JSON_CONTENT_TYPE: &str = "application/json; charset=utf-8";
 
 #[cfg(test)]
@@ -1894,220 +1690,11 @@ mod tests {
         }
     }
 
-    #[requires(true)]
-    #[ensures(ret.format == format && ret.show_defs == show_defs)]
-    fn tersmu_request(format: ToolTersmuFormat, show_defs: bool) -> ToolTersmuRequest {
-        ToolTersmuRequest {
-            // Keep the shared happy-path witness within compact SFN-XML. The
-            // earlier sign-fragment input carries known fields outside the
-            // compact vocabulary and correctly selects TYPED-GRAPH (#744).
-            text: "mi klama".to_owned(),
-            format,
-            dialect: None,
-            show_defs,
-            story_time: false,
-            indent: None,
-        }
-    }
-
-    // The `smusni` format renamed the earlier `lean3` working name with no
-    // deprecated alias: the serde boundary accepts `smusni` and rejects `lean3`.
-    // The retired `tree` / `tree+proj` renderers are likewise removed with no
-    // alias, so the boundary must reject their format strings too.
-    // jbotci#723: the analysis channel returns the renderer-declared
-    // compact-incompatibility records of the candidate's graph, in the exact
-    // declaration form the SFN-XML document carries, from the same single
-    // parse+build as the rendering.
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tersmu_analysis_returns_the_declared_incompatibility_records() {
-        // The witness class from the #721 frontier-debate findings: a
-        // scope-dependent referent without an enclosing binder.
-        let witness = "lo nenri be lo menli be'o poi no da ka'e zgana ke'a";
-        for format in [ToolTersmuFormat::Smusni, ToolTersmuFormat::Xml] {
-            let analysis = run_tool_tersmu_with_analysis(ToolTersmuRequest {
-                text: witness.to_owned(),
-                format,
-                dialect: None,
-                show_defs: true,
-                story_time: false,
-                indent: None,
-            })
-            .expect("witness analysis");
-            // The incompatibility channel is computed from the graph, so it
-            // survives a smusni projection failure unchanged (jbotci#753). XML
-            // still renders; smusni reports the structured failure instead.
-            match format {
-                ToolTersmuFormat::Smusni => {
-                    assert!(!analysis.rendered.status.is_success());
-                    let envelope = analysis
-                        .rendered
-                        .projection_failure
-                        .as_ref()
-                        .expect("a failed smusni projection carries its envelope");
-                    assert_eq!(envelope.code, "smusni-projection-failed");
-                    assert_eq!(envelope.format, "smusni");
-                    assert!(analysis.rendered.stdout.is_empty());
-                }
-                _ => assert!(analysis.rendered.status.is_success()),
-            }
-            let records = &analysis.compact_incompatibilities;
-            assert_eq!(
-                records.len(),
-                3,
-                "the witness must declare three records: {records:?}"
-            );
-            assert!(
-                records
-                    .iter()
-                    .all(|record| record.starts_with("<INCOMPATIBILITY KIND=\"")
-                        && record.ends_with("/>")),
-                "records are exact declaration lines: {records:?}"
-            );
-            let kinds = records
-                .iter()
-                .map(|record| {
-                    record
-                        .split('"')
-                        .nth(1)
-                        .expect("KIND attribute value")
-                        .to_owned()
-                })
-                .collect::<Vec<_>>();
-            assert_eq!(
-                kinds,
-                [
-                    "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER",
-                    "SCOPE-DEPENDENCY-WITHOUT-ENCLOSING-BINDER",
-                    "NON-COMPACT-REFERENT",
-                ]
-            );
-            if format == ToolTersmuFormat::Xml {
-                // Every analyzed record is declared verbatim in the rendered
-                // document's COMPACT-INCOMPATIBILITIES section.
-                let document =
-                    String::from_utf8(analysis.rendered.stdout.clone()).expect("UTF-8 XML");
-                let section = document
-                    .split("<COMPACT-INCOMPATIBILITIES>")
-                    .nth(1)
-                    .and_then(|rest| rest.split("</COMPACT-INCOMPATIBILITIES>").next())
-                    .expect("typed-graph document declares the section");
-                for record in records {
-                    assert!(
-                        section.contains(record.as_str()),
-                        "document must declare {record}"
-                    );
-                }
-            }
-        }
-
-        // A compact candidate declares no records.
-        let compact = run_tool_tersmu_with_analysis(tersmu_request(ToolTersmuFormat::Smusni, true))
-            .expect("compact analysis");
-        assert!(compact.rendered.status.is_success());
-        assert!(compact.compact_incompatibilities.is_empty());
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tersmu_xml_sign_text_selects_declared_typed_graph_fallback() {
-        let analysis = run_tool_tersmu_with_analysis(ToolTersmuRequest {
-            text: ".banan. cu klama".to_owned(),
-            format: ToolTersmuFormat::Xml,
-            dialect: None,
-            show_defs: false,
-            story_time: false,
-            indent: None,
-        })
-        .expect("sign witness analysis");
-        assert!(analysis.rendered.status.is_success());
-
-        let output = std::str::from_utf8(&analysis.rendered.stdout).expect("UTF-8 XML");
-        let document = roxmltree::Document::parse(output).expect("typed fallback XML parses");
-        assert_eq!(
-            document.root_element().attribute("FORM"),
-            Some("TYPED-GRAPH")
-        );
-
-        let sign_text_record = analysis
-            .compact_incompatibilities
-            .iter()
-            .find(|record| {
-                let declaration =
-                    roxmltree::Document::parse(record).expect("incompatibility declaration parses");
-                let element = declaration.root_element();
-                element.attribute("KIND") == Some("NON-COMPACT-FIELD-SHAPE")
-                    && element
-                        .attribute("OBJECT")
-                        .is_some_and(|object| object.starts_with("sign:"))
-                    && element.attribute("FIELD") == Some("text")
-            })
-            .expect("sign text must declare its compact field-shape incompatibility");
-        assert!(output.contains(sign_text_record));
-    }
-
-    // The `smusni` format renamed the earlier `lean3` working name with no
-    // deprecated alias: the serde boundary accepts `smusni` and rejects `lean3`.
-    // The retired `tree` / `tree+proj` renderers are likewise removed with no
-    // alias, so the boundary must reject their format strings too.
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tersmu_format_serde_accepts_smusni_xml_and_json_and_rejects_removed_values() {
-        assert_eq!(
-            serde_json::from_str::<ToolTersmuFormat>("\"smusni\"").expect("smusni deserializes"),
-            ToolTersmuFormat::Smusni
-        );
-        assert_eq!(
-            serde_json::from_str::<ToolTersmuFormat>("\"json\"").expect("json deserializes"),
-            ToolTersmuFormat::Json
-        );
-        assert_eq!(
-            serde_json::from_str::<ToolTersmuFormat>("\"xml\"").expect("xml deserializes"),
-            ToolTersmuFormat::Xml
-        );
-        for retired in ["lean3", "tree", "tree+proj"] {
-            assert!(
-                serde_json::from_str::<ToolTersmuFormat>(&format!("\"{retired}\"")).is_err(),
-                "the retired `{retired}` value must not deserialize"
-            );
-        }
-    }
-
-    // The tersmu format schema must enumerate exactly the surviving values so a
-    // removed renderer can never be requested through the MCP surface.
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tersmu_format_schema_enumerates_smusni_xml_and_json() {
-        let schema = tool_request_schema::<ToolTersmuRequest>();
-        let variants = schema["properties"]["format"]["oneOf"]
-            .as_array()
-            .expect("format is a documented oneOf enum");
-        let values: std::collections::BTreeSet<&str> = variants
-            .iter()
-            .map(|variant| {
-                variant["const"]
-                    .as_str()
-                    .expect("each format variant is a const string")
-            })
-            .collect();
-        assert_eq!(
-            values,
-            ["json", "smusni", "xml"]
-                .into_iter()
-                .collect::<std::collections::BTreeSet<_>>(),
-            "schema must expose only the surviving tersmu formats"
-        );
-    }
-
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn shared_tool_request_schema_inlines_and_types_documented_enums() {
-        let schema = tool_request_schema::<ToolTersmuRequest>();
+        let schema = tool_request_schema::<ToolGentufaRequest>();
 
         assert!(!json_value_contains_key(&schema, "$ref"));
         assert!(!json_value_contains_key(&schema, "$defs"));
@@ -2122,122 +1709,21 @@ mod tests {
         let gentufa: ToolGentufaRequest =
             serde_json::from_value(serde_json::json!({ "text": "mi klama" }))
                 .expect("gentufa request without show-defs");
-        let tersmu: ToolTersmuRequest =
-            serde_json::from_value(serde_json::json!({ "text": "mi klama" }))
-                .expect("tersmu request without show-defs");
 
         assert!(gentufa.show_defs);
-        assert!(tersmu.show_defs);
     }
 
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn definition_grounding_schema_documents_true_defaults() {
-        for schema in [
-            tool_request_schema::<ToolGentufaRequest>(),
-            tool_request_schema::<ToolTersmuRequest>(),
-        ] {
-            assert_eq!(schema["properties"]["show-defs"]["default"], true);
-            let description = schema["properties"]["show-defs"]["description"]
-                .as_str()
-                .expect("show-defs description");
-            assert!(description.contains("by default"), "{description}");
-            assert!(description.contains("suppressed"), "{description}");
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tersmu_json_suppresses_definitions_and_remains_one_document() {
-        let grounded =
-            run_tool_tersmu(tersmu_request(ToolTersmuFormat::Json, true)).expect("grounded JSON");
-        let ungrounded = run_tool_tersmu(tersmu_request(ToolTersmuFormat::Json, false))
-            .expect("ungrounded JSON");
-
-        assert_eq!(grounded.status, ToolStatus::Success);
-        assert_eq!(grounded.stdout, ungrounded.stdout);
-        let _: serde_json::Value =
-            serde_json::from_slice(&grounded.stdout).expect("single pure JSON document");
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tersmu_smusni_embeds_structured_word_cards() {
-        let grounded = run_tool_tersmu(tersmu_request(ToolTersmuFormat::Smusni, true))
-            .expect("grounded smusni tersmu output");
-        let ungrounded = run_tool_tersmu(tersmu_request(ToolTersmuFormat::Smusni, false))
-            .expect("ungrounded smusni tersmu output");
-        let grounded = grounded.stdout_text().expect("UTF-8 tersmu output");
-        let ungrounded = ungrounded.stdout_text().expect("UTF-8 tersmu output");
-        let grounded = jbotci_semantics::notation::sexpr::parse_document(grounded)
-            .expect("grounded smusni is one document");
-        let ungrounded = jbotci_semantics::notation::sexpr::parse_document(ungrounded)
-            .expect("ungrounded smusni is one document");
-        assert_eq!(grounded.form_head(), Some("Smusni"));
-        assert_eq!(ungrounded.form_head(), Some("Smusni"));
-        assert_eq!(grounded.count_forms("Words"), 1);
-        assert!(grounded.count_forms("Word") > 0);
-        assert_eq!(ungrounded.count_forms("Words"), 0);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tersmu_xml_definitions_form_a_structured_words_section() {
-        let grounded =
-            run_tool_tersmu(tersmu_request(ToolTersmuFormat::Xml, true)).expect("grounded XML");
-        let ungrounded =
-            run_tool_tersmu(tersmu_request(ToolTersmuFormat::Xml, false)).expect("ungrounded XML");
-
-        assert_eq!(grounded.status, ToolStatus::Success);
-        let grounded = grounded.stdout_text().expect("UTF-8 grounded XML");
-        let ungrounded = ungrounded.stdout_text().expect("UTF-8 ungrounded XML");
-        // One well-formed document: no prepended text cards; the KEY teaching
-        // text is a single comment before the root element (jbotci#719).
-        assert!(grounded.starts_with("<!--\n"), "{grounded}");
-        assert!(!grounded.contains("1. klama | by: officialdata"));
-        assert!(grounded.ends_with("</SFN>\n"));
-        roxmltree::Document::parse(grounded).expect("grounded output is one XML document");
-        // The WORDS section is the first child of the root and carries the
-        // klama card with place markup inside DEF.
-        assert!(
-            grounded.contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">\n  <WORDS>\n"),
-            "WORDS must be the first child of the root: {grounded}"
-        );
-        assert!(grounded.contains("<WORD ID=\"klama\">"), "{grounded}");
-        assert!(grounded.contains("<GLOSS>"), "{grounded}");
-        assert!(grounded.contains("<ARG INDEX=\"1\"/>"), "{grounded}");
-        // The body after the section is byte-identical to the ungrounded body.
-        let grounded_body = grounded.split_once("</WORDS>").expect("WORDS section").1;
-        let ungrounded_body = ungrounded
-            .split_once("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">\n")
-            .expect("ungrounded root after comment")
-            .1;
-        assert_eq!(grounded_body, format!("\n{ungrounded_body}"));
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn tersmu_content_type_tracks_the_effective_representation() {
-        for (format, show_defs, expected) in [
-            (ToolTersmuFormat::Json, false, APPLICATION_JSON_CONTENT_TYPE),
-            (ToolTersmuFormat::Json, true, APPLICATION_JSON_CONTENT_TYPE),
-            (ToolTersmuFormat::Smusni, false, TEXT_PLAIN_CONTENT_TYPE),
-            (ToolTersmuFormat::Smusni, true, TEXT_PLAIN_CONTENT_TYPE),
-            (ToolTersmuFormat::Xml, false, APPLICATION_XML_CONTENT_TYPE),
-            (ToolTersmuFormat::Xml, true, APPLICATION_XML_CONTENT_TYPE),
-        ] {
-            let output = run_tool_tersmu(tersmu_request(format, show_defs)).expect("tersmu output");
-            assert_eq!(
-                output.content_type.as_deref(),
-                Some(expected),
-                "{format:?} with show_defs={show_defs}"
-            );
-        }
+        let schema = tool_request_schema::<ToolGentufaRequest>();
+        assert_eq!(schema["properties"]["show-defs"]["default"], true);
+        let description = schema["properties"]["show-defs"]["description"]
+            .as_str()
+            .expect("show-defs description");
+        assert!(description.contains("by default"), "{description}");
+        assert!(description.contains("suppressed"), "{description}");
     }
 
     #[test]

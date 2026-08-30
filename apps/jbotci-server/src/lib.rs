@@ -29,9 +29,8 @@ use bityzba::{ensures, invariant, new, requires};
 use dioxus::server::FullstackState;
 use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext,
-    ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolTersmuRequest, ToolVlackuRequest,
-    run_tool_cukta, run_tool_cukta_with_context, run_tool_gimfihi, run_tool_tersmu,
-    run_tool_vlacku, run_tool_vlacku_with_context,
+    ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, run_tool_cukta,
+    run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku, run_tool_vlacku_with_context,
 };
 use jbotci_embeddings::{load_latest_pack, model_spec};
 use jbotci_web_core::{
@@ -491,7 +490,6 @@ fn router_with_page_meta_builder(
         // MCP. #284 tracks completing parity for the remaining CLI tools.
         .route("/api/gentufa", post(gentufa))
         .route("/api/gimfihi", post(gimfihi))
-        .route("/api/tersmu", post(tersmu))
         .route("/mcp", get(mcp::mcp_get).post(mcp::mcp_post))
         .layer(cors);
     Router::<FullstackState>::new()
@@ -559,63 +557,6 @@ async fn gimfihi(Json(request): Json<ToolGimfihiRequest>) -> Response<Body> {
             &format!("gimfihi task failed: {error}"),
         ),
     }
-}
-
-#[requires(true)]
-#[ensures(true)]
-async fn tersmu(Json(request): Json<ToolTersmuRequest>) -> Response<Body> {
-    match tokio::task::spawn_blocking(move || run_tool_tersmu(request)).await {
-        // A projection failure is a server-side capability failure: the request
-        // validly asked for smusni and this server could not fulfil it, so it
-        // gets a server-error problem document rather than a client error.
-        Ok(Ok(output)) if output.projection_failure.is_some() => {
-            projection_failure_response(output)
-        }
-        Ok(Ok(output)) => rest_tool_output(output),
-        Ok(Err(error)) => plain_response(StatusCode::BAD_REQUEST, &error.to_string()),
-        Err(error) => plain_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("tersmu task failed: {error}"),
-        ),
-    }
-}
-
-/// Return the section-16.3 problem document for one failed smusni projection.
-///
-/// The body is the same structured envelope the MCP profile serializes, with
-/// the RFC 9457 members a problem document needs. Nothing here reparses the
-/// rendered diagnostics.
-#[requires(output.projection_failure.is_some())]
-#[ensures(ret.status() == StatusCode::INTERNAL_SERVER_ERROR)]
-fn projection_failure_response(output: ToolRenderedOutput) -> Response<Body> {
-    let envelope = output
-        .projection_failure
-        .as_ref()
-        .expect("the caller checked that a projection failure is present");
-    let mut document = serde_json::to_value(envelope).unwrap_or_else(|_| serde_json::json!({}));
-    if let Some(members) = document.as_object_mut() {
-        members.insert("type".to_owned(), serde_json::json!("about:blank"));
-        members.insert(
-            "title".to_owned(),
-            serde_json::json!("smusni projection failed for this input"),
-        );
-        members.insert(
-            "status".to_owned(),
-            serde_json::json!(StatusCode::INTERNAL_SERVER_ERROR.as_u16()),
-        );
-        members.insert(
-            "detail".to_owned(),
-            serde_json::json!(format!(
-                "{} registered projection error(s); no document was produced",
-                envelope.total
-            )),
-        );
-    }
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .header(CONTENT_TYPE, "application/problem+json")
-        .body(Body::from(document.to_string()))
-        .expect("problem document response builder is valid")
 }
 
 #[requires(true)]
@@ -1821,6 +1762,10 @@ mod tests {
             serde_json::from_str(&response_text(health).await).expect("health JSON");
         assert_eq!(health_json["status"], "ok");
         assert_eq!(health_json["features"]["gentufa"], true);
+        assert!(
+            health_json["features"].get("lean").is_none(),
+            "health must not advertise the retired Lean semantic output capability",
+        );
 
         let features = app
             .oneshot(
@@ -2086,273 +2031,6 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn tersmu_rest_api_matches_typed_tool_surface() {
-        let app = router(test_config(test_static_dir()));
-        for (format, show_defs, body, content_type) in [
-            (
-                jbotci_cli::ToolTersmuFormat::Xml,
-                true,
-                serde_json::json!({ "text": "mi nitcu lo tanxe" }),
-                "application/xml; charset=utf-8",
-            ),
-            (
-                jbotci_cli::ToolTersmuFormat::Smusni,
-                true,
-                serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "smusni" }),
-                "text/plain; charset=utf-8",
-            ),
-            (
-                jbotci_cli::ToolTersmuFormat::Json,
-                true,
-                serde_json::json!({ "text": "mi nitcu lo tanxe", "format": "json" }),
-                "application/json; charset=utf-8",
-            ),
-            (
-                jbotci_cli::ToolTersmuFormat::Xml,
-                false,
-                serde_json::json!({
-                    "text": "mi nitcu lo tanxe",
-                    "format": "xml",
-                    "show-defs": false
-                }),
-                "application/xml; charset=utf-8",
-            ),
-            (
-                jbotci_cli::ToolTersmuFormat::Xml,
-                true,
-                serde_json::json!({
-                    "text": "mi nitcu lo tanxe",
-                    "format": "xml",
-                    "show-defs": true
-                }),
-                "application/xml; charset=utf-8",
-            ),
-        ] {
-            let request = ToolTersmuRequest {
-                text: "mi nitcu lo tanxe".to_owned(),
-                format,
-                dialect: None,
-                show_defs,
-                story_time: false,
-                indent: None,
-            };
-            let expected = run_tool_tersmu(request.clone()).expect("direct tersmu output");
-            let response = app
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .method(Method::POST)
-                        .uri("/api/tersmu")
-                        .header(CONTENT_TYPE, "application/json")
-                        .body(Body::from(body.to_string()))
-                        .expect("request"),
-                )
-                .await
-                .expect("response");
-            assert_eq!(response.status(), StatusCode::OK);
-            assert_eq!(
-                response.headers().get(CONTENT_TYPE),
-                Some(&HeaderValue::from_str(content_type).expect("static content type"))
-            );
-            let bytes = to_bytes(response.into_body(), usize::MAX)
-                .await
-                .expect("body");
-            assert_eq!(bytes.as_ref(), expected.stdout.as_slice());
-        }
-    }
-
-    #[tokio::test]
-    #[requires(true)]
-    #[ensures(true)]
-    async fn tersmu_failures_are_plain_text_for_every_requested_format() {
-        const INPUT: &str = "mi klama i su'i do klama";
-        const EXPECTED_ERROR: &str = "semantic error: semantic interpretation is undefined for the experimental VUhU statement connective `su'i` outside a mekso expression\n";
-
-        let app = router(test_config(test_static_dir()));
-        for request_body in [
-            serde_json::json!({ "text": INPUT }),
-            serde_json::json!({ "text": INPUT, "format": "xml", "show-defs": false }),
-            serde_json::json!({ "text": INPUT, "format": "json" }),
-        ] {
-            let response = app
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .method(Method::POST)
-                        .uri("/api/tersmu")
-                        .header(CONTENT_TYPE, "application/json")
-                        .body(Body::from(request_body.to_string()))
-                        .expect("request"),
-                )
-                .await
-                .expect("response");
-            assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-            assert_eq!(
-                response.headers().get(CONTENT_TYPE),
-                Some(&HeaderValue::from_static("text/plain; charset=utf-8"))
-            );
-            let rest_text = String::from_utf8(
-                to_bytes(response.into_body(), usize::MAX)
-                    .await
-                    .expect("body")
-                    .to_vec(),
-            )
-            .expect("UTF-8 diagnostics");
-            assert_eq!(rest_text, EXPECTED_ERROR);
-        }
-
-        let response = post_json(
-            app,
-            "/mcp",
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": "tersmu-unsupported-default",
-                "method": "tools/call",
-                "params": {
-                    "name": "tersmu",
-                    "arguments": { "text": INPUT }
-                }
-            }),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::OK);
-        let mcp_json = response_json(response).await;
-        assert_eq!(mcp_json["result"]["isError"], true);
-        assert_eq!(
-            mcp_json["result"]["content"][0]["text"],
-            serde_json::Value::String(EXPECTED_ERROR.to_owned())
-        );
-    }
-
-    /// A smusni projection failure is a server-side capability failure: the
-    /// request validly asked for smusni and this server could not fulfil it.
-    /// Both transports carry the same structured envelope (jbotci#753).
-    #[tokio::test]
-    #[requires(true)]
-    #[ensures(true)]
-    async fn smusni_projection_failure_is_a_problem_document_over_http() {
-        const INPUT: &str = "su'o gerku cu bajra";
-
-        let app = router(test_config(test_static_dir()));
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/tersmu")
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(Body::from(
-                        serde_json::json!({ "text": INPUT, "format": "smusni" }).to_string(),
-                    ))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(
-            response.headers().get(CONTENT_TYPE),
-            Some(&HeaderValue::from_static("application/problem+json"))
-        );
-        let problem = response_json(response).await;
-        assert_eq!(problem["code"], "smusni-projection-failed");
-        assert_eq!(problem["format"], "smusni");
-        assert_eq!(problem["status"], 500);
-        assert_eq!(problem["truncated"], false);
-        let total = problem["total"].as_u64().expect("a record total");
-        assert!(total > 0);
-        assert_eq!(problem["returned"], serde_json::json!(total));
-        let diagnostics = problem["diagnostics"]
-            .as_array()
-            .expect("the diagnostic list");
-        assert_eq!(diagnostics.len() as u64, total);
-        let first = &diagnostics[0];
-        assert!(
-            first["reasonId"]
-                .as_str()
-                .is_some_and(|reason| reason.starts_with("smusni.projection.")),
-            "{first}"
-        );
-        assert!(!first["message"].as_str().expect("a message").is_empty());
-        assert_eq!(first["severity"], "error");
-        assert!(matches!(
-            first["failureClass"].as_str(),
-            Some(
-                "InvalidGraph" | "RouteUnavailable" | "TrackedSpecGap" | "ImplementationInvariant"
-            )
-        ));
-        assert!(first["span"]["byteStart"].as_u64().is_some());
-        assert!(
-            problem["statistics"]["failedProjectionEdges"] == serde_json::json!(total),
-            "{problem}"
-        );
-        // A malformed request keeps its ordinary client-error status.
-        let malformed = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/tersmu")
-                    .header(CONTENT_TYPE, "application/json")
-                    .body(Body::from("{\"text\": 5}"))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(malformed.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    }
-
-    #[tokio::test]
-    #[requires(true)]
-    #[ensures(true)]
-    async fn smusni_projection_failure_is_a_tool_error_over_mcp() {
-        let response = post_json(
-            router(test_config(test_static_dir())),
-            "/mcp",
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": "tersmu-projection-failure",
-                "method": "tools/call",
-                "params": {
-                    "name": "tersmu",
-                    "arguments": { "text": "su'o gerku cu bajra", "format": "smusni" }
-                }
-            }),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::OK);
-        let mcp_json = response_json(response).await;
-        let result = &mcp_json["result"];
-        assert_eq!(result["isError"], true);
-        // A readable summary first, then the same envelope the HTTP profile
-        // returns, serialized as one JSON text item — never a transcript.
-        let summary = result["content"][0]["text"]
-            .as_str()
-            .expect("a readable summary");
-        assert!(
-            summary.starts_with("smusni-projection-failed:"),
-            "{summary}"
-        );
-        let envelope: serde_json::Value = serde_json::from_str(
-            result["content"][1]["text"]
-                .as_str()
-                .expect("the serialized envelope"),
-        )
-        .expect("the second item is JSON");
-        assert_eq!(envelope["code"], "smusni-projection-failed");
-        assert_eq!(envelope["format"], "smusni");
-        assert!(envelope["diagnostics"].as_array().is_some_and(|records| {
-            !records.is_empty()
-                && records.iter().all(|record| {
-                    record["reasonId"]
-                        .as_str()
-                        .is_some_and(|reason| reason.starts_with("smusni.projection."))
-                })
-        }));
-    }
-
-    #[tokio::test]
-    #[requires(true)]
-    #[ensures(true)]
     async fn gimfihi_rest_rejects_unknown_salience_by_name() {
         let response = router(test_config(test_static_dir()))
             .oneshot(
@@ -2426,9 +2104,8 @@ mod tests {
         let instructions = initialize_json["result"]["instructions"]
             .as_str()
             .expect("server instructions");
-        assert!(instructions.contains("`tersmu` defaults to canonical, self-describing SFN-XML"));
-        assert!(instructions.contains("Request `smusni`"));
-        assert!(instructions.contains("or `json`"));
+        assert!(instructions.contains("jbotci is a Lojban toolkit"));
+        assert!(instructions.contains("`gentufa` to parse a sentence's grammar"));
 
         let tools = post_json(
             app,
@@ -2451,9 +2128,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             names,
-            vec![
-                "cukta", "vlacku", "jvozba", "vlasei", "gentufa", "gimfihi", "tersmu"
-            ]
+            vec!["cukta", "vlacku", "jvozba", "vlasei", "gentufa", "gimfihi"]
         );
         assert!(
             names
@@ -2643,69 +2318,6 @@ mod tests {
         ] {
             assert_eq!(property.default, expected);
             assert_eq!(property.minimum, Some(0.0));
-        }
-
-        let tersmu_schema = tool_input_schema(tools_array, "tersmu");
-        assert!(tersmu_schema["properties"]["text"].is_object());
-        assert_eq!(
-            tersmu_schema["properties"]["format"]["default"],
-            serde_json::json!("xml")
-        );
-        let tersmu_format_schema = tersmu_schema["properties"]["format"].to_string();
-        // The MCP format enumeration offers exactly the surviving values and must
-        // not leak the retired `lean3` working name or the removed `tree`/
-        // `tree+proj` renderers (no deprecated aliases).
-        assert!(
-            tersmu_format_schema.contains("smusni"),
-            "tersmu format enumeration must advertise `smusni`: {tersmu_format_schema}"
-        );
-        assert!(
-            tersmu_format_schema.contains("json"),
-            "tersmu format enumeration must advertise `json`: {tersmu_format_schema}"
-        );
-        assert!(
-            tersmu_format_schema.contains("xml"),
-            "tersmu format enumeration must advertise `xml`: {tersmu_format_schema}"
-        );
-        for retired in ["lean3", "tree+proj", "\"tree\""] {
-            assert!(
-                !tersmu_format_schema.contains(retired),
-                "tersmu format enumeration must not expose retired value {retired}: {tersmu_format_schema}"
-            );
-        }
-        let tersmu_description = tools_array
-            .iter()
-            .find(|tool| tool["name"] == "tersmu")
-            .and_then(|tool| tool["description"].as_str())
-            .expect("tersmu tool description");
-        for marker in [
-            "default is canonical scoped SFN-XML",
-            "embedded, authoritative `KEY`",
-            "UPPERCASE names are structural elements and attributes",
-            "Simple ID and number lists are space-separated attributes",
-            "`ID=` defines a shared graph node",
-            "`REF=` and named `*-REF=`",
-            "`EXISTS`, `FORALL`, and `CARDINALITY`",
-            "`ADJUNCT` adds a predicate-keyed optional participant",
-            "`REF=\"SOME\"`",
-            "`DEICTIC-GROUND`",
-            "pairwise identical",
-            "number-neutral",
-            "`SAME-FOR-ALL`",
-            "`POSSIBLY-DIFFERENT-PER=`",
-            "absent facet attribute means `UNSPECIFIED`",
-            "distinct from an absent XML structure",
-            "`WORDS` section follows the `KEY`",
-            "`COMPOSITE-APPROX`",
-            "`SFN FORM=\"TYPED-GRAPH\"` fallback uses its own embedded `KEY`",
-            "`OBJECT`/`FIELD`/`RECORD`/`LIST`/`ITEM`/`REFERENCE` typed vocabulary",
-            "Request `smusni`",
-            "or `json`",
-        ] {
-            assert!(
-                tersmu_description.contains(marker),
-                "missing tersmu contract marker {marker:?}"
-            );
         }
     }
 
@@ -2990,143 +2602,6 @@ mod tests {
             "{svg_block}"
         );
 
-        let tersmu = post_json(
-            app.clone(),
-            "/mcp",
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": "tersmu",
-                "method": "tools/call",
-                "params": {
-                    "name": "tersmu",
-                    "arguments": {
-                        "text": "mi cu klama"
-                    }
-                }
-            }),
-        )
-        .await;
-        assert_eq!(tersmu.status(), StatusCode::OK);
-        let tersmu_json = response_json(tersmu).await;
-        assert_eq!(tersmu_json["result"]["content"][0]["type"], "text");
-        // tersmu defaults to definition-grounded, self-describing SFN-XML.
-        assert!(tersmu_json["result"]["structuredContent"].is_null());
-        let tersmu_text = tersmu_json["result"]["content"][0]["text"]
-            .as_str()
-            .expect("tersmu XML text");
-        // With definitions on (the default), tersmu returns one well-formed
-        // XML document: structured WORD cards live in the WORDS section
-        // (the root's first child, after the KEY comment; jbotci#719), not in
-        // a prepended text block.
-        assert!(
-            tersmu_text.starts_with("<!--\n"),
-            "the default MCP tersmu document opens with the KEY comment"
-        );
-        roxmltree::Document::parse(tersmu_text).expect("default MCP XML parses");
-        let after_root = tersmu_text
-            .split_once("\n<SFN ")
-            .expect("root follows the KEY comment")
-            .1;
-        assert!(after_root.contains(">\n  <WORDS>\n"));
-        let words_section = after_root
-            .split_once("</WORDS>")
-            .expect("WORDS section closes")
-            .0;
-        assert!(words_section.contains("<WORD ID=\"klama\">"));
-        assert!(words_section.contains("<GLOSS>"));
-        assert!(words_section.contains("<ARG INDEX=\"1\"/>"));
-        // Definitions cover content words only: the cmavo of `mi cu klama`
-        // produce no cards.
-        assert!(!words_section.contains("<WORD ID=\"mi\">"));
-        assert!(!words_section.contains("cmavo:"));
-
-        // An explicit `smusni` request with definitions off returns the pure
-        // notation document with no prepended dictionary block.
-        let tersmu_smusni = post_json(
-            app.clone(),
-            "/mcp",
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": "tersmu-smusni",
-                "method": "tools/call",
-                "params": {
-                    "name": "tersmu",
-                    "arguments": {
-                        "text": "mi nitcu lo tanxe",
-                        "format": "smusni",
-                        "show-defs": false
-                    }
-                }
-            }),
-        )
-        .await;
-        assert_eq!(tersmu_smusni.status(), StatusCode::OK);
-        let tersmu_smusni_json = response_json(tersmu_smusni).await;
-        let smusni_text = tersmu_smusni_json["result"]["content"][0]["text"]
-            .as_str()
-            .expect("tersmu smusni text");
-        let smusni_document = jbotci_semantics::notation::sexpr::parse_document(smusni_text)
-            .expect("tersmu smusni is one parseable document");
-        assert_eq!(smusni_document.form_head(), Some("Smusni"));
-        assert_eq!(smusni_document.count_forms("Smusni"), 1);
-        assert!(!smusni_text.contains("SEMANTIC DOCUMENT"));
-        assert!(!smusni_text.contains("ID PREFIXES"));
-
-        let tersmu_xml = post_json(
-            app.clone(),
-            "/mcp",
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": "tersmu-xml",
-                "method": "tools/call",
-                "params": {
-                    "name": "tersmu",
-                    "arguments": {
-                        "text": "mi klama",
-                        "format": "xml",
-                        "show-defs": false
-                    }
-                }
-            }),
-        )
-        .await;
-        assert_eq!(tersmu_xml.status(), StatusCode::OK);
-        let tersmu_xml = response_json(tersmu_xml).await;
-        let tersmu_xml_text = tersmu_xml["result"]["content"][0]["text"]
-            .as_str()
-            .expect("tersmu XML text");
-        assert!(tersmu_xml_text.starts_with("<!--\n"));
-        assert!(tersmu_xml_text.contains("\n<SFN VERSION=\"0\" DOC=\"&lt;input&gt;\">"));
-        assert!(tersmu_xml_text.contains("<UTTERANCE FORCE=\"ASSERT\" GROUND=\"g1\">"));
-
-        let tersmu_json = post_json(
-            app.clone(),
-            "/mcp",
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": "tersmu-json",
-                "method": "tools/call",
-                "params": {
-                    "name": "tersmu",
-                    "arguments": {
-                        "text": "mi klama",
-                        "format": "json"
-                    }
-                }
-            }),
-        )
-        .await;
-        assert_eq!(tersmu_json.status(), StatusCode::OK);
-        let tersmu_json = response_json(tersmu_json).await;
-        let tersmu_json_text = tersmu_json["result"]["content"][0]["text"]
-            .as_str()
-            .expect("tersmu JSON text");
-        let tersmu_graph: serde_json::Value =
-            serde_json::from_str(tersmu_json_text).expect("tersmu JSON content parses");
-        assert_eq!(tersmu_graph["version"], "lojban-semantics-json-1");
-        assert_eq!(tersmu_graph["root"], "utterance:5");
-        assert_eq!(tersmu_graph["objects"]["entity:1"]["indexical"], "speaker");
-
         let unknown = post_json(
             app.clone(),
             "/mcp",
@@ -3283,66 +2758,6 @@ mod tests {
         .await;
         let unknown_json = response_json(unknown).await;
         assert_eq!(unknown_json["error"]["code"], -32602);
-    }
-
-    #[tokio::test]
-    #[requires(true)]
-    #[ensures(true)]
-    async fn mcp_exposes_sfn_xml_schema_resource() {
-        let app = router(test_config(test_static_dir()));
-
-        let list = post_json(
-            app.clone(),
-            "/mcp",
-            serde_json::json!({ "jsonrpc": "2.0", "id": 1, "method": "resources/list" }),
-        )
-        .await;
-        assert_eq!(list.status(), StatusCode::OK);
-        let list_json = response_json(list).await;
-        let resources = list_json["result"]["resources"]
-            .as_array()
-            .expect("resources array");
-        let schema = resources
-            .iter()
-            .find(|resource| resource["name"] == "sfn-xml-schema")
-            .expect("sfn-xml schema resource listed");
-        assert_eq!(
-            schema["uri"].as_str(),
-            Some("jbotci:///tersmu/sfn-xml-v0.xsd")
-        );
-        assert_eq!(schema["mimeType"].as_str(), Some("application/xml"));
-        assert!(
-            schema["description"]
-                .as_str()
-                .is_some_and(|d| !d.is_empty())
-        );
-
-        let read = post_json(
-            app,
-            "/mcp",
-            serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "resources/read",
-                "params": { "uri": "jbotci:///tersmu/sfn-xml-v0.xsd" }
-            }),
-        )
-        .await;
-        assert_eq!(read.status(), StatusCode::OK);
-        let read_json = response_json(read).await;
-        let contents = &read_json["result"]["contents"][0];
-        assert_eq!(contents["uri"], "jbotci:///tersmu/sfn-xml-v0.xsd");
-        assert_eq!(contents["mimeType"], "application/xml");
-        let text = contents["text"].as_str().expect("schema text");
-        // Spot-check that the real XSD made it through verbatim: the XML
-        // declaration, the schema root, and a WORD element definition.
-        assert!(
-            text.starts_with("<?xml"),
-            "{}",
-            &text[..text.len().min(200)]
-        );
-        assert!(text.contains("xs:schema"));
-        assert!(text.contains("name=\"WORD\""));
     }
 
     #[tokio::test]

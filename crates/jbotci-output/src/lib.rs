@@ -125,55 +125,6 @@ impl BracketSourceFragmentRole {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum OutputBase {
-    Compact,
-    Ipa,
-    Tree,
-    Raw,
-    Camxes,
-    Svg,
-    Gloss,
-    Xml,
-    MermaidFlowchart,
-    MermaidBlock,
-    Markdown,
-    Lean,
-    Paraphrase,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum OutputFeature {
-    WordKind,
-    Definitions,
-    Color,
-    CompactXml,
-    Gloss,
-    LeanPrelude,
-    LeanUnicode,
-    LeanSyntheticNames,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct OutputFormat {
-    pub base: OutputBase,
-    pub features: Vec<OutputFeature>,
-}
-
-impl Default for OutputFormat {
-    #[requires(true)]
-    #[ensures(ret.base == OutputBase::Compact && ret.features.is_empty())]
-    fn default() -> Self {
-        Self {
-            base: OutputBase::Compact,
-            features: Vec::new(),
-        }
-    }
-}
-
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Diagnostic(..) => true)]
@@ -182,8 +133,6 @@ impl Default for OutputFormat {
 #[invariant(::References(..) => true)]
 #[invariant(::Recovery(..) => true)]
 pub enum OutputError {
-    #[error("output rendering is not implemented yet")]
-    NotImplemented,
     #[error("failed to render diagnostic: {0}")]
     Diagnostic(String),
     #[error("failed to encode compact JSON: {0}")]
@@ -377,33 +326,9 @@ pub fn compact_json_value<T: Serialize>(value: &T) -> Result<Value, OutputError>
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|value| !matches!(value, Value::Null)) || ret.is_err())]
-pub fn json_value<T: Serialize>(value: &T) -> Result<Value, OutputError> {
-    let mut bytes = Vec::new();
-    let mut serializer = serde_json::Serializer::new(&mut bytes);
-    let serializer = serde_stacker::Serializer::new(&mut serializer);
-    value
-        .serialize(serializer)
-        .map_err(|source| OutputError::Json(source.to_string()))?;
-    let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
-    deserializer.disable_recursion_limit();
-    let deserializer = serde_stacker::Deserializer::new(&mut deserializer);
-    Value::deserialize(deserializer).map_err(|source| OutputError::Json(source.to_string()))
-}
-
-#[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
 pub fn compact_json_string<T: Serialize>(value: &T) -> Result<String, OutputError> {
     compact_json_string_with_options(value, JsonRenderOptions::default())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-pub fn json_string_with_options<T: Serialize>(
-    value: &T,
-    options: JsonRenderOptions,
-) -> Result<String, OutputError> {
-    Ok(render_json_value_with_options(&json_value(value)?, options))
 }
 
 #[requires(true)]
