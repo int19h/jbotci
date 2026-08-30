@@ -236,7 +236,6 @@ pub struct WebFeatureAvailability {
     pub glosses: bool,
     pub definitions: bool,
     pub rafsi_breakdown: bool,
-    pub lean: bool,
 }
 
 impl Default for WebFeatureAvailability {
@@ -252,7 +251,6 @@ impl Default for WebFeatureAvailability {
             glosses: false,
             definitions: false,
             rafsi_breakdown: false,
-            lean: false,
         }
     }
 }
@@ -3290,7 +3288,7 @@ fn build_gentufa_page_meta_from_result(
     };
     let description = match result {
         GentufaWebResult::Blank => {
-            "Parse Lojban text into blocks, table rows, or Lean semantics.".to_owned()
+            "Parse Lojban text into bracketed blocks, table rows, and reference arrows.".to_owned()
         }
         GentufaWebResult::Success(success) => truncate_preview(&success.brackets_text, 160),
         GentufaWebResult::Error(error) => gentufa_error_metadata_description(error, &state.text),

@@ -12,7 +12,7 @@ chapters 5–19 against this model).*
 > implementation, so references to it below are historical. The successor
 > semantic specification lives in the separate
 > [smusni](https://github.com/int19h/smusni) project; nothing here describes a
-> live jbotci surface.*
+> live jbotci surface.
 
 ---
 

@@ -143,13 +143,7 @@ Before reverting any commit, always inspect it carefully (`git show` + surroundi
 
 When working on a Codeberg work item, assign it to yourself, and reference it in your commit message so that it is properly linked. If your commit _fully_ resolves the issue, then - and only then - reference the work item in such a way that it is automatically closed.
 
-For corpus Lean typecheck failures, do not assume the renderer is wrong by default: inspect the original Lojban carefully and decide whether the corpus example is semantically/type-correct or whether the corpus itself contains a genuinely ill-typed example.
-
-For real semantic divergences in Lean output, investigate them carefully before changing expectations: consult the relevant CLL section, use jbotci MCP and other reference materials to understand the example.
-
 When intended behavior is unclear or a semantic question is in doubt, use jbotci cukta MCP to consult the CLL and clarify the intended reading before deciding on a fix or expectation change.
-
-Be conservative about adding AST-comparison normalizations for Lean expectations: every such normalization can hide bugs. If only a small number of cases differ, prefer updating the affected expectations after careful semantic verification instead of teaching the comparer to treat the outputs as equivalent.
 
 If you add debug logging that is broadly useful beyond a one-off investigation, gate it behind an environment variable and document what it traces, how to enable it, and when it is useful. Do not leave ad hoc always-on debug output in the tree.
 

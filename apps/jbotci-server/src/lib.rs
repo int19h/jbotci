@@ -1762,6 +1762,10 @@ mod tests {
             serde_json::from_str(&response_text(health).await).expect("health JSON");
         assert_eq!(health_json["status"], "ok");
         assert_eq!(health_json["features"]["gentufa"], true);
+        assert!(
+            health_json["features"].get("lean").is_none(),
+            "health must not advertise the retired Lean semantic output capability",
+        );
 
         let features = app
             .oneshot(

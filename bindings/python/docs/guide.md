@@ -187,7 +187,8 @@ owned before returning to Python.
 
 These bindings expose reference analysis but no deep semantic graph, and no
 cukta book search. They do not publish the underlying Rust crates to Python
-packaging, and they do not promise API stability yet. Platform wheel and source-distribution
-CI is tracked separately. Repository dictionary import/index generation,
-generic Rust visitor traits, and ownership/lifetime adapters are build or
-implementation machinery rather than alternate consumer APIs.
+packaging, and they do not promise API stability yet. Platform wheel and
+source-distribution CI is tracked separately. Repository dictionary
+import/index generation, generic Rust visitor traits, and ownership/lifetime
+adapters are build or implementation machinery rather than alternate consumer
+APIs.

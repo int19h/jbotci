@@ -125,55 +125,6 @@ impl BracketSourceFragmentRole {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum OutputBase {
-    Compact,
-    Ipa,
-    Tree,
-    Raw,
-    Camxes,
-    Svg,
-    Gloss,
-    Xml,
-    MermaidFlowchart,
-    MermaidBlock,
-    Markdown,
-    Lean,
-    Paraphrase,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum OutputFeature {
-    WordKind,
-    Definitions,
-    Color,
-    CompactXml,
-    Gloss,
-    LeanPrelude,
-    LeanUnicode,
-    LeanSyntheticNames,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[invariant(true)]
-pub struct OutputFormat {
-    pub base: OutputBase,
-    pub features: Vec<OutputFeature>,
-}
-
-impl Default for OutputFormat {
-    #[requires(true)]
-    #[ensures(ret.base == OutputBase::Compact && ret.features.is_empty())]
-    fn default() -> Self {
-        Self {
-            base: OutputBase::Compact,
-            features: Vec::new(),
-        }
-    }
-}
-
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 #[invariant(true)]
 #[invariant(::Diagnostic(..) => true)]
@@ -182,8 +133,6 @@ impl Default for OutputFormat {
 #[invariant(::References(..) => true)]
 #[invariant(::Recovery(..) => true)]
 pub enum OutputError {
-    #[error("output rendering is not implemented yet")]
-    NotImplemented,
     #[error("failed to render diagnostic: {0}")]
     Diagnostic(String),
     #[error("failed to encode compact JSON: {0}")]

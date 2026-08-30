@@ -8,10 +8,10 @@ the gadri (xorlo/guskant).*
 > **Status (jbotci#869).** These encodings target the object model of the
 > `jbotci tersmu` implementation that was retired from this repository; they
 > describe no live jbotci surface. The successor semantic specification lives
-> in the separate [smusni](https://github.com/int19h/smusni) project.*
+> in the separate [smusni](https://github.com/int19h/smusni) project.
 
 **Reading the notation.** `KIND id : attr=val, …` is a compact algebra, not a
-second JSON schema. In the current public graph:
+second JSON schema. In the retired public graph:
 
 - `UTT`, `SEQ`, `FRM`, `PRD`, `PAR`, `DSP`, `MEX`, and `QTY` abbreviate the
   public `utterance`, `sequence`, `formula`, `predication`, `parameter`,
@@ -24,7 +24,7 @@ second JSON schema. In the current public graph:
   corresponding typed `descriptor`/`sort`; it does not name literal JSON
   fields.
 - `+cmene-clause(x, name)` is legacy notation for `x`'s typed `name`
-  descriptor. The current graph does not add a separate `cmene` predication or
+  descriptor. The retired graph did not add a separate `cmene` predication or
   word-sign merely to encode a cmevla name.
 - `EV` is an eventuality-sort `type:"referent"`. A bare predication event is
   `denotation:"generated-bound"`, has unspecified time and actuality, and is

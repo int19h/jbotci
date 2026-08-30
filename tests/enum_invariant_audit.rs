@@ -861,19 +861,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockFrame::Chain",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "chain frame wraps a Gentufa payload accumulating link elements in source order; audited by generated_chain_link_split_keeps_suffix_after_element_for_blocks",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockFrame::Collection",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "collection frame wraps a Gentufa payload accumulating sequence items; audited by the jbotci-gentufa block-layout tests and the gentufa-tree fixture facet",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockFrame::Field",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "field frame delegates validity to GeneratedFieldFrame; field naming and ordering are audited by the jbotci-gentufa block tests",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockFrame::Node",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "node frame delegates validity to GeneratedNodeFrame; node labels and reference markers are audited by the jbotci-gentufa block tests",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:ReferenceSlotLabel::Fai",
@@ -1177,7 +1177,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-output/src/tree.rs:SyntaxFrame::Chain",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "chain frame accumulates rendered chain items in source order with no constraint on the partial list; audited by chain_link_split_preserves_prefix_element_suffix_order",
     ),
     (
         "crates/jbotci-output/src/tree.rs:SyntaxFrame::Collection",

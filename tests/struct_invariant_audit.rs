@@ -601,19 +601,19 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockCollector",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "transient Gentufa block-collector walk state whose frame stack, root slot, and id cursor are unconstrained between visitor events; the blocks it emits are audited by the jbotci-gentufa block-layout tests and the gentufa-brackets/tree/json fixture facets",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedBlockPayload",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "push-only Gentufa payload accumulator of children, leaf parts, and their merged source range, with no invalid combination of the three; the merged spans are audited by the jbotci-gentufa leaf-part depth and morphology-leaf block tests",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedFieldFrame",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "open Gentufa field frame pairing an optional generated field name with its accumulating payload; every pairing occurs mid-walk and field ordering is audited by the jbotci-gentufa block tests and the gentufa-tree fixture facet",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GeneratedNodeFrame",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "open Gentufa node frame carrying an allocated node id, constructor label, reference markers, and accumulating payload with no cross-field constraint; labels and markers are audited by the jbotci-gentufa block tests and the gentufa fixture facets",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:GentufaBlockAnnotation",
@@ -828,10 +828,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "JSON indentation accepts any width chosen by callers",
     ),
     (
-        "crates/jbotci-output/src/lib.rs:OutputFormat",
-        "output features are interpreted by the renderer for the selected base",
-    ),
-    (
         "crates/jbotci-output/src/lib.rs:TreeRenderOptions",
         "render options are independent flags with no cross-field invariant",
     ),
@@ -857,7 +853,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-output/src/references.rs:GeneratedSyntaxWordCollector",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "reference word collector holding render options and a growing word list, valid for every options/word combination; its ordering and numbering are audited by the jbotci-output reference prefix and duplicate-numbering tests",
     ),
     (
         "crates/jbotci-output/src/references.rs:ReferenceAnnotations",
@@ -893,7 +889,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-output/src/tree.rs:GeneratedReferenceDisplay",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "public pairing of a reference analysis with the display model derived from it; that correspondence is not expressible as a cheap field predicate and the rendered arrows are audited by the jbotci-output tree reference-rendering tests",
     ),
     (
         "crates/jbotci-output/src/tree.rs:GeneratedStatementConnectionPart",
@@ -1025,39 +1021,39 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedBridiTailAnalysis",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "bridi-tail analysis whose frame, term, and optional branch-cursor lists legitimately differ in length by connective shape; the resulting place assignments are audited by the jbotci-semantics reference tests and the semantics-refs fixture facet",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedDiscourseReferenceBuilder",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "traversal-scoped discourse builder whose binding maps, mention lists, and quote/predicate stacks are legitimately unbalanced mid-walk; the edges it produces are audited by the jbotci-semantics quote, cei, goi, and prenex reference tests",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedIndexedSyntaxNode",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "index entry pairing a generated node reference with its recorded metadata, where every metadata value is valid for every node; entry contents are audited by generated_syntax_index_records_root_and_ordered_spans",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedPlaceAnalysisBuilder",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "incremental place-analysis builder whose frame, assignment, and lookup maps are partial by construction while a walk is in progress; the finished analysis is audited by the jbotci-semantics place and conversion tests and the semantics-refs fixture facet",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedPrenexCeiAssignmentSourceCollector",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "prenex cei collector holding an index borrow, a skip depth, and collected sources, every combination of which is reachable during traversal; its results are audited by the generated cei prenex and quote reference tests",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedPrenexRelationVariableBindingCollector",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "prenex relation-variable collector holding an index borrow, a skip depth, and collected bindings, every combination of which is reachable during traversal; its results are audited by the generated prenex da scope and cei binding tests",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedReferenceAnalysis",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "public aggregate of the syntax index, place analysis, and discourse references, whose mutual correspondence is not a cheap field predicate; it is audited by the jbotci-semantics projection tests and every semantics.refs fixture expectation",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedSyntaxIndex",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "syntax index whose private node storage, reference lookup, and root id are built together in one constructor; the root and ordered-span consistency it relies on is audited by generated_syntax_index_records_root_and_ordered_spans and the semantics-refs fixture facet",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:GeneratedSyntaxIndexBuilder",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "visitor accumulator whose open-node stack and leaf cursor are legitimately mid-flight during traversal; the index it produces is audited by the jbotci-semantics syntax index and projection tests",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:MeksoNodeId",
@@ -1525,7 +1521,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-tree/src/lib.rs:Chain",
-        "generated syntax migration placeholder audited by generated semantics and renderer tests",
+        "structural head/links pair generic over both components, so every combination is valid by construction; chain traversal is audited by the jbotci-tree walker tests and the chain-link split tests in the Gentufa and output renderers",
     ),
     (
         "crates/jbotci-tree/src/lib.rs:FieldRef",
