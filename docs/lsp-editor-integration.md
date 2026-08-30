@@ -490,8 +490,8 @@ Findings (verified 2026-07-14):
 - `GeneratedReferenceAnalysis::analyze` takes `&GeneratedTextSyntax` — the
   **valid** model only (`crates/jbotci-semantics/src/references.rs:486`).
   There is no mention of the recovered model anywhere in `jbotci-semantics`
-  (8,713 lines in references.rs alone); the tersmu semantic builder, retired
-  since (#869), was likewise valid-only.
+  (8,713 lines in references.rs alone); the tersmu semantic builder, which has
+  since been retired (#869), was likewise valid-only.
 - The output layer confirms the gap is load-bearing:
   `pretty_recovered_generated_model_tree_with_options` tries
   `try_into_valid()` and renders references only if that succeeds — i.e. only

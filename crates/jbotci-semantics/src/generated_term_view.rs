@@ -318,7 +318,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
 
     /// Borrow a leaf from the unguarded `nonabs` level, or report a grouped connection.
     ///
-    /// The unguarded tag leaf lowers exactly like its absorption-guarded twin.
+    /// The unguarded tag leaf is analyzed exactly like its absorption-guarded twin.
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn from_nonabs(term: &'syntax NonabsTermSyntax) -> Option<Self> {
@@ -394,7 +394,7 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
     }
 }
 
-/// A borrowed sumti-association payload: the shapes a GOI-family relative phrase can lower.
+/// A borrowed sumti-association payload: the shapes a GOI-family relative phrase can carry.
 ///
 /// The payload constituent is the shared normal-flavour term, because that is what all three
 /// sources spell at `relative_clause_1` (camxes.peg:168, camxes-exp.peg:207,
