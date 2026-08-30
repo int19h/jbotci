@@ -8797,13 +8797,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn chrestomathy_cu_terms_selbri_fallback_preserves_existing_cu_parses() {
-        for source in [
-            "mi cu pu klama",
-            "mi cu na klama",
-            "mi cu fa klama",
-            "cu klama",
-            "cu fa klama",
-        ] {
+        // A leading term sends the CU to `bridi_with_leading_terms`, the baseline arm
+        // camxes-standard spells at camxes.peg:26, so these keep both their parse and their
+        // silence.
+        for source in ["mi cu pu klama", "mi cu na klama", "mi cu fa klama"] {
             let parsed = parse_source(source, &ParseOptions::default());
             let raw = format!("{:?}", parsed.parse_tree);
             assert!(
@@ -8813,6 +8810,25 @@ mod tests {
             assert!(
                 !has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalCuTermsSelbri),
                 "{source} should not use the CU TERMS fallback"
+            );
+        }
+        // With no leading terms there is no sourced CU slot at all, so `bare_cu_bridi` is an
+        // adopted-camxes-exp cell and its CU warns. The parse itself is unchanged: the
+        // repeated-group prefix arm is still not reached.
+        for source in ["cu klama", "cu fa klama"] {
+            let parsed = parse_source(source, &ParseOptions::default());
+            let raw = format!("{:?}", parsed.parse_tree);
+            assert!(
+                !raw.contains("TermPrefixedBridiTail"),
+                "{source} should keep its existing bridi-tail parse"
+            );
+            assert!(
+                raw.contains("BareCuBridi"),
+                "{source} is the leading-termless CU bridi"
+            );
+            assert!(
+                has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalCuTermsSelbri),
+                "{source} carries the adopted leading-termless CU warning"
             );
         }
     }

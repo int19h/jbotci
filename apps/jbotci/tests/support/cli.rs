@@ -2434,7 +2434,7 @@ fn gentufa_syntax_error_uses_explicit_diagnostic_width() {
         let stdout = std::str::from_utf8(&output).expect("stdout utf8");
         assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
-        assert!(stderr.contains("expected: free modifier, terms"));
+        assert!(stderr.contains("expected: free modifier, space interval"));
         assert!(stderr.contains("bridi tail"));
         assert!(stderr.contains("while parsing bridi"));
         assert!(!stderr.contains("expected one of:"));
@@ -2498,7 +2498,7 @@ fn gentufa_detailed_syntax_errors_show_expectation_breakdown() {
         assert!(stderr.contains("{pe'o}"));
         assert!(stderr.contains("bridi"));
         let compact_stderr = stderr.split_whitespace().collect::<Vec<_>>().join(" ");
-        assert!(compact_stderr.contains("[continues bridi]"));
+        assert!(compact_stderr.contains("[continues bridi tail]"));
         assert!(!stderr.contains("end of input (end of input)"));
         assert!(!stderr.contains("\x1b["));
     });
@@ -2520,7 +2520,7 @@ fn gentufa_syntax_error_labels_unique_current_construct() {
         assert!(stdout.contains('‼'), "{stdout}");
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("mi cu"), "{stderr}");
-        assert!(stderr.contains("syntax.incomplete-bridi"), "{stderr}");
+        assert!(stderr.contains("syntax.incomplete-statement"), "{stderr}");
         assert!(stderr.contains("needs one of:"), "{stderr}");
         assert!(stderr.contains("replacement phrase"), "{stderr}");
         assert!(stderr.contains("{pe'o}"), "{stderr}");

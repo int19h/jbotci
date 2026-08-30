@@ -903,6 +903,14 @@ mod tests {
         // plain `syntax.unexpected-cmavo` and carries no local experimental
         // warning for the gate to be conservative about.
         //
+        // `nary-forethought-statement` joined with epoch 7's D1 boundary (#805).
+        // At the base its trailing `gi'i` was consumed as an incomplete
+        // `bridi_statement_continuation`, and that diagnostic's context label ran
+        // from inside the sample's paragraph across the following `ni'o` -- a
+        // boundary-crossing diagnostic the gate must reject. With the unsourced
+        // I-less statement continuation deleted, the sample rejects with plain
+        // in-paragraph diagnostics and no local warning.
+        //
         // Epoch 6c's samples (#827) join it for the same two reasons. The three
         // connectorless BO joints and the explicit-KU JAI term are ZANTUFA-gated,
         // so the default profile rejects each with a plain diagnostic and no local
@@ -917,6 +925,7 @@ mod tests {
             [
                 "statement-relative-clause",
                 "grouped-bridi-tail",
+                "nary-forethought-statement",
                 "statement-abstraction",
                 "trailing-operator-mex-quantifier",
                 "xi-mex-free-with-statement-terms",

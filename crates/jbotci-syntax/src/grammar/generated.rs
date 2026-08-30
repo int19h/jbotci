@@ -842,9 +842,15 @@ pub mod generated_model {
     }
 
     /// Product node for bridi; preserves `cu` and `bridi_tail` in source order.
+    ///
+    /// A leading-termless CU before the selbri is camxes-exp's alone: camxes-standard's
+    /// sentence spells `terms CU_elidible?` (camxes.peg:26), so with no terms there is no CU
+    /// slot at all. The cell is therefore adopted rather than baseline, and R2 gives every
+    /// non-baseline cell a warning, so the CU carries one. `mi cu broda` is untouched: its
+    /// leading term sends it to `bridi_with_leading_terms`, whose CU is the sourced one.
     rule "bridi" bare_cu_bridi(bridi_tail) -> struct {
-        /// The `Cu` cmavo marker.
-        field cu <- arc(cmavo(Cu).wf());
+        /// The `Cu` cmavo marker, camxes-exp's leading-termless CU.
+        field cu <- arc(cmavo(Cu).warn(ExperimentalCuTermsSelbri).wf());
         /// The shared bridi tail child syntax node.
         field bridi_tail <- arc(bridi_tail);
     }

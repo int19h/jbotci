@@ -972,6 +972,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed BO-tail view delegates validity to the invariant-bearing sourced or Zantufa tail it was built from",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTailBoJointRef",
+        "borrowed BO-joint view delegates validity to the invariant-bearing sourced or Zantufa joint it was built from",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedBridiTailBoJointWithoutTailTermsRef",
+        "borrowed BO-joint view delegates validity to the invariant-bearing sourced or Zantufa joint it was built from",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSelbriBridiTailRef",
+        "borrowed selbri-tail view delegates validity to the invariant-bearing sourced or camxes-exp-prefixed tail it was built from",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSelbriBridiTailWithoutTailTermsRef",
+        "borrowed selbri-tail view delegates validity to the invariant-bearing sourced or camxes-exp-prefixed tail it was built from",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedTaggedTermRef",
         "borrowed tag-term view delegates validity to the invariant-bearing guarded or unguarded tag term it was built from",
     ),
@@ -1341,6 +1357,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ZantufaTagRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:BaselineTailContinuationRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:BaselineTailContinuationWithoutTailTermsRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:GroupedTanruKeTailRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:ExpPrefixUnderZantufaConnectiveRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:ExpPrefixUnderZantufaConnectiveWithoutTailTermsRejection",
         "stateless parser rejection policy has exactly one valid value",
     ),
     (
