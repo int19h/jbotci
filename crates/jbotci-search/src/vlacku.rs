@@ -320,9 +320,8 @@ pub struct VlackuCard {
     pub word: String,
     pub word_type: String,
     /// False marks a synthesized card for a word with no dictionary entry
-    /// carrying a definition (the text-card equivalent of the tersmu XML
-    /// `KNOWN="false"` attribute); renderers must flag such cards explicitly
-    /// so they do not read as definition-less known entries.
+    /// carrying a definition; renderers must flag such cards explicitly so
+    /// they do not read as definition-less known entries.
     pub known: bool,
     pub selmaho: Option<String>,
     pub author: Option<VlackuAuthor>,

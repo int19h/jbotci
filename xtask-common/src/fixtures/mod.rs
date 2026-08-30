@@ -231,13 +231,6 @@ impl TestCase {
             {
                 facets.insert(Facet::GentufaJsonShowElided);
             }
-            if output
-                .tersmu
-                .as_ref()
-                .is_some_and(|tersmu| tersmu.json.is_some() || tersmu.error.is_some())
-            {
-                facets.insert(Facet::TersmuJson);
-            }
         }
         facets
     }
@@ -360,13 +353,6 @@ impl TestCase {
                 .and_then(|output| output.show_elided.as_ref())
                 .and_then(|output| output.json.as_ref())
                 .map(|_| ExpectationStatus::Success),
-            Facet::TersmuJson => self
-                .expectations
-                .output
-                .as_ref()
-                .and_then(|output| output.tersmu.as_ref())
-                .filter(|output| output.json.is_some() || output.error.is_some())
-                .map(|output| output.status),
         }
     }
 }
@@ -493,8 +479,6 @@ pub struct OutputExpectations {
     pub vlasei: Option<VlaseiOutputExpectation>,
     #[serde(default)]
     pub gentufa: Option<GentufaOutputExpectation>,
-    #[serde(default)]
-    pub tersmu: Option<TersmuOutputExpectation>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -533,33 +517,6 @@ pub struct CommandOutputExpectation {
     pub tree: Option<TextExpectation>,
     #[serde(default)]
     pub json: Option<TextExpectation>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[invariant(true)]
-pub struct TersmuOutputExpectation {
-    #[serde(default = "success_expectation_status")]
-    pub status: ExpectationStatus,
-    #[serde(default, rename = "story-time")]
-    pub story_time: bool,
-    #[serde(default)]
-    pub json: Option<TextExpectation>,
-    #[serde(default)]
-    pub error: Option<TextExpectation>,
-}
-
-impl Default for TersmuOutputExpectation {
-    #[requires(true)]
-    #[ensures(ret.status == ExpectationStatus::Success)]
-    fn default() -> Self {
-        Self {
-            status: ExpectationStatus::Success,
-            story_time: false,
-            json: None,
-            error: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -967,12 +924,6 @@ pub enum ExpectationStatus {
     NotApplicable,
 }
 
-#[requires(true)]
-#[ensures(ret == ExpectationStatus::Success)]
-fn success_expectation_status() -> ExpectationStatus {
-    ExpectationStatus::Success
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Facet {
@@ -991,7 +942,6 @@ pub enum Facet {
     GentufaBracketsShowElided,
     GentufaTreeShowElided,
     GentufaJsonShowElided,
-    TersmuJson,
 }
 
 impl Facet {
@@ -1014,7 +964,6 @@ impl Facet {
             Self::GentufaBracketsShowElided,
             Self::GentufaTreeShowElided,
             Self::GentufaJsonShowElided,
-            Self::TersmuJson,
         ]
     }
 }
@@ -1039,7 +988,6 @@ impl fmt::Display for Facet {
             Self::GentufaBracketsShowElided => "gentufa-brackets-show-elided",
             Self::GentufaTreeShowElided => "gentufa-tree-show-elided",
             Self::GentufaJsonShowElided => "gentufa-json-show-elided",
-            Self::TersmuJson => "tersmu-json",
         };
         f.write_str(text)
     }
@@ -1067,7 +1015,6 @@ impl std::str::FromStr for Facet {
             "gentufa-brackets-show-elided" => Ok(Self::GentufaBracketsShowElided),
             "gentufa-tree-show-elided" => Ok(Self::GentufaTreeShowElided),
             "gentufa-json-show-elided" => Ok(Self::GentufaJsonShowElided),
-            "tersmu-json" => Ok(Self::TersmuJson),
             other => Err(format!("unknown fixture facet `{other}`")),
         }
     }

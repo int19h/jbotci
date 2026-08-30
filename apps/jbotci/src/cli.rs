@@ -299,30 +299,6 @@ pub(super) fn run_cli_command_with_tool_context<WOut: Write, WErr: Write>(
             command_not_implemented("mulgau")?;
             Ok(CliStatus::Success)
         }
-        Command::Tersmu(mut input) => {
-            normalize_trace_text_input(&mut input.trace, &input.file, &mut input.text);
-            validate_trace_controls(
-                &input.trace,
-                new!(CliTraceValidation {
-                    command_name: "tersmu",
-                    trace_phase: None,
-                    trace_limit_present: false,
-                    trace_list: false,
-                    supports_morphology: true,
-                    supports_syntax: true,
-                }),
-            )?;
-            run_tersmu(
-                input,
-                stdout,
-                stderr,
-                color_policy,
-                cli_diagnostic_detail(false),
-                cli_glyph_style(false),
-                diagnostic_terminal_width,
-                stdin_text,
-            )
-        }
         Command::Vlacku(input) => {
             let glyphs = cli_glyph_style(input.ascii);
             run_vlacku(
@@ -390,7 +366,6 @@ fn benchmark_command_reads_stdin(command: &Command) -> bool {
     match command {
         Command::Vlasei(input) => vlasei_input_reads_stdin(input),
         Command::Gentufa(input) => gentufa_input_reads_stdin(input),
-        Command::Tersmu(input) => tersmu_input_reads_stdin(input),
         _ => false,
     }
 }
@@ -410,12 +385,6 @@ fn gentufa_input_reads_stdin(input: &GentufaInput) -> bool {
     if input.trace_list {
         return false;
     }
-    trace_text_input_reads_stdin(&input.file, &input.text, &input.trace)
-}
-
-#[requires(true)]
-#[ensures(input.file.is_some() -> !ret)]
-fn tersmu_input_reads_stdin(input: &TersmuInput) -> bool {
     trace_text_input_reads_stdin(&input.file, &input.text, &input.trace)
 }
 

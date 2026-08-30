@@ -33,13 +33,9 @@ use jbotci_output::{
     pretty_generated_model_brackets_with_options, pretty_generated_model_tree_with_options,
     pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
 };
-use jbotci_semantics::{
-    SemanticBuildOptions, SemanticGraph,
-    build_generated_semantic_graph_with_dictionary_and_options,
-    references::{
-        FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
-        analyze_generated_references,
-    },
+use jbotci_semantics::references::{
+    FixturePlaceSlot, FixtureReferenceTarget, FixtureSpanKey, ReferenceFixtureProjection,
+    analyze_generated_references,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -62,12 +58,6 @@ use xtask_common::service_worker::{
     RELEASE_SERVICE_WORKER_TEMPLATE, render_release_service_worker,
 };
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
-
-mod semantic_doc_audit;
-mod semantics_coverage;
-
-use semantic_doc_audit::SemanticDocAuditArgs;
-use semantics_coverage::SemanticsCoverageArgs;
 
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
@@ -198,8 +188,6 @@ struct Cli {
 #[invariant(::RefsV0Parity(..) => true)]
 #[invariant(::FixtureVectorStats(..) => true)]
 #[invariant(::FixtureTest(..) => true)]
-#[invariant(::SemanticsCoverage(..) => true)]
-#[invariant(::SemanticDocAudit(..) => true)]
 #[invariant(::SyntaxParserBenchmark(..) => true)]
 #[invariant(::VendorDictionary(..) => true)]
 #[invariant(::VendorWiki(..) => true)]
@@ -234,10 +222,6 @@ enum Command {
     RefsV0Parity(RefsV0ParityArgs),
     FixtureVectorStats(FixtureVectorStatsArgs),
     FixtureTest(FixtureRunArgs),
-    #[command(name = "semantics-coverage")]
-    SemanticsCoverage(SemanticsCoverageArgs),
-    #[command(name = "semantic-doc-audit")]
-    SemanticDocAudit(SemanticDocAuditArgs),
     #[command(name = "syntax-parser-benchmark")]
     SyntaxParserBenchmark(SyntaxParserBenchmarkArgs),
     VendorDictionary(VendorDictionaryArgs),
@@ -474,8 +458,6 @@ struct FixtureRewriteArgs {
     rederive_morphology_status: bool,
     #[arg(long)]
     add_semantics_refs: bool,
-    #[arg(long, hide = true)]
-    add_tersmu_json: bool,
     #[arg(long, hide = true)]
     syntax_failure_diagnostics_only: bool,
     #[arg(long, hide = true)]
@@ -1171,8 +1153,6 @@ fn main() -> Result<()> {
         Command::RefsV0Parity(args) => refs_v0_parity(args),
         Command::FixtureVectorStats(args) => fixture_vector_stats(args),
         Command::FixtureTest(args) => fixture_test(args),
-        Command::SemanticsCoverage(args) => semantics_coverage::run(args),
-        Command::SemanticDocAudit(args) => semantic_doc_audit::run(args),
         Command::SyntaxParserBenchmark(args) => syntax_parser_benchmark(args),
         Command::VendorDictionary(args) => vendor_dictionary(args),
         Command::VendorWiki(args) => vendor_wiki(args),
@@ -8010,7 +7990,6 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         && (args.migrate_morphology_diagnostics
             || args.rederive_morphology_status
             || args.add_semantics_refs
-            || args.add_tersmu_json
             || args.syntax_only
             || args.gentufa_output_only
             || args.only_semantics_refs)
@@ -8023,7 +8002,6 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         && (args.migrate_morphology_diagnostics
             || args.rederive_morphology_status
             || args.add_semantics_refs
-            || args.add_tersmu_json
             || args.gentufa_output_only
             || args.only_semantics_refs)
     {
@@ -8033,7 +8011,6 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         && (args.migrate_morphology_diagnostics
             || args.rederive_morphology_status
             || args.add_semantics_refs
-            || args.add_tersmu_json
             || args.only_semantics_refs)
     {
         bail!("`--gentufa-output-only` cannot be combined with other fixture rewrite modes");
@@ -8041,13 +8018,9 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
     if args.rederive_morphology_status
         && (args.migrate_morphology_diagnostics
             || args.add_semantics_refs
-            || args.add_tersmu_json
             || args.only_semantics_refs)
     {
         bail!("`--rederive-morphology-status` cannot be combined with other fixture rewrite modes");
-    }
-    if args.only_semantics_refs && args.add_tersmu_json {
-        bail!("`--only-semantics-refs` cannot be combined with `--add-tersmu-json`");
     }
     if args.rederive_morphology_status && !args.chunk_worker {
         ensure_clean_git_tree_for_fixture_rederive()?;
@@ -8060,7 +8033,6 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.migrate_morphology_diagnostics,
             args.rederive_morphology_status,
             args.add_semantics_refs,
-            args.add_tersmu_json,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
             args.gentufa_output_only,
@@ -8077,7 +8049,6 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
             args.migrate_morphology_diagnostics,
             args.rederive_morphology_status,
             args.add_semantics_refs,
-            args.add_tersmu_json,
             args.syntax_failure_diagnostics_only,
             args.syntax_only,
             args.gentufa_output_only,
@@ -8093,7 +8064,6 @@ fn fixture_rewrite_inner(args: FixtureRewriteArgs) -> Result<()> {
         args.migrate_morphology_diagnostics,
         args.rederive_morphology_status,
         args.add_semantics_refs,
-        args.add_tersmu_json,
         args.syntax_failure_diagnostics_only,
         args.syntax_only,
         args.gentufa_output_only,
@@ -8133,7 +8103,6 @@ fn fixture_rewrite_subprocess_chunks(
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
-    add_tersmu_json: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
     gentufa_output_only: bool,
@@ -8157,7 +8126,6 @@ fn fixture_rewrite_subprocess_chunks(
             migrate_morphology_diagnostics,
             rederive_morphology_status,
             add_semantics_refs,
-            add_tersmu_json,
             syntax_failure_diagnostics_only,
             syntax_only,
             gentufa_output_only,
@@ -8197,7 +8165,6 @@ fn fixture_rewrite_chunk_output(
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
-    add_tersmu_json: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
     gentufa_output_only: bool,
@@ -8216,9 +8183,6 @@ fn fixture_rewrite_chunk_output(
     }
     if add_semantics_refs {
         command.arg("--add-semantics-refs");
-    }
-    if add_tersmu_json {
-        command.arg("--add-tersmu-json");
     }
     if syntax_failure_diagnostics_only {
         command.arg("--syntax-failure-diagnostics-only");
@@ -8402,7 +8366,6 @@ fn fixture_rewrite_paths(
     migrate_morphology_diagnostics: bool,
     rederive_morphology_status: bool,
     add_semantics_refs: bool,
-    add_tersmu_json: bool,
     syntax_failure_diagnostics_only: bool,
     syntax_only: bool,
     gentufa_output_only: bool,
@@ -8481,15 +8444,10 @@ fn fixture_rewrite_paths(
             if fixture.test_case == original_test_case {
                 continue;
             }
-        } else if add_semantics_refs || add_tersmu_json || only_semantics_refs {
+        } else if add_semantics_refs || only_semantics_refs {
             let original_test_case = fixture.test_case.clone();
-            refresh_fixture_expectations(
-                &mut fixture,
-                add_semantics_refs,
-                add_tersmu_json,
-                only_semantics_refs,
-            )
-            .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
+            refresh_fixture_expectations(&mut fixture, add_semantics_refs, only_semantics_refs)
+                .with_context(|| format!("refreshing fixture `{}`", path.display()))?;
             if fixture.test_case == original_test_case {
                 continue;
             }
@@ -8651,11 +8609,6 @@ fn regenerate_fixture_facet(
         Facet::GentufaJsonShowElided => {
             let actual = render_gentufa_json_fixture(fixture, true)?;
             regenerate_gentufa_text_fixture(fixture, facet, actual)
-        }
-        Facet::TersmuJson => {
-            let result = tersmu_json_fixture_result(fixture);
-            record_tersmu_json_expectation(&mut fixture.test_case.expectations, result);
-            Ok(())
         }
     }
 }
@@ -10064,7 +10017,6 @@ fn format_fixture_toml_value<T: Serialize + ?Sized>(value: &T) -> Result<String>
 fn refresh_fixture_expectations(
     fixture: &mut LoadedTestCase,
     add_semantics_refs: bool,
-    add_tersmu_json: bool,
     only_semantics_refs: bool,
 ) -> Result<()> {
     let dialect = fixture.test_case.dialect_definition()?;
@@ -10172,19 +10124,11 @@ fn refresh_fixture_expectations(
             .as_ref()
             .is_some_and(|syntax| syntax.status == ExpectationStatus::Success);
     let refresh_semantics_refs = existing_semantics_refs_success || add_semantics_refs_for_fixture;
-    let add_tersmu_json_for_fixture = add_tersmu_json
-        && fixture
-            .test_case
-            .expectations
-            .syntax
-            .as_ref()
-            .is_some_and(|syntax| syntax.status == ExpectationStatus::Success);
     if refresh_syntax
         || refresh_syntax_failure
         || refresh_tree
         || refresh_brackets
         || refresh_semantics_refs
-        || add_tersmu_json_for_fixture
     {
         let syntax_words = match &words {
             Ok(words) => words.clone(),
@@ -10204,12 +10148,6 @@ fn refresh_fixture_expectations(
                 }
                 if add_semantics_refs_for_fixture {
                     record_semantics_refs_expectation(
-                        &mut fixture.test_case.expectations,
-                        Err(format!("morphology error: {error}")),
-                    );
-                }
-                if add_tersmu_json_for_fixture {
-                    record_tersmu_json_expectation(
                         &mut fixture.test_case.expectations,
                         Err(format!("morphology error: {error}")),
                     );
@@ -10320,10 +10258,6 @@ fn refresh_fixture_expectations(
                     }
                     record_semantics_refs_expectation(&mut fixture.test_case.expectations, result);
                 }
-                if add_tersmu_json_for_fixture {
-                    let result = tersmu_json_fixture_result(fixture);
-                    record_tersmu_json_expectation(&mut fixture.test_case.expectations, result);
-                }
             }
             Err(error) => {
                 if refresh_syntax_failure
@@ -10345,12 +10279,6 @@ fn refresh_fixture_expectations(
                 }
                 if add_semantics_refs_for_fixture {
                     record_semantics_refs_expectation(
-                        &mut fixture.test_case.expectations,
-                        Err(format!("syntax error: {error}")),
-                    );
-                }
-                if add_tersmu_json_for_fixture {
-                    record_tersmu_json_expectation(
                         &mut fixture.test_case.expectations,
                         Err(format!("syntax error: {error}")),
                     );
@@ -10387,18 +10315,6 @@ fn ensure_gentufa_output(
 
 #[requires(true)]
 #[ensures(true)]
-fn ensure_tersmu_output(
-    expectations: &mut fixtures::Expectations,
-) -> &mut fixtures::TersmuOutputExpectation {
-    expectations
-        .output
-        .get_or_insert_with(Default::default)
-        .tersmu
-        .get_or_insert_with(Default::default)
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn ensure_semantics_refs(
     expectations: &mut fixtures::Expectations,
 ) -> &mut fixtures::ReferenceExpectation {
@@ -10430,27 +10346,6 @@ fn record_semantics_refs_expectation(
             refs.status = ExpectationStatus::Failure;
             refs.raw = None;
             refs.error = Some(refreshed_text_expectation(refs.error.as_ref(), error));
-        }
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn record_tersmu_json_expectation(
-    expectations: &mut fixtures::Expectations,
-    result: std::result::Result<String, String>,
-) {
-    let tersmu = ensure_tersmu_output(expectations);
-    match result {
-        Ok(json) => {
-            tersmu.status = ExpectationStatus::Success;
-            tersmu.json = Some(refreshed_text_expectation(tersmu.json.as_ref(), json));
-            tersmu.error = None;
-        }
-        Err(error) => {
-            tersmu.status = ExpectationStatus::Failure;
-            tersmu.json = None;
-            tersmu.error = Some(refreshed_text_expectation(tersmu.error.as_ref(), error));
         }
     }
 }
@@ -12309,7 +12204,6 @@ impl FixtureBackend for RuntimeFixtureBackend {
             Facet::GentufaBracketsShowElided => run_gentufa_brackets_show_elided_fixture(fixture),
             Facet::GentufaTreeShowElided => run_gentufa_tree_show_elided_fixture(fixture),
             Facet::GentufaJsonShowElided => run_gentufa_json_show_elided_fixture(fixture),
-            Facet::TersmuJson => run_tersmu_json_fixture(fixture),
         }
     }
 }
@@ -12674,124 +12568,6 @@ fn run_gentufa_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
         )),
         Err(error) => FacetResult::failed(format!("gentufa JSON render error: {error}")),
     }
-}
-
-#[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[ensures(ret.is_valid())]
-fn run_tersmu_json_fixture(fixture: &LoadedTestCase) -> FacetResult {
-    let Some(expectation) = fixture
-        .test_case
-        .expectations
-        .output
-        .as_ref()
-        .and_then(|output| output.tersmu.as_ref())
-        .filter(|output| output.json.is_some() || output.error.is_some())
-    else {
-        return FacetResult::skipped("fixture has no tersmu JSON expectation");
-    };
-    if matches!(
-        expectation.status,
-        ExpectationStatus::Pending | ExpectationStatus::NotApplicable
-    ) {
-        return FacetResult::skipped(format!(
-            "tersmu JSON expectation is {:?}",
-            expectation.status
-        ));
-    }
-    let actual = tersmu_json_fixture_result(fixture);
-    match actual {
-        Ok(actual) if expectation.status == ExpectationStatus::Success => {
-            let Some(expected_json) = &expectation.json else {
-                return FacetResult::failed("tersmu JSON success expectation has no json value");
-            };
-            if text_expectation_matches(expected_json, &actual) {
-                FacetResult::passed()
-            } else {
-                FacetResult::failed(format_text_expectation_mismatch(
-                    "tersmu JSON",
-                    expected_json,
-                    &actual,
-                ))
-            }
-        }
-        Ok(actual) if expectation.status == ExpectationStatus::Failure => {
-            FacetResult::failed(format!(
-                "tersmu JSON unexpectedly succeeded with `{}`",
-                truncate_for_mismatch(&actual)
-            ))
-        }
-        Err(error) if expectation.status == ExpectationStatus::Failure => {
-            let Some(expected_error) = &expectation.error else {
-                return FacetResult::failed("tersmu JSON failure expectation has no error");
-            };
-            if text_expectation_matches(expected_error, &error) {
-                FacetResult::passed()
-            } else {
-                FacetResult::failed(format_text_expectation_mismatch(
-                    "tersmu JSON error",
-                    expected_error,
-                    &error,
-                ))
-            }
-        }
-        Err(error) => FacetResult::failed(error),
-        Ok(_) => FacetResult::failed(format!(
-            "tersmu JSON expectation has unsupported status {:?}",
-            expectation.status
-        )),
-    }
-}
-
-#[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
-fn tersmu_json_fixture_result(fixture: &LoadedTestCase) -> std::result::Result<String, String> {
-    tersmu_graph_fixture_result(fixture, "tersmu JSON build error").and_then(|graph| {
-        graph
-            .to_json_string(0)
-            .map_err(|error| format!("tersmu JSON render error: {error}"))
-    })
-}
-
-#[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[requires(!build_error_label.is_empty())]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.is_empty()))]
-fn tersmu_graph_fixture_result(
-    fixture: &LoadedTestCase,
-    build_error_label: &str,
-) -> std::result::Result<SemanticGraph, String> {
-    let dialect = fixture
-        .test_case
-        .dialect_definition()
-        .map_err(|error| format!("dialect error: {error}"))?;
-    let options = MorphologyOptions::default().with_dialect_definition(&dialect);
-    let syntax_options = ParseOptions::default().with_dialect_definition(&dialect);
-    let words = segment_words_with_modifiers_with_options_and_source_id(
-        &fixture.test_case.lojban,
-        &options,
-        Some(SourceId("<fixture>".to_owned())),
-    )
-    .map_err(|error| format!("morphology error: {error}"))?;
-    let parsed = parse_syntax_tree_generated_model_with_source_and_options(
-        &words,
-        &fixture.test_case.lojban,
-        &syntax_options,
-    )
-    .map_err(|error| format!("syntax error: {error}"))?;
-    build_generated_semantic_graph_with_dictionary_and_options(
-        &parsed,
-        SemanticBuildOptions {
-            source_text: Some(&fixture.test_case.lojban),
-            story_time: fixture
-                .test_case
-                .expectations
-                .output
-                .as_ref()
-                .and_then(|output| output.tersmu.as_ref())
-                .is_some_and(|tersmu| tersmu.story_time),
-        },
-        jbotci_dictionary_data::english(),
-    )
-    .map_err(|error| format!("{build_error_label}: {error}"))
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
@@ -13914,12 +13690,6 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
             .and_then(|output| output.show_elided.as_ref())
             .and_then(|output| output.json.as_ref())
             .map(|_| ExpectationStatus::Success),
-        Facet::TersmuJson => expectations
-            .output
-            .as_ref()
-            .and_then(|output| output.tersmu.as_ref())
-            .filter(|output| output.json.is_some() || output.error.is_some())
-            .map(|output| output.status),
     }
 }
 
@@ -15055,7 +14825,6 @@ mod tests {
 
         let summary = fixture_rewrite_paths(
             vec![target.clone()],
-            false,
             false,
             false,
             false,

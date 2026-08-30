@@ -20,10 +20,9 @@ use support::fixtures::{
     OutputExpectations, Provenance, RecoveredExpectation, RecoveredTreeExpectation,
     RecoveredTreeRecoveryItemExpectation, RecoveredTreeRecoveryItemKindExpectation,
     ReferenceExpectation, ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation,
-    TersmuOutputExpectation, TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation,
-    filter_fixtures, fixture_paths, import_export_file, load_fixture_file, load_fixture_path,
-    load_fixture_tree, run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree,
-    write_fixture_file,
+    TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation, filter_fixtures,
+    fixture_paths, import_export_file, load_fixture_file, load_fixture_path, load_fixture_tree,
+    run_fixture_facets, run_fixture_facets_parallel, validate_fixture_tree, write_fixture_file,
 };
 
 #[test]
@@ -188,80 +187,6 @@ fn recovered_morphology_contracts_hold_for_fixture_corpus() {
         checked += 1;
     }
     assert!(checked > 0);
-}
-
-#[cfg(feature = "expensive_contracts")]
-#[test]
-#[requires(true)]
-#[ensures(true)]
-fn domain_import_marker_iff_holds_for_fixture_corpus() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
-    let fixtures = load_fixture_tree(&root).expect("fixtures should load");
-    let mut fixtures_checked = 0usize;
-    let mut hash_only_fixtures_skipped = 0usize;
-    let mut formula_nodes_checked = 0usize;
-    let mut marked_nodes = 0usize;
-
-    for fixture in fixtures {
-        let Some(expectation) = fixture
-            .test_case
-            .expectations
-            .output
-            .as_ref()
-            .and_then(|output| output.tersmu.as_ref())
-            .filter(|expectation| expectation.status == ExpectationStatus::Success)
-            .and_then(|expectation| expectation.json.as_ref())
-        else {
-            continue;
-        };
-        if expectation.text.is_empty() {
-            assert!(
-                expectation.sha256.is_some(),
-                "{} tersmu JSON is neither inline nor hash-pinned",
-                fixture.test_case.id,
-            );
-            hash_only_fixtures_skipped += 1;
-            continue;
-        }
-        let graph: serde_json::Value = serde_json::from_str(&expectation.text)
-            .unwrap_or_else(|error| panic!("{} tersmu JSON: {error}", fixture.test_case.id));
-        let objects = graph["objects"]
-            .as_object()
-            .unwrap_or_else(|| panic!("{} tersmu objects", fixture.test_case.id));
-        for (id, object) in objects {
-            let Some(object) = object.as_object() else {
-                panic!("{} object {id} is not a map", fixture.test_case.id);
-            };
-            let qualifies = object.get("type").and_then(serde_json::Value::as_str)
-                == Some("formula")
-                && matches!(
-                    object.get("operator").and_then(serde_json::Value::as_str),
-                    Some("forall" | "pluralForall")
-                )
-                && object.contains_key("restriction");
-            let expected = qualifies.then_some("projective");
-            assert_eq!(
-                object
-                    .get("domainImport")
-                    .and_then(serde_json::Value::as_str),
-                expected,
-                "{} object {id} violates the domainImport iff rule",
-                fixture.test_case.id,
-            );
-            if object.get("type").and_then(serde_json::Value::as_str) == Some("formula") {
-                formula_nodes_checked += 1;
-            }
-            marked_nodes += usize::from(qualifies);
-        }
-        fixtures_checked += 1;
-    }
-
-    println!(
-        "fixtures_checked={fixtures_checked} hash_only_fixtures_skipped={hash_only_fixtures_skipped} formula_nodes_checked={formula_nodes_checked} marked_nodes={marked_nodes}"
-    );
-    assert!(fixtures_checked > 0);
-    assert!(formula_nodes_checked > 0);
-    assert!(marked_nodes > 0);
 }
 
 #[cfg(feature = "expensive_contracts")]
@@ -1453,14 +1378,6 @@ fn writer_keeps_tree_and_output_values() {
                     }),
                     show_elided: None,
                 }),
-                tersmu: Some(TersmuOutputExpectation {
-                    story_time: true,
-                    json: Some(TextExpectation {
-                        text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
-                        sha256: None,
-                    }),
-                    ..TersmuOutputExpectation::default()
-                }),
             }),
             morphology: Some(MorphologyExpectation {
                 status: ExpectationStatus::Success,
@@ -1512,7 +1429,6 @@ fn writer_keeps_tree_and_output_values() {
     );
     assert!(text.contains("[expectations.output.vlasei]\njson = "));
     assert!(text.contains("[expectations.output.gentufa]\nbrackets = \"[coi]\""));
-    assert!(text.contains("[expectations.output.tersmu]\nstory-time = true\njson = "));
     assert!(text.contains("tree = '\"coi\"'"));
     assert!(text.contains("[expectations.morphology]\nstatus = \"success\"\nraw = "));
     assert!(!text.contains("words = ["));
@@ -1670,7 +1586,7 @@ fn writer_round_trips_jvozba_expectation() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn writer_round_trips_tersmu_expectations_and_facets() {
+fn writer_round_trips_gentufa_expectations_and_rejects_retired_tersmu_facets() {
     let case = TestCase {
         id: "adhoc.tree".into(),
         lojban: "coi".into(),
@@ -1689,13 +1605,6 @@ fn writer_round_trips_tersmu_expectations_and_facets() {
                     }),
                     ..GentufaOutputExpectation::default()
                 }),
-                tersmu: Some(TersmuOutputExpectation {
-                    json: Some(TextExpectation {
-                        text: "{\"version\":\"lojban-semantics-json-1\"}".into(),
-                        sha256: None,
-                    }),
-                    ..TersmuOutputExpectation::default()
-                }),
                 ..OutputExpectations::default()
             }),
             ..Expectations::default()
@@ -1703,29 +1612,26 @@ fn writer_round_trips_tersmu_expectations_and_facets() {
     };
     let facets = case.available_facets();
     assert!(facets.contains(&Facet::GentufaTree));
-    assert!(facets.contains(&Facet::TersmuJson));
     assert!(!facets.contains(&Facet::GentufaBrackets));
     assert_eq!(
         "gentufa-tree".parse::<Facet>().expect("tree facet"),
         Facet::GentufaTree
     );
-    assert_eq!(
-        "tersmu-json".parse::<Facet>().expect("tersmu facet"),
-        Facet::TersmuJson
-    );
-    // The legacy tree/tree+proj tersmu renderers were removed with no alias, so
-    // their fixture facet strings must no longer parse.
+    // The tersmu renderers were retired with no alias (#869 for `tersmu-json`,
+    // and the tree/tree+proj/claims/combined renderers before it), so none of
+    // their fixture facet strings may parse.
+    assert!("tersmu-json".parse::<Facet>().is_err());
     assert!("tersmu-tree".parse::<Facet>().is_err());
     assert!("tersmu-tree+proj".parse::<Facet>().is_err());
     assert!("tersmu-claims".parse::<Facet>().is_err());
     assert!("tersmu-combined".parse::<Facet>().is_err());
 
-    let temp_root = temp_root("jbotci-fixtures-tersmu-writer-test");
+    let temp_root = temp_root("jbotci-fixtures-gentufa-writer-test");
     fs::create_dir_all(&temp_root).expect("temp root");
     let fixture_path = temp_root.join("fixture.toml");
     write_fixture_file(&fixture_path, &case).expect("write fixture");
     let text = fs::read_to_string(&fixture_path).expect("read fixture");
-    assert!(!text.contains("tree+proj"));
+    assert!(!text.contains("tersmu"));
     assert_eq!(
         load_fixture_file(&fixture_path).expect("load fixture"),
         case

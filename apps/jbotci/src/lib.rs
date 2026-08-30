@@ -8,7 +8,6 @@ mod cli;
 mod commands;
 mod lsp;
 mod output;
-pub mod projection;
 mod tool;
 #[cfg(test)]
 mod windows_stack;
@@ -17,9 +16,6 @@ pub use cli::main_entry;
 use cli::run_cli_command_with_tool_context;
 use commands::*;
 use output::*;
-use projection::{
-    ProjectionFailureEnvelope, projection_failure_diagnostics, projection_failure_envelope,
-};
 pub use tool::*;
 
 #[doc(hidden)]
@@ -30,11 +26,11 @@ pub mod test_harness {
         CliSumtiPlaces, CliTracePhase, CliUsePrecomputed, Command, CuktaCliFormat, CuktaInput,
         GentufaFormat, GentufaImageOutputType, GentufaInput, GimfihiCliFormat,
         GimfihiCliNormalizer, GimfihiCliScorer, GimfihiInput, GimfihiSourceWordKind, JvozbaInput,
-        SetupInput, TersmuFormat, TersmuInput, TextInput, ToolAlineNormalizer, ToolAlineSaliences,
-        ToolCollisionScope, ToolCuktaFormat, ToolCuktaMode, ToolCuktaRequest, ToolExecutionContext,
-        ToolGimfihiFormat, ToolGimfihiRequest, ToolGimfihiScorer, ToolGimfihiSource, ToolStatus,
-        ToolVlackuMode, ToolVlackuRequest, VlackuInput, VlaseiFormat, VlaseiInput, VlataiFormat,
-        VlataiInput, run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku,
+        SetupInput, TextInput, ToolAlineNormalizer, ToolAlineSaliences, ToolCollisionScope,
+        ToolCuktaFormat, ToolCuktaMode, ToolCuktaRequest, ToolExecutionContext, ToolGimfihiFormat,
+        ToolGimfihiRequest, ToolGimfihiScorer, ToolGimfihiSource, ToolStatus, ToolVlackuMode,
+        ToolVlackuRequest, VlackuInput, VlaseiFormat, VlaseiInput, VlataiFormat, VlataiInput,
+        run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku,
         run_tool_vlacku_with_context,
     };
     pub use bityzba::{ensures, invariant, new, requires};
@@ -184,13 +180,12 @@ use jbotci_output::{
     compact_morphology_json_value, compact_recovered_morphology_json_string_with_options,
     compact_recovered_syntax_json_string_with_options, format_definition_line_with_indexed_places,
     format_notes_line_with_indexed_places, generated_reference_display, ipa_morphology_text,
-    json_string_with_options, pretty_generated_model_brackets_with_options,
-    pretty_generated_model_tree_with_options, pretty_morphology_brackets_with_options,
-    pretty_morphology_tree_with_options, pretty_recovered_morphology_brackets_with_options,
-    pretty_recovered_morphology_raw, pretty_recovered_morphology_tree_with_options,
-    pretty_recovered_syntax_brackets_with_options, pretty_recovered_syntax_raw,
-    pretty_recovered_syntax_tree_with_options, render_diagnostics, render_json_value_with_options,
-    render_trace_report,
+    pretty_generated_model_brackets_with_options, pretty_generated_model_tree_with_options,
+    pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
+    pretty_recovered_morphology_brackets_with_options, pretty_recovered_morphology_raw,
+    pretty_recovered_morphology_tree_with_options, pretty_recovered_syntax_brackets_with_options,
+    pretty_recovered_syntax_raw, pretty_recovered_syntax_tree_with_options, render_diagnostics,
+    render_json_value_with_options, render_trace_report,
 };
 use jbotci_phonetic::{AlineFeature, AlineNormalizer, AlineParameters, AlineSaliences};
 use jbotci_search::vlacku::{
@@ -199,10 +194,6 @@ use jbotci_search::vlacku::{
     WordTypeFilter, dictionary_cards_for_word_likes, dictionary_entry_card,
     dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
     normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
-};
-use jbotci_semantics::{
-    SemanticBuildOptions, build_generated_semantic_graph_with_dictionary_and_options,
-    render_xml_with_word_cards,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
@@ -242,7 +233,6 @@ pub struct Cli {
 #[invariant(::Vlatai(..) => true)]
 #[invariant(::Gentufa(..) => true)]
 #[invariant(::Mulgau(..) => true)]
-#[invariant(::Tersmu(..) => true)]
 #[invariant(::Vlacku(..) => true)]
 #[invariant(::Jvozba(..) => true)]
 #[invariant(::Gimfihi(..) => true)]
@@ -260,12 +250,6 @@ pub enum Command {
     Gentufa(GentufaInput),
     #[command(name = "mulgau", visible_alias = "completions")]
     Mulgau(TextInput),
-    #[command(
-        name = "tersmu",
-        about = "Build and render a typed semantic graph",
-        long_about = "Build and render a typed semantic graph. The default `smusni` format is an experimental human-readable typed S-expression document with concise semantic forms and mechanically complete typed fallbacks. JSON is the canonical interchange graph."
-    )]
-    Tersmu(TersmuInput),
     #[command(name = "vlacku", visible_alias = "dict")]
     Vlacku(VlackuInput),
     #[command(name = "jvozba")]
@@ -368,32 +352,6 @@ pub enum GentufaFormat {
     Raw,
     #[value(alias = "djeisone")]
     Json,
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum TersmuFormat {
-    /// Canonical `lojban-semantics-json-1` flat id-graph.
-    #[value(alias = "djeisone")]
-    Json,
-    /// Experimental human-readable typed S-expression notation (the default).
-    Smusni,
-    /// Canonical SFN-XML: a scoped, self-describing rendering of the same
-    /// semantic graph with structured definitions and references.
-    Xml,
-}
-
-impl TersmuFormat {
-    /// The stable wire spelling a caller uses to request this format.
-    #[requires(true)]
-    #[ensures(!ret.is_empty())]
-    pub fn wire_name(self) -> &'static str {
-        match self {
-            Self::Json => "json",
-            Self::Smusni => "smusni",
-            Self::Xml => "xml",
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -755,57 +713,6 @@ impl TextInput {
 
 #[invariant(true)]
 #[derive(Debug, Clone, Args)]
-pub struct TersmuInput {
-    #[arg(long = "file", alias = "sfaile")]
-    pub file: Option<PathBuf>,
-    #[arg(
-        long = "format",
-        default_value_t = TersmuFormat::Smusni,
-        value_enum,
-        help = "Output `smusni` notation (default), canonical SFN-XML, or the canonical JSON interchange graph"
-    )]
-    pub format: TersmuFormat,
-    #[arg(long = "max-errors")]
-    pub max_errors: Option<NonZeroUsize>,
-    #[arg(
-        long = "trace",
-        alias = "plivei",
-        value_name = "SPEC",
-        num_args = 0..=1,
-        default_missing_value = "1"
-    )]
-    pub trace: Option<Option<String>>,
-    #[arg(long = "dialect")]
-    pub dialect: Option<String>,
-    #[arg(
-        long = "show-defs",
-        help = "Show dictionary definitions for content words (gismu, lujvo, fu'ivla, dictionary-backed cmevla); cmavo definitions are never included. `smusni` and `xml` embed structured word cards inside the single document; not supported with `json`"
-    )]
-    pub show_defs: bool,
-    #[arg(long = "story-time")]
-    pub story_time: bool,
-    #[arg(long = "indent")]
-    pub indent: Option<usize>,
-    #[arg()]
-    pub text: Vec<String>,
-}
-
-impl TersmuInput {
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub fn read_text_with_stdin(&self, stdin_text: Option<&str>) -> Result<String> {
-        read_text_input(self.file.as_ref(), &self.text, stdin_text)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    pub fn dialect_definition(&self) -> Result<DialectDefinition> {
-        dialect_definition(self.dialect.as_deref())
-    }
-}
-
-#[invariant(true)]
-#[derive(Debug, Clone, Args)]
 pub struct GentufaInput {
     #[arg(long = "file", alias = "sfaile")]
     pub file: Option<PathBuf>,
@@ -869,23 +776,6 @@ struct GentufaRendered {
     status: CliStatus,
     stdout: Vec<u8>,
     stderr: String,
-}
-
-#[invariant(stderr.is_empty() || stderr.ends_with('\n'))]
-#[invariant(compact_incompatibilities.iter().all(|record| !record.trim().is_empty()), "declared incompatibility records cannot be empty")]
-struct TersmuRendered {
-    status: CliStatus,
-    stdout: Vec<u8>,
-    stderr: String,
-    /// The declared compact-representation incompatibility records of the
-    /// candidate's semantic graph (jbotci#723), each in its exact
-    /// `<INCOMPATIBILITY .../>` declaration form. Empty unless the caller
-    /// requested collection.
-    compact_incompatibilities: Vec<String>,
-    /// The structured smusni projection-failure envelope, present exactly when
-    /// a requested smusni projection failed. The transport layers carry this
-    /// value rather than reparsing the rendered stderr text.
-    projection_failure: Option<ProjectionFailureEnvelope>,
 }
 
 impl GentufaInput {
@@ -1854,18 +1744,6 @@ fn validate_vlasei_options(input: &VlaseiInput, glyphs: GlyphStyle) -> Result<()
                 "`--show-spans` is only supported with `--turtai tree`",
             )?;
         }
-    }
-    Ok(())
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn validate_tersmu_options(input: &TersmuInput) -> Result<()> {
-    if input.format == TersmuFormat::Json {
-        validate_not_present(
-            input.show_defs,
-            "`--show-defs` is not supported with `--format json`",
-        )?;
     }
     Ok(())
 }
