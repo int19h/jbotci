@@ -157,13 +157,45 @@ fn is_subbridi_shaped_body(value: &ZantufaRelativeStatementSyntax) -> bool {
 fn is_baseline_statement_relative(value: &ZantufaStatementRelativeClauseSyntax) -> bool {
     match value {
         ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(clause) => {
-            is_baseline_marker(clause.poi.value.cmavo())
-                && is_subbridi_shaped_body(&clause.statement)
+            returns_to_baseline(
+                is_baseline_marker(clause.poi.value.cmavo()),
+                clause.kuho.is_none(),
+                is_subbridi_shaped_body(&clause.statement),
+            )
         }
         ZantufaStatementRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(clause) => {
-            is_baseline_marker(clause.noi.value.cmavo())
-                && is_subbridi_shaped_body(&clause.statement)
+            returns_to_baseline(
+                is_baseline_marker(clause.noi.value.cmavo()),
+                clause.kuho.is_none(),
+                is_subbridi_shaped_body(&clause.statement),
+            )
         }
+    }
+}
+
+/// The two halves of the return, over the three facts that decide it.
+///
+/// The identical-extent half is R1 as the plan states it: a standard `poi`, `noi` or `voi` over
+/// a body the baseline `subbridi` can form is the baseline's own clause, and the baseline arm
+/// begins at the same marker and ends at the same terminator, so the reparse has identical
+/// extent.
+///
+/// The longer-extent half is the mirror of the reservation D2's clause carries, and it is what
+/// keeps this arm from taking a baseline parse apart rather than adding to it.  A statement-
+/// width body -- an I-connection or a TUhE group -- is wider than any `subbridi`, so with the
+/// KUhO elided the arm does not merely re-own the baseline's clause, it swallows whatever
+/// follows it: on `ko erve tu'a pa litce poi ladru .ije ganai zvati fa su'o caksova gi ...` the
+/// baseline closes the clause at `ladru` and reads the `.ije` as the paragraph's own join, and
+/// thirteen corpus fixtures read that way.  Rolling Zantufa's own terminator is what tells the
+/// two apart, so the Zantufa-only body keeps the extent only when the Zantufa terminator is
+/// there to close it; that is the same rule, and the same word, that decides the D2 boundary.
+#[requires(true)]
+#[ensures(true)]
+fn returns_to_baseline(baseline_marker: bool, kuho_elided: bool, subbridi_body: bool) -> bool {
+    if subbridi_body {
+        baseline_marker
+    } else {
+        kuho_elided
     }
 }
 
@@ -245,16 +277,22 @@ fn recovered_is_baseline_statement_relative(
         recovered::ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
             clause,
         ) => valid(clause).is_some_and(|clause| {
-            valid(&clause.poi.value).is_some_and(|poi| is_baseline_marker(poi.cmavo()))
-                && valid(&clause.statement)
-                    .is_some_and(|statement| recovered_is_subbridi_shaped_body(statement))
+            returns_to_baseline(
+                valid(&clause.poi.value).is_some_and(|poi| is_baseline_marker(poi.cmavo())),
+                clause.kuho.is_none(),
+                valid(&clause.statement)
+                    .is_some_and(|statement| recovered_is_subbridi_shaped_body(statement)),
+            )
         }),
         recovered::ZantufaStatementRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
             clause,
         ) => valid(clause).is_some_and(|clause| {
-            valid(&clause.noi.value).is_some_and(|noi| is_baseline_marker(noi.cmavo()))
-                && valid(&clause.statement)
-                    .is_some_and(|statement| recovered_is_subbridi_shaped_body(statement))
+            returns_to_baseline(
+                valid(&clause.noi.value).is_some_and(|noi| is_baseline_marker(noi.cmavo())),
+                clause.kuho.is_none(),
+                valid(&clause.statement)
+                    .is_some_and(|statement| recovered_is_subbridi_shaped_body(statement)),
+            )
         }),
     }
 }
