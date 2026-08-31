@@ -734,8 +734,9 @@ fn profile_filters_cll_chapter_and_muplis_form() {
             gloss_en: None,
             tags: vec![],
             provenance: vec![Provenance::Cll {
-                chapter: 18,
-                section_number: "18.3".into(),
+                chapter: Some(18),
+                appendix: None,
+                section_number: Some("18.3".into()),
                 section_id: "c18s3".into(),
                 example_number: Some("18.12".into()),
                 example_id: Some("c18e3d1".into()),

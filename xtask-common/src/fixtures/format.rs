@@ -50,14 +50,16 @@ fn push_provenance_toml(
     match provenance {
         Provenance::Cll {
             chapter,
+            appendix,
             section_number,
             section_id,
             example_number,
             example_id,
             source_path,
         } => {
-            push_field(output, "chapter", chapter)?;
-            push_field(output, "section-number", section_number)?;
+            push_optional_field(output, "chapter", chapter)?;
+            push_optional_field(output, "appendix", appendix)?;
+            push_optional_field(output, "section-number", section_number)?;
             push_field(output, "section-id", section_id)?;
             push_optional_field(output, "example-number", example_number)?;
             push_optional_field(output, "example-id", example_id)?;

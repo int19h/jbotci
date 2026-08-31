@@ -102,6 +102,7 @@ impl TestCase {
     #[ensures(ret -> !self.id.is_empty())]
     #[ensures(ret -> self.validate_xfail_metadata().is_ok())]
     #[ensures(ret -> self.dialect_definition().is_ok())]
+    #[ensures(ret -> self.validate_provenance().is_ok())]
     pub fn is_valid_fixture_metadata(&self) -> bool {
         !self.id.is_empty()
             && self
@@ -109,6 +110,22 @@ impl TestCase {
                 .as_deref()
                 .is_none_or(|formula| parse_dialect_definition(formula).is_ok())
             && self.validate_xfail_metadata().is_ok()
+            && self
+                .provenance
+                .iter()
+                .all(Provenance::has_well_formed_division)
+    }
+
+    #[requires(true)]
+    #[ensures(ret.is_ok() == self.provenance.iter().all(Provenance::has_well_formed_division))]
+    pub fn validate_provenance(&self) -> Result<(), FixtureError> {
+        match self.provenance.iter().find_map(Provenance::division_error) {
+            Some(message) => Err(FixtureError::InvalidProvenance {
+                id: self.id.clone(),
+                message,
+            }),
+            None => Ok(()),
+        }
     }
 
     #[requires(true)]
@@ -367,9 +384,22 @@ impl TestCase {
 #[invariant(::Other => true)]
 pub enum Provenance {
     Cll {
-        chapter: u16,
-        #[serde(rename = "section-number")]
-        section_number: String,
+        /// The numbered chapter the source section belongs to. Absent exactly
+        /// when the source is an appendix, which the book designates by title
+        /// rather than by a chapter number.
+        #[serde(default)]
+        chapter: Option<u16>,
+        /// The stable division id of the appendix the source section belongs to
+        /// (for example `volume-chrestomathy`). Present exactly when `chapter`
+        /// is absent. The book gives appendices no number and no letter, so
+        /// their addressable designation is this id, not an invented label.
+        #[serde(default)]
+        appendix: Option<String>,
+        /// The section number the book prints (`"6.3"`). Present exactly when
+        /// `chapter` is present; appendix sections are cited by `section-id`
+        /// and title alone.
+        #[serde(default, rename = "section-number")]
+        section_number: Option<String>,
         #[serde(rename = "section-id")]
         section_id: String,
         #[serde(default, rename = "example-number")]
@@ -420,6 +450,55 @@ impl Provenance {
             Self::Adhoc { .. } => "adhoc",
             Self::Other { .. } => "other",
         }
+    }
+
+    /// Why the division fields of CLL provenance are not well formed, if they
+    /// are not: a fixture names its source division the way the book does, so
+    /// it carries either a chapter number together with the section number the
+    /// book prints, or the stable id of the appendix and no number at all.
+    #[requires(true)]
+    #[ensures(ret.is_none() == self.has_well_formed_division())]
+    pub fn division_error(&self) -> Option<String> {
+        let Self::Cll {
+            chapter,
+            appendix,
+            section_number,
+            ..
+        } = self
+        else {
+            return None;
+        };
+        match (chapter, appendix) {
+            (Some(_), Some(appendix)) => Some(format!(
+                "CLL provenance names both chapter {} and appendix `{appendix}`",
+                chapter.expect("chapter is present in this arm")
+            )),
+            (None, None) => {
+                Some("CLL provenance names neither a chapter nor an appendix".to_owned())
+            }
+            (Some(chapter), None) if section_number.is_none() => Some(format!(
+                "CLL provenance for chapter {chapter} is missing `section-number`"
+            )),
+            (None, Some(appendix)) if section_number.is_some() => Some(format!(
+                "CLL provenance for appendix `{appendix}` carries a section number, but the book gives appendix sections none"
+            )),
+            _ => None,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn has_well_formed_division(&self) -> bool {
+        let Self::Cll {
+            chapter,
+            appendix,
+            section_number,
+            ..
+        } = self
+        else {
+            return true;
+        };
+        chapter.is_some() != appendix.is_some() && chapter.is_some() == section_number.is_some()
     }
 }
 
@@ -1064,6 +1143,8 @@ pub struct FixtureSelector {
 pub struct CllSelector {
     #[serde(default)]
     pub chapter: Option<u16>,
+    #[serde(default)]
+    pub appendix: Option<String>,
     #[serde(default, rename = "section-number")]
     pub section_number: Option<String>,
     #[serde(default, rename = "section-id")]
@@ -1106,6 +1187,7 @@ pub struct LoadedTestCase {
 #[invariant(::InvalidDialect => true)]
 #[invariant(::InvalidXfail => true)]
 #[invariant(::InvalidLojbanSource => true)]
+#[invariant(::InvalidProvenance => true)]
 #[invariant(::LegacyExpectationFormat => true)]
 pub enum FixtureError {
     #[error("failed to read `{path}`: {source}")]
@@ -1154,6 +1236,8 @@ pub enum FixtureError {
     },
     #[error("fixture `{id}` has invalid syntax xfail metadata: {message}")]
     InvalidXfail { id: String, message: String },
+    #[error("fixture `{id}` has invalid provenance: {message}")]
+    InvalidProvenance { id: String, message: String },
     #[error("fixture `{path}` has invalid Lojban source declaration: {message}")]
     InvalidLojbanSource { path: PathBuf, message: String },
     #[error("fixture `{path}` uses legacy expectation format: {message}")]
@@ -1448,6 +1532,7 @@ pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, F
         let test_case = load_fixture_file(&path)?;
         test_case.dialect_definition()?;
         test_case.validate_xfail_metadata()?;
+        test_case.validate_provenance()?;
         if let Some(first) = seen.insert(test_case.id.clone(), path.clone()) {
             return Err(FixtureError::DuplicateId {
                 id: test_case.id,
@@ -1569,7 +1654,9 @@ pub fn path_for_case(case: &TestCase) -> PathBuf {
     match case.provenance.first() {
         Some(Provenance::Cll {
             chapter,
+            appendix,
             section_number,
+            section_id,
             example_id,
             ..
         }) => {
@@ -1577,9 +1664,21 @@ pub fn path_for_case(case: &TestCase) -> PathBuf {
                 .as_deref()
                 .unwrap_or(case.id.as_str())
                 .replace(['/', '\\'], "_");
+            // Numbered chapters lay out as `chapter-NN/section-N.M`; appendices
+            // have no numbers to lay out by, so they use the stable division and
+            // section ids the book addresses them with.
+            let division_dir = match (chapter, appendix) {
+                (Some(chapter), _) => format!("chapter-{chapter:02}"),
+                (None, Some(appendix)) => appendix.replace(['/', '\\'], "_"),
+                (None, None) => "unknown-division".to_owned(),
+            };
+            let section_dir = match section_number {
+                Some(section_number) => format!("section-{section_number}"),
+                None => section_id.replace(['/', '\\'], "_"),
+            };
             PathBuf::from("cll")
-                .join(format!("chapter-{chapter:02}"))
-                .join(format!("section-{section_number}"))
+                .join(division_dir)
+                .join(section_dir)
                 .join(format!("{file}.toml"))
         }
         Some(Provenance::Muplis {
@@ -1698,6 +1797,7 @@ fn matches_selector(root: &Path, fixture: &LoadedTestCase, selector: &FixtureSel
 fn matches_cll_selector(provenance: &Provenance, selector: &CllSelector) -> bool {
     let Provenance::Cll {
         chapter,
+        appendix,
         section_number,
         section_id,
         example_number,
@@ -1707,11 +1807,15 @@ fn matches_cll_selector(provenance: &Provenance, selector: &CllSelector) -> bool
     else {
         return false;
     };
-    selector.chapter.is_none_or(|value| value == *chapter)
+    selector.chapter.is_none_or(|value| *chapter == Some(value))
+        && selector
+            .appendix
+            .as_ref()
+            .is_none_or(|value| appendix.as_ref() == Some(value))
         && selector
             .section_number
             .as_ref()
-            .is_none_or(|value| value == section_number)
+            .is_none_or(|value| section_number.as_ref() == Some(value))
         && selector
             .section_id
             .as_ref()

@@ -52,9 +52,9 @@ const CHRESTOMATHY_METADATA_TOML: &str = include_str!(concat!(
 #[invariant(true)]
 pub(crate) struct SectionParseContext {
     pub(crate) chapter_id: String,
-    pub(crate) chapter_number: u16,
+    pub(crate) division: CllDivision,
     pub(crate) section_id: String,
-    pub(crate) section_number: String,
+    pub(crate) section_number: Option<String>,
     pub(crate) section_title: String,
     pub(crate) source_path: String,
 }
@@ -121,14 +121,14 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
     let mut anchors_by_id = BTreeMap::new();
     let mut pending_index_entries = Vec::new();
 
-    for (source_path, chapter_number, compressed) in EMBEDDED_CLL_CHAPTERS {
+    for (source_path, division, compressed) in EMBEDDED_CLL_CHAPTERS {
         let xml = decode_chapter_xml(compressed)?;
         let xml = sanitize_xml_entities(&xml);
         let document = Document::parse(&xml)
             .map_err(|error| CllError::Parse(format!("{source_path}: {error}")))?;
         let root = document.root_element();
         let (chapter, sections, examples, anchors, index_entries) =
-            parse_chapter(root, *chapter_number, source_path)?;
+            parse_chapter(root, *division, source_path)?;
         for section in sections {
             section_order.push(section.section_id.clone());
             sections_by_id.insert(section.section_id.clone(), section);
@@ -197,12 +197,11 @@ pub(crate) fn sanitize_xml_entities(xml: &str) -> String {
 }
 
 #[requires(root.is_element())]
-#[requires(chapter_number > 0)]
 #[requires(!source_path.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|(chapter, ..)| chapter.chapter_number == chapter_number) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|(chapter, ..)| chapter.division == division) || ret.is_err())]
 fn parse_chapter(
     root: Node<'_, '_>,
-    chapter_number: u16,
+    division: CllDivision,
     source_path: &str,
 ) -> Result<
     (
@@ -214,12 +213,21 @@ fn parse_chapter(
     ),
     CllError,
 > {
-    let chapter_id = xml_id(root).unwrap_or_else(|| format!("chapter-{chapter_number}"));
+    // Every vendored division carries an `xml:id` and a title; the fallbacks
+    // below only keep a malformed division addressable, and never invent a
+    // designation the book does not use.
+    let chapter_id = xml_id(root).unwrap_or_else(|| match division.chapter_number() {
+        Some(number) => format!("chapter-{number}"),
+        None => format!("appendix-{}", source_path.trim_end_matches(".xml")),
+    });
     let title_node = child_element(root, "title");
     let chapter_title = title_node
         .map(visible_text)
         .filter(|title| !title.is_empty())
-        .unwrap_or_else(|| format!("Chapter {chapter_number}"));
+        .unwrap_or_else(|| match division.chapter_number() {
+            Some(number) => format!("Chapter {number}"),
+            None => chapter_id.clone(),
+        });
     let mut prelude_blocks = Vec::new();
     let mut sections = Vec::new();
     let mut examples = Vec::new();
@@ -238,7 +246,7 @@ fn parse_chapter(
         collect_title_anchors(
             title_node,
             &chapter_id,
-            &format!("{chapter_number}. {chapter_title}"),
+            &cll_numbered_title(division.number_label().as_deref(), &chapter_title),
             &mut anchors,
         );
     }
@@ -253,7 +261,7 @@ fn parse_chapter(
                 let parsed = parse_section(
                     child,
                     &chapter_id,
-                    chapter_number,
+                    division,
                     section_index,
                     source_path,
                     &mut parse_state,
@@ -271,7 +279,7 @@ fn parse_chapter(
         let parsed = parse_sectionless_chapter(
             root,
             &chapter_id,
-            chapter_number,
+            division,
             &chapter_title,
             source_path,
             &mut parse_state,
@@ -290,14 +298,14 @@ fn parse_chapter(
                 .first()
                 .cloned()
                 .unwrap_or_else(|| chapter_id.clone()),
-            label: chapter_xref_label(chapter_number),
+            label: division.xref_label(&chapter_title),
         }),
     ));
 
     Ok((
         new!(CllChapter {
             chapter_id,
-            chapter_number,
+            division,
             chapter_title,
             root_section_ids,
             prelude_blocks,
@@ -309,23 +317,16 @@ fn parse_chapter(
     ))
 }
 
-#[requires(chapter_number > 0)]
-#[ensures(ret.starts_with("Chapter "))]
-fn chapter_xref_label(chapter_number: u16) -> String {
-    format!("Chapter {chapter_number}")
-}
-
 #[requires(root.is_element())]
-#[requires(chapter_number > 0)]
 #[requires(!chapter_id.is_empty())]
 #[requires(!chapter_title.is_empty())]
 #[requires(!source_path.is_empty())]
-#[ensures(ret.0.chapter_number == chapter_number)]
+#[ensures(ret.0.division == division)]
 #[ensures(ret.0.section_id == chapter_id)]
 fn parse_sectionless_chapter(
     root: Node<'_, '_>,
     chapter_id: &str,
-    chapter_number: u16,
+    division: CllDivision,
     chapter_title: &str,
     source_path: &str,
     parse_state: &mut BlockParseState,
@@ -335,10 +336,10 @@ fn parse_sectionless_chapter(
     Vec<(String, CllAnchor)>,
     Vec<PendingIndexEntry>,
 ) {
-    let section_number = chapter_number.to_string();
+    let section_number = division.number_label();
     let context = SectionParseContext {
         chapter_id: chapter_id.to_owned(),
-        chapter_number,
+        division,
         section_id: chapter_id.to_owned(),
         section_number: section_number.clone(),
         section_title: chapter_title.to_owned(),
@@ -376,7 +377,7 @@ fn parse_sectionless_chapter(
         chapter_id.to_owned(),
         new!(CllAnchor {
             section_id: chapter_id.to_owned(),
-            label: format!("{section_number}. {chapter_title}"),
+            label: cll_numbered_title(section_number.as_deref(), chapter_title),
         }),
     ));
 
@@ -384,7 +385,7 @@ fn parse_sectionless_chapter(
         new!(CllSection {
             section_id: chapter_id.to_owned(),
             chapter_id: chapter_id.to_owned(),
-            chapter_number,
+            division,
             number: section_number,
             title: chapter_title.to_owned(),
             parent_section_id: None,
@@ -400,13 +401,12 @@ fn parse_sectionless_chapter(
 }
 
 #[requires(section_node.is_element())]
-#[requires(chapter_number > 0)]
 #[requires(section_index > 0)]
-#[ensures(ret.as_ref().is_ok_and(|(section, ..)| section.chapter_number == chapter_number) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|(section, ..)| section.division == division) || ret.is_err())]
 fn parse_section(
     section_node: Node<'_, '_>,
     chapter_id: &str,
-    chapter_number: u16,
+    division: CllDivision,
     section_index: usize,
     source_path: &str,
     parse_state: &mut BlockParseState,
@@ -421,15 +421,18 @@ fn parse_section(
 > {
     let section_id =
         xml_id(section_node).unwrap_or_else(|| format!("{chapter_id}-s{section_index}"));
-    let section_number = format!("{chapter_number}.{section_index}");
+    let section_number = division.section_number(section_index);
     let title_node = child_element(section_node, "title");
     let section_title = title_node
         .map(visible_text)
         .filter(|title| !title.is_empty())
-        .unwrap_or_else(|| format!("Section {section_number}"));
+        .unwrap_or_else(|| match &section_number {
+            Some(section_number) => format!("Section {section_number}"),
+            None => section_id.clone(),
+        });
     let context = SectionParseContext {
         chapter_id: chapter_id.to_owned(),
-        chapter_number,
+        division,
         section_id: section_id.clone(),
         section_number: section_number.clone(),
         section_title: section_title.clone(),
@@ -443,7 +446,7 @@ fn parse_section(
         collect_title_anchors(
             title_node,
             &section_id,
-            &format!("{section_number}. {section_title}"),
+            &cll_numbered_title(section_number.as_deref(), &section_title),
             &mut anchors,
         );
     }
@@ -480,7 +483,7 @@ fn parse_section(
         section_id.clone(),
         new!(CllAnchor {
             section_id: section_id.clone(),
-            label: format!("{section_number}. {section_title}"),
+            label: cll_numbered_title(section_number.as_deref(), &section_title),
         }),
     ));
 
@@ -488,7 +491,7 @@ fn parse_section(
         new!(CllSection {
             section_id,
             chapter_id: chapter_id.to_owned(),
-            chapter_number,
+            division,
             number: section_number,
             title: section_title,
             parent_section_id: None,
@@ -907,10 +910,15 @@ fn parse_example_block(
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
     parse_state.chapter_example_counter += 1;
-    let example_number = format!(
-        "{}.{}",
-        context.chapter_number, parse_state.chapter_example_counter
-    );
+    // Numbered chapters number their examples `chapter.position`; an appendix
+    // has no number to qualify with, so its examples are numbered by position
+    // within the appendix, exactly as the book's own formatter would.
+    let example_number = match context.division.number_label() {
+        Some(chapter_number) => {
+            format!("{chapter_number}.{}", parse_state.chapter_example_counter)
+        }
+        None => parse_state.chapter_example_counter.to_string(),
+    };
     let display_label = format!("Example {example_number}");
     let xml_id = xml_id(node);
     let title_node = child_element(node, "title");
@@ -971,7 +979,7 @@ fn parse_example_block(
     }
     let example = new!(CllExample {
         reference: new!(CllReference {
-            chapter: context.chapter_number,
+            division: context.division,
             section_number: context.section_number.clone(),
             section_id: context.section_id.clone(),
             example_number: Some(example_number),

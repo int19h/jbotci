@@ -12,7 +12,8 @@ use jbotci_cll::{
     CllBlock, CllParagraphRole, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter,
     DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT,
     chrestomathy_section_parse_href, cll_first_section_id, cll_index_entries, cll_lookup_section,
-    cll_next_section_id, cll_previous_section_id, cll_resolve_section_reference,
+    cll_next_section_id, cll_numbered_title, cll_previous_section_id,
+    cll_resolve_section_reference,
     cll_search_all_chunks, cll_search_chunk_href, cll_section_chapter_title, cukta_search,
     embedded_cll_site, format_section_display_title, truncate_preview,
 };
@@ -2751,9 +2752,9 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                         role: item.chunk.role.clone(),
                         label: item.chunk.label.clone(),
                         href: cukta_chunk_href(base_path, &item.chunk),
-                        section_label: format!(
-                            "{}. {}",
-                            item.chunk.section_number, item.chunk.section_title
+                        section_label: cll_numbered_title(
+                            item.chunk.section_number.as_deref(),
+                            &item.chunk.section_title,
                         ),
                         preview: truncate_preview(&item.chunk.text, 420),
                     })
@@ -2843,7 +2844,10 @@ pub fn build_cukta_semantic_web_page_with_loading(
                 role: chunk.role.clone(),
                 label: chunk.label.clone(),
                 href: cukta_chunk_href(base_path, chunk),
-                section_label: format!("{}. {}", chunk.section_number, chunk.section_title),
+                section_label: cll_numbered_title(
+                    chunk.section_number.as_deref(),
+                    &chunk.section_title,
+                ),
                 preview: truncate_preview(&chunk.text, 420),
             }));
             if results.len() > search_state.count {
@@ -3705,22 +3709,15 @@ fn cll_section_chapter_display_title(
     site: &jbotci_cll::CllSite,
     section: &jbotci_cll::CllSection,
 ) -> String {
-    let chapter_number = section_chapter_number(section).unwrap_or_else(|| "Unknown".to_owned());
-    match cll_section_chapter_title(site, &section.section_id) {
-        Some(chapter_title) => format!("Chapter {chapter_number}. {chapter_title}"),
-        None => format!("Chapter {chapter_number}"),
+    let chapter_title = cll_section_chapter_title(site, &section.section_id);
+    // Appendices are designated by title alone, so their page title is the
+    // appendix title with no "Chapter N" prefix to attach it to.
+    match (section.division.number_label(), chapter_title) {
+        (Some(number), Some(chapter_title)) => format!("Chapter {number}. {chapter_title}"),
+        (Some(number), None) => format!("Chapter {number}"),
+        (None, Some(chapter_title)) => chapter_title,
+        (None, None) => section.title.clone(),
     }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|number| !number.is_empty()))]
-fn section_chapter_number(section: &jbotci_cll::CllSection) -> Option<String> {
-    section
-        .number
-        .split_once('.')
-        .map(|(chapter_number, _)| chapter_number.to_owned())
-        .or_else(|| (!section.number.is_empty()).then(|| section.number.clone()))
-        .filter(|value| !value.is_empty())
 }
 
 #[requires(true)]
@@ -4074,7 +4071,7 @@ fn build_cukta_toc(
                 .unwrap_or_else(|| format!("{}/cukta/index", base_path.trim_end_matches('/')));
             CuktaTocNode {
                 node_id: chapter.chapter_id.clone(),
-                number_label: Some(chapter.chapter_number.to_string()),
+                number_label: chapter.division.number_label(),
                 label: chapter.chapter_title.clone(),
                 href,
                 active: children.iter().any(|child| child.active),
@@ -4105,7 +4102,7 @@ fn build_cukta_toc_section(
     let current = current_section_id == Some(section.section_id.as_str());
     Some(CuktaTocNode {
         node_id: section.section_id.clone(),
-        number_label: Some(section.number.clone()),
+        number_label: section.number.clone(),
         label: section.title.clone(),
         href: cukta_section_href(base_path, &section.section_id),
         active: current || children.iter().any(|child| child.active),

@@ -17,7 +17,8 @@ use bityzba::{contract_trait, ensures, invariant, new, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{
-    CllExample, CllExampleLineKind, CllSite, chrestomathy_section_texts, embedded_cll_site,
+    CllExample, CllExampleLineKind, CllSite, chrestomathy_section_texts, cll_lookup_section,
+    embedded_cll_site,
 };
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
@@ -369,6 +370,8 @@ struct FixtureRunArgs {
     paths: Vec<String>,
     #[arg(long = "cll-chapter")]
     cll_chapter: Option<u16>,
+    #[arg(long = "cll-appendix")]
+    cll_appendix: Option<String>,
     #[arg(long = "cll-section")]
     cll_section: Option<String>,
     #[arg(long = "cll-example")]
@@ -436,6 +439,8 @@ struct CllFixtureMetadataAuditArgs {
     paths: Vec<String>,
     #[arg(long = "cll-chapter")]
     cll_chapter: Option<u16>,
+    #[arg(long = "cll-appendix")]
+    cll_appendix: Option<String>,
     #[arg(long = "cll-section")]
     cll_section: Option<String>,
     #[arg(long = "cll-example")]
@@ -6611,6 +6616,16 @@ fn export_long_text_fixtures(args: ExportLongTextFixturesArgs) -> Result<()> {
     fs::create_dir_all(&text_dir).with_context(|| format!("creating `{}`", text_dir.display()))?;
     for section in chrestomathy_section_texts(site) {
         let section = section.into_data();
+        // The chrestomathy is an appendix: it is designated by title, so its
+        // fixtures record the appendix's stable division id and no number.
+        let appendix = cll_lookup_section(site, &section.section_id)
+            .map(|section| section.chapter_id.clone())
+            .with_context(|| {
+                format!(
+                    "resolving the division of chrestomathy section `{}`",
+                    section.section_id
+                )
+            })?;
         let slug = long_text_section_slug(&section.section_id);
         let source_filename = PathBuf::from("texts").join(format!("{slug}.lojban"));
         let source_path = fixture_dir.join(&source_filename);
@@ -6625,8 +6640,9 @@ fn export_long_text_fixtures(args: ExportLongTextFixturesArgs) -> Result<()> {
             gloss_en: None,
             tags: vec!["long-text".to_owned(), "regression-baseline".to_owned()],
             provenance: vec![Provenance::Cll {
-                chapter: 22,
-                section_number: section.section_number,
+                chapter: None,
+                appendix: Some(appendix),
+                section_number: None,
                 section_id: section.section_id,
                 example_number: None,
                 example_id: None,
@@ -6772,6 +6788,7 @@ struct CllFixtureMetadataAuditRow {
     fixture_path: String,
     fixture_id: String,
     chapter: String,
+    appendix: String,
     section_number: String,
     example_number: String,
     example_id: String,
@@ -6886,10 +6903,17 @@ fn merge_cll_fixture_metadata_audit_selector(
     selector.ids.extend(args.ids.clone());
     selector.path_prefixes.extend(args.path_prefixes.clone());
     selector.paths.extend(args.paths.clone());
-    if args.cll_chapter.is_some() || args.cll_section.is_some() || args.cll_example.is_some() {
+    if args.cll_chapter.is_some()
+        || args.cll_appendix.is_some()
+        || args.cll_section.is_some()
+        || args.cll_example.is_some()
+    {
         let mut cll = selector.cll.take().unwrap_or_default();
         if let Some(chapter) = args.cll_chapter {
             cll.chapter = Some(chapter);
+        }
+        if let Some(appendix) = &args.cll_appendix {
+            cll.appendix = Some(appendix.clone());
         }
         if let Some(section) = &args.cll_section {
             cll.section_number = Some(section.clone());
@@ -6915,6 +6939,13 @@ fn audit_cll_fixture_provenance(
     provenance: &Provenance,
     rows: &mut Vec<CllFixtureMetadataAuditRow>,
 ) -> Result<()> {
+    // Long-text fixtures cite a whole CLL section rather than a worked example.
+    // Their division and section fields are still auditable, and are the only
+    // place the appendix designation shows up today, so audit them directly
+    // instead of reporting the missing example as drift.
+    if !cll_provenance_references_example(provenance) {
+        return audit_cll_fixture_section_provenance(site, fixture, provenance, rows);
+    }
     let Some(resolved) = resolve_cll_fixture_example(site, provenance) else {
         rows.push(cll_fixture_metadata_audit_row(
             fixture,
@@ -6929,7 +6960,7 @@ fn audit_cll_fixture_provenance(
         return Ok(());
     };
 
-    push_cll_fixture_provenance_audit_rows(fixture, provenance, &resolved, rows)?;
+    push_cll_fixture_provenance_audit_rows(site, fixture, provenance, &resolved, rows)?;
     for field in CLL_FIXTURE_METADATA_FIELDS {
         let fixture_value = field.fixture_value(fixture);
         let cll_values = cll_fixture_metadata_field_values(resolved.example, *field);
@@ -6948,6 +6979,173 @@ fn audit_cll_fixture_provenance(
     Ok(())
 }
 
+/// How the embedded CLL designates the division a section belongs to, in the
+/// same shape a fixture's provenance records it: a numbered chapter carries the
+/// chapter number, and an appendix carries its stable division id because the
+/// book gives appendices neither a number nor a letter.
+#[invariant(chapter.is_some() != appendix.is_some(), "a division is either numbered or an appendix")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CllDivisionDesignation {
+    chapter: Option<String>,
+    appendix: Option<String>,
+}
+
+#[requires(!section_id.is_empty())]
+#[ensures(ret.is_some() == site.sections_by_id.contains_key(section_id))]
+fn cll_division_designation(site: &CllSite, section_id: &str) -> Option<CllDivisionDesignation> {
+    let section = site.sections_by_id.get(section_id)?;
+    Some(match section.division.number_label() {
+        Some(number) => new!(CllDivisionDesignation {
+            chapter: Some(number),
+            appendix: None,
+        }),
+        None => new!(CllDivisionDesignation {
+            chapter: None,
+            appendix: Some(section.chapter_id.clone()),
+        }),
+    })
+}
+
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[ensures(true)]
+fn cll_provenance_references_example(provenance: &Provenance) -> bool {
+    matches!(
+        provenance,
+        Provenance::Cll {
+            example_number,
+            example_id,
+            ..
+        } if example_number.is_some() || example_id.is_some()
+    )
+}
+
+/// Audit a fixture whose CLL provenance cites a whole section rather than a
+/// worked example. Only the division and section fields can be checked: there
+/// is no single example whose Lojban, gloss, or translation the fixture text
+/// should reproduce.
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(!cll_provenance_references_example(provenance))]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn audit_cll_fixture_section_provenance(
+    site: &CllSite,
+    fixture: &LoadedTestCase,
+    provenance: &Provenance,
+    rows: &mut Vec<CllFixtureMetadataAuditRow>,
+) -> Result<()> {
+    let Provenance::Cll {
+        section_id,
+        source_path,
+        ..
+    } = provenance
+    else {
+        return Ok(());
+    };
+    let Some(section) = site.sections_by_id.get(section_id) else {
+        rows.push(cll_fixture_metadata_audit_row(
+            fixture,
+            provenance,
+            "section",
+            CllFixtureMetadataAuditStatus::MissingCllExample,
+            CllFixtureMetadataAuditSeverity::Error,
+            &format_cll_fixture_provenance_key(provenance),
+            &[],
+            "fixture CLL provenance does not resolve to an embedded CLL section",
+        )?);
+        return Ok(());
+    };
+    let resolution_note = "resolved by section-id";
+    push_cll_fixture_division_audit_rows(
+        site,
+        fixture,
+        provenance,
+        rows,
+        section_id,
+        section.number.as_deref(),
+        resolution_note,
+    )?;
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.source-path",
+        source_path.as_deref().unwrap_or_default(),
+        std::slice::from_ref(&section.source_path),
+        resolution_note,
+    )?;
+    Ok(())
+}
+
+/// Compare the division a fixture claims against the division the embedded CLL
+/// puts the resolved section in, plus the section number the book prints for
+/// it. `chapter` and `appendix` are mutually exclusive on both sides, so a
+/// fixture that still records a chapter number for appendix material reports as
+/// drift on both rows.
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(!section_id.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn push_cll_fixture_division_audit_rows(
+    site: &CllSite,
+    fixture: &LoadedTestCase,
+    provenance: &Provenance,
+    rows: &mut Vec<CllFixtureMetadataAuditRow>,
+    section_id: &str,
+    section_number: Option<&str>,
+    resolution_note: &str,
+) -> Result<()> {
+    let Provenance::Cll {
+        chapter,
+        appendix,
+        section_number: fixture_section_number,
+        ..
+    } = provenance
+    else {
+        return Ok(());
+    };
+    let designation = cll_division_designation(site, section_id);
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.chapter",
+        &chapter
+            .map(|chapter| chapter.to_string())
+            .unwrap_or_default(),
+        option_string_slice(
+            designation
+                .as_ref()
+                .and_then(|designation| designation.chapter.as_ref()),
+        ),
+        resolution_note,
+    )?;
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.appendix",
+        appendix.as_deref().unwrap_or_default(),
+        option_string_slice(
+            designation
+                .as_ref()
+                .and_then(|designation| designation.appendix.as_ref()),
+        ),
+        resolution_note,
+    )?;
+    push_cll_fixture_provenance_field_row(
+        fixture,
+        provenance,
+        rows,
+        "provenance.section-number",
+        fixture_section_number.as_deref().unwrap_or_default(),
+        &section_number
+            .map(|section_number| vec![section_number.to_owned()])
+            .unwrap_or_default(),
+        resolution_note,
+    )?;
+    Ok(())
+}
+
 #[requires(matches!(provenance, Provenance::Cll { .. }))]
 #[ensures(true)]
 fn resolve_cll_fixture_example<'a>(
@@ -6956,6 +7154,7 @@ fn resolve_cll_fixture_example<'a>(
 ) -> Option<ResolvedCllFixtureExample<'a>> {
     let Provenance::Cll {
         chapter,
+        appendix,
         section_number,
         example_number,
         example_id,
@@ -6973,10 +7172,15 @@ fn resolve_cll_fixture_example<'a>(
         });
     }
     let example_number = example_number.as_deref()?;
+    let provenance_designation = new!(CllDivisionDesignation {
+        chapter: chapter.map(|chapter| chapter.to_string()),
+        appendix: appendix.clone(),
+    });
     site.examples_by_id
         .values()
         .find(|example| {
-            example.reference.chapter == *chapter
+            cll_division_designation(site, &example.reference.section_id)
+                .is_some_and(|designation| designation == provenance_designation)
                 && example.reference.section_number == *section_number
                 && example.reference.example_number.as_deref() == Some(example_number)
         })
@@ -6990,14 +7194,13 @@ fn resolve_cll_fixture_example<'a>(
 #[requires(matches!(provenance, Provenance::Cll { .. }))]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn push_cll_fixture_provenance_audit_rows(
+    site: &CllSite,
     fixture: &LoadedTestCase,
     provenance: &Provenance,
     resolved: &ResolvedCllFixtureExample<'_>,
     rows: &mut Vec<CllFixtureMetadataAuditRow>,
 ) -> Result<()> {
     let Provenance::Cll {
-        chapter,
-        section_number,
         example_number,
         example_id,
         source_path,
@@ -7011,22 +7214,13 @@ fn push_cll_fixture_provenance_audit_rows(
         CllExampleResolutionMethod::ExampleId => "resolved by example-id",
         CllExampleResolutionMethod::ExampleNumber => "resolved by example-number",
     };
-    push_cll_fixture_provenance_field_row(
+    push_cll_fixture_division_audit_rows(
+        site,
         fixture,
         provenance,
         rows,
-        "provenance.chapter",
-        &chapter.to_string(),
-        &[reference.chapter.to_string()],
-        resolution_note,
-    )?;
-    push_cll_fixture_provenance_field_row(
-        fixture,
-        provenance,
-        rows,
-        "provenance.section-number",
-        section_number,
-        std::slice::from_ref(&reference.section_number),
+        &reference.section_id,
+        reference.section_number.as_deref(),
         resolution_note,
     )?;
     push_cll_fixture_provenance_field_row(
@@ -7322,6 +7516,7 @@ fn cll_fixture_metadata_audit_row(
 ) -> Result<CllFixtureMetadataAuditRow> {
     let Provenance::Cll {
         chapter,
+        appendix,
         section_number,
         example_number,
         example_id,
@@ -7333,8 +7528,11 @@ fn cll_fixture_metadata_audit_row(
     Ok(CllFixtureMetadataAuditRow {
         fixture_path: fixture.path.display().to_string(),
         fixture_id: fixture.test_case.id.clone(),
-        chapter: chapter.to_string(),
-        section_number: section_number.clone(),
+        chapter: chapter
+            .map(|chapter| chapter.to_string())
+            .unwrap_or_default(),
+        appendix: appendix.clone().unwrap_or_default(),
+        section_number: section_number.clone().unwrap_or_default(),
         example_number: example_number.clone().unwrap_or_default(),
         example_id: example_id.clone().unwrap_or_default(),
         field: field.to_owned(),
@@ -7351,6 +7549,7 @@ fn cll_fixture_metadata_audit_row(
 fn format_cll_fixture_provenance_key(provenance: &Provenance) -> String {
     let Provenance::Cll {
         chapter,
+        appendix,
         section_number,
         example_number,
         example_id,
@@ -7363,7 +7562,13 @@ fn format_cll_fixture_provenance_key(provenance: &Provenance) -> String {
         .as_deref()
         .or(example_number.as_deref())
         .unwrap_or("<missing-example>");
-    format!("chapter={chapter}, section={section_number}, example={example}")
+    let division = match (chapter, appendix) {
+        (Some(chapter), _) => format!("chapter={chapter}"),
+        (None, Some(appendix)) => format!("appendix={appendix}"),
+        (None, None) => "division=<missing>".to_owned(),
+    };
+    let section = section_number.as_deref().unwrap_or("<unnumbered>");
+    format!("{division}, section={section}, example={example}")
 }
 
 #[requires(true)]
@@ -7385,6 +7590,7 @@ fn write_cll_fixture_metadata_audit_csv(
             "fixture_path",
             "fixture_id",
             "chapter",
+            "appendix",
             "section_number",
             "example_number",
             "example_id",
@@ -7403,6 +7609,7 @@ fn write_cll_fixture_metadata_audit_csv(
                 &row.fixture_path,
                 &row.fixture_id,
                 &row.chapter,
+                &row.appendix,
                 &row.section_number,
                 &row.example_number,
                 &row.example_id,
@@ -10951,6 +11158,7 @@ fn syntax_parser_benchmark_profile(args: &SyntaxParserBenchmarkArgs) -> Result<F
         path_prefixes: args.path_prefixes.clone(),
         paths: args.paths.clone(),
         cll_chapter: None,
+        cll_appendix: None,
         cll_section: None,
         cll_example: None,
         muplis_collection: None,
@@ -12082,10 +12290,17 @@ fn merge_cli_selector(selector: FixtureSelector, args: &FixtureRunArgs) -> Fixtu
     selector.ids.extend(args.ids.clone());
     selector.path_prefixes.extend(args.path_prefixes.clone());
     selector.paths.extend(args.paths.clone());
-    if args.cll_chapter.is_some() || args.cll_section.is_some() || args.cll_example.is_some() {
+    if args.cll_chapter.is_some()
+        || args.cll_appendix.is_some()
+        || args.cll_section.is_some()
+        || args.cll_example.is_some()
+    {
         let mut cll = selector.cll.take().unwrap_or_default();
         if let Some(chapter) = args.cll_chapter {
             cll.chapter = Some(chapter);
+        }
+        if let Some(appendix) = &args.cll_appendix {
+            cll.appendix = Some(appendix.clone());
         }
         if let Some(section) = &args.cll_section {
             cll.section_number = Some(section.clone());
@@ -13695,9 +13910,13 @@ fn expectation_status(fixture: &LoadedTestCase, facet: Facet) -> Option<Expectat
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU16;
+
     use super::*;
     use bityzba::requires;
-    use jbotci_cll::{CllChapter, CllExampleLine, CllMetadata, CllReference, CllSection};
+    use jbotci_cll::{
+        CllChapter, CllDivision, CllExampleLine, CllMetadata, CllReference, CllSection,
+    };
 
     #[test]
     #[requires(true)]
@@ -13978,16 +14197,16 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn test_cll_site(examples: Vec<CllExample>) -> CllSite {
-        let mut chapters_by_number = BTreeMap::new();
+        let mut divisions_by_id: BTreeMap<String, (CllDivision, Vec<String>)> = BTreeMap::new();
         let mut sections_by_id = BTreeMap::new();
         let mut section_order = Vec::new();
 
         for example in &examples {
             let reference = &example.reference;
-            let chapter_id = format!("chapter-{}", reference.chapter);
-            chapters_by_number
-                .entry(reference.chapter)
-                .or_insert_with(|| (chapter_id.clone(), Vec::new()));
+            let chapter_id = test_cll_division_id(reference.division);
+            divisions_by_id
+                .entry(chapter_id.clone())
+                .or_insert_with(|| (reference.division, Vec::new()));
 
             if !sections_by_id.contains_key(&reference.section_id) {
                 section_order.push(reference.section_id.clone());
@@ -13996,9 +14215,12 @@ mod tests {
                     new!(CllSection {
                         section_id: reference.section_id.clone(),
                         chapter_id: chapter_id.clone(),
-                        chapter_number: reference.chapter,
+                        division: reference.division,
                         number: reference.section_number.clone(),
-                        title: format!("Section {}", reference.section_number),
+                        title: match &reference.section_number {
+                            Some(section_number) => format!("Section {section_number}"),
+                            None => reference.section_id.clone(),
+                        },
                         parent_section_id: None,
                         child_section_ids: Vec::new(),
                         blocks: Vec::new(),
@@ -14006,21 +14228,21 @@ mod tests {
                         plain_text: String::new(),
                     }),
                 );
-                chapters_by_number
-                    .get_mut(&reference.chapter)
-                    .expect("chapter was inserted above")
+                divisions_by_id
+                    .get_mut(&chapter_id)
+                    .expect("division was inserted above")
                     .1
                     .push(reference.section_id.clone());
             }
         }
 
-        let chapters = chapters_by_number
+        let chapters = divisions_by_id
             .into_iter()
-            .map(|(chapter_number, (chapter_id, root_section_ids))| {
+            .map(|(chapter_id, (division, root_section_ids))| {
                 new!(CllChapter {
-                    chapter_id: chapter_id,
-                    chapter_number: chapter_number,
-                    chapter_title: format!("Chapter {chapter_number}"),
+                    chapter_id: chapter_id.clone(),
+                    division: division,
+                    chapter_title: division.xref_label(&chapter_id),
                     root_section_ids: root_section_ids,
                     prelude_blocks: Vec::new(),
                 })
@@ -14055,6 +14277,16 @@ mod tests {
             index_entries: Vec::new(),
             search_chunks: Vec::new(),
         })
+    }
+
+    /// The stable division id a synthetic test site uses for a division.
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn test_cll_division_id(division: CllDivision) -> String {
+        match division.number_label() {
+            Some(number) => format!("chapter-{number}"),
+            None => "test-appendix".to_owned(),
+        }
     }
 
     #[requires(!example_id.is_empty())]
@@ -14108,8 +14340,10 @@ mod tests {
         source_path: &str,
     ) -> CllReference {
         new!(CllReference {
-            chapter: chapter,
-            section_number: section_number.to_owned(),
+            division: CllDivision::Chapter {
+                number: NonZeroU16::new(chapter).expect("test chapter number is non-zero"),
+            },
+            section_number: Some(section_number.to_owned()),
             section_id: section_id.to_owned(),
             example_number: Some(example_number.to_owned()),
             example_id: Some(example_id.to_owned()),
@@ -14121,8 +14355,9 @@ mod tests {
     #[ensures(matches!(ret, Provenance::Cll { .. }))]
     fn test_cll_provenance(example_id: Option<&str>, example_number: Option<&str>) -> Provenance {
         Provenance::Cll {
-            chapter: 6,
-            section_number: "6.2".to_owned(),
+            chapter: Some(6),
+            appendix: None,
+            section_number: Some("6.2".to_owned()),
             section_id: "section-6.2".to_owned(),
             example_number: example_number.map(str::to_owned),
             example_id: example_id.map(str::to_owned),

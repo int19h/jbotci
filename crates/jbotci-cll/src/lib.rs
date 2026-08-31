@@ -114,7 +114,6 @@ pub fn chrestomathy_section_texts(site: &CllSite) -> Vec<CllChrestomathySectionT
             (!text.trim().is_empty()).then(|| {
                 new!(CllChrestomathySectionText {
                     section_id: section.section_id.clone(),
-                    section_number: section.number.clone(),
                     section_title: section.title.clone(),
                     source_path: section.source_path.clone(),
                     text,
@@ -351,9 +350,9 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
             );
             for chapter in &site.chapters {
                 output.push_str("<li>");
-                output.push_str(&escape_html(&format!(
-                    "{}. {}",
-                    chapter.chapter_number, chapter.chapter_title
+                output.push_str(&escape_html(&cll_numbered_title(
+                    chapter.division.number_label().as_deref(),
+                    &chapter.chapter_title,
                 )));
                 output.push_str("<ol>");
                 for section_id in &chapter.root_section_ids {
@@ -388,10 +387,11 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
                 edition.lineage(),
             );
             for chapter in &site.chapters {
-                output.push_str(&format!(
-                    "{}. {}\n",
-                    chapter.chapter_number, chapter.chapter_title
+                output.push_str(&cll_numbered_title(
+                    chapter.division.number_label().as_deref(),
+                    &chapter.chapter_title,
                 ));
+                output.push('\n');
                 for section_id in &chapter.root_section_ids {
                     let section = site
                         .sections_by_id
@@ -433,9 +433,11 @@ pub fn render_index(
                             CllLinkRenderMode::Web => format!(
                                 "<a href=\"{}\">{}</a>",
                                 escape_html(&section_href(&section.section_id)),
-                                escape_html(&section.number)
+                                escape_html(cll_section_index_label(section))
                             ),
-                            CllLinkRenderMode::Plain => escape_html(&section.number),
+                            CllLinkRenderMode::Plain => {
+                                escape_html(cll_section_index_label(section))
+                            }
                         })
                         .collect::<Vec<_>>()
                         .join(", "),
@@ -456,7 +458,7 @@ pub fn render_index(
                             .get(section_id)
                             .expect("CllSite invariant guarantees index entry section ids resolve")
                     })
-                    .map(|section| section.number.as_str())
+                    .map(cll_section_index_label)
                     .collect::<Vec<_>>()
                     .join(", ");
                 output.push_str(&format!("- **{}**: {refs}\n", entry.key));
@@ -595,9 +597,9 @@ pub fn render_search_output(
                 rendered.push_str("</h2><p class=\"cll-search-result-meta\">");
                 rendered.push_str(&escape_html(search_chunk_kind_label(item.chunk.kind)));
                 rendered.push_str(" in ");
-                rendered.push_str(&escape_html(&format!(
-                    "{}. {}",
-                    item.chunk.section_number, item.chunk.section_title
+                rendered.push_str(&escape_html(&cll_numbered_title(
+                    item.chunk.section_number.as_deref(),
+                    &item.chunk.section_title,
                 )));
                 rendered.push_str("</p>");
                 let preview = escape_html(&truncate_preview(&item.chunk.text, 420));
@@ -626,10 +628,12 @@ pub fn render_search_output(
             for item in &output.matches {
                 rendered.push_str(&format!("### {}. {}\n\n", item.rank, item.chunk.label));
                 rendered.push_str(&format!(
-                    "{} in {}. {}\n\n",
+                    "{} in {}\n\n",
                     search_chunk_kind_label(item.chunk.kind),
-                    item.chunk.section_number,
-                    item.chunk.section_title
+                    cll_numbered_title(
+                        item.chunk.section_number.as_deref(),
+                        &item.chunk.section_title,
+                    ),
                 ));
                 let preview = truncate_preview(&item.chunk.text, 420);
                 if item.chunk.is_status_note() {
@@ -651,7 +655,16 @@ pub fn render_search_output(
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub fn format_section_display_title(section: &CllSection) -> String {
-    format!("{}. {}", section.number, section.title)
+    cll_numbered_title(section.number.as_deref(), &section.title)
+}
+
+/// The compact designation an index or breadcrumb shows for a section: the
+/// book's section number where it has one, and the section title where the
+/// book designates the whole division by title alone.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub fn cll_section_index_label(section: &CllSection) -> &str {
+    section.number.as_deref().unwrap_or(&section.title)
 }
 
 #[requires(true)]
@@ -929,6 +942,7 @@ fn escape_html_into(output: &mut String, input: &str) {
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeMap, BTreeSet};
+    use std::num::NonZeroU16;
 
     use super::*;
     #[allow(unused_imports)]
@@ -1362,7 +1376,7 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, DEFAULT_CUKTA_SECTION_ID)
             .expect("default section should exist");
-        assert_eq!(section.number, "1.1");
+        assert_eq!(section.number.as_deref(), Some("1.1"));
         assert_eq!(section.title, "What is Lojban?");
         assert!(!site.index_entries.is_empty());
     }
@@ -1660,7 +1674,7 @@ mod tests {
             .iter()
             .find(|chunk| {
                 chunk.kind == CllSearchChunkKind::Example
-                    && chunk.section_number == "1.3"
+                    && chunk.section_number.as_deref() == Some("1.3")
                     && chunk.label == "Example 1.1"
             })
             .expect("example 1.1 search chunk should exist");
@@ -1773,10 +1787,14 @@ mod tests {
             .find(|chapter| chapter.chapter_id == metadata.chrestomathy_chapter_id)
             .expect("metadata chrestomathy chapter should exist");
 
-        assert_eq!(chrestomathy.chapter_number, 23);
+        // The chrestomathy is an appendix: the book gives it a title, not a
+        // chapter number, and this edition's real chapter 22 no longer collides
+        // with the number the old scheme would have synthesized for it.
+        assert_eq!(chrestomathy.division, CllDivision::Appendix);
+        assert_eq!(chrestomathy.chapter_title, "Chrestomathy");
         let ebnf = cll_lookup_section(site, &metadata.ebnf_section_id)
             .expect("metadata EBNF section should exist");
-        assert_eq!(ebnf.number, "21.2");
+        assert_eq!(ebnf.number.as_deref(), Some("21.2"));
         assert_eq!(
             ebnf.blocks
                 .iter()
@@ -1812,8 +1830,8 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, "appendix-peg-morphology")
             .expect("PEG morphology appendix should be addressable through cukta");
-        assert_eq!(section.chapter_number, 24);
-        assert_eq!(section.number, "24");
+        assert_eq!(section.division, CllDivision::Appendix);
+        assert_eq!(section.number, None);
         let grammar = section
             .blocks
             .iter()
@@ -1847,7 +1865,7 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let cross_reference = cll_lookup_section(site, "section-cross-reference")
             .expect("restored EBNF cross-reference section should exist");
-        assert_eq!(cross_reference.number, "21.3");
+        assert_eq!(cross_reference.number.as_deref(), Some("21.3"));
         assert_eq!(
             cross_reference
                 .blocks
@@ -2556,9 +2574,11 @@ mod tests {
     fn test_section_context() -> SectionParseContext {
         SectionParseContext {
             chapter_id: "chapter-test".to_owned(),
-            chapter_number: 1,
+            division: CllDivision::Chapter {
+                number: NonZeroU16::new(1).expect("test chapter number is non-zero"),
+            },
             section_id: "section-test".to_owned(),
-            section_number: "1.1".to_owned(),
+            section_number: Some("1.1".to_owned()),
             section_title: "Test".to_owned(),
             source_path: "test.xml".to_owned(),
         }

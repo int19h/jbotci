@@ -8,6 +8,7 @@ Fixture files live under `tests/fixtures/`, organized by provenance:
 ```text
 tests/fixtures/
   cll/chapter-18/section-18.3/c18e3d1.toml
+  cll/chrestomathy/<case>.toml
   muplis/collection-18/<case>.toml
   corpus/camxes/<case>.toml
   adhoc/<topic>/<case>.toml
@@ -52,6 +53,46 @@ words = [
 status = "success"
 parse-tree = {}
 ```
+
+### CLL Provenance and Book Divisions
+
+The book has two kinds of top-level division, and CLL provenance names each the
+way the book itself does.
+
+A numbered chapter is named by `chapter` together with the `section-number` the
+book prints:
+
+```toml
+[[provenance]]
+kind = "cll"
+chapter = 18
+section-number = "18.3"
+section-id = "c18s3"
+```
+
+An appendix has no number and no letter — the book's table of contents runs
+1-N and then lists the appendices by title — so appendix provenance names the
+appendix's stable division id instead, and carries no `section-number` at all.
+The section is addressed by its `section-id`:
+
+```toml
+[[provenance]]
+kind = "cll"
+appendix = "volume-chrestomathy"
+section-id = "section-north-wind"
+source-path = "vendor/cll/chapters/a01.xml"
+```
+
+`chapter` and `appendix` are mutually exclusive and exactly one must be present;
+`section-number` is present exactly when `chapter` is. `validate_fixture_tree`
+rejects any other combination, and `cargo run -r -p xtask-full --
+cll-fixture-metadata-audit` compares both against the embedded CLL. Appendix
+fixtures therefore live under a division directory named by that id rather than
+under `chapter-NN/`, except for the hand-placed chrestomathy long texts, which
+keep their historical `cll/chrestomathy/` home.
+
+Select fixtures by division with `--cll-chapter 18` or
+`--cll-appendix volume-chrestomathy`.
 
 Large fixtures may keep the source text in a sibling file instead of embedding
 it directly in TOML:

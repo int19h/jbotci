@@ -402,13 +402,20 @@ pub fn cll_embedding_title(chunk: &CllSearchChunk) -> String {
     }
 }
 
+/// The short designation an embedded document carries for its section. Sections
+/// of numbered chapters use the book's section number; appendix sections have
+/// none, so they fall back to their stable section id.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn cll_section_number_fallback(chunk: &CllSearchChunk) -> String {
-    if chunk.section_number.trim().is_empty() {
-        chunk.section_id.clone()
-    } else {
-        chunk.section_number.clone()
+    match chunk
+        .section_number
+        .as_deref()
+        .map(str::trim)
+        .filter(|number| !number.is_empty())
+    {
+        Some(number) => number.to_owned(),
+        None => chunk.section_id.clone(),
     }
 }
 
@@ -671,7 +678,7 @@ mod tests {
             role: None,
             section_id: "section-klama".to_owned(),
             anchor_id: "example".to_owned(),
-            section_number: "2.1".to_owned(),
+            section_number: Some("2.1".to_owned()),
             section_title: "A test section".to_owned(),
             label: "Example 2.3".to_owned(),
             text: "mi klama".to_owned(),
@@ -731,7 +738,7 @@ mod tests {
         assert_eq!(corpus.model_key, DEFAULT_MODEL_KEY);
         assert_eq!(
             corpus.input_hash,
-            "1dbd421006411af5fd25c512a56c12bf5f14e993197bb6752a3e896c677bb762"
+            "3a9ea9ab013e4e70db97a0d4abf79b81b79e8220d44f09fd191f93524ef63701"
         );
         assert_eq!(
             corpus.dictionary_hash,
@@ -739,7 +746,7 @@ mod tests {
         );
         assert_eq!(
             corpus.cll_hash,
-            "3513b089a12befec0501194c747f539ab8e12afbb617e93619528c5991a86828"
+            "9cf103eadf34158054f5bc52b32f82f43d4acee29744253bb3d456447d47620b"
         );
         assert_eq!(corpus.input_hash.len(), 64);
         assert!(

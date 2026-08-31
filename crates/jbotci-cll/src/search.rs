@@ -34,7 +34,7 @@ pub struct CllSearchChunk {
     pub role: Option<CllParagraphRole>,
     pub section_id: String,
     pub anchor_id: String,
-    pub section_number: String,
+    pub section_number: Option<String>,
     pub section_title: String,
     pub label: String,
     pub text: String,
