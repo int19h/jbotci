@@ -680,7 +680,7 @@ at a zero-width span at EOF.
 | surface | base | round 1 | head |
 | --- | --- | --- | --- |
 | `lo broda po'oi to do brodi toi mi brode ku'o cu brodi` | A | R | A, Zantufa-owned |
-| `lo broda no'oi mi brode i to do brodi toi je do brodi ku'o cu brodi` | R | R | A, Zantufa-owned |
+| `lo broda no'oi mi brode i to ri brodi toi je do brodi ku'o cu brodi` | R | R | A, Zantufa-owned |
 | `lo broda po'oi mi brode ku'o to do brodi toi cu brodi` | A | A | A (the post-terminator boundary, unchanged) |
 
 The first row is a round-1 regression against the base, not a new surface: the prefix-steal
@@ -765,3 +765,53 @@ either profile" is pinned on both sides rather than argued. That is Qwen's actua
 stands. `voihi` is this repository's h-for-apostrophe spelling of `voi'i` — the same convention
 its siblings `d1-zantufa-s2-nohoi-kuho` (`no'oi`) and `d1-zantufa-s2-pohoi-kuho` (`po'oi`) use,
 and the one `Cmavo::Voihi` itself uses. There is no separate `voihi` cmavo to confuse it with.
+
+### The round-2 gate
+
+Run at `691a9ec38f` with `/build/jbotci/logs/epoch08-r2-gate.sh`, sequentially. Both `cargo test`
+components use `--no-fail-fast` for the same reason they did in round 1: without it a red gate
+reports a lower bound on the failing set rather than the set itself.
+
+| component | result | log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch08-r2-g-fmt.log` |
+| `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,653 passed, 0 failed, 16 ignored | `epoch08-r2-g-workspace.log` |
+| `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,652 passed, 0 failed | `epoch08-r2-g2-expensive.log` |
+| `fixture-test --profile all` | 26,661 fixtures, 72,609 passed, 519 xfailed, 0 failed | `epoch08-r2-g-fixtures-all.log` |
+| tagged facet `subsentence-epoch` | 88 fixtures, 3 facets, 90 passed, 0 failed | `epoch08-r2-g-tagged-facet.log` |
+| frozen syntax facet, same tag | 88 fixtures, 88 passed, 0 failed | `epoch08-r2-g-frozen-facet.log` |
+| comparer | 122 changed / 86 + 6 + 1 + 0 + 0 mechanical / 29 manual / 0 prose / 88 epoch-new / 0 unpaired / 0 witness deltas / 0 witnesses missing diagnostics | `epoch08-r2-g-comparer.log` |
+| comparer unit tests | 27 tests, green | `epoch08-r2-g-comparer-test.log` |
+| `cargo build -p jbotci` (debug) | green | `epoch08-r2-g-debug-jbotci.log` |
+| `dx build` | green | `epoch08-r2-g-dx.log` |
+| `maturin develop` | green | `epoch08-r2-g-maturin.log` |
+| `generate_syntax_models.py --check` | green | `epoch08-r2-g-generate_syntax_models.log` |
+| `generate_domain_enum_stubs.py --check` | green | `epoch08-r2-g-generate_domain_enum_stubs.log` |
+| `compose_stubs.py --check` | green | `epoch08-r2-g-compose_stubs.log` |
+| `generate_api_matrix.py --check` | green | `epoch08-r2-g-generate_api_matrix.log` |
+| peak RSS | not re-measured | — |
+
+The tagged row reads 90 passed over 88 fixtures because the two reference witnesses carry a
+`semantics-refs` facet as well as a syntax one. The pre-epoch comparer figures are byte-identical
+to round 1's; only the epoch-new witness count moves, 72 to 88.
+
+Two rows carry a note rather than a bare figure.
+
+The peak-RSS pair is deliberately not re-measured. The lead's round-2 instruction ties it to
+adding a production, and this round adds none: `exp_selbri_relative_clause_connective` gains two
+arms that name rules the grammar already had, and two existing fields gain `.wf()`. No new rule,
+no new node type -- `WithFreeModifiers` already wraps dozens of fields.
+
+The expensive-contracts row is reported from a standalone re-run at the same commit
+(`epoch08-r2-g2-expensive.log`) rather than from the gate's own `epoch08-r2-g-expensive.log`. The
+gate's copy reported `exit=0` and no failing test, but the file itself is not trustworthy as a
+record: an earlier aborted gate attempt left a `cargo test` process alive whose own output landed
+in that path after the second attempt had truncated it, so the file mixes two runs and ends in
+the aborted run's tail. Nothing about the result changes -- the standalone re-run is 70 targets,
+1,652 passed, 0 failed -- but the log a reviewer would open had to be one run.
+
+Three generated artefacts were regenerated during this round rather than found stale at the gate:
+the recovery anchor metadata snapshot and the four Python model files plus `docs/api-parity.tsv`.
+Their deltas are the D2 connective arm change and the two `.wf()` fields exactly, and they are
+committed with that reasoning in `691a9ec38f`.
+
