@@ -5334,6 +5334,12 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     selbri.relative_clauses.as_ref(),
                 );
             }
+            generated::generated_model::NodeRef::ReinterpretZantufaRelativeSelbriSyntax(selbri) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
+                    selbri.relative_clauses.as_ref(),
+                );
+            }
             generated::generated_model::NodeRef::ZantufaBareRelativeClauseTailSyntax(tail) => {
                 self.warn_first_token(
                     ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
@@ -8636,16 +8642,9 @@ mod tests {
             .expect("valid morphology");
         assert!(parse_syntax_tree(&valid, &ParseOptions::default()).is_ok());
 
-        // The baseline ordering still has no reading of the relative clause before the KU:
-        // what accepts the surface since epoch 8 is rolling Zantufa's selbri-level
-        // attachment, default-enabled and warned, whose relative belongs to `gerku` and not
-        // to the indefinite sumti.
-        let flipped = parse_source("mi viska ci gerku poi barda ku", &ParseOptions::default());
-        assert!(has_warning_kind(
-            &flipped,
-            ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement
-        ));
-        assert!(format!("{:?}", flipped.parse_tree).contains("ZantufaRelativeSelbri"));
+        let invalid = segment_words_with_modifiers("mi viska ci gerku poi barda ku")
+            .expect("valid morphology");
+        assert!(parse_syntax_tree(&invalid, &ParseOptions::default()).is_err());
     }
 
     #[test]

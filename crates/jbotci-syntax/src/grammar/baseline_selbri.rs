@@ -96,6 +96,7 @@ fn operand_starts_with_old_unit(selbri: &SelbriSyntax) -> bool {
     match selbri {
         SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
         | SelbriSyntax::ZantufaRelativeSelbri(_)
+        | SelbriSyntax::ReinterpretZantufaRelativeSelbri(_)
         | SelbriSyntax::ZantufaPriorityAssignedSelbri(_)
         | SelbriSyntax::TaggedSelbri(_) => false,
         SelbriSyntax::UntaggedSelbri(selbri) => match selbri {
@@ -204,6 +205,7 @@ fn recovered_operand_starts_with_old_unit(selbri: &recovered::SelbriSyntax) -> b
     match selbri {
         recovered::SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
         | recovered::SelbriSyntax::ZantufaRelativeSelbri(_)
+        | recovered::SelbriSyntax::ReinterpretZantufaRelativeSelbri(_)
         | recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(_)
         | recovered::SelbriSyntax::TaggedSelbri(_) => false,
         recovered::SelbriSyntax::UntaggedSelbri(selbri) => {

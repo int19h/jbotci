@@ -851,6 +851,7 @@ impl OutputRejection<SelbriSyntax> for PostNaExtensionTagRejection {
             SelbriSyntax::TaggedSelbri(tagged) => tense_modal_is_extension(&tagged.tense_modal),
             SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
             | SelbriSyntax::ZantufaRelativeSelbri(_)
+            | SelbriSyntax::ReinterpretZantufaRelativeSelbri(_)
             | SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
             SelbriSyntax::UntaggedSelbri(_) => false,
         }
@@ -875,6 +876,7 @@ impl OutputRejection<recovered::Recovered<recovered::SelbriSyntax>>
             }),
             recovered::SelbriSyntax::ReinterpretZantufaAssignedSelbri(_)
             | recovered::SelbriSyntax::ZantufaRelativeSelbri(_)
+            | recovered::SelbriSyntax::ReinterpretZantufaRelativeSelbri(_)
             | recovered::SelbriSyntax::ZantufaPriorityAssignedSelbri(_) => false,
             recovered::SelbriSyntax::UntaggedSelbri(_) => false,
         }
