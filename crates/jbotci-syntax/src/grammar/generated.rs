@@ -666,9 +666,14 @@ pub mod generated_model {
     }
 
     /// Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.
+    ///
+    /// The `I` carries its post-clause free modifiers, as rolling Zantufa's `I_clause` does
+    /// (zantufa-1.9999.peg:217).  Without that the body would be a different language from the
+    /// one the D2 reservation probes over it, and an I-connected Zantufa body with a free
+    /// modifier after its `i` would fall out of both.
     rule "statement connection" zantufa_relative_statement_continuation(zantufa_relative_statement_base, tense_modal) -> struct {
         /// The `I` cmavo marker.
-        field i <- cmavo(I);
+        field i <- cmavo(I).wf();
         /// The connective joining the adjacent statements; a bare I does not join here.
         field connective <- zantufa_relative_statement_connective(tense_modal);
         /// The shared trailing statement child syntax node.
@@ -4865,9 +4870,11 @@ pub mod generated_model {
     // `selbri_relative_clauses <- selbri_relative_clause ((ZIhE_clause / joik) free*
     // selbri_relative_clause)* / gek selbri_relative_clauses gik selbri_relative_clauses`
     // and `selbri_relative_clause_1 <- NOhOI_clause free* subsentence KUhOI_elidible free*`
-    // (camxes-exp.peg:214-218), with `NOhOI <- no'oi / po'oi` (:1907).  The SA-erasure
-    // prefixes at :215-217 are omitted, as every other adopted camxes-exp family omits
-    // them: jbotci handles that recovery at the `#[recovery_boundary]` layer instead.
+    // (camxes-exp.peg:214-218), with `NOhOI <- no'oi / po'oi` (:1907).  The `joik` is the
+    // source's own, shared with the ordinary relative chain at :199 and merging A, JA and JOI
+    // (:346-347), so the chain here carries the same transcription that chain does.  The
+    // SA-erasure prefixes at :215-217 are omitted, as every other adopted camxes-exp family
+    // omits them: jbotci handles that recovery at the `#[recovery_boundary]` layer instead.
 
     /// Sum node for selbri relative clauses; selects among the `exp_forethought_selbri_relative_clauses` and `exp_afterthought_selbri_relative_clauses` forms.
     rule "selbri relative clauses" exp_selbri_relative_clauses(exp_selbri_relative_clauses, exp_subsentence, zantufa_relative_statement, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
@@ -4905,12 +4912,31 @@ pub mod generated_model {
         field inner <- exp_selbri_relative_clause(exp_subsentence, zantufa_relative_statement);
     }
 
-    /// Sum node for relative clause connective; selects among the `zihe_selbri_relative_connective` and `joik_connective` forms.
+    /// Sum node for relative clause connective; selects among the `zihe_selbri_relative_connective` and `exp_relative_clause_connective` forms.
+    ///
+    /// This is `joik` as camxes-exp spells it, whole: `NA_clause? SE_clause? (JOI_clause /
+    /// JA_clause / A_clause) NAI_clause? / interval / GAhO_clause interval GAhO_clause` with
+    /// `interval <- SE_clause? BIhI_clause NAI_clause?` (:346-349), under an explicit A-JA-JOI
+    /// merge. The first alternative already has an exact transcription in
+    /// `exp_relative_clause_connective`, which the ordinary relative chain uses for the same
+    /// source `joik` at :199, and the other two already have one in the two interval arms of
+    /// jbotci's `joik_connective`, so all three are reused rather than restated.
+    ///
+    /// What is NOT reused is `joik_connective` itself. It is not this language in either
+    /// direction: it is narrower, because jbotci splits camxes-exp's merged inventory across
+    /// `joik_connective`, `jek_connective` and `ek_connective`, and wider, because three of its
+    /// arms are `ZantufaConnectives`-gated rolling-Zantufa shapes camxes-exp does not spell at
+    /// all. Its narrowness left `broda po'oi mi brode je po'oi do brodi` -- R / A / A, and so
+    /// camxes-exp's under R2 -- with no route in either profile.
     rule "relative clause connective" exp_selbri_relative_clause_connective -> enum {
         /// Uses the `zihe_selbri_relative_connective` product form, whose payload preserves `zihe`.
         zihe_selbri_relative_connective,
-        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
-        joik_connective,
+        /// Uses the shared `exp_relative_clause_connective` product form, whose payload preserves `na`, `se`, `head`, and `nai`.
+        exp_relative_clause_connective,
+        /// The source `joik`'s bare `interval`: `SE_clause? BIhI_clause NAI_clause?` (:349).
+        simple_interval_connective,
+        /// The source `joik`'s `GAhO_clause interval GAhO_clause` (:347).
+        closed_interval_connective,
     }
 
     /// Transparent product node for relative clause connective; preserves the `zihe` component.
@@ -4944,6 +4970,15 @@ pub mod generated_model {
 
     /// The rolling-Zantufa statement relative clause in its explicitly terminated form, used
     /// only as the ownership reservation above.  It is never a node: nothing selects it.
+    ///
+    /// It must be the SAME LANGUAGE as the clause it reserves, word for word, or the
+    /// reservation and the owner disagree at a boundary and the prefix-steal it exists to
+    /// prevent happens exactly where they differ.  Zantufa's `NOI_clause` carries `post_clause`,
+    /// whose `free*` belongs to the marker (zantufa-1.9999.peg:325, :82), which is why the owning
+    /// arms spell the marker with `.wf()`; without it here a free modifier after NOhOI makes the
+    /// reservation fail while D2's own marker consumes it, and the prefix-steal happens exactly
+    /// there.  The warnings are the owner's alone: this rule is probed inside a rewinding
+    /// lookahead and never contributes a node or a diagnostic.
     rule "relative clause" zantufa_kuho_terminated_statement_relative_clause(zantufa_relative_statement) -> struct {
         /// The rolling-Zantufa NOI inventory (zantufa-1.9999.peg:590).
         field noi <- choice((
@@ -4953,10 +4988,14 @@ pub mod generated_model {
             cmavo(Voihi),
             cmavo(Noi),
             cmavo(Nohoi),
-        ));
+        )).wf();
         /// The statement body.
         field statement <- arc(zantufa_relative_statement);
-        /// The explicit `Kuho` terminator that makes this extent Zantufa's.
+        /// The explicit `Kuho` terminator that makes this extent Zantufa's.  Its own post-clause
+        /// free modifiers are deliberately NOT consumed here: the reservation is a boolean, so
+        /// what follows the terminator cannot change its answer, while probing an empty `free*`
+        /// at end of input does move the recorded failure frontier onto that probe and makes
+        /// the enclosing rejection point at nothing.
         field kuho <- cmavo(Kuho);
     }
 
