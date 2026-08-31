@@ -258,11 +258,6 @@ fn prepend_selbri_recovery_item(
         recovered::SelbriSyntax::ZantufaRelativeSelbri(value) => {
             recovered::SelbriSyntax::ZantufaRelativeSelbri(value.prepend_recovery_item(item))
         }
-        recovered::SelbriSyntax::ReinterpretZantufaRelativeSelbri(value) => {
-            recovered::SelbriSyntax::ReinterpretZantufaRelativeSelbri(
-                value.prepend_recovery_item(item),
-            )
-        }
         recovered::SelbriSyntax::TaggedSelbri(value) => {
             recovered::SelbriSyntax::TaggedSelbri(value.prepend_recovery_item(item))
         }

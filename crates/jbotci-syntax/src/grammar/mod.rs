@@ -5334,12 +5334,6 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     selbri.relative_clauses.as_ref(),
                 );
             }
-            generated::generated_model::NodeRef::ReinterpretZantufaRelativeSelbriSyntax(selbri) => {
-                self.warn_first_token(
-                    ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,
-                    selbri.relative_clauses.as_ref(),
-                );
-            }
             generated::generated_model::NodeRef::ZantufaBareRelativeClauseTailSyntax(tail) => {
                 self.warn_first_token(
                     ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement,

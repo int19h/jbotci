@@ -107,33 +107,20 @@ impl OutputRejection<recovered::Recovered<recovered::ExpRelativeContinuationSynt
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BaselineStatementRelativeRejection;
 
-/// Ownership classifier for the S3 selbri-level parent, which returns two populations.
+/// Ownership classifier for the S3 selbri-level parent.
 ///
-/// The exp return: the S3 arm is ordered ahead of the selbri ladder that carries camxes-exp's
-/// tanru-unit relative, so a completed list every one of whose clauses that route could form
-/// is returned here and reaches it by falling through. "Could form" is the exp production read
-/// literally: `selbri_relative_clause_1 <- NOhOI_clause free* subsentence KUhOI_elidible`
-/// chained by `(ZIhE_clause / joik)` (camxes-exp.peg:214-218), so the marker must be `no'oi` or
-/// `po'oi`, the body must be a subsentence shape, the KUhO must be absent -- an explicit `ku'o`
-/// is a terminator exp does not have -- and every continuation must be one exp spells.
-///
-/// The baseline return is R1 at this site, and it is what keeps the arm from moving a relative
-/// clause the baseline already places. The selbri-level attachment is reached inside every
-/// nesting whose terminator may elide -- an abstraction is the measured one -- and there the
-/// enclosing description's own relative-clause field is the baseline's site for the very same
-/// clause: `le ni mrilu poi srana la lojban` is `the [quantity of mailing] which concerns
-/// Lojban` to camxes-standard and `the quantity of [mailing which concerns Lojban]` to this
-/// arm, over an identical extent. A list every one of whose clauses the baseline owns -- a GOI
-/// association, or a bridi relative that the site's own clause classifier already returned to
-/// a baseline arm -- is therefore left where the baseline puts it. Twenty-four corpus fixtures
-/// measured that; nothing Zantufa-only is affected, because a Zantufa-only marker or body
-/// keeps its clause on the Zantufa arm and the list with it.
-///
-/// Both are judged over the whole list, because the exp chain is one node and because a mixed
-/// list is not an extent either of the other two routes can form on its own.
+/// The S3 arm is ordered ahead of the selbri ladder that carries camxes-exp's tanru-unit
+/// relative, so a completed list every one of whose clauses that route could form is returned
+/// here and reaches it by falling through. "Could form" is the exp production read literally:
+/// `selbri_relative_clause_1 <- NOhOI_clause free* subsentence KUhOI_elidible` chained by
+/// `(ZIhE_clause / joik)` (camxes-exp.peg:214-218), so the marker must be `no'oi` or `po'oi`,
+/// the body must be a subsentence shape, the KUhO must be absent -- an explicit `ku'o` is a
+/// terminator exp does not have -- and every continuation must be one exp spells. The list is
+/// judged whole because the exp chain is one node: a ZIhE-joined list with a `poi` clause in
+/// it is not an extent exp can form, and splitting it would change what the tree says.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct SelbriRelativeListRejection;
+pub(crate) struct ExpSelbriRelativeListRejection;
 
 #[requires(true)]
 #[ensures(true)]
@@ -296,6 +283,30 @@ impl OutputRejection<recovered::Recovered<recovered::ZantufaStatementRelativeCla
         value: &recovered::Recovered<recovered::ZantufaStatementRelativeClauseSyntax>,
     ) -> bool {
         valid(value).is_some_and(recovered_is_baseline_statement_relative)
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<RelativeClauseListSyntax> for ExpSelbriRelativeListRejection {
+    fn rejected_name(&self) -> &'static str {
+        "camxes-exp tanru-unit relative clause list"
+    }
+
+    fn rejects(&self, value: &RelativeClauseListSyntax) -> bool {
+        is_exp_selbri_relative_list(value)
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::RelativeClauseListSyntax>>
+    for ExpSelbriRelativeListRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "camxes-exp tanru-unit relative clause list"
+    }
+
+    fn rejects(&self, value: &recovered::Recovered<recovered::RelativeClauseListSyntax>) -> bool {
+        valid(value).is_some_and(recovered_is_exp_selbri_relative_list)
     }
 }
 
@@ -473,119 +484,6 @@ impl OutputRejection<recovered::Recovered<recovered::ExpSoiSubsentenceAdverbialS
             valid(&value.soi.value).is_some_and(|soi| soi.cmavo() == Some(Cmavo::Soi))
                 && value.sehu.is_none()
                 && valid(&value.subsentence).is_some_and(recovered_subsentence_opens_with_terms)
-        })
-    }
-}
-
-/// True when the baseline owns this one clause: a GOI association phrase, which every source
-/// spells identically, or a bridi relative whose site classifier already returned it to one of
-/// the two baseline subbridi arms.
-#[requires(true)]
-#[ensures(true)]
-fn is_baseline_owned_relative_clause(value: &RelativeClauseAtomSyntax) -> bool {
-    match value {
-        RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(_) => true,
-        RelativeClauseAtomSyntax::BridiRelativeClause(bridi) => match bridi {
-            BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(_) => false,
-            BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(_)
-            | BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(_) => true,
-        },
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_baseline_owned_continuation(value: &RelativeClauseTailSyntax) -> bool {
-    match value {
-        RelativeClauseTailSyntax::RelativeClauseExpContinuation(continuation) => {
-            is_baseline_owned_relative_clause(&continuation.0.inner)
-        }
-        RelativeClauseTailSyntax::JoinedRelativeClauseTail(joined) => {
-            is_baseline_owned_relative_clause(&joined.inner)
-        }
-        RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(_) => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn is_baseline_owned_relative_list(value: &RelativeClauseListSyntax) -> bool {
-    let RelativeClauseListSyntax { first, additional } = value;
-    is_baseline_owned_relative_clause(first)
-        && additional.iter().all(is_baseline_owned_continuation)
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_is_baseline_owned_relative_clause(
-    value: &recovered::RelativeClauseAtomSyntax,
-) -> bool {
-    match value {
-        recovered::RelativeClauseAtomSyntax::SumtiAssociationRelativeClause(_) => true,
-        recovered::RelativeClauseAtomSyntax::BridiRelativeClause(bridi) => valid(bridi)
-            .is_some_and(|bridi| {
-                matches!(
-                    bridi,
-                    recovered::BridiRelativeClauseSyntax::RestrictiveBridiRelativeClause(_)
-                        | recovered::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(_)
-                )
-            }),
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_is_baseline_owned_continuation(value: &recovered::RelativeClauseTailSyntax) -> bool {
-    match value {
-        recovered::RelativeClauseTailSyntax::RelativeClauseExpContinuation(continuation) => {
-            valid(continuation).is_some_and(|continuation| {
-                valid(&continuation.0).is_some_and(|continuation| {
-                    valid(&continuation.inner)
-                        .is_some_and(recovered_is_baseline_owned_relative_clause)
-                })
-            })
-        }
-        recovered::RelativeClauseTailSyntax::JoinedRelativeClauseTail(joined) => valid(joined)
-            .is_some_and(|joined| {
-                valid(&joined.inner).is_some_and(recovered_is_baseline_owned_relative_clause)
-            }),
-        recovered::RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(_) => false,
-    }
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn recovered_is_baseline_owned_relative_list(value: &recovered::RelativeClauseListSyntax) -> bool {
-    let recovered::RelativeClauseListSyntax { first, additional } = value;
-    valid(first).is_some_and(recovered_is_baseline_owned_relative_clause)
-        && additional
-            .iter()
-            .all(|tail| valid(tail).is_some_and(recovered_is_baseline_owned_continuation))
-}
-
-#[contract_trait]
-impl OutputRejection<RelativeClauseListSyntax> for SelbriRelativeListRejection {
-    fn rejected_name(&self) -> &'static str {
-        "camxes-exp or baseline relative clause list"
-    }
-
-    fn rejects(&self, value: &RelativeClauseListSyntax) -> bool {
-        is_exp_selbri_relative_list(value) || is_baseline_owned_relative_list(value)
-    }
-}
-
-#[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::RelativeClauseListSyntax>>
-    for SelbriRelativeListRejection
-{
-    fn rejected_name(&self) -> &'static str {
-        "camxes-exp or baseline relative clause list"
-    }
-
-    fn rejects(&self, value: &recovered::Recovered<recovered::RelativeClauseListSyntax>) -> bool {
-        valid(value).is_some_and(|value| {
-            recovered_is_exp_selbri_relative_list(value)
-                || recovered_is_baseline_owned_relative_list(value)
         })
     }
 }

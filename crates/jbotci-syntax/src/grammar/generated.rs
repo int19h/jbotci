@@ -911,14 +911,11 @@ pub mod generated_model {
     // whose clauses camxes-exp's tanru-unit relative could derive belongs to that route (R2),
     // which is reached by failing here and falling through to the selbri ladder below.  The
     // classifier is on the whole list rather than on one clause because the exp chain is one
-    // node: a ZIhE-joined list with a `poi` in it is not an extent exp can form at all. It also
-    // carries R1 at this site: a list the baseline already places stays where the baseline puts
-    // it, which is what keeps the arm from moving a relative clause out of an enclosing
-    // description and into an abstraction's selbri.
+    // node: a ZIhE-joined list with a `poi` in it is not an extent exp can form at all.
     alias "relative clauses" selbri_relative_clause_list(
         bare_continuable_relative_clause_list,
     ) = bare_continuable_relative_clause_list
-        .reject_output(crate::grammar::baseline_relative::SelbriRelativeListRejection)
+        .reject_output(crate::grammar::baseline_relative::ExpSelbriRelativeListRejection)
         .recursive_output(selbri_relative_clause_list);
 
     // S1, the ordinary sumti relative sites, and the standalone fragment that shares its
@@ -6374,13 +6371,11 @@ pub mod generated_model {
 
     /// Sum node for selbri; gives the full-operand Zantufa CEI owner first
     /// refusal before the standard tagged and untagged owners.
-    rule "selbri" selbri(selbri, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, bare_continuable_relative_clause_list, tense_modal, statement, free_modifier) -> enum {
+    rule "selbri" selbri(selbri, co_selbri, cei_free_co_selbri, selbri_relative_clause_list, tense_modal, statement, free_modifier) -> enum {
         /// Faithful full-selbri CEI ownership selected by the meaning-changing flag.
         when feature(ZantufaSelbriReinterpretation) reinterpret_zantufa_assigned_selbri,
-        /// Faithful selbri-level relative attachment selected by the meaning-changing flag.
-        when feature(ZantufaSelbriReinterpretation) reinterpret_zantufa_relative_selbri,
-        /// Rolling-Zantufa selbri-level relative attachment.
-        zantufa_relative_selbri,
+        /// Rolling-Zantufa selbri-level relative attachment, a retained gated omission.
+        when feature(ZantufaTerms) zantufa_relative_selbri,
         /// A Zantufa CEI chain whose assignments take full selbri operands.
         when feature(ZantufaTerms) zantufa_priority_assigned_selbri,
         /// Uses the `tagged_selbri` product form, whose payload preserves `tense_modal` and `inner_selbri`.
@@ -6401,35 +6396,27 @@ pub mod generated_model {
     /// Rolling-Zantufa relative attachment at selbri level, before any CEI
     /// assignments in source order (zantufa-1.9999.peg:45).
     ///
-    /// S3. The arm is default-enabled: the surfaces it owns -- a NOI-family marker with a
-    /// statement body directly on a selbri -- have no baseline reading at all, so nothing is
-    /// reinterpreted by admitting them under a warning. It runs ahead of the selbri ladder,
-    /// so its list carries the S3 ownership classifier: a list every one of whose clauses
-    /// camxes-exp's tanru-unit relative could form belongs to that route, and reaches it by
-    /// failing here.
+    /// S3, and the epoch's one retained gated omission. Default-enabling it was measured and
+    /// rejected: the arm is reached inside every nesting whose terminator may elide, and there
+    /// the enclosing description's own relative-clause field is the baseline's site for the
+    /// very same clause. `.uesai le ni mrilu poi srana la lojban. cu mutce caku` is
+    /// `the [quantity of mailing] which concerns Lojban` to camxes-standard and
+    /// `the quantity of [mailing which concerns Lojban]` to this arm, over an identical
+    /// extent, and twenty-four corpus fixtures read that way. R1 puts the baseline first, and
+    /// the boundary that would let both hold -- the no-terminal-relative entry followed down
+    /// the right spine and into an abstraction body -- is a ladder this epoch does not build.
+    /// A candidate-local classifier cannot stand in for it: the same list is Zantufa's alone
+    /// where no enclosing site exists, which `re broda poi brode ku` measures.
+    ///
+    /// It runs ahead of the selbri ladder, so its list carries the S3 ownership classifier: a
+    /// list every one of whose clauses camxes-exp's tanru-unit relative could form belongs to
+    /// that route, and reaches it by failing here.
     rule "Zantufa relative selbri" zantufa_relative_selbri(selbri, cei_free_co_selbri, selbri_relative_clause_list) -> struct {
+        assert feature(ZantufaTerms);
         /// The level-2 selbri receiving the relative clause list.
         field leading_selbri <- arc(cei_free_co_selbri);
         /// The warning-bearing selbri-level relative clause list.
         field relative_clauses <- arc(selbri_relative_clause_list);
-        /// Zero or more following full-selbri CEI assignments.
-        field assignments <- [zero_or_more zantufa_selbri_assignment(selbri)];
-    }
-
-    /// The same attachment without the S3 ownership classifier, selected only by the explicit
-    /// meaning-changing reinterpretation flag.
-    ///
-    /// The classifier leaves a baseline-owned relative-clause list where the baseline puts it,
-    /// which is what keeps `le ni mrilu poi srana la lojban` reading as the description's
-    /// relative at the default profile. Rolling Zantufa reads it as the abstraction selbri's,
-    /// over an identical extent, and that is a meaning change rather than an addition -- so it
-    /// lives here, beside the CEI reinterpretation the same flag already selects.
-    rule "Zantufa reinterpreted relative selbri" reinterpret_zantufa_relative_selbri(selbri, cei_free_co_selbri, bare_continuable_relative_clause_list) -> struct {
-        assert feature(ZantufaTerms);
-        /// The level-2 selbri receiving the relative clause list.
-        field leading_selbri <- arc(cei_free_co_selbri);
-        /// The unfiltered selbri-level relative clause list.
-        field relative_clauses <- arc(bare_continuable_relative_clause_list);
         /// Zero or more following full-selbri CEI assignments.
         field assignments <- [zero_or_more zantufa_selbri_assignment(selbri)];
     }

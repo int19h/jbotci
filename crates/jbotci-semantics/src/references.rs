@@ -1777,20 +1777,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_forward(inner),
                 )
             }
-            generated::SelbriSyntax::ReinterpretZantufaRelativeSelbri(relative) => {
-                let inner = self.analyze_co_selbri(&relative.leading_selbri);
-                self.walk_node(&relative.relative_clauses);
-                for assignment in &relative.assignments {
-                    self.walk_node(&assignment.selbri);
-                }
-                self.add_frame(
-                    self.raw_for_node(relative),
-                    PlaceFrameKind::Forwarding,
-                    Some(SelbriNodeId(self.raw_for_node(relative))),
-                    None,
-                    propagation_forward(inner),
-                )
-            }
             generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
                 let inner = self.analyze_co_selbri(&assigned.0.leading_selbri);
                 for assignment in &assigned.0.assignments {
@@ -6435,21 +6421,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     }
                 }
             }
-            generated::SelbriSyntax::ReinterpretZantufaRelativeSelbri(relative) => {
-                self.visit_co_selbri(&relative.leading_selbri);
-                self.visit_relative_clause_list_without_head(&relative.relative_clauses);
-                for assignment in &relative.assignments {
-                    self.visit_relation(&assignment.selbri);
-                    if let Some(predicate_id) = self.current_bridi {
-                        self.add_edge(
-                            ReferenceKind::ProBridiAssignment,
-                            self.raw_for_node(assignment),
-                            target_resolved_node(predicate_id.0),
-                            ReferenceRule::CeiAssignsEnclosingBridi,
-                        );
-                    }
-                }
-            }
             generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
                 self.visit_co_selbri(&assigned.0.leading_selbri);
                 for assignment in &assigned.0.assignments {
@@ -8861,9 +8832,6 @@ fn generated_relation_first_token(selbri: &generated::SelbriSyntax) -> Option<&T
             generated_tanru_selbri_first_token(&assigned.0.leading_selbri.leading_selbri)
         }
         generated::SelbriSyntax::ZantufaRelativeSelbri(relative) => {
-            generated_tanru_selbri_first_token(&relative.leading_selbri.leading_selbri)
-        }
-        generated::SelbriSyntax::ReinterpretZantufaRelativeSelbri(relative) => {
             generated_tanru_selbri_first_token(&relative.leading_selbri.leading_selbri)
         }
         generated::SelbriSyntax::ZantufaPriorityAssignedSelbri(assigned) => {
