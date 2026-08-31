@@ -1975,6 +1975,23 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_compound(trailing, vec![leading]),
                 )
             }
+            // A relative clause on a tanru unit restricts what the unit relates without
+            // changing its place structure, exactly as a sumti relative clause does, so the
+            // frame is the leading unit's.
+            generated::PlainBoSelbriSyntax::ExpRelativeTanruUnit(unit) => {
+                let leading = self.analyze_relation_unit(&unit.leading_unit);
+                let Some(tail) = unit.bo_tail.as_deref() else {
+                    return leading;
+                };
+                let trailing = self.analyze_plain_bo_selbri(&tail.trailing_selbri);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::Compound,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_compound(trailing, vec![leading]),
+                )
+            }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
                 let branches = match selbri {
                     generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
@@ -6514,6 +6531,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_plain_bo_selbri(&tail.trailing_selbri);
                 }
             }
+            generated::PlainBoSelbriSyntax::ExpRelativeTanruUnit(unit) => {
+                self.visit_relation_unit(&unit.leading_unit);
+                self.walk_node(unit.relative_clauses.as_ref());
+                if let Some(tail) = unit.bo_tail.as_deref() {
+                    self.visit_plain_bo_selbri(&tail.trailing_selbri);
+                }
+            }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
                 match selbri {
                     generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
@@ -8856,6 +8880,9 @@ fn generated_plain_bo_selbri_first_token(
 ) -> Option<&Token> {
     match selbri {
         generated::PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
+            generated_tanru_unit_first_token(&unit.leading_unit)
+        }
+        generated::PlainBoSelbriSyntax::ExpRelativeTanruUnit(unit) => {
             generated_tanru_unit_first_token(&unit.leading_unit)
         }
         generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(_) => None,

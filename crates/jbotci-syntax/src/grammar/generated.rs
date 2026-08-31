@@ -70,6 +70,8 @@ pub mod generated_model {
         zantufa_relative_statement_base: ZantufaRelativeStatementBaseSyntax;
         description_relative_zantufa_relative_statement: ZantufaRelativeStatementSyntax;
         description_relative_zantufa_relative_statement_base: ZantufaRelativeStatementBaseSyntax;
+        // camxes-exp's tanru-unit relative chain (camxes-exp.peg:214-218).
+        exp_selbri_relative_clauses: ExpSelbriRelativeClausesSyntax;
         // camxes-exp's `subsentence` (camxes-exp.peg:94) as a consumer-specific entry.  It is
         // the shared `subbridi` shape today, because the one delta between them -- exp's JACU
         // sentence trailer -- is an adjudicated non-adoption; naming it separately is what keeps
@@ -4772,6 +4774,106 @@ pub mod generated_model {
         field kuho <- opt(cmavo(Kuho).wf()).elidable_terminator(Kuho);
     }
 
+    // ---- camxes-exp's tanru-unit relative clause --------------------------------------
+    //
+    // `selbri_relative_clauses <- selbri_relative_clause ((ZIhE_clause / joik) free*
+    // selbri_relative_clause)* / gek selbri_relative_clauses gik selbri_relative_clauses`
+    // and `selbri_relative_clause_1 <- NOhOI_clause free* subsentence KUhOI_elidible free*`
+    // (camxes-exp.peg:214-218), with `NOhOI <- no'oi / po'oi` (:1907).  The SA-erasure
+    // prefixes at :215-217 are omitted, as every other adopted camxes-exp family omits
+    // them: jbotci handles that recovery at the `#[recovery_boundary]` layer instead.
+
+    /// Sum node for selbri relative clauses; selects among the `exp_forethought_selbri_relative_clauses` and `exp_afterthought_selbri_relative_clauses` forms.
+    rule "selbri relative clauses" exp_selbri_relative_clauses(exp_selbri_relative_clauses, exp_subsentence, zantufa_relative_statement, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> enum {
+        /// Uses the `exp_forethought_selbri_relative_clauses` product form, whose payload preserves `gek`, `first`, `gik`, and `second`.
+        exp_forethought_selbri_relative_clauses,
+        /// Uses the `exp_afterthought_selbri_relative_clauses` product form, whose payload preserves `first` and `additional`.
+        exp_afterthought_selbri_relative_clauses,
+    }
+
+    /// Product node for selbri relative clauses; preserves `gek`, `first`, `gik`, and `second` in source order.
+    rule "selbri relative clauses" exp_forethought_selbri_relative_clauses(exp_selbri_relative_clauses, tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci) -> struct {
+        /// The forethought connective that opens the pair.
+        field gek <- modal_forethought_connective(tense_modal, selbri, zantufa_mex, letter_tokens, zantufa_tcita_selci);
+        /// The first relative-clause chain.
+        field first <- arc(exp_selbri_relative_clauses);
+        /// The GI-family connective separating the branches.
+        field gik <- gik_connective;
+        /// The second relative-clause chain.
+        field second <- arc(exp_selbri_relative_clauses);
+    }
+
+    /// Product node for selbri relative clauses; preserves `first` and `additional` in source order.
+    rule "selbri relative clauses" exp_afterthought_selbri_relative_clauses(exp_subsentence, zantufa_relative_statement) -> struct {
+        /// The initial relative clause before the ZIhE/joik continuations.
+        field first <- exp_selbri_relative_clause(exp_subsentence, zantufa_relative_statement);
+        /// Ordered sequence of zero or more additional components.
+        field additional <- [zero_or_more exp_selbri_relative_clause_continuation(exp_subsentence, zantufa_relative_statement)];
+    }
+
+    /// Product node for selbri relative clauses; preserves `connective` and `inner` in source order.
+    rule "selbri relative clauses" exp_selbri_relative_clause_continuation(exp_subsentence, zantufa_relative_statement) -> struct {
+        /// The connective joining the adjacent clauses.
+        field connective <- exp_selbri_relative_clause_connective;
+        /// The following relative clause.
+        field inner <- exp_selbri_relative_clause(exp_subsentence, zantufa_relative_statement);
+    }
+
+    /// Sum node for relative clause connective; selects among the `zihe_selbri_relative_connective` and `joik_connective` forms.
+    rule "relative clause connective" exp_selbri_relative_clause_connective -> enum {
+        /// Uses the `zihe_selbri_relative_connective` product form, whose payload preserves `zihe`.
+        zihe_selbri_relative_connective,
+        /// Uses the nested `joik_connective` sum form and preserves its selected alternative.
+        joik_connective,
+    }
+
+    /// Transparent product node for relative clause connective; preserves the `zihe` component.
+    rule "relative clause connective" zihe_selbri_relative_connective -> struct {
+        /// The `Zihe` cmavo marker.
+        field zihe <- cmavo(Zihe).wf();
+    }
+
+    /// Product node for selbri relative clause; preserves `nohoi`, `subsentence`, and `kuhoi` in source order.
+    ///
+    /// R3 keeps the KUhO-terminated extents with rolling Zantufa, and KUhO is a terminator
+    /// camxes-exp does not have at all.  The clause therefore declines wherever a Zantufa
+    /// statement relative clause closed by an EXPLICIT `ku'o` parses from the same position:
+    /// that is the whole of what the two routes dispute, because the description site parses
+    /// its selbri before its relative-clause field and this arm would otherwise take the
+    /// shorter reading and leave the `ku'o` -- or the Zantufa-only body that precedes it --
+    /// with nowhere to attach.  A completed-candidate classifier cannot decide it: what
+    /// separates the owners is entirely what follows the shared prefix.
+    rule "selbri relative clause" exp_selbri_relative_clause(exp_subsentence, zantufa_relative_statement) -> struct {
+        assert !zantufa_kuho_terminated_statement_relative_clause(zantufa_relative_statement);
+        /// The NOhOI marker, which carries the warning for the whole construct.
+        field nohoi <- choice((
+            cmavo(Nohoi),
+            cmavo(Pohoi),
+        )).warn(ExperimentalNohoiSelbriRelativeClause).wf();
+        /// The shared subsentence child syntax node.
+        field subsentence <- arc(exp_subsentence);
+        /// The optional `Kuhoi` cmavo marker.
+        field kuhoi <- opt(cmavo(Kuhoi).wf()).elidable_terminator(Kuhoi);
+    }
+
+    /// The rolling-Zantufa statement relative clause in its explicitly terminated form, used
+    /// only as the ownership reservation above.  It is never a node: nothing selects it.
+    rule "relative clause" zantufa_kuho_terminated_statement_relative_clause(zantufa_relative_statement) -> struct {
+        /// The rolling-Zantufa NOI inventory (zantufa-1.9999.peg:590).
+        field noi <- choice((
+            cmavo(Poi),
+            cmavo(Pohoi),
+            cmavo(Voi),
+            cmavo(Voihi),
+            cmavo(Noi),
+            cmavo(Nohoi),
+        ));
+        /// The statement body.
+        field statement <- arc(zantufa_relative_statement);
+        /// The explicit `Kuho` terminator that makes this extent Zantufa's.
+        field kuho <- cmavo(Kuho);
+    }
+
     /// Product node for ek; preserves `na`, `se`, `a`, and `nai` in source order.
     rule "ek" ek_connective -> struct {
         /// The optional na component.
@@ -6393,12 +6495,14 @@ pub mod generated_model {
         selbri,
         cei_free_co_selbri,
         free_modifier,
+        exp_selbri_relative_clauses,
     ) = plain_bo_selbri(
         cei_free_plain_bo_selbri,
         cei_free_tanru_unit,
         selbri,
         cei_free_co_selbri,
         free_modifier,
+        exp_selbri_relative_clauses,
     ).recursive_output(cei_free_plain_bo_selbri);
 
     alias "tanru unit" cei_free_tanru_unit(
@@ -6495,11 +6599,30 @@ pub mod generated_model {
     }
 
     /// Sum node for selbri level 6.
-    rule "plain BO selbri" plain_bo_selbri(plain_bo_selbri, tanru_unit, selbri, co_selbri, free_modifier) -> enum {
+    rule "plain BO selbri" plain_bo_selbri(plain_bo_selbri, tanru_unit, selbri, co_selbri, free_modifier, exp_selbri_relative_clauses) -> enum {
+        /// A CEI-capable tanru unit carrying camxes-exp's tanru-unit relative clauses.
+        exp_relative_tanru_unit,
         /// A CEI-capable tanru unit with an optional plain BO continuation.
         plain_bo_tanru_unit,
         /// A standard binary or structurally disjoint Zantufa forethought owner.
         forethought_selbri_connection,
+    }
+
+    /// Product node for a CEI-capable unit carrying camxes-exp's relative clauses.
+    ///
+    /// `tanru_unit <- tanru_unit_1 (CEI free* tanru_unit_1)* selbri_relative_clauses?`
+    /// (camxes-exp.peg:241) puts the chain after the CEI chain, inside the BO level.  It is a
+    /// separate arm rather than an optional field on `tanru_unit` so that an ordinary tanru
+    /// unit -- which is nearly every node in the corpus -- keeps the shape it has; the arm is
+    /// structurally disjoint from `plain_bo_tanru_unit` because it requires the chain, and it
+    /// runs first so a present chain is not left behind by the shorter arm.
+    rule "tanru unit" exp_relative_tanru_unit(plain_bo_selbri, tanru_unit, exp_selbri_relative_clauses) -> struct {
+        /// The leading complete tanru unit, including any CEI assignments.
+        field leading_unit <- arc(tanru_unit);
+        /// The required relative-clause chain.
+        field relative_clauses <- arc(exp_selbri_relative_clauses);
+        /// The optional connectorless BO continuation.
+        field bo_tail <- opt(arc(plain_bo_selbri_tail(plain_bo_selbri)));
     }
 
     /// Product node for a CEI-capable unit with an optional plain BO tail.

@@ -1,0 +1,12 @@
+id = "adhoc.syntax.subsentence.d2-reject-jek-chain"
+lojban = "broda no'oi mi brode je no'oi do brodi"
+tags = ["adhoc", "syntax", "subsentence-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-8 subsentence ownership matrix witness"
+description = "R4: the chain connective is joik, not joik_jek, so a JA-led continuation has no route."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 29], source-text = "no'oi", message = "unexpected cmavo" }]
