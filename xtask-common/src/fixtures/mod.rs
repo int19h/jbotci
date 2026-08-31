@@ -469,9 +469,8 @@ impl Provenance {
             return None;
         };
         match (chapter, appendix) {
-            (Some(_), Some(appendix)) => Some(format!(
-                "CLL provenance names both chapter {} and appendix `{appendix}`",
-                chapter.expect("chapter is present in this arm")
+            (Some(chapter), Some(appendix)) => Some(format!(
+                "CLL provenance names both chapter {chapter} and appendix `{appendix}`"
             )),
             (None, None) => {
                 Some("CLL provenance names neither a chapter nor an appendix".to_owned())
@@ -1666,7 +1665,9 @@ pub fn path_for_case(case: &TestCase) -> PathBuf {
                 .replace(['/', '\\'], "_");
             // Numbered chapters lay out as `chapter-NN/section-N.M`; appendices
             // have no numbers to lay out by, so they use the stable division and
-            // section ids the book addresses them with.
+            // section ids the book addresses them with. This function's
+            // precondition rules out a provenance that names neither, but a
+            // fixture is still better filed under a placeholder than lost.
             let division_dir = match (chapter, appendix) {
                 (Some(chapter), _) => format!("chapter-{chapter:02}"),
                 (None, Some(appendix)) => appendix.replace(['/', '\\'], "_"),
