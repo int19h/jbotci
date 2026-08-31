@@ -1090,3 +1090,80 @@ that table predates round 2's own witness additions; against `2284b50691` this r
 The final commit adds only this section and the two above it to `docs/`, plus the regenerated
 Python model files. `cargo fmt --all --check`, the comparer, its unit tests and the four Python
 checks were re-run at that commit; no other row reads `docs/`.
+
+### Round 3, item 4: the wheel member ceiling (CI blocker)
+
+`Build windows-x86_64` failed at `2284b50691` on
+`bindings/python/tools/python_artifacts.py:347`, and `Python artifact acceptance` failed only
+because it depends on that job:
+
+```
+AssertionError: ('jbotci/_native.pyd', 117420544)
+```
+
+The lead asked for the figures first, so here they are before the change.
+
+**The control is `0223db76c4`**, the last `main` commit with a full `Python wheels` run
+(33336747058, all seven artifacts, none expired). It is not the epoch base itself, and it does
+not need to be: `git diff 0223db76c4 0d791fd35c` is two files, `tests/fixtures/corpus/alis/
+full-alice.toml` and its source text. No Rust, no Python, no generated model -- and no fixture is
+packaged in either artifact, which the receipts confirm independently: both sdists carry exactly
+192 entries and every wheel exactly 24, at both commits. The wheels at `0223db76c4` are the epoch
+base's wheels.
+
+Head figures are from run 33428074787 at `2284b50691`; the native member sizes are read out of the
+wheels themselves rather than from the receipts, because a receipt records the archive total.
+Windows has no head receipt -- the assertion fires before it is written -- so its member size is
+the one the failure itself reports, which is the same measurement.
+
+| platform | wheel FILE, base | wheel FILE, head | head vs PyPI's 100 MiB | native member, base | native member, head | member delta |
+| --- | --- | --- | --- | --- | --- | --- |
+| linux-x86_64 | 23,422,246 | 24,116,350 | **23.0%** | 107,889,392 | 110,904,928 | +3,015,536 (+2.8%) |
+| linux-aarch64 | 22,558,641 | 23,201,669 | **22.1%** | 99,684,848 | 102,478,320 | +2,793,472 (+2.8%) |
+| macos-x86_64 | 22,407,514 | 23,079,905 | **22.0%** | 95,085,152 | 97,916,640 | +2,831,488 (+3.0%) |
+| macos-aarch64 | 21,343,727 | 21,984,004 | **21.0%** | 90,685,632 | 93,386,576 | +2,700,944 (+3.0%) |
+| windows-x86_64 | 25,631,284 | not yet built | base was **24.4%** | 113,667,584 | **117,420,544** | +3,752,960 (+3.3%) |
+| sdist-wheel-x86_64 | 23,417,904 | 24,113,209 | **23.0%** | 107,888,432 | 110,903,936 | +3,015,504 (+2.8%) |
+| sdist | 3,011,193 | 3,051,332 | **2.9%** | -- | -- | -- |
+
+**The wheel FILE is nowhere near PyPI's limit, so there is no genuine constraint here.** The
+largest artifact this project distributes is 24.1 MB, **23% of PyPI's 100 MiB per-file limit** and
+24% of the 95 MiB tripwire `artifact-policy.toml` keeps for it. The gap is compression: the
+extension module compresses about 4.5:1 on every platform, so the member can be 117 MB while the
+file that is actually uploaded is 26 MB. Epoch 8's growth is uniform and unremarkable -- +2.8% to
++3.3% on the member, +2.9% to +3.0% on the file -- which is what a warning-union epoch's larger
+generated parser looks like.
+
+**The bound that fired is a survivor of the class the owner retired**, and the ruling applies
+directly. `artifact-policy.toml` records that on 2026-08-16 the per-platform `baseline_bytes` /
+`baseline_unpacked_bytes` / `max_growth_percent` ratchets were dropped because they were
+project-invented, no publishing target imposed them, and they fired on intended growth -- epochs
+3, 4, 5, 6 and 6b each spent a commit recalibrating one. Exactly one absolute check was kept, on
+the DISTRIBUTED FILE, with PyPI's 100 MiB limit as its provenance. A 115,000,000-byte ceiling on
+an uncompressed member *inside* the archive is not that check and has no external provenance at
+all; its own comment prescribed the retired cycle in as many words ("Recalibrate this ceiling now,
+then re-ratchet it in the post-epoch-11 closing sweep"), and epoch 8 was next in line to pay it.
+
+It is therefore **removed rather than raised**. Raising it would re-arm the cycle at a new
+arbitrary number; the ruling's point is that the number should not exist. What the assertion also
+did -- and what is kept, verbatim in effect -- is the SHAPE half: the extension module is the only
+member a wheel may carry above 2 MB, so anything else that large is an accident rather than the
+packaged code growing. The line is now `assert name == native[0]`, with the provenance recorded
+above it.
+
+Untouched, deliberately: `_check_limits`'s `max_artifact_bytes` (the PyPI-derived tripwire), the
+per-archive entry counts, and the sdist's `allowed_large_members`. The last is the same *form* but
+not the same class -- it caps one named vendored data file, `dictionary-en.json`, which does not
+grow with the generated parser and has never fired for an epoch.
+
+Verification, at this tree:
+
+| check | result |
+| --- | --- |
+| fixed inspector on the head `linux-x86_64` wheel (110,904,928-byte member) | passes, receipt `archive_bytes` 24,116,350 / `unpacked_bytes` 115,744,528 / 24 entries |
+| fixed inspector on that wheel with a 3 MB `jbotci/stray-blob.bin` added | **fails** `AssertionError: ('jbotci/stray-blob.bin', 3000000)` -- the member shape check is intact |
+
+The Windows wheel file size at head is the one figure this section cannot fill: the receipt is
+written after the assertion, so the failing run never produced it. The `Python wheels` run at the
+commit that carries this change will, and at the base ratio it lands near 26.4 MB, about 25% of
+PyPI's limit.

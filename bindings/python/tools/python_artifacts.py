@@ -340,14 +340,23 @@ def _check_wheel(entries: dict[str, bytes], platform: str) -> None:
     for name, contents in entries.items():
         if len(contents) <= 2_000_000:
             continue
-        # Epic #801 deliberately grows the generated syntax model through the
-        # grammar-parity epochs; epoch 3's Windows _native.pyd is 102,337,024
-        # bytes. Recalibrate this ceiling now, then re-ratchet it in the
-        # post-epoch-11 closing sweep.
-        assert name == native[0] and len(contents) <= 115_000_000, (
-            name,
-            len(contents),
-        )
+        # A SHAPE check, deliberately without a byte ceiling: the extension
+        # module is the only member a wheel may carry above 2 MB, so anything
+        # else this large is an accident -- a vendored data file, a stray build
+        # artefact, a second binary -- rather than the packaged code growing.
+        #
+        # This assertion used to carry `<= 115_000_000` on the member as well.
+        # That bound was a survivor of the per-platform byte budgets the owner
+        # retired on 2026-08-19 (see `artifact-policy.toml`): it was
+        # project-invented, no publishing target imposes anything on a member
+        # INSIDE the archive, and its own comment prescribed the very
+        # recalibrate-every-epoch cycle the ruling ended -- epochs 3 through 6b
+        # each spent a commit on it, and epoch 8 was the next. The real
+        # constraint is PyPI's 100 MiB per-file limit on the DISTRIBUTED FILE,
+        # and `_check_limits` still asserts it at a 95 MiB tripwire; the
+        # largest wheel this project builds is 24.1 MB, 23% of that limit,
+        # because the member is compressed roughly 4.5:1 on every platform.
+        assert name == native[0], (name, len(contents))
 
 
 def _check_sdist(entries: dict[str, bytes]) -> None:
