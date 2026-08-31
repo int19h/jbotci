@@ -6692,6 +6692,7 @@ enum CllFixtureMetadataAuditStatus {
     MissingCllValue,
     Mismatch,
     MissingCllExample,
+    MissingCllSection,
     ProvenanceMismatch,
 }
 
@@ -6705,6 +6706,7 @@ impl CllFixtureMetadataAuditStatus {
             Self::MissingCllValue => "missing_cll_value",
             Self::Mismatch => "mismatch",
             Self::MissingCllExample => "missing_cll_example",
+            Self::MissingCllSection => "missing_cll_section",
             Self::ProvenanceMismatch => "provenance_mismatch",
         }
     }
@@ -7046,7 +7048,7 @@ fn audit_cll_fixture_section_provenance(
             fixture,
             provenance,
             "section",
-            CllFixtureMetadataAuditStatus::MissingCllExample,
+            CllFixtureMetadataAuditStatus::MissingCllSection,
             CllFixtureMetadataAuditSeverity::Error,
             &format_cll_fixture_provenance_key(provenance),
             &[],

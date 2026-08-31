@@ -1861,6 +1861,81 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn appendices_are_designated_by_title_rather_than_by_a_chapter_number() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+
+        // Every division after the last numbered chapter is an appendix, and no
+        // numbered chapter is misclassified as one.
+        let numbered = site
+            .chapters
+            .iter()
+            .filter(|chapter| chapter.division.chapter_number().is_some())
+            .count();
+        assert_eq!(numbered, 22);
+        assert!(
+            site.chapters[numbered..]
+                .iter()
+                .all(|chapter| chapter.division == CllDivision::Appendix)
+        );
+        assert_eq!(
+            site.chapters[numbered..]
+                .iter()
+                .map(|chapter| chapter.chapter_title.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "Chrestomathy",
+                "The PEG word-form grammar",
+                "Changes from the first edition",
+            ]
+        );
+
+        // A cross-reference to an appendix renders the appendix title, the only
+        // designation the book gives it, rather than a synthesized chapter
+        // number that would have collided with the real chapter 22.
+        let rafsi_for_fuivla = cll_lookup_section(site, "section-rafsi-fuhivla")
+            .expect("chapter 4's fu'ivla rafsi section should exist");
+        let rendered = render_section(
+            site,
+            rafsi_for_fuivla,
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
+        );
+        assert!(rendered.contains("printed in The PEG word-form grammar"));
+        assert!(rendered.contains("see Changes from the first edition"));
+        assert!(!rendered.contains("Chapter 24"));
+        assert!(!rendered.contains("Chapter 25"));
+
+        // Appendix sections are addressed by their stable id, and no positional
+        // number is registered for them.
+        assert_eq!(
+            cll_resolve_section_reference(site, "section-north-wind").as_deref(),
+            Some("section-north-wind")
+        );
+        assert_eq!(cll_resolve_section_reference(site, "23.1"), None);
+        assert_eq!(cll_resolve_section_reference(site, "24"), None);
+        assert_eq!(cll_resolve_section_reference(site, "25.1"), None);
+        assert_eq!(
+            cll_resolve_section_reference(site, "22.1").as_deref(),
+            Some("section-dialects-introduction"),
+            "the real chapter 22 keeps the numbers the old scheme handed to the chrestomathy"
+        );
+
+        // Display and index labels drop the number rather than inventing one.
+        let north_wind =
+            cll_lookup_section(site, "section-north-wind").expect("chrestomathy section exists");
+        assert_eq!(
+            format_section_display_title(north_wind),
+            "The North Wind and the Sun"
+        );
+        assert_eq!(
+            cll_section_index_label(north_wind),
+            "The North Wind and the Sun"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn restored_ebnf_cross_reference_links_to_rendered_rules() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let cross_reference = cll_lookup_section(site, "section-cross-reference")

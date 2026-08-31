@@ -1871,6 +1871,65 @@ fn write_fixture_rejects_invalid_metadata_by_contract() {
     let _ = write_fixture_file(fixture_path, &test_case);
 }
 
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn cll_provenance_names_exactly_one_division() {
+    let cll_provenance = |chapter: Option<u16>,
+                          appendix: Option<&str>,
+                          section_number: Option<&str>| Provenance::Cll {
+        chapter,
+        appendix: appendix.map(str::to_owned),
+        section_number: section_number.map(str::to_owned),
+        section_id: "section-example".into(),
+        example_number: None,
+        example_id: None,
+        source_path: None,
+    };
+
+    // A numbered chapter carries the number the book prints for its section.
+    assert!(
+        cll_provenance(Some(18), None, Some("18.3"))
+            .division_error()
+            .is_none()
+    );
+    // An appendix carries its stable division id and no number at all.
+    assert!(
+        cll_provenance(None, Some("volume-chrestomathy"), None)
+            .division_error()
+            .is_none()
+    );
+
+    for (chapter, appendix, section_number) in [
+        (Some(18), Some("volume-chrestomathy"), Some("18.3")),
+        (None, None, None),
+        (Some(18), None, None),
+        (None, Some("volume-chrestomathy"), Some("23.1")),
+    ] {
+        let provenance = cll_provenance(chapter, appendix, section_number);
+        assert!(
+            provenance.division_error().is_some(),
+            "expected a division error for {provenance:?}"
+        );
+        let test_case = TestCase {
+            id: "cll.example".into(),
+            lojban: "coi".into(),
+            lojban_filename: None,
+            dialect: None,
+            translation_en: None,
+            gloss_en: None,
+            tags: vec![],
+            provenance: vec![provenance],
+            expectations: Expectations::default(),
+        };
+        assert!(!test_case.is_valid_fixture_metadata());
+        assert!(matches!(
+            test_case.validate_provenance(),
+            Err(FixtureError::InvalidProvenance { .. })
+        ));
+    }
+}
+
 #[requires(!test_case.id.is_empty())]
 #[ensures(true)]
 fn assert_morphology_expectation(test_case: &TestCase, expectation: &MorphologyExpectation) {
