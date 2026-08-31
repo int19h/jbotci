@@ -4900,8 +4900,15 @@ pub mod generated_model {
     rule "selbri relative clauses" exp_afterthought_selbri_relative_clauses(exp_subsentence, zantufa_relative_statement) -> struct {
         /// The initial relative clause before the ZIhE/joik continuations.
         field first <- exp_selbri_relative_clause(exp_subsentence, zantufa_relative_statement);
-        /// Ordered sequence of zero or more additional components.
-        field additional <- [zero_or_more exp_selbri_relative_clause_continuation(exp_subsentence, zantufa_relative_statement)];
+        /// Ordered sequence of zero or more additional components, each without the
+        /// free-modifier placement camxes-exp's `joik` does not spell. The shared connective
+        /// nodes carry a `free*` slot on their head, before the optional `NAI`; `(ZIhE_clause /
+        /// joik) free*` (:214) puts the chain's frees AFTER the completed connective and `joik`
+        /// (:347-349) has no slot inside it. Those nodes are shared with routes the epoch base
+        /// already reaches, so the placement is refused on this chain's completed continuation
+        /// rather than removed from them -- see the rejection's own documentation and #847.
+        field additional <- [zero_or_more exp_selbri_relative_clause_continuation(exp_subsentence, zantufa_relative_statement)
+            .reject_output(crate::grammar::baseline_relative::ProhibitedRelativeConnectiveFreeModifierRejection)];
     }
 
     /// Product node for selbri relative clauses; preserves `connective` and `inner` in source order.
@@ -6756,8 +6763,58 @@ pub mod generated_model {
         field leading_unit <- arc(tanru_unit);
         /// The required relative-clause chain.
         field relative_clauses <- arc(exp_selbri_relative_clauses);
-        /// The optional connectorless BO continuation.
-        field bo_tail <- opt(arc(plain_bo_selbri_tail(plain_bo_selbri)));
+        /// The optional connectorless BO continuation, carrying the unit's mixed-list
+        /// reservation.
+        ///
+        /// camxes-exp's chain is greedy -- `selbri_relative_clause ((ZIhE_clause / joik) free*
+        /// selbri_relative_clause)*` (camxes-exp.peg:214) -- so a `(ZIhE_clause / joik)` still
+        /// standing in front of a relative marker after this unit ends is a clause this route
+        /// cannot form, and the list as a whole is therefore not an extent camxes-exp derives at
+        /// all. Without the reservation this arm takes the FIRST clause into the leading selbri
+        /// and the whole list is lost to every owner: nothing in any of the three grammars
+        /// consumes a leading `zi'e`, or a `je` before a relative marker, so the enclosing site
+        /// never gets a list to own. `broda po'oi mi brode zi'e poi do brodi` and its joik-joined
+        /// twin are the shapes (issue #877); with the reservation the leading selbri stays bare
+        /// and the completed mixed list reaches the selbri-level parent, which is the same
+        /// reading an explicit `ku'o` on clause 1 already produced through the KUhO reservation.
+        ///
+        /// It is the prefix-steal `exp_selbri_relative_clause`'s KUhO reservation prevents, at
+        /// the other end of the chain, and like that one it is a boolean probed inside a
+        /// rewinding lookahead. The connective inventory is spelled from tokens -- `joik` as
+        /// :347-349 spells it, plus `ZIhE_clause`, longest alternative first -- rather than by
+        /// reusing `exp_selbri_relative_clause_connective`: the probe must never contribute a
+        /// node or the connective's own experimental warning. It sits on the LAST field so that
+        /// it sees everything the unit consumed, chain and BO tail alike, and so that the two
+        /// preceding fields keep their recovery-resume anchors.
+        field bo_tail <- opt(arc(plain_bo_selbri_tail(plain_bo_selbri))).followed_by((
+            choice((
+                cmavo(Zihe).ignored(),
+                (
+                    selmaho(Gaho),
+                    opt(selmaho(Se)),
+                    selmaho(Bihi),
+                    opt(cmavo(Nai)),
+                    selmaho(Gaho),
+                )
+                    .ignored(),
+                (opt(selmaho(Se)), selmaho(Bihi), opt(cmavo(Nai))).ignored(),
+                (
+                    opt(selmaho(Na)),
+                    opt(selmaho(Se)),
+                    choice((selmaho(Joi), selmaho(Ja), selmaho(A))),
+                    opt(cmavo(Nai)),
+                )
+                    .ignored(),
+            )),
+            choice((
+                cmavo(Poi),
+                cmavo(Pohoi),
+                cmavo(Voi),
+                cmavo(Voihi),
+                cmavo(Noi),
+                cmavo(Nohoi),
+            )),
+        ).not());
     }
 
     /// Product node for a CEI-capable unit with an optional plain BO tail.

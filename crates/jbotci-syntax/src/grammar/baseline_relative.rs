@@ -13,10 +13,12 @@ use jbotci_morphology::Cmavo;
 
 use super::generated_model::{
     BridiRelativeClauseSyntax, BridiSyntax, ExpRelativeClauseConnectiveSyntax,
-    ExpRelativeContinuationSyntax, ExpSoiSubsentenceAdverbialSyntax, RelativeClauseAtomSyntax,
-    RelativeClauseListSyntax, RelativeClauseTailSyntax, SubbridiSyntax, TermSyntax,
-    ZantufaRelativeStatementBaseSyntax, ZantufaRelativeStatementSyntax,
-    ZantufaStatementRelativeClauseSyntax, ZantufaXoiStatementAdverbialSyntax, recovered,
+    ExpRelativeContinuationSyntax, ExpSelbriRelativeClauseConnectiveSyntax,
+    ExpSelbriRelativeClauseContinuationSyntax, ExpSoiSubsentenceAdverbialSyntax,
+    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
+    SimpleIntervalConnectiveSyntax, SubbridiSyntax, TermSyntax, ZantufaRelativeStatementBaseSyntax,
+    ZantufaRelativeStatementSyntax, ZantufaStatementRelativeClauseSyntax,
+    ZantufaXoiStatementAdverbialSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
 
@@ -128,6 +130,125 @@ pub(crate) struct ExpSelbriRelativeListRejection;
 /// (camxes.peg:1695), which is what the return has to prove, because that is the exact arm the
 /// candidate reparses through. `po'oi` and `voi'i` are rolling-Zantufa extensions with no
 /// baseline arm at all.
+/// Placement classifier for the free-modifier slot camxes-exp's `joik` does not spell.
+///
+/// `joik <- NA_clause? SE_clause? (JOI_clause / JA_clause / A_clause) NAI_clause? / interval /
+/// GAhO_clause interval GAhO_clause` with `interval <- SE_clause? BIhI_clause NAI_clause?`
+/// (camxes-exp.peg:347-349), and the `free*` both relative chains carry is OUTSIDE it -- `(ZIhE_clause
+/// / joik) free* relative_clause` (:199, :214). The `_clause` wrappers do not restore the slot:
+/// `post_clause <- spaces? si_clause? !ZEI_clause !BU_clause indicators*` carries indicators, not
+/// frees. So `je to do brodi toi nai` is not a connective camxes-exp derives, while `je nai to do
+/// brodi toi` and `je to do brodi toi` are -- the free modifiers of the latter two being the
+/// chain's own `free*`.
+///
+/// jbotci's connective nodes spell that slot on the head instead, and they are shared: the same
+/// `exp_relative_clause_connective` serves the ordinary relative chain at :199, and both interval
+/// nodes serve the baseline `joik_connective`, whose consumers supply no outer `free*` at all.
+/// Removing the slot from those nodes would therefore withdraw surfaces the epoch base accepts
+/// through routes this epoch does not own -- `lo broda poi mi brode je to do brodi toi nai poi do
+/// brodi ku cu brodi` and `li pa bi'i to do brodi toi nai li re` are both `A` at `0d791fd35c` --
+/// which is the unsourced-placement sweep filed as #847, not this epoch's family. What this epoch
+/// does own is the chain it added, so the prohibited placement is refused exactly there.
+///
+/// Only the two head-before-optional-NAI shapes can present it. `zihe_selbri_relative_connective`
+/// spells `ZIhE_clause` alone, whose trailing frees are the chain's own; `closed_interval_connective`
+/// already carries its slot on the closing GAhO, after the NAI, where the source puts it.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ProhibitedRelativeConnectiveFreeModifierRejection;
+
+#[requires(true)]
+#[ensures(true)]
+fn is_prohibited_connective_free_modifier(
+    value: &ExpSelbriRelativeClauseContinuationSyntax,
+) -> bool {
+    let ExpSelbriRelativeClauseContinuationSyntax {
+        connective,
+        inner: _,
+    } = value;
+    match connective {
+        ExpSelbriRelativeClauseConnectiveSyntax::ZiheSelbriRelativeConnective(_)
+        | ExpSelbriRelativeClauseConnectiveSyntax::ClosedIntervalConnective(_) => false,
+        ExpSelbriRelativeClauseConnectiveSyntax::ExpRelativeClauseConnective(connective) => {
+            let ExpRelativeClauseConnectiveSyntax {
+                na: _,
+                se: _,
+                head,
+                nai,
+            } = connective;
+            nai.is_some() && !head.free_modifiers.is_empty()
+        }
+        ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(connective) => {
+            let SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective;
+            nai.is_some() && !bihi.free_modifiers.is_empty()
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_is_prohibited_connective_free_modifier(
+    value: &recovered::ExpSelbriRelativeClauseContinuationSyntax,
+) -> bool {
+    let recovered::ExpSelbriRelativeClauseContinuationSyntax {
+        connective,
+        inner: _,
+    } = value;
+    let Some(connective) = valid(connective) else {
+        return false;
+    };
+    match connective {
+        recovered::ExpSelbriRelativeClauseConnectiveSyntax::ZiheSelbriRelativeConnective(_)
+        | recovered::ExpSelbriRelativeClauseConnectiveSyntax::ClosedIntervalConnective(_) => false,
+        recovered::ExpSelbriRelativeClauseConnectiveSyntax::ExpRelativeClauseConnective(
+            connective,
+        ) => valid(connective).is_some_and(|connective| {
+            let recovered::ExpRelativeClauseConnectiveSyntax {
+                na: _,
+                se: _,
+                head,
+                nai,
+            } = connective;
+            nai.is_some() && !head.free_modifiers.is_empty()
+        }),
+        recovered::ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(
+            connective,
+        ) => valid(connective).is_some_and(|connective| {
+            let recovered::SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective;
+            nai.is_some() && !bihi.free_modifiers.is_empty()
+        }),
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<ExpSelbriRelativeClauseContinuationSyntax>
+    for ProhibitedRelativeConnectiveFreeModifierRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "free modifier before the connective's NAI"
+    }
+
+    fn rejects(&self, value: &ExpSelbriRelativeClauseContinuationSyntax) -> bool {
+        is_prohibited_connective_free_modifier(value)
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::ExpSelbriRelativeClauseContinuationSyntax>>
+    for ProhibitedRelativeConnectiveFreeModifierRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "free modifier before the connective's NAI"
+    }
+
+    fn rejects(
+        &self,
+        value: &recovered::Recovered<recovered::ExpSelbriRelativeClauseContinuationSyntax>,
+    ) -> bool {
+        valid(value).is_some_and(recovered_is_prohibited_connective_free_modifier)
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn is_baseline_restrictive_marker(cmavo: Option<Cmavo>) -> bool {

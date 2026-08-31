@@ -839,3 +839,193 @@ the recovery anchor metadata snapshot and the four Python model files plus `docs
 Their deltas are the D2 connective arm change and the two `.wf()` fields exactly, and they are
 committed with that reasoning in `691a9ec38f`.
 
+
+## Round 3: the #877 regression and two source-exactness corrections
+
+The round-2 verdict at `2284b50691` was split -- Sol CHANGES, Qwen PASS -- and the lead upheld
+Sol on the one High: the S3 mixed-list regression may not ship. Both reviewers confirmed H2, H3,
+M4, M5, M6, both cosmetics and the H1 grammar direction, and this round does not touch them.
+
+**Round 3 introduces no `A -> R` against the epoch base, and removes the last one that stood.**
+The epoch's consolidated picture is now:
+
+| surface | base | round 1 | round 2 | head | what it is |
+| --- | --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e poi do brodi`, `(+zt)` | A | **R** | **R** | A | #877, repaid |
+| `broda po'oi mi brode je poi do brodi`, `(+zt)` | A | **R** | **R** | A | the same, joik-joined |
+| `lo broda po'oi mi brode zi'e poi do brodi ku cu brodi`, `(+zt)` | A | **R** | **R** | A | the same class at a description site, found this round |
+| `broda po'oi mi brode ku'o zi'e poi do brodi`, `(+zt)` | A | A | A | A | boundary: explicit `ku'o` |
+| `broda poi mi brode je po'oi do brodi`, `(+zt)` | A | A | A | A | boundary: clause 1 is one exp cannot form |
+| `lo broda no'oi mi brode zi'e poi do brodi ku cu brodi` | R | R | R | **A** | new accept: the default-profile description site |
+| `lo broda no'oi mi brode je poi do brodi ku cu brodi` | R | R | R | **A** | the same, joik-joined |
+| `mi viska lo broda no'oi mi brode zi'e poi do brodi` | R | R | R | **A** | the same, elided `ku` |
+| `broda no'oi mi brode je to do brodi toi nai no'oi do brodi` | R | R | **A** | R | round-2 over-acceptance, withdrawn |
+| `broda no'oi mi brode bi'i to do brodi toi nai no'oi do brodi` | R | R | **A** | R | the same, interval form |
+| `lo broda poi mi brode je to do brodi toi nai poi do brodi ku cu brodi` | A | A | A | A | the base-reachable twin, deliberately untouched |
+| `li pa bi'i to do brodi toi nai li re` | A | A | A | A | the baseline `joik` twin, deliberately untouched |
+
+`(+zt)` is `(+zantufa-terms)`; every other row is the default profile. Measurements are three
+release binaries as before, plus this head; the base binary is `0d791fd35c` built from the
+epoch's own base worktree.
+
+### The blocking finding: the S3 leading-selbri regression (issue #877)
+
+The lead asked for measurement in a fixed order: (a) a narrow constraint on where
+`exp_relative_tanru_unit` is reachable inside the S3 leading selbri, (b) failing that, the second
+no-terminal-relative ladder from selbri level 2 down, (c) failing both, stop and report. **(a)
+works, and it is narrower than the lead's own sketch: the fix is not in the leading selbri at
+all.**
+
+The loss was diagnosed in round 2 as the leading selbri swallowing clause 1. That is what
+happens, but it is not where the defect is. What camxes-exp's chain does when it meets
+`po'oi mi brode zi'e poi do brodi` is stop after clause 1, because
+`selbri_relative_clause ((ZIhE_clause / joik) free* selbri_relative_clause)*`
+(camxes-exp.peg:214) is greedy and `poi` is not a `NOhOI_clause`. It then RETURNS that partial
+chain, and the surrounding grammar has no way to consume the `zi'e` -- or the `je` before a
+relative marker -- that is left standing. Nothing in camxes-standard, camxes-exp or rolling
+Zantufa begins with either. So the parse is already dead at the moment the arm commits, and the
+list that the S3 parent, or a description's own relative-clause field, could have owned whole is
+gone.
+
+That makes it a **prefix steal**, and this epoch already has the mechanism for one: the KUhO
+reservation on `exp_selbri_relative_clause`, which declines wherever a rolling-Zantufa clause
+closed by an explicit `ku'o` parses from the same position. The correction is the same shape at
+the other end of the same chain -- a boolean probed inside a rewinding lookahead, spelled from
+tokens so it can never contribute a node or the connective's own warning:
+
+```
+rule "tanru unit" exp_relative_tanru_unit(...) -> struct {
+    field leading_unit <- arc(tanru_unit);
+    field relative_clauses <- arc(exp_selbri_relative_clauses);
+    field bo_tail <- opt(arc(plain_bo_selbri_tail(plain_bo_selbri))).followed_by((
+        choice((ZIhE, GAhO SE? BIhI NAI? GAhO, SE? BIhI NAI?, NA? SE? (JOI/JA/A) NAI?)),
+        choice((poi, po'oi, voi, voi'i, noi, no'oi)),
+    ).not());
+}
+```
+
+The connective inventory is `joik` as camxes-exp.peg:347-349 spells it plus `ZIhE_clause`,
+longest alternative first, and the marker inventory is rolling Zantufa's whole NOI
+(zantufa-1.9999.peg:590) rather than only the four the exp clause cannot form. Both choices are
+deliberate. Reading the whole connective inventory is why the `je`-joined shape is fixed and not
+only the ZIhE one. Reading the whole marker inventory costs nothing because the chain is greedy:
+if the next clause were one this route could form, the chain would already have taken it, so the
+probe can only fire on a list this route cannot finish.
+
+**This cannot remove an accepted surface, by construction.** The probe fires only when a
+relative-clause connective stands in front of a relative marker after the arm's own extent, and
+that is a token sequence no production in any of the three grammars can begin. What the arm does
+instead is decline, which lets `plain_bo_tanru_unit` return the bare unit and lets the completed
+list reach whichever site owns it. The full profile is the oracle and agrees: 26,666 fixtures,
+72,614 passed, 519 xfailed, 0 failed, with only the two #877 pins moving.
+
+Three things follow that were not in the round-2 picture.
+
+**The class is wider than the two pinned shapes, and reaches the default profile.** The same
+prefix steal happens at a description's own relative-clause field, where there is no S3 parent at
+all: `lo broda no'oi mi brode zi'e poi do brodi ku cu brodi` is `R` at the epoch base only because
+the base had no adopted exp chain to steal with, and D2 made it `R` for a new reason. It is `A`
+now, the whole mixed list owned by the description, the `no'oi` clause warned and the `poi` clause
+silent. That is why the reservation is on the exp arm rather than on the S3 parent: the S3 parent
+is `ZANTUFA-TERMS`-gated and the defect is not.
+
+**Sol's ladder (b) is not needed.** It would also have worked -- a leading selbri that cannot end
+in a relative of its own cannot swallow clause 1 -- but it is a parallel ladder from selbri level
+2 down, it only reaches the `(+zantufa-terms)` S3 site, and it would leave the default-profile
+description site above still broken. Measurement (a) succeeded, so (b) was not built.
+
+**Delta 4's gated omission is unchanged, and the S3 parent still cannot be default-enabled.**
+The lead asked for the answer, not the change, and the answer is no. Delta 4's twenty-four
+measured reinterpretations are `zantufa_relative_selbri` claiming a *baseline* `poi` list at
+selbri level inside a description whose own relative-clause field is the baseline's site for it --
+`.uesai le ni mrilu poi srana la lojban. cu mutce caku`. No camxes-exp tanru-unit relative appears
+in any of them, so the reservation never runs, and nothing about the ownership contest between the
+S3 parent and the enclosing description has moved. The full profile confirms it: not one of those
+twenty-four fixtures changed. Default-enabling the S3 parent still requires the boundary ladder
+Delta 4 declined, which is what issue #877's sibling scope was always about.
+
+The reservation sits on the LAST field rather than immediately after the chain, and that is a
+measured choice rather than a stylistic one. Both placements were built and run: the two give
+identical results on the full profile (26,666 / 72,614 / 0 in both) and on the whole round-3 probe
+battery, because a `bo` tail cannot itself be followed by a stranded relative connective in any
+accepted surface. What differs is the recovery anchor metadata. `followed_by` has no recovery
+classification of its own, so the field it guards becomes opaque and loses its resume rows; on
+`relative_clauses` that cost fourteen rows, on `bo_tail` it costs three (`resume 2 origin
+FieldFirst start [Cmavo(Bo)]`, once per field). The three are the whole snapshot delta this round.
+That `followed_by` degrades anchors at all is pre-existing -- the grammar has eight other
+`followed_by` sites with the same silence -- and is left alone here rather than fixed in the macro,
+because making it transparent would add anchors at all eight and that is a recovery change no
+review round has asked for.
+
+Witnesses: `d1-s3-leading-selbri-zihe-mixed-list` and `d1-s3-leading-selbri-jek-mixed-list` are
+the two #877 shapes, now owner/tree/diagnostics success pins showing a bare `leading_selbri` and
+the completed mixed list under `ZantufaRelativeSelbri` (they replace the round-2 rejection pins,
+whose `-gap-` names are no longer true). `d2-kuho-boundary-mixed-list` pins the explicit-`ku'o`
+boundary that already held, so the two routes to the same S3 reading are witnessed side by side.
+`d1-s3-jek-mixed-list`, the other boundary -- a clause 1 camxes-exp cannot form at all -- is
+retained unchanged from round 2. `d2-mixed-list-description-site` pins the default-profile
+description site.
+
+### Sol Medium: the free-modifier placement camxes-exp's `joik` does not spell
+
+Sol is right on the source, and the finding is confirmed at its root rather than at its
+citation. camxes-exp puts the chain's frees OUTSIDE the connective -- `(ZIhE_clause / joik) free*`
+at both :199 and :214 -- and `joik <- NA_clause? SE_clause? (JOI_clause / JA_clause / A_clause)
+NAI_clause? / interval / GAhO_clause interval GAhO_clause` (:347) has no slot inside it. The
+`_clause` wrappers do not put one back: `post_clause <- spaces? si_clause? !ZEI_clause !BU_clause
+indicators*` (camxes-exp.peg:422) carries **indicators**, not `free*`. So `je to do brodi toi nai`
+is not a connective camxes-exp derives, while `je nai to do brodi toi` and `je to do brodi toi`
+both are.
+
+jbotci spells that slot on the connective's head instead, before the optional `NAI`. What the
+round-2 measurement adds is where that shape lives:
+
+| node | also used by | `<head> free+ NAI` at the epoch base |
+| --- | --- | --- |
+| `exp_relative_clause_connective` | the ordinary relative chain at :199 | **A** -- `lo broda poi mi brode je to do brodi toi nai poi do brodi ku cu brodi` |
+| `simple_interval_connective` | the baseline `joik_connective` | **A** -- `li pa bi'i to do brodi toi nai li re` |
+| `closed_interval_connective` | the baseline `joik_connective` | source-exact already: its slot is on the closing GAhO, after the NAI |
+| `zihe_selbri_relative_connective` | -- | source-exact already: `ZIhE_clause`, and the trailing frees are the chain's own |
+
+Removing the slot from the two shared nodes would therefore withdraw surfaces the epoch base
+accepts through routes this epoch does not own, and the baseline `joik` consumers supply no outer
+`free*` at all, so `bi'i to do brodi toi` without a NAI would go with it. That is the unsourced
+free-modifier-placement sweep filed as **#847**, whose standing policy is a `prohibited_wf`
+warning or an `unrestricted-free` gate rather than a silent narrowing, and it is not this epoch's
+family.
+
+What this epoch does own is the chain it added, and there the shape is an epoch-introduced
+over-acceptance: both rows above are `R` at the base and became `A` in round 2 when the D2 chain
+took the shared connective nodes. So the placement is refused on this chain's completed
+continuation --
+`ProhibitedRelativeConnectiveFreeModifierRejection`, a typed `OutputRejection` on
+`exp_selbri_relative_clause_continuation` that rejects a connective carrying free modifiers before
+a present `NAI` -- and left alone everywhere else. The rejection is exhaustive over the four arms
+and has the usual fail-closed recovered twin.
+
+The result is exactly camxes-exp's language on this chain: `je to do brodi toi nai` and
+`bi'i to do brodi toi nai` are rejections; `je nai to do brodi toi`, `je to do brodi toi`,
+`bi'i nai to do brodi toi`, `bi'i to do brodi toi`, `ga'o bi'i nai ga'o to do brodi toi` and
+`zi'e to do brodi toi` all still parse. Negative witnesses:
+`d2-reject-connective-free-modifier-before-nai` for the merged-head form and
+`d2-reject-interval-free-modifier-before-nai` for the interval one. The closed interval needs no
+witness of its own because it never had the slot.
+
+**A macro asymmetry was found on the way, and it is worth an issue.** The rejection was first
+written on the connective field itself, `field connective <- exp_selbri_relative_clause_connective
+.reject_output(R);` -- a postfix method on a bare, parameterless rule reference. The RECOVERED
+parser applied it and the STRICT parser did not: `jbotci gentufa`, which parses with recovery,
+rejected the surface, while the fixture harness, which uses
+`parse_syntax_tree_with_source_and_options`, accepted it and `fixture-rewrite` wrote out a tree
+containing the very node the rejection names. Moving the same rejection onto the parameterized
+`exp_selbri_relative_clause_continuation(...)` call -- the form every existing `reject_output` in
+the grammar uses -- made the two parsers agree. A guard that silently applies in one parser and
+not the other is a defect class this epic cannot afford; it is reported to the lead rather than
+fixed here, because the fix is in `jbotci-syntax-macros` and belongs to whoever owns that surface.
+
+### Sol Low: the stale `d2-chain-joik` provenance
+
+Corrected. The description said camxes-exp's chain uses "the JOI family and not the JA one",
+which the round-2 adjudication had already replaced with the A-JA-JOI merge at :346-347. It now
+says the JOI family is one of the three inventories the same node carries, and points at
+`d2-chain-jek` and `d2-chain-a-connective` for the other two.
