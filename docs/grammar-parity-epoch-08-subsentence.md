@@ -1029,3 +1029,64 @@ Corrected. The description said camxes-exp's chain uses "the JOI family and not 
 which the round-2 adjudication had already replaced with the A-JA-JOI merge at :346-347. It now
 says the JOI family is one of the three inventories the same node carries, and points at
 `d2-chain-jek` and `d2-chain-a-connective` for the other two.
+
+### Issue #877's disposition
+
+The regression is repaid, so #877 closes with this round. Its body should not be taken forward
+as written: it names the leading selbri's level-2 ladder as the root cause and says the fix
+"requires the second no-terminal-relative ladder from selbri level 2 down". Both halves are
+wrong, and the measurement above says why -- the arm that has to decline is the camxes-exp
+tanru-unit relative, the class reaches a description site in a profile where the S3 parent does
+not exist at all, and the fix is a reservation on that arm rather than a ladder. What #877's body
+gets right is that the ladder is still owed: it is Delta 4's, it is the only thing that would let
+the S3 parent be default-enabled, and it stays where the ledger already put it, as a retained
+gated omission for whichever epoch reaches the descriptor-internal selbri spine.
+
+### The round-3 gate
+
+Run at `f0e609bf0d` with `/build/jbotci/logs/epoch08-r3-gate.sh`, sequentially. Both `cargo test`
+components use `--no-fail-fast`, so green means the whole set is green rather than green up to the
+first failing target.
+
+| component | result | log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch08-r3-g-fmt.log` |
+| `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,653 passed, 0 failed, 16 ignored | `epoch08-r3-g-workspace.log` |
+| `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,652 passed, 0 failed, 8 ignored | `epoch08-r3-g-expensive.log` |
+| `fixture-test --profile all` | 26,666 fixtures, 72,614 passed, 519 xfailed, 0 failed | `epoch08-r3-g-fixtures.log` |
+| tagged facet `subsentence-epoch` | 93 fixtures, 3 facets, 95 passed, 0 failed | `epoch08-r3-g-tagged-facet.log` |
+| frozen syntax facet, same tag | 93 fixtures, 93 passed, 0 failed | `epoch08-r3-g-frozen-facet.log` |
+| comparer | 122 changed / 86 + 6 + 1 + 0 + 0 mechanical / 29 manual / 0 prose / 93 epoch-new / 0 unpaired / 0 witnesses missing diagnostics | `epoch08-r3-g-comparer.log` |
+| comparer unit tests | 27 tests, green | `epoch08-r3-g-comparer-test.log` |
+| `cargo build -p jbotci` (debug) | green | `epoch08-r3-g-debug-jbotci.log` |
+| `dx build` | green | `epoch08-r3-g-dx.log` |
+| `maturin develop` | green | `epoch08-r3-g-maturin.log` |
+| `generate_syntax_models.py --check` | green after regeneration | `epoch08-r3-g3-generate_syntax_models.log` |
+| `generate_domain_enum_stubs.py --check` | green | `epoch08-r3-g3-generate_domain_enum_stubs.log` |
+| `compose_stubs.py --check` | green | `epoch08-r3-g3-compose_stubs.log` |
+| `generate_api_matrix.py --check` | green | `epoch08-r3-g3-generate_api_matrix.log` |
+
+**There is no peak-RSS row, and that is the reported result rather than an omission.** The lead's
+standing instruction ties the pair to adding a production. This round adds none: no rule, no node
+type, no field. `exp_relative_tanru_unit` and `exp_afterthought_selbri_relative_clauses` gain a
+lookahead and a typed output rejection on fields they already had, and the proof is the generated
+artefacts themselves -- the four Python model files regenerate to a **docstring-only** diff (the
+two field doc comments, four files, eight lines), `docs/api-parity.tsv` does not move at all, and
+the recovery anchor snapshot loses three rows and gains none.
+
+Two rows carry a note. `generate_syntax_models.py --check` was red on the gate's own pass and is
+reported that way; the four model files were regenerated and all four Python checks were re-run
+green at the tree that contains them (`epoch08-r3-g3-*.log`). Nothing else in the gate reads those
+files. And the first attempt at this gate was abandoned after the `workspace` row went red on
+`struct_placeholder_invariant_audit_is_current`: the new zero-sized rejection needs its
+allowlist row in `tests/struct_invariant_audit.rs`, exactly as its five siblings in the same file
+do. The row was added and the whole gate re-run from the top rather than resumed, so every figure
+above comes from one run at one commit.
+
+`fixture-test --profile all` is 26,666 fixtures rather than round 2's 26,645 because the count in
+that table predates round 2's own witness additions; against `2284b50691` this round is +4 net
+(six added, two renamed away).
+
+The final commit adds only this section and the two above it to `docs/`, plus the regenerated
+Python model files. `cargo fmt --all --check`, the comparer, its unit tests and the four Python
+checks were re-run at that commit; no other row reads `docs/`.
