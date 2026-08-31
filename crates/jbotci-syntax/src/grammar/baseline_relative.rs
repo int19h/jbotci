@@ -14,7 +14,7 @@ use jbotci_morphology::Cmavo;
 use super::generated_model::{
     BridiRelativeClauseSyntax, BridiSyntax, ExpRelativeClauseConnectiveSyntax,
     ExpRelativeContinuationSyntax, ExpSoiSubsentenceAdverbialSyntax, RelativeClauseAtomSyntax,
-    RelativeClauseListSyntax, RelativeClauseTailSyntax, SubbridiSyntax,
+    RelativeClauseListSyntax, RelativeClauseTailSyntax, SubbridiSyntax, TermSyntax,
     ZantufaRelativeStatementBaseSyntax, ZantufaRelativeStatementSyntax,
     ZantufaStatementRelativeClauseSyntax, ZantufaXoiStatementAdverbialSyntax, recovered,
 };
@@ -96,13 +96,15 @@ impl OutputRejection<recovered::Recovered<recovered::ExpRelativeContinuationSynt
 /// The Zantufa arm keeps the full source NOI inventory (`voi'i / voi / poi / po'oi / noi /
 /// no'oi`, zantufa-1.9999.peg:590) because the Zantufa-only statement bodies attach to the
 /// shared markers too. What it must not keep is the identical extent the baseline already
-/// owns: a `poi`, `noi` or `voi` marker over a body the baseline `subbridi` can form, which
-/// is any run of non-empty prenexes ending in a bridi. Those return here and reparse through
-/// the baseline arm, which begins at the same marker and ends at the same terminator, so the
-/// reparse has identical extent. A body carrying an I-connection or a TUhE group is not a
-/// `subbridi` at all and stays Zantufa's, which is what makes
-/// `lo broda poi mi brode ije do brodi ku'o cu brodi` a warned Zantufa surface while
-/// `lo broda poi mi brode ku'o cu brodi` stays silent baseline.
+/// owns: the exact marker one of the two baseline arms spells -- `poi`/`voi` restrictive,
+/// `noi` incidental -- over a body the baseline `subbridi` can form, which is any run of
+/// non-empty prenexes ending in a bridi. Those return here and reparse through that arm, which
+/// begins at the same marker and ends at the same terminator, so the reparse has identical
+/// extent. A body carrying an I-connection or a TUhE group is not a `subbridi` at all and
+/// stays Zantufa's, which is what makes `lo broda poi mi brode ije do brodi ku'o cu brodi` a
+/// warned Zantufa surface while `lo broda poi mi brode ku'o cu brodi` stays silent baseline.
+/// The extension-only markers `po'oi`, `voi'i` and `no'oi` have no baseline arm at all, so
+/// nothing they carry returns from here: they are R3 at these sites in every terminator shape.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BaselineStatementRelativeRejection;
@@ -122,10 +124,21 @@ pub(crate) struct BaselineStatementRelativeRejection;
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ExpSelbriRelativeListRejection;
 
+/// The marker `restrictive_bridi_relative_clause` spells: camxes-standard's own restrictive NOI
+/// (camxes.peg:1695), which is what the return has to prove, because that is the exact arm the
+/// candidate reparses through. `po'oi` and `voi'i` are rolling-Zantufa extensions with no
+/// baseline arm at all.
 #[requires(true)]
 #[ensures(true)]
-fn is_baseline_marker(cmavo: Option<Cmavo>) -> bool {
-    matches!(cmavo, Some(Cmavo::Poi | Cmavo::Noi | Cmavo::Voi))
+fn is_baseline_restrictive_marker(cmavo: Option<Cmavo>) -> bool {
+    matches!(cmavo, Some(Cmavo::Poi | Cmavo::Voi))
+}
+
+/// The marker `incidental_bridi_relative_clause` spells. `no'oi` is the extension.
+#[requires(true)]
+#[ensures(true)]
+fn is_baseline_incidental_marker(cmavo: Option<Cmavo>) -> bool {
+    matches!(cmavo, Some(Cmavo::Noi))
 }
 
 #[requires(true)]
@@ -134,22 +147,53 @@ fn is_nohoi_marker(cmavo: Option<Cmavo>) -> bool {
     matches!(cmavo, Some(Cmavo::Nohoi | Cmavo::Pohoi))
 }
 
+/// What the classifier has PROVED about a Zantufa relative body, as opposed to what it merely
+/// failed to prove.
+///
+/// A boolean cannot carry this: on the recovered side a body that did not parse is not a
+/// statement-width body, and folding the two together sends an unparseable candidate down the
+/// longer-extent branch and hands it to a baseline arm that cannot reparse it. Every ownership
+/// fact this classifier decides on is proved from a valid node or it is `Unproven`.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RelativeBodyShape {
+    /// A run of prenexes ending in a bridi: a shape the baseline `subbridi` and camxes-exp's
+    /// `subsentence` can both form. Zantufa's own prenex requires terms, so every prenex
+    /// reached here is one both of the other shapes admit.
+    Subbridi,
+    /// Wider than any `subbridi`: an I-connection or a TUhE group.
+    StatementWidth,
+    /// Neither, because a node the answer depends on is a recovery placeholder.
+    Unproven,
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn body_shape(value: &ZantufaRelativeStatementSyntax) -> RelativeBodyShape {
+    match value {
+        ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(prenex) => {
+            body_shape(&prenex.inner_statement)
+        }
+        ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => {
+            RelativeBodyShape::StatementWidth
+        }
+        ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => match base {
+            ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => {
+                RelativeBodyShape::StatementWidth
+            }
+            ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(_) => {
+                RelativeBodyShape::Subbridi
+            }
+        },
+    }
+}
+
 /// True when the Zantufa relative body is a shape the baseline `subbridi` and camxes-exp's
-/// `subsentence` can both form: a run of prenexes ending in a bridi. Zantufa's own prenex
-/// requires terms, so every prenex reached here is one both of the other shapes admit.
+/// `subsentence` can both form.
 #[requires(true)]
 #[ensures(true)]
 fn is_subbridi_shaped_body(value: &ZantufaRelativeStatementSyntax) -> bool {
-    match value {
-        ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(prenex) => {
-            is_subbridi_shaped_body(&prenex.inner_statement)
-        }
-        ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => false,
-        ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => match base {
-            ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => false,
-            ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(_) => true,
-        },
-    }
+    matches!(body_shape(value), RelativeBodyShape::Subbridi)
 }
 
 #[requires(true)]
@@ -158,16 +202,16 @@ fn is_baseline_statement_relative(value: &ZantufaStatementRelativeClauseSyntax) 
     match value {
         ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(clause) => {
             returns_to_baseline(
-                is_baseline_marker(clause.poi.value.cmavo()),
+                is_baseline_restrictive_marker(clause.poi.value.cmavo()),
                 clause.kuho.is_none(),
-                is_subbridi_shaped_body(&clause.statement),
+                body_shape(&clause.statement),
             )
         }
         ZantufaStatementRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(clause) => {
             returns_to_baseline(
-                is_baseline_marker(clause.noi.value.cmavo()),
+                is_baseline_incidental_marker(clause.noi.value.cmavo()),
                 clause.kuho.is_none(),
-                is_subbridi_shaped_body(&clause.statement),
+                body_shape(&clause.statement),
             )
         }
     }
@@ -175,10 +219,16 @@ fn is_baseline_statement_relative(value: &ZantufaStatementRelativeClauseSyntax) 
 
 /// The two halves of the return, over the three facts that decide it.
 ///
-/// The identical-extent half is R1 as the plan states it: a standard `poi`, `noi` or `voi` over
-/// a body the baseline `subbridi` can form is the baseline's own clause, and the baseline arm
-/// begins at the same marker and ends at the same terminator, so the reparse has identical
-/// extent.
+/// BOTH halves require the baseline marker, because a return with no baseline owner is not a
+/// return at all: `po'oi`, `voi'i` and `no'oi` have no baseline arm, so declining one of those
+/// candidates leaves the extent to nothing. The frozen S1/S2 rule is a baseline marker AND a
+/// body the baseline can form, and `baseline_marker` here is the EXACT arm the candidate would
+/// reparse through -- `poi`/`voi` for the restrictive clause, `noi` for the incidental one --
+/// rather than the union of the two.
+///
+/// The identical-extent half is R1 as the plan states it: a standard marker over a body the
+/// baseline `subbridi` can form is the baseline's own clause, and the baseline arm begins at
+/// the same marker and ends at the same terminator, so the reparse has identical extent.
 ///
 /// The longer-extent half is the mirror of the reservation D2's clause carries, and it is what
 /// keeps this arm from taking a baseline parse apart rather than adding to it.  A statement-
@@ -189,13 +239,17 @@ fn is_baseline_statement_relative(value: &ZantufaStatementRelativeClauseSyntax) 
 /// thirteen corpus fixtures read that way.  Rolling Zantufa's own terminator is what tells the
 /// two apart, so the Zantufa-only body keeps the extent only when the Zantufa terminator is
 /// there to close it; that is the same rule, and the same word, that decides the D2 boundary.
+/// With an extension-only marker there is no such competing baseline reading to preserve, so
+/// the extent stays Zantufa's under R3 whatever its terminator does.
+///
+/// `Unproven` never returns: an ownership fact that is not proved cannot decide a route.
 #[requires(true)]
-#[ensures(true)]
-fn returns_to_baseline(baseline_marker: bool, kuho_elided: bool, subbridi_body: bool) -> bool {
-    if subbridi_body {
-        baseline_marker
-    } else {
-        kuho_elided
+#[ensures(!ret || baseline_marker, "a candidate is never returned without a proven baseline owner")]
+fn returns_to_baseline(baseline_marker: bool, kuho_elided: bool, body: RelativeBodyShape) -> bool {
+    match body {
+        RelativeBodyShape::Subbridi => baseline_marker,
+        RelativeBodyShape::StatementWidth => baseline_marker && kuho_elided,
+        RelativeBodyShape::Unproven => false,
     }
 }
 
@@ -223,17 +277,31 @@ fn is_exp_selbri_relative_clause(value: &RelativeClauseAtomSyntax) -> bool {
     }
 }
 
+/// True when the adopted camxes-exp chain can spell this relative-list continuation.
+///
+/// The source is `selbri_relative_clauses <- selbri_relative_clause ((ZIhE_clause / joik) free*
+/// selbri_relative_clause)*` (camxes-exp.peg:214), whose `joik` is the very nonterminal the
+/// ordinary `relative_clauses` chain uses one level up (:199) -- `NA_clause? SE_clause?
+/// (JOI_clause / JA_clause / A_clause) NAI_clause?` under an explicit A-JA-JOI merge (:346).
+/// D2's chain and this list therefore hold the SAME two connective nodes,
+/// `zihe_selbri_relative_connective`/`joined_relative_clause_tail` for ZIhE and
+/// `exp_relative_clause_connective` for the joik, so every connective a continuation here can
+/// present is one the exp chain consumes and the test is the clause alone. Rolling Zantufa's
+/// bare adjacency is the one tail with no camxes-exp counterpart, and it is refused by shape.
 #[requires(true)]
 #[ensures(true)]
 fn is_exp_selbri_relative_continuation(value: &RelativeClauseTailSyntax) -> bool {
     match value {
         RelativeClauseTailSyntax::RelativeClauseExpContinuation(continuation) => {
-            is_exp_selbri_relative_clause(&continuation.0.inner)
+            let ExpRelativeContinuationSyntax {
+                connective: _,
+                inner,
+            } = continuation.0.as_ref();
+            is_exp_selbri_relative_clause(inner)
         }
         RelativeClauseTailSyntax::JoinedRelativeClauseTail(joined) => {
             is_exp_selbri_relative_clause(&joined.inner)
         }
-        // Rolling Zantufa's bare adjacency has no camxes-exp counterpart at all.
         RelativeClauseTailSyntax::ZantufaBareRelativeClauseTail(_) => false,
     }
 }
@@ -248,24 +316,35 @@ fn is_exp_selbri_relative_list(value: &RelativeClauseListSyntax) -> bool {
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_is_subbridi_shaped_body(value: &recovered::ZantufaRelativeStatementSyntax) -> bool {
+fn recovered_body_shape(value: &recovered::ZantufaRelativeStatementSyntax) -> RelativeBodyShape {
     match value {
         recovered::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(prenex) => {
-            valid(prenex).is_some_and(|prenex| {
-                valid(&prenex.inner_statement)
-                    .is_some_and(|inner| recovered_is_subbridi_shaped_body(inner))
-            })
+            valid(prenex)
+                .and_then(|prenex| valid(&prenex.inner_statement))
+                .map_or(RelativeBodyShape::Unproven, recovered_body_shape)
         }
-        recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => false,
+        // The selected arm is itself the proof of width: an I-connection is what this variant
+        // is, whether or not its payload survived recovery.
+        recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => {
+            RelativeBodyShape::StatementWidth
+        }
         recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => {
-            valid(base).is_some_and(|base| {
-                matches!(
-                    base,
-                    recovered::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(_)
-                )
+            valid(base).map_or(RelativeBodyShape::Unproven, |base| match base {
+                recovered::ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => {
+                    RelativeBodyShape::StatementWidth
+                }
+                recovered::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(_) => {
+                    RelativeBodyShape::Subbridi
+                }
             })
         }
     }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_is_subbridi_shaped_body(value: &recovered::ZantufaRelativeStatementSyntax) -> bool {
+    matches!(recovered_body_shape(value), RelativeBodyShape::Subbridi)
 }
 
 #[requires(true)]
@@ -278,20 +357,22 @@ fn recovered_is_baseline_statement_relative(
             clause,
         ) => valid(clause).is_some_and(|clause| {
             returns_to_baseline(
-                valid(&clause.poi.value).is_some_and(|poi| is_baseline_marker(poi.cmavo())),
+                valid(&clause.poi.value)
+                    .is_some_and(|poi| is_baseline_restrictive_marker(poi.cmavo())),
                 clause.kuho.is_none(),
                 valid(&clause.statement)
-                    .is_some_and(|statement| recovered_is_subbridi_shaped_body(statement)),
+                    .map_or(RelativeBodyShape::Unproven, recovered_body_shape),
             )
         }),
         recovered::ZantufaStatementRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
             clause,
         ) => valid(clause).is_some_and(|clause| {
             returns_to_baseline(
-                valid(&clause.noi.value).is_some_and(|noi| is_baseline_marker(noi.cmavo())),
+                valid(&clause.noi.value)
+                    .is_some_and(|noi| is_baseline_incidental_marker(noi.cmavo())),
                 clause.kuho.is_none(),
                 valid(&clause.statement)
-                    .is_some_and(|statement| recovered_is_subbridi_shaped_body(statement)),
+                    .map_or(RelativeBodyShape::Unproven, recovered_body_shape),
             )
         }),
     }
@@ -433,32 +514,51 @@ pub(crate) struct ExpSubsentenceAdverbialRejection;
 /// reads it as the reciprocal `soi mi` with `brode` continuing the tanru outside. The
 /// adverbial arm therefore returns any completed candidate that reparses that way: the marker
 /// is `soi` -- `xoi` and `fi'oi` are in no reciprocal -- the SEhU is elided, so the extent has
-/// no terminator of its own to keep it whole, and the subsentence opens with the term run the
-/// reciprocal would take as its first sumti. An explicit SEhU, a body with no leading term, or
-/// either of the other two markers is not a reparse the baseline can produce, and stays here.
+/// no terminator of its own to keep it whole, and the subsentence opens with the exact `sumti`
+/// the reciprocal would take as its `leading_sumti`. An explicit SEhU, a body whose first term
+/// is anything other than a bare sumti, or either of the other two markers is not a reparse the
+/// baseline can produce, and stays here.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct BaselineReciprocalSoiRejection;
 
+/// True when the candidate's body opens with the exact constituent the reciprocal would take as
+/// its `leading_sumti`.
+///
+/// `soi_free_modifier` spells `SOI free* sumti sumti? SEhU_elidible`, so the reparse needs a
+/// bare `sumti` in first position, not merely a first `term`: `term` also covers tagged sumti,
+/// termsets, `na ku` and the adverbials themselves, none of which the reciprocal can consume.
+/// `sumti_term` is `term`'s one arm that is exactly `sumti`, so the reparse is proved by the
+/// arm rather than inferred from the run being non-empty.
 #[requires(true)]
 #[ensures(true)]
-fn subsentence_opens_with_terms(value: &SubbridiSyntax) -> bool {
+fn subsentence_opens_with_leading_sumti(value: &SubbridiSyntax) -> bool {
     match value {
         SubbridiSyntax::PrenexSubbridi(_) => false,
-        SubbridiSyntax::BridiSubbridi(bridi) => {
-            matches!(bridi.0.as_ref(), BridiSyntax::BridiWithLeadingTerms(_))
-        }
+        SubbridiSyntax::BridiSubbridi(bridi) => match bridi.0.as_ref() {
+            BridiSyntax::BridiWithLeadingTerms(bridi) => {
+                matches!(bridi.leading_terms.first(), TermSyntax::SumtiTerm(_))
+            }
+            BridiSyntax::BareCuBridi(_) | BridiSyntax::RelationOnlyBridi(_) => false,
+        },
     }
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn recovered_subsentence_opens_with_terms(value: &recovered::SubbridiSyntax) -> bool {
+fn recovered_subsentence_opens_with_leading_sumti(value: &recovered::SubbridiSyntax) -> bool {
     match value {
         recovered::SubbridiSyntax::PrenexSubbridi(_) => false,
         recovered::SubbridiSyntax::BridiSubbridi(bridi) => valid(bridi).is_some_and(|bridi| {
-            valid(&bridi.0).is_some_and(|bridi| {
-                matches!(bridi, recovered::BridiSyntax::BridiWithLeadingTerms(_))
+            valid(&bridi.0).is_some_and(|bridi| match bridi {
+                recovered::BridiSyntax::BridiWithLeadingTerms(bridi) => {
+                    valid(bridi).is_some_and(|bridi| {
+                        valid(bridi.leading_terms.first())
+                            .is_some_and(|term| matches!(term, recovered::TermSyntax::SumtiTerm(_)))
+                    })
+                }
+                recovered::BridiSyntax::BareCuBridi(_)
+                | recovered::BridiSyntax::RelationOnlyBridi(_) => false,
             })
         }),
     }
@@ -502,7 +602,7 @@ impl OutputRejection<ExpSoiSubsentenceAdverbialSyntax> for BaselineReciprocalSoi
     fn rejects(&self, value: &ExpSoiSubsentenceAdverbialSyntax) -> bool {
         value.soi.value.cmavo() == Some(Cmavo::Soi)
             && value.sehu.is_none()
-            && subsentence_opens_with_terms(&value.subsentence)
+            && subsentence_opens_with_leading_sumti(&value.subsentence)
     }
 }
 
@@ -521,7 +621,175 @@ impl OutputRejection<recovered::Recovered<recovered::ExpSoiSubsentenceAdverbialS
         valid(value).is_some_and(|value| {
             valid(&value.soi.value).is_some_and(|soi| soi.cmavo() == Some(Cmavo::Soi))
                 && value.sehu.is_none()
-                && valid(&value.subsentence).is_some_and(recovered_subsentence_opens_with_terms)
+                && valid(&value.subsentence)
+                    .is_some_and(recovered_subsentence_opens_with_leading_sumti)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    #[allow(unused_imports)]
+    use bityzba::{ensures, new, requires};
+    use jbotci_morphology::segment_words_with_modifiers;
+
+    use crate::ParseOptions;
+    use crate::grammar::{SyntaxRecoveryItemData, syntax_tokens};
+    use crate::tree::SyntaxRecoveryItem;
+
+    use super::*;
+
+    /// A recovery placeholder standing in for a child that did not parse.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovery_placeholder() -> SyntaxRecoveryItem {
+        let span = jbotci_diagnostics::source_span_from_byte_offsets(None, "", 0, 0)
+            .expect("valid zero-width source span");
+        new!(SyntaxRecoveryItem::MissingRequiredField {
+            error_index: 0,
+            span: Arc::new(span),
+            expected: "statement".to_owned(),
+        })
+    }
+
+    /// A restrictive Zantufa statement relative clause with an elided KUhO, over the given
+    /// marker text -- which must segment to exactly one word -- and the given body.
+    #[requires(!marker.is_empty())]
+    #[ensures(true)]
+    fn recovered_restrictive_clause(
+        marker: &str,
+        statement: recovered::Recovered<recovered::ZantufaRelativeStatementSyntax>,
+    ) -> recovered::Recovered<recovered::ZantufaStatementRelativeClauseSyntax> {
+        let words = segment_words_with_modifiers(marker).expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let [token] = tokens.as_slice() else {
+            panic!("marker text must be exactly one word");
+        };
+        recovered::Recovered::valid(
+            recovered::ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
+                recovered::Recovered::valid(
+                    recovered::ZantufaRestrictiveStatementRelativeClauseSyntax {
+                        poi: recovered::WithFreeModifiers {
+                            value: recovered::Recovered::valid(token.clone()),
+                            free_modifiers: Vec::new(),
+                        },
+                        statement: Arc::new(statement),
+                        kuho: None,
+                    },
+                ),
+            ),
+        )
+    }
+
+    /// The three ownership facts compose exactly one way: nothing is returned to a baseline arm
+    /// that does not exist, and nothing is decided from a fact the tree did not prove.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn returns_to_baseline_needs_every_fact_proven() {
+        for kuho_elided in [false, true] {
+            for body in [
+                RelativeBodyShape::Subbridi,
+                RelativeBodyShape::StatementWidth,
+                RelativeBodyShape::Unproven,
+            ] {
+                assert!(
+                    !returns_to_baseline(false, kuho_elided, body),
+                    "an extension-only marker never returns ({kuho_elided}, {body:?})"
+                );
+            }
+            assert!(
+                !returns_to_baseline(true, kuho_elided, RelativeBodyShape::Unproven),
+                "an unproven body never returns ({kuho_elided})"
+            );
+            assert!(
+                returns_to_baseline(true, kuho_elided, RelativeBodyShape::Subbridi),
+                "R1: a baseline marker over a subbridi body is the baseline's ({kuho_elided})"
+            );
+        }
+        assert!(
+            returns_to_baseline(true, true, RelativeBodyShape::StatementWidth),
+            "the longer-extent half fires for a baseline marker with no Zantufa terminator"
+        );
+        assert!(
+            !returns_to_baseline(true, false, RelativeBodyShape::StatementWidth),
+            "an explicit KUhO closes the statement-width extent for rolling Zantufa"
+        );
+    }
+
+    /// A body that did not parse is `Unproven`, not "not a subbridi": the shape is read off a
+    /// valid node or it is not read at all. The connected arm is the one exception, and it is
+    /// the variant tag rather than the payload that proves it.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_body_shape_is_unproven_when_the_body_did_not_parse() {
+        let placeholder = recovery_placeholder();
+        assert_eq!(
+            recovered_body_shape(
+                &recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(
+                    recovered::Recovered::error(placeholder.clone()),
+                )
+            ),
+            RelativeBodyShape::Unproven,
+        );
+        assert_eq!(
+            recovered_body_shape(
+                &recovered::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(
+                    recovered::Recovered::error(placeholder.clone()),
+                )
+            ),
+            RelativeBodyShape::Unproven,
+        );
+        assert_eq!(
+            recovered_body_shape(
+                &recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(
+                    recovered::Recovered::error(placeholder),
+                )
+            ),
+            RelativeBodyShape::StatementWidth,
+        );
+    }
+
+    /// The recovered twin of the S1/S2 return, over the three facts directly.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_baseline_statement_relative_returns_only_proven_baseline_extents() {
+        let rejection = BaselineStatementRelativeRejection;
+        let placeholder = recovery_placeholder();
+        let connected = || {
+            recovered::Recovered::valid(
+                recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(
+                    recovered::Recovered::error(placeholder.clone()),
+                ),
+            )
+        };
+
+        assert!(
+            rejection.rejects(&recovered_restrictive_clause("poi", connected())),
+            "a baseline marker over a statement-width body with no KUhO is the longer-extent half"
+        );
+        assert!(
+            !rejection.rejects(&recovered_restrictive_clause("po'oi", connected())),
+            "po'oi has no baseline arm, so nothing it carries returns"
+        );
+        assert!(
+            !rejection.rejects(&recovered_restrictive_clause("voi'i", connected())),
+            "voi'i has no baseline arm either"
+        );
+        assert!(
+            !rejection.rejects(&recovered_restrictive_clause(
+                "poi",
+                recovered::Recovered::error(placeholder.clone()),
+            )),
+            "a body that did not parse cannot be handed to an arm that must reparse it"
+        );
+        assert!(
+            !rejection.rejects(&recovered::Recovered::error(placeholder)),
+            "an unparsed clause is not a completed candidate at all"
+        );
     }
 }
