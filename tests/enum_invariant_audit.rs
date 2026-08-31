@@ -520,6 +520,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
+        "crates/jbotci-cll/src/model.rs:CllSectionNumber::Section",
+        "the chapter and the section index are NonZeroU16 and NonZeroUsize, so the variant data already expresses that the book counts both from one",
+    ),
+    (
+        "crates/jbotci-cll/src/model.rs:CllSectionNumber::WholeChapter",
+        "the chapter is a NonZeroU16, so the variant data already expresses its positivity",
+    ),
+    (
+        "crates/jbotci-cll/src/model.rs:CllSectionNumberError::Invalid",
+        "the rejected text is reproduced verbatim, and the empty string is itself one of the inputs this error reports",
+    ),
+    (
         "crates/jbotci-cll/src/search.rs:CuktaRequest::Example",
         "cukta request variants are validated from CLI/web mode parsing before execution",
     ),
