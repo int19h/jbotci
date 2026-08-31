@@ -14,11 +14,17 @@ pub const MAX_CUKTA_RESULT_COUNT: usize = 500;
 pub const DEFAULT_CUKTA_SECTION_ID: &str = "section-what-is-lojban";
 const PARAGRAPH_SEARCH_MIN_CHARS: usize = 200;
 
+// The build script turns the vendored identity records into constants using
+// this module; the crate compiles it only for tests, so a test can check the
+// same parse the build performed instead of approximating it.
+#[cfg(test)]
+mod vendor_metadata;
+
 mod import;
 #[cfg(test)]
 use import::{
-    BlockParseState, chrestomathy_area_no_parse_rows, normalize_valsis_query, parse_block,
-    parse_paragraph_blocks,
+    BlockParseState, EMBEDDED_CLL_CHAPTERS, chrestomathy_area_no_parse_rows, decode_chapter_xml,
+    normalize_valsis_query, parse_block, parse_paragraph_blocks, sanitize_xml_entities,
 };
 pub(crate) use import::{
     PendingIndexEntry, SectionParseContext, attr_string, block_anchor_id_for, child_element,
@@ -66,7 +72,10 @@ pub use search::{
 use search::{build_search_chunks, example_plain_text, search_chunk_kind_label};
 
 mod render;
-use render::{render_block_html, render_block_markdown};
+use render::{
+    CLL_STATUS_NOTE_PREVIEW_CLASSES, push_status_note_markdown, render_block_html,
+    render_block_markdown, render_status_note_html,
+};
 
 mod visitor;
 use visitor::{CllBlockVisitor, walk_block};
@@ -590,9 +599,20 @@ pub fn render_search_output(
                     "{}. {}",
                     item.chunk.section_number, item.chunk.section_title
                 )));
-                rendered.push_str("</p><p>");
-                rendered.push_str(&escape_html(&truncate_preview(&item.chunk.text, 420)));
-                rendered.push_str("</p></article>");
+                rendered.push_str("</p>");
+                let preview = escape_html(&truncate_preview(&item.chunk.text, 420));
+                if item.chunk.is_status_note() {
+                    rendered.push_str(&render_status_note_html(
+                        "",
+                        CLL_STATUS_NOTE_PREVIEW_CLASSES,
+                        &preview,
+                    ));
+                } else {
+                    rendered.push_str("<p class=\"cll-search-preview\">");
+                    rendered.push_str(&preview);
+                    rendered.push_str("</p>");
+                }
+                rendered.push_str("</article>");
             }
             rendered.push_str("</section>\n");
             rendered
@@ -611,7 +631,12 @@ pub fn render_search_output(
                     item.chunk.section_number,
                     item.chunk.section_title
                 ));
-                rendered.push_str(&truncate_preview(&item.chunk.text, 420));
+                let preview = truncate_preview(&item.chunk.text, 420);
+                if item.chunk.is_status_note() {
+                    push_status_note_markdown(&mut rendered, &preview);
+                } else {
+                    rendered.push_str(&preview);
+                }
                 rendered.push_str("\n\n");
             }
             if rendered.is_empty() {
@@ -907,17 +932,21 @@ mod tests {
 
     use super::*;
     #[allow(unused_imports)]
-    use bityzba::{ensures, new, requires};
+    use bityzba::{contract_trait, ensures, invariant, new, requires};
     use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_options};
     use sha2::{Digest, Sha256};
 
-    /// The vendored edition's own `.env` is the authority for its identity, so
-    /// the reported edition has to be exactly what that file says.
+    /// The vendored records are the authority for the book's identity, so the
+    /// reported edition has to be exactly what they parse to — checked through
+    /// the same parser the build used, not through substring matches that would
+    /// bake in the current quoting style.
     #[test]
     #[requires(true)]
     #[ensures(true)]
     fn edition_is_taken_from_the_vendored_sources() {
+        const ENV_NAME: &str = "vendor/cll/.env";
+        const PIN_NAME: &str = "vendor/cll.VENDORED_FROM";
         let vendored_env = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../vendor/cll/.env"
@@ -926,13 +955,30 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../vendor/cll.VENDORED_FROM"
         ));
+        let env = vendor_metadata::parse_key_value_file(vendored_env, '=', ENV_NAME)
+            .expect("the vendored .env should parse");
+        let pin = vendor_metadata::parse_key_value_file(vendored_pin, ':', PIN_NAME)
+            .expect("the vendored pin record should parse");
+        let field = |fields: &[(String, String)], key: &str, source: &str| {
+            vendor_metadata::required_field(fields, key, source)
+                .expect("required vendored field")
+                .to_owned()
+        };
         let edition = cll_edition();
 
-        assert!(vendored_env.contains(&format!("TITLE={}", edition.title)));
-        assert!(vendored_env.contains(&format!("VERSION=\"{}\"", edition.version)));
-        assert!(vendored_env.contains(&format!("PUBLISHER={}", edition.publisher)));
-        assert!(vendored_pin.contains(&format!("release-tag: {}", edition.release_tag)));
-        assert!(vendored_pin.contains(&format!("commit: {}", edition.commit)));
+        assert_eq!(edition.title, field(&env, "TITLE", ENV_NAME));
+        assert_eq!(edition.version, field(&env, "VERSION", ENV_NAME));
+        assert_eq!(edition.publisher, field(&env, "PUBLISHER", ENV_NAME));
+        assert_eq!(edition.upstream_url, field(&pin, "upstream-url", PIN_NAME));
+        assert_eq!(edition.release_tag, field(&pin, "release-tag", PIN_NAME));
+        assert_eq!(edition.commit, field(&pin, "commit", PIN_NAME));
+        assert!(
+            vendor_metadata::check_version_matches_release_tag(
+                &edition.version,
+                &edition.release_tag,
+            )
+            .is_ok()
+        );
         assert_eq!(
             embedded_cll_site()
                 .expect("embedded CLL should load")
@@ -940,6 +986,52 @@ mod tests {
                 .edition,
             *edition,
         );
+    }
+
+    /// The vendored records fix the reported edition, so the parser must refuse
+    /// every shape it does not actually interpret rather than guess.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vendored_metadata_parser_rejects_uninterpreted_shapes() {
+        let parse = |text: &str| vendor_metadata::parse_key_value_file(text, '=', "test");
+
+        assert!(parse("A=one\n# comment\n\nB=two\n").is_ok());
+        assert!(parse("A=one\nA=two\n").is_err(), "duplicate key");
+        assert!(parse("A='one'\n").is_err(), "single-quoted value");
+        assert!(parse("A=\"one\n").is_err(), "unterminated quote");
+        assert!(parse("A=one # trailing\n").is_err(), "inline comment");
+        assert!(parse("A=one\\ntwo\n").is_err(), "backslash escape");
+        assert!(parse("A=\n").is_err(), "empty value");
+        assert!(parse("A=\"   \"\n").is_err(), "quoted whitespace value");
+        assert!(parse("export A=one\n").is_err(), "unsupported key syntax");
+        assert!(parse("no separator here\n").is_err(), "missing separator");
+        assert_eq!(
+            parse("A=\"one\"\nB= two \n")
+                .expect("canonical values")
+                .into_iter()
+                .map(|(_, value)| value)
+                .collect::<Vec<_>>(),
+            vec!["one".to_owned(), "two".to_owned()],
+        );
+    }
+
+    /// The pin record and the book's own version must name the same release in
+    /// the exact documented shape.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn edition_version_must_match_the_pinned_release_tag_exactly() {
+        let check = vendor_metadata::check_version_matches_release_tag;
+
+        assert!(check("colojban-1.3.2", "v1.3.2").is_ok());
+        assert!(check("colojban-1.3.3", "v1.3.3").is_ok());
+        assert!(check("1.3.2", "v1.3.2").is_err(), "no edition prefix");
+        assert!(check("colojban-1.3.2", "1.3.2").is_err(), "tag without v");
+        assert!(check("-1.3.2", "v1.3.2").is_err(), "empty edition prefix");
+        assert!(check("colojban1.3.2", "v1.3.2").is_err(), "missing hyphen");
+        assert!(check("colojban-1.3.2", "v1.3.3").is_err(), "version drift");
+        assert!(check("colojban-1.3.2", "v").is_err(), "empty tag version");
     }
 
     #[test]
@@ -971,30 +1063,109 @@ mod tests {
         assert_eq!(CllParagraphRole::parse("   "), None);
     }
 
-    /// The status notes are the vendored edition's headline feature, so they
-    /// have to survive import as a typed designation rather than as prose.
+    /// Counts `<para role="status-note">` elements in the embedded chapter XML.
+    /// This is the source-side oracle for the import: it is derived from the
+    /// vendored text itself, so a newer vendored edition moves it automatically
+    /// instead of leaving a hardcoded release count behind.
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_status_note_count() -> usize {
+        let mut total = 0;
+        for (source_path, _chapter_number, compressed) in EMBEDDED_CLL_CHAPTERS {
+            let xml = decode_chapter_xml(compressed).expect("embedded chapter should decode");
+            let xml = sanitize_xml_entities(&xml);
+            let document = Document::parse(&xml)
+                .unwrap_or_else(|error| panic!("{source_path} should parse: {error}"));
+            total += document
+                .descendants()
+                .filter(|node| {
+                    node.is_element()
+                        && node.has_tag_name("para")
+                        && node
+                            .attribute("role")
+                            .is_some_and(|role| role.trim().eq_ignore_ascii_case("status-note"))
+                })
+                .count();
+        }
+        total
+    }
+
+    /// Counts typed status-note designations anywhere in a block tree, so
+    /// notes nested in lists, tables, block quotes, or admonitions are counted
+    /// the same as top-level ones.
+    #[invariant(true)]
+    struct StatusNoteCountVisitor {
+        count: usize,
+    }
+
+    #[contract_trait]
+    impl CllBlockVisitor for StatusNoteCountVisitor {
+        #[requires(true)]
+        #[ensures(true)]
+        fn visit_block(&mut self, block: &CllBlock) {
+            if let CllBlock::Paragraph {
+                role: Some(role), ..
+            } = block
+                && role.is_status_note()
+            {
+                self.count += 1;
+            }
+            walk_block(self, block);
+        }
+    }
+
+    /// The status notes are the vendored edition's headline feature, so every
+    /// one of them has to survive import as a typed designation rather than as
+    /// prose — not merely one of them.
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn status_notes_are_imported_and_rendered_distinctly() {
+    fn every_source_status_note_is_imported_as_a_typed_designation() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        let mut status_note_sections = Vec::new();
-        for section in site.sections_by_id.values() {
-            if section.blocks.iter().any(|block| {
-                matches!(
-                    block,
-                    CllBlock::Paragraph { role: Some(role), .. } if role.is_status_note()
-                )
-            }) {
-                status_note_sections.push(section);
-            }
+        let mut visitor = StatusNoteCountVisitor { count: 0 };
+        for chapter in &site.chapters {
+            visitor.visit_blocks(&chapter.prelude_blocks);
         }
-        assert!(
-            !status_note_sections.is_empty(),
-            "the vendored edition marks moved rules with status notes"
-        );
+        for section in site.sections_by_id.values() {
+            visitor.visit_blocks(&section.blocks);
+        }
+        // Example bodies are reached by id from the blocks above rather than by
+        // descent, so they are walked separately.
+        for example in site.examples_by_id.values() {
+            visitor.visit_blocks(&example.blocks);
+        }
 
-        let section = status_note_sections[0];
+        let source_count = source_status_note_count();
+        assert!(source_count > 0, "the vendored edition marks moved rules");
+        // Exact equality, not a floor: a `<para role="status-note">` that wraps
+        // a block child would import as several paragraphs sharing the role,
+        // which is worth noticing rather than silently accepting.
+        assert_eq!(
+            visitor.count, source_count,
+            "every source status note should import as exactly one typed designation"
+        );
+    }
+
+    /// A status note must be visually set off wherever it is rendered, in every
+    /// transport, including the ones that carry no stylesheet.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn status_notes_render_distinctly_in_sections() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let section = site
+            .sections_by_id
+            .values()
+            .find(|section| {
+                section.blocks.iter().any(|block| {
+                    matches!(
+                        block,
+                        CllBlock::Paragraph { role: Some(role), .. } if role.is_status_note()
+                    )
+                })
+            })
+            .expect("some section teaches a rule that carries a status note");
+
         let markdown = render_section(
             site,
             section,
@@ -1010,6 +1181,128 @@ mod tests {
             "<span class=\"cll-status-note-label\">{CLL_STATUS_NOTE_LABEL}</span>"
         )));
         assert!(!html.contains("cll-para-status-note"));
+    }
+
+    /// Search is `cukta`'s default query path, so a status-note hit has to keep
+    /// its designation through the search projection and be set off in the
+    /// rendered results exactly as it is when its section is read.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn status_note_search_hits_keep_and_render_their_designation() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let status_note_chunks = cll_search_all_chunks(site)
+            .iter()
+            .filter(|chunk| {
+                chunk
+                    .role
+                    .as_ref()
+                    .is_some_and(CllParagraphRole::is_status_note)
+            })
+            .collect::<Vec<_>>();
+        assert!(
+            !status_note_chunks.is_empty(),
+            "long status notes should be searchable paragraph chunks"
+        );
+        assert!(
+            status_note_chunks
+                .iter()
+                .all(|chunk| chunk.kind == CllSearchChunkKind::Paragraph),
+            "only paragraph chunks can carry a paragraph designation"
+        );
+
+        let output = CuktaSearchOutput {
+            mode: CuktaSearchMode::Word,
+            query: "test".to_owned(),
+            count: 1,
+            matches: vec![CllSearchMatch {
+                rank: 1,
+                similarity: Some(0.5),
+                chunk: (*status_note_chunks[0]).clone(),
+            }],
+            message: None,
+            has_more: false,
+        };
+
+        let markdown =
+            render_search_output(&output, CllRenderFormat::Markdown, CllLinkRenderMode::Plain);
+        let html = render_search_output(&output, CllRenderFormat::Html, CllLinkRenderMode::Plain);
+
+        assert!(markdown.contains(&format!("> **{CLL_STATUS_NOTE_LABEL}.** ")));
+        assert!(html.contains("class=\"cll-search-preview cll-status-note\""));
+        assert!(html.contains(&format!(
+            "<span class=\"cll-status-note-label\">{CLL_STATUS_NOTE_LABEL}</span>"
+        )));
+    }
+
+    /// An ordinary paragraph hit must not pick up the rule-status treatment.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ordinary_search_hits_are_not_labelled_as_status_notes() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let plain_chunk = cll_search_all_chunks(site)
+            .iter()
+            .find(|chunk| {
+                chunk.kind == CllSearchChunkKind::Paragraph
+                    && !chunk
+                        .role
+                        .as_ref()
+                        .is_some_and(CllParagraphRole::is_status_note)
+            })
+            .expect("the corpus has ordinary paragraph chunks");
+
+        let output = CuktaSearchOutput {
+            mode: CuktaSearchMode::Word,
+            query: "test".to_owned(),
+            count: 1,
+            matches: vec![CllSearchMatch {
+                rank: 1,
+                similarity: None,
+                chunk: plain_chunk.clone(),
+            }],
+            message: None,
+            has_more: false,
+        };
+
+        let markdown =
+            render_search_output(&output, CllRenderFormat::Markdown, CllLinkRenderMode::Plain);
+        let html = render_search_output(&output, CllRenderFormat::Html, CllLinkRenderMode::Plain);
+
+        assert!(!markdown.contains(CLL_STATUS_NOTE_LABEL));
+        assert!(!html.contains(CLL_STATUS_NOTE_LABEL));
+        assert!(html.contains("class=\"cll-search-preview\""));
+    }
+
+    /// The presentational role is a canonical name by construction, so serde
+    /// cannot smuggle in a value that shadows the status-note designation.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn presentational_roles_reject_non_canonical_names_through_serde() {
+        let accepted =
+            serde_json::from_str::<CllParagraphRole>(r#"{"presentation":{"name":"indent"}}"#)
+                .expect("a canonical presentational role should deserialize");
+        assert_eq!(accepted.presentation_name(), Some("indent"));
+        assert!(
+            serde_json::from_str::<CllParagraphRole>("\"status-note\"")
+                .expect("the status-note designation should deserialize")
+                .is_status_note()
+        );
+
+        for rejected in [
+            r#"{"presentation":{"name":" status-note "}}"#,
+            r#"{"presentation":{"name":"status-note"}}"#,
+            r#"{"presentation":{"name":"STATUS-NOTE"}}"#,
+            r#"{"presentation":{"name":"   "}}"#,
+            r#"{"presentation":{"name":""}}"#,
+            r#"{"presentation":{"name":" indent"}}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<CllParagraphRole>(rejected).is_err(),
+                "{rejected} should not deserialize into a presentational role"
+            );
+        }
     }
 
     #[test]

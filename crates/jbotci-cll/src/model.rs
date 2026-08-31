@@ -45,17 +45,16 @@ pub struct CllEdition {
 }
 
 impl CllEdition {
-    /// `The Contemporary Lojban Language (colojban-1.3.2)` — the book named
-    /// together with the edition an answer came from.
+    /// The book's title followed by its edition version in parentheses, naming
+    /// the exact edition an answer came from.
     #[requires(true)]
     #[ensures(ret.starts_with(&self.title) && ret.contains(&self.version))]
     pub fn display_title(&self) -> String {
         format!("{} ({})", self.title, self.version)
     }
 
-    /// `The Complete Lojban Language 1.1 -> The Incomplete Lojban Language
-    /// geklojban-1.2.16 -> colojban-1.3.2`, using the arrow as the lineage
-    /// separator.
+    /// Each ancestor edition as `<title> <version>`, oldest first, joined by a
+    /// rightwards arrow and ending at this edition's own version.
     #[requires(true)]
     #[ensures(ret.ends_with(&self.version))]
     pub fn lineage(&self) -> String {
@@ -370,8 +369,10 @@ fn cll_site_example_references_are_consistent(
 /// in each note's prose and this type deliberately does not guess at it.
 #[invariant(true)]
 #[invariant(
-    ::Presentation { name } => !name.is_empty() && !name.eq_ignore_ascii_case("status-note"),
-    "a presentational role is non-empty and never shadows the typed status-note designation"
+    ::Presentation { name } => name.trim() == name.as_str()
+        && !name.is_empty()
+        && !name.eq_ignore_ascii_case("status-note"),
+    "a presentational role is canonical (already trimmed), non-empty, and never shadows the typed status-note designation, including through serde"
 )]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

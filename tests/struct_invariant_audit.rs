@@ -248,6 +248,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "inline plain text visitor is private traversal accumulator state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:StatusNoteCountVisitor",
+        "status note counter is private test traversal accumulator state",
+    ),
+    (
         "crates/jbotci-cll/src/links.rs:LinkResolution",
         "link resolutions are private loader intermediates derived from the completed anchor index",
     ),
@@ -258,10 +262,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-cll/src/model.rs:CllMetadata",
         "site metadata pairs a validated CllEdition with a chapter count that CllSite already ties to the loaded chapters",
-    ),
-    (
-        "crates/jbotci-cll/src/search.rs:CllSearchChunk",
-        "CLL search chunks are generated from parsed sections and tagged-word extraction",
     ),
     (
         "crates/jbotci-cll/src/search.rs:CllSearchMatch",

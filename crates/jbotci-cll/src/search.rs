@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, requires};
+use bityzba::{contract_trait, ensures, invariant, new, requires};
 use jbotci_morphology::normalize_lojban_input_text;
 use serde::{Deserialize, Serialize};
 
@@ -18,10 +18,20 @@ pub enum CllSearchChunkKind {
     Example,
 }
 
-#[invariant(true)]
+/// One indexed unit of the book. `role` carries the designation of the
+/// paragraph a `Paragraph` chunk was projected from, so search results — the
+/// default way readers reach the book — can set a rule-status note off exactly
+/// as reading its section does. It is deliberately not folded into `label` or
+/// `text`: those two are the embedding input, and changing them would change
+/// the published packs' fingerprint.
+#[invariant(
+    role.is_none() || *kind == CllSearchChunkKind::Paragraph,
+    "only a paragraph chunk projects a paragraph's designation"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllSearchChunk {
     pub kind: CllSearchChunkKind,
+    pub role: Option<CllParagraphRole>,
     pub section_id: String,
     pub anchor_id: String,
     pub section_number: String,
@@ -29,6 +39,17 @@ pub struct CllSearchChunk {
     pub label: String,
     pub text: String,
     pub tagged_words: BTreeSet<String>,
+}
+
+impl CllSearchChunk {
+    /// Whether this hit is one of the edition's rule-status notes.
+    #[requires(true)]
+    #[ensures(ret -> self.kind == CllSearchChunkKind::Paragraph)]
+    pub fn is_status_note(&self) -> bool {
+        self.role
+            .as_ref()
+            .is_some_and(CllParagraphRole::is_status_note)
+    }
 }
 
 #[invariant(true)]
@@ -116,8 +137,9 @@ pub(super) fn build_search_chunks(site: &CllSite) -> Vec<CllSearchChunk> {
         let section_text =
             normalized_plain_text(&format!("{}\n{}", section.title, section.plain_text));
         if !section_text.is_empty() {
-            chunks.push(CllSearchChunk {
+            chunks.push(new!(CllSearchChunk {
                 kind: CllSearchChunkKind::Section,
+                role: None,
                 section_id: section.section_id.clone(),
                 anchor_id: section.section_id.clone(),
                 section_number: section.number.clone(),
@@ -125,7 +147,7 @@ pub(super) fn build_search_chunks(site: &CllSite) -> Vec<CllSearchChunk> {
                 label: section_label.clone(),
                 text: section_text.clone(),
                 tagged_words: blocks_tagged_words(site, &section.blocks),
-            });
+            }));
         }
         collect_block_search_chunks(site, section, &section.blocks, &mut chunks);
     }
@@ -163,13 +185,14 @@ impl CllBlockVisitor for SearchChunkVisitor<'_, '_, '_> {
         match block {
             CllBlock::Paragraph {
                 anchor_id,
+                role,
                 inlines,
                 text,
-                ..
             } => {
                 if text.chars().count() > PARAGRAPH_SEARCH_MIN_CHARS {
-                    self.chunks.push(CllSearchChunk {
+                    self.chunks.push(new!(CllSearchChunk {
                         kind: CllSearchChunkKind::Paragraph,
+                        role: role.clone(),
                         section_id: self.section.section_id.clone(),
                         anchor_id: anchor_id
                             .clone()
@@ -182,14 +205,15 @@ impl CllBlockVisitor for SearchChunkVisitor<'_, '_, '_> {
                         ),
                         text: text.clone(),
                         tagged_words: inlines_tagged_words(inlines),
-                    });
+                    }));
                 }
             }
             CllBlock::Example { example_id } => {
                 if let Some(example) = cll_lookup_example(self.site, example_id) {
                     if !example.plain_text.trim().is_empty() {
-                        self.chunks.push(CllSearchChunk {
+                        self.chunks.push(new!(CllSearchChunk {
                             kind: CllSearchChunkKind::Example,
+                            role: None,
                             section_id: self.section.section_id.clone(),
                             anchor_id: example.anchor_id.clone(),
                             section_number: self.section.number.clone(),
@@ -197,7 +221,7 @@ impl CllBlockVisitor for SearchChunkVisitor<'_, '_, '_> {
                             label: example.label.clone(),
                             text: example.plain_text.clone(),
                             tagged_words: example_tagged_words(example),
-                        });
+                        }));
                     }
                     self.visit_blocks(&example.blocks);
                 }

@@ -1252,8 +1252,17 @@ pub(super) fn render_cukta_search_card(
                     }
                 }
             }
-            p { class: "cll-search-preview",
-                { render_page_find_text(page_find, &card.preview) }
+            if card.is_status_note() {
+                // A rule-status hit is set off exactly as it is when its own
+                // section is read, so the designation survives the search path.
+                aside { class: "cll-search-preview cll-status-note",
+                    span { class: "cll-status-note-label", {jbotci_cll::CLL_STATUS_NOTE_LABEL} }
+                    { render_page_find_text(page_find, &card.preview) }
+                }
+            } else {
+                p { class: "cll-search-preview",
+                    { render_page_find_text(page_find, &card.preview) }
+                }
             }
         }
     }

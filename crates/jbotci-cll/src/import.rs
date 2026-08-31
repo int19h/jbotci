@@ -176,7 +176,7 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
+pub(crate) fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
     let mut decoder = BzDecoder::new(compressed);
     let mut bytes = Vec::new();
     decoder
@@ -187,7 +187,7 @@ fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
 
 #[requires(true)]
 #[ensures(true)]
-fn sanitize_xml_entities(xml: &str) -> String {
+pub(crate) fn sanitize_xml_entities(xml: &str) -> String {
     // These named XML entities appear in the vendored CLL sources but are not
     // predefined XML entities, and roxmltree deliberately does not load an
     // external DTD to resolve them for us.

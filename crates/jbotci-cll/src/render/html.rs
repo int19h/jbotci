@@ -24,13 +24,7 @@ pub(crate) fn render_block_html(
                 render_inlines_html(site, inlines, link_mode)
             };
             if role.as_ref().is_some_and(CllParagraphRole::is_status_note) {
-                // Rendered HTML is also read without our stylesheet (the CLI and
-                // the MCP tool both emit it raw), so the note carries a visible
-                // label as well as the class the stylesheet keys off.
-                return format!(
-                    "<aside{id} class=\"cll-para cll-status-note\"><span class=\"cll-status-note-label\">{}</span> {body}</aside>",
-                    escape_html(CLL_STATUS_NOTE_LABEL),
-                );
+                return render_status_note_html(&id, CLL_STATUS_NOTE_BLOCK_CLASSES, &body);
             }
             let class = role
                 .as_ref()

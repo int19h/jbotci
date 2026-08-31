@@ -9,12 +9,12 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
-    CllBlock, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter, DEFAULT_CUKTA_SECTION_ID,
-    DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT, chrestomathy_section_parse_href,
-    cll_first_section_id, cll_index_entries, cll_lookup_section, cll_next_section_id,
-    cll_previous_section_id, cll_resolve_section_reference, cll_search_all_chunks,
-    cll_search_chunk_href, cll_section_chapter_title, cukta_search, embedded_cll_site,
-    format_section_display_title, truncate_preview,
+    CllBlock, CllParagraphRole, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter,
+    DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT,
+    chrestomathy_section_parse_href, cll_first_section_id, cll_index_entries, cll_lookup_section,
+    cll_next_section_id, cll_previous_section_id, cll_resolve_section_reference,
+    cll_search_all_chunks, cll_search_chunk_href, cll_section_chapter_title, cukta_search,
+    embedded_cll_site, format_section_display_title, truncate_preview,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
@@ -1704,10 +1704,25 @@ pub struct CuktaSearchResultCard {
     pub rank: usize,
     pub similarity_label: Option<String>,
     pub kind: String,
+    /// The designation of the paragraph this hit was projected from, so the
+    /// reader sets a rule-status note off in search results the same way it
+    /// does when the note's own section is read.
+    pub role: Option<CllParagraphRole>,
     pub label: String,
     pub href: String,
     pub section_label: String,
     pub preview: String,
+}
+
+impl CuktaSearchResultCard {
+    /// Whether this hit is one of the edition's rule-status notes.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn is_status_note(&self) -> bool {
+        self.role
+            .as_ref()
+            .is_some_and(CllParagraphRole::is_status_note)
+    }
 }
 
 #[invariant(true)]
@@ -2725,6 +2740,7 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                         .similarity
                         .map(|similarity| format!("{:.0}%", similarity * 100.0)),
                     kind: cukta_chunk_kind_label(item.chunk.kind).to_owned(),
+                    role: item.chunk.role.clone(),
                     label: item.chunk.label.clone(),
                     href: cukta_chunk_href(base_path, &item.chunk),
                     section_label: format!(
@@ -2815,6 +2831,7 @@ pub fn build_cukta_semantic_web_page_with_loading(
                 rank: results.len() + 1,
                 similarity_label: Some(format!("{:.0}%", hit.score * 100.0)),
                 kind: cukta_chunk_kind_label(chunk.kind).to_owned(),
+                role: chunk.role.clone(),
                 label: chunk.label.clone(),
                 href: cukta_chunk_href(base_path, chunk),
                 section_label: format!("{}. {}", chunk.section_number, chunk.section_title),

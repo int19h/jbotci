@@ -22,19 +22,7 @@ pub(crate) fn render_block_markdown(
                 std::borrow::Cow::Owned(render_inlines_markdown(site, inlines, link_mode))
             };
             if role.as_ref().is_some_and(CllParagraphRole::is_status_note) {
-                // A rule-status note is the edition's own annotation about the
-                // standing of the rule being taught, not part of the exposition:
-                // set it off as a labelled block quote so a reader of plain
-                // Markdown can tell the two apart.
-                output.push_str("> **");
-                output.push_str(CLL_STATUS_NOTE_LABEL);
-                output.push_str(".** ");
-                for (index, line) in body.lines().enumerate() {
-                    if index > 0 {
-                        output.push_str("\n> ");
-                    }
-                    output.push_str(line);
-                }
+                push_status_note_markdown(output, &body);
             } else {
                 output.push_str(&body);
             }

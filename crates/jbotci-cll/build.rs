@@ -7,9 +7,15 @@ use std::path::{Path, PathBuf};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
+
+// The vendored identity records are parsed by the same code the crate's tests
+// use, so a test cannot pass against a laxer parse than the build performed.
+#[path = "src/vendor_metadata.rs"]
+mod vendor_metadata;
 use bzip2::Compression;
 use bzip2::write::BzEncoder;
 use serde::Deserialize;
+use vendor_metadata::{check_version_matches_release_tag, parse_key_value_file, required_field};
 
 #[invariant(!chrestomathy_chapter_id.is_empty())]
 #[invariant(!ebnf_section_id.is_empty())]
@@ -167,9 +173,10 @@ fn validate_import_metadata(path: &Path) -> Result<CllImportMetadata, Box<dyn st
 /// Every value comes from a vendored file, so a submodule bump cannot leave the
 /// reported edition behind: the book's own `.env` declares its title, version,
 /// and publisher line, and `vendor/cll.VENDORED_FROM` records the pin we
-/// vendored it at. The two are cross-checked against each other here, because a
+/// vendored it at. The two are then cross-checked against each other, because a
 /// version that can drift from the actual vendored text is worse than no
-/// version at all.
+/// version at all; both the parse and that check live in `vendor_metadata` so
+/// the crate's tests exercise the same rules this build applied.
 #[requires(env_path.file_name().is_some())]
 #[requires(vendored_from_path.file_name().is_some())]
 #[ensures(ret.as_ref().is_ok_and(|generated| !generated.is_empty()) || ret.is_err())]
@@ -189,17 +196,7 @@ fn read_edition(
     let upstream_url = required_field(&vendored_from, "upstream-url", "vendor/cll.VENDORED_FROM")?;
     let release_tag = required_field(&vendored_from, "release-tag", "vendor/cll.VENDORED_FROM")?;
     let commit = required_field(&vendored_from, "commit", "vendor/cll.VENDORED_FROM")?;
-
-    // The book names itself `<edition>-<version>` while the repository tags the
-    // same release `v<version>`; anything else means the submodule and the pin
-    // record disagree about which edition is actually vendored.
-    let tag_version = release_tag.strip_prefix('v').unwrap_or(release_tag);
-    if version != tag_version && !version.ends_with(&format!("-{tag_version}")) {
-        return Err(format!(
-            "vendored CLL edition {version:?} does not match the pinned release tag {release_tag:?}"
-        )
-        .into());
-    }
+    check_version_matches_release_tag(version, release_tag)?;
 
     let mut generated = String::from(
         "pub(crate) const EMBEDDED_CLL_EDITION: EmbeddedCllEdition = EmbeddedCllEdition {\n",
@@ -221,55 +218,6 @@ fn read_edition(
     generated.push_str(&format!("    commit: {commit:?},\n"));
     generated.push_str("};\n");
     Ok(generated)
-}
-
-/// Parses a flat `KEY<separator>VALUE` vendored metadata file, dropping blank
-/// lines and `#` comments and stripping the double quotes the `.env` format
-/// allows around a value.
-#[requires(!source_name.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|fields| fields.iter().all(|(key, _)| !key.is_empty())) || ret.is_err())]
-fn parse_key_value_file(
-    text: &str,
-    separator: char,
-    source_name: &str,
-) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
-    let mut fields = Vec::new();
-    for line in text.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let (key, value) = line
-            .split_once(separator)
-            .ok_or_else(|| format!("{source_name} has a line without {separator:?}: {line:?}"))?;
-        let key = key.trim();
-        if key.is_empty() {
-            return Err(format!("{source_name} has a line with an empty key: {line:?}").into());
-        }
-        let value = value.trim();
-        let value = value
-            .strip_prefix('"')
-            .and_then(|value| value.strip_suffix('"'))
-            .unwrap_or(value);
-        fields.push((key.to_owned(), value.to_owned()));
-    }
-    Ok(fields)
-}
-
-#[requires(!key.is_empty())]
-#[requires(!source_name.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|value| !value.is_empty()) || ret.is_err())]
-fn required_field<'a>(
-    fields: &'a [(String, String)],
-    key: &str,
-    source_name: &str,
-) -> Result<&'a str, Box<dyn std::error::Error>> {
-    fields
-        .iter()
-        .find(|(candidate, _)| candidate == key)
-        .map(|(_, value)| value.as_str())
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| format!("{source_name} is missing a non-empty {key}").into())
 }
 
 #[requires(path.file_name().is_some())]
