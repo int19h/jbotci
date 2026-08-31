@@ -1228,6 +1228,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineStatementRelativeRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_relative.rs:ExpSelbriRelativeListRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_relative.rs:ExpSubsentenceAdverbialRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineReciprocalSoiRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentNormalTermBoRejection",
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),

@@ -920,10 +920,15 @@ mod tests {
         // deliberately absent: `fa je fe` takes epoch 5's FA-as-tag route in the
         // default profile, whose local experimental warning the gate must be
         // conservative about.
+        // `statement-relative-clause` LEFT the set with epoch 8's D1 (#818). At the base its
+        // `poi ... i je ... kuho` body was reachable only under ZANTUFA-TERMS, so the default
+        // profile rejected the sample with plain diagnostics and no local warning. The Zantufa
+        // statement arms are default-enabled now, so the sample parses and carries a local
+        // `experimental-zantufa-statement-relative-clause` -- which the gate must be
+        // conservative about, exactly as it is about the bare Zantufa MEX fragment.
         assert_eq!(
             passed_ids,
             [
-                "statement-relative-clause",
                 "grouped-bridi-tail",
                 "nary-forethought-statement",
                 "statement-abstraction",

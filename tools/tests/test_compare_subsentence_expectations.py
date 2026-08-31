@@ -412,6 +412,41 @@ class RejectionDiagnosticClassTest(unittest.TestCase):
             )
         )
 
+    def test_an_unchanged_non_error_entry_rides_along(self) -> None:
+        # A morphology warning in the same list is not a syntax expectation; identical on both
+        # sides it says nothing about the frontier, so it must not take the fixture out.
+        warning = {"severity": "warning", "code": "morphology.warning.experimental-cgv"}
+        old = {
+            "expectations": {
+                "syntax": {
+                    "status": "failure",
+                    "diagnostics": [warning, self._error("syntax.unexpected-end")],
+                }
+            }
+        }
+        new = {
+            "expectations": {
+                "syntax": {
+                    "status": "failure",
+                    "diagnostics": [warning, self._error("syntax.incomplete-selbri")],
+                }
+            }
+        }
+        self.assertTrue(self._classify(old, new))
+
+    def test_a_diagnostics_list_that_loses_its_errors_does_not(self) -> None:
+        warning = {"severity": "warning", "code": "morphology.warning.experimental-cgv"}
+        old = {
+            "expectations": {
+                "syntax": {
+                    "status": "failure",
+                    "diagnostics": [self._error("syntax.unexpected-end")],
+                }
+            }
+        }
+        new = {"expectations": {"syntax": {"status": "failure", "diagnostics": [warning]}}}
+        self.assertFalse(self._classify(old, new))
+
     def test_another_leaf_moving_does_not(self) -> None:
         old = self._document("failure", [self._error("syntax.unexpected-end")])
         new = self._document("failure", [self._error("syntax.incomplete-selbri")])

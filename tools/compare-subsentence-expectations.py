@@ -323,17 +323,24 @@ RETIRED_SHAPES: tuple[str, ...] = (
 
 # The reviewed regeneration result.  A re-run against the same archive must reproduce it exactly;
 # the `--expect-*` flags override the pins for an exploratory run.
-EXPECTED_CHANGED = 0
+EXPECTED_CHANGED = 122
 EXPECTED_MECHANICAL: dict[str, int] = {
+    # Zero, and the zero is the measurement: every pre-epoch fixture that reached a Zantufa
+    # statement relative arm reached it over a baseline marker and a subbridi-shaped body, so
+    # the site classifier returns all of them to a baseline arm and each is an owner change with
+    # its own disposition rather than a re-typing.  Nothing in the pre-epoch corpus carried a
+    # Zantufa-only body at one of these positions.  The two classes stay because they are what
+    # the wrapper and the body re-typing WOULD be, and their unit tests prove they fire; a
+    # fixture that acquires such a body later classifies instead of landing in residue.
     CLASS_RELATIVE_WRAPPER: 0,
     CLASS_RELATIVE_BODY: 0,
-    CLASS_SOI_SPLIT: 0,
-    CLASS_FIHOI_SPLIT: 0,
-    CLASS_REJECTION_DIAGNOSTICS: 0,
+    CLASS_SOI_SPLIT: 6,
+    CLASS_FIHOI_SPLIT: 1,
+    CLASS_REJECTION_DIAGNOSTICS: 86,
 }
-EXPECTED_MANUAL = 0
+EXPECTED_MANUAL = 29
 EXPECTED_PROSE = 0
-EXPECTED_NEW_WITNESSES = 0
+EXPECTED_NEW_WITNESSES = 72
 
 class Divergence(Exception):
     def __init__(self, path: str, reason: str) -> None:
@@ -757,12 +764,20 @@ def is_rejection_diagnostic_reclassification(
         if not isinstance(syntax, dict) or syntax.get("status") != "failure":
             return False
     for path in changed:
+        sides = []
         for document in (old_leaves, new_leaves):
             entries = document[path]
-            if not isinstance(entries, list) or not entries:
+            if not isinstance(entries, list):
                 return False
-            if any(entry.get("severity") != "error" for entry in entries):
+            errors = [entry for entry in entries if entry.get("severity") == "error"]
+            if not errors:
                 return False
+            sides.append((errors, [entry for entry in entries if entry not in errors]))
+        # Everything that is not an error must be identical on both sides: a fixture whose
+        # morphology warning rides in the same list stays in the class, and one whose syntax
+        # warnings moved does not.
+        if sides[0][1] != sides[1][1]:
+            return False
     return True
 
 

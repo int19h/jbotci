@@ -1249,6 +1249,217 @@ class BridiStatementSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ZantufaRelativeStatementSyntaxZantufaRelativePrenexStatement:
+    'Uses the `zantufa_relative_prenex_statement` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_statement`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_relative_prenex_statement']]]
+    def __new__(cls, zantufa_relative_prenex_statement: RecoveredField[ZantufaRelativePrenexStatementSyntax]) -> ZantufaRelativeStatementSyntaxZantufaRelativePrenexStatement: ...
+    @property
+    def zantufa_relative_prenex_statement(self) -> RecoveredField[ZantufaRelativePrenexStatementSyntax]:
+        'Uses the `zantufa_relative_prenex_statement` product form, whose payload preserves `prenex_terms`, `zohu`, and `inner_statement`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativeStatementSyntaxZantufaRelativeConnectedStatement:
+    'Uses the `zantufa_relative_connected_statement` product form, whose payload preserves `leading_statement` and `continuations`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_relative_connected_statement']]]
+    def __new__(cls, zantufa_relative_connected_statement: RecoveredField[ZantufaRelativeConnectedStatementSyntax]) -> ZantufaRelativeStatementSyntaxZantufaRelativeConnectedStatement: ...
+    @property
+    def zantufa_relative_connected_statement(self) -> RecoveredField[ZantufaRelativeConnectedStatementSyntax]:
+        'Uses the `zantufa_relative_connected_statement` product form, whose payload preserves `leading_statement` and `continuations`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativeStatementSyntaxZantufaRelativeStatementBase:
+    'Uses the nested `zantufa_relative_statement_base` sum form and preserves its selected alternative.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_relative_statement_base']]]
+    def __new__(cls, zantufa_relative_statement_base: RecoveredField[ZantufaRelativeStatementBaseSyntax]) -> ZantufaRelativeStatementSyntaxZantufaRelativeStatementBase: ...
+    @property
+    def zantufa_relative_statement_base(self) -> RecoveredField[ZantufaRelativeStatementBaseSyntax]:
+        'Uses the nested `zantufa_relative_statement_base` sum form and preserves its selected alternative.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for statement; selects among the `zantufa_relative_prenex_statement`, `zantufa_relative_connected_statement`, and `zantufa_relative_statement_base` forms.
+ZantufaRelativeStatementSyntax: TypeAlias = ZantufaRelativeStatementSyntaxZantufaRelativePrenexStatement | ZantufaRelativeStatementSyntaxZantufaRelativeConnectedStatement | ZantufaRelativeStatementSyntaxZantufaRelativeStatementBase
+
+@final
+class ZantufaRelativePrenexStatementSyntax:
+    'Product node for prenex; preserves `prenex_terms`, `zohu`, and `inner_statement` in source order.\n\nThe term run is non-empty: `prenex <- terms ZOhU_clause` and `terms <- term+`, so the\nempty prenex the shared `prenex_statement` admits is rejected at this position.'
+    __match_args__: ClassVar[tuple[Literal['prenex_terms'], Literal['zohu'], Literal['inner_statement']]]
+    def __new__(
+        cls,
+        prenex_terms: Sequence[RecoveredField[TermSyntax]],
+        zohu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        inner_statement: RecoveredField[ZantufaRelativeStatementSyntax],
+    ) -> ZantufaRelativePrenexStatementSyntax: ...
+    @property
+    def prenex_terms(self) -> tuple[RecoveredField[TermSyntax], ...]:
+        'Non-empty ordered sequence of prenex terms components.'
+        ...
+    @property
+    def zohu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The `Zohu` cmavo marker.'
+        ...
+    @property
+    def inner_statement(self) -> RecoveredField[ZantufaRelativeStatementSyntax]:
+        'The shared inner statement child syntax node.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativeConnectedStatementSyntax:
+    'Product node for statement connection; preserves `leading_statement` and `continuations` in source order.'
+    __match_args__: ClassVar[tuple[Literal['leading_statement'], Literal['continuations']]]
+    def __new__(cls, leading_statement: RecoveredField[ZantufaRelativeStatementBaseSyntax], continuations: Sequence[RecoveredField[ZantufaRelativeStatementContinuationSyntax]]) -> ZantufaRelativeConnectedStatementSyntax: ...
+    @property
+    def leading_statement(self) -> RecoveredField[ZantufaRelativeStatementBaseSyntax]:
+        'The shared leading statement child syntax node.'
+        ...
+    @property
+    def continuations(self) -> tuple[RecoveredField[ZantufaRelativeStatementContinuationSyntax], ...]:
+        'Non-empty ordered sequence of continuations components.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativeStatementContinuationSyntax:
+    'Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.'
+    __match_args__: ClassVar[tuple[Literal['i'], Literal['connective'], Literal['trailing_statement']]]
+    def __new__(
+        cls,
+        i: RecoveredField[Token],
+        connective: RecoveredField[ZantufaRelativeStatementConnectiveSyntax],
+        trailing_statement: RecoveredField[ZantufaRelativeStatementBaseSyntax],
+    ) -> ZantufaRelativeStatementContinuationSyntax: ...
+    @property
+    def i(self) -> RecoveredField[Token]:
+        'The `I` cmavo marker.'
+        ...
+    @property
+    def connective(self) -> RecoveredField[ZantufaRelativeStatementConnectiveSyntax]:
+        'The connective joining the adjacent statements; a bare I does not join here.'
+        ...
+    @property
+    def trailing_statement(self) -> RecoveredField[ZantufaRelativeStatementBaseSyntax]:
+        'The shared trailing statement child syntax node.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativeStatementConnectiveSyntaxZantufaRelativeJoikStatementConnective:
+    'Uses the `zantufa_relative_joik_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_relative_joik_statement_connective']]]
+    def __new__(cls, zantufa_relative_joik_statement_connective: RecoveredField[ZantufaRelativeJoikStatementConnectiveSyntax]) -> ZantufaRelativeStatementConnectiveSyntaxZantufaRelativeJoikStatementConnective: ...
+    @property
+    def zantufa_relative_joik_statement_connective(self) -> RecoveredField[ZantufaRelativeJoikStatementConnectiveSyntax]:
+        'Uses the `zantufa_relative_joik_statement_connective` product form, whose payload preserves `connective` and `tag_bo`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativeStatementConnectiveSyntaxITagBoStatementConnective:
+    'Uses the `i_tag_bo_statement_connective` product form, whose payload preserves `tense_modal` and `bo`.'
+    __match_args__: ClassVar[tuple[Literal['i_tag_bo_statement_connective']]]
+    def __new__(cls, i_tag_bo_statement_connective: RecoveredField[ITagBoStatementConnectiveSyntax]) -> ZantufaRelativeStatementConnectiveSyntaxITagBoStatementConnective: ...
+    @property
+    def i_tag_bo_statement_connective(self) -> RecoveredField[ITagBoStatementConnectiveSyntax]:
+        'Uses the `i_tag_bo_statement_connective` product form, whose payload preserves `tense_modal` and `bo`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for statement connective; selects among the `zantufa_relative_joik_statement_connective` and `i_tag_bo_statement_connective` forms.
+ZantufaRelativeStatementConnectiveSyntax: TypeAlias = ZantufaRelativeStatementConnectiveSyntaxZantufaRelativeJoikStatementConnective | ZantufaRelativeStatementConnectiveSyntaxITagBoStatementConnective
+
+@final
+class ZantufaRelativeJoikStatementConnectiveSyntax:
+    'Product node for statement connective; preserves `connective` and `tag_bo` in source order.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['tag_bo']]]
+    def __new__(cls, connective: RecoveredField[StandardStatementConnectiveSyntax], tag_bo: tuple[RecoveredField[TenseModalSyntax] | None, WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]] | None) -> ZantufaRelativeJoikStatementConnectiveSyntax: ...
+    @property
+    def connective(self) -> RecoveredField[StandardStatementConnectiveSyntax]:
+        'The shared connective child syntax node, narrowed to the source\'s own JOI/JA inventory.'
+        ...
+    @property
+    def tag_bo(self) -> tuple[RecoveredField[TenseModalSyntax] | None, WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]] | None:
+        'The optional pair containing an optional shared tense-modal child followed by a required `Bo` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativeStatementBaseSyntaxTextGroupStatement:
+    'Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.'
+    __match_args__: ClassVar[tuple[Literal['text_group_statement']]]
+    def __new__(cls, text_group_statement: RecoveredField[TextGroupStatementSyntax]) -> ZantufaRelativeStatementBaseSyntaxTextGroupStatement: ...
+    @property
+    def text_group_statement(self) -> RecoveredField[TextGroupStatementSyntax]:
+        'Uses the `text_group_statement` product form, whose payload preserves `tense_modal`, `tuhe`, `text`, and `tuhu`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativeStatementBaseSyntaxZantufaRelativeBridiStatement:
+    'Uses the `zantufa_relative_bridi_statement` product form, whose payload preserves `bridi`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_relative_bridi_statement']]]
+    def __new__(cls, zantufa_relative_bridi_statement: RecoveredField[ZantufaRelativeBridiStatementSyntax]) -> ZantufaRelativeStatementBaseSyntaxZantufaRelativeBridiStatement: ...
+    @property
+    def zantufa_relative_bridi_statement(self) -> RecoveredField[ZantufaRelativeBridiStatementSyntax]:
+        'Uses the `zantufa_relative_bridi_statement` product form, whose payload preserves `bridi`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for statement; selects among the `text_group_statement` and `zantufa_relative_bridi_statement` forms.
+ZantufaRelativeStatementBaseSyntax: TypeAlias = ZantufaRelativeStatementBaseSyntaxTextGroupStatement | ZantufaRelativeStatementBaseSyntaxZantufaRelativeBridiStatement
+
+@final
+class ZantufaRelativeBridiStatementSyntax:
+    'Transparent product node for statement; preserves the `bridi` component.'
+    __match_args__: ClassVar[tuple[Literal['bridi']]]
+    def __new__(cls, bridi: RecoveredField[BridiSyntax]) -> ZantufaRelativeBridiStatementSyntax: ...
+    @property
+    def bridi(self) -> RecoveredField[BridiSyntax]:
+        'The shared bridi child syntax node.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class SelbriFragmentSyntax:
     'Transparent product node for selbri; preserves the `selbri` component.'
     __match_args__: ClassVar[tuple[Literal['selbri']]]
@@ -1328,7 +1539,7 @@ class RelativeClauseListSyntax:
 
 @final
 class RelativeClauseFragmentSyntax:
-    'Transparent product node for relative clauses; preserves the `relative_clauses` component.'
+    'Transparent product node for relative clauses; preserves the `relative_clauses` component.\n\nS1f: the standalone relative-clause fragment runs S1\'s policy, which it gets by being\nthis instantiation of the shared list rather than by a policy of its own.'
     __match_args__: ClassVar[tuple[Literal['relative_clauses']]]
     def __new__(cls, relative_clauses: RecoveredField[RelativeClauseListSyntax]) -> RelativeClauseFragmentSyntax: ...
     @property
@@ -2931,13 +3142,13 @@ class TermSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class TermSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> TermSyntaxFihoiAdverbialTerm: ...
+class TermSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> TermSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -2945,13 +3156,27 @@ class TermSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class TermSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> TermSyntaxSoiAdverbialTerm: ...
+class TermSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> TermSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class TermSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> TermSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3078,7 +3303,7 @@ class TermSyntaxKeTermset:
 # branch: a nested branch would add a public wrapper variant to Debug and serde output. The
 # binding-schema drift guard keeps every level's leaf inventory synchronized with
 # `simple_term`.
-TermSyntax: TypeAlias = TermSyntaxPeheTermsetConnection | TermSyntaxTermsetGroup | TermSyntaxConnectedTerm | TermSyntaxStagBoundTermConnection | TermSyntaxPlaceTaggedSumtiTerm | TermSyntaxZantufaJoikChainedPlaceTagTerm | TermSyntaxJaiTaggedSumtiTerm | TermSyntaxElidedNaheFihoTagTerm | TermSyntaxTaggedSumtiBeforeTagTerm | TermSyntaxTaggedSumtiTerm | TermSyntaxNoihaAdverbialTerm | TermSyntaxFihoiAdverbialTerm | TermSyntaxSoiAdverbialTerm | TermSyntaxNaKuTerm | TermSyntaxSumtiTerm | TermSyntaxBareNaTerm | TermSyntaxGekTermset | TermSyntaxZantufaGekTermset | TermSyntaxForethoughtTermset | TermSyntaxNuhiTermset | TermSyntaxKeTermset
+TermSyntax: TypeAlias = TermSyntaxPeheTermsetConnection | TermSyntaxTermsetGroup | TermSyntaxConnectedTerm | TermSyntaxStagBoundTermConnection | TermSyntaxPlaceTaggedSumtiTerm | TermSyntaxZantufaJoikChainedPlaceTagTerm | TermSyntaxJaiTaggedSumtiTerm | TermSyntaxElidedNaheFihoTagTerm | TermSyntaxTaggedSumtiBeforeTagTerm | TermSyntaxTaggedSumtiTerm | TermSyntaxNoihaAdverbialTerm | TermSyntaxFihoiProposalAdverbialTerm | TermSyntaxZantufaXoiAdverbialTerm | TermSyntaxExpSoiAdverbialTerm | TermSyntaxNaKuTerm | TermSyntaxSumtiTerm | TermSyntaxBareNaTerm | TermSyntaxGekTermset | TermSyntaxZantufaGekTermset | TermSyntaxForethoughtTermset | TermSyntaxNuhiTermset | TermSyntaxKeTermset
 
 @final
 class CeheTermSyntaxTermsetGroup:
@@ -3221,13 +3446,13 @@ class CeheTermSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class CeheTermSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> CeheTermSyntaxFihoiAdverbialTerm: ...
+class CeheTermSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> CeheTermSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3235,13 +3460,27 @@ class CeheTermSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class CeheTermSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> CeheTermSyntaxSoiAdverbialTerm: ...
+class CeheTermSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> CeheTermSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class CeheTermSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> CeheTermSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3362,7 +3601,7 @@ class CeheTermSyntaxKeTermset:
 
 # The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
 # (camxes.peg:116). It is the operand level of the PEhE connection above it.
-CeheTermSyntax: TypeAlias = CeheTermSyntaxTermsetGroup | CeheTermSyntaxConnectedTerm | CeheTermSyntaxStagBoundTermConnection | CeheTermSyntaxPlaceTaggedSumtiTerm | CeheTermSyntaxZantufaJoikChainedPlaceTagTerm | CeheTermSyntaxJaiTaggedSumtiTerm | CeheTermSyntaxElidedNaheFihoTagTerm | CeheTermSyntaxTaggedSumtiBeforeTagTerm | CeheTermSyntaxTaggedSumtiTerm | CeheTermSyntaxNoihaAdverbialTerm | CeheTermSyntaxFihoiAdverbialTerm | CeheTermSyntaxSoiAdverbialTerm | CeheTermSyntaxNaKuTerm | CeheTermSyntaxSumtiTerm | CeheTermSyntaxBareNaTerm | CeheTermSyntaxGekTermset | CeheTermSyntaxZantufaGekTermset | CeheTermSyntaxForethoughtTermset | CeheTermSyntaxNuhiTermset | CeheTermSyntaxKeTermset
+CeheTermSyntax: TypeAlias = CeheTermSyntaxTermsetGroup | CeheTermSyntaxConnectedTerm | CeheTermSyntaxStagBoundTermConnection | CeheTermSyntaxPlaceTaggedSumtiTerm | CeheTermSyntaxZantufaJoikChainedPlaceTagTerm | CeheTermSyntaxJaiTaggedSumtiTerm | CeheTermSyntaxElidedNaheFihoTagTerm | CeheTermSyntaxTaggedSumtiBeforeTagTerm | CeheTermSyntaxTaggedSumtiTerm | CeheTermSyntaxNoihaAdverbialTerm | CeheTermSyntaxFihoiProposalAdverbialTerm | CeheTermSyntaxZantufaXoiAdverbialTerm | CeheTermSyntaxExpSoiAdverbialTerm | CeheTermSyntaxNaKuTerm | CeheTermSyntaxSumtiTerm | CeheTermSyntaxBareNaTerm | CeheTermSyntaxGekTermset | CeheTermSyntaxZantufaGekTermset | CeheTermSyntaxForethoughtTermset | CeheTermSyntaxNuhiTermset | CeheTermSyntaxKeTermset
 
 @final
 class LooseTermSyntaxConnectedTerm:
@@ -3491,13 +3730,13 @@ class LooseTermSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class LooseTermSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> LooseTermSyntaxFihoiAdverbialTerm: ...
+class LooseTermSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> LooseTermSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3505,13 +3744,27 @@ class LooseTermSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class LooseTermSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> LooseTermSyntaxSoiAdverbialTerm: ...
+class LooseTermSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> LooseTermSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class LooseTermSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> LooseTermSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3633,7 +3886,7 @@ class LooseTermSyntaxKeTermset:
 # The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
 # abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
 # (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-LooseTermSyntax: TypeAlias = LooseTermSyntaxConnectedTerm | LooseTermSyntaxStagBoundTermConnection | LooseTermSyntaxPlaceTaggedSumtiTerm | LooseTermSyntaxZantufaJoikChainedPlaceTagTerm | LooseTermSyntaxJaiTaggedSumtiTerm | LooseTermSyntaxElidedNaheFihoTagTerm | LooseTermSyntaxTaggedSumtiBeforeTagTerm | LooseTermSyntaxTaggedSumtiTerm | LooseTermSyntaxNoihaAdverbialTerm | LooseTermSyntaxFihoiAdverbialTerm | LooseTermSyntaxSoiAdverbialTerm | LooseTermSyntaxNaKuTerm | LooseTermSyntaxSumtiTerm | LooseTermSyntaxBareNaTerm | LooseTermSyntaxGekTermset | LooseTermSyntaxZantufaGekTermset | LooseTermSyntaxForethoughtTermset | LooseTermSyntaxNuhiTermset | LooseTermSyntaxKeTermset
+LooseTermSyntax: TypeAlias = LooseTermSyntaxConnectedTerm | LooseTermSyntaxStagBoundTermConnection | LooseTermSyntaxPlaceTaggedSumtiTerm | LooseTermSyntaxZantufaJoikChainedPlaceTagTerm | LooseTermSyntaxJaiTaggedSumtiTerm | LooseTermSyntaxElidedNaheFihoTagTerm | LooseTermSyntaxTaggedSumtiBeforeTagTerm | LooseTermSyntaxTaggedSumtiTerm | LooseTermSyntaxNoihaAdverbialTerm | LooseTermSyntaxFihoiProposalAdverbialTerm | LooseTermSyntaxZantufaXoiAdverbialTerm | LooseTermSyntaxExpSoiAdverbialTerm | LooseTermSyntaxNaKuTerm | LooseTermSyntaxSumtiTerm | LooseTermSyntaxBareNaTerm | LooseTermSyntaxGekTermset | LooseTermSyntaxZantufaGekTermset | LooseTermSyntaxForethoughtTermset | LooseTermSyntaxNuhiTermset | LooseTermSyntaxKeTermset
 
 @final
 class NonabsTermSyntaxConnectedTerm:
@@ -3762,13 +4015,13 @@ class NonabsTermSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class NonabsTermSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> NonabsTermSyntaxFihoiAdverbialTerm: ...
+class NonabsTermSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> NonabsTermSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3776,13 +4029,27 @@ class NonabsTermSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class NonabsTermSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> NonabsTermSyntaxSoiAdverbialTerm: ...
+class NonabsTermSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> NonabsTermSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NonabsTermSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> NonabsTermSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -3910,7 +4177,7 @@ class NonabsTermSyntaxKeTermset:
 # of the two sources is exactly this level: the guarded tiers with the unguarded leaf
 # inventory. The guard only ever fires when a selbri follows the atom directly, which is a
 # position no connective tier can occupy, so no surface outside the two sources is admitted.
-NonabsTermSyntax: TypeAlias = NonabsTermSyntaxConnectedTerm | NonabsTermSyntaxStagBoundTermConnection | NonabsTermSyntaxPlaceTaggedSumtiTerm | NonabsTermSyntaxZantufaJoikChainedPlaceTagTerm | NonabsTermSyntaxJaiTaggedSumtiTerm | NonabsTermSyntaxElidedNaheFihoTagTerm | NonabsTermSyntaxTaggedSumtiBeforeTagTerm | NonabsTermSyntaxNonabsTaggedSumtiTerm | NonabsTermSyntaxNoihaAdverbialTerm | NonabsTermSyntaxFihoiAdverbialTerm | NonabsTermSyntaxSoiAdverbialTerm | NonabsTermSyntaxNaKuTerm | NonabsTermSyntaxSumtiTerm | NonabsTermSyntaxBareNaTerm | NonabsTermSyntaxGekTermset | NonabsTermSyntaxZantufaGekTermset | NonabsTermSyntaxForethoughtTermset | NonabsTermSyntaxNuhiTermset | NonabsTermSyntaxKeTermset
+NonabsTermSyntax: TypeAlias = NonabsTermSyntaxConnectedTerm | NonabsTermSyntaxStagBoundTermConnection | NonabsTermSyntaxPlaceTaggedSumtiTerm | NonabsTermSyntaxZantufaJoikChainedPlaceTagTerm | NonabsTermSyntaxJaiTaggedSumtiTerm | NonabsTermSyntaxElidedNaheFihoTagTerm | NonabsTermSyntaxTaggedSumtiBeforeTagTerm | NonabsTermSyntaxNonabsTaggedSumtiTerm | NonabsTermSyntaxNoihaAdverbialTerm | NonabsTermSyntaxFihoiProposalAdverbialTerm | NonabsTermSyntaxZantufaXoiAdverbialTerm | NonabsTermSyntaxExpSoiAdverbialTerm | NonabsTermSyntaxNaKuTerm | NonabsTermSyntaxSumtiTerm | NonabsTermSyntaxBareNaTerm | NonabsTermSyntaxGekTermset | NonabsTermSyntaxZantufaGekTermset | NonabsTermSyntaxForethoughtTermset | NonabsTermSyntaxNuhiTermset | NonabsTermSyntaxKeTermset
 
 @final
 class PeheTermsetConnectionSyntax:
@@ -4056,13 +4323,13 @@ class SimpleTermSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SimpleTermSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> SimpleTermSyntaxFihoiAdverbialTerm: ...
+class SimpleTermSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> SimpleTermSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4070,13 +4337,27 @@ class SimpleTermSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SimpleTermSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> SimpleTermSyntaxSoiAdverbialTerm: ...
+class SimpleTermSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> SimpleTermSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SimpleTermSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> SimpleTermSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4196,7 +4477,7 @@ class SimpleTermSyntaxKeTermset:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-SimpleTermSyntax: TypeAlias = SimpleTermSyntaxPlaceTaggedSumtiTerm | SimpleTermSyntaxZantufaJoikChainedPlaceTagTerm | SimpleTermSyntaxJaiTaggedSumtiTerm | SimpleTermSyntaxElidedNaheFihoTagTerm | SimpleTermSyntaxTaggedSumtiBeforeTagTerm | SimpleTermSyntaxTaggedSumtiTerm | SimpleTermSyntaxNoihaAdverbialTerm | SimpleTermSyntaxFihoiAdverbialTerm | SimpleTermSyntaxSoiAdverbialTerm | SimpleTermSyntaxNaKuTerm | SimpleTermSyntaxSumtiTerm | SimpleTermSyntaxBareNaTerm | SimpleTermSyntaxGekTermset | SimpleTermSyntaxZantufaGekTermset | SimpleTermSyntaxForethoughtTermset | SimpleTermSyntaxNuhiTermset | SimpleTermSyntaxKeTermset
+SimpleTermSyntax: TypeAlias = SimpleTermSyntaxPlaceTaggedSumtiTerm | SimpleTermSyntaxZantufaJoikChainedPlaceTagTerm | SimpleTermSyntaxJaiTaggedSumtiTerm | SimpleTermSyntaxElidedNaheFihoTagTerm | SimpleTermSyntaxTaggedSumtiBeforeTagTerm | SimpleTermSyntaxTaggedSumtiTerm | SimpleTermSyntaxNoihaAdverbialTerm | SimpleTermSyntaxFihoiProposalAdverbialTerm | SimpleTermSyntaxZantufaXoiAdverbialTerm | SimpleTermSyntaxExpSoiAdverbialTerm | SimpleTermSyntaxNaKuTerm | SimpleTermSyntaxSumtiTerm | SimpleTermSyntaxBareNaTerm | SimpleTermSyntaxGekTermset | SimpleTermSyntaxZantufaGekTermset | SimpleTermSyntaxForethoughtTermset | SimpleTermSyntaxNuhiTermset | SimpleTermSyntaxKeTermset
 
 @final
 class BoundTermSyntaxStagBoundTermConnection:
@@ -4311,13 +4592,13 @@ class BoundTermSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BoundTermSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> BoundTermSyntaxFihoiAdverbialTerm: ...
+class BoundTermSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> BoundTermSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4325,13 +4606,27 @@ class BoundTermSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BoundTermSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> BoundTermSyntaxSoiAdverbialTerm: ...
+class BoundTermSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> BoundTermSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BoundTermSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> BoundTermSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4455,7 +4750,7 @@ class BoundTermSyntaxKeTermset:
 # The leaf rules are deliberately listed directly rather than through `simple_term`: a
 # nested sum branch would add a public wrapper variant to Debug and serde output. The
 # binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-BoundTermSyntax: TypeAlias = BoundTermSyntaxStagBoundTermConnection | BoundTermSyntaxPlaceTaggedSumtiTerm | BoundTermSyntaxZantufaJoikChainedPlaceTagTerm | BoundTermSyntaxJaiTaggedSumtiTerm | BoundTermSyntaxElidedNaheFihoTagTerm | BoundTermSyntaxTaggedSumtiBeforeTagTerm | BoundTermSyntaxTaggedSumtiTerm | BoundTermSyntaxNoihaAdverbialTerm | BoundTermSyntaxFihoiAdverbialTerm | BoundTermSyntaxSoiAdverbialTerm | BoundTermSyntaxNaKuTerm | BoundTermSyntaxSumtiTerm | BoundTermSyntaxBareNaTerm | BoundTermSyntaxGekTermset | BoundTermSyntaxZantufaGekTermset | BoundTermSyntaxForethoughtTermset | BoundTermSyntaxNuhiTermset | BoundTermSyntaxKeTermset
+BoundTermSyntax: TypeAlias = BoundTermSyntaxStagBoundTermConnection | BoundTermSyntaxPlaceTaggedSumtiTerm | BoundTermSyntaxZantufaJoikChainedPlaceTagTerm | BoundTermSyntaxJaiTaggedSumtiTerm | BoundTermSyntaxElidedNaheFihoTagTerm | BoundTermSyntaxTaggedSumtiBeforeTagTerm | BoundTermSyntaxTaggedSumtiTerm | BoundTermSyntaxNoihaAdverbialTerm | BoundTermSyntaxFihoiProposalAdverbialTerm | BoundTermSyntaxZantufaXoiAdverbialTerm | BoundTermSyntaxExpSoiAdverbialTerm | BoundTermSyntaxNaKuTerm | BoundTermSyntaxSumtiTerm | BoundTermSyntaxBareNaTerm | BoundTermSyntaxGekTermset | BoundTermSyntaxZantufaGekTermset | BoundTermSyntaxForethoughtTermset | BoundTermSyntaxNuhiTermset | BoundTermSyntaxKeTermset
 
 @final
 class StagBoundTermConnectionSyntax:
@@ -4763,13 +5058,13 @@ class NormalTermSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class NormalTermSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> NormalTermSyntaxFihoiAdverbialTerm: ...
+class NormalTermSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> NormalTermSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4777,13 +5072,27 @@ class NormalTermSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class NormalTermSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> NormalTermSyntaxSoiAdverbialTerm: ...
+class NormalTermSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> NormalTermSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NormalTermSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> NormalTermSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -4931,7 +5240,7 @@ class NormalTermSyntaxKeTermset:
 # other ladder level does it (mechanism E): a nested branch would add a public wrapper
 # variant to Debug and serde output. The binding-schema drift guard keeps this inventory
 # synchronized with `simple_term`.
-NormalTermSyntax: TypeAlias = NormalTermSyntaxConnectedNormalTerm | NormalTermSyntaxBoundNormalTermConnection | NormalTermSyntaxPlaceTaggedSumtiTerm | NormalTermSyntaxZantufaJoikChainedPlaceTagTerm | NormalTermSyntaxJaiTaggedSumtiTerm | NormalTermSyntaxElidedNaheFihoTagTerm | NormalTermSyntaxTaggedSumtiBeforeTagTerm | NormalTermSyntaxNonabsTaggedSumtiTerm | NormalTermSyntaxNoihaAdverbialTerm | NormalTermSyntaxFihoiAdverbialTerm | NormalTermSyntaxSoiAdverbialTerm | NormalTermSyntaxNaKuTerm | NormalTermSyntaxSumtiTerm | NormalTermSyntaxBareNaTerm | NormalTermSyntaxGekTermset | NormalTermSyntaxZantufaGekTermset | NormalTermSyntaxForethoughtTermset | NormalTermSyntaxNuhiTermset | NormalTermSyntaxKeTermset
+NormalTermSyntax: TypeAlias = NormalTermSyntaxConnectedNormalTerm | NormalTermSyntaxBoundNormalTermConnection | NormalTermSyntaxPlaceTaggedSumtiTerm | NormalTermSyntaxZantufaJoikChainedPlaceTagTerm | NormalTermSyntaxJaiTaggedSumtiTerm | NormalTermSyntaxElidedNaheFihoTagTerm | NormalTermSyntaxTaggedSumtiBeforeTagTerm | NormalTermSyntaxNonabsTaggedSumtiTerm | NormalTermSyntaxNoihaAdverbialTerm | NormalTermSyntaxFihoiProposalAdverbialTerm | NormalTermSyntaxZantufaXoiAdverbialTerm | NormalTermSyntaxExpSoiAdverbialTerm | NormalTermSyntaxNaKuTerm | NormalTermSyntaxSumtiTerm | NormalTermSyntaxBareNaTerm | NormalTermSyntaxGekTermset | NormalTermSyntaxZantufaGekTermset | NormalTermSyntaxForethoughtTermset | NormalTermSyntaxNuhiTermset | NormalTermSyntaxKeTermset
 
 @final
 class ConnectedNormalTermSyntax:
@@ -5082,13 +5391,13 @@ class BoundNormalTermSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BoundNormalTermSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> BoundNormalTermSyntaxFihoiAdverbialTerm: ...
+class BoundNormalTermSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> BoundNormalTermSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5096,13 +5405,27 @@ class BoundNormalTermSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BoundNormalTermSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> BoundNormalTermSyntaxSoiAdverbialTerm: ...
+class BoundNormalTermSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> BoundNormalTermSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class BoundNormalTermSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> BoundNormalTermSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5222,7 +5545,7 @@ class BoundNormalTermSyntaxKeTermset:
     def __eq__(self, other: object, /) -> bool: ...
 
 # The optional-stag BO-bound level of the normal-flavour term constituent.
-BoundNormalTermSyntax: TypeAlias = BoundNormalTermSyntaxBoundNormalTermConnection | BoundNormalTermSyntaxPlaceTaggedSumtiTerm | BoundNormalTermSyntaxZantufaJoikChainedPlaceTagTerm | BoundNormalTermSyntaxJaiTaggedSumtiTerm | BoundNormalTermSyntaxElidedNaheFihoTagTerm | BoundNormalTermSyntaxTaggedSumtiBeforeTagTerm | BoundNormalTermSyntaxNonabsTaggedSumtiTerm | BoundNormalTermSyntaxNoihaAdverbialTerm | BoundNormalTermSyntaxFihoiAdverbialTerm | BoundNormalTermSyntaxSoiAdverbialTerm | BoundNormalTermSyntaxNaKuTerm | BoundNormalTermSyntaxSumtiTerm | BoundNormalTermSyntaxBareNaTerm | BoundNormalTermSyntaxGekTermset | BoundNormalTermSyntaxZantufaGekTermset | BoundNormalTermSyntaxForethoughtTermset | BoundNormalTermSyntaxNuhiTermset | BoundNormalTermSyntaxKeTermset
+BoundNormalTermSyntax: TypeAlias = BoundNormalTermSyntaxBoundNormalTermConnection | BoundNormalTermSyntaxPlaceTaggedSumtiTerm | BoundNormalTermSyntaxZantufaJoikChainedPlaceTagTerm | BoundNormalTermSyntaxJaiTaggedSumtiTerm | BoundNormalTermSyntaxElidedNaheFihoTagTerm | BoundNormalTermSyntaxTaggedSumtiBeforeTagTerm | BoundNormalTermSyntaxNonabsTaggedSumtiTerm | BoundNormalTermSyntaxNoihaAdverbialTerm | BoundNormalTermSyntaxFihoiProposalAdverbialTerm | BoundNormalTermSyntaxZantufaXoiAdverbialTerm | BoundNormalTermSyntaxExpSoiAdverbialTerm | BoundNormalTermSyntaxNaKuTerm | BoundNormalTermSyntaxSumtiTerm | BoundNormalTermSyntaxBareNaTerm | BoundNormalTermSyntaxGekTermset | BoundNormalTermSyntaxZantufaGekTermset | BoundNormalTermSyntaxForethoughtTermset | BoundNormalTermSyntaxNuhiTermset | BoundNormalTermSyntaxKeTermset
 
 @final
 class BoundNormalTermConnectionSyntax:
@@ -5428,13 +5751,13 @@ class NormalTermAtomSyntaxNoihaAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class NormalTermAtomSyntaxFihoiAdverbialTerm:
-    'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
-    __match_args__: ClassVar[tuple[Literal['fihoi_adverbial_term']]]
-    def __new__(cls, fihoi_adverbial_term: RecoveredField[FihoiAdverbialTermSyntax]) -> NormalTermAtomSyntaxFihoiAdverbialTerm: ...
+class NormalTermAtomSyntaxFihoiProposalAdverbialTerm:
+    'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
+    __match_args__: ClassVar[tuple[Literal['fihoi_proposal_adverbial_term']]]
+    def __new__(cls, fihoi_proposal_adverbial_term: RecoveredField[FihoiProposalAdverbialTermSyntax]) -> NormalTermAtomSyntaxFihoiProposalAdverbialTerm: ...
     @property
-    def fihoi_adverbial_term(self) -> RecoveredField[FihoiAdverbialTermSyntax]:
-        'Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.'
+    def fihoi_proposal_adverbial_term(self) -> RecoveredField[FihoiProposalAdverbialTermSyntax]:
+        'Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5442,13 +5765,27 @@ class NormalTermAtomSyntaxFihoiAdverbialTerm:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class NormalTermAtomSyntaxSoiAdverbialTerm:
-    'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
-    __match_args__: ClassVar[tuple[Literal['soi_adverbial_term']]]
-    def __new__(cls, soi_adverbial_term: RecoveredField[SoiAdverbialTermSyntax]) -> NormalTermAtomSyntaxSoiAdverbialTerm: ...
+class NormalTermAtomSyntaxZantufaXoiAdverbialTerm:
+    'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_xoi_adverbial_term']]]
+    def __new__(cls, zantufa_xoi_adverbial_term: RecoveredField[ZantufaXoiAdverbialTermSyntax]) -> NormalTermAtomSyntaxZantufaXoiAdverbialTerm: ...
     @property
-    def soi_adverbial_term(self) -> RecoveredField[SoiAdverbialTermSyntax]:
-        'Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.'
+    def zantufa_xoi_adverbial_term(self) -> RecoveredField[ZantufaXoiAdverbialTermSyntax]:
+        'Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class NormalTermAtomSyntaxExpSoiAdverbialTerm:
+    'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
+    __match_args__: ClassVar[tuple[Literal['exp_soi_adverbial_term']]]
+    def __new__(cls, exp_soi_adverbial_term: RecoveredField[ExpSoiAdverbialTermSyntax]) -> NormalTermAtomSyntaxExpSoiAdverbialTerm: ...
+    @property
+    def exp_soi_adverbial_term(self) -> RecoveredField[ExpSoiAdverbialTermSyntax]:
+        'Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -5572,7 +5909,7 @@ class NormalTermAtomSyntaxKeTermset:
 # This is `term_3 <- sumti / tag_term / termset` (camxes-exp.peg:145) and camxes-standard's
 # bare `nonabs_term` (camxes.peg:128) at once: the same leaves `simple_term` lists, with the
 # unguarded `nonabs_tagged_sumti_term` in place of its absorption-guarded twin.
-NormalTermAtomSyntax: TypeAlias = NormalTermAtomSyntaxPlaceTaggedSumtiTerm | NormalTermAtomSyntaxZantufaJoikChainedPlaceTagTerm | NormalTermAtomSyntaxJaiTaggedSumtiTerm | NormalTermAtomSyntaxElidedNaheFihoTagTerm | NormalTermAtomSyntaxTaggedSumtiBeforeTagTerm | NormalTermAtomSyntaxNonabsTaggedSumtiTerm | NormalTermAtomSyntaxNoihaAdverbialTerm | NormalTermAtomSyntaxFihoiAdverbialTerm | NormalTermAtomSyntaxSoiAdverbialTerm | NormalTermAtomSyntaxNaKuTerm | NormalTermAtomSyntaxSumtiTerm | NormalTermAtomSyntaxBareNaTerm | NormalTermAtomSyntaxGekTermset | NormalTermAtomSyntaxZantufaGekTermset | NormalTermAtomSyntaxForethoughtTermset | NormalTermAtomSyntaxNuhiTermset | NormalTermAtomSyntaxKeTermset
+NormalTermAtomSyntax: TypeAlias = NormalTermAtomSyntaxPlaceTaggedSumtiTerm | NormalTermAtomSyntaxZantufaJoikChainedPlaceTagTerm | NormalTermAtomSyntaxJaiTaggedSumtiTerm | NormalTermAtomSyntaxElidedNaheFihoTagTerm | NormalTermAtomSyntaxTaggedSumtiBeforeTagTerm | NormalTermAtomSyntaxNonabsTaggedSumtiTerm | NormalTermAtomSyntaxNoihaAdverbialTerm | NormalTermAtomSyntaxFihoiProposalAdverbialTerm | NormalTermAtomSyntaxZantufaXoiAdverbialTerm | NormalTermAtomSyntaxExpSoiAdverbialTerm | NormalTermAtomSyntaxNaKuTerm | NormalTermAtomSyntaxSumtiTerm | NormalTermAtomSyntaxBareNaTerm | NormalTermAtomSyntaxGekTermset | NormalTermAtomSyntaxZantufaGekTermset | NormalTermAtomSyntaxForethoughtTermset | NormalTermAtomSyntaxNuhiTermset | NormalTermAtomSyntaxKeTermset
 
 @final
 class TermsetGroupSyntax:
@@ -6061,26 +6398,26 @@ class NoihaRelativeAdverbialTermSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class FihoiAdverbialTermSyntax:
-    'Product node for FIhOI adverbial; preserves `fihoi`, `statement`, and `fihau` in source order.'
-    __match_args__: ClassVar[tuple[Literal['fihoi'], Literal['statement'], Literal['fihau']]]
+class FihoiProposalAdverbialTermSyntax:
+    'Product node for FIhOI adverbial; preserves `fihoi`, `subsentence`, and `fihau` in source order.'
+    __match_args__: ClassVar[tuple[Literal['fihoi'], Literal['subsentence'], Literal['fihau']]]
     def __new__(
         cls,
         fihoi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        statement: RecoveredField[StatementSyntax],
-        fihau: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
-    ) -> FihoiAdverbialTermSyntax: ...
+        subsentence: RecoveredField[SubbridiSyntax],
+        fihau: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+    ) -> FihoiProposalAdverbialTermSyntax: ...
     @property
     def fihoi(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
         'The `Fihoi` cmavo marker.'
         ...
     @property
-    def statement(self) -> RecoveredField[StatementSyntax]:
-        'The shared statement child syntax node.'
+    def subsentence(self) -> RecoveredField[SubbridiSyntax]:
+        'The shared subsentence child syntax node.'
         ...
     @property
-    def fihau(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Fihau` cmavo marker.'
+    def fihau(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The required `Fihau` terminator, which is what selects the proposal arm.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -6088,22 +6425,77 @@ class FihoiAdverbialTermSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SoiAdverbialTermSyntax:
-    'Product node for SOI adverbial; preserves `soi`, `statement`, and `sehu` in source order.'
-    __match_args__: ClassVar[tuple[Literal['soi'], Literal['statement'], Literal['sehu']]]
+class ZantufaXoiAdverbialTermSyntax:
+    'Transparent ownership wrapper for the rolling-Zantufa XOI adverbial.'
+    __match_args__: ClassVar[tuple[Literal['adverbial']]]
+    def __new__(cls, adverbial: RecoveredField[ZantufaXoiStatementAdverbialSyntax]) -> ZantufaXoiAdverbialTermSyntax: ...
+    @property
+    def adverbial(self) -> RecoveredField[ZantufaXoiStatementAdverbialSyntax]:
+        'The completed candidate, retained only where camxes-exp\'s subsentence cannot form its body.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaXoiStatementAdverbialSyntax:
+    'Product node for XOI adverbial; preserves `xoi`, `statement`, and `sehu` in source order.'
+    __match_args__: ClassVar[tuple[Literal['xoi'], Literal['statement'], Literal['sehu']]]
+    def __new__(
+        cls,
+        xoi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        statement: RecoveredField[ZantufaRelativeStatementSyntax],
+        sehu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ZantufaXoiStatementAdverbialSyntax: ...
+    @property
+    def xoi(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The XOI marker, warned under the neutral marker-anchored category for its word.'
+        ...
+    @property
+    def statement(self) -> RecoveredField[ZantufaRelativeStatementSyntax]:
+        'The shared statement child syntax node.'
+        ...
+    @property
+    def sehu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Sehu` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSoiAdverbialTermSyntax:
+    'Transparent ownership wrapper for the camxes-exp SOI adverbial.'
+    __match_args__: ClassVar[tuple[Literal['adverbial']]]
+    def __new__(cls, adverbial: RecoveredField[ExpSoiSubsentenceAdverbialSyntax]) -> ExpSoiAdverbialTermSyntax: ...
+    @property
+    def adverbial(self) -> RecoveredField[ExpSoiSubsentenceAdverbialSyntax]:
+        'The completed candidate, retained only where the baseline reciprocal does not own its reparse.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSoiSubsentenceAdverbialSyntax:
+    'Product node for SOI adverbial; preserves `soi`, `subsentence`, and `sehu` in source order.'
+    __match_args__: ClassVar[tuple[Literal['soi'], Literal['subsentence'], Literal['sehu']]]
     def __new__(
         cls,
         soi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        statement: RecoveredField[StatementSyntax],
+        subsentence: RecoveredField[SubbridiSyntax],
         sehu: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
-    ) -> SoiAdverbialTermSyntax: ...
+    ) -> ExpSoiSubsentenceAdverbialSyntax: ...
     @property
     def soi(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'A word from selmaho `Soi`.'
+        'The SOI marker, warned under the neutral marker-anchored category for its word.'
         ...
     @property
-    def statement(self) -> RecoveredField[StatementSyntax]:
-        'The shared statement child syntax node.'
+    def subsentence(self) -> RecoveredField[SubbridiSyntax]:
+        'The shared subsentence child syntax node.'
         ...
     @property
     def sehu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
@@ -11493,7 +11885,7 @@ class ZantufaMeksoMaiFreeModifierSyntax:
 
 @final
 class SoiFreeModifierSyntax:
-    'Product node for reciprocal; preserves `soi`, `leading_sumti`, `trailing_sumti`, and `sehu` in source order.'
+    'Product node for reciprocal; preserves `soi`, `leading_sumti`, `trailing_sumti`, and `sehu` in source order.\n\nR1\'s other half. The reciprocal attaches inside `.wf()`, before any term-level arm is\nreached, so without this reservation it would take `soi` plus one sumti out of every\ncamxes-exp adverbial and leave the rest of the subsentence -- and any explicit SEhU --\nbehind. The reservation is the adverbial arm itself, classifier included: it succeeds\nonly where that arm would own the extent, so `mi broda soi mi brode`, whose completed\ncandidate reparses as the reciprocal plus a tail, stays the reciprocal\'s and silent,\nwhile `mi broda soi mi brode se\'u` is the adverbial\'s.'
     __match_args__: ClassVar[tuple[Literal['soi'], Literal['leading_sumti'], Literal['trailing_sumti'], Literal['sehu']]]
     def __new__(
         cls,
@@ -11689,6 +12081,10 @@ class RelativeClauseTailSyntaxZantufaBareRelativeClauseTail:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for relative clauses; gives the completed camxes-exp continuation route first choice, then reparses baseline ZIhE surfaces through the standard arm.
+#
+# This is the connective machinery of the relative list, not an owner class of its own:
+# it is parameterized by the enclosing site's `statement_relative_clause` policy and
+# carries whatever atoms that site admits into continuation position.
 RelativeClauseTailSyntax: TypeAlias = RelativeClauseTailSyntaxRelativeClauseExpContinuation | RelativeClauseTailSyntaxJoinedRelativeClauseTail | RelativeClauseTailSyntaxZantufaBareRelativeClauseTail
 
 @final
@@ -11846,27 +12242,13 @@ class SumtiAssociationRelativeClauseSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class BridiRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause:
-    'Uses the `zantufa_restrictive_statement_relative_clause` product form, whose payload preserves `poi`, `statement`, and `kuho`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_restrictive_statement_relative_clause']]]
-    def __new__(cls, zantufa_restrictive_statement_relative_clause: RecoveredField[ZantufaRestrictiveStatementRelativeClauseSyntax]) -> BridiRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause: ...
+class BridiRelativeClauseSyntaxZantufaStatementRelativeClause:
+    'Uses the site\'s rolling-Zantufa statement relative clause, after its ownership filter.'
+    __match_args__: ClassVar[tuple[Literal['statement_relative_clause']]]
+    def __new__(cls, statement_relative_clause: RecoveredField[ZantufaStatementRelativeClauseSyntax]) -> BridiRelativeClauseSyntaxZantufaStatementRelativeClause: ...
     @property
-    def zantufa_restrictive_statement_relative_clause(self) -> RecoveredField[ZantufaRestrictiveStatementRelativeClauseSyntax]:
-        'Uses the `zantufa_restrictive_statement_relative_clause` product form, whose payload preserves `poi`, `statement`, and `kuho`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class BridiRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause:
-    'Uses the `zantufa_incidental_statement_relative_clause` product form, whose payload preserves `noi`, `statement`, and `kuho`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_incidental_statement_relative_clause']]]
-    def __new__(cls, zantufa_incidental_statement_relative_clause: RecoveredField[ZantufaIncidentalStatementRelativeClauseSyntax]) -> BridiRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause: ...
-    @property
-    def zantufa_incidental_statement_relative_clause(self) -> RecoveredField[ZantufaIncidentalStatementRelativeClauseSyntax]:
-        'Uses the `zantufa_incidental_statement_relative_clause` product form, whose payload preserves `noi`, `statement`, and `kuho`.'
+    def statement_relative_clause(self) -> RecoveredField[ZantufaStatementRelativeClauseSyntax]:
+        'Uses the site\'s rolling-Zantufa statement relative clause, after its ownership filter.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -11901,8 +12283,53 @@ class BridiRelativeClauseSyntaxIncidentalBridiRelativeClause:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for relative bridi; selects among the `zantufa_restrictive_statement_relative_clause`, `zantufa_incidental_statement_relative_clause`, `restrictive_bridi_relative_clause`, and `incidental_bridi_relative_clause` forms.
-BridiRelativeClauseSyntax: TypeAlias = BridiRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause | BridiRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause | BridiRelativeClauseSyntaxRestrictiveBridiRelativeClause | BridiRelativeClauseSyntaxIncidentalBridiRelativeClause
+# Sum node for relative bridi; gives the site's rolling-Zantufa statement route first
+# refusal before the two baseline subbridi owners.
+#
+# `statement_relative_clause` is the enclosing site's own entry, so the ownership decision
+# this sum makes is the site's rather than the clause's. That is forced: an inner
+# marker/body/KUhO classifier cannot distinguish `broda poi mi brode` (Zantufa's, at the
+# selbri parent), `ko'a no'oi mi brode broda` (Zantufa's, at an ordinary sumti site) and
+# `broda no'oi mi brode` (the adopted camxes-exp tanru-unit relative's), which have the
+# same inner shape and three different owners.
+BridiRelativeClauseSyntax: TypeAlias = BridiRelativeClauseSyntaxZantufaStatementRelativeClause | BridiRelativeClauseSyntaxRestrictiveBridiRelativeClause | BridiRelativeClauseSyntaxIncidentalBridiRelativeClause
+
+@final
+class ZantufaStatementRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause:
+    'Uses the `zantufa_restrictive_statement_relative_clause` product form, whose payload preserves `poi`, `statement`, and `kuho`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_restrictive_statement_relative_clause']]]
+    def __new__(cls, zantufa_restrictive_statement_relative_clause: RecoveredField[ZantufaRestrictiveStatementRelativeClauseSyntax]) -> ZantufaStatementRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause: ...
+    @property
+    def zantufa_restrictive_statement_relative_clause(self) -> RecoveredField[ZantufaRestrictiveStatementRelativeClauseSyntax]:
+        'Uses the `zantufa_restrictive_statement_relative_clause` product form, whose payload preserves `poi`, `statement`, and `kuho`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaStatementRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause:
+    'Uses the `zantufa_incidental_statement_relative_clause` product form, whose payload preserves `noi`, `statement`, and `kuho`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_incidental_statement_relative_clause']]]
+    def __new__(cls, zantufa_incidental_statement_relative_clause: RecoveredField[ZantufaIncidentalStatementRelativeClauseSyntax]) -> ZantufaStatementRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause: ...
+    @property
+    def zantufa_incidental_statement_relative_clause(self) -> RecoveredField[ZantufaIncidentalStatementRelativeClauseSyntax]:
+        'Uses the `zantufa_incidental_statement_relative_clause` product form, whose payload preserves `noi`, `statement`, and `kuho`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for relative clause; selects among the `zantufa_restrictive_statement_relative_clause` and `zantufa_incidental_statement_relative_clause` forms.
+#
+# `relative_clause <- ... / NOI_clause statement KUhO_elidible` with
+# `NOI <- voihi / voi / poi / po'oi / noi / no'oi` (zantufa-1.9999.peg:43, :590). The full
+# source inventory is kept here and the shared `poi`/`noi`/`voi` extents are returned to
+# the baseline by each site's own classifier, because narrowing the marker set instead
+# would drop the Zantufa-only statement bodies those markers legitimately carry.
+ZantufaStatementRelativeClauseSyntax: TypeAlias = ZantufaStatementRelativeClauseSyntaxZantufaRestrictiveStatementRelativeClause | ZantufaStatementRelativeClauseSyntaxZantufaIncidentalStatementRelativeClause
 
 @final
 class ZantufaRestrictiveStatementRelativeClauseSyntax:
@@ -11911,7 +12338,7 @@ class ZantufaRestrictiveStatementRelativeClauseSyntax:
     def __new__(
         cls,
         poi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        statement: RecoveredField[StatementSyntax],
+        statement: RecoveredField[ZantufaRelativeStatementSyntax],
         kuho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
     ) -> ZantufaRestrictiveStatementRelativeClauseSyntax: ...
     @property
@@ -11919,7 +12346,7 @@ class ZantufaRestrictiveStatementRelativeClauseSyntax:
         'The selected grammar alternative in the `poi` structural role of the `zantufa_restrictive_statement_relative_clause` production.'
         ...
     @property
-    def statement(self) -> RecoveredField[StatementSyntax]:
+    def statement(self) -> RecoveredField[ZantufaRelativeStatementSyntax]:
         'The shared statement child syntax node.'
         ...
     @property
@@ -11938,7 +12365,7 @@ class ZantufaIncidentalStatementRelativeClauseSyntax:
     def __new__(
         cls,
         noi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
-        statement: RecoveredField[StatementSyntax],
+        statement: RecoveredField[ZantufaRelativeStatementSyntax],
         kuho: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
     ) -> ZantufaIncidentalStatementRelativeClauseSyntax: ...
     @property
@@ -11946,7 +12373,7 @@ class ZantufaIncidentalStatementRelativeClauseSyntax:
         'The selected grammar alternative in the `noi` structural role of the `zantufa_incidental_statement_relative_clause` production.'
         ...
     @property
-    def statement(self) -> RecoveredField[StatementSyntax]:
+    def statement(self) -> RecoveredField[ZantufaRelativeStatementSyntax]:
         'The shared statement child syntax node.'
         ...
     @property
@@ -11960,7 +12387,7 @@ class ZantufaIncidentalStatementRelativeClauseSyntax:
 
 @final
 class RestrictiveBridiRelativeClauseSyntax:
-    'Product node for relative clause; preserves `poi`, `subbridi`, and `kuho` in source order.'
+    'Product node for relative clause; preserves `poi`, `subbridi`, and `kuho` in source order.\n\nThe marker set is camxes-standard\'s own NOI (camxes.peg:1695), which camxes-exp shares\n(:1807): `po\'oi`, `voi\'i` and `no\'oi` are rolling-Zantufa and camxes-exp extensions and\nno longer leak through this arm un-warned.'
     __match_args__: ClassVar[tuple[Literal['poi'], Literal['subbridi'], Literal['kuho']]]
     def __new__(
         cls,
@@ -11997,7 +12424,7 @@ class IncidentalBridiRelativeClauseSyntax:
     ) -> IncidentalBridiRelativeClauseSyntax: ...
     @property
     def noi(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The selected grammar alternative in the `noi` structural role of the `incidental_bridi_relative_clause` production.'
+        'The `Noi` cmavo marker.'
         ...
     @property
     def subbridi(self) -> RecoveredField[SubbridiSyntax]:
@@ -12006,6 +12433,204 @@ class IncidentalBridiRelativeClauseSyntax:
     @property
     def kuho(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
         'The optional `Kuho` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSelbriRelativeClausesSyntaxExpForethoughtSelbriRelativeClauses:
+    'Uses the `exp_forethought_selbri_relative_clauses` product form, whose payload preserves `gek`, `first`, `gik`, and `second`.'
+    __match_args__: ClassVar[tuple[Literal['exp_forethought_selbri_relative_clauses']]]
+    def __new__(cls, exp_forethought_selbri_relative_clauses: RecoveredField[ExpForethoughtSelbriRelativeClausesSyntax]) -> ExpSelbriRelativeClausesSyntaxExpForethoughtSelbriRelativeClauses: ...
+    @property
+    def exp_forethought_selbri_relative_clauses(self) -> RecoveredField[ExpForethoughtSelbriRelativeClausesSyntax]:
+        'Uses the `exp_forethought_selbri_relative_clauses` product form, whose payload preserves `gek`, `first`, `gik`, and `second`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSelbriRelativeClausesSyntaxExpAfterthoughtSelbriRelativeClauses:
+    'Uses the `exp_afterthought_selbri_relative_clauses` product form, whose payload preserves `first` and `additional`.'
+    __match_args__: ClassVar[tuple[Literal['exp_afterthought_selbri_relative_clauses']]]
+    def __new__(cls, exp_afterthought_selbri_relative_clauses: RecoveredField[ExpAfterthoughtSelbriRelativeClausesSyntax]) -> ExpSelbriRelativeClausesSyntaxExpAfterthoughtSelbriRelativeClauses: ...
+    @property
+    def exp_afterthought_selbri_relative_clauses(self) -> RecoveredField[ExpAfterthoughtSelbriRelativeClausesSyntax]:
+        'Uses the `exp_afterthought_selbri_relative_clauses` product form, whose payload preserves `first` and `additional`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for selbri relative clauses; selects among the `exp_forethought_selbri_relative_clauses` and `exp_afterthought_selbri_relative_clauses` forms.
+ExpSelbriRelativeClausesSyntax: TypeAlias = ExpSelbriRelativeClausesSyntaxExpForethoughtSelbriRelativeClauses | ExpSelbriRelativeClausesSyntaxExpAfterthoughtSelbriRelativeClauses
+
+@final
+class ExpForethoughtSelbriRelativeClausesSyntax:
+    'Product node for selbri relative clauses; preserves `gek`, `first`, `gik`, and `second` in source order.'
+    __match_args__: ClassVar[tuple[Literal['gek'], Literal['first'], Literal['gik'], Literal['second']]]
+    def __new__(
+        cls,
+        gek: RecoveredField[ModalForethoughtConnectiveSyntax],
+        first: RecoveredField[ExpSelbriRelativeClausesSyntax],
+        gik: RecoveredField[GikConnectiveSyntax],
+        second: RecoveredField[ExpSelbriRelativeClausesSyntax],
+    ) -> ExpForethoughtSelbriRelativeClausesSyntax: ...
+    @property
+    def gek(self) -> RecoveredField[ModalForethoughtConnectiveSyntax]:
+        'The forethought connective that opens the pair.'
+        ...
+    @property
+    def first(self) -> RecoveredField[ExpSelbriRelativeClausesSyntax]:
+        'The first relative-clause chain.'
+        ...
+    @property
+    def gik(self) -> RecoveredField[GikConnectiveSyntax]:
+        'The GI-family connective separating the branches.'
+        ...
+    @property
+    def second(self) -> RecoveredField[ExpSelbriRelativeClausesSyntax]:
+        'The second relative-clause chain.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpAfterthoughtSelbriRelativeClausesSyntax:
+    'Product node for selbri relative clauses; preserves `first` and `additional` in source order.'
+    __match_args__: ClassVar[tuple[Literal['first'], Literal['additional']]]
+    def __new__(cls, first: RecoveredField[ExpSelbriRelativeClauseSyntax], additional: Sequence[RecoveredField[ExpSelbriRelativeClauseContinuationSyntax]]) -> ExpAfterthoughtSelbriRelativeClausesSyntax: ...
+    @property
+    def first(self) -> RecoveredField[ExpSelbriRelativeClauseSyntax]:
+        'The initial relative clause before the ZIhE/joik continuations.'
+        ...
+    @property
+    def additional(self) -> tuple[RecoveredField[ExpSelbriRelativeClauseContinuationSyntax], ...]:
+        'Ordered sequence of zero or more additional components.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSelbriRelativeClauseContinuationSyntax:
+    'Product node for selbri relative clauses; preserves `connective` and `inner` in source order.'
+    __match_args__: ClassVar[tuple[Literal['connective'], Literal['inner']]]
+    def __new__(cls, connective: RecoveredField[ExpSelbriRelativeClauseConnectiveSyntax], inner: RecoveredField[ExpSelbriRelativeClauseSyntax]) -> ExpSelbriRelativeClauseContinuationSyntax: ...
+    @property
+    def connective(self) -> RecoveredField[ExpSelbriRelativeClauseConnectiveSyntax]:
+        'The connective joining the adjacent clauses.'
+        ...
+    @property
+    def inner(self) -> RecoveredField[ExpSelbriRelativeClauseSyntax]:
+        'The following relative clause.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSelbriRelativeClauseConnectiveSyntaxZiheSelbriRelativeConnective:
+    'Uses the `zihe_selbri_relative_connective` product form, whose payload preserves `zihe`.'
+    __match_args__: ClassVar[tuple[Literal['zihe_selbri_relative_connective']]]
+    def __new__(cls, zihe_selbri_relative_connective: RecoveredField[ZiheSelbriRelativeConnectiveSyntax]) -> ExpSelbriRelativeClauseConnectiveSyntaxZiheSelbriRelativeConnective: ...
+    @property
+    def zihe_selbri_relative_connective(self) -> RecoveredField[ZiheSelbriRelativeConnectiveSyntax]:
+        'Uses the `zihe_selbri_relative_connective` product form, whose payload preserves `zihe`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSelbriRelativeClauseConnectiveSyntaxJoikConnective:
+    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    __match_args__: ClassVar[tuple[Literal['joik_connective']]]
+    def __new__(cls, joik_connective: RecoveredField[JoikConnectiveSyntax]) -> ExpSelbriRelativeClauseConnectiveSyntaxJoikConnective: ...
+    @property
+    def joik_connective(self) -> RecoveredField[JoikConnectiveSyntax]:
+        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for relative clause connective; selects among the `zihe_selbri_relative_connective` and `joik_connective` forms.
+ExpSelbriRelativeClauseConnectiveSyntax: TypeAlias = ExpSelbriRelativeClauseConnectiveSyntaxZiheSelbriRelativeConnective | ExpSelbriRelativeClauseConnectiveSyntaxJoikConnective
+
+@final
+class ZiheSelbriRelativeConnectiveSyntax:
+    'Transparent product node for relative clause connective; preserves the `zihe` component.'
+    __match_args__: ClassVar[tuple[Literal['zihe']]]
+    def __new__(cls, zihe: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]) -> ZiheSelbriRelativeConnectiveSyntax: ...
+    @property
+    def zihe(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The `Zihe` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSelbriRelativeClauseSyntax:
+    'Product node for selbri relative clause; preserves `nohoi`, `subsentence`, and `kuhoi` in source order.\n\nR3 keeps the KUhO-terminated extents with rolling Zantufa, and KUhO is a terminator\ncamxes-exp does not have at all.  The clause therefore declines wherever a Zantufa\nstatement relative clause closed by an EXPLICIT `ku\'o` parses from the same position:\nthat is the whole of what the two routes dispute, because the description site parses\nits selbri before its relative-clause field and this arm would otherwise take the\nshorter reading and leave the `ku\'o` -- or the Zantufa-only body that precedes it --\nwith nowhere to attach.  A completed-candidate classifier cannot decide it: what\nseparates the owners is entirely what follows the shared prefix.'
+    __match_args__: ClassVar[tuple[Literal['nohoi'], Literal['subsentence'], Literal['kuhoi']]]
+    def __new__(
+        cls,
+        nohoi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]],
+        subsentence: RecoveredField[SubbridiSyntax],
+        kuhoi: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ExpSelbriRelativeClauseSyntax: ...
+    @property
+    def nohoi(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The NOhOI marker, which carries the warning for the whole construct.'
+        ...
+    @property
+    def subsentence(self) -> RecoveredField[SubbridiSyntax]:
+        'The shared subsentence child syntax node.'
+        ...
+    @property
+    def kuhoi(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Kuhoi` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaKuhoTerminatedStatementRelativeClauseSyntax:
+    'The rolling-Zantufa statement relative clause in its explicitly terminated form, used\nonly as the ownership reservation above.  It is never a node: nothing selects it.'
+    __match_args__: ClassVar[tuple[Literal['noi'], Literal['statement'], Literal['kuho']]]
+    def __new__(
+        cls,
+        noi: RecoveredField[Token],
+        statement: RecoveredField[ZantufaRelativeStatementSyntax],
+        kuho: RecoveredField[Token],
+    ) -> ZantufaKuhoTerminatedStatementRelativeClauseSyntax: ...
+    @property
+    def noi(self) -> RecoveredField[Token]:
+        'The rolling-Zantufa NOI inventory (zantufa-1.9999.peg:590).'
+        ...
+    @property
+    def statement(self) -> RecoveredField[ZantufaRelativeStatementSyntax]:
+        'The statement body.'
+        ...
+    @property
+    def kuho(self) -> RecoveredField[Token]:
+        'The explicit `Kuho` terminator that makes this extent Zantufa\'s.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -15999,12 +16624,12 @@ class SelbriSyntaxReinterpretZantufaAssignedSelbri:
 
 @final
 class SelbriSyntaxZantufaRelativeSelbri:
-    'Rolling-Zantufa selbri-level relative attachment.'
+    'Rolling-Zantufa selbri-level relative attachment, a retained gated omission.'
     __match_args__: ClassVar[tuple[Literal['zantufa_relative_selbri']]]
     def __new__(cls, zantufa_relative_selbri: RecoveredField[ZantufaRelativeSelbriSyntax]) -> SelbriSyntaxZantufaRelativeSelbri: ...
     @property
     def zantufa_relative_selbri(self) -> RecoveredField[ZantufaRelativeSelbriSyntax]:
-        'Rolling-Zantufa selbri-level relative attachment.'
+        'Rolling-Zantufa selbri-level relative attachment, a retained gated omission.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -16073,7 +16698,7 @@ class ReinterpretZantufaAssignedSelbriSyntax:
 
 @final
 class ZantufaRelativeSelbriSyntax:
-    'Rolling-Zantufa relative attachment at selbri level, before any CEI\nassignments in source order.'
+    'Rolling-Zantufa relative attachment at selbri level, before any CEI\nassignments in source order (zantufa-1.9999.peg:45).\n\nS3, and the epoch\'s one retained gated omission. Default-enabling it was measured and\nrejected: the arm is reached inside every nesting whose terminator may elide, and there\nthe enclosing description\'s own relative-clause field is the baseline\'s site for the\nvery same clause. `.uesai le ni mrilu poi srana la lojban. cu mutce caku` is\n`the [quantity of mailing] which concerns Lojban` to camxes-standard and\n`the quantity of [mailing which concerns Lojban]` to this arm, over an identical\nextent, and twenty-four corpus fixtures read that way. R1 puts the baseline first, and\nthe boundary that would let both hold -- the no-terminal-relative entry followed down\nthe right spine and into an abstraction body -- is a ladder this epoch does not build.\nA candidate-local classifier cannot stand in for it: the same list is Zantufa\'s alone\nwhere no enclosing site exists, which `re broda poi brode ku` measures.\n\nIt runs ahead of the selbri ladder, so its list carries the S3 ownership classifier: a\nlist every one of whose clauses camxes-exp\'s tanru-unit relative could form belongs to\nthat route, and reaches it by failing here.'
     __match_args__: ClassVar[tuple[Literal['leading_selbri'], Literal['relative_clauses'], Literal['assignments']]]
     def __new__(
         cls,
@@ -16596,6 +17221,20 @@ class BoundSelbriTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class PlainBoSelbriSyntaxExpRelativeTanruUnit:
+    'A CEI-capable tanru unit carrying camxes-exp\'s tanru-unit relative clauses.'
+    __match_args__: ClassVar[tuple[Literal['exp_relative_tanru_unit']]]
+    def __new__(cls, exp_relative_tanru_unit: RecoveredField[ExpRelativeTanruUnitSyntax]) -> PlainBoSelbriSyntaxExpRelativeTanruUnit: ...
+    @property
+    def exp_relative_tanru_unit(self) -> RecoveredField[ExpRelativeTanruUnitSyntax]:
+        'A CEI-capable tanru unit carrying camxes-exp\'s tanru-unit relative clauses.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class PlainBoSelbriSyntaxPlainBoTanruUnit:
     'A CEI-capable tanru unit with an optional plain BO continuation.'
     __match_args__: ClassVar[tuple[Literal['plain_bo_tanru_unit']]]
@@ -16624,7 +17263,34 @@ class PlainBoSelbriSyntaxForethoughtSelbriConnection:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for selbri level 6.
-PlainBoSelbriSyntax: TypeAlias = PlainBoSelbriSyntaxPlainBoTanruUnit | PlainBoSelbriSyntaxForethoughtSelbriConnection
+PlainBoSelbriSyntax: TypeAlias = PlainBoSelbriSyntaxExpRelativeTanruUnit | PlainBoSelbriSyntaxPlainBoTanruUnit | PlainBoSelbriSyntaxForethoughtSelbriConnection
+
+@final
+class ExpRelativeTanruUnitSyntax:
+    'Product node for a CEI-capable unit carrying camxes-exp\'s relative clauses.\n\n`tanru_unit <- tanru_unit_1 (CEI free* tanru_unit_1)* selbri_relative_clauses?`\n(camxes-exp.peg:241) puts the chain after the CEI chain, inside the BO level.  It is a\nseparate arm rather than an optional field on `tanru_unit` so that an ordinary tanru\nunit -- which is nearly every node in the corpus -- keeps the shape it has; the arm is\nstructurally disjoint from `plain_bo_tanru_unit` because it requires the chain, and it\nruns first so a present chain is not left behind by the shorter arm.'
+    __match_args__: ClassVar[tuple[Literal['leading_unit'], Literal['relative_clauses'], Literal['bo_tail']]]
+    def __new__(
+        cls,
+        leading_unit: RecoveredField[TanruUnitSyntax],
+        relative_clauses: RecoveredField[ExpSelbriRelativeClausesSyntax],
+        bo_tail: RecoveredField[PlainBoSelbriTailSyntax] | None,
+    ) -> ExpRelativeTanruUnitSyntax: ...
+    @property
+    def leading_unit(self) -> RecoveredField[TanruUnitSyntax]:
+        'The leading complete tanru unit, including any CEI assignments.'
+        ...
+    @property
+    def relative_clauses(self) -> RecoveredField[ExpSelbriRelativeClausesSyntax]:
+        'The required relative-clause chain.'
+        ...
+    @property
+    def bo_tail(self) -> RecoveredField[PlainBoSelbriTailSyntax] | None:
+        'The optional connectorless BO continuation.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class PlainBoTanruUnitSyntax:
