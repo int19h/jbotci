@@ -5,6 +5,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
 use std::io::ErrorKind;
+use std::num::NonZeroU16;
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -13,7 +14,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result, bail};
 #[allow(unused_imports)]
-use bityzba::{contract_trait, ensures, invariant, new, requires};
+use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{
@@ -50,10 +51,10 @@ use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 use xtask_common::fixtures::{
     self, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend, FixtureProfile,
-    FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm, Provenance, RunSummary,
-    SyntaxExpectation, TestCase, TextExpectation, fixture_matches_selector, fixture_paths,
-    import_export_file, load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree,
-    write_fixture_file,
+    FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm, Provenance, ProvenanceData,
+    RunSummary, SyntaxExpectation, TestCase, TextExpectation, fixture_matches_selector,
+    fixture_paths, import_export_file, load_fixture_path, load_profile, validate_fixture_tree,
+    visit_fixture_tree, write_fixture_file,
 };
 use xtask_common::service_worker::{
     RELEASE_SERVICE_WORKER_TEMPLATE, render_release_service_worker,
@@ -369,7 +370,7 @@ struct FixtureRunArgs {
     #[arg(long = "path")]
     paths: Vec<String>,
     #[arg(long = "cll-chapter")]
-    cll_chapter: Option<u16>,
+    cll_chapter: Option<NonZeroU16>,
     #[arg(long = "cll-appendix")]
     cll_appendix: Option<String>,
     #[arg(long = "cll-section")]
@@ -438,7 +439,7 @@ struct CllFixtureMetadataAuditArgs {
     #[arg(long = "path")]
     paths: Vec<String>,
     #[arg(long = "cll-chapter")]
-    cll_chapter: Option<u16>,
+    cll_chapter: Option<NonZeroU16>,
     #[arg(long = "cll-appendix")]
     cll_appendix: Option<String>,
     #[arg(long = "cll-section")]
@@ -6639,7 +6640,7 @@ fn export_long_text_fixtures(args: ExportLongTextFixturesArgs) -> Result<()> {
             translation_en: None,
             gloss_en: None,
             tags: vec!["long-text".to_owned(), "regression-baseline".to_owned()],
-            provenance: vec![Provenance::Cll {
+            provenance: vec![new!(Provenance::Cll {
                 chapter: None,
                 appendix: Some(appendix),
                 section_number: None,
@@ -6647,7 +6648,7 @@ fn export_long_text_fixtures(args: ExportLongTextFixturesArgs) -> Result<()> {
                 example_number: None,
                 example_id: None,
                 source_path: Some(format!("vendor/cll/chapters/{}", section.source_path)),
-            }],
+            })],
             expectations: Expectations {
                 morphology: Some(MorphologyExpectation {
                     status: ExpectationStatus::Success,
@@ -6855,7 +6856,7 @@ fn cll_fixture_metadata_audit(args: CllFixtureMetadataAuditArgs) -> Result<()> {
             .test_case
             .provenance
             .iter()
-            .filter(|provenance| matches!(provenance, Provenance::Cll { .. }))
+            .filter(|provenance| provenance.is_cll())
             .count();
         if cll_provenance_count == 0 {
             continue;
@@ -6863,9 +6864,9 @@ fn cll_fixture_metadata_audit(args: CllFixtureMetadataAuditArgs) -> Result<()> {
         summary.selected_fixture_count += 1;
         summary.cll_provenance_count += cll_provenance_count;
         for provenance in &fixture.test_case.provenance {
-            let Provenance::Cll { .. } = provenance else {
+            if !provenance.is_cll() {
                 continue;
-            };
+            }
             audit_cll_fixture_provenance(site, &fixture, provenance, &mut rows)?;
         }
     }
@@ -6933,7 +6934,7 @@ fn merge_cll_fixture_metadata_audit_selector(
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn audit_cll_fixture_provenance(
     site: &CllSite,
@@ -7008,16 +7009,16 @@ fn cll_division_designation(site: &CllSite, section_id: &str) -> Option<CllDivis
     })
 }
 
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[ensures(true)]
 fn cll_provenance_references_example(provenance: &Provenance) -> bool {
     matches!(
-        provenance,
-        Provenance::Cll {
+        provenance.as_data(),
+        data!(Provenance::Cll {
             example_number,
             example_id,
             ..
-        } if example_number.is_some() || example_id.is_some()
+        }) if example_number.is_some() || example_id.is_some()
     )
 }
 
@@ -7026,7 +7027,7 @@ fn cll_provenance_references_example(provenance: &Provenance) -> bool {
 /// is no single example whose Lojban, gloss, or translation the fixture text
 /// should reproduce.
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[requires(!cll_provenance_references_example(provenance))]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn audit_cll_fixture_section_provenance(
@@ -7035,11 +7036,11 @@ fn audit_cll_fixture_section_provenance(
     provenance: &Provenance,
     rows: &mut Vec<CllFixtureMetadataAuditRow>,
 ) -> Result<()> {
-    let Provenance::Cll {
+    let data!(Provenance::Cll {
         section_id,
         source_path,
         ..
-    } = provenance
+    }) = provenance.as_data()
     else {
         return Ok(());
     };
@@ -7084,7 +7085,7 @@ fn audit_cll_fixture_section_provenance(
 /// fixture that still records a chapter number for appendix material reports as
 /// drift on both rows.
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[requires(!section_id.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn push_cll_fixture_division_audit_rows(
@@ -7096,12 +7097,12 @@ fn push_cll_fixture_division_audit_rows(
     section_number: Option<&str>,
     resolution_note: &str,
 ) -> Result<()> {
-    let Provenance::Cll {
+    let data!(Provenance::Cll {
         chapter,
         appendix,
         section_number: fixture_section_number,
         ..
-    } = provenance
+    }) = provenance.as_data()
     else {
         return Ok(());
     };
@@ -7148,20 +7149,20 @@ fn push_cll_fixture_division_audit_rows(
     Ok(())
 }
 
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[ensures(true)]
 fn resolve_cll_fixture_example<'a>(
     site: &'a CllSite,
     provenance: &Provenance,
 ) -> Option<ResolvedCllFixtureExample<'a>> {
-    let Provenance::Cll {
+    let data!(Provenance::Cll {
         chapter,
         appendix,
         section_number,
         example_number,
         example_id,
         ..
-    } = provenance
+    }) = provenance.as_data()
     else {
         return None;
     };
@@ -7193,7 +7194,7 @@ fn resolve_cll_fixture_example<'a>(
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn push_cll_fixture_provenance_audit_rows(
     site: &CllSite,
@@ -7202,12 +7203,12 @@ fn push_cll_fixture_provenance_audit_rows(
     resolved: &ResolvedCllFixtureExample<'_>,
     rows: &mut Vec<CllFixtureMetadataAuditRow>,
 ) -> Result<()> {
-    let Provenance::Cll {
+    let data!(Provenance::Cll {
         example_number,
         example_id,
         source_path,
         ..
-    } = provenance
+    }) = provenance.as_data()
     else {
         return Ok(());
     };
@@ -7256,7 +7257,7 @@ fn push_cll_fixture_provenance_audit_rows(
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[requires(!field.is_empty())]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn push_cll_fixture_provenance_field_row(
@@ -7501,7 +7502,7 @@ fn source_paths_have_same_file_name(left: &str, right: &str) -> bool {
 }
 
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[requires(!field.is_empty())]
 #[requires(!status.as_str().is_empty())]
 #[requires(!severity.as_str().is_empty())]
@@ -7516,14 +7517,14 @@ fn cll_fixture_metadata_audit_row(
     cll_values: &[String],
     note: &str,
 ) -> Result<CllFixtureMetadataAuditRow> {
-    let Provenance::Cll {
+    let data!(Provenance::Cll {
         chapter,
         appendix,
         section_number,
         example_number,
         example_id,
         ..
-    } = provenance
+    }) = provenance.as_data()
     else {
         bail!("expected CLL provenance")
     };
@@ -7546,17 +7547,17 @@ fn cll_fixture_metadata_audit_row(
     })
 }
 
-#[requires(matches!(provenance, Provenance::Cll { .. }))]
+#[requires(provenance.is_cll())]
 #[ensures(!ret.is_empty())]
 fn format_cll_fixture_provenance_key(provenance: &Provenance) -> String {
-    let Provenance::Cll {
+    let data!(Provenance::Cll {
         chapter,
         appendix,
         section_number,
         example_number,
         example_id,
         ..
-    } = provenance
+    }) = provenance.as_data()
     else {
         return String::new();
     };
@@ -14354,17 +14355,17 @@ mod tests {
     }
 
     #[requires(true)]
-    #[ensures(matches!(ret, Provenance::Cll { .. }))]
+    #[ensures(ret.is_cll())]
     fn test_cll_provenance(example_id: Option<&str>, example_number: Option<&str>) -> Provenance {
-        Provenance::Cll {
-            chapter: Some(6),
+        new!(Provenance::Cll {
+            chapter: Some(NonZeroU16::new(6).expect("test chapter number is non-zero")),
             appendix: None,
             section_number: Some("6.2".to_owned()),
             section_id: "section-6.2".to_owned(),
             example_number: example_number.map(str::to_owned),
             example_id: example_id.map(str::to_owned),
             source_path: Some("chapter-6.xml".to_owned()),
-        }
+        })
     }
 
     #[test]

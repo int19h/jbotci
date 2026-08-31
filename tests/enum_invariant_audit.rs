@@ -2228,10 +2228,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "fixture error wrapper carries fixture source declaration diagnostics",
     ),
     (
-        "xtask-common/src/fixtures/mod.rs:FixtureError::InvalidProvenance",
-        "fixture error wrapper carries provenance diagnostics",
-    ),
-    (
         "xtask-common/src/fixtures/mod.rs:FixtureError::InvalidXfail",
         "fixture error wrapper carries xfail diagnostics",
     ),
@@ -2286,26 +2282,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "xtask-common/src/fixtures/mod.rs:JvozbaSegmentKindExpectation::Rafsi",
         "fixture jvozba segment kind is a closed expected-output selector",
-    ),
-    (
-        "xtask-common/src/fixtures/mod.rs:Provenance::Adhoc",
-        "ad hoc provenance intentionally permits absent description",
-    ),
-    (
-        "xtask-common/src/fixtures/mod.rs:Provenance::Cll",
-        "fixture tree validation checks provenance completeness at import time",
-    ),
-    (
-        "xtask-common/src/fixtures/mod.rs:Provenance::Corpus",
-        "fixture tree validation checks provenance completeness at import time",
-    ),
-    (
-        "xtask-common/src/fixtures/mod.rs:Provenance::Muplis",
-        "fixture tree validation checks provenance completeness at import time",
-    ),
-    (
-        "xtask-common/src/fixtures/mod.rs:Provenance::Other",
-        "fixture tree validation checks custom provenance names at import time",
     ),
     (
         "xtask-common/src/fixtures/mod.rs:TextExpectationWire::Table",

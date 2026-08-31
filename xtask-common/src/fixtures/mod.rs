@@ -5,9 +5,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs;
+use std::num::NonZeroU16;
 use std::path::{Component, Path, PathBuf};
 
-use bityzba::{invariant, requires};
+use bityzba::{data, invariant, requires};
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity, source_text_for_span};
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_orthography::LojbanScript;
@@ -102,7 +103,9 @@ impl TestCase {
     #[ensures(ret -> !self.id.is_empty())]
     #[ensures(ret -> self.validate_xfail_metadata().is_ok())]
     #[ensures(ret -> self.dialect_definition().is_ok())]
-    #[ensures(ret -> self.validate_provenance().is_ok())]
+    // Provenance validity is not checked here: `Provenance` is an
+    // invariant-bearing type, so a `TestCase` cannot hold a malformed one -
+    // deserialization rejects it before a `TestCase` exists at all.
     pub fn is_valid_fixture_metadata(&self) -> bool {
         !self.id.is_empty()
             && self
@@ -110,22 +113,6 @@ impl TestCase {
                 .as_deref()
                 .is_none_or(|formula| parse_dialect_definition(formula).is_ok())
             && self.validate_xfail_metadata().is_ok()
-            && self
-                .provenance
-                .iter()
-                .all(Provenance::has_well_formed_division)
-    }
-
-    #[requires(true)]
-    #[ensures(ret.is_ok() == self.provenance.iter().all(Provenance::has_well_formed_division))]
-    pub fn validate_provenance(&self) -> Result<(), FixtureError> {
-        match self.provenance.iter().find_map(Provenance::division_error) {
-            Some(message) => Err(FixtureError::InvalidProvenance {
-                id: self.id.clone(),
-                message,
-            }),
-            None => Ok(()),
-        }
     }
 
     #[requires(true)]
@@ -374,21 +361,50 @@ impl TestCase {
     }
 }
 
+/// Where a fixture's source text came from.
+///
+/// Every variant is validated on construction and on deserialization, so a
+/// fixture file with a malformed provenance block is rejected by the loader
+/// itself rather than by a downstream precondition.
+#[invariant(
+    ::Cll => chapter.is_some() != appendix.is_some()
+        && chapter.is_some() == section_number.is_some()
+        && appendix.as_ref().is_none_or(|appendix| !appendix.is_empty())
+        && section_number.as_ref().is_none_or(|number| !number.is_empty())
+        && !section_id.is_empty()
+        && example_number.as_ref().is_none_or(|number| !number.is_empty())
+        && example_id.as_ref().is_none_or(|id| !id.is_empty())
+        && source_path.as_ref().is_none_or(|path| !path.is_empty()),
+    "CLL provenance names exactly one division - a numbered chapter with the section number the book prints, or an appendix by its stable id - and every recorded identifier is non-empty"
+)]
+#[invariant(
+    ::Muplis => !collection_id.is_empty()
+        && item_id.as_ref().is_none_or(|id| !id.is_empty())
+        && url.as_ref().is_none_or(|url| !url.is_empty())
+)]
+#[invariant(
+    ::Corpus => !corpus.is_empty()
+        && entry_id.as_ref().is_none_or(|id| !id.is_empty())
+        && md5.as_ref().is_none_or(|md5| {
+            md5.len() == 32 && md5.chars().all(|digit| digit.is_ascii_hexdigit())
+        })
+)]
+#[invariant(::Adhoc => description.as_ref().is_none_or(|description| !description.is_empty()))]
+#[invariant(
+    ::Other => !name.is_empty()
+        && url.as_ref().is_none_or(|url| !url.is_empty())
+        && description.as_ref().is_none_or(|description| !description.is_empty())
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-#[invariant(true)]
-#[invariant(::Cll => true)]
-#[invariant(::Muplis => true)]
-#[invariant(::Corpus => true)]
-#[invariant(::Adhoc => true)]
-#[invariant(::Other => true)]
 pub enum Provenance {
     Cll {
         /// The numbered chapter the source section belongs to. Absent exactly
         /// when the source is an appendix, which the book designates by title
-        /// rather than by a chapter number.
+        /// rather than by a chapter number. `NonZeroU16` mirrors the core
+        /// `CllDivision::Chapter` so chapter 0 is unrepresentable here too.
         #[serde(default)]
-        chapter: Option<u16>,
+        chapter: Option<NonZeroU16>,
         /// The stable division id of the appendix the source section belongs to
         /// (for example `volume-chrestomathy`). Present exactly when `chapter`
         /// is absent. The book gives appendices no number and no letter, so
@@ -443,61 +459,20 @@ impl Provenance {
     #[requires(true)]
     #[ensures(true)]
     pub fn kind_name(&self) -> &'static str {
-        match self {
-            Self::Cll { .. } => "cll",
-            Self::Muplis { .. } => "muplis",
-            Self::Corpus { .. } => "corpus",
-            Self::Adhoc { .. } => "adhoc",
-            Self::Other { .. } => "other",
+        match self.as_data() {
+            data!(Provenance::Cll { .. }) => "cll",
+            data!(Provenance::Muplis { .. }) => "muplis",
+            data!(Provenance::Corpus { .. }) => "corpus",
+            data!(Provenance::Adhoc { .. }) => "adhoc",
+            data!(Provenance::Other { .. }) => "other",
         }
     }
 
-    /// Why the division fields of CLL provenance are not well formed, if they
-    /// are not: a fixture names its source division the way the book does, so
-    /// it carries either a chapter number together with the section number the
-    /// book prints, or the stable id of the appendix and no number at all.
+    /// Whether this provenance points into the CLL.
     #[requires(true)]
-    #[ensures(ret.is_none() == self.has_well_formed_division())]
-    pub fn division_error(&self) -> Option<String> {
-        let Self::Cll {
-            chapter,
-            appendix,
-            section_number,
-            ..
-        } = self
-        else {
-            return None;
-        };
-        match (chapter, appendix) {
-            (Some(chapter), Some(appendix)) => Some(format!(
-                "CLL provenance names both chapter {chapter} and appendix `{appendix}`"
-            )),
-            (None, None) => {
-                Some("CLL provenance names neither a chapter nor an appendix".to_owned())
-            }
-            (Some(chapter), None) if section_number.is_none() => Some(format!(
-                "CLL provenance for chapter {chapter} is missing `section-number`"
-            )),
-            (None, Some(appendix)) if section_number.is_some() => Some(format!(
-                "CLL provenance for appendix `{appendix}` carries a section number, but the book gives appendix sections none"
-            )),
-            _ => None,
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    pub fn has_well_formed_division(&self) -> bool {
-        let Self::Cll {
-            chapter,
-            appendix,
-            section_number,
-            ..
-        } = self
-        else {
-            return true;
-        };
-        chapter.is_some() != appendix.is_some() && chapter.is_some() == section_number.is_some()
+    #[ensures(ret == (self.kind_name() == "cll"))]
+    pub fn is_cll(&self) -> bool {
+        matches!(self.as_data(), data!(Provenance::Cll { .. }))
     }
 }
 
@@ -1141,7 +1116,7 @@ pub struct FixtureSelector {
 #[invariant(true)]
 pub struct CllSelector {
     #[serde(default)]
-    pub chapter: Option<u16>,
+    pub chapter: Option<NonZeroU16>,
     #[serde(default)]
     pub appendix: Option<String>,
     #[serde(default, rename = "section-number")]
@@ -1186,7 +1161,6 @@ pub struct LoadedTestCase {
 #[invariant(::InvalidDialect => true)]
 #[invariant(::InvalidXfail => true)]
 #[invariant(::InvalidLojbanSource => true)]
-#[invariant(::InvalidProvenance => true)]
 #[invariant(::LegacyExpectationFormat => true)]
 pub enum FixtureError {
     #[error("failed to read `{path}`: {source}")]
@@ -1235,8 +1209,6 @@ pub enum FixtureError {
     },
     #[error("fixture `{id}` has invalid syntax xfail metadata: {message}")]
     InvalidXfail { id: String, message: String },
-    #[error("fixture `{id}` has invalid provenance: {message}")]
-    InvalidProvenance { id: String, message: String },
     #[error("fixture `{path}` has invalid Lojban source declaration: {message}")]
     InvalidLojbanSource { path: PathBuf, message: String },
     #[error("fixture `{path}` uses legacy expectation format: {message}")]
@@ -1531,7 +1503,6 @@ pub fn validate_fixture_tree(root: impl AsRef<Path>) -> Result<FixtureSummary, F
         let test_case = load_fixture_file(&path)?;
         test_case.dialect_definition()?;
         test_case.validate_xfail_metadata()?;
-        test_case.validate_provenance()?;
         if let Some(first) = seen.insert(test_case.id.clone(), path.clone()) {
             return Err(FixtureError::DuplicateId {
                 id: test_case.id,
@@ -1650,28 +1621,30 @@ pub fn import_export_file(
 #[requires(case.is_valid_fixture_metadata())]
 #[ensures(ret.extension().is_some_and(|ext| ext == "toml"))]
 pub fn path_for_case(case: &TestCase) -> PathBuf {
-    match case.provenance.first() {
-        Some(Provenance::Cll {
-            chapter,
-            appendix,
-            section_number,
-            section_id,
-            example_id,
-            ..
-        }) => {
+    match case.provenance.first().map(Provenance::as_data) {
+        Some(
+            data!(Provenance::Cll {
+                chapter,
+                appendix,
+                section_number,
+                section_id,
+                example_id,
+                ..
+            }),
+        ) => {
             let file = example_id
                 .as_deref()
                 .unwrap_or(case.id.as_str())
                 .replace(['/', '\\'], "_");
             // Numbered chapters lay out as `chapter-NN/section-N.M`; appendices
             // have no numbers to lay out by, so they use the stable division and
-            // section ids the book addresses them with. This function's
-            // precondition rules out a provenance that names neither, but a
-            // fixture is still better filed under a placeholder than lost.
+            // section ids the book addresses them with.
             let division_dir = match (chapter, appendix) {
-                (Some(chapter), _) => format!("chapter-{chapter:02}"),
+                (Some(chapter), _) => format!("chapter-{:02}", chapter.get()),
                 (None, Some(appendix)) => appendix.replace(['/', '\\'], "_"),
-                (None, None) => "unknown-division".to_owned(),
+                (None, None) => {
+                    unreachable!("the Provenance::Cll invariant names exactly one division")
+                }
             };
             let section_dir = match section_number {
                 Some(section_number) => format!("section-{section_number}"),
@@ -1682,12 +1655,14 @@ pub fn path_for_case(case: &TestCase) -> PathBuf {
                 .join(section_dir)
                 .join(format!("{file}.toml"))
         }
-        Some(Provenance::Muplis {
-            collection_id,
-            item_id,
-            form,
-            ..
-        }) => {
+        Some(
+            data!(Provenance::Muplis {
+                collection_id,
+                item_id,
+                form,
+                ..
+            }),
+        ) => {
             let item = item_id.as_deref().unwrap_or(case.id.as_str());
             let suffix = form.map_or("unknown", |form| match form {
                 MuplisForm::Front => "front",
@@ -1697,18 +1672,22 @@ pub fn path_for_case(case: &TestCase) -> PathBuf {
                 .join(format!("collection-{collection_id}"))
                 .join(format!("{item}-{suffix}.toml"))
         }
-        Some(Provenance::Corpus {
-            corpus, entry_id, ..
-        }) => {
+        Some(
+            data!(Provenance::Corpus {
+                corpus,
+                entry_id,
+                ..
+            }),
+        ) => {
             let item = entry_id.as_deref().unwrap_or(case.id.as_str());
             PathBuf::from("corpus")
                 .join(corpus)
                 .join(format!("{}.toml", item.replace(['/', '\\'], "_")))
         }
-        Some(Provenance::Adhoc { .. }) | None => {
+        Some(data!(Provenance::Adhoc { .. })) | None => {
             PathBuf::from("adhoc").join(format!("{}.toml", case.id.replace('.', "/")))
         }
-        Some(Provenance::Other { name, .. }) => PathBuf::from("other")
+        Some(data!(Provenance::Other { name, .. })) => PathBuf::from("other")
             .join(name)
             .join(format!("{}.toml", case.id.replace(['/', '\\'], "_"))),
     }
@@ -1796,7 +1775,7 @@ fn matches_selector(root: &Path, fixture: &LoadedTestCase, selector: &FixtureSel
 #[requires(true)]
 #[ensures(true)]
 fn matches_cll_selector(provenance: &Provenance, selector: &CllSelector) -> bool {
-    let Provenance::Cll {
+    let data!(Provenance::Cll {
         chapter,
         appendix,
         section_number,
@@ -1804,7 +1783,7 @@ fn matches_cll_selector(provenance: &Provenance, selector: &CllSelector) -> bool
         example_number,
         example_id,
         ..
-    } = provenance
+    }) = provenance.as_data()
     else {
         return false;
     };
@@ -1834,12 +1813,12 @@ fn matches_cll_selector(provenance: &Provenance, selector: &CllSelector) -> bool
 #[requires(true)]
 #[ensures(true)]
 fn matches_muplis_selector(provenance: &Provenance, selector: &MuplisSelector) -> bool {
-    let Provenance::Muplis {
+    let data!(Provenance::Muplis {
         collection_id,
         item_id,
         form,
         ..
-    } = provenance
+    }) = provenance.as_data()
     else {
         return false;
     };
