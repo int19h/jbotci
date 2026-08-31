@@ -794,14 +794,14 @@ reports a lower bound on the failing set rather than the set itself.
 
 | component | result | log |
 | --- | --- | --- |
-| `cargo fmt --all --check` | clean | `epoch08-r2-g-fmt.log` |
+| `cargo fmt --all --check` | clean | `epoch08-r2-g6-fmt.log` |
 | `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,653 passed, 0 failed, 16 ignored | `epoch08-r2-g-workspace.log` |
 | `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,652 passed, 0 failed | `epoch08-r2-g2-expensive.log` |
 | `fixture-test --profile all` | 26,662 fixtures, 72,610 passed, 519 xfailed, 0 failed | `epoch08-r2-g6-fixtures-all.log` |
 | tagged facet `subsentence-epoch` | 89 fixtures, 3 facets, 91 passed, 0 failed | `epoch08-r2-g6-tagged-facet.log` |
 | frozen syntax facet, same tag | 89 fixtures, 89 passed, 0 failed | `epoch08-r2-g6-frozen-facet.log` |
 | comparer | 122 changed / 86 + 6 + 1 + 0 + 0 mechanical / 29 manual / 0 prose / 89 epoch-new / 0 unpaired / 0 witness deltas / 0 witnesses missing diagnostics | `epoch08-r2-g6-comparer.log` |
-| comparer unit tests | 27 tests, green | `epoch08-r2-g-comparer-test.log` |
+| comparer unit tests | 27 tests, green | `epoch08-r2-g6-comparer-test.log` |
 | `cargo build -p jbotci` (debug) | green | `epoch08-r2-g-debug-jbotci.log` |
 | `dx build` | green | `epoch08-r2-g-dx.log` |
 | `maturin develop` | green | `epoch08-r2-g-maturin.log` |
