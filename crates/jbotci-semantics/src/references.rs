@@ -5603,6 +5603,18 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn bind_prenex_cei_predicate_targets_for_zantufa_relative_statement(
+        &mut self,
+        terms: &'tree [generated::TermSyntax],
+        statement: &'tree generated::ZantufaRelativeStatementSyntax,
+    ) {
+        if let Some(bridi) = self.zantufa_relative_statement_main_predicate_id(statement) {
+            self.bind_prenex_cei_predicate_targets(terms, bridi);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn bind_prenex_cei_predicate_targets_for_subbridi(
         &mut self,
         terms: &'tree [generated::TermSyntax],
@@ -5660,6 +5672,31 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::StatementBaseSyntax::TextGroupStatement(_)
             | generated::StatementBaseSyntax::ForethoughtStatement(_) => None,
+        }
+    }
+
+    /// The tailored Zantufa relative statement's main predicate, resolved the way the shared
+    /// statement's is: through the prenexes down to the bridi, and absent for an I-connection or
+    /// a TUhE group, neither of which has one predicate a prenex CEI could name.
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_relative_statement_main_predicate_id(
+        &self,
+        statement: &'tree generated::ZantufaRelativeStatementSyntax,
+    ) -> Option<BridiNodeId> {
+        match statement {
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(
+                statement,
+            ) => self.zantufa_relative_statement_main_predicate_id(&statement.inner_statement),
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => None,
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => {
+                match base {
+                    generated::ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => None,
+                    generated::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
+                        statement,
+                    ) => Some(BridiNodeId(self.raw_for_node(&statement.0))),
+                }
+            }
         }
     }
 
@@ -6242,7 +6279,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
                 let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
                 self.bind_prenex_relation_variables(&statement.prenex_terms);
+                let previous_cei_bridi_bindings = self.cei_bridi_bindings.clone();
+                self.bind_prenex_cei_predicate_targets_for_zantufa_relative_statement(
+                    &statement.prenex_terms,
+                    &statement.inner_statement,
+                );
                 self.visit_zantufa_relative_statement(&statement.inner_statement);
+                self.cei_bridi_bindings = previous_cei_bridi_bindings;
                 self.selbri_variable_bindings = previous_selbri_variable_bindings;
                 self.da_bindings = previous_da_bindings;
             }
@@ -6250,8 +6293,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 connection,
             ) => {
                 self.visit_zantufa_relative_statement_base(&connection.leading_statement);
+                // The whole continuation, as the shared statement visitor walks its own: the
+                // `i` and the connective may carry a tense-modal tag, and references inside
+                // that tag are as real as the ones in the statement it introduces.
                 for continuation in &connection.continuations {
-                    self.visit_zantufa_relative_statement_base(&continuation.trailing_statement);
+                    self.walk_node(continuation);
                 }
             }
             generated::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(statement) => {
