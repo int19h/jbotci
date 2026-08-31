@@ -136,8 +136,8 @@ pub(super) fn build_section_reference_index(site: &CllSite) -> BTreeMap<String, 
         // Appendix sections have no number to cite: their stable `xml:id`,
         // registered above and recorded in fixture provenance, is their
         // addressable form, and their title is their displayed designation.
-        if let Some(number) = &section.number {
-            insert_reference(&mut index, number, &section.section_id);
+        if let Some(number) = section.number {
+            insert_reference(&mut index, &number.to_string(), &section.section_id);
             insert_reference(
                 &mut index,
                 &format!("section-{number}"),

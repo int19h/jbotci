@@ -142,7 +142,7 @@ pub(super) fn build_search_chunks(site: &CllSite) -> Vec<CllSearchChunk> {
                 role: None,
                 section_id: section.section_id.clone(),
                 anchor_id: section.section_id.clone(),
-                section_number: section.number.clone(),
+                section_number: section.number.map(|number| number.to_string()),
                 section_title: section.title.clone(),
                 label: section_label.clone(),
                 text: section_text.clone(),
@@ -197,7 +197,7 @@ impl CllBlockVisitor for SearchChunkVisitor<'_, '_, '_> {
                         anchor_id: anchor_id
                             .clone()
                             .unwrap_or_else(|| self.section.section_id.clone()),
-                        section_number: self.section.number.clone(),
+                        section_number: self.section.number.map(|number| number.to_string()),
                         section_title: self.section.title.clone(),
                         label: format!(
                             "Paragraph in {}",
@@ -216,7 +216,7 @@ impl CllBlockVisitor for SearchChunkVisitor<'_, '_, '_> {
                             role: None,
                             section_id: self.section.section_id.clone(),
                             anchor_id: example.anchor_id.clone(),
-                            section_number: self.section.number.clone(),
+                            section_number: self.section.number.map(|number| number.to_string()),
                             section_title: self.section.title.clone(),
                             label: example.label.clone(),
                             text: example.plain_text.clone(),

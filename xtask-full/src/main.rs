@@ -18,8 +18,8 @@ use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{
-    CllExample, CllExampleLineKind, CllSite, chrestomathy_section_texts, cll_lookup_section,
-    embedded_cll_site,
+    CllExample, CllExampleLineKind, CllSectionNumber, CllSite, chrestomathy_section_texts,
+    cll_lookup_section, embedded_cll_site,
 };
 use jbotci_diagnostics::{Diagnostic, DiagnosticSeverity};
 use jbotci_dictionary::import::parse_lensisku_json;
@@ -6997,9 +6997,9 @@ struct CllDivisionDesignation {
 #[ensures(ret.is_some() == site.sections_by_id.contains_key(section_id))]
 fn cll_division_designation(site: &CllSite, section_id: &str) -> Option<CllDivisionDesignation> {
     let section = site.sections_by_id.get(section_id)?;
-    Some(match section.division.number_label() {
+    Some(match section.division.chapter_number() {
         Some(number) => new!(CllDivisionDesignation {
-            chapter: Some(number),
+            chapter: Some(number.to_string()),
             appendix: None,
         }),
         None => new!(CllDivisionDesignation {
@@ -7064,7 +7064,7 @@ fn audit_cll_fixture_section_provenance(
         provenance,
         rows,
         section_id,
-        section.number.as_deref(),
+        section.number,
         resolution_note,
     )?;
     push_cll_fixture_provenance_field_row(
@@ -7080,10 +7080,15 @@ fn audit_cll_fixture_section_provenance(
 }
 
 /// Compare the division a fixture claims against the division the embedded CLL
-/// puts the resolved section in, plus the section number the book prints for
-/// it. `chapter` and `appendix` are mutually exclusive on both sides, so a
-/// fixture that still records a chapter number for appendix material reports as
-/// drift on both rows.
+/// actually puts the resolved section in, plus the section number the book
+/// prints for it.
+///
+/// This is the audit's site-relative staleness check. Fixture load can only
+/// reject provenance that is malformed in itself; a fixture that still records
+/// `chapter = 22` / `section-number = "22.1"` for a chrestomathy section is
+/// perfectly well shaped - it just names a division the book no longer puts
+/// that section in, and since colojban that chapter number belongs to a real
+/// chapter. Only a site-aware check can see that, so it reports here.
 #[requires(fixture.test_case.is_valid_fixture_metadata())]
 #[requires(provenance.is_cll())]
 #[requires(!section_id.is_empty())]
@@ -7094,7 +7099,7 @@ fn push_cll_fixture_division_audit_rows(
     provenance: &Provenance,
     rows: &mut Vec<CllFixtureMetadataAuditRow>,
     section_id: &str,
-    section_number: Option<&str>,
+    section_number: Option<CllSectionNumber>,
     resolution_note: &str,
 ) -> Result<()> {
     let data!(Provenance::Cll {
@@ -7107,45 +7112,92 @@ fn push_cll_fixture_division_audit_rows(
         return Ok(());
     };
     let designation = cll_division_designation(site, section_id);
-    push_cll_fixture_provenance_field_row(
+    let cll_chapter = designation
+        .as_ref()
+        .and_then(|designation| designation.chapter.clone());
+    let cll_appendix = designation
+        .as_ref()
+        .and_then(|designation| designation.appendix.clone());
+    push_cll_fixture_division_field_row(
         fixture,
         provenance,
         rows,
         "provenance.chapter",
-        &chapter
-            .map(|chapter| chapter.to_string())
-            .unwrap_or_default(),
-        option_string_slice(
-            designation
-                .as_ref()
-                .and_then(|designation| designation.chapter.as_ref()),
-        ),
+        chapter.map(|chapter| chapter.to_string()).as_deref(),
+        cll_chapter.as_deref(),
         resolution_note,
     )?;
-    push_cll_fixture_provenance_field_row(
+    push_cll_fixture_division_field_row(
         fixture,
         provenance,
         rows,
         "provenance.appendix",
-        appendix.as_deref().unwrap_or_default(),
-        option_string_slice(
-            designation
-                .as_ref()
-                .and_then(|designation| designation.appendix.as_ref()),
-        ),
+        appendix.as_deref(),
+        cll_appendix.as_deref(),
         resolution_note,
     )?;
-    push_cll_fixture_provenance_field_row(
+    push_cll_fixture_division_field_row(
         fixture,
         provenance,
         rows,
         "provenance.section-number",
-        fixture_section_number.as_deref().unwrap_or_default(),
-        &section_number
-            .map(|section_number| vec![section_number.to_owned()])
-            .unwrap_or_default(),
+        fixture_section_number.as_deref(),
+        section_number.map(|number| number.to_string()).as_deref(),
         resolution_note,
     )?;
+    Ok(())
+}
+
+/// Emit one division-field row.
+///
+/// Unlike free-text metadata, a division field is never benignly absent on one
+/// side: the fixture and the embedded CLL either name the same division and
+/// section number or the fixture is stale, so any disagreement - including one
+/// side present and the other absent - is a `provenance_mismatch` error rather
+/// than a missing-value warning.
+#[requires(fixture.test_case.is_valid_fixture_metadata())]
+#[requires(provenance.is_cll())]
+#[requires(!field.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn push_cll_fixture_division_field_row(
+    fixture: &LoadedTestCase,
+    provenance: &Provenance,
+    rows: &mut Vec<CllFixtureMetadataAuditRow>,
+    field: &str,
+    fixture_value: Option<&str>,
+    cll_value: Option<&str>,
+    resolution_note: &str,
+) -> Result<()> {
+    let cll_values = cll_value
+        .map(|value| vec![value.to_owned()])
+        .unwrap_or_default();
+    let (status, severity, note) = if fixture_value == cll_value {
+        (
+            CllFixtureMetadataAuditStatus::Ok,
+            CllFixtureMetadataAuditSeverity::Info,
+            format!("{resolution_note}; fixture and embedded CLL name the same division"),
+        )
+    } else {
+        (
+            CllFixtureMetadataAuditStatus::ProvenanceMismatch,
+            CllFixtureMetadataAuditSeverity::Error,
+            format!(
+                "{resolution_note}; fixture records `{}` but the embedded CLL section has `{}`",
+                fixture_value.unwrap_or("<absent>"),
+                cll_value.unwrap_or("<absent>"),
+            ),
+        )
+    };
+    rows.push(cll_fixture_metadata_audit_row(
+        fixture,
+        provenance,
+        field,
+        status,
+        severity,
+        fixture_value.unwrap_or_default(),
+        &cll_values,
+        &note,
+    )?);
     Ok(())
 }
 
@@ -7184,7 +7236,11 @@ fn resolve_cll_fixture_example<'a>(
         .find(|example| {
             cll_division_designation(site, &example.reference.section_id)
                 .is_some_and(|designation| designation == provenance_designation)
-                && example.reference.section_number == *section_number
+                && example
+                    .reference
+                    .section_number
+                    .map(|number| number.to_string())
+                    == *section_number
                 && example.reference.example_number.as_deref() == Some(example_number)
         })
         .map(|example| ResolvedCllFixtureExample {
@@ -7223,7 +7279,7 @@ fn push_cll_fixture_provenance_audit_rows(
         provenance,
         rows,
         &reference.section_id,
-        reference.section_number.as_deref(),
+        reference.section_number,
         resolution_note,
     )?;
     push_cll_fixture_provenance_field_row(
@@ -14197,6 +14253,139 @@ mod tests {
         assert!(values.contains(&"joined translation".to_owned()));
     }
 
+    /// A site holding a single appendix section, matching how colojban files
+    /// the chrestomathy.
+    #[requires(!section_id.is_empty())]
+    #[ensures(ret.sections_by_id.contains_key(section_id))]
+    fn test_appendix_site(chapter_id: &str, section_id: &str) -> CllSite {
+        let section = new!(CllSection {
+            section_id: section_id.to_owned(),
+            chapter_id: chapter_id.to_owned(),
+            division: CllDivision::Appendix,
+            number: None,
+            title: "The North Wind and the Sun".to_owned(),
+            parent_section_id: None,
+            child_section_ids: Vec::new(),
+            blocks: Vec::new(),
+            source_path: "a01.xml".to_owned(),
+            plain_text: String::new(),
+        });
+        new!(CllSite {
+            metadata: new!(CllMetadata {
+                title: "Test CLL".to_owned(),
+                chapter_count: 1,
+            }),
+            chapters: vec![new!(CllChapter {
+                chapter_id: chapter_id.to_owned(),
+                division: CllDivision::Appendix,
+                chapter_title: "Chrestomathy".to_owned(),
+                root_section_ids: vec![section_id.to_owned()],
+                prelude_blocks: Vec::new(),
+            })],
+            sections_by_id: BTreeMap::from([(section_id.to_owned(), section)]),
+            section_order: vec![section_id.to_owned()],
+            section_ids_by_normalized_reference: BTreeMap::new(),
+            examples_by_id: BTreeMap::new(),
+            example_ids_by_normalized_reference: BTreeMap::new(),
+            anchors_by_id: BTreeMap::new(),
+            index_entries: Vec::new(),
+            search_chunks: Vec::new(),
+        })
+    }
+
+    #[requires(!id.is_empty())]
+    #[ensures(ret.test_case.provenance.len() == 1)]
+    fn test_loaded_case(id: &str, provenance: Provenance) -> LoadedTestCase {
+        LoadedTestCase {
+            path: PathBuf::from(format!("tests/fixtures/cll/chrestomathy/{id}.toml")),
+            test_case: TestCase {
+                id: format!("cll.chrestomathy.{id}"),
+                lojban: "coi".to_owned(),
+                lojban_filename: None,
+                dialect: None,
+                translation_en: None,
+                gloss_en: None,
+                tags: Vec::new(),
+                provenance: vec![provenance],
+                expectations: Expectations::default(),
+            },
+        }
+    }
+
+    /// The audit owns site-relative staleness: the old chrestomathy shape is
+    /// perfectly well formed on its own - so fixture load cannot and must not
+    /// reject it - but it names chapter 22, which colojban gives to a real
+    /// chapter, for a section the book files under an appendix.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn audit_reports_stale_chrestomathy_division_as_an_error() {
+        let site = test_appendix_site("volume-chrestomathy", "section-north-wind");
+        let stale = new!(Provenance::Cll {
+            chapter: Some(NonZeroU16::new(22).expect("22 is non-zero")),
+            appendix: None,
+            section_number: Some("22.1".parse().expect("22.1 is a section number")),
+            section_id: "section-north-wind".to_owned(),
+            example_number: None,
+            example_id: None,
+            source_path: Some("vendor/cll/chapters/a01.xml".to_owned()),
+        });
+        // The stale shape passes structural validation; only the site sees it.
+        assert!(!cll_provenance_references_example(&stale));
+
+        let fixture = test_loaded_case("north-wind", stale.clone());
+        let mut rows = Vec::new();
+        audit_cll_fixture_provenance(&site, &fixture, &stale, &mut rows)
+            .expect("auditing the stale fixture should not fail");
+
+        let division_rows = rows
+            .iter()
+            .filter(|row| {
+                [
+                    "provenance.chapter",
+                    "provenance.appendix",
+                    "provenance.section-number",
+                ]
+                .contains(&row.field.as_str())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(division_rows.len(), 3);
+        for row in &division_rows {
+            assert_eq!(
+                row.status,
+                CllFixtureMetadataAuditStatus::ProvenanceMismatch.as_str(),
+                "{} should report a provenance mismatch",
+                row.field
+            );
+            assert_eq!(
+                row.severity,
+                CllFixtureMetadataAuditSeverity::Error.as_str(),
+                "{} should report at error severity",
+                row.field
+            );
+        }
+
+        // The migrated shape is clean on every division row.
+        let migrated = new!(Provenance::Cll {
+            chapter: None,
+            appendix: Some("volume-chrestomathy".to_owned()),
+            section_number: None,
+            section_id: "section-north-wind".to_owned(),
+            example_number: None,
+            example_id: None,
+            source_path: Some("vendor/cll/chapters/a01.xml".to_owned()),
+        });
+        let fixture = test_loaded_case("north-wind", migrated.clone());
+        let mut rows = Vec::new();
+        audit_cll_fixture_provenance(&site, &fixture, &migrated, &mut rows)
+            .expect("auditing the migrated fixture should not fail");
+        assert!(
+            rows.iter()
+                .all(|row| row.severity == CllFixtureMetadataAuditSeverity::Info.as_str()),
+            "migrated chrestomathy provenance should audit clean: {rows:?}"
+        );
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn test_cll_site(examples: Vec<CllExample>) -> CllSite {
@@ -14286,7 +14475,7 @@ mod tests {
     #[requires(true)]
     #[ensures(!ret.is_empty())]
     fn test_cll_division_id(division: CllDivision) -> String {
-        match division.number_label() {
+        match division.chapter_number() {
             Some(number) => format!("chapter-{number}"),
             None => "test-appendix".to_owned(),
         }
@@ -14346,7 +14535,11 @@ mod tests {
             division: CllDivision::Chapter {
                 number: NonZeroU16::new(chapter).expect("test chapter number is non-zero"),
             },
-            section_number: Some(section_number.to_owned()),
+            section_number: Some(
+                section_number
+                    .parse()
+                    .expect("test section numbers are well formed"),
+            ),
             section_id: section_id.to_owned(),
             example_number: Some(example_number.to_owned()),
             example_id: Some(example_id.to_owned()),

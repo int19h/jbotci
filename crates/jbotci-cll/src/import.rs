@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::num::NonZeroUsize;
 use std::sync::OnceLock;
 
 use bzip2::read::BzDecoder;
@@ -54,7 +55,7 @@ pub(crate) struct SectionParseContext {
     pub(crate) chapter_id: String,
     pub(crate) division: CllDivision,
     pub(crate) section_id: String,
-    pub(crate) section_number: Option<String>,
+    pub(crate) section_number: Option<CllSectionNumber>,
     pub(crate) section_title: String,
     pub(crate) source_path: String,
 }
@@ -246,7 +247,7 @@ fn parse_chapter(
         collect_title_anchors(
             title_node,
             &chapter_id,
-            &cll_numbered_title(division.number_label().as_deref(), &chapter_title),
+            &cll_numbered_title(division.chapter_number(), &chapter_title),
             &mut anchors,
         );
     }
@@ -336,12 +337,12 @@ fn parse_sectionless_chapter(
     Vec<(String, CllAnchor)>,
     Vec<PendingIndexEntry>,
 ) {
-    let section_number = division.number_label();
+    let section_number = division.whole_chapter_number();
     let context = SectionParseContext {
         chapter_id: chapter_id.to_owned(),
         division,
         section_id: chapter_id.to_owned(),
-        section_number: section_number.clone(),
+        section_number,
         section_title: chapter_title.to_owned(),
         source_path: source_path.to_owned(),
     };
@@ -377,7 +378,7 @@ fn parse_sectionless_chapter(
         chapter_id.to_owned(),
         new!(CllAnchor {
             section_id: chapter_id.to_owned(),
-            label: cll_numbered_title(section_number.as_deref(), chapter_title),
+            label: cll_numbered_title(section_number, chapter_title),
         }),
     ));
 
@@ -421,12 +422,14 @@ fn parse_section(
 > {
     let section_id =
         xml_id(section_node).unwrap_or_else(|| format!("{chapter_id}-s{section_index}"));
-    let section_number = division.section_number(section_index);
+    let section_number = division.section_number(
+        NonZeroUsize::new(section_index).expect("section indexes are counted from one"),
+    );
     let title_node = child_element(section_node, "title");
     let section_title = title_node
         .map(visible_text)
         .filter(|title| !title.is_empty())
-        .unwrap_or_else(|| match &section_number {
+        .unwrap_or_else(|| match section_number {
             Some(section_number) => format!("Section {section_number}"),
             None => section_id.clone(),
         });
@@ -434,7 +437,7 @@ fn parse_section(
         chapter_id: chapter_id.to_owned(),
         division,
         section_id: section_id.clone(),
-        section_number: section_number.clone(),
+        section_number,
         section_title: section_title.clone(),
         source_path: source_path.to_owned(),
     };
@@ -446,7 +449,7 @@ fn parse_section(
         collect_title_anchors(
             title_node,
             &section_id,
-            &cll_numbered_title(section_number.as_deref(), &section_title),
+            &cll_numbered_title(section_number, &section_title),
             &mut anchors,
         );
     }
@@ -483,7 +486,7 @@ fn parse_section(
         section_id.clone(),
         new!(CllAnchor {
             section_id: section_id.clone(),
-            label: cll_numbered_title(section_number.as_deref(), &section_title),
+            label: cll_numbered_title(section_number, &section_title),
         }),
     ));
 
@@ -913,7 +916,7 @@ fn parse_example_block(
     // Numbered chapters number their examples `chapter.position`; an appendix
     // has no number to qualify with, so its examples are numbered by position
     // within the appendix, exactly as the book's own formatter would.
-    let example_number = match context.division.number_label() {
+    let example_number = match context.division.chapter_number() {
         Some(chapter_number) => {
             format!("{chapter_number}.{}", parse_state.chapter_example_counter)
         }
@@ -980,7 +983,7 @@ fn parse_example_block(
     let example = new!(CllExample {
         reference: new!(CllReference {
             division: context.division,
-            section_number: context.section_number.clone(),
+            section_number: context.section_number,
             section_id: context.section_id.clone(),
             example_number: Some(example_number),
             example_id: Some(anchor_id.clone()),

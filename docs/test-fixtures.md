@@ -84,10 +84,30 @@ source-path = "vendor/cll/chapters/a01.xml"
 ```
 
 `chapter` and `appendix` are mutually exclusive and exactly one must be present;
-`section-number` is present exactly when `chapter` is. `validate_fixture_tree`
-rejects any other combination, and `cargo run -r -p xtask-full --
-cll-fixture-metadata-audit` compares both against the embedded CLL. Appendix
-fixtures therefore live under a division directory named by that id rather than
+`section-number` is present exactly when `chapter` is; the chapter number is
+non-zero and every recorded identifier is non-empty.
+
+Two different checks own the two different ways provenance can be wrong.
+
+**Structure, at load time.** `Provenance` is an invariant-bearing type, so a
+malformed block is rejected while it is being deserialized - by
+`load_fixture_file`, `load_fixture_path`, `load_fixture_tree`,
+`validate_fixture_tree` and the JSON `import_export_file` alike - and reported
+as a `ParseToml`/`ParseJson` error naming the file. No `TestCase` can hold a
+malformed provenance, so downstream code may rely on the shape.
+
+**Staleness, in the audit.** Load-time validation is deliberately
+*structural only*: it never consults the CLL. A block such as `chapter = 22` /
+`section-number = "22.1"` on a chrestomathy section is perfectly well shaped -
+it just names a division the book does not put that section in, and since
+colojban chapter 22 is a real chapter. Only a site-aware check can see that, so
+`cargo run -r -p xtask-full -- cll-fixture-metadata-audit` resolves each
+fixture's section in the embedded CLL and reports any division or section-number
+disagreement as a `provenance_mismatch` **error**. For division fields, one side
+present and the other absent counts as disagreement rather than as a benign
+missing value.
+
+Appendix fixtures live under a division directory named by that id rather than
 under `chapter-NN/`, except for the hand-placed chrestomathy long texts, which
 keep their historical `cll/chrestomathy/` home.
 

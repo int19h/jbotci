@@ -3712,7 +3712,7 @@ fn cll_section_chapter_display_title(
     let chapter_title = cll_section_chapter_title(site, &section.section_id);
     // Appendices are designated by title alone, so their page title is the
     // appendix title with no "Chapter N" prefix to attach it to.
-    match (section.division.number_label(), chapter_title) {
+    match (section.division.chapter_number(), chapter_title) {
         (Some(number), Some(chapter_title)) => format!("Chapter {number}. {chapter_title}"),
         (Some(number), None) => format!("Chapter {number}"),
         (None, Some(chapter_title)) => chapter_title,
@@ -4071,7 +4071,10 @@ fn build_cukta_toc(
                 .unwrap_or_else(|| format!("{}/cukta/index", base_path.trim_end_matches('/')));
             CuktaTocNode {
                 node_id: chapter.chapter_id.clone(),
-                number_label: chapter.division.number_label(),
+                number_label: chapter
+                    .division
+                    .chapter_number()
+                    .map(|number| number.to_string()),
                 label: chapter.chapter_title.clone(),
                 href,
                 active: children.iter().any(|child| child.active),
@@ -4102,7 +4105,7 @@ fn build_cukta_toc_section(
     let current = current_section_id == Some(section.section_id.as_str());
     Some(CuktaTocNode {
         node_id: section.section_id.clone(),
-        number_label: section.number.clone(),
+        number_label: section.number.map(|number| number.to_string()),
         label: section.title.clone(),
         href: cukta_section_href(base_path, &section.section_id),
         active: current || children.iter().any(|child| child.active),

@@ -351,7 +351,7 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
             for chapter in &site.chapters {
                 output.push_str("<li>");
                 output.push_str(&escape_html(&cll_numbered_title(
-                    chapter.division.number_label().as_deref(),
+                    chapter.division.chapter_number(),
                     &chapter.chapter_title,
                 )));
                 output.push_str("<ol>");
@@ -388,7 +388,7 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
             );
             for chapter in &site.chapters {
                 output.push_str(&cll_numbered_title(
-                    chapter.division.number_label().as_deref(),
+                    chapter.division.chapter_number(),
                     &chapter.chapter_title,
                 ));
                 output.push('\n');
@@ -433,10 +433,10 @@ pub fn render_index(
                             CllLinkRenderMode::Web => format!(
                                 "<a href=\"{}\">{}</a>",
                                 escape_html(&section_href(&section.section_id)),
-                                escape_html(cll_section_index_label(section))
+                                escape_html(&cll_section_index_label(section))
                             ),
                             CllLinkRenderMode::Plain => {
-                                escape_html(cll_section_index_label(section))
+                                escape_html(&cll_section_index_label(section))
                             }
                         })
                         .collect::<Vec<_>>()
@@ -655,7 +655,7 @@ pub fn render_search_output(
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 pub fn format_section_display_title(section: &CllSection) -> String {
-    cll_numbered_title(section.number.as_deref(), &section.title)
+    cll_numbered_title(section.number, &section.title)
 }
 
 /// The compact designation an index or breadcrumb shows for a section: the
@@ -663,8 +663,11 @@ pub fn format_section_display_title(section: &CllSection) -> String {
 /// book designates the whole division by title alone.
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub fn cll_section_index_label(section: &CllSection) -> &str {
-    section.number.as_deref().unwrap_or(&section.title)
+pub fn cll_section_index_label(section: &CllSection) -> String {
+    match section.number {
+        Some(number) => number.to_string(),
+        None => section.title.clone(),
+    }
 }
 
 #[requires(true)]
@@ -942,7 +945,7 @@ fn escape_html_into(output: &mut String, input: &str) {
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeMap, BTreeSet};
-    use std::num::NonZeroU16;
+    use std::num::{NonZeroU16, NonZeroUsize};
 
     use super::*;
     #[allow(unused_imports)]
@@ -1376,7 +1379,10 @@ mod tests {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let section = cll_lookup_section(site, DEFAULT_CUKTA_SECTION_ID)
             .expect("default section should exist");
-        assert_eq!(section.number.as_deref(), Some("1.1"));
+        assert_eq!(
+            section.number.map(|number| number.to_string()).as_deref(),
+            Some("1.1")
+        );
         assert_eq!(section.title, "What is Lojban?");
         assert!(!site.index_entries.is_empty());
     }
@@ -1794,7 +1800,10 @@ mod tests {
         assert_eq!(chrestomathy.chapter_title, "Chrestomathy");
         let ebnf = cll_lookup_section(site, &metadata.ebnf_section_id)
             .expect("metadata EBNF section should exist");
-        assert_eq!(ebnf.number.as_deref(), Some("21.2"));
+        assert_eq!(
+            ebnf.number.map(|number| number.to_string()).as_deref(),
+            Some("21.2")
+        );
         assert_eq!(
             ebnf.blocks
                 .iter()
@@ -1936,11 +1945,67 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn section_numbers_must_name_their_own_chapter() {
+        // A section number is parsed from - and printed as - the string the
+        // book prints, and it carries its own chapter.
+        let six_three: CllSectionNumber = "6.3".parse().expect("6.3 is a section number");
+        assert_eq!(six_three.to_string(), "6.3");
+        assert_eq!(six_three.chapter().get(), 6);
+        let twenty: CllSectionNumber = "20".parse().expect("20 is a whole-chapter number");
+        assert_eq!(twenty.to_string(), "20");
+        assert_eq!(twenty.chapter().get(), 20);
+        for text in ["", "6.", ".3", "6.0", "0.3", "6.3.1", "6.x", "a01"] {
+            assert!(
+                text.parse::<CllSectionNumber>().is_err(),
+                "`{text}` is not a section number"
+            );
+        }
+
+        // A section of chapter 6 cannot claim chapter 22's number, and an
+        // appendix section cannot claim any number - through serde either.
+        let section = |division: &str, number: &str| {
+            serde_json::from_str::<CllSection>(&format!(
+                r#"{{"section_id":"s","chapter_id":"c","division":{division},"number":{number},
+                    "title":"t","parent_section_id":null,"child_section_ids":[],"blocks":[],
+                    "source_path":"06.xml","plain_text":""}}"#
+            ))
+        };
+        let chapter_six = r#"{"chapter":{"number":6}}"#;
+        assert!(section(chapter_six, r#""6.3""#).is_ok());
+        assert!(section(chapter_six, r#""6""#).is_ok());
+        assert!(section(r#""appendix""#, "null").is_ok());
+        assert!(
+            section(chapter_six, r#""22.1""#).is_err(),
+            "a chapter 6 section must not carry chapter 22's number"
+        );
+        assert!(
+            section(chapter_six, "null").is_err(),
+            "a numbered chapter's section always carries a number"
+        );
+        assert!(
+            section(r#""appendix""#, r#""23.1""#).is_err(),
+            "an appendix section carries no number at all"
+        );
+        assert!(
+            section(chapter_six, r#""6.3.1""#).is_err(),
+            "a malformed section number is rejected while parsing"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn restored_ebnf_cross_reference_links_to_rendered_rules() {
         let site = embedded_cll_site().expect("embedded CLL should load");
         let cross_reference = cll_lookup_section(site, "section-cross-reference")
             .expect("restored EBNF cross-reference section should exist");
-        assert_eq!(cross_reference.number.as_deref(), Some("21.3"));
+        assert_eq!(
+            cross_reference
+                .number
+                .map(|number| number.to_string())
+                .as_deref(),
+            Some("21.3")
+        );
         assert_eq!(
             cross_reference
                 .blocks
@@ -2653,7 +2718,10 @@ mod tests {
                 number: NonZeroU16::new(1).expect("test chapter number is non-zero"),
             },
             section_id: "section-test".to_owned(),
-            section_number: Some("1.1".to_owned()),
+            section_number: Some(CllSectionNumber::Section {
+                chapter: NonZeroU16::new(1).expect("test chapter number is non-zero"),
+                index: NonZeroUsize::new(1).expect("test section index is non-zero"),
+            }),
             section_title: "Test".to_owned(),
             source_path: "test.xml".to_owned(),
         }
