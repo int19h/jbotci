@@ -7390,18 +7390,27 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn zantufa_noi_indicator_uses_noi_warning_context() {
+    fn nohoi_is_a_relative_marker_rather_than_an_indicator() {
         run_on_normal_stack(|| {
+            // Before epoch 8 `no'oi` carried the `[Ui, Ui3a]` classes no source gives it and
+            // the relation word ate it as an indicator, which is what made every relative
+            // reading of it unreachable. It is a NOhOI relative marker now, and the warning
+            // it carries is the construct's rather than the bare-cmavo one.
             let parsed = parse_source("mi klama no'oi bajra", &ParseOptions::default());
             let warning = parsed
                 .warnings
                 .iter()
-                .find(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaCmavo)
-                .expect("Zantufa NOI indicator warning");
+                .find(|warning| {
+                    warning.kind == ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause
+                })
+                .expect("NOhOI selbri relative clause warning");
 
-            assert_eq!(warning.anchor_index, 1);
             assert_eq!(warning_span(warning), [9, 14]);
             assert!(warning.anchor.is_cmavo(Cmavo::Nohoi));
+            assert!(!has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaCmavo
+            ));
         });
     }
 
@@ -7609,7 +7618,7 @@ mod tests {
         run_on_normal_stack(|| {
             let parsed = parse_source("xoi mi broda", &ParseOptions::default());
 
-            assert!(format!("{:?}", parsed.parse_tree).contains("SoiAdverbialTerm"));
+            assert!(format!("{:?}", parsed.parse_tree).contains("ExpSoiAdverbialTerm"));
             assert!(has_warning_kind(
                 &parsed,
                 ExperimentalConstruct::ExperimentalSoiAdverbial
@@ -7727,11 +7736,13 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn parses_zantufa_xoi_and_fihoi_statement_payloads() {
+    fn parses_zantufa_xoi_statement_payloads() {
         run_on_normal_stack(|| {
+            // Rolling Zantufa's XOI adverbial keeps the statement-width bodies camxes-exp's
+            // subsentence cannot form, under its own tailored statement production.
             for source in [
                 "xoi mi broda i je do brode se'u",
-                "fi'oi mi broda i je do brode fi'au",
+                "fi'oi mi broda i je do brode se'u",
             ] {
                 let parsed = parse_source(source, &ParseOptions::default());
                 assert!(
@@ -7743,10 +7754,32 @@ mod tests {
                     "{source}"
                 );
                 assert!(
-                    format!("{:?}", parsed.parse_tree).contains("IStatementConnection"),
+                    format!("{:?}", parsed.parse_tree)
+                        .contains("ZantufaRelativeConnectedStatement"),
                     "{source}"
                 );
             }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn rejects_the_unsourced_fihau_statement_hybrid() {
+        run_on_normal_stack(|| {
+            // The statement body closed by FIhAU was the Cartesian product of rolling
+            // Zantufa's XOI and the New-FIhOI proposal and is in neither, so it retires.
+            // The proposal's own shape -- a subsentence closed by an explicit FIhAU -- stays.
+            let words =
+                segment_words_with_modifiers("fi'oi mi broda i je do brode fi'au").expect("words");
+            assert!(parse_syntax_tree(&words, &ParseOptions::default()).is_err());
+
+            let parsed = parse_source("fi'oi mi broda fi'au", &ParseOptions::default());
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalFihoiAdverbial
+            ));
+            assert!(format!("{:?}", parsed.parse_tree).contains("FihoiProposalAdverbialTerm"),);
         });
     }
 
@@ -8603,9 +8636,16 @@ mod tests {
             .expect("valid morphology");
         assert!(parse_syntax_tree(&valid, &ParseOptions::default()).is_ok());
 
-        let invalid = segment_words_with_modifiers("mi viska ci gerku poi barda ku")
-            .expect("valid morphology");
-        assert!(parse_syntax_tree(&invalid, &ParseOptions::default()).is_err());
+        // The baseline ordering still has no reading of the relative clause before the KU:
+        // what accepts the surface since epoch 8 is rolling Zantufa's selbri-level
+        // attachment, default-enabled and warned, whose relative belongs to `gerku` and not
+        // to the indefinite sumti.
+        let flipped = parse_source("mi viska ci gerku poi barda ku", &ParseOptions::default());
+        assert!(has_warning_kind(
+            &flipped,
+            ExperimentalConstruct::ExperimentalZantufaSelbriRelativePlacement
+        ));
+        assert!(format!("{:?}", flipped.parse_tree).contains("ZantufaRelativeSelbri"));
     }
 
     #[test]

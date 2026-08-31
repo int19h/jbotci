@@ -1,0 +1,12 @@
+id = "adhoc.syntax.subsentence.d3-reject-fihau-statement-hybrid"
+lojban = "mi broda fi'oi mi brode i je do brodi fi'au"
+tags = ["adhoc", "syntax", "subsentence-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-8 subsentence ownership matrix witness"
+description = "R4: a statement body closed by FIhAU is the Cartesian product of Zantufa's XOI and the proposal's FIhOI and is in neither. Flip: accept to reject."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [38, 43], source-text = "fi'au", message = "unexpected cmavo" }]

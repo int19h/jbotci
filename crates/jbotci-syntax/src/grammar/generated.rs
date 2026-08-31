@@ -1580,7 +1580,7 @@ pub mod generated_model {
     /// branch: a nested branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps every level's leaf inventory synchronized with
     /// `simple_term`.
-    rule "term" term(gek_termset, zantufa_gek_termset, statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, cehe_term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `pehe_termset_connection` product form, whose payload preserves `leading_term` and `continuations`.
         pehe_termset_connection,
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1604,10 +1604,12 @@ pub mod generated_model {
         tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -1630,7 +1632,7 @@ pub mod generated_model {
 
     /// The CEhE level of the composed term hierarchy: `terms_2 <- term (CEhE free* nonabs_term)*`
     /// (camxes.peg:116). It is the operand level of the PEhE connection above it.
-    rule "term" cehe_term(gek_termset, zantufa_gek_termset, statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" cehe_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, loose_term, nonabs_term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `termset_group` product form, whose payload preserves `leading_term` and `continuations`.
         termset_group,
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1652,10 +1654,12 @@ pub mod generated_model {
         tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -1679,7 +1683,7 @@ pub mod generated_model {
     /// The loose connective level of the composed term hierarchy: camxes-exp `abs_term_1 <-
     /// abs_term_2 (joik_ek !tag_bo_ke_bridi_tail !tag_bo_subsentence abs_term_2)*`
     /// (camxes-exp.peg:153). It is the leading operand level of the CEhE connection above it.
-    rule "term" loose_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" loose_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1699,10 +1703,12 @@ pub mod generated_model {
         tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -1732,7 +1738,7 @@ pub mod generated_model {
     /// of the two sources is exactly this level: the guarded tiers with the unguarded leaf
     /// inventory. The guard only ever fires when a selbri follows the atom directly, which is a
     /// position no connective tier can occupy, so no surface outside the two sources is admitted.
-    rule "term" nonabs_term(gek_termset, zantufa_gek_termset, statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" nonabs_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_term, simple_term, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `connected_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_term,
         /// Uses the `stag_bound_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -1752,10 +1758,12 @@ pub mod generated_model {
         nonabs_tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -1798,7 +1806,7 @@ pub mod generated_model {
     }
 
     /// Sum node for term; selects among 13 forms including `place_tagged_sumti_term`, `jai_tagged_sumti_term`, and `tagged_sumti_before_tag_term`.
-    rule "term" simple_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" simple_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
@@ -1814,10 +1822,12 @@ pub mod generated_model {
         tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -1843,7 +1853,7 @@ pub mod generated_model {
     /// The leaf rules are deliberately listed directly rather than through `simple_term`: a
     /// nested sum branch would add a public wrapper variant to Debug and serde output. The
     /// binding-schema drift guard keeps this leaf inventory synchronized with `simple_term`.
-    rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" bound_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, simple_term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the diagnosed BO-bound connection with the mandatory absorption-safe stag.
         stag_bound_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -1861,10 +1871,12 @@ pub mod generated_model {
         tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -2014,7 +2026,7 @@ pub mod generated_model {
     /// other ladder level does it (mechanism E): a nested branch would add a public wrapper
     /// variant to Debug and serde output. The binding-schema drift guard keeps this inventory
     /// synchronized with `simple_term`.
-    rule "term" normal_term(gek_termset, zantufa_gek_termset, statement, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" normal_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, bound_normal_term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, forethought_bridi_connection, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `connected_normal_term` product form, whose payload preserves `leading_term` and `continuations`.
         connected_normal_term,
         /// Uses the `bound_normal_term_connection` product form, whose payload preserves `leading_term` and `continuations`.
@@ -2034,10 +2046,12 @@ pub mod generated_model {
         nonabs_tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -2078,7 +2092,7 @@ pub mod generated_model {
     }
 
     /// The optional-stag BO-bound level of the normal-flavour term constituent.
-    rule "term" bound_normal_term(gek_termset, zantufa_gek_termset, statement, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" bound_normal_term(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, term, normal_term_atom, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the diagnosed optional-stag BO-bound normal-flavour connection.
         bound_normal_term_connection,
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
@@ -2096,10 +2110,12 @@ pub mod generated_model {
         nonabs_tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -2178,7 +2194,7 @@ pub mod generated_model {
     /// This is `term_3 <- sumti / tag_term / termset` (camxes-exp.peg:145) and camxes-standard's
     /// bare `nonabs_term` (camxes.peg:128) at once: the same leaves `simple_term` lists, with the
     /// unguarded `nonabs_tagged_sumti_term` in place of its absorption-guarded twin.
-    rule "term" normal_term_atom(gek_termset, zantufa_gek_termset, statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
+    rule "term" normal_term_atom(gek_termset, zantufa_gek_termset, statement, exp_subsentence, zantufa_relative_statement, sumti, tense_modal, baseline_term_tense_modal, subbridi, selbri, term, letter_tokens, letter_string, free_modifier, zantufa_mex, zantufa_tcita_selci, normal_term, tanru_unit_atom) -> enum {
         /// Uses the `place_tagged_sumti_term` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_sumti_term,
         /// Uses rolling Zantufa's JOIK-chained `zantufa_joik_chained_place_tag_term` product
@@ -2194,10 +2210,12 @@ pub mod generated_model {
         nonabs_tagged_sumti_term,
         /// Uses the nested `noiha_adverbial_term` sum form and preserves its selected alternative.
         noiha_adverbial_term,
-        /// Uses the `fihoi_adverbial_term` product form, whose payload preserves `fihoi`, `statement`, and `fihau`.
-        fihoi_adverbial_term,
-        /// Uses the `soi_adverbial_term` product form, whose payload preserves `soi`, `statement`, and `sehu`.
-        soi_adverbial_term,
+        /// Uses the `fihoi_proposal_adverbial_term` product form, whose payload preserves `fihoi`, `subsentence`, and `fihau`.
+        fihoi_proposal_adverbial_term,
+        /// Uses the `zantufa_xoi_adverbial_term` wrapper, whose payload preserves the classified rolling-Zantufa candidate.
+        zantufa_xoi_adverbial_term,
+        /// Uses the `exp_soi_adverbial_term` wrapper, whose payload preserves the classified camxes-exp candidate.
+        exp_soi_adverbial_term,
         /// Uses the `na_ku_term` product form, whose payload preserves `na` and `na_ku`.
         na_ku_term,
         /// Uses the `sumti_term` product form, whose payload preserves `sumti`.
@@ -2465,22 +2483,81 @@ pub mod generated_model {
         field fehu <- opt(cmavo(Fehu).wf()).elidable_terminator(Fehu);
     }
 
-    /// Product node for FIhOI adverbial; preserves `fihoi`, `statement`, and `fihau` in source order.
-    rule "FIhOI adverbial" fihoi_adverbial_term(statement) -> struct {
+    // ---- the SOI/XOI/FIhOI adverbial trio ---------------------------------------------
+    //
+    // Three sources spell an adverbial here and they do not agree, so the arms are
+    // source-qualified and keyed on the exact cmavo rather than on one widened selma'o:
+    //
+    //   camxes-exp  SOI <- soi / xoi / fi'oi (:1842), SUBSENTENCE body, SEhU
+    //               as an arm of both `tag_term` (:149) and `abs_tag_term` (:160)
+    //   Zantufa     XOI <- xoi / fi'oi (:615), STATEMENT body, SEhU, at `term_2` (:29)
+    //   New-FIhOI   FIhOI <- ku'au / fi'oi (selpahi-mex.peg:1993), SUBSENTENCE body, FIhAU
+    //
+    // The shape jbotci carried before this epoch -- a statement body closed by FIhAU -- is
+    // the Cartesian product of two of them and is in none, so it retires. `ku'au` is a
+    // retained source gap: the proposal grammar's second FIhOI word is not adopted here.
+    //
+    // Arm order is what the boundaries need. The proposal arm requires an explicit FIhAU, so
+    // it is structurally disjoint and runs first; an elided-FIhAU extent is the camxes-exp
+    // arm's under R2, which is the source precedence the shared cell freezes. The Zantufa arm
+    // runs before the camxes-exp one because its body is the wider of the two: the shorter
+    // camxes-exp reading would otherwise succeed and leave the rest of an I-connected body
+    // behind. Its classifier hands back every extent camxes-exp can form, so it keeps only
+    // the statement-width ones.
+
+    /// Product node for FIhOI adverbial; preserves `fihoi`, `subsentence`, and `fihau` in source order.
+    rule "FIhOI adverbial" fihoi_proposal_adverbial_term(exp_subsentence) -> struct {
         /// The `Fihoi` cmavo marker.
         field fihoi <- cmavo(Fihoi).warn(ExperimentalFihoiAdverbial).wf();
-        /// The shared statement child syntax node.
-        field statement <- arc(statement);
-        /// The optional `Fihau` cmavo marker.
-        field fihau <- opt(cmavo(Fihau).wf()).elidable_terminator(Fihau);
+        /// The shared subsentence child syntax node.
+        field subsentence <- arc(exp_subsentence);
+        /// The required `Fihau` terminator, which is what selects the proposal arm.
+        field fihau <- cmavo(Fihau).wf();
     }
 
-    /// Product node for SOI adverbial; preserves `soi`, `statement`, and `sehu` in source order.
-    rule "SOI adverbial" soi_adverbial_term(statement) -> struct {
-        /// A word from selmaho `Soi`.
-        field soi <- selmaho(Soi).warn(ExperimentalSoiAdverbial).wf();
+    /// Transparent ownership wrapper for the rolling-Zantufa XOI adverbial.
+    rule "XOI adverbial" zantufa_xoi_adverbial_term(zantufa_relative_statement) -> struct {
+        #[tree_child(primary)]
+        /// The completed candidate, retained only where camxes-exp's subsentence cannot form its body.
+        field adverbial <- arc(
+            zantufa_xoi_statement_adverbial(zantufa_relative_statement)
+                .reject_output(crate::grammar::baseline_relative::ExpSubsentenceAdverbialRejection)
+        );
+    }
+
+    /// Product node for XOI adverbial; preserves `xoi`, `statement`, and `sehu` in source order.
+    rule "XOI adverbial" zantufa_xoi_statement_adverbial(zantufa_relative_statement) -> struct {
+        /// The XOI marker, warned under the neutral marker-anchored category for its word.
+        field xoi <- choice((
+            cmavo(Xoi).warn(ExperimentalSoiAdverbial),
+            cmavo(Fihoi).warn(ExperimentalFihoiAdverbial),
+        )).wf();
         /// The shared statement child syntax node.
-        field statement <- arc(statement);
+        field statement <- arc(zantufa_relative_statement);
+        /// The optional `Sehu` cmavo marker.
+        field sehu <- opt(cmavo(Sehu).wf()).elidable_terminator(Sehu);
+    }
+
+    /// Transparent ownership wrapper for the camxes-exp SOI adverbial.
+    rule "SOI adverbial" exp_soi_adverbial_term(exp_subsentence) -> struct {
+        #[tree_child(primary)]
+        /// The completed candidate, retained only where the baseline reciprocal does not own its reparse.
+        field adverbial <- arc(
+            exp_soi_subsentence_adverbial(exp_subsentence)
+                .reject_output(crate::grammar::baseline_relative::BaselineReciprocalSoiRejection)
+        );
+    }
+
+    /// Product node for SOI adverbial; preserves `soi`, `subsentence`, and `sehu` in source order.
+    rule "SOI adverbial" exp_soi_subsentence_adverbial(exp_subsentence) -> struct {
+        /// The SOI marker, warned under the neutral marker-anchored category for its word.
+        field soi <- choice((
+            cmavo(Soi).warn(ExperimentalSoiAdverbial),
+            cmavo(Xoi).warn(ExperimentalSoiAdverbial),
+            cmavo(Fihoi).warn(ExperimentalFihoiAdverbial),
+        )).wf();
+        /// The shared subsentence child syntax node.
+        field subsentence <- arc(exp_subsentence);
         /// The optional `Sehu` cmavo marker.
         field sehu <- opt(cmavo(Sehu).wf()).elidable_terminator(Sehu);
     }
@@ -4411,7 +4488,7 @@ pub mod generated_model {
     }
 
     /// Sum node for free modifier; selects among 9 forms including `text_replacement_free_modifier`, `zantufa_sei_statement_free_modifier`, and `sei_free_modifier`.
-    rule "free modifier" free_modifier(sumti, subbridi, selbri, selbri_without_terminal_relative, text, mekso, zantufa_mex_2, term, tense_modal, letter_tokens, letter_string, free_modifier, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
+    rule "free modifier" free_modifier(sumti, subbridi, exp_subsentence, selbri, selbri_without_terminal_relative, text, mekso, zantufa_mex_2, term, tense_modal, letter_tokens, letter_string, free_modifier, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
         /// Uses the nested `text_replacement_free_modifier` sum form and preserves its selected alternative.
         text_replacement_free_modifier,
         /// Uses the `zantufa_sei_statement_free_modifier` product form, whose payload preserves `sei`, `statement`, and `sehu`.
@@ -4453,7 +4530,7 @@ pub mod generated_model {
     }
 
     /// Product node for metalinguistic comment; preserves `sei`, `terms`, `cu`, `selbri`, and `sehu` in source order.
-    rule "metalinguistic comment" sei_free_modifier(term, selbri) -> struct {
+    rule "metalinguistic comment" sei_free_modifier(term, selbri, selbri_without_terminal_relative) -> struct {
         /// A word from selmaho `Sei`.
         field sei <- selmaho(Sei).wf();
         /// Ordered sequence of zero or more terms components.
@@ -4461,7 +4538,17 @@ pub mod generated_model {
         /// The optional `Cu` cmavo marker.
         field cu <- opt(cmavo(Cu).wf());
         /// The shared selbri child syntax node.
-        field selbri <- arc(selbri);
+        ///
+        /// The comment's terminal selbri takes the no-terminal-relative entry for the reason
+        /// the description boundary and the vocative already do: a following relative-clause
+        /// marker belongs to whatever encloses the comment, and with the selbri-level Zantufa
+        /// attachment default-enabled an unrestricted entry here would take it instead --
+        /// `lo gerku poi ke'a barda ja sei mi cusku noi ke'a melbi cu klama` is the measured
+        /// case, whose `noi` clause is the enclosing relative list's continuation.
+        field selbri: std::sync::Arc<SelbriSyntax> <- arc(choice((
+            feature(ZantufaSelbriReinterpretation).ignore_then(selbri),
+            selbri_without_terminal_relative.map_recovered_to(selbri),
+        )));
         /// The optional `Sehu` cmavo marker.
         field sehu <- opt(cmavo(Sehu).prohibited_wf()).elidable_terminator(Sehu);
     }
@@ -4538,7 +4625,16 @@ pub mod generated_model {
     }
 
     /// Product node for reciprocal; preserves `soi`, `leading_sumti`, `trailing_sumti`, and `sehu` in source order.
-    rule "reciprocal" soi_free_modifier(sumti) -> struct {
+    ///
+    /// R1's other half. The reciprocal attaches inside `.wf()`, before any term-level arm is
+    /// reached, so without this reservation it would take `soi` plus one sumti out of every
+    /// camxes-exp adverbial and leave the rest of the subsentence -- and any explicit SEhU --
+    /// behind. The reservation is the adverbial arm itself, classifier included: it succeeds
+    /// only where that arm would own the extent, so `mi broda soi mi brode`, whose completed
+    /// candidate reparses as the reciprocal plus a tail, stays the reciprocal's and silent,
+    /// while `mi broda soi mi brode se'u` is the adverbial's.
+    rule "reciprocal" soi_free_modifier(sumti, exp_subsentence) -> struct {
+        assert !exp_soi_adverbial_term(exp_subsentence);
         /// The `Soi` cmavo marker.
         field soi <- cmavo(Soi).wf();
         /// The shared leading sumti child syntax node.

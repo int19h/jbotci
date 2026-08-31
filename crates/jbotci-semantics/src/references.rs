@@ -2889,8 +2889,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => self.walk_node(term),
-            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => self.walk_node(term),
-            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::NaKuTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::BareNaTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::GekTermset(term) => self.walk_node(term),
@@ -3619,11 +3620,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 }
                 self.walk_node(&term.sumti);
             }
-            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
-                self.walk_node(&term.statement);
+            GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => {
+                self.walk_node(&term.subsentence);
             }
-            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
-                self.walk_node(&term.statement);
+            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => {
+                self.walk_node(&term.0.statement);
+            }
+            GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => {
+                self.walk_node(&term.0.subsentence);
             }
             GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
                 generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
@@ -5073,8 +5077,9 @@ impl<'index, 'tree> TreeVisitor<'tree>
 fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -> bool {
     matches!(
         node,
-        GeneratedSyntaxNodeRef::SimpleTermSyntaxFihoiAdverbialTerm(_)
-            | GeneratedSyntaxNodeRef::SimpleTermSyntaxSoiAdverbialTerm(_)
+        GeneratedSyntaxNodeRef::SimpleTermSyntaxFihoiProposalAdverbialTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxZantufaXoiAdverbialTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxExpSoiAdverbialTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
@@ -7401,11 +7406,14 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_relation(&term.selbri);
                 }
             },
-            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
-                self.visit_statement(&term.statement);
+            GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => {
+                self.visit_subbridi(&term.subsentence);
             }
-            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
-                self.visit_statement(&term.statement);
+            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => {
+                self.visit_zantufa_relative_statement(&term.0.statement);
+            }
+            GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => {
+                self.visit_subbridi(&term.0.subsentence);
             }
             GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(&term.0),
             GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}

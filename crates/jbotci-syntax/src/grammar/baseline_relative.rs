@@ -12,10 +12,11 @@ use bityzba::{contract_trait, invariant, requires};
 use jbotci_morphology::Cmavo;
 
 use super::generated_model::{
-    BridiRelativeClauseSyntax, ExpRelativeClauseConnectiveSyntax, ExpRelativeContinuationSyntax,
-    RelativeClauseAtomSyntax, RelativeClauseListSyntax, RelativeClauseTailSyntax,
+    BridiRelativeClauseSyntax, BridiSyntax, ExpRelativeClauseConnectiveSyntax,
+    ExpRelativeContinuationSyntax, ExpSoiSubsentenceAdverbialSyntax, RelativeClauseAtomSyntax,
+    RelativeClauseListSyntax, RelativeClauseTailSyntax, SubbridiSyntax,
     ZantufaRelativeStatementBaseSyntax, ZantufaRelativeStatementSyntax,
-    ZantufaStatementRelativeClauseSyntax, recovered,
+    ZantufaStatementRelativeClauseSyntax, ZantufaXoiStatementAdverbialSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
 
@@ -374,4 +375,115 @@ fn recovered_is_exp_selbri_relative_list(value: &recovered::RelativeClauseListSy
         && additional
             .iter()
             .all(|tail| valid(tail).is_some_and(recovered_is_exp_selbri_relative_continuation))
+}
+
+/// Ownership classifier for the rolling-Zantufa XOI adverbial.
+///
+/// Zantufa's `term_2 <- XOI_clause statement SEhU_elidible` (zantufa-1.9999.peg:29) and
+/// camxes-exp's `SOI_clause free* subsentence SEhU_elidible` (camxes-exp.peg:149, :160) share
+/// two of their three words and disagree on the body. The Zantufa arm runs first because its
+/// body is the wider one -- the shorter camxes-exp reading would otherwise succeed and leave
+/// the rest of an I-connected body behind -- and hands back every extent camxes-exp can form,
+/// so it keeps only the statement-width ones. R2: adopted camxes-exp owns the shared extents.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ExpSubsentenceAdverbialRejection;
+
+/// R1 no-steal for the camxes-exp SOI adverbial.
+///
+/// `mi broda soi mi brode` is accepted by all three reference parsers and camxes-standard
+/// reads it as the reciprocal `soi mi` with `brode` continuing the tanru outside. The
+/// adverbial arm therefore returns any completed candidate that reparses that way: the marker
+/// is `soi` -- `xoi` and `fi'oi` are in no reciprocal -- the SEhU is elided, so the extent has
+/// no terminator of its own to keep it whole, and the subsentence opens with the term run the
+/// reciprocal would take as its first sumti. An explicit SEhU, a body with no leading term, or
+/// either of the other two markers is not a reparse the baseline can produce, and stays here.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct BaselineReciprocalSoiRejection;
+
+#[requires(true)]
+#[ensures(true)]
+fn subsentence_opens_with_terms(value: &SubbridiSyntax) -> bool {
+    match value {
+        SubbridiSyntax::PrenexSubbridi(_) => false,
+        SubbridiSyntax::BridiSubbridi(bridi) => {
+            matches!(bridi.0.as_ref(), BridiSyntax::BridiWithLeadingTerms(_))
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn recovered_subsentence_opens_with_terms(value: &recovered::SubbridiSyntax) -> bool {
+    match value {
+        recovered::SubbridiSyntax::PrenexSubbridi(_) => false,
+        recovered::SubbridiSyntax::BridiSubbridi(bridi) => valid(bridi).is_some_and(|bridi| {
+            valid(&bridi.0).is_some_and(|bridi| {
+                matches!(bridi, recovered::BridiSyntax::BridiWithLeadingTerms(_))
+            })
+        }),
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<ZantufaXoiStatementAdverbialSyntax> for ExpSubsentenceAdverbialRejection {
+    fn rejected_name(&self) -> &'static str {
+        "camxes-exp SOI subsentence adverbial"
+    }
+
+    fn rejects(&self, value: &ZantufaXoiStatementAdverbialSyntax) -> bool {
+        is_subbridi_shaped_body(&value.statement)
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::ZantufaXoiStatementAdverbialSyntax>>
+    for ExpSubsentenceAdverbialRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "camxes-exp SOI subsentence adverbial"
+    }
+
+    fn rejects(
+        &self,
+        value: &recovered::Recovered<recovered::ZantufaXoiStatementAdverbialSyntax>,
+    ) -> bool {
+        valid(value).is_some_and(|value| {
+            valid(&value.statement).is_some_and(recovered_is_subbridi_shaped_body)
+        })
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<ExpSoiSubsentenceAdverbialSyntax> for BaselineReciprocalSoiRejection {
+    fn rejected_name(&self) -> &'static str {
+        "baseline SOI reciprocal"
+    }
+
+    fn rejects(&self, value: &ExpSoiSubsentenceAdverbialSyntax) -> bool {
+        value.soi.value.cmavo() == Some(Cmavo::Soi)
+            && value.sehu.is_none()
+            && subsentence_opens_with_terms(&value.subsentence)
+    }
+}
+
+#[contract_trait]
+impl OutputRejection<recovered::Recovered<recovered::ExpSoiSubsentenceAdverbialSyntax>>
+    for BaselineReciprocalSoiRejection
+{
+    fn rejected_name(&self) -> &'static str {
+        "baseline SOI reciprocal"
+    }
+
+    fn rejects(
+        &self,
+        value: &recovered::Recovered<recovered::ExpSoiSubsentenceAdverbialSyntax>,
+    ) -> bool {
+        valid(value).is_some_and(|value| {
+            valid(&value.soi.value).is_some_and(|soi| soi.cmavo() == Some(Cmavo::Soi))
+                && value.sehu.is_none()
+                && valid(&value.subsentence).is_some_and(recovered_subsentence_opens_with_terms)
+        })
+    }
 }
