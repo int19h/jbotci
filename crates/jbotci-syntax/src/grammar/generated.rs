@@ -2952,11 +2952,26 @@ pub mod generated_model {
         field mekso <- arc(mekso);
     }
 
+    // This alternative is ordered before both baseline `quantifier` forms so
+    // that a genuinely extended raw expression such as `pa su'i re` wins, but
+    // the MEX language also contains the two baseline quantifier surfaces, so
+    // it would otherwise steal ordinary CLL quantifiers and mark them
+    // experimental. The refinement rejects a completed `mex` that is exactly
+    // one of those surfaces, and strict ordered choice then reparses it through
+    // `mekso_quantifier` or `pa_run_quantifier`.
+    //
+    // Rejection cannot change the accepted language: `number_mekso` contains
+    // the same `pa_run_quantifier` rule the baseline alternative uses, and
+    // `parenthesized_mekso_operand` is field for field the same `VEI`, inner
+    // `mex`, optional `VEhO` surface as `mekso_quantifier`, so a rejected raw
+    // match and its baseline reparse always consume the identical extent.
     /// Transparent product node for quantifier; preserves the `mekso` component.
     rule "quantifier" zantufa_priority_raw_mekso_quantifier(mekso, letter_tokens) -> struct {
         assert zantufa_raw_mekso_quantifier_guard(letter_tokens);
         /// The shared mekso child syntax node.
-        field mekso <- arc(mekso);
+        field mekso <- arc(
+            mekso.reject_output(crate::grammar::baseline_quantifier::BaselineQuantifierRejection)
+        );
     }
 
     /// Sum node for quantifier; selects among the `zantufa_priority_raw_mekso_quantifier`, `mekso_quantifier`, `pa_run_quantifier`, and `zantufa_raw_mekso_quantifier` forms.

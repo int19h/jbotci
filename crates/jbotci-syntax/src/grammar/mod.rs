@@ -34,6 +34,7 @@ use crate::{
 mod baseline_bo;
 mod baseline_bridi_tail;
 mod baseline_mex;
+mod baseline_quantifier;
 mod baseline_relative;
 mod baseline_selbri;
 mod baseline_tag;
@@ -8350,6 +8351,334 @@ mod tests {
                 !has_warning_kind(&extended, ExperimentalConstruct::ExperimentalZantufaMex),
                 "baseline-owned MEX must not carry a Zantufa warning"
             );
+        });
+    }
+
+    /// The `quantifier` alternative selected at one source position.
+    #[invariant(true)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum QuantifierForm {
+        PaRun,
+        Mekso,
+        ZantufaPriorityRaw,
+        ZantufaRaw,
+    }
+
+    #[invariant(true)]
+    struct QuantifierFormVisitor {
+        forms: Vec<QuantifierForm>,
+    }
+
+    impl<'tree> TreeVisitor<'tree> for QuantifierFormVisitor {
+        type Node = generated::generated_model::NodeRef<'tree>;
+        type Atom = generated::generated_model::AtomRef<'tree>;
+
+        #[requires(true)]
+        #[ensures(true)]
+        fn enter_node(&mut self, node: Self::Node) {
+            let form = match node {
+                generated::generated_model::NodeRef::QuantifierSyntaxPaRunQuantifier(_) => {
+                    QuantifierForm::PaRun
+                }
+                generated::generated_model::NodeRef::QuantifierSyntaxMeksoQuantifier(_) => {
+                    QuantifierForm::Mekso
+                }
+                generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
+                    _,
+                ) => QuantifierForm::ZantufaPriorityRaw,
+                generated::generated_model::NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(
+                    _,
+                ) => QuantifierForm::ZantufaRaw,
+                _ => return,
+            };
+            self.forms.push(form);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn quantifier_forms(
+        parse_tree: &generated::generated_model::TextSyntax,
+    ) -> Vec<QuantifierForm> {
+        let mut visitor = QuantifierFormVisitor { forms: Vec::new() };
+        generated::generated_model::TreeNode::visit_in_order(parse_tree, &mut visitor);
+        visitor.forms
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_quantifier_forms(
+        parse_tree: &generated::generated_model::recovered::TextSyntax,
+    ) -> Vec<QuantifierForm> {
+        #[invariant(true)]
+        struct RecoveredVisitor {
+            forms: Vec<QuantifierForm>,
+        }
+
+        impl<'tree> TreeVisitor<'tree> for RecoveredVisitor {
+            type Node = generated::generated_model::recovered::NodeRef<'tree>;
+            type Atom = generated::generated_model::recovered::AtomRef<'tree>;
+
+            #[requires(true)]
+            #[ensures(true)]
+            fn enter_node(&mut self, node: Self::Node) {
+                use generated::generated_model::recovered::NodeRef;
+                let form = match node {
+                    NodeRef::QuantifierSyntaxPaRunQuantifier(_) => QuantifierForm::PaRun,
+                    NodeRef::QuantifierSyntaxMeksoQuantifier(_) => QuantifierForm::Mekso,
+                    NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(_) => {
+                        QuantifierForm::ZantufaPriorityRaw
+                    }
+                    NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifier(_) => {
+                        QuantifierForm::ZantufaRaw
+                    }
+                    _ => return,
+                };
+                self.forms.push(form);
+            }
+        }
+
+        let mut visitor = RecoveredVisitor { forms: Vec::new() };
+        generated::generated_model::recovered::TreeNode::visit_in_order(parse_tree, &mut visitor);
+        visitor.forms
+    }
+
+    /// Both ways of enabling the extended mex grammar, since the builtin
+    /// dialect and the explicit feature flag reach the same feature gate by
+    /// different configuration paths.
+    #[requires(true)]
+    #[ensures(ret.len() == 2)]
+    fn zantufa_mex_parse_options() -> Vec<ParseOptions> {
+        ["(zantufa)", "(+ZANTUFA-MEX)"]
+            .into_iter()
+            .map(|definition| {
+                let dialect = parse_dialect_definition(definition).expect("valid dialect");
+                ParseOptions::default().with_dialect_definition(&dialect)
+            })
+            .collect()
+    }
+
+    #[requires(!source.is_empty())]
+    #[ensures(true)]
+    fn assert_zantufa_quantifier_forms(source: &str, expected: &[QuantifierForm]) {
+        for options in zantufa_mex_parse_options() {
+            let parsed = parse_source(source, &options);
+            assert_eq!(quantifier_forms(&parsed.parse_tree), expected, "{source}");
+            assert!(
+                !has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                "{source}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_pa_run_keeps_the_baseline_variant() {
+        run_on_normal_stack(|| {
+            // Elided and explicit BOI are both part of the baseline
+            // `pa_run_quantifier` production, so both stay baseline-owned.
+            for source in ["tirna re cmalu se krixa", "tirna re boi cmalu se krixa"] {
+                assert_zantufa_quantifier_forms(source, &[QuantifierForm::PaRun]);
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_vei_keeps_the_baseline_variant() {
+        run_on_normal_stack(|| {
+            // Elided and explicit VEhO are both part of the baseline
+            // `mekso_quantifier` production.
+            for source in [
+                "tirna vei pa su'i re ve'o cmalu",
+                "tirna vei pa su'i re cmalu",
+            ] {
+                assert_zantufa_quantifier_forms(source, &[QuantifierForm::Mekso]);
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_bare_fragments_keep_the_baseline_variant() {
+        run_on_normal_stack(|| {
+            // A quantifier fragment reaches `quantifier` through `mekso_fragment`
+            // rather than through a description, and must not fall through to the
+            // Zantufa mex fragment either.
+            assert_zantufa_quantifier_forms("re", &[QuantifierForm::PaRun]);
+            assert_zantufa_quantifier_forms("vei pa ve'o", &[QuantifierForm::Mekso]);
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_raw_expression_stays_experimental() {
+        run_on_normal_stack(|| {
+            let source = "tirna pa su'i re cmalu";
+            for options in zantufa_mex_parse_options() {
+                let parsed = parse_source(source, &options);
+                assert_eq!(
+                    quantifier_forms(&parsed.parse_tree),
+                    [QuantifierForm::ZantufaPriorityRaw]
+                );
+                assert_eq!(
+                    parsed
+                        .warnings
+                        .iter()
+                        .filter(
+                            |warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaMex
+                        )
+                        .count(),
+                    1
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_reinterpretation_keeps_the_faithful_zantufa_reading() {
+        run_on_normal_stack(|| {
+            // Under the meaning-changing reinterpretation flag the `mex` route
+            // is the faithful Zantufa projection rather than the baseline
+            // reading, so the surface is not a baseline quantifier and the
+            // priority raw route keeps it — warning included.
+            let dialect = parse_dialect_definition("(+ZANTUFA-MEX +ZANTUFA-MEX-REINTERPRETATION)")
+                .expect("valid dialect");
+            let options = ParseOptions::default().with_dialect_definition(&dialect);
+            let parsed = parse_source("tirna re cmalu", &options);
+            assert_eq!(
+                quantifier_forms(&parsed.parse_tree),
+                [QuantifierForm::ZantufaPriorityRaw]
+            );
+            assert!(has_warning_kind(
+                &parsed,
+                ExperimentalConstruct::ExperimentalZantufaMex
+            ));
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_bo_grouped_vei_keeps_only_the_inner_warning() {
+        run_on_normal_stack(|| {
+            // `vei pa bo re ve'o` is a baseline quantifier surface whose inner mex
+            // is genuinely Zantufa-only, so the outer false positive disappears
+            // while the BO grouping warning stays anchored at `bo`.
+            let source = "tirna vei pa bo re ve'o cmalu";
+            let bo_start = source.find("bo").expect("source contains bo");
+            for options in zantufa_mex_parse_options() {
+                let parsed = parse_source(source, &options);
+                assert_eq!(
+                    quantifier_forms(&parsed.parse_tree),
+                    [QuantifierForm::Mekso]
+                );
+                let anchors = parsed
+                    .warnings
+                    .iter()
+                    .filter(|warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaMex)
+                    .map(warning_span)
+                    .collect::<Vec<_>>();
+                assert_eq!(anchors, [[bo_start, bo_start + "bo".len()]]);
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_moi_and_roi_guards_are_unchanged() {
+        run_on_normal_stack(|| {
+            // Neither surface is a quantifier, and both are already excluded by
+            // the raw-mex guard, so enabling the extended mex grammar must leave
+            // them byte-identical.
+            for source in ["re moi broda", "re roi klama"] {
+                let baseline = parse_tree_debug(source, &ParseOptions::default());
+                for options in zantufa_mex_parse_options() {
+                    let parsed = parse_source(source, &options);
+                    assert_eq!(format!("{:?}", parsed.parse_tree), baseline, "{source}");
+                    assert!(quantifier_forms(&parsed.parse_tree).is_empty(), "{source}");
+                    assert!(
+                        !has_warning_kind(&parsed, ExperimentalConstruct::ExperimentalZantufaMex),
+                        "{source}"
+                    );
+                }
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_recovered_tree_keeps_the_baseline_variant() {
+        run_on_normal_stack(|| {
+            // The recovered generation classifies its own model, so a baseline
+            // quantifier outside the repaired region keeps baseline ownership.
+            let source = "mi ku tirna re cmalu";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            for options in zantufa_mex_parse_options() {
+                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                    &words, source, &options,
+                );
+                assert!(
+                    !recovered.errors.is_empty(),
+                    "recovery repaired the stray ku"
+                );
+                assert_eq!(
+                    recovered_quantifier_forms(&recovered.parse_tree),
+                    [QuantifierForm::PaRun]
+                );
+                assert!(
+                    !recovered.warnings.iter().any(
+                        |warning| warning.kind == ExperimentalConstruct::ExperimentalZantufaMex
+                    )
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_quantifier_memo_replay_keeps_baseline_ownership() {
+        run_on_normal_stack(|| {
+            // Recovery runs repeated parse trials over a shared syntax memo, so
+            // the same `mex` output is replayed rather than reparsed. Repeating
+            // the strict parse and repeating the same surface within one text
+            // both drive the memo as well. None of those replays may hand the
+            // priority raw route back a baseline quantifier surface.
+            let repeated = "tirna re cmalu .i viska vei pa su'i re ve'o cmalu";
+            for options in zantufa_mex_parse_options() {
+                for _ in 0..2 {
+                    let parsed = parse_source(repeated, &options);
+                    assert_eq!(
+                        quantifier_forms(&parsed.parse_tree),
+                        [QuantifierForm::PaRun, QuantifierForm::Mekso]
+                    );
+                    assert!(!has_warning_kind(
+                        &parsed,
+                        ExperimentalConstruct::ExperimentalZantufaMex
+                    ));
+                }
+            }
+
+            let source = "mi ku tirna re cmalu .i viska re cmalu";
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            for options in zantufa_mex_parse_options() {
+                let recovered = crate::parse_syntax_tree_recovered_with_source_and_options(
+                    &words, source, &options,
+                );
+                assert_eq!(
+                    recovered_quantifier_forms(&recovered.parse_tree),
+                    [QuantifierForm::PaRun, QuantifierForm::PaRun]
+                );
+            }
         });
     }
 
