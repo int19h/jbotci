@@ -1340,16 +1340,16 @@ class ZantufaRelativeConnectedStatementSyntax:
 
 @final
 class ZantufaRelativeStatementContinuationSyntax:
-    'Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.'
+    'Product node for statement connection; preserves `i`, `connective`, and `trailing_statement` in source order.\n\nThe `I` carries its post-clause free modifiers, as rolling Zantufa\'s `I_clause` does\n(zantufa-1.9999.peg:217).  Without that the body would be a different language from the\none the D2 reservation probes over it, and an I-connected Zantufa body with a free\nmodifier after its `i` would fall out of both.'
     __match_args__: ClassVar[tuple[Literal['i'], Literal['connective'], Literal['trailing_statement']]]
     def __new__(
         cls,
-        i: Token,
+        i: WithFreeModifiers[Token, FreeModifierSyntax],
         connective: ZantufaRelativeStatementConnectiveSyntax,
         trailing_statement: ZantufaRelativeStatementBaseSyntax,
     ) -> ZantufaRelativeStatementContinuationSyntax: ...
     @property
-    def i(self) -> Token:
+    def i(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
         'The `I` cmavo marker.'
         ...
     @property
@@ -12553,21 +12553,64 @@ class ExpSelbriRelativeClauseConnectiveSyntaxZiheSelbriRelativeConnective:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class ExpSelbriRelativeClauseConnectiveSyntaxJoikConnective:
-    'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
-    __match_args__: ClassVar[tuple[Literal['joik_connective']]]
-    def __new__(cls, joik_connective: JoikConnectiveSyntax) -> ExpSelbriRelativeClauseConnectiveSyntaxJoikConnective: ...
+class ExpSelbriRelativeClauseConnectiveSyntaxExpRelativeClauseConnective:
+    'Uses the shared `exp_relative_clause_connective` product form, whose payload preserves `na`, `se`, `head`, and `nai`.'
+    __match_args__: ClassVar[tuple[Literal['exp_relative_clause_connective']]]
+    def __new__(cls, exp_relative_clause_connective: ExpRelativeClauseConnectiveSyntax) -> ExpSelbriRelativeClauseConnectiveSyntaxExpRelativeClauseConnective: ...
     @property
-    def joik_connective(self) -> JoikConnectiveSyntax:
-        'Uses the nested `joik_connective` sum form and preserves its selected alternative.'
+    def exp_relative_clause_connective(self) -> ExpRelativeClauseConnectiveSyntax:
+        'Uses the shared `exp_relative_clause_connective` product form, whose payload preserves `na`, `se`, `head`, and `nai`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for relative clause connective; selects among the `zihe_selbri_relative_connective` and `joik_connective` forms.
-ExpSelbriRelativeClauseConnectiveSyntax: TypeAlias = ExpSelbriRelativeClauseConnectiveSyntaxZiheSelbriRelativeConnective | ExpSelbriRelativeClauseConnectiveSyntaxJoikConnective
+@final
+class ExpSelbriRelativeClauseConnectiveSyntaxSimpleIntervalConnective:
+    'The source `joik`\'s bare `interval`: `SE_clause? BIhI_clause NAI_clause?` (:349).'
+    __match_args__: ClassVar[tuple[Literal['simple_interval_connective']]]
+    def __new__(cls, simple_interval_connective: SimpleIntervalConnectiveSyntax) -> ExpSelbriRelativeClauseConnectiveSyntaxSimpleIntervalConnective: ...
+    @property
+    def simple_interval_connective(self) -> SimpleIntervalConnectiveSyntax:
+        'The source `joik`\'s bare `interval`: `SE_clause? BIhI_clause NAI_clause?` (:349).'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpSelbriRelativeClauseConnectiveSyntaxClosedIntervalConnective:
+    'The source `joik`\'s `GAhO_clause interval GAhO_clause` (:347).'
+    __match_args__: ClassVar[tuple[Literal['closed_interval_connective']]]
+    def __new__(cls, closed_interval_connective: ClosedIntervalConnectiveSyntax) -> ExpSelbriRelativeClauseConnectiveSyntaxClosedIntervalConnective: ...
+    @property
+    def closed_interval_connective(self) -> ClosedIntervalConnectiveSyntax:
+        'The source `joik`\'s `GAhO_clause interval GAhO_clause` (:347).'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for relative clause connective; selects among the `zihe_selbri_relative_connective` and `exp_relative_clause_connective` forms.
+#
+# This is `joik` as camxes-exp spells it, whole: `NA_clause? SE_clause? (JOI_clause /
+# JA_clause / A_clause) NAI_clause? / interval / GAhO_clause interval GAhO_clause` with
+# `interval <- SE_clause? BIhI_clause NAI_clause?` (:346-349), under an explicit A-JA-JOI
+# merge. The first alternative already has an exact transcription in
+# `exp_relative_clause_connective`, which the ordinary relative chain uses for the same
+# source `joik` at :199, and the other two already have one in the two interval arms of
+# jbotci's `joik_connective`, so all three are reused rather than restated.
+#
+# What is NOT reused is `joik_connective` itself. It is not this language in either
+# direction: it is narrower, because jbotci splits camxes-exp's merged inventory across
+# `joik_connective`, `jek_connective` and `ek_connective`, and wider, because three of its
+# arms are `ZantufaConnectives`-gated rolling-Zantufa shapes camxes-exp does not spell at
+# all. Its narrowness left `broda po'oi mi brode je po'oi do brodi` -- R / A / A, and so
+# camxes-exp's under R2 -- with no route in either profile.
+ExpSelbriRelativeClauseConnectiveSyntax: TypeAlias = ExpSelbriRelativeClauseConnectiveSyntaxZiheSelbriRelativeConnective | ExpSelbriRelativeClauseConnectiveSyntaxExpRelativeClauseConnective | ExpSelbriRelativeClauseConnectiveSyntaxSimpleIntervalConnective | ExpSelbriRelativeClauseConnectiveSyntaxClosedIntervalConnective
 
 @final
 class ZiheSelbriRelativeConnectiveSyntax:
@@ -12612,16 +12655,16 @@ class ExpSelbriRelativeClauseSyntax:
 
 @final
 class ZantufaKuhoTerminatedStatementRelativeClauseSyntax:
-    'The rolling-Zantufa statement relative clause in its explicitly terminated form, used\nonly as the ownership reservation above.  It is never a node: nothing selects it.'
+    'The rolling-Zantufa statement relative clause in its explicitly terminated form, used\nonly as the ownership reservation above.  It is never a node: nothing selects it.\n\nIt must be the SAME LANGUAGE as the clause it reserves, word for word, or the\nreservation and the owner disagree at a boundary and the prefix-steal it exists to\nprevent happens exactly where they differ.  Zantufa\'s `NOI_clause` carries `post_clause`,\nwhose `free*` belongs to the marker (zantufa-1.9999.peg:325, :82), which is why the owning\narms spell the marker with `.wf()`; without it here a free modifier after NOhOI makes the\nreservation fail while D2\'s own marker consumes it, and the prefix-steal happens exactly\nthere.  The warnings are the owner\'s alone: this rule is probed inside a rewinding\nlookahead and never contributes a node or a diagnostic.'
     __match_args__: ClassVar[tuple[Literal['noi'], Literal['statement'], Literal['kuho']]]
     def __new__(
         cls,
-        noi: Token,
+        noi: WithFreeModifiers[Token, FreeModifierSyntax],
         statement: ZantufaRelativeStatementSyntax,
         kuho: Token,
     ) -> ZantufaKuhoTerminatedStatementRelativeClauseSyntax: ...
     @property
-    def noi(self) -> Token:
+    def noi(self) -> WithFreeModifiers[Token, FreeModifierSyntax]:
         'The rolling-Zantufa NOI inventory (zantufa-1.9999.peg:590).'
         ...
     @property
@@ -12630,7 +12673,7 @@ class ZantufaKuhoTerminatedStatementRelativeClauseSyntax:
         ...
     @property
     def kuho(self) -> Token:
-        'The explicit `Kuho` terminator that makes this extent Zantufa\'s.'
+        'The explicit `Kuho` terminator that makes this extent Zantufa\'s.  Its own post-clause\nfree modifiers are deliberately NOT consumed here: the reservation is a boolean, so\nwhat follows the terminator cannot change its answer, while probing an empty `free*`\nat end of input does move the recorded failure frontier onto that probe and makes\nthe enclosing rejection point at nothing.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
