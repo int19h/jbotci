@@ -216,6 +216,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
     (
+        "crates/jbotci-cll/src/import.rs:EmbeddedCllEdition",
+        "build-time edition constant is a borrowed carrier whose fields are validated by the generator and revalidated by CllEdition",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:EmbeddedCllEditionAncestor",
+        "build-time edition ancestor constant is a borrowed carrier revalidated by CllEditionAncestor",
+    ),
+    (
         "crates/jbotci-cll/src/import.rs:PendingIndexEntry",
         "pending index entries are private loader intermediates from DocBook indexterm nodes",
     ),
@@ -246,6 +254,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-cll/src/links.rs:LinkResolutionVisitor",
         "link resolution visitor is private traversal accumulator state",
+    ),
+    (
+        "crates/jbotci-cll/src/model.rs:CllMetadata",
+        "site metadata pairs a validated CllEdition with a chapter count that CllSite already ties to the loaded chapters",
     ),
     (
         "crates/jbotci-cll/src/search.rs:CllSearchChunk",

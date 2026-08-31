@@ -133,7 +133,7 @@ DEALINGS IN THE FONT SOFTWARE.
 
 ## 2. Reference data
 
-### The Complete Lojban Language (CLL)
+### The Contemporary Lojban Language (CLL)
 
 jbotci embeds text, examples, and the formal grammar from
 [colojban 1.3.2](https://github.com/int19h/cll/tree/v1.3.2), a modified fork of

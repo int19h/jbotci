@@ -14041,10 +14041,10 @@ mod tests {
             })
             .collect();
         new!(CllSite {
-            metadata: new!(CllMetadata {
-                title: "Test CLL".to_owned(),
+            metadata: CllMetadata {
+                edition: jbotci_cll::cll_edition().clone(),
                 chapter_count: chapter_count,
-            }),
+            },
             chapters: chapters,
             sections_by_id: sections_by_id,
             section_order: section_order,

@@ -431,7 +431,7 @@ disagree most, and how much they count materially changes which candidate wins.
   NAACL 2000 — the ALINE model, its feature system, and the default parameters.
 - G. Kondrak, *Algorithms for Language Reconstruction*, PhD thesis, University
   of Toronto, 2002, ch. 4 — extended treatment and parameter discussion.
-- CLL (*The Complete Lojban Language*) §4.14 — the classical gismu creation
+- CLL (*The Contemporary Lojban Language*) §4.14 — the classical gismu creation
   algorithm.
 - C. de la Higuera, F. Casacuberta, *Topology of strings: Median string is
   NP-complete*, Theoretical Computer Science 230 (2000) — hardness of the

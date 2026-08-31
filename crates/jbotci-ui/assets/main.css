@@ -5376,6 +5376,33 @@ body::-webkit-scrollbar-thumb:hover,
   background: var(--app-surface-2);
 }
 
+/* Which edition of the book the reader is showing. Kept above the section
+   search so it is present on every cukta view. */
+.cll-page .cll-edition {
+  display: grid;
+  gap: 0.02rem;
+  margin-bottom: 0.4rem;
+}
+
+.cll-page .cll-edition-title {
+  color: var(--app-text);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.cll-page .cll-edition-version {
+  color: var(--app-accent);
+  font-size: 0.68rem;
+  font-family: var(--code-font);
+}
+
+.cll-page .cll-edition-publisher {
+  color: var(--app-muted);
+  font-size: 0.66rem;
+  line-height: 1.25;
+}
+
 .cll-page .cll-toc-search {
   display: grid;
   gap: 0.24rem;
@@ -5530,6 +5557,28 @@ body::-webkit-scrollbar-thumb:hover,
 .cll-page .cll-para {
   margin: 0.58rem 0;
   max-width: 72rem;
+}
+
+/* Rule-status notes: the edition's own annotation of how settled a rule is.
+   Set off with an accent rule and a tinted ground so they read as an aside
+   rather than as part of the exposition. */
+.cll-page .cll-status-note {
+  display: block;
+  margin: 0.72rem 0;
+  padding: 0.42rem 0.62rem;
+  border-left: 3px solid color-mix(in srgb, var(--app-accent) 70%, var(--app-border));
+  border-radius: 0 5px 5px 0;
+  background: color-mix(in srgb, var(--app-accent) 7%, var(--app-surface-1));
+}
+
+.cll-page .cll-status-note-label {
+  margin-right: 0.42rem;
+  color: var(--app-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .cll-page .cll-list {

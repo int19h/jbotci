@@ -1,14 +1,83 @@
 use std::collections::BTreeMap;
 
 #[allow(unused_imports)]
-use bityzba::{ensures, expensive_invariant, invariant, requires};
+use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[invariant(!title.is_empty())]
+/// An earlier edition in the vendored book's lineage, named as that edition
+/// named itself.
+#[invariant(!title.is_empty(), "an ancestor edition is identified by its own title")]
+#[invariant(!version.is_empty(), "an ancestor edition is identified by its own version")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CllEditionAncestor {
+    pub title: String,
+    pub version: String,
+}
+
+/// The identity of the reference book jbotci answers from.
+///
+/// Every field is derived at build time from the vendored sources — the book's
+/// own `.env` for `title`, `version`, and `publisher`, `vendor/cll.VENDORED_FROM`
+/// for the pin, and `vendor/cll-import-metadata.toml` for `ancestry` — so the
+/// reported edition cannot drift from the vendored text. The book is an
+/// unofficial community publication; `publisher` is its own statement of that
+/// and is reproduced rather than paraphrased.
+#[invariant(!title.is_empty(), "the vendored edition states its title")]
+#[invariant(!version.is_empty(), "the vendored edition states its version")]
+#[invariant(!publisher.is_empty(), "the vendored edition states its publisher line")]
+#[invariant(!ancestry.is_empty(), "the vendored edition descends from at least one earlier edition")]
+#[invariant(!upstream_url.is_empty(), "the vendored edition records where it was vendored from")]
+#[invariant(!release_tag.is_empty(), "the vendored edition records the release it was pinned to")]
+#[invariant(!commit.is_empty(), "the vendored edition records the commit it was pinned to")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct CllEdition {
+    pub title: String,
+    pub version: String,
+    pub publisher: String,
+    /// Oldest first; the vendored edition itself is not repeated here.
+    pub ancestry: Vec<CllEditionAncestor>,
+    pub upstream_url: String,
+    pub release_tag: String,
+    pub commit: String,
+}
+
+impl CllEdition {
+    /// `The Contemporary Lojban Language (colojban-1.3.2)` — the book named
+    /// together with the edition an answer came from.
+    #[requires(true)]
+    #[ensures(ret.starts_with(&self.title) && ret.contains(&self.version))]
+    pub fn display_title(&self) -> String {
+        format!("{} ({})", self.title, self.version)
+    }
+
+    /// `The Complete Lojban Language 1.1 -> The Incomplete Lojban Language
+    /// geklojban-1.2.16 -> colojban-1.3.2`, using the arrow as the lineage
+    /// separator.
+    #[requires(true)]
+    #[ensures(ret.ends_with(&self.version))]
+    pub fn lineage(&self) -> String {
+        let mut lineage = String::new();
+        for ancestor in &self.ancestry {
+            lineage.push_str(&ancestor.title);
+            lineage.push(' ');
+            lineage.push_str(&ancestor.version);
+            lineage.push_str(" \u{2192} ");
+        }
+        lineage.push_str(&self.version);
+        lineage
+    }
+}
+
+/// The site's own description of itself. `chapter_count` is unconstrained here
+/// because `CllSite` already ties it to the loaded chapters, and an empty site
+/// is a legitimate value; the edition's own validity is `CllEdition`'s.
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllMetadata {
-    pub title: String,
+    pub edition: CllEdition,
     pub chapter_count: usize,
 }
 
@@ -282,6 +351,74 @@ fn cll_site_example_references_are_consistent(
             !reference.is_empty() && examples_by_id.contains_key(example_id)
         })
 }
+
+/// The DocBook `role` a paragraph carries in the vendored sources.
+///
+/// The vendored edition labels every rule it teaches differently from the first
+/// edition with a `status-note` paragraph — the edition's headline feature — so
+/// that designation is modelled explicitly and renderers set those notes off
+/// from ordinary prose instead of string-matching a raw attribute. Every other
+/// role is presentational styling that the renderers pass through to CSS
+/// unchanged, which is also what keeps a newer vendored edition from needing
+/// code changes when it introduces a presentational role we have never seen.
+///
+/// The upstream design (`vendor/cll/docs/status-markup.md`) also reserves a
+/// machine-readable `condition="status:..."` attribute that would name the
+/// authority level of each note — ratified, committee-approved, checkpointed,
+/// de facto, editorial. No release has emitted one yet: both `v1.3.2` and
+/// `v1.3.3` carry only the transitional bare form, so the level exists solely
+/// in each note's prose and this type deliberately does not guess at it.
+#[invariant(true)]
+#[invariant(
+    ::Presentation { name } => !name.is_empty() && !name.eq_ignore_ascii_case("status-note"),
+    "a presentational role is non-empty and never shadows the typed status-note designation"
+)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CllParagraphRole {
+    StatusNote,
+    Presentation { name: String },
+}
+
+impl CllParagraphRole {
+    /// Interprets a DocBook `role` attribute value. An attribute that is absent
+    /// or blank designates nothing and yields `None`.
+    #[requires(true)]
+    #[ensures(ret.is_none() == value.trim().is_empty())]
+    pub fn parse(value: &str) -> Option<Self> {
+        let value = value.trim();
+        if value.is_empty() {
+            return None;
+        }
+        if value.eq_ignore_ascii_case("status-note") {
+            return Some(new!(CllParagraphRole::StatusNote));
+        }
+        Some(new!(CllParagraphRole::Presentation {
+            name: value.to_owned()
+        }))
+    }
+
+    /// Whether this paragraph is one of the edition's rule-status notes.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn is_status_note(&self) -> bool {
+        matches!(self.as_data(), data!(CllParagraphRole::StatusNote))
+    }
+
+    /// The presentational CSS suffix for a role that only carries styling.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|name| !name.is_empty()))]
+    pub fn presentation_name(&self) -> Option<&str> {
+        match self.as_data() {
+            data!(CllParagraphRole::Presentation { name }) => Some(name),
+            data!(CllParagraphRole::StatusNote) => None,
+        }
+    }
+}
+
+/// The label renderers put on a rule-status note so a reader can tell one from
+/// ordinary prose in transports that carry no styling.
+pub const CLL_STATUS_NOTE_LABEL: &str = "Rule status";
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -595,7 +732,7 @@ use crate::ebnf::CllEbnfEntry;
 pub enum CllBlock {
     Paragraph {
         anchor_id: Option<String>,
-        role: Option<String>,
+        role: Option<CllParagraphRole>,
         inlines: Vec<CllInline>,
         text: String,
     },

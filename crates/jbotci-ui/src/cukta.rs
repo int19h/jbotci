@@ -122,6 +122,9 @@ pub(super) fn render_cukta_page(
         ],
     );
     let shell_style = format!("--cll-sidebar-width:{:.0}px;", snapshot.current_toc_width);
+    // The reader states which edition of the book it is showing; the sidebar
+    // header is the one place present on every cukta view.
+    let cll_edition = jbotci_cll::cll_edition();
     let cukta_index_route = JbotciRoute::from_web_route(
         WebRoute::Cukta(CuktaWebState {
             view: CuktaWebView::Index,
@@ -183,6 +186,13 @@ pub(super) fn render_cukta_page(
                             }
                         },
                         div { class: "cll-toc-head",
+                            div {
+                                class: "cll-edition",
+                                title: "Lineage: {cll_edition.lineage()}",
+                                span { class: "cll-edition-title", "{cll_edition.title}" }
+                                span { class: "cll-edition-version", "{cll_edition.version}" }
+                                span { class: "cll-edition-publisher", "{cll_edition.publisher}" }
+                            }
                             label { class: "cll-toc-search",
                                 input {
                                     class: "cll-toc-search-input",
@@ -1266,9 +1276,32 @@ pub(super) fn render_cll_block(
             inlines,
             text,
         } => {
+            if role
+                .as_ref()
+                .is_some_and(jbotci_cll::CllParagraphRole::is_status_note)
+            {
+                // The edition's rule-status notes are annotations about the
+                // standing of a rule rather than exposition, so they are set off
+                // as a labelled aside instead of running as ordinary prose.
+                return rsx! {
+                    aside {
+                        id: anchor_id.clone().unwrap_or_default(),
+                        class: "cll-para cll-status-note",
+                        span { class: "cll-status-note-label", {jbotci_cll::CLL_STATUS_NOTE_LABEL} }
+                        if inlines.is_empty() {
+                            { render_page_find_text(page_find, text) }
+                        } else {
+                            for inline in inlines.iter() {
+                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
+                            }
+                        }
+                    }
+                };
+            }
             let class_name = role
                 .as_ref()
-                .map(|role| format!("cll-para cll-para-{role}"))
+                .and_then(jbotci_cll::CllParagraphRole::presentation_name)
+                .map(|name| format!("cll-para cll-para-{name}"))
                 .unwrap_or_else(|| "cll-para".to_owned());
             rsx! {
                 p { id: anchor_id.clone().unwrap_or_default(), class: "{class_name}",

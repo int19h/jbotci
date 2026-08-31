@@ -3489,7 +3489,8 @@ fn build_cukta_page_meta(base_path: &str, state: &CuktaWebState) -> PageMeta {
                 );
             };
             let title = format!(
-                "The Complete Lojban Language - {}",
+                "{} - {}",
+                site.metadata.edition.title,
                 cll_section_chapter_display_title(site, section)
             );
             page_meta(

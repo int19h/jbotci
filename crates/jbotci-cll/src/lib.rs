@@ -1,4 +1,7 @@
-//! The Complete Lojban Language reference model.
+//! Reference model for *The Contemporary Lojban Language*, the unofficial
+//! community edition of the Lojban reference grammar that jbotci vendors and
+//! that the `cukta` tool answers from. [`cll_edition`] reports which edition a
+//! given build carries.
 
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, expensive_invariant, invariant, new, requires};
@@ -26,7 +29,7 @@ use import::{
     chrestomathy_metadata, chrestomathy_section_metadata, cll_import_metadata,
     normalized_plain_text,
 };
-pub use import::{embedded_cll_site, load_embedded_cll_site};
+pub use import::{cll_edition, embedded_cll_site, load_embedded_cll_site};
 
 mod ebnf;
 #[cfg(test)]
@@ -330,8 +333,13 @@ pub fn render_cukta_request(
 pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRenderMode) -> String {
     match format {
         CllRenderFormat::Html => {
-            let mut output =
-                String::from("<nav class=\"cll-toc-rendered\"><h1>Table of Contents</h1><ol>");
+            let edition = &site.metadata.edition;
+            let mut output = format!(
+                "<nav class=\"cll-toc-rendered\"><h1>{}</h1><p class=\"cll-edition\">{}</p><p class=\"cll-edition-lineage\">{}</p><h2>Table of Contents</h2><ol>",
+                escape_html(&edition.title),
+                escape_html(&format!("{} — {}", edition.version, edition.publisher)),
+                escape_html(&format!("Lineage: {}", edition.lineage())),
+            );
             for chapter in &site.chapters {
                 output.push_str("<li>");
                 output.push_str(&escape_html(&format!(
@@ -362,7 +370,14 @@ pub fn render_toc(site: &CllSite, format: CllRenderFormat, link_mode: CllLinkRen
             output
         }
         CllRenderFormat::Markdown | CllRenderFormat::Raw => {
-            let mut output = String::from("# Table of Contents\n\n");
+            let edition = &site.metadata.edition;
+            let mut output = format!(
+                "# {}\n\n{} — {}\n\nLineage: {}\n\n## Table of Contents\n\n",
+                edition.title,
+                edition.version,
+                edition.publisher,
+                edition.lineage(),
+            );
             for chapter in &site.chapters {
                 output.push_str(&format!(
                     "{}. {}\n",
@@ -896,6 +911,125 @@ mod tests {
     use jbotci_morphology::segment_words_with_modifiers;
     use jbotci_syntax::{ParseOptions, parse_syntax_tree_with_options};
     use sha2::{Digest, Sha256};
+
+    /// The vendored edition's own `.env` is the authority for its identity, so
+    /// the reported edition has to be exactly what that file says.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn edition_is_taken_from_the_vendored_sources() {
+        let vendored_env = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../vendor/cll/.env"
+        ));
+        let vendored_pin = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../vendor/cll.VENDORED_FROM"
+        ));
+        let edition = cll_edition();
+
+        assert!(vendored_env.contains(&format!("TITLE={}", edition.title)));
+        assert!(vendored_env.contains(&format!("VERSION=\"{}\"", edition.version)));
+        assert!(vendored_env.contains(&format!("PUBLISHER={}", edition.publisher)));
+        assert!(vendored_pin.contains(&format!("release-tag: {}", edition.release_tag)));
+        assert!(vendored_pin.contains(&format!("commit: {}", edition.commit)));
+        assert_eq!(
+            embedded_cll_site()
+                .expect("embedded CLL should load")
+                .metadata
+                .edition,
+            *edition,
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn edition_lineage_ends_at_the_vendored_edition() {
+        let edition = cll_edition();
+        let lineage = edition.lineage();
+
+        for ancestor in &edition.ancestry {
+            assert!(lineage.contains(&ancestor.title));
+            assert!(lineage.contains(&ancestor.version));
+        }
+        assert!(lineage.ends_with(&edition.version));
+        assert!(!edition.display_title().is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn paragraph_roles_separate_status_notes_from_presentation() {
+        let status_note = CllParagraphRole::parse("status-note").expect("role should parse");
+        let indent = CllParagraphRole::parse("indent").expect("role should parse");
+
+        assert!(status_note.is_status_note());
+        assert_eq!(status_note.presentation_name(), None);
+        assert!(!indent.is_status_note());
+        assert_eq!(indent.presentation_name(), Some("indent"));
+        assert_eq!(CllParagraphRole::parse("   "), None);
+    }
+
+    /// The status notes are the vendored edition's headline feature, so they
+    /// have to survive import as a typed designation rather than as prose.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn status_notes_are_imported_and_rendered_distinctly() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let mut status_note_sections = Vec::new();
+        for section in site.sections_by_id.values() {
+            if section.blocks.iter().any(|block| {
+                matches!(
+                    block,
+                    CllBlock::Paragraph { role: Some(role), .. } if role.is_status_note()
+                )
+            }) {
+                status_note_sections.push(section);
+            }
+        }
+        assert!(
+            !status_note_sections.is_empty(),
+            "the vendored edition marks moved rules with status notes"
+        );
+
+        let section = status_note_sections[0];
+        let markdown = render_section(
+            site,
+            section,
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
+        );
+        let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
+
+        assert!(markdown.contains(&format!("> **{CLL_STATUS_NOTE_LABEL}.** ")));
+        assert!(html.contains("<aside"));
+        assert!(html.contains("class=\"cll-para cll-status-note\""));
+        assert!(html.contains(&format!(
+            "<span class=\"cll-status-note-label\">{CLL_STATUS_NOTE_LABEL}</span>"
+        )));
+        assert!(!html.contains("cll-para-status-note"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn toc_names_the_edition_it_renders() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let edition = &site.metadata.edition;
+
+        let markdown = render_toc(site, CllRenderFormat::Markdown, CllLinkRenderMode::Plain);
+        assert!(markdown.starts_with(&format!("# {}\n", edition.title)));
+        assert!(markdown.contains(&edition.version));
+        assert!(markdown.contains(&edition.publisher));
+        assert!(markdown.contains(&format!("Lineage: {}", edition.lineage())));
+
+        let html = render_toc(site, CllRenderFormat::Html, CllLinkRenderMode::Web);
+        assert!(html.contains(&escape_html(&edition.title)));
+        assert!(html.contains(&escape_html(&edition.publisher)));
+        assert!(html.contains("<h2>Table of Contents</h2>"));
+    }
 
     #[test]
     #[requires(true)]

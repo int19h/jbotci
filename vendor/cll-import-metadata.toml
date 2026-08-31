@@ -1,6 +1,23 @@
 chrestomathy_chapter_id = "volume-chrestomathy"
 ebnf_section_id = "section-EBNF"
 
+# Editions the vendored book descends from, oldest first. The vendored edition's
+# own title, version, and publisher line come from `vendor/cll/.env` (the book's
+# own declaration of its identity), and its pin comes from
+# `vendor/cll.VENDORED_FROM`; neither records the lineage, so the ancestry is
+# recorded here. Each entry's title and version are the ancestor edition's own:
+# `The Complete Lojban Language` is the 1997 first edition as corrected through
+# its 1.1 revision, and `The Incomplete Lojban Language` is the UnCLL revision
+# that colojban forked, both taken from that edition's own `.env`. Vendoring a
+# newer colojban release only appends to this list when the fork point moves.
+[[edition_ancestry]]
+title = "The Complete Lojban Language"
+version = "1.1"
+
+[[edition_ancestry]]
+title = "The Incomplete Lojban Language"
+version = "geklojban-1.2.16"
+
 [ebnf_symbols]
 BRIVLA = "section-morphology-brivla"
 CMEVLA = "section-cmevla"
