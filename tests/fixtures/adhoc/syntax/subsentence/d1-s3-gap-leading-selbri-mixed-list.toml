@@ -1,0 +1,13 @@
+id = "adhoc.syntax.subsentence.d1-s3-gap-leading-selbri-mixed-list"
+lojban = "broda po'oi mi brode zi'e poi do brodi"
+dialect = "(+zantufa-terms)"
+tags = ["adhoc", "syntax", "subsentence-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-8 subsentence ownership matrix witness"
+description = "Documented gap, issue #877: zantufa_relative_selbri's leading_selbri is the level-2 selbri ladder, which contains exp_relative_tanru_unit, so D2 takes the first NOhOI clause as part of the leading selbri and selbri_relative_clause_list never sees the list. The class this loses is a list whose first clause camxes-exp can form but whose whole cannot -- here a po'oi clause ZIhE-joined to a baseline poi. An explicit ku'o on the first clause fires the D2 reservation and the list reaches S3 intact, which is the boundary. The fix is the second boundary ladder Delta 4 declined to build."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-selbri", byte-span = [38, 38], source-text = "", message = "incomplete selbri" }]
