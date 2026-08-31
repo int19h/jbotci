@@ -580,7 +580,7 @@ macro_rules! cmavo_table {
         Nohei => { text: "no'ei", selmaho: [Nahe] },
         Nohi => { text: "no'i", selmaho: [Niho] },
         Noho => { text: "no'o", selmaho: [Pa] },
-        Nohoi => { text: "no'oi", selmaho: [Noi, Ui, Ui3a] },
+        Nohoi => { text: "no'oi", selmaho: [Noi] },
         Nohu => { text: "no'u", selmaho: [Goi] },
         Noi => { text: "noi", selmaho: [Noi] },
         Noiha => { text: "noi'a", selmaho: [Noiha] },

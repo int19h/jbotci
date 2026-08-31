@@ -6132,15 +6132,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
                     self.visit_subbridi(&clause.subbridi);
                 }
-                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.visit_statement(&clause.statement);
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.visit_statement(&clause.statement);
+                generated::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) => {
+                    self.visit_zantufa_statement_relative_clause(clause);
                 }
             },
         }
@@ -6169,21 +6162,99 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_subbridi(&clause.subbridi);
                     self.relative_heads.pop();
                 }
-                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
-                    clause,
-                ) => {
+                generated::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) => {
                     self.relative_heads.push(reference_head_id);
-                    self.visit_statement(&clause.statement);
-                    self.relative_heads.pop();
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.relative_heads.push(reference_head_id);
-                    self.visit_statement(&clause.statement);
+                    self.visit_zantufa_statement_relative_clause(clause);
                     self.relative_heads.pop();
                 }
             },
+        }
+    }
+
+    /// Rolling Zantufa's statement relative clause. Its body is the tailored
+    /// `zantufa_relative_statement` family rather than the shared statement node, so it is
+    /// walked here with the same prenex-binding and utterance bookkeeping the shared node gets.
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_zantufa_statement_relative_clause(
+        &mut self,
+        clause: &'tree generated::ZantufaStatementRelativeClauseSyntax,
+    ) {
+        match clause {
+            generated::ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
+                clause,
+            ) => {
+                self.visit_zantufa_relative_statement(&clause.statement);
+            }
+            generated::ZantufaStatementRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
+                clause,
+            ) => {
+                self.visit_zantufa_relative_statement(&clause.statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_zantufa_relative_statement(
+        &mut self,
+        statement: &'tree generated::ZantufaRelativeStatementSyntax,
+    ) {
+        let statement_id = StatementNodeId(self.raw_for_node(statement));
+        for source in std::mem::take(&mut self.pending_next_utterance_sources) {
+            self.add_edge(
+                ReferenceKind::Utterance,
+                source,
+                target_resolved_node(statement_id.0),
+                ReferenceRule::DiheFollowing,
+            );
+        }
+        let previous_utterance = self.current_utterance.replace(statement_id.0);
+        match statement {
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(
+                statement,
+            ) => {
+                let previous_da_bindings = self.da_bindings.clone();
+                for term in &statement.prenex_terms {
+                    self.walk_node(term);
+                }
+                let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
+                self.bind_prenex_relation_variables(&statement.prenex_terms);
+                self.visit_zantufa_relative_statement(&statement.inner_statement);
+                self.selbri_variable_bindings = previous_selbri_variable_bindings;
+                self.da_bindings = previous_da_bindings;
+            }
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(
+                connection,
+            ) => {
+                self.visit_zantufa_relative_statement_base(&connection.leading_statement);
+                for continuation in &connection.continuations {
+                    self.visit_zantufa_relative_statement_base(&continuation.trailing_statement);
+                }
+            }
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(statement) => {
+                self.visit_zantufa_relative_statement_base(statement);
+            }
+        }
+        self.current_utterance = previous_utterance;
+        self.utterance_history.push(statement_id.0);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_zantufa_relative_statement_base(
+        &mut self,
+        statement: &'tree generated::ZantufaRelativeStatementBaseSyntax,
+    ) {
+        match statement {
+            generated::ZantufaRelativeStatementBaseSyntax::TextGroupStatement(statement) => {
+                self.walk_node(statement);
+            }
+            generated::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
+                statement,
+            ) => {
+                self.walk_node(&statement.0);
+            }
         }
     }
 

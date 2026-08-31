@@ -264,9 +264,6 @@ fn experimental_construct_for_cmavo(
         (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Lohai | Cmavo::Sahai | Cmavo::Lehai) => {
             Some(ExperimentalConstruct::ExperimentalLohAiReplacementFree)
         }
-        (ExperimentalCmavoContext::Label("cmavo"), Cmavo::Nohoi) => {
-            Some(ExperimentalConstruct::ExperimentalNohoiSelbriRelativeClause)
-        }
         (
             ExperimentalCmavoContext::Label("cmavo"),
             Cmavo::Bohei | Cmavo::Gohoi | Cmavo::Tahai | Cmavo::Zehoi,

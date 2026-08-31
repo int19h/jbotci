@@ -1,0 +1,12 @@
+id = "adhoc.syntax.subsentence.d1-reject-bare-i-relative-body"
+lojban = "lo broda poi mi brode i do brodi ku'o cu brodi"
+tags = ["adhoc", "syntax", "subsentence-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-8 subsentence ownership matrix witness"
+description = "R4: a bare I does not join statements at this position in any source, so the body closes at the first sentence and the terminator has nowhere to attach."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [33, 37], source-text = "ku'o", message = "unexpected cmavo" }]
