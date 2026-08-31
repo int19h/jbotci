@@ -434,8 +434,8 @@ Nothing in the pre-epoch corpus carried a Zantufa-only body at one of those posi
 | the elided-FIhAU extent moves to the camxes-exp arm | 2 | R2. `mi broda fi'oi mi brode` is derivable by both the proposal and camxes-exp, and the adopted source takes precedence |
 | `no'oi` comes back to life | 1 | the one corpus fixture that used the retired indicator reading, now the camxes-exp tanru-unit relative it always was |
 
-87 epoch-new witnesses are authored rather than classified, and every one pins its diagnostics
-(72 at the round-1 submission; round 2 retires one and adds sixteen). The xfail count is
+89 epoch-new witnesses are authored rather than classified, and every one pins its diagnostics
+(72 at the round-1 submission; round 2 retires one and adds eighteen). The xfail count is
 unchanged at 519.
 
 ## The gate
@@ -508,11 +508,23 @@ it. Every before/after figure is measured against three release binaries — the
 findings are round-1 regressions against the base rather than long-standing gaps, and only the
 three-column form says which. `A` is a successful parse and `R` a rejection.
 
-**Round 2 introduces no `A -> R` against the epoch base.** It removes three (`po'oi <free> ...
-ku'o`, `soi na ku`, `soi fi do`), restores the `je` chain the base accepted at
-`(+zantufa-terms)`, and removes one acceptance round 1 had itself introduced
-(`ga'o joi`, base `R`). The one `A -> R` still standing against the base is the S3
-leading-selbri class, which round 1 introduced, round 2 does not fix, and issue #877 now owns.
+**Round 2 introduces no `A -> R` against the epoch base.** The consolidated picture, which is
+the single strongest piece of evidence this round produced:
+
+| surface | base | round 1 | head | what it is |
+| --- | --- | --- | --- | --- |
+| `lo broda po'oi to do brodi toi mi brode ku'o cu brodi` | A | **R** | A | round-1 regression, removed (H3) |
+| `mi broda soi na ku brode` | A | **R** | A | round-1 regression, removed (M5) |
+| `mi broda soi fi do brode` | A | **R** | A | round-1 regression, removed (M5) |
+| `broda po'oi mi brode je po'oi do brodi`, `(+zantufa-terms)` | A | **R** | A | round-1 regression, removed (H1) |
+| `broda no'oi mi brode ga'o joi no'oi do brodi`, `(+zt +zc)` | R | **A** | R | round-1 over-acceptance, withdrawn (H1) |
+| `broda po'oi mi brode zi'e poi do brodi`, `(+zantufa-terms)` | A | **R** | **R** | round-1 regression, NOT fixed — issue #877 |
+| `broda po'oi mi brode je poi do brodi`, `(+zantufa-terms)` | A | **R** | **R** | the same, joik-joined — issue #877 |
+
+Three of the four removed regressions were found by neither reviewer; they fell out of fixing
+what the reviewers did find. The only `A -> R` still standing against the base is the S3
+leading-selbri class in the last two rows, which round 1 introduced, round 2 does not fix, and
+issue #877 now owns.
 
 ### H1: the D2 chain connective was not the source's `joik`
 
@@ -634,8 +646,16 @@ reservation, and a first clause camxes-exp cannot form at all keeps D2 out of th
 either way the leading selbri stays bare and the list reaches S3 intact. The fix for the other
 two is the same second boundary ladder [Delta 4](#the-retained-gated-omission-plan-v5-delta-4)
 declined to build — follow the no-terminal-relative entry down from selbri level 2 so the
-leading selbri cannot end in a relative of its own. It is filed as **issue #877** and pinned
-rather than argued: `d1-s3-gap-leading-selbri-mixed-list`.
+leading selbri cannot end in a relative of its own. It is filed as **issue #877**.
+
+**The base accepts both, so this is a regression the epoch introduced, not a pre-existing
+limitation.** That is the whole reason it is a gap row rather than a footnote, and it is stated
+plainly here because the two readings call for different follow-up: a pre-existing limitation
+could wait for whichever epoch reaches that ladder, while a regression is a debt this epoch
+created. Round 2 does not repay it — the ladder is out of this round's scope — but it is pinned
+on both shapes rather than argued: `d1-s3-gap-leading-selbri-zihe-mixed-list` for the ZIhE-joined
+form and `d1-s3-gap-leading-selbri-jek-mixed-list` for the joik-joined one, one witness per
+shape at the lead's instruction.
 
 ### H2: the S1/S2 return fired without a baseline owner
 
@@ -777,10 +797,10 @@ reports a lower bound on the failing set rather than the set itself.
 | `cargo fmt --all --check` | clean | `epoch08-r2-g-fmt.log` |
 | `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,653 passed, 0 failed, 16 ignored | `epoch08-r2-g-workspace.log` |
 | `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,652 passed, 0 failed | `epoch08-r2-g2-expensive.log` |
-| `fixture-test --profile all` | 26,661 fixtures, 72,609 passed, 519 xfailed, 0 failed | `epoch08-r2-g-fixtures-all.log` |
-| tagged facet `subsentence-epoch` | 88 fixtures, 3 facets, 90 passed, 0 failed | `epoch08-r2-g-tagged-facet.log` |
-| frozen syntax facet, same tag | 88 fixtures, 88 passed, 0 failed | `epoch08-r2-g-frozen-facet.log` |
-| comparer | 122 changed / 86 + 6 + 1 + 0 + 0 mechanical / 29 manual / 0 prose / 88 epoch-new / 0 unpaired / 0 witness deltas / 0 witnesses missing diagnostics | `epoch08-r2-g-comparer.log` |
+| `fixture-test --profile all` | 26,662 fixtures, 72,610 passed, 519 xfailed, 0 failed | `epoch08-r2-g6-fixtures-all.log` |
+| tagged facet `subsentence-epoch` | 89 fixtures, 3 facets, 91 passed, 0 failed | `epoch08-r2-g6-tagged-facet.log` |
+| frozen syntax facet, same tag | 89 fixtures, 89 passed, 0 failed | `epoch08-r2-g6-frozen-facet.log` |
+| comparer | 122 changed / 86 + 6 + 1 + 0 + 0 mechanical / 29 manual / 0 prose / 89 epoch-new / 0 unpaired / 0 witness deltas / 0 witnesses missing diagnostics | `epoch08-r2-g6-comparer.log` |
 | comparer unit tests | 27 tests, green | `epoch08-r2-g-comparer-test.log` |
 | `cargo build -p jbotci` (debug) | green | `epoch08-r2-g-debug-jbotci.log` |
 | `dx build` | green | `epoch08-r2-g-dx.log` |
@@ -791,9 +811,13 @@ reports a lower bound on the failing set rather than the set itself.
 | `generate_api_matrix.py --check` | green | `epoch08-r2-g-generate_api_matrix.log` |
 | peak RSS | not re-measured | — |
 
-The tagged row reads 90 passed over 88 fixtures because the two reference witnesses carry a
+The tagged row reads 91 passed over 89 fixtures because the two reference witnesses carry a
 `semantics-refs` facet as well as a syntax one. The pre-epoch comparer figures are byte-identical
-to round 1's; only the epoch-new witness count moves, 72 to 88.
+to round 1's; only the epoch-new witness count moves, 72 to 89.
+
+The four fixture-facing rows and `fmt` were re-run after the lead's ACK added the second #877
+witness; the Rust, product-build and binding rows are unchanged from the `691a9ec38f` run,
+because a fixture, a documentation section and one Python constant cannot reach them.
 
 Two rows carry a note rather than a bare figure.
 
