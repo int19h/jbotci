@@ -177,25 +177,65 @@ fn is_prohibited_connective_free_modifier(
                 head,
                 nai,
             } = connective;
-            prohibited_free_modifier_placement(head, nai.as_ref())
+            connective_free_modifier_placement(head, nai.as_ref())
+                == ConnectiveFreeModifierPlacement::Prohibited
         }
         ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(connective) => {
             let SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective;
-            prohibited_free_modifier_placement(bihi, nai.as_ref())
+            connective_free_modifier_placement(bihi, nai.as_ref())
+                == ConnectiveFreeModifierPlacement::Prohibited
         }
     }
 }
 
-/// The shared half of the two head-before-optional-NAI shapes: a `NAI` present and at least one
-/// free modifier standing in front of it. It is one predicate rather than two so the chain's
-/// rejection and the S3 list classifier that has to anticipate it cannot drift apart.
+/// What the classifier has PROVED about a connective's free-modifier placement, as opposed to
+/// what it merely failed to prove.
+///
+/// A boolean cannot carry this on the recovered side, for the same reason `RelativeBodyShape`
+/// cannot, and here the reason is sharper: the two consumers read the answer in OPPOSITE
+/// directions. The chain's rejection withdraws a surface when the placement is prohibited, so an
+/// unproven candidate must not count as prohibited; the S3 list returns a candidate to that chain
+/// when the placement is permitted, so an unproven candidate must not count as permitted either,
+/// because returning it hands the list to a route that will not take it -- the same withdrawal,
+/// one level down. One boolean and its negation give exactly one of those two guarantees and
+/// never both. Every placement fact is proved from valid nodes or it is `Unproven`.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConnectiveFreeModifierPlacement {
+    /// A connective camxes-exp's `joik` does spell: no `NAI` for a free modifier to stand in
+    /// front of, or no free modifier standing there. Trailing frees with no `NAI` after them are
+    /// the chain's own `free*`.
+    Permitted,
+    /// A `NAI` present and at least one free modifier standing in front of it: the slot
+    /// camxes-exp keeps outside the connective.
+    Prohibited,
+    /// Neither, because a node the answer depends on is a recovery placeholder.
+    Unproven,
+}
+
+/// The shared half of the two head-before-optional-NAI shapes, over a tree with no recovery
+/// placeholders in it. It is one predicate rather than two so the chain's rejection and the S3
+/// list classifier that has to anticipate it cannot drift apart.
+///
+/// The strict twin needs no third state and the contract says so rather than leaving it to be
+/// assumed: every slot of a non-recovered tree either holds the node it is for or is absent, so
+/// `Unproven` is unconstructible here and the two consumers may read this result in either
+/// direction. They read it positively anyway, so that the strict and recovered arms of each
+/// consumer ask the same question in the same words.
 #[requires(true)]
-#[ensures(true)]
-fn prohibited_free_modifier_placement<T, F>(
+#[ensures(
+    ret != ConnectiveFreeModifierPlacement::Unproven,
+    "a tree with no recovery placeholders proves every placement fact"
+)]
+fn connective_free_modifier_placement<T, F>(
     head: &WithFreeModifiers<T, F>,
     nai: Option<&WithFreeModifiers<T, F>>,
-) -> bool {
-    nai.is_some() && !head.free_modifiers.is_empty()
+) -> ConnectiveFreeModifierPlacement {
+    if nai.is_some() && !head.free_modifiers.is_empty() {
+        ConnectiveFreeModifierPlacement::Prohibited
+    } else {
+        ConnectiveFreeModifierPlacement::Permitted
+    }
 }
 
 /// The prohibited placement, read off a recovered connective.
@@ -229,31 +269,56 @@ fn recovered_is_prohibited_connective_free_modifier(
                 head,
                 nai,
             } = connective;
-            recovered_prohibited_free_modifier_placement(head, nai.as_ref())
+            recovered_connective_free_modifier_placement(head, nai.as_ref())
+                == ConnectiveFreeModifierPlacement::Prohibited
         }),
         recovered::ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(
             connective,
         ) => valid(connective).is_some_and(|connective| {
             let recovered::SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective;
-            recovered_prohibited_free_modifier_placement(bihi, nai.as_ref())
+            recovered_connective_free_modifier_placement(bihi, nai.as_ref())
+                == ConnectiveFreeModifierPlacement::Prohibited
         }),
     }
 }
 
-/// The shared half of the two head-before-optional-NAI shapes: a proven head token, a proven
-/// NAI token after it, and a proven free modifier in between.
+/// The recovered twin, read off nodes the recovery tree actually proved.
+///
+/// `Prohibited` needs all three of a proven head token, a proven NAI token after it, and a proven
+/// free modifier in between; that is the round-4 rule and it is unchanged. `Permitted` needs the
+/// head proven too, and then either an absent NAI slot or an empty free-modifier slot beside a
+/// proven NAI. An absent optional slot is a shape fact of a node that parsed, but a placeholder
+/// is not: a placeholder head stands for a run of unparsed input that could hold the frees, and a
+/// placeholder NAI stands for one that could have consumed the frees that would have stood in
+/// front of it, so an empty free-modifier slot beside it proves nothing. What is left -- a NAI
+/// slot holding a placeholder, or a free-modifier slot holding nothing but placeholders -- proves
+/// neither answer and is `Unproven`.
 #[requires(true)]
 #[ensures(true)]
-fn recovered_prohibited_free_modifier_placement<T>(
+fn recovered_connective_free_modifier_placement<T>(
     head: &recovered::WithFreeModifiers<recovered::Recovered<T>>,
     nai: Option<&recovered::WithFreeModifiers<recovered::Recovered<T>>>,
-) -> bool {
-    valid(&head.value).is_some()
-        && nai.is_some_and(|nai| valid(&nai.value).is_some())
-        && head
-            .free_modifiers
-            .iter()
-            .any(|free_modifier| valid(free_modifier).is_some())
+) -> ConnectiveFreeModifierPlacement {
+    if valid(&head.value).is_none() {
+        return ConnectiveFreeModifierPlacement::Unproven;
+    }
+    let Some(nai) = nai else {
+        return ConnectiveFreeModifierPlacement::Permitted;
+    };
+    if valid(&nai.value).is_none() {
+        return ConnectiveFreeModifierPlacement::Unproven;
+    }
+    if head
+        .free_modifiers
+        .iter()
+        .any(|free_modifier| valid(free_modifier).is_some())
+    {
+        ConnectiveFreeModifierPlacement::Prohibited
+    } else if head.free_modifiers.is_empty() {
+        ConnectiveFreeModifierPlacement::Permitted
+    } else {
+        ConnectiveFreeModifierPlacement::Unproven
+    }
 }
 
 #[contract_trait]
@@ -454,6 +519,11 @@ fn is_exp_selbri_relative_clause(value: &RelativeClauseAtomSyntax) -> bool {
 /// this very arm -- would be withdrawn, which is a base surface this epoch may not spend. A
 /// classifier that defers to a route has to be the same language as that route, exactly as the
 /// tanru unit's own mixed-list reservation has to be.
+///
+/// What the return therefore has to prove is that the placement IS permitted, not merely that it
+/// is not prohibited. In this tree the two are the same sentence, which is why the placement
+/// result carries a contract saying `Unproven` cannot arise here; in the recovered tree they are
+/// not, and the twin below asks the positive question.
 #[requires(true)]
 #[ensures(true)]
 fn is_exp_selbri_relative_continuation(value: &RelativeClauseTailSyntax) -> bool {
@@ -466,7 +536,8 @@ fn is_exp_selbri_relative_continuation(value: &RelativeClauseTailSyntax) -> bool
                 head,
                 nai,
             } = connective;
-            !prohibited_free_modifier_placement(head, nai.as_ref())
+            connective_free_modifier_placement(head, nai.as_ref())
+                == ConnectiveFreeModifierPlacement::Permitted
                 && is_exp_selbri_relative_clause(inner)
         }
         RelativeClauseTailSyntax::JoinedRelativeClauseTail(joined) => {
@@ -634,6 +705,13 @@ fn recovered_is_exp_selbri_relative_clause(value: &recovered::RelativeClauseAtom
     }
 }
 
+/// The recovered twin, which has to ask the positive question.
+///
+/// Requiring a valid connective is necessary and not sufficient: the connective node can be
+/// `Valid` with a placeholder under it, and negating the prohibited placement would then read
+/// "not proven prohibited" as permitted and return the list to a chain that may not be able to
+/// spell it. The return is made on `Permitted` alone, so an unproven placement keeps the list
+/// here -- with the rolling-Zantufa S3 arm, which is where the epoch base left it.
 #[requires(true)]
 #[ensures(true)]
 fn recovered_is_exp_selbri_relative_continuation(
@@ -650,7 +728,8 @@ fn recovered_is_exp_selbri_relative_continuation(
                             head,
                             nai,
                         } = connective;
-                        !recovered_prohibited_free_modifier_placement(head, nai.as_ref())
+                        recovered_connective_free_modifier_placement(head, nai.as_ref())
+                            == ConnectiveFreeModifierPlacement::Permitted
                     }) && valid(&continuation.inner)
                         .is_some_and(recovered_is_exp_selbri_relative_clause)
                 })
@@ -981,6 +1060,37 @@ mod tests {
         );
     }
 
+    /// A free modifier whose own payload did not parse. It is still a free-modifier node the
+    /// tree proved to be there; a `Recovered::error` in its place is not.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_free_modifier() -> recovered::Recovered<recovered::FreeModifierSyntax> {
+        recovered::Recovered::valid(recovered::FreeModifierSyntax::ParentheticalText(
+            recovered::Recovered::error(recovery_placeholder()),
+        ))
+    }
+
+    /// A free-modifier slot entry standing in for a free modifier that did not parse.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_unparsed_free_modifier() -> recovered::Recovered<recovered::FreeModifierSyntax> {
+        recovered::Recovered::error(recovery_placeholder())
+    }
+
+    /// A proven token, over text that must segment to exactly one word.
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn recovered_token(text: &str) -> recovered::Recovered<crate::tree::Token> {
+        recovered::Recovered::valid(one_token(text))
+    }
+
+    /// A token slot standing in for a token that did not parse.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_unparsed_token() -> recovered::Recovered<crate::tree::Token> {
+        recovered::Recovered::error(recovery_placeholder())
+    }
+
     /// A `WithFreeModifiers` head slot over the given token state and free-modifier states.
     #[requires(true)]
     #[ensures(true)]
@@ -1054,20 +1164,12 @@ mod tests {
     fn recovered_prohibited_placement_needs_every_node_proven() {
         let rejection = ProhibitedRelativeConnectiveFreeModifierRejection;
         let placeholder = recovery_placeholder();
-        // A free modifier whose own payload did not parse is still a free-modifier node the
-        // tree proved to be there; a `Recovered::error` in its place is not.
-        let free_modifier = || {
-            recovered::Recovered::valid(recovered::FreeModifierSyntax::ParentheticalText(
-                recovered::Recovered::error(recovery_placeholder()),
-            ))
-        };
-        let unparsed_free_modifier =
-            || recovered::Recovered::<recovered::FreeModifierSyntax>::error(recovery_placeholder());
-        let je = || recovered::Recovered::valid(one_token("je"));
-        let nai = || recovered::Recovered::valid(one_token("nai"));
-        let bihi = || recovered::Recovered::valid(one_token("bi'i"));
-        let unparsed_token =
-            || recovered::Recovered::<crate::tree::Token>::error(recovery_placeholder());
+        let free_modifier = recovered_free_modifier;
+        let unparsed_free_modifier = recovered_unparsed_free_modifier;
+        let je = || recovered_token("je");
+        let nai = || recovered_token("nai");
+        let bihi = || recovered_token("bi'i");
+        let unparsed_token = recovered_unparsed_token;
 
         assert!(
             rejection.rejects(&recovered_selbri_continuation(
@@ -1153,6 +1255,206 @@ mod tests {
                 recovered::ExpSelbriRelativeClauseContinuationSyntax,
             >::error(placeholder)),
             "an unparsed continuation is not a completed candidate either"
+        );
+    }
+
+    /// The placement result is three-way because the recovered tree has a third state, and every
+    /// answer other than `Unproven` is read off nodes that tree proved. `Prohibited` is round 4's
+    /// rule unchanged; `Permitted` is the one the S3 list has to see before it hands a
+    /// continuation to the chain, and it is a positive proof rather than the absence of the other.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_placement_is_permitted_only_when_the_tree_proved_it() {
+        let je = || recovered_token("je");
+        let nai = || recovered_head_slot(recovered_token("nai"), Vec::new());
+        let unparsed_nai = || recovered_head_slot(recovered_unparsed_token(), Vec::new());
+
+        assert_eq!(
+            recovered_connective_free_modifier_placement(
+                &recovered_head_slot(je(), vec![recovered_free_modifier()]),
+                Some(&nai()),
+            ),
+            ConnectiveFreeModifierPlacement::Prohibited,
+            "a proven head, a proven NAI and a proven free modifier between them is the placement"
+        );
+        assert_eq!(
+            recovered_connective_free_modifier_placement(
+                &recovered_head_slot(je(), vec![recovered_free_modifier()]),
+                None,
+            ),
+            ConnectiveFreeModifierPlacement::Permitted,
+            "with no NAI slot at all the trailing frees are the chain's own free*"
+        );
+        assert_eq!(
+            recovered_connective_free_modifier_placement(
+                &recovered_head_slot(je(), Vec::new()),
+                Some(&nai()),
+            ),
+            ConnectiveFreeModifierPlacement::Permitted,
+            "a proven NAI over an empty free-modifier slot is the connective camxes-exp spells"
+        );
+        assert_eq!(
+            recovered_connective_free_modifier_placement(
+                &recovered_head_slot(je(), vec![recovered_unparsed_free_modifier()]),
+                Some(&nai()),
+            ),
+            ConnectiveFreeModifierPlacement::Unproven,
+            "a free-modifier slot holding only placeholders proves neither answer"
+        );
+        assert_eq!(
+            recovered_connective_free_modifier_placement(
+                &recovered_head_slot(je(), vec![recovered_free_modifier()]),
+                Some(&unparsed_nai()),
+            ),
+            ConnectiveFreeModifierPlacement::Unproven,
+            "a NAI slot that did not parse proves neither a NAI present nor a NAI absent"
+        );
+        assert_eq!(
+            recovered_connective_free_modifier_placement(
+                &recovered_head_slot(je(), Vec::new()),
+                Some(&unparsed_nai()),
+            ),
+            ConnectiveFreeModifierPlacement::Unproven,
+            "an unparsed NAI may have consumed the frees that would stand in front of it"
+        );
+        assert_eq!(
+            recovered_connective_free_modifier_placement(
+                &recovered_head_slot(recovered_unparsed_token(), Vec::new()),
+                None,
+            ),
+            ConnectiveFreeModifierPlacement::Unproven,
+            "a head that did not parse stands for input that could hold either shape"
+        );
+    }
+
+    /// An `NA? SE? (JOI / JA / A) NAI?` connective in the shape the relative-clause chain and the
+    /// S3 list both carry, over the given head and NAI slots.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_exp_connective(
+        head: recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>,
+        nai: Option<recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>>,
+    ) -> recovered::Recovered<recovered::ExpRelativeClauseConnectiveSyntax> {
+        recovered::Recovered::valid(recovered::ExpRelativeClauseConnectiveSyntax {
+            na: None,
+            se: None,
+            head,
+            nai,
+        })
+    }
+
+    /// A relative-clause atom camxes-exp's tanru-unit relative can form: a `po'oi` marker, an
+    /// elided KUhO, and a subsentence-shaped body.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_exp_formable_clause() -> recovered::Recovered<recovered::RelativeClauseAtomSyntax>
+    {
+        let body = recovered::Recovered::valid(
+            recovered::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(
+                recovered::Recovered::valid(
+                    recovered::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
+                        recovered::Recovered::error(recovery_placeholder()),
+                    ),
+                ),
+            ),
+        );
+        recovered::Recovered::valid(recovered::RelativeClauseAtomSyntax::BridiRelativeClause(
+            recovered::Recovered::valid(
+                recovered::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(
+                    recovered_restrictive_clause("po'oi", body),
+                ),
+            ),
+        ))
+    }
+
+    /// A one-continuation list whose first clause and whose continued clause are both exp-formable,
+    /// so the connective is the whole of what the cases below vary.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_exp_continuation_list(
+        connective: recovered::Recovered<recovered::ExpRelativeClauseConnectiveSyntax>,
+    ) -> recovered::Recovered<recovered::RelativeClauseListSyntax> {
+        let continuation = recovered::Recovered::valid(recovered::ExpRelativeContinuationSyntax {
+            connective,
+            inner: Arc::new(recovered_exp_formable_clause()),
+        });
+        recovered::Recovered::valid(recovered::RelativeClauseListSyntax {
+            first: recovered_exp_formable_clause(),
+            additional: vec![recovered::Recovered::valid(
+                recovered::RelativeClauseTailSyntax::RelativeClauseExpContinuation(
+                    recovered::Recovered::valid(recovered::RelativeClauseExpContinuationSyntax(
+                        Arc::new(continuation),
+                    )),
+                ),
+            )],
+        })
+    }
+
+    /// The S3 return is made on a proven-permitted placement and on nothing weaker.
+    ///
+    /// A valid connective is necessary and not sufficient: the connective node can be `Valid` with
+    /// a placeholder under it, and reading "not proven prohibited" as permitted would return the
+    /// list to a chain that cannot spell it -- the same fail-open shape round 4 closed one level
+    /// up, one level below where it closed it. The first two cases are the controls that prove the
+    /// frame otherwise returns, so the rest fail on their connective alone.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_exp_selbri_list_returns_only_proven_permitted_continuations() {
+        let rejection = ExpSelbriRelativeListRejection;
+        let je = || recovered_token("je");
+        let nai = || recovered_head_slot(recovered_token("nai"), Vec::new());
+        let unparsed_nai = || recovered_head_slot(recovered_unparsed_token(), Vec::new());
+
+        assert!(
+            rejection.rejects(&recovered_exp_continuation_list(recovered_exp_connective(
+                recovered_head_slot(je(), vec![recovered_free_modifier()]),
+                None,
+            ))),
+            "a proven connective with no NAI is one the chain spells, so the list returns to it"
+        );
+        assert!(
+            rejection.rejects(&recovered_exp_continuation_list(recovered_exp_connective(
+                recovered_head_slot(je(), Vec::new()),
+                Some(nai()),
+            ))),
+            "so is a proven NAI with nothing standing in front of it"
+        );
+
+        assert!(
+            !rejection.rejects(&recovered_exp_continuation_list(recovered_exp_connective(
+                recovered_head_slot(je(), vec![recovered_free_modifier()]),
+                Some(nai()),
+            ))),
+            "the prohibited placement is not one the chain would take back"
+        );
+        assert!(
+            !rejection.rejects(&recovered_exp_continuation_list(recovered_exp_connective(
+                recovered_head_slot(je(), vec![recovered_free_modifier()]),
+                Some(unparsed_nai()),
+            ))),
+            "an unparsed NAI leaves the placement unproven, and unproven is not permitted"
+        );
+        assert!(
+            !rejection.rejects(&recovered_exp_continuation_list(recovered_exp_connective(
+                recovered_head_slot(je(), vec![recovered_unparsed_free_modifier()]),
+                Some(nai()),
+            ))),
+            "nor does a free-modifier slot holding only placeholders prove the permitted shape"
+        );
+        assert!(
+            !rejection.rejects(&recovered_exp_continuation_list(recovered_exp_connective(
+                recovered_head_slot(recovered_unparsed_token(), Vec::new()),
+                None,
+            ))),
+            "a head that did not parse proves nothing about what stands before a NAI"
+        );
+        assert!(
+            !rejection.rejects(&recovered_exp_continuation_list(
+                recovered::Recovered::error(recovery_placeholder())
+            )),
+            "a connective that did not parse is not a completed candidate"
         );
     }
 }
