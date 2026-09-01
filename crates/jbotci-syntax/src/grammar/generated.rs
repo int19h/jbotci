@@ -6763,30 +6763,43 @@ pub mod generated_model {
         field leading_unit <- arc(tanru_unit);
         /// The required relative-clause chain.
         field relative_clauses <- arc(exp_selbri_relative_clauses);
-        /// The optional connectorless BO continuation, carrying the unit's mixed-list
-        /// reservation.
-        ///
-        /// camxes-exp's chain is greedy -- `selbri_relative_clause ((ZIhE_clause / joik) free*
-        /// selbri_relative_clause)*` (camxes-exp.peg:214) -- so a `(ZIhE_clause / joik)` still
-        /// standing in front of a relative marker after this unit ends is a clause this route
-        /// cannot form, and the list as a whole is therefore not an extent camxes-exp derives at
-        /// all. Without the reservation this arm takes the FIRST clause into the leading selbri
-        /// and the whole list is lost to every owner: nothing in any of the three grammars
-        /// consumes a leading `zi'e`, or a `je` before a relative marker, so the enclosing site
-        /// never gets a list to own. `broda po'oi mi brode zi'e poi do brodi` and its joik-joined
-        /// twin are the shapes (issue #877); with the reservation the leading selbri stays bare
-        /// and the completed mixed list reaches the selbri-level parent, which is the same
-        /// reading an explicit `ku'o` on clause 1 already produced through the KUhO reservation.
-        ///
-        /// It is the prefix-steal `exp_selbri_relative_clause`'s KUhO reservation prevents, at
-        /// the other end of the chain, and like that one it is a boolean probed inside a
-        /// rewinding lookahead. The connective inventory is spelled from tokens -- `joik` as
-        /// :347-349 spells it, plus `ZIhE_clause`, longest alternative first -- rather than by
-        /// reusing `exp_selbri_relative_clause_connective`: the probe must never contribute a
-        /// node or the connective's own experimental warning. It sits on the LAST field so that
-        /// it sees everything the unit consumed, chain and BO tail alike, and so that the two
-        /// preceding fields keep their recovery-resume anchors.
-        field bo_tail <- opt(arc(plain_bo_selbri_tail(plain_bo_selbri))).followed_by((
+        /// The optional connectorless BO continuation.
+        field bo_tail <- opt(arc(plain_bo_selbri_tail(plain_bo_selbri)));
+        // The unit's mixed-list reservation.
+        //
+        // camxes-exp's chain is greedy -- `selbri_relative_clause ((ZIhE_clause / joik) free*
+        // selbri_relative_clause)*` (camxes-exp.peg:214) -- so a `(ZIhE_clause / joik)` still
+        // standing in front of a relative marker after this unit ends is a clause this route
+        // cannot form, and the list as a whole is therefore not an extent camxes-exp derives at
+        // all. Without the reservation this arm takes the FIRST clause into the leading selbri
+        // and the whole list is lost to every owner: nothing in any of the three grammars
+        // consumes a leading `zi'e`, or a `je` before a relative marker, so the enclosing site
+        // never gets a list to own. `broda po'oi mi brode zi'e poi do brodi` and its joik-joined
+        // twin are the shapes (issue #877); with the reservation the leading selbri stays bare
+        // and the completed mixed list reaches the selbri-level parent, which is the same
+        // reading an explicit `ku'o` on clause 1 already produced through the KUhO reservation.
+        //
+        // It is the prefix-steal `exp_selbri_relative_clause`'s KUhO reservation prevents, at
+        // the other end of the chain, and like that one it is a boolean probed inside a
+        // rewinding lookahead. The connective inventory is spelled from tokens -- `joik` as
+        // :347-349 spells it, plus `ZIhE_clause`, longest alternative first -- rather than by
+        // reusing `exp_selbri_relative_clause_connective`: the probe must never contribute a
+        // node or the connective's own experimental warning.
+        //
+        // The marker inventory is the whole atom inventory of the sites that own the stranded
+        // list, which is NOI *and* GOI: `relative_clause_atom` is
+        // `sumti_association_relative_clause` (`selmaho(Goi)`) or `bridi_relative_clause`,
+        // whose three arms spell the Zantufa NOI set, camxes-standard's `poi`/`voi` and `noi`.
+        // A GOI continuation strands the connective exactly as a NOI one does --
+        // `lo broda po'oi mi brode zi'e pe mi ku cu brodi` is the default-profile shape -- and
+        // no `selbri_relative_clause` can begin with GOI either, since exp's marker there is
+        // `NOhOI` alone (:1907), so the by-construction argument is the same for both classes.
+        //
+        // It is a TRAILING assertion rather than a `followed_by` on `bo_tail` because the
+        // probe must observe the position after everything the unit consumed -- chain and BO
+        // tail alike -- without making any field opaque to recovery metadata: wrapping the
+        // field cost this rule all three of its `Cmavo(Bo)` resume anchors.
+        assert !(
             choice((
                 cmavo(Zihe).ignored(),
                 (
@@ -6807,6 +6820,7 @@ pub mod generated_model {
                     .ignored(),
             )),
             choice((
+                selmaho(Goi),
                 cmavo(Poi),
                 cmavo(Pohoi),
                 cmavo(Voi),
@@ -6814,7 +6828,7 @@ pub mod generated_model {
                 cmavo(Noi),
                 cmavo(Nohoi),
             )),
-        ).not());
+        );
     }
 
     /// Product node for a CEI-capable unit with an optional plain BO tail.
