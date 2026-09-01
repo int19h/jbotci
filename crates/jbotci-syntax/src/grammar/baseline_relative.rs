@@ -185,6 +185,13 @@ fn is_prohibited_connective_free_modifier(
     }
 }
 
+/// The prohibited placement, read off a recovered connective.
+///
+/// Every fact the rejection stands on has to be a node the recovery tree actually proved: the
+/// head/BIhI token, the NAI token, and at least one free modifier standing between them. A
+/// `Prefix` or `Error` placeholder occupies the same slot as the thing it stands in for, so
+/// reading presence off the slot alone would let a run of unparsed input withdraw a surface
+/// this classifier is not entitled to withdraw.
 #[requires(true)]
 #[ensures(true)]
 fn recovered_is_prohibited_connective_free_modifier(
@@ -209,15 +216,31 @@ fn recovered_is_prohibited_connective_free_modifier(
                 head,
                 nai,
             } = connective;
-            nai.is_some() && !head.free_modifiers.is_empty()
+            recovered_prohibited_free_modifier_placement(head, nai.as_ref())
         }),
         recovered::ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(
             connective,
         ) => valid(connective).is_some_and(|connective| {
             let recovered::SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective;
-            nai.is_some() && !bihi.free_modifiers.is_empty()
+            recovered_prohibited_free_modifier_placement(bihi, nai.as_ref())
         }),
     }
+}
+
+/// The shared half of the two head-before-optional-NAI shapes: a proven head token, a proven
+/// NAI token after it, and a proven free modifier in between.
+#[requires(true)]
+#[ensures(true)]
+fn recovered_prohibited_free_modifier_placement<T>(
+    head: &recovered::WithFreeModifiers<recovered::Recovered<T>>,
+    nai: Option<&recovered::WithFreeModifiers<recovered::Recovered<T>>>,
+) -> bool {
+    valid(&head.value).is_some()
+        && nai.is_some_and(|nai| valid(&nai.value).is_some())
+        && head
+            .free_modifiers
+            .iter()
+            .any(|free_modifier| valid(free_modifier).is_some())
 }
 
 #[contract_trait]
@@ -775,6 +798,19 @@ mod tests {
         })
     }
 
+    /// The single syntax token the given text -- which must segment to exactly one word --
+    /// morphologises to.
+    #[requires(!text.is_empty())]
+    #[ensures(true)]
+    fn one_token(text: &str) -> crate::tree::Token {
+        let words = segment_words_with_modifiers(text).expect("valid morphology");
+        let tokens = syntax_tokens(&words, &ParseOptions::default());
+        let [token] = tokens.as_slice() else {
+            panic!("text must be exactly one word");
+        };
+        token.clone()
+    }
+
     /// A restrictive Zantufa statement relative clause with an elided KUhO, over the given
     /// marker text -- which must segment to exactly one word -- and the given body.
     #[requires(!marker.is_empty())]
@@ -783,17 +819,13 @@ mod tests {
         marker: &str,
         statement: recovered::Recovered<recovered::ZantufaRelativeStatementSyntax>,
     ) -> recovered::Recovered<recovered::ZantufaStatementRelativeClauseSyntax> {
-        let words = segment_words_with_modifiers(marker).expect("valid morphology");
-        let tokens = syntax_tokens(&words, &ParseOptions::default());
-        let [token] = tokens.as_slice() else {
-            panic!("marker text must be exactly one word");
-        };
+        let token = one_token(marker);
         recovered::Recovered::valid(
             recovered::ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
                 recovered::Recovered::valid(
                     recovered::ZantufaRestrictiveStatementRelativeClauseSyntax {
                         poi: recovered::WithFreeModifiers {
-                            value: recovered::Recovered::valid(token.clone()),
+                            value: recovered::Recovered::valid(token),
                             free_modifiers: Vec::new(),
                         },
                         statement: Arc::new(statement),
@@ -911,6 +943,181 @@ mod tests {
         assert!(
             !rejection.rejects(&recovered::Recovered::error(placeholder)),
             "an unparsed clause is not a completed candidate at all"
+        );
+    }
+
+    /// A `WithFreeModifiers` head slot over the given token state and free-modifier states.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_head_slot(
+        value: recovered::Recovered<crate::tree::Token>,
+        free_modifiers: Vec<recovered::Recovered<recovered::FreeModifierSyntax>>,
+    ) -> recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>> {
+        recovered::WithFreeModifiers {
+            value,
+            free_modifiers,
+        }
+    }
+
+    /// A continuation whose clause did not parse: the placement classifier ignores `inner`, so
+    /// the connective is the whole of what these cases vary.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_selbri_continuation(
+        connective: recovered::Recovered<recovered::ExpSelbriRelativeClauseConnectiveSyntax>,
+    ) -> recovered::Recovered<recovered::ExpSelbriRelativeClauseContinuationSyntax> {
+        recovered::Recovered::valid(recovered::ExpSelbriRelativeClauseContinuationSyntax {
+            connective,
+            inner: recovered::Recovered::error(recovery_placeholder()),
+        })
+    }
+
+    /// A merged-head `NA? SE? (JOI / JA / A) NAI?` connective over the given head and NAI slots.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_merged_head_connective(
+        head: recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>,
+        nai: Option<recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>>,
+    ) -> recovered::Recovered<recovered::ExpSelbriRelativeClauseConnectiveSyntax> {
+        recovered::Recovered::valid(
+            recovered::ExpSelbriRelativeClauseConnectiveSyntax::ExpRelativeClauseConnective(
+                recovered::Recovered::valid(recovered::ExpRelativeClauseConnectiveSyntax {
+                    na: None,
+                    se: None,
+                    head,
+                    nai,
+                }),
+            ),
+        )
+    }
+
+    /// A `SE? BIhI NAI?` interval connective over the given BIhI and NAI slots.
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_simple_interval_connective(
+        bihi: recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>,
+        nai: Option<recovered::WithFreeModifiers<recovered::Recovered<crate::tree::Token>>>,
+    ) -> recovered::Recovered<recovered::ExpSelbriRelativeClauseConnectiveSyntax> {
+        recovered::Recovered::valid(
+            recovered::ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(
+                recovered::Recovered::valid(recovered::SimpleIntervalConnectiveSyntax {
+                    se: None,
+                    bihi,
+                    nai,
+                }),
+            ),
+        )
+    }
+
+    /// The prohibited placement is a rejection, so every fact it stands on has to be a node the
+    /// recovery tree proved. A placeholder head, a placeholder NAI, or a free-modifier slot
+    /// holding nothing but placeholders is not that proof, and withdrawing a surface on one
+    /// would be exactly the fail-open direction this classifier must not have.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn recovered_prohibited_placement_needs_every_node_proven() {
+        let rejection = ProhibitedRelativeConnectiveFreeModifierRejection;
+        let placeholder = recovery_placeholder();
+        // A free modifier whose own payload did not parse is still a free-modifier node the
+        // tree proved to be there; a `Recovered::error` in its place is not.
+        let free_modifier = || {
+            recovered::Recovered::valid(recovered::FreeModifierSyntax::ParentheticalText(
+                recovered::Recovered::error(recovery_placeholder()),
+            ))
+        };
+        let unparsed_free_modifier =
+            || recovered::Recovered::<recovered::FreeModifierSyntax>::error(recovery_placeholder());
+        let je = || recovered::Recovered::valid(one_token("je"));
+        let nai = || recovered::Recovered::valid(one_token("nai"));
+        let bihi = || recovered::Recovered::valid(one_token("bi'i"));
+        let unparsed_token =
+            || recovered::Recovered::<crate::tree::Token>::error(recovery_placeholder());
+
+        assert!(
+            rejection.rejects(&recovered_selbri_continuation(
+                recovered_merged_head_connective(
+                    recovered_head_slot(je(), vec![free_modifier()]),
+                    Some(recovered_head_slot(nai(), Vec::new())),
+                )
+            )),
+            "a proven head, a proven NAI and a proven free modifier between them is the placement"
+        );
+        assert!(
+            rejection.rejects(&recovered_selbri_continuation(
+                recovered_simple_interval_connective(
+                    recovered_head_slot(bihi(), vec![free_modifier()]),
+                    Some(recovered_head_slot(nai(), Vec::new())),
+                )
+            )),
+            "the interval shape carries the same slot on its BIhI"
+        );
+
+        assert!(
+            !rejection.rejects(&recovered_selbri_continuation(
+                recovered_merged_head_connective(
+                    recovered_head_slot(unparsed_token(), vec![free_modifier()]),
+                    Some(recovered_head_slot(nai(), Vec::new())),
+                )
+            )),
+            "a head that did not parse does not prove there is a connective head to place before"
+        );
+        assert!(
+            !rejection.rejects(&recovered_selbri_continuation(
+                recovered_simple_interval_connective(
+                    recovered_head_slot(unparsed_token(), vec![free_modifier()]),
+                    Some(recovered_head_slot(nai(), Vec::new())),
+                )
+            )),
+            "nor does an unparsed BIhI"
+        );
+        assert!(
+            !rejection.rejects(&recovered_selbri_continuation(
+                recovered_merged_head_connective(
+                    recovered_head_slot(je(), vec![free_modifier()]),
+                    Some(recovered_head_slot(unparsed_token(), Vec::new())),
+                )
+            )),
+            "a NAI slot that did not parse does not prove the free modifier stands before a NAI"
+        );
+        assert!(
+            !rejection.rejects(&recovered_selbri_continuation(
+                recovered_merged_head_connective(
+                    recovered_head_slot(je(), vec![unparsed_free_modifier()]),
+                    Some(recovered_head_slot(nai(), Vec::new())),
+                )
+            )),
+            "a free-modifier slot holding only placeholders proves no free modifier at all"
+        );
+        assert!(
+            !rejection.rejects(&recovered_selbri_continuation(
+                recovered_merged_head_connective(
+                    recovered_head_slot(je(), Vec::new()),
+                    Some(recovered_head_slot(nai(), Vec::new())),
+                )
+            )),
+            "an empty free-modifier slot is the connective camxes-exp does spell"
+        );
+        assert!(
+            !rejection.rejects(&recovered_selbri_continuation(
+                recovered_merged_head_connective(
+                    recovered_head_slot(je(), vec![free_modifier()]),
+                    None,
+                )
+            )),
+            "with no NAI the trailing frees are the chain's own free* and the placement is legal"
+        );
+        assert!(
+            !rejection.rejects(&recovered_selbri_continuation(recovered::Recovered::error(
+                recovery_placeholder()
+            ))),
+            "a connective that did not parse is not a completed candidate"
+        );
+        assert!(
+            !rejection.rejects(&recovered::Recovered::<
+                recovered::ExpSelbriRelativeClauseContinuationSyntax,
+            >::error(placeholder)),
+            "an unparsed continuation is not a completed candidate either"
         );
     }
 }
