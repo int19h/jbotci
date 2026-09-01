@@ -207,14 +207,21 @@ fn empty_json_object() -> Value {
 #[requires(true)]
 #[ensures(!ret.is_empty())]
 fn mcp_tools() -> Vec<Value> {
+    // The `cukta` description names the edition this build actually answers
+    // from, so a caller can tell which revision of the grammar it is reading.
+    let edition = jbotci_cll::cll_edition();
     vec![
         tool_definition(
             "cukta",
             "Lojban reference book (CLL)",
-            "Read or search *The Complete Lojban Language* (CLL), the canonical reference grammar. \
-             Use it for grammar rules, explanations of how constructs work, and worked examples — \
-             not for plain word definitions (use `vlacku` for those). Defaults to semantic search; \
-             output is readable Markdown.",
+            &format!(
+                "Read or search the Lojban reference grammar (CLL). Use it for grammar rules, \
+                 explanations of how constructs work, and worked examples — not for plain word \
+                 definitions (use `vlacku` for those). Answers come from *{}*, edition `{}` — {}; \
+                 it teaches the amendments made since the first edition and labels each of them \
+                 with its status. Defaults to semantic search; output is readable Markdown.",
+                edition.title, edition.version, edition.publisher,
+            ),
             tool_request_schema::<ToolCuktaRequest>(),
         ),
         tool_definition(

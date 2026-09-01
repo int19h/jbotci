@@ -14,10 +14,6 @@ pub(crate) fn render_block_html(
             inlines,
             text,
         } => {
-            let class = role
-                .as_ref()
-                .map(|role| format!(" class=\"cll-para cll-para-{role}\""))
-                .unwrap_or_else(|| " class=\"cll-para\"".to_owned());
             let id = anchor_id
                 .as_ref()
                 .map(|id| format!(" id=\"{}\"", escape_html(id)))
@@ -27,6 +23,14 @@ pub(crate) fn render_block_html(
             } else {
                 render_inlines_html(site, inlines, link_mode)
             };
+            if role.as_ref().is_some_and(CllParagraphRole::is_status_note) {
+                return render_status_note_html(&id, CLL_STATUS_NOTE_BLOCK_CLASSES, &body);
+            }
+            let class = role
+                .as_ref()
+                .and_then(CllParagraphRole::presentation_name)
+                .map(|name| format!(" class=\"cll-para cll-para-{}\"", escape_html(name)))
+                .unwrap_or_else(|| " class=\"cll-para\"".to_owned());
             format!("<p{id}{class}>{body}</p>")
         }
         CllBlock::List { ordered, items } => {

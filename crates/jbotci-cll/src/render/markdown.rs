@@ -10,11 +10,21 @@ pub(crate) fn render_block_markdown(
     link_mode: CllLinkRenderMode,
 ) {
     match block {
-        CllBlock::Paragraph { inlines, text, .. } => {
-            if inlines.is_empty() {
-                output.push_str(text);
+        CllBlock::Paragraph {
+            role,
+            inlines,
+            text,
+            ..
+        } => {
+            let body: std::borrow::Cow<'_, str> = if inlines.is_empty() {
+                std::borrow::Cow::Borrowed(text.as_str())
             } else {
-                output.push_str(&render_inlines_markdown(site, inlines, link_mode));
+                std::borrow::Cow::Owned(render_inlines_markdown(site, inlines, link_mode))
+            };
+            if role.as_ref().is_some_and(CllParagraphRole::is_status_note) {
+                push_status_note_markdown(output, &body);
+            } else {
+                output.push_str(&body);
             }
             output.push_str("\n\n");
         }

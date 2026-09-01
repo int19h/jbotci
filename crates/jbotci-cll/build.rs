@@ -7,18 +7,34 @@ use std::path::{Path, PathBuf};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, requires};
+
+// The vendored identity records are parsed by the same code the crate's tests
+// use, so a test cannot pass against a laxer parse than the build performed.
+#[path = "src/vendor_metadata.rs"]
+mod vendor_metadata;
 use bzip2::Compression;
 use bzip2::write::BzEncoder;
 use serde::Deserialize;
+use vendor_metadata::{check_version_matches_release_tag, parse_key_value_file, required_field};
 
 #[invariant(!chrestomathy_chapter_id.is_empty())]
 #[invariant(!ebnf_section_id.is_empty())]
 #[invariant(!ebnf_symbols.is_empty())]
+#[invariant(!edition_ancestry.is_empty())]
 #[derive(Debug, Deserialize)]
 struct CllImportMetadata {
     chrestomathy_chapter_id: String,
     ebnf_section_id: String,
+    edition_ancestry: Vec<CllEditionAncestorMetadata>,
     ebnf_symbols: std::collections::BTreeMap<String, String>,
+}
+
+#[invariant(!title.is_empty())]
+#[invariant(!version.is_empty())]
+#[derive(Debug, Deserialize)]
+struct CllEditionAncestorMetadata {
+    title: String,
+    version: String,
 }
 
 #[invariant(section.iter().all(|item| !item.id.is_empty()))]
@@ -53,14 +69,19 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
     let chapter_dir = workspace_dir.join("vendor/cll/chapters");
     let import_metadata_path = workspace_dir.join("vendor/cll-import-metadata.toml");
     let chrestomathy_metadata_path = workspace_dir.join("vendor/cll-chrestomathy.toml");
+    let edition_env_path = workspace_dir.join("vendor/cll/.env");
+    let vendored_from_path = workspace_dir.join("vendor/cll.VENDORED_FROM");
     println!("cargo:rerun-if-changed={}", chapter_dir.display());
     println!("cargo:rerun-if-changed={}", import_metadata_path.display());
     println!(
         "cargo:rerun-if-changed={}",
         chrestomathy_metadata_path.display()
     );
-    validate_import_metadata(&import_metadata_path)?;
+    println!("cargo:rerun-if-changed={}", edition_env_path.display());
+    println!("cargo:rerun-if-changed={}", vendored_from_path.display());
+    let import_metadata = validate_import_metadata(&import_metadata_path)?;
     validate_chrestomathy_metadata(&chrestomathy_metadata_path)?;
+    let edition = read_edition(&edition_env_path, &vendored_from_path, &import_metadata)?;
 
     let mut chapters = fs::read_dir(&chapter_dir)?
         .map(|entry| entry.map(|entry| entry.path()))
@@ -106,15 +127,16 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
         generated.push_str("))");
         generated.push_str("),\n");
     }
-    generated.push_str("];\n");
+    generated.push_str("];\n\n");
+    generated.push_str(&edition);
 
     fs::write(out_dir.join("embedded_cll.rs"), generated)?;
     Ok(())
 }
 
 #[requires(path.file_name().is_some())]
-#[ensures(ret.as_ref().is_ok_and(|_| true) || ret.is_err())]
-fn validate_import_metadata(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+#[ensures(ret.as_ref().is_ok_and(|metadata| !metadata.edition_ancestry.is_empty()) || ret.is_err())]
+fn validate_import_metadata(path: &Path) -> Result<CllImportMetadata, Box<dyn std::error::Error>> {
     let metadata = fs::read_to_string(path)?;
     let metadata: CllImportMetadata = toml::from_str(&metadata)?;
     if metadata.chrestomathy_chapter_id.trim().is_empty() {
@@ -130,7 +152,73 @@ fn validate_import_metadata(path: &Path) -> Result<(), Box<dyn std::error::Error
     {
         return Err("vendor/cll-import-metadata.toml contains an empty EBNF target".into());
     }
-    Ok(())
+    if metadata.edition_ancestry.is_empty() {
+        return Err("vendor/cll-import-metadata.toml has no edition_ancestry entries".into());
+    }
+    if metadata
+        .edition_ancestry
+        .iter()
+        .any(|ancestor| ancestor.title.trim().is_empty() || ancestor.version.trim().is_empty())
+    {
+        return Err(
+            "vendor/cll-import-metadata.toml has an edition_ancestry entry with an empty field"
+                .into(),
+        );
+    }
+    Ok(metadata)
+}
+
+/// Emits the vendored edition's identity as generated constants.
+///
+/// Every value comes from a vendored file, so a submodule bump cannot leave the
+/// reported edition behind: the book's own `.env` declares its title, version,
+/// and publisher line, and `vendor/cll.VENDORED_FROM` records the pin we
+/// vendored it at. The two are then cross-checked against each other, because a
+/// version that can drift from the actual vendored text is worse than no
+/// version at all; both the parse and that check live in `vendor_metadata` so
+/// the crate's tests exercise the same rules this build applied.
+#[requires(env_path.file_name().is_some())]
+#[requires(vendored_from_path.file_name().is_some())]
+#[ensures(ret.as_ref().is_ok_and(|generated| !generated.is_empty()) || ret.is_err())]
+fn read_edition(
+    env_path: &Path,
+    vendored_from_path: &Path,
+    import_metadata: &CllImportMetadata,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let env_text = fs::read_to_string(env_path)?;
+    let env = parse_key_value_file(&env_text, "=", "vendor/cll/.env")?;
+    let vendored_from_text = fs::read_to_string(vendored_from_path)?;
+    let vendored_from =
+        parse_key_value_file(&vendored_from_text, ": ", "vendor/cll.VENDORED_FROM")?;
+
+    let title = required_field(&env, "TITLE", "vendor/cll/.env")?;
+    let version = required_field(&env, "VERSION", "vendor/cll/.env")?;
+    let publisher = required_field(&env, "PUBLISHER", "vendor/cll/.env")?;
+    let upstream_url = required_field(&vendored_from, "upstream-url", "vendor/cll.VENDORED_FROM")?;
+    let release_tag = required_field(&vendored_from, "release-tag", "vendor/cll.VENDORED_FROM")?;
+    let commit = required_field(&vendored_from, "commit", "vendor/cll.VENDORED_FROM")?;
+    check_version_matches_release_tag(version, release_tag)?;
+
+    let mut generated = String::from(
+        "pub(crate) const EMBEDDED_CLL_EDITION: EmbeddedCllEdition = EmbeddedCllEdition {\n",
+    );
+    generated.push_str(&format!("    title: {title:?},\n"));
+    generated.push_str(&format!("    version: {version:?},\n"));
+    generated.push_str(&format!("    publisher: {publisher:?},\n"));
+    generated.push_str("    ancestry: &[\n");
+    for ancestor in &import_metadata.edition_ancestry {
+        let ancestor_title = ancestor.title.trim();
+        let ancestor_version = ancestor.version.trim();
+        generated.push_str(&format!(
+            "        EmbeddedCllEditionAncestor {{ title: {ancestor_title:?}, version: {ancestor_version:?} }},\n"
+        ));
+    }
+    generated.push_str("    ],\n");
+    generated.push_str(&format!("    upstream_url: {upstream_url:?},\n"));
+    generated.push_str(&format!("    release_tag: {release_tag:?},\n"));
+    generated.push_str(&format!("    commit: {commit:?},\n"));
+    generated.push_str("};\n");
+    Ok(generated)
 }
 
 #[requires(path.file_name().is_some())]

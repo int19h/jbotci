@@ -122,6 +122,9 @@ pub(super) fn render_cukta_page(
         ],
     );
     let shell_style = format!("--cll-sidebar-width:{:.0}px;", snapshot.current_toc_width);
+    // The reader states which edition of the book it is showing; the sidebar
+    // header is the one place present on every cukta view.
+    let cll_edition = jbotci_cll::cll_edition();
     let cukta_index_route = JbotciRoute::from_web_route(
         WebRoute::Cukta(CuktaWebState {
             view: CuktaWebView::Index,
@@ -183,6 +186,13 @@ pub(super) fn render_cukta_page(
                             }
                         },
                         div { class: "cll-toc-head",
+                            div {
+                                class: "cll-edition",
+                                title: "Lineage: {cll_edition.lineage()}",
+                                span { class: "cll-edition-title", "{cll_edition.title}" }
+                                span { class: "cll-edition-version", "{cll_edition.version}" }
+                                span { class: "cll-edition-publisher", "{cll_edition.publisher}" }
+                            }
                             label { class: "cll-toc-search",
                                 input {
                                     class: "cll-toc-search-input",
@@ -1184,6 +1194,44 @@ pub(super) fn render_cukta_target_check(
     }
 }
 
+/// The meta line above a search hit: its kind and the section it came from.
+/// Shared with page-find collection so the indexed text is what is displayed.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+pub(super) fn cukta_search_card_meta(card: &CuktaSearchResultCard) -> String {
+    format!(
+        "{} · {}",
+        jbotci_cll::search_chunk_kind_label(card.kind),
+        card.section_label,
+    )
+}
+
+/// The one place the web reader builds a rule-status note.
+///
+/// Section rendering and search-result rendering both go through here, and the
+/// classes and the label separator come from `jbotci_cll` rather than being
+/// spelled out again, so the reader cannot drift from the HTML the CLI and the
+/// MCP tool emit. The separator is a real text node: without it the DOM text a
+/// reader copies would run the label straight into the first word of the note,
+/// however well the CSS margin separates them on screen.
+#[requires(!classes.is_empty())]
+#[ensures(true)]
+fn render_status_note_aside(
+    anchor_id: Option<String>,
+    classes: &'static str,
+    body: Element,
+) -> Element {
+    rsx! {
+        aside {
+            id: anchor_id.unwrap_or_default(),
+            class: "{classes}",
+            span { class: "cll-status-note-label", {jbotci_cll::CLL_STATUS_NOTE_LABEL} }
+            {jbotci_cll::CLL_STATUS_NOTE_LABEL_SEPARATOR}
+            {body}
+        }
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub(super) fn render_cukta_search_card(
@@ -1202,7 +1250,7 @@ pub(super) fn render_cukta_search_card(
             header { class: "cll-search-result-head result-header",
                 div {
                     p { class: "cll-search-result-meta",
-                        { render_page_find_text(page_find, &format!("{} · {}", card.kind, card.section_label)) }
+                        { render_page_find_text(page_find, &cukta_search_card_meta(card)) }
                     }
                     h2 { class: "cll-search-result-title",
                         if let Some((route, click_route, pending_scroll)) = route {
@@ -1242,8 +1290,18 @@ pub(super) fn render_cukta_search_card(
                     }
                 }
             }
-            p { class: "cll-search-preview",
-                { render_page_find_text(page_find, &card.preview) }
+            if card.is_status_note() {
+                // A rule-status hit is set off exactly as it is when its own
+                // section is read, so the designation survives the search path.
+                { render_status_note_aside(
+                    None,
+                    jbotci_cll::CLL_STATUS_NOTE_PREVIEW_CLASSES,
+                    render_page_find_text(page_find, &card.preview),
+                ) }
+            } else {
+                p { class: "cll-search-preview",
+                    { render_page_find_text(page_find, &card.preview) }
+                }
             }
         }
     }
@@ -1266,9 +1324,31 @@ pub(super) fn render_cll_block(
             inlines,
             text,
         } => {
+            if role
+                .as_ref()
+                .is_some_and(jbotci_cll::CllParagraphRole::is_status_note)
+            {
+                // The edition's rule-status notes are annotations about the
+                // standing of a rule rather than exposition, so they are set off
+                // as a labelled aside instead of running as ordinary prose.
+                return render_status_note_aside(
+                    anchor_id.clone(),
+                    jbotci_cll::CLL_STATUS_NOTE_BLOCK_CLASSES,
+                    rsx! {
+                        if inlines.is_empty() {
+                            { render_page_find_text(page_find, text) }
+                        } else {
+                            for inline in inlines.iter() {
+                                { render_cll_inline(inline, pending_cukta_scroll, base_path, script, false, page_find) }
+                            }
+                        }
+                    },
+                );
+            }
             let class_name = role
                 .as_ref()
-                .map(|role| format!("cll-para cll-para-{role}"))
+                .and_then(jbotci_cll::CllParagraphRole::presentation_name)
+                .map(|name| format!("cll-para cll-para-{name}"))
                 .unwrap_or_else(|| "cll-para".to_owned());
             rsx! {
                 p { id: anchor_id.clone().unwrap_or_default(), class: "{class_name}",

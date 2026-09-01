@@ -573,9 +573,11 @@ impl ToolCuktaSearchResultKind {
     }
 }
 
-/// Read or search the CLL — *The Complete Lojban Language*, the canonical
-/// reference book. Use this to look up grammar rules, find where a concept is
-/// explained, or pull a specific section or example.
+/// Read or search the CLL — *The Contemporary Lojban Language*, the unofficial
+/// community edition of the Lojban reference grammar (not an LLG publication).
+/// Use this to look up grammar rules, find where a concept is explained, or pull
+/// a specific section or example. `mode: "toc"` names the exact edition this
+/// build answers from, along with its lineage from the first edition.
 ///
 /// Returned content is transport-safe: linked labels remain as readable text,
 /// while web-only routes and navigation-only Parse controls are omitted.

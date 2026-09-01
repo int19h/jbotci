@@ -610,7 +610,7 @@ pub fn cll_embedding_kind(chunk: &CllSearchChunk) -> &'static str {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use bityzba::{ensures, requires};
+    use bityzba::{data, ensures, new, requires};
 
     #[test]
     #[requires(true)]
@@ -666,8 +666,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn cll_embedding_title_matches_v0_rules() {
-        let chunk = CllSearchChunk {
+        let chunk = new!(CllSearchChunk {
             kind: CllSearchChunkKind::Example,
+            role: None,
             section_id: "section-klama".to_owned(),
             anchor_id: "example".to_owned(),
             section_number: "2.1".to_owned(),
@@ -675,14 +676,13 @@ mod tests {
             label: "Example 2.3".to_owned(),
             text: "mi klama".to_owned(),
             tagged_words: Default::default(),
-        };
+        });
         assert_eq!(cll_embedding_title(&chunk), "2.1 2.3");
 
-        let paragraph = CllSearchChunk {
+        let paragraph = chunk.with_data(data! {
             kind: CllSearchChunkKind::Paragraph,
             label: "Paragraph in 2.1. A test section".to_owned(),
-            ..chunk
-        };
+        });
         assert_eq!(cll_embedding_title(&paragraph), "2.1");
     }
 

@@ -3126,7 +3126,15 @@ fn cukta_toc_outputs_table_of_contents() {
 
     assert_eq!(run.status, CliStatus::Success);
     assert!(run.stderr.is_empty(), "{}", run.stderr);
-    assert!(run.stdout.starts_with("# Table of Contents"));
+    let edition = jbotci_cll::cll_edition();
+    assert!(run.stdout.starts_with(&format!("# {}\n", edition.title)));
+    assert!(run.stdout.contains(&edition.version));
+    assert!(run.stdout.contains(&edition.publisher));
+    assert!(
+        run.stdout
+            .contains(&format!("Lineage: {}", edition.lineage()))
+    );
+    assert!(run.stdout.contains("## Table of Contents"));
     assert!(run.stdout.contains("1.1. What is Lojban?"));
 }
 

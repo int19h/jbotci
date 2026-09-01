@@ -216,6 +216,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "private CLL block parse state is a monotonically advanced chapter-local counter",
     ),
     (
+        "crates/jbotci-cll/src/import.rs:EmbeddedCllEdition",
+        "build-time edition constant is a borrowed carrier whose fields are validated by the generator and revalidated by CllEdition",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:EmbeddedCllEditionAncestor",
+        "build-time edition ancestor constant is a borrowed carrier revalidated by CllEditionAncestor",
+    ),
+    (
         "crates/jbotci-cll/src/import.rs:PendingIndexEntry",
         "pending index entries are private loader intermediates from DocBook indexterm nodes",
     ),
@@ -240,6 +248,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "inline plain text visitor is private traversal accumulator state",
     ),
     (
+        "crates/jbotci-cll/src/lib.rs:StatusNoteCountVisitor",
+        "status note counter is private test traversal accumulator state",
+    ),
+    (
         "crates/jbotci-cll/src/links.rs:LinkResolution",
         "link resolutions are private loader intermediates derived from the completed anchor index",
     ),
@@ -248,8 +260,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "link resolution visitor is private traversal accumulator state",
     ),
     (
-        "crates/jbotci-cll/src/search.rs:CllSearchChunk",
-        "CLL search chunks are generated from parsed sections and tagged-word extraction",
+        "crates/jbotci-cll/src/model.rs:CllMetadata",
+        "site metadata pairs a validated CllEdition with a chapter count that CllSite already ties to the loaded chapters",
     ),
     (
         "crates/jbotci-cll/src/search.rs:CllSearchMatch",
@@ -1910,10 +1922,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-web-core/src/lib.rs:CuktaPageData",
         "web Cukta page data is a presentation DTO produced by build_cukta_web_page",
-    ),
-    (
-        "crates/jbotci-web-core/src/lib.rs:CuktaSearchResultCard",
-        "web Cukta result cards are projected from ranked CLL search matches",
     ),
     (
         "crates/jbotci-web-core/src/lib.rs:CuktaSectionLink",

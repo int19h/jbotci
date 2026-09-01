@@ -6,6 +6,46 @@ mod markdown;
 pub(crate) use html::render_block_html;
 pub(crate) use markdown::render_block_markdown;
 
+/// Appends a rule-status note as a labelled block quote.
+///
+/// A status note is the edition's own annotation about the standing of the rule
+/// being taught rather than part of the exposition, so it is set off from the
+/// prose around it. Section rendering and search-result rendering share this so
+/// a note looks the same however a reader reached it, and the label is literal
+/// text because Markdown carries no styling.
+#[requires(true)]
+#[ensures(output.contains(CLL_STATUS_NOTE_LABEL))]
+pub(crate) fn push_status_note_markdown(output: &mut String, body: &str) {
+    output.push_str("> **");
+    output.push_str(CLL_STATUS_NOTE_LABEL);
+    output.push_str(".** ");
+    for (index, line) in body.lines().enumerate() {
+        if index > 0 {
+            output.push_str("\n> ");
+        }
+        output.push_str(line);
+    }
+}
+
+/// Renders a rule-status note as a labelled aside.
+///
+/// `id_attribute` is empty or an already-escaped ` id="…"`, and `classes` comes
+/// from this crate rather than from content. The label is emitted as text and
+/// not only as a class, because the CLI and the MCP tool both hand this HTML to
+/// a reader with no stylesheet attached.
+#[requires(!classes.is_empty())]
+#[ensures(ret.contains(CLL_STATUS_NOTE_LABEL))]
+pub(crate) fn render_status_note_html(
+    id_attribute: &str,
+    classes: &'static str,
+    body: &str,
+) -> String {
+    format!(
+        "<aside{id_attribute} class=\"{classes}\"><span class=\"cll-status-note-label\">{}</span>{CLL_STATUS_NOTE_LABEL_SEPARATOR}{body}</aside>",
+        escape_html(CLL_STATUS_NOTE_LABEL),
+    )
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CllPlainLinkDisposition {

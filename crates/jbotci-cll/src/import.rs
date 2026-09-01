@@ -11,7 +11,30 @@ use super::*;
 
 include!(concat!(env!("OUT_DIR"), "/embedded_cll.rs"));
 
+/// The build-time shape of the vendored edition's identity. It exists so the
+/// generated constant is plain data with no allocation; `cll_edition()` turns it
+/// into the validated model type.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct EmbeddedCllEdition {
+    pub(crate) title: &'static str,
+    pub(crate) version: &'static str,
+    pub(crate) publisher: &'static str,
+    pub(crate) ancestry: &'static [EmbeddedCllEditionAncestor],
+    pub(crate) upstream_url: &'static str,
+    pub(crate) release_tag: &'static str,
+    pub(crate) commit: &'static str,
+}
+
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct EmbeddedCllEditionAncestor {
+    pub(crate) title: &'static str,
+    pub(crate) version: &'static str,
+}
+
 static EMBEDDED_SITE: OnceLock<Result<CllSite, CllError>> = OnceLock::new();
+static EDITION: OnceLock<CllEdition> = OnceLock::new();
 static CLL_IMPORT_METADATA: OnceLock<Result<CllImportMetadata, String>> = OnceLock::new();
 static CHRESTOMATHY_METADATA: OnceLock<Result<CllChrestomathyMetadata, String>> = OnceLock::new();
 
@@ -47,6 +70,36 @@ pub(crate) struct PendingIndexEntry {
 #[invariant(true)]
 pub(crate) struct BlockParseState {
     pub(crate) chapter_example_counter: usize,
+}
+
+/// The edition of the reference book this build answers from.
+///
+/// The values are fixed at build time from the vendored sources, so this is the
+/// single place any surface — the tool description, the rendered book, the web
+/// reader — should take the edition from.
+#[requires(true)]
+#[ensures(ret.version == EMBEDDED_CLL_EDITION.version)]
+pub fn cll_edition() -> &'static CllEdition {
+    EDITION.get_or_init(|| {
+        new!(CllEdition {
+            title: EMBEDDED_CLL_EDITION.title.to_owned(),
+            version: EMBEDDED_CLL_EDITION.version.to_owned(),
+            publisher: EMBEDDED_CLL_EDITION.publisher.to_owned(),
+            ancestry: EMBEDDED_CLL_EDITION
+                .ancestry
+                .iter()
+                .map(|ancestor| {
+                    new!(CllEditionAncestor {
+                        title: ancestor.title.to_owned(),
+                        version: ancestor.version.to_owned(),
+                    })
+                })
+                .collect(),
+            upstream_url: EMBEDDED_CLL_EDITION.upstream_url.to_owned(),
+            release_tag: EMBEDDED_CLL_EDITION.release_tag.to_owned(),
+            commit: EMBEDDED_CLL_EDITION.commit.to_owned(),
+        })
+    })
 }
 
 #[requires(true)]
@@ -91,10 +144,10 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
     }
 
     let mut site = new!(CllSite {
-        metadata: new!(CllMetadata {
-            title: "The Complete Lojban Language".to_owned(),
+        metadata: CllMetadata {
+            edition: cll_edition().clone(),
             chapter_count: chapters.len(),
-        }),
+        },
         chapters,
         sections_by_id,
         section_order,
@@ -123,7 +176,7 @@ pub fn load_embedded_cll_site() -> Result<CllSite, CllError> {
 
 #[requires(true)]
 #[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
-fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
+pub(crate) fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
     let mut decoder = BzDecoder::new(compressed);
     let mut bytes = Vec::new();
     decoder
@@ -134,7 +187,7 @@ fn decode_chapter_xml(compressed: &[u8]) -> Result<String, CllError> {
 
 #[requires(true)]
 #[ensures(true)]
-fn sanitize_xml_entities(xml: &str) -> String {
+pub(crate) fn sanitize_xml_entities(xml: &str) -> String {
     // These named XML entities appear in the vendored CLL sources but are not
     // predefined XML entities, and roxmltree deliberately does not load an
     // external DTD to resolve them for us.
@@ -459,7 +512,7 @@ fn parse_standalone_chapter_block(node: Node<'_, '_>) -> Option<CllBlock> {
         let text = visible_text(node);
         (!text.is_empty()).then_some(CllBlock::Paragraph {
             anchor_id: xml_id(node),
-            role: attr_string(node, "role"),
+            role: paragraph_role(node),
             inlines: vec![CllInline::Text(text.clone())],
             text,
         })
@@ -646,7 +699,7 @@ pub(crate) fn parse_block(
     (!text.is_empty())
         .then_some(CllBlock::Paragraph {
             anchor_id: xml_id(node),
-            role: attr_string(node, "role"),
+            role: paragraph_role(node),
             inlines: vec![CllInline::Text(text.clone())],
             text,
         })
@@ -667,7 +720,7 @@ pub(crate) fn parse_paragraph_blocks(
     let mut blocks = Vec::new();
     let mut inline_nodes = Vec::new();
     let mut paragraph_anchor_id = paragraph_anchor_id_for(anchor_mode, context, node);
-    let paragraph_role = attr_string(node, "role");
+    let paragraph_role = paragraph_role(node);
     for child in node.children() {
         if child.is_element() && is_block_element(child) {
             flush_inline_nodes_as_paragraph(
@@ -724,7 +777,7 @@ fn parse_admonition_blocks(
         if !text.is_empty() {
             blocks.push(CllBlock::Paragraph {
                 anchor_id: xml_id(node),
-                role: Some(node.tag_name().name().to_owned()),
+                role: CllParagraphRole::parse(node.tag_name().name()),
                 inlines,
                 text,
             });
@@ -739,7 +792,7 @@ fn flush_inline_nodes_as_paragraph(
     blocks: &mut Vec<CllBlock>,
     inline_nodes: &mut Vec<Node<'_, '_>>,
     anchor_id: Option<String>,
-    role: Option<String>,
+    role: Option<CllParagraphRole>,
 ) {
     if inline_nodes.is_empty() {
         return;
@@ -1703,7 +1756,7 @@ fn is_admonition_element(node: Node<'_, '_>) -> bool {
 #[requires(node.is_element())]
 #[ensures(true)]
 fn is_display_none_element(node: Node<'_, '_>) -> bool {
-    attr_string(node, "role").is_some_and(|role| role.trim().eq_ignore_ascii_case("display-none"))
+    attr_value(node, "role").is_some_and(|role| role.trim().eq_ignore_ascii_case("display-none"))
 }
 
 #[requires(node.is_element())]
@@ -2232,14 +2285,28 @@ pub(crate) fn xml_id(node: Node<'_, '_>) -> Option<String> {
 #[requires(node.is_element())]
 #[ensures(true)]
 pub(crate) fn attr_string(node: Node<'_, '_>, name: &str) -> Option<String> {
-    node.attribute(name)
-        .or_else(|| {
-            let local_name = name.rsplit(':').next().unwrap_or(name);
-            node.attributes()
-                .find(|attribute| attribute.name() == local_name)
-                .map(|attribute| attribute.value())
-        })
-        .map(str::to_owned)
+    attr_value(node, name).map(str::to_owned)
+}
+
+/// The borrowed form of [`attr_string`], for callers that only inspect the
+/// value or build something other than a plain copy of it.
+#[requires(!name.is_empty())]
+#[ensures(true)]
+pub(crate) fn attr_value<'a>(node: Node<'a, '_>, name: &str) -> Option<&'a str> {
+    node.attribute(name).or_else(|| {
+        let local_name = name.rsplit(':').next().unwrap_or(name);
+        node.attributes()
+            .find(|attribute| attribute.name() == local_name)
+            .map(|attribute| attribute.value())
+    })
+}
+
+/// The typed designation of a paragraph-bearing element, from its DocBook
+/// `role`.
+#[requires(node.is_element())]
+#[ensures(true)]
+fn paragraph_role(node: Node<'_, '_>) -> Option<CllParagraphRole> {
+    attr_value(node, "role").and_then(CllParagraphRole::parse)
 }
 
 #[requires(node.is_element())]
