@@ -2728,6 +2728,8 @@ mod tests {
                 header_rows,
             );
             assert_chrestomathy_rows_are_covered(site, metadata, CllTableRowArea::Body, body_rows);
+            assert_chrestomathy_metadata_rows_exist(metadata, CllTableRowArea::Header, header_rows);
+            assert_chrestomathy_metadata_rows_exist(metadata, CllTableRowArea::Body, body_rows);
         }
     }
 
@@ -2821,6 +2823,76 @@ mod tests {
             .map(|cell| inline_plain_text(cell))
             .filter(|cell| !cell.is_empty())
             .collect()
+    }
+
+    /// The inverse check has to be provable on its own. In the corpus the
+    /// stronger `parse_table_block` postcondition fires first when headers are
+    /// dropped, so this exercises the metadata rule directly: a declared header
+    /// group against an empty header area is a failure.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn metadata_naming_a_row_the_table_does_not_have_is_a_failure() {
+        let metadata = new!(CllChrestomathySectionMetadata {
+            id: "section-probe".to_owned(),
+            header_groups: vec![vec![1]],
+            body_groups: Vec::new(),
+            header_no_parse: Vec::new(),
+            body_no_parse: Vec::new(),
+        });
+
+        // One header row present: the declaration is satisfied.
+        assert_chrestomathy_metadata_rows_exist(
+            &metadata,
+            CllTableRowArea::Header,
+            &[vec![new!(CllTableCell {
+                blocks: Vec::new(),
+                col_span: None,
+                row_span: None,
+                parse_href: None,
+                parse_group: None,
+            })]],
+        );
+
+        // No header rows at all - the shape the dropped-`thead` bug produced.
+        let empty = std::panic::catch_unwind(|| {
+            assert_chrestomathy_metadata_rows_exist(&metadata, CllTableRowArea::Header, &[]);
+        });
+        assert!(
+            empty.is_err(),
+            "a declared header group with no imported header rows must fail"
+        );
+    }
+
+    /// The inverse of `assert_chrestomathy_rows_are_covered`: every row the
+    /// metadata names has to exist in the imported table.
+    ///
+    /// Coverage alone is one-directional. It walks the rows the importer
+    /// produced, so when an area imports as empty it asserts nothing at all -
+    /// which is precisely why `header_groups = [[1]]` sat in this file for a
+    /// whole edition while the importer was dropping every `thead`. Naming a
+    /// row that does not exist is now a failure in its own right.
+    #[requires(true)]
+    #[ensures(true)]
+    fn assert_chrestomathy_metadata_rows_exist(
+        metadata: &CllChrestomathySectionMetadata,
+        area: CllTableRowArea,
+        rows: &[Vec<CllTableCell>],
+    ) {
+        for row_index in chrestomathy_area_groups(metadata, area)
+            .iter()
+            .flatten()
+            .chain(chrestomathy_area_no_parse_rows(metadata, area))
+        {
+            assert!(
+                *row_index > 0 && *row_index <= rows.len(),
+                "{} names {} row {}, but the imported table has {} such row(s)",
+                metadata.id,
+                chrestomathy_area_label(area),
+                row_index,
+                rows.len()
+            );
+        }
     }
 
     #[requires(true)]
