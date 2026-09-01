@@ -560,8 +560,8 @@ fn cll_site_example_references_are_consistent(
 /// The upstream design (`vendor/cll/docs/status-markup.md`) also reserves a
 /// machine-readable `condition="status:..."` attribute that would name the
 /// authority level of each note — ratified, committee-approved, checkpointed,
-/// de facto, editorial. No release has emitted one yet: both `v1.3.2` and
-/// `v1.3.3` carry only the transitional bare form, so the level exists solely
+/// de facto, editorial. No release has emitted one yet: `v1.3.2` through
+/// `v1.3.4` carry only the transitional bare form, so the level exists solely
 /// in each note's prose and this type deliberately does not guess at it.
 #[invariant(true)]
 #[invariant(

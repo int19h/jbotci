@@ -520,6 +520,42 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "CLL inline variants are generated from normalized DocBook inline nodes",
     ),
     (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Block",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Consumed",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Division",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Flattened",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Ignored",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::IndexKey",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Inline",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Structural",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Transparent",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
         "crates/jbotci-cll/src/model.rs:CllSectionNumber::Section",
         "the chapter and the section index are NonZeroU16 and NonZeroUsize, so the variant data already expresses that the book counts both from one",
     ),

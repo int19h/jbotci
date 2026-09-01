@@ -2020,14 +2020,7 @@ fn has_parse_nucleus_end_at_or_before(chars: &[char], start: usize, limit: usize
 #[requires(start <= chars.len())]
 #[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
 pub(crate) fn parse_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
-    let first = *chars.get(start)?;
-    let second = *chars.get(start + 1)?;
-    let semivowel = match (base_vowel(first)?, second) {
-        ('a', 'i' | 'í' | 'ĭ') | ('e', 'i' | 'í' | 'ĭ') | ('o', 'i' | 'í' | 'ĭ') => 'ĭ',
-        ('a', 'u' | 'ú' | 'ŭ') => 'ŭ',
-        _ => return None,
-    };
-    let end = start + 2;
+    let (semivowel, end) = raw_diphthong_end(chars, start)?;
     if next_non_comma_index(chars, end)
         .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
     {
@@ -2087,14 +2080,7 @@ pub(crate) fn parse_explicit_stress_nucleus_end(
 #[requires(start <= chars.len())]
 #[ensures(ret.is_none_or(|end| end > start && end <= chars.len()))]
 fn parse_explicit_stress_diphthong_end(chars: &[char], start: usize) -> Option<usize> {
-    let first = *chars.get(start)?;
-    let second = *chars.get(start + 1)?;
-    let semivowel = match (base_vowel(first)?, second) {
-        ('a', 'i' | 'í' | 'ĭ') | ('e', 'i' | 'í' | 'ĭ') | ('o', 'i' | 'í' | 'ĭ') => 'ĭ',
-        ('a', 'u' | 'ú' | 'ŭ') => 'ŭ',
-        _ => return None,
-    };
-    let end = start + 2;
+    let (semivowel, end) = raw_diphthong_end(chars, start)?;
     if next_non_comma_index(chars, end)
         .is_some_and(|next| matches_diphthong_semivowel(chars[next], semivowel))
     {
@@ -4746,13 +4732,18 @@ fn vowel_hiatus_range(chars: &[char]) -> Option<Range<usize>> {
 #[ensures(ret.is_none_or(|(_, end)| end > start && end <= chars.len()))]
 fn raw_diphthong_end(chars: &[char], start: usize) -> Option<(char, usize)> {
     let first = base_vowel(*chars.get(start)?)?;
-    let second = *chars.get(start + 1)?;
-    let semivowel = match (first, second) {
+    // The PEG spells each vowel as `comma* [aA]` and so on, so a comma between
+    // the two halves of a falling diphthong does not break it - it only marks
+    // where the writer wants the syllable read. Glide detection already skips
+    // commas; the two have to agree, or `zo,is.` would be rejected as hiatus
+    // while `zoi,s.` is accepted.
+    let second_index = next_non_comma_index(chars, start + 1)?;
+    let semivowel = match (first, chars[second_index]) {
         ('a', 'i' | 'í' | 'ĭ') | ('e', 'i' | 'í' | 'ĭ') | ('o', 'i' | 'í' | 'ĭ') => 'ĭ',
         ('a', 'u' | 'ú' | 'ŭ') => 'ŭ',
         _ => return None,
     };
-    Some((semivowel, start + 2))
+    Some((semivowel, second_index + 1))
 }
 
 #[requires(index <= chars.len())]

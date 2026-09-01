@@ -121,6 +121,6 @@ embedding R2 prefix, and merges only the F2LLM catalog entries so inactive
 EmbeddingGemma entries are preserved.
 
 `vendor/cll` tracks the
-[int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.2` release.
+[int19h/cll](https://github.com/int19h/cll) upstream at the `v1.3.4` release.
 It is kept as a submodule because CLL examples and references are part of the
 core parser and reference-analysis development loop.

@@ -14,8 +14,8 @@ use jbotci_cll::{
     chrestomathy_section_parse_href, cll_first_section_id, cll_index_entries, cll_lookup_section,
     cll_next_section_id, cll_numbered_title, cll_previous_section_id,
     cll_resolve_section_reference, cll_search_all_chunks, cll_search_chunk_href,
-    cll_section_chapter_title, cukta_search, embedded_cll_site, format_section_display_title,
-    truncate_preview,
+    cll_section_chapter_title, cll_section_prelude_blocks, cukta_search, embedded_cll_site,
+    format_section_display_title, truncate_preview,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
@@ -2682,18 +2682,7 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                     },
                 };
             };
-            let chapter_prelude_blocks = site
-                .chapters
-                .iter()
-                .find(|chapter| chapter.chapter_id == section.chapter_id)
-                .filter(|chapter| {
-                    chapter
-                        .root_section_ids
-                        .first()
-                        .is_some_and(|first_section_id| first_section_id == &section.section_id)
-                })
-                .map(|chapter| chapter.prelude_blocks.clone())
-                .unwrap_or_default();
+            let chapter_prelude_blocks = cll_section_prelude_blocks(site, section).to_vec();
             CuktaPageData {
                 toc: build_cukta_toc(site, base_path, Some(&section.section_id)),
                 current_section_id: Some(section.section_id.clone()),

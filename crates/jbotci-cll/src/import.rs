@@ -253,28 +253,74 @@ fn parse_chapter(
     }
 
     if has_sections {
-        for child in root.children().filter(Node::is_element) {
-            if child.has_tag_name("title") {
-                continue;
-            }
-            if child.has_tag_name("section") {
-                section_index += 1;
-                let parsed = parse_section(
-                    child,
-                    &chapter_id,
-                    division,
-                    section_index,
-                    source_path,
-                    &mut parse_state,
-                )?;
-                root_section_ids.push(parsed.0.section_id.clone());
-                examples.extend(parsed.1);
-                anchors.extend(parsed.2);
-                index_entries.extend(parsed.3);
-                sections.push(parsed.0);
-            } else if let Some(block) = parse_standalone_chapter_block(child) {
-                prelude_blocks.push(block);
-            }
+        // Content outside every section - the chapter illustration, and the
+        // front matter the appendices open with - belongs to the chapter, but
+        // the reader only ever meets it at the top of the chapter's first
+        // section. Parsing it with that section's context is therefore not a
+        // convenience: every anchor, example, and index entry it contributes
+        // has to name the page it is actually displayed on, and it has to go
+        // through the same block pipeline as section content so that
+        // cross-references, lists, and inline markup survive.
+        let prelude_context = SectionParseContext {
+            chapter_id: chapter_id.clone(),
+            division,
+            section_id: first_section_id(root, &chapter_id),
+            section_number: division.section_number(
+                NonZeroUsize::new(1).expect("the first section is counted from one"),
+            ),
+            section_title: chapter_title.clone(),
+            source_path: source_path.to_owned(),
+        };
+        // Index terms come from every non-section child, not from the nodes
+        // that survive block parsing: an `<indexterm>` carries no visible text,
+        // so it is filtered out of `prelude_nodes` below, and a term written as
+        // a direct child of the chapter would be lost if the two lists were the
+        // same one. This mirrors `parse_section`, which scans its whole
+        // container including the title.
+        index_entries.extend(index_entries_in(
+            &root
+                .children()
+                .filter(|child| child.is_element() && !child.has_tag_name("section"))
+                .collect::<Vec<_>>(),
+            &prelude_context.section_id,
+        ));
+        let prelude_nodes = root
+            .children()
+            .filter(|child| {
+                child.is_text()
+                    || (child.is_element()
+                        && !child.has_tag_name("title")
+                        && !child.has_tag_name("section")
+                        && !child.has_tag_name("indexterm"))
+            })
+            .collect::<Vec<_>>();
+        prelude_blocks = parse_blocks_from_nodes(
+            &prelude_nodes,
+            &prelude_context,
+            AnchorMode::TopLevel,
+            &mut parse_state,
+            &mut examples,
+            &mut anchors,
+        );
+
+        for child in root
+            .children()
+            .filter(|child| child.is_element() && child.has_tag_name("section"))
+        {
+            section_index += 1;
+            let parsed = parse_section(
+                child,
+                &chapter_id,
+                division,
+                section_index,
+                source_path,
+                &mut parse_state,
+            )?;
+            root_section_ids.push(parsed.0.section_id.clone());
+            examples.extend(parsed.1);
+            anchors.extend(parsed.2);
+            index_entries.extend(parsed.3);
+            sections.push(parsed.0);
         }
     } else {
         let parsed = parse_sectionless_chapter(
@@ -348,15 +394,7 @@ fn parse_sectionless_chapter(
     };
     let mut examples = Vec::new();
     let mut anchors = Vec::new();
-    let index_entries = root
-        .descendants()
-        .filter(|node| node.is_element() && node.has_tag_name("indexterm"))
-        .filter_map(index_key)
-        .map(|key| PendingIndexEntry {
-            key,
-            section_id: chapter_id.to_owned(),
-        })
-        .collect();
+    let index_entries = index_entries_in(&[root], chapter_id);
     let content_nodes = root
         .children()
         .filter(|child| {
@@ -420,8 +458,7 @@ fn parse_section(
     ),
     CllError,
 > {
-    let section_id =
-        xml_id(section_node).unwrap_or_else(|| format!("{chapter_id}-s{section_index}"));
+    let section_id = section_id_for(section_node, chapter_id, section_index);
     let section_number = division.section_number(
         NonZeroUsize::new(section_index).expect("section indexes are counted from one"),
     );
@@ -453,17 +490,7 @@ fn parse_section(
             &mut anchors,
         );
     }
-    for indexterm in section_node
-        .descendants()
-        .filter(|node| node.is_element() && node.has_tag_name("indexterm"))
-    {
-        if let Some(key) = index_key(indexterm) {
-            index_entries.push(PendingIndexEntry {
-                key,
-                section_id: section_id.clone(),
-            });
-        }
-    }
+    index_entries.extend(index_entries_in(&[section_node], &section_id));
 
     let content_nodes = section_node
         .children()
@@ -509,20 +536,49 @@ fn parse_section(
     ))
 }
 
-#[requires(node.is_element())]
-#[ensures(true)]
-fn parse_standalone_chapter_block(node: Node<'_, '_>) -> Option<CllBlock> {
-    if node.has_tag_name("mediaobject") {
-        parse_media_block(node)
-    } else {
-        let text = visible_text(node);
-        (!text.is_empty()).then_some(CllBlock::Paragraph {
-            anchor_id: xml_id(node),
-            role: paragraph_role(node),
-            inlines: vec![CllInline::Text(text.clone())],
-            text,
+/// Every index term under `containers`, each container included in its own
+/// scan. Terms are collected from the source containers rather than from the
+/// blocks those containers render into: an `<indexterm>` carries no visible
+/// text of its own, so it never survives block parsing, and scanning only the
+/// nodes that do survive would silently drop a term written as a direct child.
+#[requires(!section_id.is_empty())]
+#[ensures(ret.iter().all(|entry| entry.section_id == section_id))]
+fn index_entries_in(containers: &[Node<'_, '_>], section_id: &str) -> Vec<PendingIndexEntry> {
+    containers
+        .iter()
+        .flat_map(|container| container.descendants())
+        .filter(|node| node.is_element() && node.has_tag_name("indexterm"))
+        .filter_map(index_key)
+        .map(|key| PendingIndexEntry {
+            key,
+            section_id: section_id.to_owned(),
         })
-    }
+        .collect()
+}
+
+/// The id `parse_section` will give the section at `section_index`, computed
+/// without parsing it. Chapter-level content has to name the section it is
+/// displayed with before that section has been reached, so both callers derive
+/// the id here rather than each spelling out the fallback.
+#[requires(section_node.is_element())]
+#[requires(!chapter_id.is_empty())]
+#[requires(section_index > 0)]
+#[ensures(!ret.is_empty())]
+fn section_id_for(section_node: Node<'_, '_>, chapter_id: &str, section_index: usize) -> String {
+    xml_id(section_node).unwrap_or_else(|| format!("{chapter_id}-s{section_index}"))
+}
+
+/// The id of the chapter's first section, or the chapter's own id when the
+/// chapter has none - the same fallback `parse_sectionless_chapter` uses, so a
+/// chapter's front matter always names an addressable section.
+#[requires(root.is_element())]
+#[requires(!chapter_id.is_empty())]
+#[ensures(!ret.is_empty())]
+fn first_section_id(root: Node<'_, '_>, chapter_id: &str) -> String {
+    root.children()
+        .find(|child| child.is_element() && child.has_tag_name("section"))
+        .map(|section| section_id_for(section, chapter_id, 1))
+        .unwrap_or_else(|| chapter_id.to_owned())
 }
 
 #[requires(true)]
@@ -594,6 +650,14 @@ pub(crate) fn parse_block(
     if node.has_tag_name("mediaobject") {
         return parse_media_block(node).into_iter().collect();
     }
+    // `literallayout` is the only one of these three the current edition uses;
+    // `programlisting` left the book when colojban 1.3.4 typeset the PEG
+    // appendix, and `screen` has never been in it. All three stay handled: the
+    // importer's vocabulary is DocBook's, not one edition's, and unrecognized
+    // markup is flattened into prose without any diagnostic, so narrowing this
+    // arm would turn a future edition's program listing into silent data loss.
+    // `preformatted_block_handling_covers_docbook_rather_than_one_edition`
+    // pins the decision.
     if node.has_tag_name("programlisting")
         || node.has_tag_name("screen")
         || node.has_tag_name("literallayout")
@@ -1023,7 +1087,21 @@ fn parse_example_block(
 }
 
 #[requires(node.is_element())]
-#[ensures(true)]
+#[ensures(
+    ret.as_ref().is_none_or(|block| matches!(
+        block,
+        CllBlock::Table { header_rows, body_rows, .. } if !header_rows.is_empty() || !body_rows.is_empty()
+    )),
+    "a table imports as a table with rows, or not at all"
+)]
+#[ensures(
+    !declares_populated_header_row(node)
+        || ret.as_ref().is_some_and(|block| matches!(
+            block,
+            CllBlock::Table { header_rows, .. } if !header_rows.is_empty()
+        )),
+    "a `thead` holding at least one cell always imports as header rows: resolving the two row areas under different nodes used to drop them silently"
+)]
 fn parse_table_block(
     node: Node<'_, '_>,
     context: &SectionParseContext,
@@ -1031,9 +1109,7 @@ fn parse_table_block(
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
-    let source = child_element(node, "tgroup")
-        .or_else(|| child_element(node, "tbody"))
-        .unwrap_or(node);
+    let source = table_row_area_root(node);
     let header_rows = child_element(source, "thead")
         .map(|thead| {
             parse_table_rows(
@@ -1127,6 +1203,50 @@ fn parse_table_rows(
         .collect()
 }
 
+/// The node whose children hold a table's `thead` and `tbody`. DocBook wraps
+/// the row areas in `tgroup`; the vendored sources also use the HTML shape,
+/// where both are direct children of the table. Both areas must be resolved
+/// under this one node - descending into `tbody` to look for `thead` would hide
+/// a sibling header and silently drop the table's header row.
+#[requires(node.is_element())]
+#[ensures(ret == node || ret.parent() == Some(node))]
+fn table_row_area_root<'a, 'input>(node: Node<'a, 'input>) -> Node<'a, 'input> {
+    child_element(node, "tgroup").unwrap_or(node)
+}
+
+/// Whether the source table declares a header row carrying at least one cell.
+///
+/// This deliberately does **not** go through `table_row_area_root`: it is the
+/// antecedent of `parse_table_block`'s postcondition, and a postcondition that
+/// resolved the header the same way the implementation does would restate the
+/// implementation instead of constraining it - reintroducing the resolver bug
+/// would then leave the contract silently vacuous. So it looks for a `thead`
+/// in both places the vendored sources put one, directly under the table and
+/// inside a DocBook `tgroup`, and asks the question the importer must answer.
+#[requires(node.is_element())]
+#[ensures(true)]
+fn declares_populated_header_row(node: Node<'_, '_>) -> bool {
+    node.children()
+        .chain(
+            child_element(node, "tgroup")
+                .into_iter()
+                .flat_map(|tgroup| tgroup.children()),
+        )
+        .filter(|child| child.is_element() && child.has_tag_name("thead"))
+        .flat_map(|thead| thead.children())
+        .filter(|row| row.is_element() && (row.has_tag_name("row") || row.has_tag_name("tr")))
+        .any(|row| row.children().any(is_table_cell))
+}
+
+/// The cell elements of a table row, in the DocBook (`entry`) and HTML
+/// (`td`/`th`) spellings the vendored sources mix.
+#[requires(true)]
+#[ensures(ret == (cell.is_element() && (cell.has_tag_name("entry") || cell.has_tag_name("td") || cell.has_tag_name("th"))))]
+fn is_table_cell(cell: Node<'_, '_>) -> bool {
+    cell.is_element()
+        && (cell.has_tag_name("entry") || cell.has_tag_name("td") || cell.has_tag_name("th"))
+}
+
 #[requires(row.is_element())]
 #[ensures(true)]
 fn parse_table_row(
@@ -1140,12 +1260,7 @@ fn parse_table_row(
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Vec<CllTableCell> {
     row.children()
-        .filter(|cell| {
-            cell.is_element()
-                && (cell.has_tag_name("entry")
-                    || cell.has_tag_name("td")
-                    || cell.has_tag_name("th"))
-        })
+        .filter(|cell| is_table_cell(*cell))
         .enumerate()
         .map(|(cell_index, cell)| {
             let mut blocks = parse_blocks_from_nodes(
@@ -1197,7 +1312,7 @@ fn chrestomathy_parse_info(
 ) -> CllChrestomathyParseInfo {
     if context.chapter_id != cll_import_metadata().chrestomathy_chapter_id
         || cell_index != 0
-        || !(cell.has_tag_name("td") || cell.has_tag_name("th"))
+        || !is_table_cell(cell)
     {
         return new!(CllChrestomathyParseInfo {
             parse_href: None,
@@ -1365,12 +1480,7 @@ fn chrestomathy_group_text_from_rows(
 #[ensures(ret.as_ref().is_none_or(|text| !text.trim().is_empty()))]
 fn chrestomathy_source_row_text(row: Node<'_, '_>) -> Option<String> {
     row.children()
-        .filter(|cell| {
-            cell.is_element()
-                && (cell.has_tag_name("entry")
-                    || cell.has_tag_name("td")
-                    || cell.has_tag_name("th"))
-        })
+        .filter(|cell| is_table_cell(*cell))
         .next()
         .map(visible_text)
         .filter(|text| !text.trim().is_empty())
@@ -1718,6 +1828,14 @@ fn merge_adjacent_text_inlines(inlines: Vec<CllInline>) -> Vec<CllInline> {
     merged
 }
 
+/// The DocBook block vocabulary the importer understands. It deliberately
+/// exceeds what the vendored edition happens to contain: nine of these are
+/// absent from the book today - `simpara`, `screen`, `math`, the five
+/// admonitions, and, since colojban 1.3.4 typeset the PEG appendix,
+/// `programlisting`. They stay because an element that is not listed here is
+/// not rejected: it is merged into the surrounding prose without any
+/// diagnostic. Narrowing the list to the current edition would make the next
+/// edition's markup fail silently instead of loudly.
 #[requires(node.is_element())]
 #[ensures(true)]
 fn is_block_element(node: Node<'_, '_>) -> bool {
@@ -2425,4 +2543,1739 @@ fn preformatted_text(text: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    use super::*;
+
+    /// A probe chapter used to exercise the division skeleton.
+    const DIVISION_PROBE: &str = concat!(
+        r#"<article xml:id="probe-chapter"><title>PROBE</title>"#,
+        r#"<section xml:id="probe-section"><title>PROBE</title><para>PROBE</para></section>"#,
+        "</article>",
+    );
+    const CHAPTER_ROOT_PROBE: &str = concat!(
+        r#"<chapter xml:id="probe-chapter"><title>PROBE</title>"#,
+        r#"<section xml:id="probe-section"><title>PROBE</title><para>PROBE</para></section>"#,
+        "</chapter>",
+    );
+    const TABLE_PROBE: &str = concat!(
+        "<informaltable><thead><tr><th>PROBE</th></tr></thead>",
+        "<tbody><tr><td>PROBE</td></tr></tbody></informaltable>",
+    );
+    const TGROUP_TABLE_PROBE: &str = concat!(
+        "<informaltable><tgroup><thead><row><entry>PROBE</entry></row></thead>",
+        "<tbody><row><entry>PROBE</entry></row></tbody></tgroup></informaltable>",
+    );
+    /// A table written the way the vendored sources write one, `colgroup` and
+    /// all. The `colgroup` carries a payload it never carries in the book, so
+    /// the probe can tell "the importer discards this" from "the importer has
+    /// nothing to discard".
+    const COLGROUP_TABLE_PROBE: &str = concat!(
+        "<informaltable><colgroup>PROBEDISCARDED</colgroup>",
+        "<thead><tr><th>PROBE</th></tr></thead>",
+        "<tbody><tr><td>PROBE</td></tr></tbody></informaltable>",
+    );
+    /// An itemized gloss with a comment written where the book writes one: a
+    /// direct child, which `parse_interlinear_gloss_itemized_block` keeps out
+    /// of the rows and collects into the typed `comments` field instead.
+    const GLOSS_COMMENT_PROBE: &str = concat!(
+        "<interlinear-gloss-itemized><jbo><sumti>PROBE</sumti></jbo>",
+        "<comment>PROBE</comment></interlinear-gloss-itemized>",
+    );
+
+    const CAPTION_TABLE_PROBE: &str =
+        "<table><caption>PROBE</caption><tbody><tr><td>x</td></tr></tbody></table>";
+    const CMAVO_LIST_PROBE: &str = concat!(
+        "<cmavo-list><cmavo-list-head><cmavo>PROBE</cmavo></cmavo-list-head>",
+        "<cmavo-entry><cmavo>PROBE</cmavo><description>PROBE</description>",
+        "<selmaho>PROBE</selmaho><attitudinal-scale>PROBE</attitudinal-scale>",
+        "<modal-place>PROBE</modal-place><rafsi-group>PROBE</rafsi-group>",
+        "<pseudo-cmavo>PROBE</pseudo-cmavo><series>PROBE</series></cmavo-entry></cmavo-list>",
+    );
+    const MEDIA_PROBE: &str = concat!(
+        r#"<mediaobject><imageobject><imagedata fileref="PROBE.png"/></imageobject>"#,
+        "<textobject><phrase>PROBE</phrase></textobject></mediaobject>",
+    );
+    const GLOSS_PROBE: &str = "<interlinear-gloss><jbo>PROBE</jbo><gloss>PROBE</gloss><natlang>PROBE</natlang></interlinear-gloss>";
+    const GLOSS_ITEMIZED_PROBE: &str = concat!(
+        "<interlinear-gloss-itemized><jbo><sumti>PROBE</sumti><selbri>PROBE</selbri></jbo>",
+        "</interlinear-gloss-itemized>",
+    );
+    const LUJVO_PROBE: &str = concat!(
+        "<lujvo-making><jbo>PROBE</jbo><veljvo>PROBE</veljvo><gloss>g</gloss>",
+        "<natlang>n</natlang><score>PROBE</score></lujvo-making>",
+    );
+    const EXAMPLE_PROBE: &str = concat!(
+        "<example><title/><pronunciation><ipa>PROBE</ipa></pronunciation>",
+        "<compound-cmavo>PROBE</compound-cmavo>",
+        "<interlinear-gloss><jbo>PROBE</jbo></interlinear-gloss></example>",
+    );
+    /// MathML as the book writes it: under `mmlmath`, never under `dbmath`,
+    /// which carries plain text.
+    const MATH_PROBE: &str = concat!(
+        "<interlinear-gloss><mmlmath><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac>",
+        "<mo>+</mo><mn>3</mn><msqrt><mrow><mi>PROBE</mi></mrow></msqrt>",
+        "<msup><mi>y</mi><mn>2</mn></msup></mrow></mmlmath></interlinear-gloss>",
+    );
+
+    /// What the importer does with an element, as something the test can check
+    /// rather than something the inventory merely asserts.
+    ///
+    /// The importer has no error channel for markup it does not recognize: an
+    /// unhandled block element falls through `parse_block` to a flowed
+    /// paragraph of its visible text, and an unhandled inline element falls
+    /// through `parse_inlines` to its children's text. Both losses are silent.
+    /// Declaring a disposition therefore has to *cost* something: every variant
+    /// below carries a probe, and the test runs it through the real importer
+    /// entry point and compares what came back. Adding a newly vendored tag to
+    /// the inventory without also handling it leaves only `Flattened`, whose
+    /// written reason is the loud part a reviewer reads.
+    // Audited no-op markers. Every field of every variant is a probe or an
+    // expected name, and `every_inventoried_element_is_treated_as_the_inventory
+    // _declares` runs each one through the real importer: a malformed probe
+    // fails to parse, an empty expectation fails to match, and a blank
+    // `Flattened` reason fails its own assertion. A structural invariant here
+    // would restate, more weakly, what that test already enforces per entry.
+    #[invariant(true)]
+    #[invariant(::Division { .. } => true)]
+    #[invariant(::Block { .. } => true)]
+    #[invariant(::Inline { .. } => true)]
+    #[invariant(::Consumed { .. } => true)]
+    #[invariant(::IndexKey { .. } => true)]
+    #[invariant(::Structural { .. } => true)]
+    #[invariant(::Transparent { .. } => true)]
+    #[invariant(::Ignored { .. } => true)]
+    #[invariant(::Flattened { .. } => true)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum ElementDisposition {
+        /// Part of a division's skeleton, read by `parse_chapter`/`parse_section`.
+        Division {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+        },
+        /// `is_block_element` is true, and `parse_block` yields `block`.
+        Block {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            block: &'static str,
+        },
+        /// `parse_inlines` yields at least one inline of kind `inline`.
+        Inline {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            inline: &'static str,
+        },
+        /// Read only for a side effect - registering an anchor, feeding the
+        /// index - and contributing no inline of its own.
+        Consumed {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+        },
+        /// Read by `index_key` when building an `<indexterm>`'s entry.
+        IndexKey {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            key: &'static str,
+        },
+        /// Meaningful only inside a container whose parser reads it *by name*:
+        /// renaming the element changes what the container imports.
+        Structural {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            block: &'static str,
+        },
+        /// Inside a container that reaches its content without consulting the
+        /// tag name - by descendant search, or by taking element children in
+        /// order. The content survives import; the name itself is invisible to
+        /// the importer, so renaming the element changes nothing. A new sibling
+        /// added to such a container would silently become another cell.
+        Transparent {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            block: &'static str,
+        },
+        /// Present in a container that reads past it: its content reaches
+        /// nothing, and renaming it changes nothing either. The probe puts a
+        /// marker inside the element and requires that marker to be absent
+        /// from the import, which is what tells this apart from `Transparent`.
+        Ignored {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            block: &'static str,
+        },
+        /// No handler at all: reduced to its own text, deliberately.
+        Flattened {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            reason: &'static str,
+        },
+    }
+
+    impl ElementDisposition {
+        /// The containers this disposition speaks for.
+        #[requires(true)]
+        #[ensures(true)]
+        fn contexts(&self) -> &'static [&'static str] {
+            match self {
+                Self::Division { contexts, .. }
+                | Self::Block { contexts, .. }
+                | Self::Inline { contexts, .. }
+                | Self::Consumed { contexts, .. }
+                | Self::IndexKey { contexts, .. }
+                | Self::Structural { contexts, .. }
+                | Self::Transparent { contexts, .. }
+                | Self::Ignored { contexts, .. }
+                | Self::Flattened { contexts, .. } => contexts,
+            }
+        }
+
+        /// Whether the claim is about how a container treats the element, and
+        /// so has to be probed inside one of the containers the book uses.
+        #[requires(true)]
+        #[ensures(true)]
+        fn is_container_relative(&self) -> bool {
+            matches!(
+                self,
+                Self::Structural { .. }
+                    | Self::Transparent { .. }
+                    | Self::Ignored { .. }
+                    | Self::Flattened { .. }
+            )
+        }
+
+        /// The XML this disposition is checked against.
+        #[requires(true)]
+        #[ensures(!ret.is_empty())]
+        fn probe(&self) -> &'static str {
+            match self {
+                Self::Division { probe, .. }
+                | Self::Block { probe, .. }
+                | Self::Inline { probe, .. }
+                | Self::Consumed { probe, .. }
+                | Self::IndexKey { probe, .. }
+                | Self::Structural { probe, .. }
+                | Self::Transparent { probe, .. }
+                | Self::Ignored { probe, .. }
+                | Self::Flattened { probe, .. } => probe,
+            }
+        }
+    }
+
+    /// Every element name that appears anywhere in the vendored sources, with
+    /// the importer's treatment of it.
+    ///
+    /// This is the place where a newly vendored edition's markup becomes loud.
+    /// The test below checks the list against the sources in both directions,
+    /// so a new tag cannot appear without an entry; and it checks every entry's
+    /// disposition against the importer, so an entry cannot be added without
+    /// either a handler or an explicit statement that the tag is flattened.
+    const VENDORED_ELEMENTS: &[(&str, &[ElementDisposition])] = &[
+        (
+            "anchor",
+            &[ElementDisposition::Inline {
+                contexts: &["bridgehead", "para", "term", "title"],
+                probe: r#"<para><anchor xml:id="probe"/>PROBE</para>"#,
+                inline: "Anchor",
+            }],
+        ),
+        (
+            "article",
+            &[ElementDisposition::Division {
+                contexts: &[],
+                probe: DIVISION_PROBE,
+            }],
+        ),
+        (
+            "attitudinal-scale",
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "blockquote",
+            &[ElementDisposition::Block {
+                contexts: &["section"],
+                probe: "<blockquote><para>PROBE</para></blockquote>",
+                block: "BlockQuote",
+            }],
+        ),
+        (
+            "bridgehead",
+            &[ElementDisposition::Block {
+                contexts: &["section"],
+                probe: "<bridgehead>PROBE</bridgehead>",
+                block: "Heading",
+            }],
+        ),
+        (
+            "caption",
+            &[ElementDisposition::Structural {
+                contexts: &["table"],
+                probe: CAPTION_TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "chapter",
+            &[ElementDisposition::Division {
+                contexts: &[],
+                probe: CHAPTER_ROOT_PROBE,
+            }],
+        ),
+        (
+            "citetitle",
+            &[ElementDisposition::Inline {
+                contexts: &["para"],
+                probe: "<para><citetitle>PROBE</citetitle></para>",
+                inline: "CiteTitle",
+            }],
+        ),
+        (
+            "cmavo",
+            &[ElementDisposition::Inline {
+                contexts: &["cmavo-entry", "gloss", "jbo"],
+                probe: "<jbo><cmavo>PROBE</cmavo></jbo>",
+                inline: "Link",
+            }],
+        ),
+        (
+            "cmavo-entry",
+            &[ElementDisposition::Structural {
+                contexts: &["cmavo-list"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "cmavo-list",
+            &[ElementDisposition::Block {
+                contexts: &["listitem", "section", "td"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "cmavo-list-head",
+            &[ElementDisposition::Structural {
+                contexts: &["cmavo-list"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "cmevla",
+            &[ElementDisposition::Inline {
+                contexts: &["para", "td"],
+                probe: "<para><cmevla>PROBE</cmevla></para>",
+                inline: "Link",
+            }],
+        ),
+        (
+            "colgroup",
+            &[ElementDisposition::Ignored {
+                contexts: &["informaltable", "table"],
+                probe: COLGROUP_TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "comment",
+            &[
+                ElementDisposition::Structural {
+                    contexts: &["interlinear-gloss-itemized"],
+                    probe: GLOSS_COMMENT_PROBE,
+                    block: "InterlinearGloss",
+                },
+                ElementDisposition::Flattened {
+                    probe: "<jbo>PROBE <comment>PROBE</comment></jbo>",
+                    contexts: &["gloss", "jbo", "natlang", "pronunciation"],
+                    reason: "an inline parenthetical printed as part of the line it annotates, so its own text is the content",
+                },
+            ],
+        ),
+        (
+            "compound-cmavo",
+            &[ElementDisposition::Transparent {
+                contexts: &["example"],
+                probe: EXAMPLE_PROBE,
+                block: "Example",
+            }],
+        ),
+        (
+            "content",
+            &[ElementDisposition::Transparent {
+                contexts: &["definition"],
+                probe: "<definition><content>PROBE</content></definition>",
+                block: "Definition",
+            }],
+        ),
+        (
+            "dbinlinemath",
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "description",
+                    "gloss",
+                    "natlang",
+                    "para",
+                    "quote",
+                    "score",
+                    "td",
+                ],
+                probe: "<para><dbinlinemath><mi>PROBE</mi></dbinlinemath></para>",
+                inline: "InlineMath",
+            }],
+        ),
+        (
+            "dbmath",
+            &[ElementDisposition::Block {
+                contexts: &["interlinear-gloss", "natlang", "para"],
+                probe: MATH_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "definition",
+            &[ElementDisposition::Block {
+                contexts: &["example", "para", "section", "td"],
+                probe: "<definition><content>PROBE</content></definition>",
+                block: "Definition",
+            }],
+        ),
+        (
+            "description",
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "diphthong",
+            &[ElementDisposition::Flattened {
+                probe: "<para><diphthong>PROBE</diphthong></para>",
+                contexts: &["member", "para", "td"],
+                reason: "names a diphthong inline; the book prints the letters themselves, which is what the text carries",
+            }],
+        ),
+        (
+            "elidable",
+            &[ElementDisposition::Inline {
+                contexts: &["gloss", "jbo"],
+                probe: "<jbo><elidable>PROBE</elidable></jbo>",
+                inline: "Elidable",
+            }],
+        ),
+        (
+            "emphasis",
+            &[ElementDisposition::Inline {
+                contexts: &["description", "gloss", "natlang", "para", "quote", "td"],
+                probe: "<para><emphasis>PROBE</emphasis></para>",
+                inline: "Emphasis",
+            }],
+        ),
+        (
+            "example",
+            &[ElementDisposition::Block {
+                contexts: &["para", "section"],
+                probe: EXAMPLE_PROBE,
+                block: "Example",
+            }],
+        ),
+        (
+            "foreignphrase",
+            &[ElementDisposition::Inline {
+                contexts: &["member", "para", "quote"],
+                probe: "<para><foreignphrase>PROBE</foreignphrase></para>",
+                inline: "LanguageSpan",
+            }],
+        ),
+        (
+            "gismu",
+            &[ElementDisposition::Inline {
+                contexts: &["cmavo-entry"],
+                probe: "<cmavo-entry><gismu>PROBE</gismu></cmavo-entry>",
+                inline: "Link",
+            }],
+        ),
+        (
+            "gloss",
+            &[ElementDisposition::Structural {
+                contexts: &[
+                    "interlinear-gloss",
+                    "interlinear-gloss-itemized",
+                    "lujvo-making",
+                ],
+                probe: GLOSS_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "grammar-template",
+            &[ElementDisposition::Block {
+                contexts: &["member", "para", "section", "td"],
+                probe: "<grammar-template>PROBE</grammar-template>",
+                block: "GrammarTemplate",
+            }],
+        ),
+        (
+            "imagedata",
+            &[ElementDisposition::Structural {
+                contexts: &["imageobject"],
+                probe: MEDIA_PROBE,
+                block: "Media",
+            }],
+        ),
+        (
+            "imageobject",
+            &[ElementDisposition::Transparent {
+                contexts: &["mediaobject"],
+                probe: MEDIA_PROBE,
+                block: "Media",
+            }],
+        ),
+        (
+            "indexterm",
+            &[ElementDisposition::Consumed {
+                contexts: &[
+                    "content",
+                    "definition",
+                    "description",
+                    "para",
+                    "td",
+                    "title",
+                ],
+                probe: "<para><indexterm><primary>PROBE</primary></indexterm>PROBE</para>",
+            }],
+        ),
+        (
+            "informaltable",
+            &[ElementDisposition::Block {
+                contexts: &["listitem", "para", "section"],
+                probe: TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "interlinear-gloss",
+            &[ElementDisposition::Block {
+                contexts: &["example", "section", "td"],
+                probe: GLOSS_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "interlinear-gloss-itemized",
+            &[ElementDisposition::Block {
+                contexts: &["example"],
+                probe: GLOSS_ITEMIZED_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "ipa",
+            &[ElementDisposition::Transparent {
+                contexts: &["pronunciation"],
+                probe: EXAMPLE_PROBE,
+                block: "Example",
+            }],
+        ),
+        (
+            "itemizedlist",
+            &[ElementDisposition::Block {
+                contexts: &["article", "example", "grammar-template", "section"],
+                probe: "<itemizedlist><listitem><para>PROBE</para></listitem></itemizedlist>",
+                block: "List",
+            }],
+        ),
+        (
+            "jbo",
+            &[ElementDisposition::Structural {
+                contexts: &[
+                    "compound-cmavo",
+                    "interlinear-gloss",
+                    "interlinear-gloss-itemized",
+                    "lojbanization",
+                    "lujvo-making",
+                    "pronunciation",
+                ],
+                probe: GLOSS_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "jbophrase",
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "example",
+                    "gloss",
+                    "interlinear-gloss",
+                    "natlang",
+                    "para",
+                    "quote",
+                    "secondary",
+                    "td",
+                    "title",
+                ],
+                probe: "<para><jbophrase>PROBE</jbophrase></para>",
+                inline: "LanguageSpan",
+            }],
+        ),
+        (
+            "letteral",
+            &[ElementDisposition::Flattened {
+                probe: "<para><letteral>PROBE</letteral></para>",
+                contexts: &["description", "member", "para", "quote", "td"],
+                reason: "names a letter inline; the book prints the letter itself, which is what the text carries",
+            }],
+        ),
+        (
+            "link",
+            &[ElementDisposition::Inline {
+                contexts: &["para", "td"],
+                probe: r#"<para><link xlink:href="https://example.invalid/" xmlns:xlink="http://www.w3.org/1999/xlink">PROBE</link></para>"#,
+                inline: "Link",
+            }],
+        ),
+        (
+            "listitem",
+            &[ElementDisposition::Structural {
+                contexts: &["itemizedlist", "orderedlist", "varlistentry"],
+                probe: "<itemizedlist><listitem><para>PROBE</para></listitem></itemizedlist>",
+                block: "List",
+            }],
+        ),
+        (
+            "literallayout",
+            &[ElementDisposition::Block {
+                contexts: &["section"],
+                probe: "<literallayout>PROBE</literallayout>",
+                block: "Code",
+            }],
+        ),
+        (
+            "lojbanization",
+            &[ElementDisposition::Block {
+                contexts: &["example"],
+                probe: "<lojbanization><jbo>PROBE</jbo><natlang>n</natlang></lojbanization>",
+                block: "Lojbanization",
+            }],
+        ),
+        (
+            "lujvo-making",
+            &[ElementDisposition::Block {
+                contexts: &["example"],
+                probe: LUJVO_PROBE,
+                block: "LujvoMaking",
+            }],
+        ),
+        (
+            "mediaobject",
+            &[ElementDisposition::Block {
+                contexts: &["chapter", "section"],
+                probe: MEDIA_PROBE,
+                block: "Media",
+            }],
+        ),
+        (
+            "member",
+            &[ElementDisposition::Structural {
+                contexts: &["simplelist"],
+                probe: "<simplelist><member>PROBE</member></simplelist>",
+                block: "SimpleListTable",
+            }],
+        ),
+        (
+            "mfrac",
+            &[ElementDisposition::Structural {
+                contexts: &["mmlmath", "mrow"],
+                probe: MATH_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "mi",
+            &[ElementDisposition::Structural {
+                contexts: &["mrow", "msup"],
+                probe: MATH_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "mmlinlinemath",
+            &[ElementDisposition::Inline {
+                contexts: &["para"],
+                probe: "<para><mmlinlinemath><mi>PROBE</mi></mmlinlinemath></para>",
+                inline: "InlineMath",
+            }],
+        ),
+        (
+            "mmlmath",
+            &[ElementDisposition::Inline {
+                contexts: &["example", "interlinear-gloss"],
+                probe: "<interlinear-gloss><mmlmath><mi>PROBE</mi></mmlmath></interlinear-gloss>",
+                inline: "InlineMath",
+            }],
+        ),
+        (
+            "mn",
+            &[ElementDisposition::Structural {
+                contexts: &["mfrac", "mrow", "msup"],
+                probe: MATH_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "mo",
+            &[ElementDisposition::Structural {
+                contexts: &["mrow"],
+                probe: MATH_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "modal-place",
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "morphology",
+            &[ElementDisposition::Flattened {
+                probe: "<para><morphology>PROBE</morphology></para>",
+                contexts: &["member", "para", "td"],
+                reason: "names a morphological fragment inline; the book prints the fragment itself, which is what the text carries",
+            }],
+        ),
+        (
+            "mrow",
+            &[ElementDisposition::Structural {
+                contexts: &["mfrac", "mmlinlinemath", "mmlmath", "mrow", "msqrt"],
+                probe: MATH_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "msqrt",
+            &[ElementDisposition::Structural {
+                contexts: &["mrow"],
+                probe: MATH_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "msup",
+            &[ElementDisposition::Structural {
+                contexts: &["mrow"],
+                probe: MATH_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "natlang",
+            &[ElementDisposition::Structural {
+                contexts: &[
+                    "interlinear-gloss",
+                    "interlinear-gloss-itemized",
+                    "lojbanization",
+                    "lujvo-making",
+                    "pronunciation",
+                ],
+                probe: GLOSS_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "orderedlist",
+            &[ElementDisposition::Block {
+                contexts: &["listitem", "para", "section"],
+                probe: "<orderedlist><listitem><para>PROBE</para></listitem></orderedlist>",
+                block: "List",
+            }],
+        ),
+        (
+            "para",
+            &[ElementDisposition::Block {
+                contexts: &[
+                    "article",
+                    "blockquote",
+                    "example",
+                    "interlinear-gloss",
+                    "listitem",
+                    "section",
+                    "td",
+                ],
+                probe: "<para>PROBE</para>",
+                block: "Paragraph",
+            }],
+        ),
+        (
+            "phrase",
+            &[
+                ElementDisposition::Structural {
+                    contexts: &["textobject"],
+                    probe: MEDIA_PROBE,
+                    block: "Media",
+                },
+                ElementDisposition::Flattened {
+                    probe: "<para><phrase>PROBE</phrase></para>",
+                    contexts: &["member", "para", "td"],
+                    reason: "outside a media object it only marks a run of prose, whose text is the content",
+                },
+            ],
+        ),
+        (
+            "primary",
+            &[ElementDisposition::IndexKey {
+                contexts: &["indexterm"],
+                probe: "<indexterm><primary>PROBE</primary></indexterm>",
+                key: "PROBE",
+            }],
+        ),
+        (
+            "pronunciation",
+            &[ElementDisposition::Transparent {
+                contexts: &["example"],
+                probe: EXAMPLE_PROBE,
+                block: "Example",
+            }],
+        ),
+        (
+            "pseudo-cmavo",
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "quote",
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "content",
+                    "description",
+                    "gloss",
+                    "member",
+                    "natlang",
+                    "para",
+                    "phrase",
+                    "primary",
+                    "quote",
+                    "secondary",
+                    "td",
+                    "title",
+                ],
+                probe: "<para><quote>PROBE</quote></para>",
+                inline: "Quote",
+            }],
+        ),
+        (
+            "rafsi",
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "cmavo-entry",
+                    "description",
+                    "lujvo-making",
+                    "member",
+                    "para",
+                    "quote",
+                    "rafsi-group",
+                    "td",
+                ],
+                probe: "<para><rafsi>PROBE</rafsi></para>",
+                inline: "Link",
+            }],
+        ),
+        (
+            "rafsi-group",
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "score",
+            &[ElementDisposition::Structural {
+                contexts: &["lujvo-making"],
+                probe: LUJVO_PROBE,
+                block: "LujvoMaking",
+            }],
+        ),
+        (
+            "secondary",
+            &[ElementDisposition::IndexKey {
+                contexts: &["indexterm"],
+                probe: "<indexterm><primary>a</primary><secondary>PROBE</secondary></indexterm>",
+                key: "a; PROBE",
+            }],
+        ),
+        (
+            "section",
+            &[ElementDisposition::Division {
+                contexts: &["article", "chapter"],
+                probe: DIVISION_PROBE,
+            }],
+        ),
+        (
+            "selbri",
+            &[ElementDisposition::Transparent {
+                contexts: &["gloss", "jbo"],
+                probe: GLOSS_ITEMIZED_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "selmaho",
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "series",
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
+                probe: CMAVO_LIST_PROBE,
+                block: "CmavoList",
+            }],
+        ),
+        (
+            "simplelist",
+            &[ElementDisposition::Block {
+                contexts: &["example", "para", "section", "td"],
+                probe: "<simplelist><member>PROBE</member></simplelist>",
+                block: "SimpleListTable",
+            }],
+        ),
+        (
+            "subscript",
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "content",
+                    "dbinlinemath",
+                    "dbmath",
+                    "description",
+                    "gloss",
+                    "para",
+                    "primary",
+                    "quote",
+                    "subscript",
+                    "sumti",
+                    "superscript",
+                    "td",
+                    "term",
+                ],
+                probe: "<para><subscript>PROBE</subscript></para>",
+                inline: "Subscript",
+            }],
+        ),
+        (
+            "sumti",
+            &[ElementDisposition::Transparent {
+                contexts: &["gloss", "jbo"],
+                probe: GLOSS_ITEMIZED_PROBE,
+                block: "InterlinearGloss",
+            }],
+        ),
+        (
+            "superscript",
+            &[ElementDisposition::Inline {
+                contexts: &["dbinlinemath", "dbmath", "description", "quote"],
+                probe: "<quote><superscript>PROBE</superscript></quote>",
+                inline: "Superscript",
+            }],
+        ),
+        (
+            "table",
+            &[ElementDisposition::Block {
+                contexts: &["section"],
+                probe: CAPTION_TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "tbody",
+            &[ElementDisposition::Structural {
+                contexts: &["informaltable"],
+                probe: TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "td",
+            &[ElementDisposition::Structural {
+                contexts: &["cmavo-list-head", "tr"],
+                probe: TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "term",
+            &[ElementDisposition::Structural {
+                contexts: &["varlistentry"],
+                probe: "<variablelist><varlistentry><term>PROBE</term><listitem><para>x</para></listitem></varlistentry></variablelist>",
+                block: "VariableList",
+            }],
+        ),
+        (
+            "tertiary",
+            &[ElementDisposition::IndexKey {
+                contexts: &["indexterm"],
+                probe: "<indexterm><primary>a</primary><secondary>b</secondary><tertiary>PROBE</tertiary></indexterm>",
+                key: "a; b; PROBE",
+            }],
+        ),
+        (
+            "textobject",
+            &[ElementDisposition::Transparent {
+                contexts: &["mediaobject"],
+                probe: MEDIA_PROBE,
+                block: "Media",
+            }],
+        ),
+        (
+            "th",
+            &[ElementDisposition::Structural {
+                contexts: &["tr"],
+                probe: TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "thead",
+            &[ElementDisposition::Structural {
+                contexts: &["informaltable"],
+                probe: TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "title",
+            &[ElementDisposition::Division {
+                contexts: &["article", "chapter", "cmavo-list", "example", "section"],
+                probe: DIVISION_PROBE,
+            }],
+        ),
+        (
+            "tr",
+            &[ElementDisposition::Structural {
+                contexts: &["informaltable", "table", "tbody", "thead"],
+                probe: TABLE_PROBE,
+                block: "Table",
+            }],
+        ),
+        (
+            "valsi",
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "attitudinal-scale",
+                    "cmavo",
+                    "content",
+                    "definition",
+                    "description",
+                    "gismu",
+                    "gloss",
+                    "grammar-template",
+                    "member",
+                    "natlang",
+                    "para",
+                    "quote",
+                    "secondary",
+                    "td",
+                    "title",
+                ],
+                probe: "<para><valsi>PROBE</valsi></para>",
+                inline: "Link",
+            }],
+        ),
+        (
+            "variablelist",
+            &[ElementDisposition::Block {
+                contexts: &["section"],
+                probe: "<variablelist><varlistentry><term>PROBE</term><listitem><para>x</para></listitem></varlistentry></variablelist>",
+                block: "VariableList",
+            }],
+        ),
+        (
+            "varlistentry",
+            &[ElementDisposition::Structural {
+                contexts: &["variablelist"],
+                probe: "<variablelist><varlistentry><term>PROBE</term><listitem><para>x</para></listitem></varlistentry></variablelist>",
+                block: "VariableList",
+            }],
+        ),
+        (
+            "veljvo",
+            &[ElementDisposition::Structural {
+                contexts: &["lujvo-making"],
+                probe: LUJVO_PROBE,
+                block: "LujvoMaking",
+            }],
+        ),
+        (
+            "xref",
+            &[ElementDisposition::Inline {
+                contexts: &["bridgehead", "description", "para", "rafsi", "td"],
+                probe: r#"<para><xref linkend="probe-section"/>PROBE</para>"#,
+                inline: "Link",
+            }],
+        ),
+    ];
+
+    /// Probes for the block handlers the current edition exercises least: the
+    /// nine that are absent from the book altogether - `programlisting` among
+    /// them, since colojban 1.3.4 typeset the PEG appendix and took the book's
+    /// last program listing with it, while `screen`, `simpara`, `math`, and the
+    /// five admonitions have never appeared in it at all - plus
+    /// `literallayout`, the one preformatted element the book still uses, which
+    /// shares their handler.
+    const LEAST_EXERCISED_BLOCK_PROBES: &[(&str, &str, &str)] = &[
+        (
+            "programlisting",
+            "<programlisting>a\n  b</programlisting>",
+            "Code",
+        ),
+        ("screen", "<screen>a\n  b</screen>", "Code"),
+        (
+            "literallayout",
+            "<literallayout>a\n  b</literallayout>",
+            "Code",
+        ),
+        ("simpara", "<simpara>PROBE</simpara>", "Paragraph"),
+        (
+            "math",
+            "<math><mrow><mi>PROBE</mi></mrow></math>",
+            "DisplayMath",
+        ),
+        ("note", "<note><para>PROBE</para></note>", "Paragraph"),
+        ("tip", "<tip><para>PROBE</para></tip>", "Paragraph"),
+        (
+            "warning",
+            "<warning><para>PROBE</para></warning>",
+            "Paragraph",
+        ),
+        (
+            "important",
+            "<important><para>PROBE</para></important>",
+            "Paragraph",
+        ),
+        (
+            "caution",
+            "<caution><para>PROBE</para></caution>",
+            "Paragraph",
+        ),
+    ];
+
+    /// A payload distinct from the shared `PROBE` text the container probes
+    /// use, so an element's own content can be told from its siblings'.
+    const UNIQUE_MARKER: &str = "PROBEUNIQUE";
+
+    /// Payload for an element whose content the importer must discard.
+    const DISCARDED_MARKER: &str = "PROBEDISCARDED";
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn probe_context() -> SectionParseContext {
+        SectionParseContext {
+            chapter_id: "probe-chapter".to_owned(),
+            division: CllDivision::Appendix,
+            section_id: "probe-section".to_owned(),
+            section_number: None,
+            section_title: "Probe".to_owned(),
+            source_path: "probe.xml".to_owned(),
+        }
+    }
+
+    /// Runs `parse_block` over a probe document's root element and returns the
+    /// blocks together with any examples it registered, so a probe whose
+    /// content lands in an example body can still be inspected.
+    #[requires(!xml.is_empty())]
+    #[ensures(true)]
+    fn probe_blocks(xml: &str) -> (Vec<CllBlock>, Vec<CllExample>) {
+        let document = Document::parse(xml).unwrap_or_else(|error| panic!("{xml}: {error}"));
+        let mut examples = Vec::new();
+        let blocks = parse_block(
+            document.root_element(),
+            &probe_context(),
+            AnchorMode::TopLevel,
+            &mut BlockParseState {
+                chapter_example_counter: 0,
+            },
+            &mut examples,
+            &mut Vec::new(),
+        );
+        (blocks, examples)
+    }
+
+    #[requires(!xml.is_empty())]
+    #[ensures(true)]
+    fn probe_inlines(xml: &str) -> Vec<CllInline> {
+        let document = Document::parse(xml).unwrap_or_else(|error| panic!("{xml}: {error}"));
+        parse_inlines(document.root_element())
+    }
+
+    /// The tags a probe places `name` under. A disposition has to be probed in
+    /// a container the book really uses, or the answer it records is about a
+    /// shape the importer never meets.
+    #[requires(!name.is_empty())]
+    #[ensures(true)]
+    fn probe_parents(probe: &str, name: &str) -> BTreeSet<String> {
+        let document = Document::parse(probe).unwrap_or_else(|error| panic!("{probe}: {error}"));
+        document
+            .descendants()
+            .filter(|node| node.is_element() && node.tag_name().name() == name)
+            .filter_map(|node| node.parent_element())
+            .map(|parent| parent.tag_name().name().to_owned())
+            .collect()
+    }
+
+    /// Every parent tag the vendored sources put each element under.
+    #[requires(true)]
+    #[ensures(true)]
+    fn vendored_parents() -> BTreeMap<String, BTreeSet<String>> {
+        let mut parents: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for (source_path, _, compressed) in EMBEDDED_CLL_CHAPTERS {
+            let xml = decode_chapter_xml(compressed).expect("embedded chapter should decompress");
+            let xml = sanitize_xml_entities(&xml);
+            let document = Document::parse(&xml)
+                .unwrap_or_else(|error| panic!("{source_path} should parse: {error}"));
+            for node in document.descendants().filter(Node::is_element) {
+                if let Some(parent) = node.parent_element() {
+                    parents
+                        .entry(node.tag_name().name().to_owned())
+                        .or_default()
+                        .insert(parent.tag_name().name().to_owned());
+                }
+            }
+        }
+        parents
+    }
+
+    /// The probe with `name`'s own payload text made unique, so that a check
+    /// for it proves *this* element's content survived rather than some
+    /// sibling's. Returns `None` for an element that carries no text of its own
+    /// in the probe - a wrapper, or an attribute-only element - where the
+    /// rename differential is the only available evidence.
+    #[requires(!name.is_empty())]
+    #[ensures(ret.as_ref().is_none_or(|marked| marked.contains(UNIQUE_MARKER)))]
+    fn with_unique_payload(probe: &str, name: &str) -> Option<String> {
+        let open = format!("<{name}>");
+        let close = format!("</{name}>");
+        let start = probe.find(&open)? + open.len();
+        let end = probe[start..].find(&close)? + start;
+        (!probe[start..end].is_empty() && !probe[start..end].contains('<'))
+            .then(|| format!("{}{UNIQUE_MARKER}{}", &probe[..start], &probe[end..]))
+    }
+
+    /// Whether the probe gives `name` element children - the shape of a wrapper
+    /// whose content is its children rather than its own text.
+    #[requires(!name.is_empty())]
+    #[ensures(true)]
+    fn probe_wraps_elements(probe: &str, name: &str) -> bool {
+        let document = Document::parse(probe).unwrap_or_else(|error| panic!("{probe}: {error}"));
+        document
+            .descendants()
+            .filter(|node| node.is_element() && node.tag_name().name() == name)
+            .any(|node| node.children().any(|child| child.is_element()))
+    }
+
+    /// The probe with `name`'s own tags renamed to an element the importer has
+    /// never heard of. If the element really is read by its container, the
+    /// container's parsed output must change; if it is not in the probe at all,
+    /// or the importer sees straight through it, the two parses are identical
+    /// and the declared disposition is wrong.
+    #[requires(!name.is_empty())]
+    #[ensures(true)]
+    fn without_element(probe: &str, name: &str) -> String {
+        probe
+            .replace(&format!("<{name}>"), "<zz-unhandled>")
+            .replace(&format!("</{name}>"), "</zz-unhandled>")
+            .replace(&format!("<{name} "), "<zz-unhandled ")
+            .replace(&format!("<{name}/>"), "<zz-unhandled/>")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn variant_name(rendered: &str) -> String {
+        rendered
+            .split(|character: char| character == ' ' || character == '(' || character == '{')
+            .next()
+            .unwrap_or_default()
+            .to_owned()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vendored_markup_uses_only_the_inventoried_element_vocabulary() {
+        let mut found = BTreeSet::new();
+        for (source_path, _, compressed) in EMBEDDED_CLL_CHAPTERS {
+            let xml = decode_chapter_xml(compressed).expect("embedded chapter should decompress");
+            let xml = sanitize_xml_entities(&xml);
+            let document = Document::parse(&xml)
+                .unwrap_or_else(|error| panic!("{source_path} should parse: {error}"));
+            found.extend(
+                document
+                    .descendants()
+                    .filter(Node::is_element)
+                    .map(|node| node.tag_name().name().to_owned()),
+            );
+        }
+        let inventoried = VENDORED_ELEMENTS
+            .iter()
+            .map(|(name, _)| (*name).to_owned())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            inventoried.len(),
+            VENDORED_ELEMENTS.len(),
+            "the inventory lists each element once"
+        );
+        assert_eq!(
+            found.difference(&inventoried).collect::<Vec<_>>(),
+            Vec::<&String>::new(),
+            "the vendored sources use markup the importer has never been checked against"
+        );
+        assert_eq!(
+            inventoried.difference(&found).collect::<Vec<_>>(),
+            Vec::<&String>::new(),
+            "the inventory lists markup the vendored sources no longer use"
+        );
+    }
+
+    /// The inventory's declared dispositions are checked against the importer,
+    /// not merely written down. Without this, a newly vendored tag could be
+    /// added to the name list and pass while taking the silent fallthrough the
+    /// inventory exists to prevent.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn every_inventoried_element_is_treated_as_the_inventory_declares() {
+        let vendored = vendored_parents();
+        let mut context_problems = Vec::new();
+        for (name, dispositions) in VENDORED_ELEMENTS {
+            assert!(
+                !dispositions.is_empty(),
+                "`{name}` must declare how the importer treats it"
+            );
+            let is_block = dispositions
+                .iter()
+                .any(|disposition| matches!(disposition, ElementDisposition::Block { .. }));
+
+            // Every context the book uses this element in has to be accounted
+            // for by some disposition, and no disposition may claim a context
+            // the book never writes. Without this an element could be declared
+            // by whichever single container gives the flattering answer -
+            // `colgroup` as `Flattened` because it flattens inside a `<para>`
+            // it never appears in, or `comment` as `Flattened` while a gloss
+            // reads it by name.
+            let declared = dispositions
+                .iter()
+                .flat_map(|disposition| {
+                    disposition
+                        .contexts()
+                        .iter()
+                        .map(|context| (*context).to_owned())
+                })
+                .collect::<BTreeSet<_>>();
+            let actual = vendored.get(*name).cloned().unwrap_or_default();
+            if declared != actual {
+                context_problems.push(format!(
+                    "`{name}` declares contexts {declared:?} but the sources use it in {actual:?}"
+                ));
+            }
+
+            // A container-relative claim has to be probed inside a container the
+            // book really uses it in. `parse_block` and `parse_inlines` dispatch
+            // on the tag name alone, so those claims hold in any container and
+            // their probes are free-standing; but whether an element is read by
+            // its container, passed through, ignored, or flattened is a fact
+            // about the container, and answering it in a shape the book never
+            // writes answers a different question. Probing `colgroup` in a
+            // `<para>` is how it came to be called flattened.
+            for disposition in *dispositions {
+                if !disposition.is_container_relative() {
+                    continue;
+                }
+                let contexts = disposition
+                    .contexts()
+                    .iter()
+                    .map(|context| (*context).to_owned())
+                    .collect::<BTreeSet<_>>();
+                let probed = probe_parents(disposition.probe(), name);
+                if probed.is_empty() || !probed.is_subset(&contexts) {
+                    context_problems.push(format!(
+                        "`{name}` is probed under {probed:?}, not among its claimed contexts {contexts:?}"
+                    ));
+                }
+            }
+            let block_probe = format!("<{name}>PROBE</{name}>");
+            let document = Document::parse(&block_probe).expect("bare probe parses");
+            assert_eq!(
+                is_block_element(document.root_element()),
+                is_block,
+                "`{name}` is declared {}a block element, and `is_block_element` disagrees",
+                if is_block { "" } else { "not " }
+            );
+
+            for disposition in *dispositions {
+                match disposition {
+                    ElementDisposition::Division { probe, .. } => {
+                        let document = Document::parse(probe).expect("division probe parses");
+                        let (chapter, sections, ..) = parse_chapter(
+                            document.root_element(),
+                            CllDivision::Appendix,
+                            "probe.xml",
+                        )
+                        .expect("a division probe imports");
+                        assert!(
+                            format!("{chapter:?}{sections:?}").contains("PROBE"),
+                            "`{name}` belongs to the division skeleton, so its text must survive import"
+                        );
+                    }
+                    ElementDisposition::Block { probe, block, .. } => {
+                        let (blocks, examples) = probe_blocks(probe);
+                        assert_eq!(
+                            blocks
+                                .iter()
+                                .map(|value| variant_name(&format!("{value:?}")))
+                                .collect::<Vec<_>>(),
+                            vec![(*block).to_owned()],
+                            "`{name}` must import as a single {block} block"
+                        );
+                        assert!(
+                            format!("{blocks:?}{examples:?}").contains("PROBE"),
+                            "`{name}`'s content must survive import"
+                        );
+                    }
+                    ElementDisposition::Inline { probe, inline, .. } => {
+                        let inlines = probe_inlines(probe);
+                        assert!(
+                            inlines
+                                .iter()
+                                .any(|value| variant_name(&format!("{value:?}")) == *inline),
+                            "`{name}` must import as a {inline} inline, got {inlines:?}"
+                        );
+                    }
+                    ElementDisposition::Consumed { probe, .. } => {
+                        let inlines = probe_inlines(probe);
+                        assert!(
+                            inlines
+                                .iter()
+                                .all(|value| matches!(value, CllInline::Text(_))),
+                            "`{name}` is read for its side effect and contributes no inline of its own, got {inlines:?}"
+                        );
+                    }
+                    ElementDisposition::IndexKey { probe, key, .. } => {
+                        let document = Document::parse(probe).expect("index probe parses");
+                        assert_eq!(
+                            index_key(document.root_element()).as_deref(),
+                            Some(*key),
+                            "`{name}` must contribute to the index key"
+                        );
+                    }
+                    ElementDisposition::Structural { probe, block, .. } => {
+                        assert!(
+                            probe.contains(&format!("<{name}>"))
+                                || probe.contains(&format!("<{name} ")),
+                            "`{name}` must appear in its own container probe"
+                        );
+                        let (blocks, examples) = probe_blocks(probe);
+                        assert_eq!(
+                            blocks
+                                .iter()
+                                .map(|value| variant_name(&format!("{value:?}")))
+                                .collect::<Vec<_>>(),
+                            vec![(*block).to_owned()],
+                            "`{name}`'s container must import as a single {block} block"
+                        );
+                        assert!(
+                            format!("{blocks:?}{examples:?}").contains("PROBE"),
+                            "`{name}` is read by its container, so its text must survive import"
+                        );
+                        if let Some(marked) = with_unique_payload(probe, name) {
+                            let (marked_blocks, marked_examples) = probe_blocks(&marked);
+                            assert!(
+                                format!("{marked_blocks:?}{marked_examples:?}")
+                                    .contains(UNIQUE_MARKER),
+                                "`{name}`'s own text must reach the import, not just some sibling's"
+                            );
+                        }
+                        let (without, without_examples) =
+                            probe_blocks(&without_element(probe, name));
+                        assert_ne!(
+                            format!("{blocks:?}{examples:?}"),
+                            format!("{without:?}{without_examples:?}"),
+                            "`{name}` is declared structural, but renaming it away leaves the container's import unchanged, so nothing reads it"
+                        );
+                    }
+                    ElementDisposition::Transparent { probe, block, .. } => {
+                        assert!(
+                            probe.contains(&format!("<{name}>"))
+                                || probe.contains(&format!("<{name} ")),
+                            "`{name}` must appear in its own container probe"
+                        );
+                        let (blocks, examples) = probe_blocks(probe);
+                        assert_eq!(
+                            blocks
+                                .iter()
+                                .map(|value| variant_name(&format!("{value:?}")))
+                                .collect::<Vec<_>>(),
+                            vec![(*block).to_owned()],
+                            "`{name}`'s container must import as a single {block} block"
+                        );
+                        assert!(
+                            format!("{blocks:?}{examples:?}").contains("PROBE"),
+                            "`{name}`'s content must survive import even though its name is not consulted"
+                        );
+                        // Transparency means content passes through. An element
+                        // carrying its own text must have that text reach the
+                        // import - which is what an ignored element like
+                        // `colgroup` fails - and a wrapper must have children to
+                        // pass through in the first place.
+                        match with_unique_payload(probe, name) {
+                            Some(marked) => {
+                                let (marked_blocks, marked_examples) = probe_blocks(&marked);
+                                assert!(
+                                    format!("{marked_blocks:?}{marked_examples:?}")
+                                        .contains(UNIQUE_MARKER),
+                                    "`{name}`'s own text must reach the import, not just some sibling's"
+                                );
+                            }
+                            None => assert!(
+                                probe_wraps_elements(probe, name),
+                                "`{name}` is declared transparent, but its probe gives it nothing to pass through"
+                            ),
+                        }
+                        let (without, without_examples) =
+                            probe_blocks(&without_element(probe, name));
+                        assert_eq!(
+                            format!("{blocks:?}{examples:?}"),
+                            format!("{without:?}{without_examples:?}"),
+                            "`{name}` is declared transparent, but renaming it changes what the container imports, so the name is consulted after all"
+                        );
+                    }
+                    ElementDisposition::Ignored { probe, block, .. } => {
+                        assert!(
+                            probe.contains(&format!("<{name}>"))
+                                || probe.contains(&format!("<{name} ")),
+                            "`{name}` must appear in its own container probe"
+                        );
+                        let (blocks, examples) = probe_blocks(probe);
+                        assert_eq!(
+                            blocks
+                                .iter()
+                                .map(|value| variant_name(&format!("{value:?}")))
+                                .collect::<Vec<_>>(),
+                            vec![(*block).to_owned()],
+                            "`{name}`'s container must import as a single {block} block"
+                        );
+                        assert!(
+                            !format!("{blocks:?}{examples:?}").contains(DISCARDED_MARKER),
+                            "`{name}` is declared ignored, but its container carried its content into the import"
+                        );
+                        let (without, without_examples) =
+                            probe_blocks(&without_element(probe, name));
+                        assert_eq!(
+                            format!("{blocks:?}{examples:?}"),
+                            format!("{without:?}{without_examples:?}"),
+                            "`{name}` is declared ignored, but renaming it changes what the container imports"
+                        );
+                    }
+                    ElementDisposition::Flattened { probe, reason, .. } => {
+                        assert!(
+                            !reason.is_empty(),
+                            "`{name}` is flattened, which has to be a stated decision"
+                        );
+                        let inlines = probe_inlines(probe);
+                        assert!(
+                            inlines
+                                .iter()
+                                .all(|value| matches!(value, CllInline::Text(_))),
+                            "`{name}` is declared flattened but the importer gives it a typed inline: {inlines:?}"
+                        );
+                        assert!(
+                        inlines.iter().any(
+                            |value| matches!(value, CllInline::Text(text) if text.contains("PROBE"))
+                        ),
+                        "`{name}` is declared flattened, so its own text is all that survives"
+                    );
+                    }
+                }
+            }
+        }
+        assert!(
+            context_problems.is_empty(),
+            "the inventory's contexts disagree with the vendored sources:\n{}",
+            context_problems.join("\n")
+        );
+    }
+
+    /// The importer's block vocabulary is a statement about the input format,
+    /// DocBook, not about one edition of one document. Nine of the block
+    /// elements it handles are absent from the vendored book - `programlisting`
+    /// among them, since colojban 1.3.4 typeset the PEG appendix. Because
+    /// unrecognized markup degrades silently (see `VENDORED_ELEMENTS`),
+    /// narrowing the vocabulary to whatever the current edition happens to use
+    /// would turn any future reintroduction into invisible data loss rather
+    /// than an error. Each absent handler is exercised for the block it
+    /// produces, not merely for its presence in `is_block_element`, so removing
+    /// its specialized `parse_block` arm fails here.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn absent_block_handlers_still_produce_their_own_blocks() {
+        let inventoried = VENDORED_ELEMENTS
+            .iter()
+            .map(|(name, _)| *name)
+            .collect::<BTreeSet<_>>();
+        let absent = LEAST_EXERCISED_BLOCK_PROBES
+            .iter()
+            .filter(|(name, _, _)| !inventoried.contains(name))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            absent.len(),
+            9,
+            "nine handled block elements are absent from the vendored book in total, `programlisting` among them: {:?}",
+            absent.iter().map(|(name, _, _)| *name).collect::<Vec<_>>()
+        );
+        assert!(
+            absent.iter().any(|(name, _, _)| *name == "programlisting"),
+            "`programlisting` is one of the nine, not a tenth alongside them"
+        );
+
+        for (name, probe, expected) in LEAST_EXERCISED_BLOCK_PROBES {
+            let document = Document::parse(probe).expect("probe parses");
+            assert!(
+                is_block_element(document.root_element()),
+                "`{name}` must stay a block element even while the book does not use it"
+            );
+            let (blocks, _) = probe_blocks(probe);
+            assert_eq!(
+                blocks
+                    .iter()
+                    .map(|value| variant_name(&format!("{value:?}")))
+                    .collect::<Vec<_>>(),
+                vec![(*expected).to_owned()],
+                "`{name}` must still import as a {expected} block"
+            );
+        }
+
+        let (code, _) = probe_blocks("<programlisting>a\n  b</programlisting>");
+        assert!(
+            matches!(code.as_slice(), [CllBlock::Code { text, .. }] if text == "a\n  b"),
+            "a program listing keeps its own line structure: {code:?}"
+        );
+    }
+
+    /// A chapter's index terms are collected from every non-section child, not
+    /// from the nodes that survive block parsing. An `<indexterm>` carries no
+    /// visible text, so it is filtered out of the renderable prelude; scanning
+    /// only that list would silently lose a term written as a direct child of
+    /// the chapter. colojban 1.3.4 nests all of its front-matter terms, so this
+    /// shape is not currently in the book - which is exactly why it needs a
+    /// test rather than a corpus count.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chapter_front_matter_index_terms_survive_wherever_they_are_written() {
+        let probe = concat!(
+            r#"<article xml:id="probe-chapter"><title>Probe</title>"#,
+            "<indexterm><primary>direct child</primary></indexterm>",
+            "<para><indexterm><primary>nested in prose</primary></indexterm>Front matter.</para>",
+            r#"<section xml:id="probe-first"><title>First</title>"#,
+            "<para><indexterm><primary>inside a section</primary></indexterm>Body.</para>",
+            "</section></article>",
+        );
+        let document = Document::parse(probe).expect("probe chapter parses");
+        let (chapter, _, _, _, index_entries) =
+            parse_chapter(document.root_element(), CllDivision::Appendix, "probe.xml")
+                .expect("the probe chapter imports");
+
+        let entries = index_entries
+            .iter()
+            .map(|entry| (entry.key.as_str(), entry.section_id.as_str()))
+            .collect::<BTreeSet<_>>();
+        assert!(
+            entries.contains(&("direct child", "probe-first")),
+            "an index term written as a direct chapter child is indexed at the first section: {entries:?}"
+        );
+        assert!(
+            entries.contains(&("nested in prose", "probe-first")),
+            "an index term nested in front-matter prose is indexed at the first section: {entries:?}"
+        );
+        assert!(
+            entries.contains(&("inside a section", "probe-first")),
+            "a section's own index terms keep naming that section: {entries:?}"
+        );
+        assert_eq!(chapter.root_section_ids, ["probe-first"]);
+
+        // The term itself is invisible, so it contributes no rendered block.
+        assert!(
+            !format!("{:?}", chapter.prelude_blocks).contains("direct child"),
+            "an index term is not rendered as prose"
+        );
+    }
+
+    /// A table writes its row areas either as DocBook `tgroup` children or as
+    /// direct `thead`/`tbody` children of the table itself. Both areas have to
+    /// be resolved under the same node: resolving `tbody` first and then
+    /// searching inside it for `thead` hid every header of the HTML-shaped
+    /// tables, which is how four chrestomathy texts and one appendix table lost
+    /// their header rows silently.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn both_table_shapes_import_their_header_and_body_rows() {
+        for (shape, probe) in [
+            ("direct thead/tbody siblings", TABLE_PROBE),
+            ("DocBook tgroup", TGROUP_TABLE_PROBE),
+        ] {
+            let (blocks, _) = probe_blocks(probe);
+            let [
+                CllBlock::Table {
+                    header_rows,
+                    body_rows,
+                    ..
+                },
+            ] = blocks.as_slice()
+            else {
+                panic!("{shape}: expected one table, got {blocks:?}");
+            };
+            assert_eq!(header_rows.len(), 1, "{shape}: one header row");
+            assert_eq!(body_rows.len(), 1, "{shape}: one body row");
+            assert!(
+                format!("{header_rows:?}").contains("PROBE"),
+                "{shape}: the header row keeps its text"
+            );
+            assert!(
+                format!("{body_rows:?}").contains("PROBE"),
+                "{shape}: the body row keeps its text"
+            );
+        }
+
+        // A table with no header area still imports, with an empty header.
+        let (blocks, _) =
+            probe_blocks("<informaltable><tbody><tr><td>PROBE</td></tr></tbody></informaltable>");
+        let [
+            CllBlock::Table {
+                header_rows,
+                body_rows,
+                ..
+            },
+        ] = blocks.as_slice()
+        else {
+            panic!("expected one table, got {blocks:?}");
+        };
+        assert!(header_rows.is_empty());
+        assert_eq!(body_rows.len(), 1);
+    }
 }

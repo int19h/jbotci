@@ -3775,6 +3775,34 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn a_comma_inside_a_falling_diphthong_does_not_create_hiatus() {
+        // The PEG spells every vowel as `comma* [aA]` and so on, so a comma
+        // between the halves of a falling diphthong marks a syllable boundary
+        // for the reader without breaking the diphthong. `zo,is.` is a cmevla,
+        // exactly as `zoi,s.` and `zois.` are; only the pronunciation the
+        // writer indicates differs. `la zo,is.` names a horse in the
+        // chrestomathy's Terry story.
+        for source in ["zo,is.", "zoi,s.", "zois.", "ka,is.", "sa,u."] {
+            let words = segment_words_with_modifiers(source)
+                .unwrap_or_else(|error| panic!("`{source}` should segment: {error}"));
+            assert_eq!(words.len(), 1, "`{source}` is one word");
+        }
+        assert_eq!(
+            base_phoneme_texts(&segment_words_with_modifiers("zo,is.").unwrap()),
+            vec!["zo,ĭs"]
+        );
+
+        // A comma still cannot break a rising glide, and two `i`s after the
+        // first vowel are still not a diphthong.
+        assert_eq!(
+            base_phoneme_texts(&segment_words_with_modifiers("me,iin.").unwrap()),
+            vec!["me,ĭin"]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn recovered_morphology_resyncs_at_whitespace() {
         let source = "mi @@@ do";
         let strict_error = segment_words_with_modifiers(source).expect_err("strict API fails");

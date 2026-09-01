@@ -6,6 +6,36 @@ use super::{
     TestCase,
 };
 
+/// Marks a fixture whose detailed expectations the owner accepted as unverified
+/// regression baselines. Tagging is what makes the set findable mechanically -
+/// `fixture-test --tag owner-waived-baseline` - and what makes the note below
+/// survive a rewrite, since the note is generated from the tag rather than
+/// stored as loose text a formatter would discard.
+pub const OWNER_WAIVED_BASELINE_TAG: &str = "owner-waived-baseline";
+
+/// The note emitted for [`OWNER_WAIVED_BASELINE_TAG`].
+const OWNER_WAIVED_BASELINE_NOTE: &str = concat!(
+    "# OWNER-WAIVED REGRESSION BASELINE (2026-09-01, jbotci #879).\n",
+    "# The morphology, syntax, semantics and rendering expectations below were\n",
+    "# produced by the implementation and have not been reviewed field by field.\n",
+    "# AGENTS.md sanctions an automatic update only when the change is proven to\n",
+    "# be surface-only; colojban 1.3.4 replaced this text outright, so no prior\n",
+    "# baseline existed to compare against, and the owner accepted these values\n",
+    "# as unverified regression baselines instead.\n",
+    "# Independently established: the source text is byte-identical to the\n",
+    "# vendored book as read by a non-Rust extractor; the recorded word spans\n",
+    "# tile it with only separators between them; every comma falls strictly\n",
+    "# inside a word; character spans agree with byte spans; the syntax tree's\n",
+    "# word leaves are the morphology's words in the same order; every recorded\n",
+    "# word class passes a coarse shape necessary-condition; no facet was\n",
+    "# weakened to xfail or skip; and five parses were read against the book's\n",
+    "# English translation.\n",
+    "# Not established: stress, syllabification and glide choices; lujvo part and\n",
+    "# rafsi structure; comma-sensitive pronunciation; the syntax tree's\n",
+    "# interior; the semantics frames; and the vlasei/gentufa tree and JSON\n",
+    "# renderings.\n",
+);
+
 #[requires(test_case.is_valid_fixture_metadata())]
 #[bityzba::ensures(ret.is_err() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
 pub(super) fn format_test_case_toml(test_case: &TestCase) -> Result<String, toml::ser::Error> {
@@ -26,7 +56,16 @@ pub(super) fn format_test_case_toml(test_case: &TestCase) -> Result<String, toml
     if !test_case.tags.is_empty() {
         push_field(&mut output, "tags", &test_case.tags)?;
     }
+    // The note a fixture carries about its own expectations is derived from its
+    // tags rather than stored as text, so that rewriting the fixture cannot drop
+    // it and so that the tag stays the machine-readable form of the same fact.
     if test_case
+        .tags
+        .iter()
+        .any(|tag| tag == OWNER_WAIVED_BASELINE_TAG)
+    {
+        output.push_str(OWNER_WAIVED_BASELINE_NOTE);
+    } else if test_case
         .tags
         .iter()
         .any(|tag| tag == "regression-baseline")

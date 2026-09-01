@@ -15352,6 +15352,88 @@ mod tests {
         assert!(parse_fixture_rewrite_summary(r#"{"fixtures":3,"rewritten":2,"typo":1}"#).is_err());
     }
 
+    /// The chrestomathy long texts are the only fixtures whose input is lifted
+    /// wholesale out of the book, and nothing re-checked them once
+    /// `export-long-text-fixtures` had written them. A vendored edition that
+    /// reprints a text - which is exactly what colojban 1.3.4 did to three of
+    /// them - would otherwise leave the fixture quietly parsing last edition's
+    /// words while its provenance still named the section.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chrestomathy_fixture_texts_still_match_the_vendored_book() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("xtask-full sits in the workspace");
+        let fixture_dir = workspace.join("tests/fixtures/cll/chrestomathy");
+
+        // The chapter the book calls the chrestomathy, taken from the same
+        // vendored file the importer reads. Walking the chapter's own sections
+        // rather than the hand-maintained parse metadata is the point: a text
+        // the book adds and nobody records in that metadata would otherwise
+        // never be looked for at all.
+        let import_metadata = fs::read_to_string(workspace.join("vendor/cll-import-metadata.toml"))
+            .expect("the vendored import metadata is readable");
+        let chapter_id = import_metadata
+            .lines()
+            .find_map(|line| line.strip_prefix("chrestomathy_chapter_id = "))
+            .map(|value| value.trim().trim_matches('"').to_owned())
+            .expect("the import metadata names the chrestomathy chapter");
+        let chapter = site
+            .chapters
+            .iter()
+            .find(|chapter| chapter.chapter_id == chapter_id)
+            .unwrap_or_else(|| panic!("the book still has a `{chapter_id}` chapter"));
+
+        let texts = chrestomathy_section_texts(site)
+            .into_iter()
+            .map(|section| {
+                let section = section.into_data();
+                (section.section_id, section.text)
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        for section_id in &chapter.root_section_ids {
+            let text = texts.get(section_id).unwrap_or_else(|| {
+                panic!(
+                    "the book prints `{section_id}` in the chrestomathy but it yields no long \
+                     text; add it to vendor/cll-chrestomathy.toml and export its fixture"
+                )
+            });
+            let path = fixture_dir.join(format!(
+                "texts/{}.lojban",
+                long_text_section_slug(section_id)
+            ));
+            let stored = fs::read_to_string(&path)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            assert_eq!(
+                stored,
+                *text,
+                "`{}` no longer matches the vendored book; re-run export-long-text-fixtures and \
+                 regenerate the expectations",
+                path.display()
+            );
+        }
+
+        // And no fixture is left behind for a text the book has dropped.
+        let stored_texts = fs::read_dir(fixture_dir.join("texts"))
+            .expect("the chrestomathy texts directory exists")
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .path()
+                    .extension()
+                    .is_some_and(|value| value == "lojban")
+            })
+            .count();
+        assert_eq!(
+            stored_texts,
+            chapter.root_section_ids.len(),
+            "every stored chrestomathy text belongs to a section the book still prints"
+        );
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
