@@ -146,7 +146,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn refreshed_snapshot_derived_indexes_match_audited_counts() {
-        assert_eq!(english().sound_index().len(), 17_413);
+        assert_eq!(english().sound_index().len(), 17_415);
         assert_eq!(english().lujvo_index().len(), 8_352);
     }
 

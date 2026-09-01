@@ -15,8 +15,7 @@ use jbotci_cll::{
     cll_next_section_id, cll_numbered_title, cll_previous_section_id,
     cll_resolve_section_reference, cll_search_all_chunks, cll_search_chunk_href,
     cll_section_chapter_title, cll_section_prelude_blocks, cukta_search, embedded_cll_site,
-    format_section_display_title,
-    truncate_preview,
+    format_section_display_title, truncate_preview,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,

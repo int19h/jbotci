@@ -3,9 +3,10 @@
 # Row numbers are 1-based within each table area. Header rows and body rows are
 # numbered independently. Blank first-column rows are intentionally omitted.
 #
-# A group lists the consecutive rows that have to be parsed together because
-# only the first of them starts a Lojban utterance; every other row stands
-# alone in a group of its own.
+# A group lists the consecutive rows that have to be parsed together: either
+# only the first of them starts a Lojban utterance, or a construct opened in
+# one row is not closed until a later one. Every other row stands alone in a
+# group of its own, and gets its own parse link.
 
 [[section]]
 id = "section-north-wind"
@@ -60,6 +61,10 @@ body_no_parse = []
 [[section]]
 id = "section-alice01"
 header_groups = [[1]]
+# Rows 10 to 13 are one parse target: the narrator's `to` aside opened in row
+# 10 runs on past row 12, and row 13's `ro vy` needs the preceding text to be
+# read as a quantifier over a lerfu string rather than as one numeral run (the
+# translation predates the `boi` that CLL 17.9 requires between the two).
 body_groups = [
   [1],
   [2],
@@ -70,10 +75,7 @@ body_groups = [
   [7],
   [8],
   [9],
-  [10],
-  [11],
-  [12],
-  [13],
+  [10, 11, 12, 13],
   [14],
   [15],
   [16],
