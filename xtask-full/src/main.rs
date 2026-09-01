@@ -15363,30 +15363,58 @@ mod tests {
     #[ensures(true)]
     fn chrestomathy_fixture_texts_still_match_the_vendored_book() {
         let site = embedded_cll_site().expect("embedded CLL should load");
-        let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .expect("xtask-full sits in the workspace")
-            .join("tests/fixtures/cll/chrestomathy");
-        let mut checked = 0;
-        for section in chrestomathy_section_texts(site) {
-            let section = section.into_data();
-            let slug = long_text_section_slug(&section.section_id);
-            let path = fixture_dir.join(format!("texts/{slug}.lojban"));
+            .expect("xtask-full sits in the workspace");
+        let fixture_dir = workspace.join("tests/fixtures/cll/chrestomathy");
+
+        // The chapter the book calls the chrestomathy, taken from the same
+        // vendored file the importer reads. Walking the chapter's own sections
+        // rather than the hand-maintained parse metadata is the point: a text
+        // the book adds and nobody records in that metadata would otherwise
+        // never be looked for at all.
+        let import_metadata = fs::read_to_string(workspace.join("vendor/cll-import-metadata.toml"))
+            .expect("the vendored import metadata is readable");
+        let chapter_id = import_metadata
+            .lines()
+            .find_map(|line| line.strip_prefix("chrestomathy_chapter_id = "))
+            .map(|value| value.trim().trim_matches('"').to_owned())
+            .expect("the import metadata names the chrestomathy chapter");
+        let chapter = site
+            .chapters
+            .iter()
+            .find(|chapter| chapter.chapter_id == chapter_id)
+            .unwrap_or_else(|| panic!("the book still has a `{chapter_id}` chapter"));
+
+        let texts = chrestomathy_section_texts(site)
+            .into_iter()
+            .map(|section| {
+                let section = section.into_data();
+                (section.section_id, section.text)
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        for section_id in &chapter.root_section_ids {
+            let text = texts.get(section_id).unwrap_or_else(|| {
+                panic!(
+                    "the book prints `{section_id}` in the chrestomathy but it yields no long \
+                     text; add it to vendor/cll-chrestomathy.toml and export its fixture"
+                )
+            });
+            let path = fixture_dir.join(format!(
+                "texts/{}.lojban",
+                long_text_section_slug(section_id)
+            ));
             let stored = fs::read_to_string(&path)
                 .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
             assert_eq!(
                 stored,
-                section.text,
+                *text,
                 "`{}` no longer matches the vendored book; re-run export-long-text-fixtures and \
                  regenerate the expectations",
                 path.display()
             );
-            checked += 1;
         }
-        assert_eq!(
-            checked, 4,
-            "the book prints four chrestomathy texts, each with a long-text fixture"
-        );
 
         // And no fixture is left behind for a text the book has dropped.
         let stored_texts = fs::read_dir(fixture_dir.join("texts"))
@@ -15400,7 +15428,8 @@ mod tests {
             })
             .count();
         assert_eq!(
-            stored_texts, checked,
+            stored_texts,
+            chapter.root_section_ids.len(),
             "every stored chrestomathy text belongs to a section the book still prints"
         );
     }
