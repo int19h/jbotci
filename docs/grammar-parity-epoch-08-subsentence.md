@@ -1716,13 +1716,160 @@ lead's standing instruction ties the pair to adding a production, and this round
 `.wf()` postfixes inside an existing lookahead `choice`, one destructure and one call added to a
 classifier that already existed, and one three-line predicate factored out of two copies of
 itself. The generated artefacts are the proof, and they are all empty deltas:
-`git diff ede3f8d53b HEAD` touches nothing under `bindings/python/`, does not move
-`docs/api-parity.tsv`, and leaves
+`git diff ede3f8d53b HEAD` touches none of the generated syntax-model paths --
+`bindings/python/python/jbotci/syntax/strict.py`, `.pyi`, `recovered.py` and `.pyi`, the four
+files `generate_syntax_models.py` writes -- does not move `docs/api-parity.tsv`, and leaves
 `crates/jbotci-syntax/tests/recovery-anchor-metadata.snapshot.txt` byte-identical -- still
-byte-identical to `2284b50691` as well, which is where round 4 left it. `tests/struct_invariant_audit.rs`
+byte-identical to `2284b50691` as well, which is where round 4 left it. The one file that diff
+does touch under `bindings/python/` is `tools/python_artifacts.py`, the prose one-liner recorded
+above: it is a generator input to nothing and a generated output of nothing, so the no-pair
+judgment rests on the generated paths rather than on the directory. `tests/struct_invariant_audit.rs`
 needs no new row: no node type changed.
 
 The final commit adds only this section, the round-5 section above it, the round-3 supersession
 note on the artifact figures, and the one-line `python_artifacts.py` correction.
 `cargo fmt --all --check`, the comparer, its unit tests and the four Python checks were re-run at
 that commit; no other row reads `docs/` or that comment.
+
+## Round 6
+
+Sol's final round-5 review confirms the round-5 work in full -- the reservation fix, the seven
+witnesses, the corrected artifact figures, the identical gate and code trees, the byte-identical
+snapshot -- and discharges its own High. Two residuals remain, and both are recorded here. There
+is no High this round.
+
+### Sol's Medium: the S3 return read "not proven prohibited" as permitted
+
+Round 5 made `recovered_is_exp_selbri_relative_continuation` require `valid(&continuation.connective)`
+before reading a placement off it, which closed the case where the connective node itself did not
+parse. Sol is right that this is necessary and not sufficient. The connective node can be `Valid`
+with a placeholder UNDER it, and what the classifier did with a valid connective was NEGATE
+`recovered_prohibited_free_modifier_placement`. That predicate is a rejection's predicate: it
+demands three proven nodes -- a proven head token, a proven NAI after it, a proven free modifier
+between them -- and is false when any one of them is a placeholder, exactly so that a rejection
+never withdraws a surface on unparsed input. Negating it turns every one of those "did not prove
+it" answers into "permitted", and the list is then returned to the D2 chain on the strength of a
+fact the tree never established. It is the same fail-open shape round 4 closed at the outer
+wrapper, one level below where round 4 closed it.
+
+The shape is concrete. Take the continuation `je to do brodi toi nai po'oi do brodi` with the NAI
+unparsed: the connective node is `Valid`, its head is a proven `je`, its free-modifier slot holds
+a proven free modifier, and its NAI slot holds a recovery placeholder. The prohibited predicate is
+false -- no proven NAI -- so the old negation called the placement permitted and returned the list
+to the chain. The chain refuses that placement whenever the NAI IS proven, so the list is handed
+to a route that may well not take it, which is the withdrawal this epoch may not spend. A
+free-modifier slot holding nothing but placeholders beside a proven NAI is the same hole by the
+other node.
+
+**The result is now three-way, because the two consumers read it in opposite directions.**
+`ConnectiveFreeModifierPlacement` is `Permitted`, `Prohibited` or `Unproven`, on the model of
+`RelativeBodyShape`. The chain's rejection withdraws a surface on `Prohibited`, so `Unproven` must
+not count as prohibited; the S3 list returns a candidate to that chain on `Permitted`, so
+`Unproven` must not count as permitted either. One boolean and its negation can give exactly one
+of those two guarantees and never both, which is why adding a `valid(...)` check to the boolean
+would not have been a fix. Both consumers now ask their question positively, and `Unproven` fails
+closed for each of them by construction rather than by argument.
+
+What proves each answer is spelled out in the recovered predicate's doc and is worth restating
+because one case is not obvious. `Prohibited` is round 4's rule unchanged. `Permitted` needs the
+head proven, and then either an ABSENT NAI slot or an EMPTY free-modifier slot beside a PROVEN
+NAI. An absent optional slot is a shape fact of a node that parsed; a placeholder is not, because
+it stands for a run of unparsed input that could hold anything. That is why an empty free-modifier
+slot beside a placeholder NAI is `Unproven` rather than `Permitted`: the unparsed region the NAI
+slot stands for may have consumed the very free modifiers whose absence would be the whole proof,
+so emptiness there proves nothing. A placeholder head is `Unproven` for the same reason before any
+other node is read.
+
+**The strict twin is valid by construction, and now says so instead of leaving it assumed.** A
+non-recovered tree has no placeholders in it: every slot either holds the node it is for or is
+absent, so the strict classifier's two-state answer is total and `!prohibited` and `permitted` are
+the same sentence there. Rather than assert that in a comment, the strict predicate returns the
+same enum under `#[ensures(ret != ConnectiveFreeModifierPlacement::Unproven)]`, which the
+expensive-contracts row checks on every strict connective the suite parses. Both strict consumers
+were switched to the positive reading as well, so the strict and recovered arms of each consumer
+now ask the same question in the same words -- the property the round-5 finding was about.
+
+**Only the S3 recovered continuation changes behaviour.** `Prohibited` is the old recovered
+conjunction node for node, and the strict result is `Prohibited` exactly when
+`nai.is_some() && !head.free_modifiers.is_empty()` as before, so the chain's rejection and the
+whole strict parser are unchanged in both directions. No fixture, witness or A/R cell can move,
+and the gate below confirms that: every count is round 5's.
+
+**The direct controls Sol asks for, in the shape of the round-4 test.** This also settles the
+judgment flagged in round 5 as a judgment: the controls are required, and they are these.
+`recovered_placement_is_permitted_only_when_the_tree_proved_it` walks the placement result over
+the head, NAI and free-modifier slots directly -- the prohibited row, the two permitted rows (no
+NAI slot; a proven NAI over an empty free-modifier slot), and the four unproven rows (frees that
+are only placeholders, an unparsed NAI with and without frees in front of it, an unparsed head).
+`recovered_exp_selbri_list_returns_only_proven_permitted_continuations` runs the list rejection
+itself over a one-continuation list whose first clause and continued clause are both exp-formable,
+so the connective is the whole of what the cases vary: the first two cases are the controls that
+prove the frame otherwise returns, and the five that follow -- prohibited, unparsed NAI, frees
+that are only placeholders, unparsed head, unparsed connective -- each fail on their connective
+alone.
+
+**The unproven control is not vacuous, and that was measured rather than argued.** With the
+shipped classifier restored to the round-5 reading (`!= Prohibited` in place of `== Permitted`)
+and nothing else changed, `recovered_exp_selbri_list_returns_only_proven_permitted_continuations`
+fails at the unparsed-NAI case -- "an unparsed NAI leaves the placement unproven, and unproven is
+not permitted" -- and passes with the reading that ships. The other five tests in the module pass
+in both trees, which is the expected result: they are about facts this round did not change.
+
+### Sol's Low: the empty-delta claim named a directory, not the generated paths
+
+Sol is right on the measurement. `git diff ede3f8d53b HEAD -- bindings/python/` returns
+`bindings/python/tools/python_artifacts.py | 2 +-`, which is the one-line artifact-figure
+correction the same section records two paragraphs earlier, so "touches nothing under
+`bindings/python/`" was false as written. The judgment it supports is not: the generated syntax
+models are what a peak-RSS pair would be measuring, and those are unchanged. The sentence is
+therefore narrowed rather than weakened -- it now names the four paths `generate_syntax_models.py`
+writes, and says explicitly that the file the diff does touch is a generator input to nothing and
+a generated output of nothing. The corrected sentence is in the round-5 gate section above.
+
+### The round-6 gate
+
+Run with `/build/jbotci/logs/epoch08-r6-gate.sh`, sequentially, over the tree of the code commit
+`0aa021bcd4` (`tree=ec624e0f8d`). Both `cargo test` components use `--no-fail-fast`, so green
+means the whole set is green rather than green up to the first failing target.
+
+| component | result | log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch08-r6-g-fmt.log` |
+| `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,656 passed, 0 failed, 16 ignored | `epoch08-r6-g-workspace.log` |
+| `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,655 passed, 0 failed, 8 ignored | `epoch08-r6-g-expensive.log` |
+| `fixture-test --profile all` | 26,679 fixtures, 72,627 passed, 519 xfailed, 0 failed | `epoch08-r6-g-fixtures.log` |
+| tagged facet `subsentence-epoch` | 106 fixtures, 3 facets, 108 passed, 0 failed | `epoch08-r6-g-tagged-facet.log` |
+| frozen syntax facet, same tag | 106 fixtures, 106 passed, 0 failed | `epoch08-r6-g-frozen-facet.log` |
+| comparer | 122 changed / 0 + 0 + 6 + 1 + 86 mechanical / 29 manual / 0 prose / 106 epoch-new / 0 unpaired / 0 witnesses missing diagnostics | `epoch08-r6-g-comparer.log` |
+| comparer unit tests | 27 tests, green | `epoch08-r6-g-comparer-test.log` |
+
+**This is the REDUCED set, and the rows below were skipped on a verified condition rather than on
+an assumption.** `cargo build -p jbotci` (debug), `dx build`, `maturin develop` and the four
+Python generator checks -- `generate_syntax_models.py`, `generate_domain_enum_stubs.py`,
+`compose_stubs.py`, `generate_api_matrix.py` -- did not run. The condition for skipping them is
+that the change touches nothing under `bindings/python/`, `crates/jbotci-ui` or the generated
+model, and `git diff --name-only 28d256f577 HEAD` returns exactly one path:
+`crates/jbotci-syntax/src/grammar/baseline_relative.rs`. The grammar model in `generated.rs` and
+both macro crates are untouched, so no generated Rust, Python module, stub or API-matrix row can
+have moved. The expensive-contracts row is NOT among the skips even though the change is small:
+the classifier carries contracts, and the strict predicate's new `#[ensures]` is checked there.
+
+**Every count is round 5's, plus the two new tests and nothing else.** `+2` passed on each of the
+two `cargo test` rows, with the target counts unchanged at 103 and 70 because both tests live in
+the existing `jbotci-syntax` lib target. The fixture, facet and comparer rows are identical to
+round 5's, and the comparer's log is byte-identical to it -- which is the expected result, because
+the only behaviour this round changes is in the recovered S3 continuation and the fixture harness
+parses strictly.
+
+**There is no peak-RSS pair, and that is the reported result rather than an omission.** The
+standing instruction ties the pair to adding a production; this round adds none. It adds one enum,
+one predicate rewritten from a boolean to that enum, its recovered twin, four call sites reading
+it positively or negatively, and two tests. `git diff 28d256f577 HEAD` touches no generated path
+at all -- not the four `generate_syntax_models.py` writes, not `docs/api-parity.tsv`, not
+`crates/jbotci-syntax/tests/recovery-anchor-metadata.snapshot.txt`, which is still byte-identical
+to `2284b50691`. `tests/struct_invariant_audit.rs` and `tests/enum_invariant_audit.rs` need no new
+row: no node type changed, and the new enum carries no per-variant placeholder invariant.
+
+The final commit adds only this section and the narrowed sentence in the round-5 gate section
+above it. `cargo fmt --all --check`, the comparer and its unit tests were re-run at that commit;
+no other row reads `docs/`.
