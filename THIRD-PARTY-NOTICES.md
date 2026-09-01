@@ -136,11 +136,11 @@ DEALINGS IN THE FONT SOFTWARE.
 ### The Contemporary Lojban Language (CLL)
 
 jbotci embeds text, examples, and the formal grammar from
-[colojban 1.3.2](https://github.com/int19h/cll/tree/v1.3.2), a modified fork of
+[colojban 1.3.4](https://github.com/int19h/cll/tree/v1.3.4), a modified fork of
 *The Complete Lojban Language* by John Woldemar Cowan. This material powers the
 grammar reference (the `cukta` tool) and drives parser and reference-analysis
 development. Its lineage is the official CLL 1.1, followed by the UnCLL
-`geklojban-1.2.16` revision, followed by the colojban 1.3.2 fork vendored here.
+`geklojban-1.2.16` revision, followed by the colojban 1.3.4 fork vendored here.
 The book carries the following notice, which its license requires us to
 preserve on all copies:
 
@@ -172,6 +172,24 @@ book's permission notice to its sources and associated scripts as well. The
 source maintainers consider that notice equivalent to the
 [Creative Commons Attribution-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-sa/4.0/)
 license.
+
+The book's chrestomathy appendix is one of those separately sourced components:
+it reprints four Lojban texts as their authors and translators published them,
+and each carries its own terms, which the appendix states alongside the text.
+
+- *The North Wind and the Sun* (Aesop): the Lojban translation was published
+  anonymously and released into the **public domain**; the translator is
+  unknown.
+- *Terry, the Tiger, visits the big city*: an original Lojban story by Michael
+  Turniansky, with the author's own English translation, reprinted under
+  [CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/).
+- *There Will Come Soft Rains* (Sara Teasdale): translated into Lojban by
+  la lalxu and printed from the translator's own text **with her permission**.
+- *Alice in Wonderland* (Lewis Carroll), extract: the early community
+  translation, credited collectively to la .lojbangirz. (the Logical Language
+  Group) and explicitly placed in the **public domain** by its contributors;
+  the community's index of texts records most of it as the work of la .xorxes.
+  (Jorge Llambias).
 
 ### Lojban dictionary (jbovlaste / Lensisku)
 

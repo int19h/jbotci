@@ -1,12 +1,16 @@
-# Parse metadata for CLL Chapter 23 chrestomathy tables.
+# Parse metadata for the CLL chrestomathy tables.
 #
 # Row numbers are 1-based within each table area. Header rows and body rows are
 # numbered independently. Blank first-column rows are intentionally omitted.
+#
+# A group lists the consecutive rows that have to be parsed together because
+# only the first of them starts a Lojban utterance; every other row stands
+# alone in a group of its own.
 
 [[section]]
 id = "section-north-wind"
-header_groups = []
-body_groups = [[1], [2], [3], [4], [5], [6]]
+header_groups = [[1]]
+body_groups = [[1], [2], [3], [4], [5]]
 header_no_parse = []
 body_no_parse = []
 
@@ -26,38 +30,29 @@ body_groups = [
   [10],
   [11],
   [12],
+  [13],
+  [14],
+  [15],
 ]
 header_no_parse = []
 body_no_parse = []
 
 [[section]]
-id = "section-forest-nymph"
+id = "section-soft-rains"
 header_groups = [[1]]
+# Rows 5 and 10 are the blank lines between stanzas. Rows 9 and 12 open with
+# `fa`, continuing the bridi of the row above them.
 body_groups = [
   [1],
   [2],
   [3],
   [4],
-  [5],
   [6],
   [7],
-  [8],
-  [9],
-  [10],
-  [11],
-  [12, 13],
+  [8, 9],
+  [11, 12],
+  [13],
   [14],
-  [15],
-  [16, 17],
-  [18],
-  [19],
-  [20],
-  [21],
-  [22],
-  [23],
-  [24],
-  [25],
-  [26],
 ]
 header_no_parse = []
 body_no_parse = []
@@ -85,12 +80,5 @@ body_groups = [
   [17],
   [18],
 ]
-header_no_parse = []
-body_no_parse = []
-
-[[section]]
-id = "section-in-xanadu"
-header_groups = [[1]]
-body_groups = [[1], [2, 3], [4, 5, 6], [8, 9, 10, 11, 12, 13]]
 header_no_parse = []
 body_no_parse = []

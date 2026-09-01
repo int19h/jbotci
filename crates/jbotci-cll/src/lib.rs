@@ -270,6 +270,27 @@ pub fn cll_first_section_id(site: &CllSite) -> Option<&str> {
     site.section_order.first().map(String::as_str)
 }
 
+/// The chapter-level blocks displayed above `section`: the chapter's front
+/// matter belongs to no section of its own, so it is shown - and searched, and
+/// indexed - with the chapter's first section, and is empty for every other
+/// section.
+#[requires(true)]
+#[ensures(
+    ret.is_empty()
+        || site.chapters.iter().any(|chapter| {
+            chapter.root_section_ids.first() == Some(&section.section_id)
+        }),
+    "only a chapter's first section carries that chapter's prelude"
+)]
+pub fn cll_section_prelude_blocks<'a>(site: &'a CllSite, section: &CllSection) -> &'a [CllBlock] {
+    site.chapters
+        .iter()
+        .find(|chapter| chapter.chapter_id == section.chapter_id)
+        .filter(|chapter| chapter.root_section_ids.first() == Some(&section.section_id))
+        .map(|chapter| chapter.prelude_blocks.as_slice())
+        .unwrap_or_default()
+}
+
 #[requires(true)]
 #[ensures(true)]
 pub fn cll_previous_section_id<'a>(site: &'a CllSite, section_id: &str) -> Option<&'a str> {
@@ -494,6 +515,14 @@ pub fn render_section(
                 output.push_str("\">Parse</a>");
             }
             output.push_str("</div>");
+            let prelude_blocks = cll_section_prelude_blocks(site, section);
+            if !prelude_blocks.is_empty() {
+                output.push_str("<div class=\"cll-chapter-prelude\">");
+                for block in prelude_blocks {
+                    output.push_str(&render_block_html(site, block, link_mode));
+                }
+                output.push_str("</div>");
+            }
             for block in &section.blocks {
                 output.push_str(&render_block_html(site, block, link_mode));
             }
@@ -506,6 +535,9 @@ pub fn render_section(
                 && let Some(parse_href) = chrestomathy_section_parse_href(site, section)
             {
                 output.push_str(&format!("[Parse]({parse_href})\n\n"));
+            }
+            for block in cll_section_prelude_blocks(site, section) {
+                render_block_markdown(site, block, &mut output, 0, link_mode);
             }
             for block in &section.blocks {
                 render_block_markdown(site, block, &mut output, 0, link_mode);
@@ -1600,7 +1632,7 @@ mod tests {
             ),
             (
                 "2.1",
-                "5a829e09e266bbf90daa5abc568631c346219ca6f3a29e7507d989e6b5fd1ff1",
+                "d2c62de569f7761ee9119d7d23541c853d2ea004517db9020c85e87e8b3d2655",
             ),
             (
                 "9.6",
@@ -1640,7 +1672,7 @@ mod tests {
             ),
             (
                 "2.1",
-                "11cdaaa8489e9e3339043267a2d3246bd0ad6eebef1d8dc4294932649452e58d",
+                "99e79b0d0171b7f134309d5dd94fdcd2b129c36dea1587bbc4c38f2bcaa68351",
             ),
             (
                 "9.6",
@@ -1835,36 +1867,203 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn sectionless_peg_morphology_appendix_renders_as_preformatted_cukta_section() {
+    fn peg_morphology_appendix_imports_as_a_sectioned_appendix() {
+        // colojban 1.3.4 breaks the PEG word-form grammar out of a single
+        // program listing into thirteen numbered-in-the-book-by-nothing
+        // sections. It is the first appendix to have sections at all, so this
+        // pins that the sectioned path stays appendix-shaped: real sections,
+        // none of them carrying a number.
         let site = embedded_cll_site().expect("embedded CLL should load");
-        let section = cll_lookup_section(site, "appendix-peg-morphology")
-            .expect("PEG morphology appendix should be addressable through cukta");
-        assert_eq!(section.division, CllDivision::Appendix);
-        assert_eq!(section.number, None);
-        let grammar = section
-            .blocks
+        let chapter = site
+            .chapters
             .iter()
-            .find_map(|block| match block {
-                CllBlock::Code { text, .. } => Some(text),
-                _ => None,
-            })
-            .expect("PEG morphology appendix should contain a code block");
-        assert_eq!(grammar.lines().count(), 564);
-        assert!(grammar.starts_with("# ___ MORPHOLOGY ___\n\nCMEVLA <- cmevla"));
-        assert!(grammar.contains("\nlojban_word <- CMEVLA / CMAVO / BRIVLA\n"));
-        assert!(grammar.ends_with("ZOhU <- &cmavo ( z o h u ) &post_word"));
+            .find(|chapter| chapter.chapter_id == "appendix-peg-morphology")
+            .expect("the PEG morphology appendix should be imported");
+        assert_eq!(chapter.division, CllDivision::Appendix);
+        assert_eq!(
+            chapter.root_section_ids,
+            [
+                "a02-classes",
+                "a02-words",
+                "a02-cmevla",
+                "a02-cmavo",
+                "a02-brivla",
+                "a02-fuhivla",
+                "a02-gismu",
+                "a02-syllables",
+                "a02-vowels",
+                "a02-consonants",
+                "a02-boundaries",
+                "a02-spaces",
+                "a02-selmaho",
+            ]
+        );
+        assert!(
+            cll_lookup_section(site, "appendix-peg-morphology").is_none(),
+            "an appendix with sections of its own gets no synthetic root section"
+        );
 
+        // Every grammar rule in the appendix survives import, and each one is a
+        // `varlistentry` in one of the appendix's variable lists.
+        let mut entries = 0usize;
+        for section_id in &chapter.root_section_ids {
+            let section = cll_lookup_section(site, section_id).expect("a02 section should exist");
+            assert_eq!(section.division, CllDivision::Appendix);
+            assert_eq!(
+                section.number, None,
+                "{section_id} is in an appendix and must carry no number"
+            );
+            assert_eq!(section.chapter_id, "appendix-peg-morphology");
+            assert_eq!(section.source_path, "a02.xml");
+            entries += section
+                .blocks
+                .iter()
+                .filter_map(|block| match block {
+                    CllBlock::VariableList { entries, .. } => Some(entries.len()),
+                    _ => None,
+                })
+                .sum::<usize>();
+            assert!(
+                !section
+                    .blocks
+                    .iter()
+                    .any(|block| matches!(block, CllBlock::Ebnf { .. })),
+                "{section_id} is PEG, not the chapter 21 EBNF, so it must not be tokenized as EBNF"
+            );
+        }
+        assert_eq!(entries, 236);
+
+        // Chapter 21's EBNF section is the one variable list that gets the
+        // bespoke EBNF treatment; every other variable list in the book, the
+        // appendix's included, renders as a definition list.
+        let ebnf = cll_lookup_section(site, &cll_import_metadata().ebnf_section_id)
+            .expect("the EBNF section should exist");
+        assert!(
+            ebnf.blocks
+                .iter()
+                .any(|block| matches!(block, CllBlock::Ebnf { .. }))
+        );
+        assert!(
+            !ebnf
+                .blocks
+                .iter()
+                .any(|block| matches!(block, CllBlock::VariableList { .. }))
+        );
+
+        // The appendix is addressable through cukta by any of its section ids,
+        // and a cross-reference to the appendix as a whole lands on its first
+        // section under the title the book gives it.
         let rendered = render_cukta_request(
             site,
             &CuktaRequest::Section {
-                reference: "appendix-peg-morphology".to_owned(),
+                reference: "a02-cmevla".to_owned(),
             },
             CllRenderFormat::Markdown,
             CllLinkRenderMode::Plain,
         )
-        .expect("PEG morphology appendix should render through cukta");
-        assert!(rendered.contains("```\n# ___ MORPHOLOGY ___\n\nCMEVLA <- cmevla"));
-        assert!(rendered.contains("\nZOhU <- &cmavo ( z o h u ) &post_word\n```"));
+        .expect("a PEG morphology section should render through cukta");
+        assert!(rendered.starts_with("# cmevla\n"));
+        assert!(rendered.contains("**zifcme ←**\n\n!h (nucleus / glide / h / consonant !pause"));
+        assert_eq!(
+            site.anchors_by_id
+                .get("appendix-peg-morphology")
+                .map(|anchor| (anchor.section_id.as_str(), anchor.label.as_str())),
+            Some(("a02-classes", "The PEG word-form grammar"))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chapter_front_matter_is_parsed_and_addressed_as_first_section_content() {
+        // Content that sits outside every section belongs to the chapter, but
+        // the reader only ever meets it above the chapter's first section. It
+        // goes through the ordinary block pipeline, so its cross-references,
+        // lists, and inline markup survive, and everything it contributes -
+        // search chunks and index entries alike - names that first section.
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let appendix = site
+            .chapters
+            .iter()
+            .find(|chapter| chapter.chapter_id == "appendix-peg-morphology")
+            .expect("the PEG morphology appendix should be imported");
+        let first_section =
+            cll_lookup_section(site, "a02-classes").expect("a02's first section should exist");
+        assert_eq!(
+            cll_section_prelude_blocks(site, first_section),
+            appendix.prelude_blocks
+        );
+        assert!(
+            cll_lookup_section(site, "a02-selmaho")
+                .is_some_and(|section| cll_section_prelude_blocks(site, section).is_empty()),
+            "only the first section of a chapter shows that chapter's front matter"
+        );
+
+        // The appendix opens with prose and closes its front matter with a
+        // bulleted key to the PEG notation.
+        let (paragraphs, lists): (Vec<_>, Vec<_>) = appendix
+            .prelude_blocks
+            .iter()
+            .partition(|block| matches!(block, CllBlock::Paragraph { .. }));
+        assert_eq!(paragraphs.len(), 5);
+        assert_eq!(lists.len(), 1);
+        assert!(matches!(lists[0], CllBlock::List { .. }));
+
+        // The opening paragraph's two cross-references into the numbered
+        // chapters survive as links, rather than being flattened away.
+        let opening = paragraphs
+            .first()
+            .expect("the appendix opens with a paragraph");
+        let CllBlock::Paragraph { inlines, .. } = opening else {
+            unreachable!("partitioned on Paragraph")
+        };
+        assert_eq!(
+            inlines
+                .iter()
+                .filter_map(|inline| match inline {
+                    CllInline::Link { target, .. } => Some(target.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+            ["chapter-morphology", "chapter-phonology"]
+        );
+
+        // cukta renders the front matter above the first section, exactly where
+        // the web shows it, and searching finds it under that section.
+        let rendered = render_section(
+            site,
+            first_section,
+            CllRenderFormat::Markdown,
+            CllLinkRenderMode::Plain,
+        );
+        assert!(rendered.starts_with("# Word classes\n\nThis appendix reproduces"));
+        assert!(rendered.contains("\n**CMEVLA ←**\n"));
+        assert!(site.search_chunks.iter().any(|chunk| {
+            chunk.section_id == "a02-classes"
+                && chunk.kind == CllSearchChunkKind::Paragraph
+                && chunk
+                    .text
+                    .starts_with("A parsing expression grammar differs")
+        }));
+        assert!(
+            cll_index_entries(site)
+                .iter()
+                .find(|entry| entry.key == "slinku'i test; formal statement of")
+                .is_some_and(|entry| entry.section_ids == ["a02-classes"]),
+            "an index term in a chapter's front matter is indexed at its first section"
+        );
+
+        // A numbered chapter's front matter is its illustration, and it keeps
+        // being modelled as media rather than as flattened alt text.
+        let tour = site
+            .chapters
+            .iter()
+            .find(|chapter| chapter.chapter_id == "chapter-tour")
+            .expect("chapter 2 should be imported");
+        assert!(matches!(
+            tour.prelude_blocks.as_slice(),
+            [CllBlock::Media { .. }]
+        ));
     }
 
     #[test]
@@ -2148,10 +2347,11 @@ mod tests {
     fn colojban_import_covers_all_source_sections_and_anchored_examples() {
         let site = load_embedded_cll_site().expect("all embedded colojban chapters should import");
         assert_eq!(site.chapters.len(), 25);
-        // The sources contain 338 section elements. The sectionless PEG appendix
-        // adds one addressable root section so its program listing is not hidden.
-        assert_eq!(site.sections_by_id.len(), 339);
-        assert_eq!(site.section_order.len(), 339);
+        // Every division of colojban 1.3.4 has sections of its own - the PEG
+        // appendix was the last one that did not - so the site holds exactly the
+        // 350 `section` elements the sources contain and synthesizes none.
+        assert_eq!(site.sections_by_id.len(), 350);
+        assert_eq!(site.section_order.len(), 350);
         assert_eq!(site.examples_by_id.len(), 1857);
     }
 
@@ -2557,31 +2757,32 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn chrestomathy_grouped_rows_render_single_parse_button_and_group_classes() {
+        // In the poem, line 9 opens with `fa` and continues line 8's bridi, so
+        // the two are one parse target with a single button on the first row.
         let site = embedded_cll_site().expect("embedded CLL should load");
-        let section =
-            cll_lookup_section(site, "section-forest-nymph").expect("section should exist");
+        let section = cll_lookup_section(site, "section-soft-rains").expect("section should exist");
         let (_header_rows, body_rows) = first_table_rows(section);
-        let row_12_group = body_rows[11][0]
+        let row_8_group = body_rows[7][0]
             .parse_group
             .as_ref()
-            .expect("row 12 should have parse group");
-        let row_13_group = body_rows[12][0]
+            .expect("row 8 should have parse group");
+        let row_9_group = body_rows[8][0]
             .parse_group
             .as_ref()
-            .expect("row 13 should have parse group");
-        assert_eq!(row_12_group.group_id, row_13_group.group_id);
-        assert_eq!(row_12_group.row_count, 2);
-        assert_eq!(row_12_group.row_index, 0);
-        assert_eq!(row_13_group.row_index, 1);
-        assert!(body_rows[11][0].parse_href.is_some());
-        assert!(body_rows[12][0].parse_href.is_none());
+            .expect("row 9 should have parse group");
+        assert_eq!(row_8_group.group_id, row_9_group.group_id);
+        assert_eq!(row_8_group.row_count, 2);
+        assert_eq!(row_8_group.row_index, 0);
+        assert_eq!(row_9_group.row_index, 1);
+        assert!(body_rows[7][0].parse_href.is_some());
+        assert!(body_rows[8][0].parse_href.is_none());
 
         let html = render_section(site, section, CllRenderFormat::Html, CllLinkRenderMode::Web);
         assert!(html.contains("cll-parse-section"));
         assert!(html.contains("cll-parse-group-start"));
         assert!(html.contains("cll-parse-group-continuation"));
         assert!(html.contains("cll-parse-group-link"));
-        assert!(html.contains("data-cll-parse-group=\"section-forest-nymph-body-12-12-13\""));
+        assert!(html.contains("data-cll-parse-group=\"section-soft-rains-body-7-8-9\""));
     }
 
     #[requires(true)]

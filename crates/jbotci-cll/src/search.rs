@@ -149,6 +149,14 @@ pub(super) fn build_search_chunks(site: &CllSite) -> Vec<CllSearchChunk> {
                 tagged_words: blocks_tagged_words(site, &section.blocks),
             }));
         }
+        // A chapter's front matter is displayed with the chapter's first
+        // section, so it is searchable there and nowhere else.
+        collect_block_search_chunks(
+            site,
+            section,
+            cll_section_prelude_blocks(site, section),
+            &mut chunks,
+        );
         collect_block_search_chunks(site, section, &section.blocks, &mut chunks);
     }
     chunks

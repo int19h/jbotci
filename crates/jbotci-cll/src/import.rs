@@ -253,28 +253,72 @@ fn parse_chapter(
     }
 
     if has_sections {
-        for child in root.children().filter(Node::is_element) {
-            if child.has_tag_name("title") {
-                continue;
-            }
-            if child.has_tag_name("section") {
-                section_index += 1;
-                let parsed = parse_section(
-                    child,
-                    &chapter_id,
-                    division,
-                    section_index,
-                    source_path,
-                    &mut parse_state,
-                )?;
-                root_section_ids.push(parsed.0.section_id.clone());
-                examples.extend(parsed.1);
-                anchors.extend(parsed.2);
-                index_entries.extend(parsed.3);
-                sections.push(parsed.0);
-            } else if let Some(block) = parse_standalone_chapter_block(child) {
-                prelude_blocks.push(block);
-            }
+        // Content outside every section - the chapter illustration, and the
+        // front matter the appendices open with - belongs to the chapter, but
+        // the reader only ever meets it at the top of the chapter's first
+        // section. Parsing it with that section's context is therefore not a
+        // convenience: every anchor, example, and index entry it contributes
+        // has to name the page it is actually displayed on, and it has to go
+        // through the same block pipeline as section content so that
+        // cross-references, lists, and inline markup survive.
+        let prelude_context = SectionParseContext {
+            chapter_id: chapter_id.clone(),
+            division,
+            section_id: first_section_id(root, &chapter_id),
+            section_number: division.section_number(
+                NonZeroUsize::new(1).expect("the first section is counted from one"),
+            ),
+            section_title: chapter_title.clone(),
+            source_path: source_path.to_owned(),
+        };
+        let prelude_nodes = root
+            .children()
+            .filter(|child| {
+                child.is_text()
+                    || (child.is_element()
+                        && !child.has_tag_name("title")
+                        && !child.has_tag_name("section")
+                        && !child.has_tag_name("indexterm"))
+            })
+            .collect::<Vec<_>>();
+        index_entries.extend(
+            prelude_nodes
+                .iter()
+                .flat_map(|node| node.descendants())
+                .filter(|node| node.is_element() && node.has_tag_name("indexterm"))
+                .filter_map(index_key)
+                .map(|key| PendingIndexEntry {
+                    key,
+                    section_id: prelude_context.section_id.clone(),
+                }),
+        );
+        prelude_blocks = parse_blocks_from_nodes(
+            &prelude_nodes,
+            &prelude_context,
+            AnchorMode::TopLevel,
+            &mut parse_state,
+            &mut examples,
+            &mut anchors,
+        );
+
+        for child in root
+            .children()
+            .filter(|child| child.is_element() && child.has_tag_name("section"))
+        {
+            section_index += 1;
+            let parsed = parse_section(
+                child,
+                &chapter_id,
+                division,
+                section_index,
+                source_path,
+                &mut parse_state,
+            )?;
+            root_section_ids.push(parsed.0.section_id.clone());
+            examples.extend(parsed.1);
+            anchors.extend(parsed.2);
+            index_entries.extend(parsed.3);
+            sections.push(parsed.0);
         }
     } else {
         let parsed = parse_sectionless_chapter(
@@ -420,8 +464,7 @@ fn parse_section(
     ),
     CllError,
 > {
-    let section_id =
-        xml_id(section_node).unwrap_or_else(|| format!("{chapter_id}-s{section_index}"));
+    let section_id = section_id_for(section_node, chapter_id, section_index);
     let section_number = division.section_number(
         NonZeroUsize::new(section_index).expect("section indexes are counted from one"),
     );
@@ -509,20 +552,29 @@ fn parse_section(
     ))
 }
 
-#[requires(node.is_element())]
-#[ensures(true)]
-fn parse_standalone_chapter_block(node: Node<'_, '_>) -> Option<CllBlock> {
-    if node.has_tag_name("mediaobject") {
-        parse_media_block(node)
-    } else {
-        let text = visible_text(node);
-        (!text.is_empty()).then_some(CllBlock::Paragraph {
-            anchor_id: xml_id(node),
-            role: paragraph_role(node),
-            inlines: vec![CllInline::Text(text.clone())],
-            text,
-        })
-    }
+/// The id `parse_section` will give the section at `section_index`, computed
+/// without parsing it. Chapter-level content has to name the section it is
+/// displayed with before that section has been reached, so both callers derive
+/// the id here rather than each spelling out the fallback.
+#[requires(section_node.is_element())]
+#[requires(!chapter_id.is_empty())]
+#[requires(section_index > 0)]
+#[ensures(!ret.is_empty())]
+fn section_id_for(section_node: Node<'_, '_>, chapter_id: &str, section_index: usize) -> String {
+    xml_id(section_node).unwrap_or_else(|| format!("{chapter_id}-s{section_index}"))
+}
+
+/// The id of the chapter's first section, or the chapter's own id when the
+/// chapter has none - the same fallback `parse_sectionless_chapter` uses, so a
+/// chapter's front matter always names an addressable section.
+#[requires(root.is_element())]
+#[requires(!chapter_id.is_empty())]
+#[ensures(!ret.is_empty())]
+fn first_section_id(root: Node<'_, '_>, chapter_id: &str) -> String {
+    root.children()
+        .find(|child| child.is_element() && child.has_tag_name("section"))
+        .map(|section| section_id_for(section, chapter_id, 1))
+        .unwrap_or_else(|| chapter_id.to_owned())
 }
 
 #[requires(true)]
@@ -594,6 +646,14 @@ pub(crate) fn parse_block(
     if node.has_tag_name("mediaobject") {
         return parse_media_block(node).into_iter().collect();
     }
+    // `literallayout` is the only one of these three the current edition uses;
+    // `programlisting` left the book when colojban 1.3.4 typeset the PEG
+    // appendix, and `screen` has never been in it. All three stay handled: the
+    // importer's vocabulary is DocBook's, not one edition's, and unrecognized
+    // markup is flattened into prose without any diagnostic, so narrowing this
+    // arm would turn a future edition's program listing into silent data loss.
+    // `preformatted_block_handling_covers_docbook_rather_than_one_edition`
+    // pins the decision.
     if node.has_tag_name("programlisting")
         || node.has_tag_name("screen")
         || node.has_tag_name("literallayout")
@@ -1031,9 +1091,12 @@ fn parse_table_block(
     examples: &mut Vec<CllExample>,
     anchors: &mut Vec<(String, CllAnchor)>,
 ) -> Option<CllBlock> {
-    let source = child_element(node, "tgroup")
-        .or_else(|| child_element(node, "tbody"))
-        .unwrap_or(node);
+    // DocBook wraps the row areas in `tgroup`; the vendored sources also use the
+    // HTML shape, where `thead`/`tbody` are direct children of the table. Both
+    // areas therefore have to be looked up under the same node - descending into
+    // `tbody` when one is present would hide any sibling `thead` from the search
+    // below and silently drop the table's header row.
+    let source = child_element(node, "tgroup").unwrap_or(node);
     let header_rows = child_element(source, "thead")
         .map(|thead| {
             parse_table_rows(
@@ -1718,6 +1781,13 @@ fn merge_adjacent_text_inlines(inlines: Vec<CllInline>) -> Vec<CllInline> {
     merged
 }
 
+/// The DocBook block vocabulary the importer understands. It deliberately
+/// exceeds what the vendored edition happens to contain - `simpara`, `screen`,
+/// `math`, the five admonitions, and (since colojban 1.3.4) `programlisting`
+/// are all absent from the book today - because an element that is not listed
+/// here is not rejected: it is merged into the surrounding prose without any
+/// diagnostic. Narrowing the list to the current edition would make the next
+/// edition's markup fail silently instead of loudly.
 #[requires(node.is_element())]
 #[ensures(true)]
 fn is_block_element(node: Node<'_, '_>) -> bool {
@@ -2425,4 +2495,215 @@ fn preformatted_text(text: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+
+    /// Every element name that appears anywhere in the vendored sources.
+    ///
+    /// The importer has no error channel for markup it does not recognize: an
+    /// unhandled block element falls through `parse_block` to a flowed
+    /// paragraph of its visible text, and an unhandled inline element falls
+    /// through `parse_inlines` to its children's text. Both losses are silent -
+    /// no diagnostic, no failing assertion, just prose with the structure
+    /// quietly flattened out of it. This inventory is therefore the place where
+    /// a newly vendored edition's markup becomes loud: adding a line here is a
+    /// deliberate statement that the importer was checked against that element.
+    const VENDORED_ELEMENT_NAMES: &[&str] = &[
+        "anchor",
+        "article",
+        "attitudinal-scale",
+        "blockquote",
+        "bridgehead",
+        "caption",
+        "chapter",
+        "citetitle",
+        "cmavo",
+        "cmavo-entry",
+        "cmavo-list",
+        "cmavo-list-head",
+        "cmevla",
+        "colgroup",
+        "comment",
+        "compound-cmavo",
+        "content",
+        "dbinlinemath",
+        "dbmath",
+        "definition",
+        "description",
+        "diphthong",
+        "elidable",
+        "emphasis",
+        "example",
+        "foreignphrase",
+        "gismu",
+        "gloss",
+        "grammar-template",
+        "imagedata",
+        "imageobject",
+        "indexterm",
+        "informaltable",
+        "interlinear-gloss",
+        "interlinear-gloss-itemized",
+        "ipa",
+        "itemizedlist",
+        "jbo",
+        "jbophrase",
+        "letteral",
+        "link",
+        "listitem",
+        "literallayout",
+        "lojbanization",
+        "lujvo-making",
+        "mediaobject",
+        "member",
+        "mfrac",
+        "mi",
+        "mmlinlinemath",
+        "mmlmath",
+        "mn",
+        "mo",
+        "modal-place",
+        "morphology",
+        "mrow",
+        "msqrt",
+        "msup",
+        "natlang",
+        "orderedlist",
+        "para",
+        "phrase",
+        "primary",
+        "pronunciation",
+        "pseudo-cmavo",
+        "quote",
+        "rafsi",
+        "rafsi-group",
+        "score",
+        "secondary",
+        "section",
+        "selbri",
+        "selmaho",
+        "series",
+        "simplelist",
+        "subscript",
+        "sumti",
+        "superscript",
+        "table",
+        "tbody",
+        "td",
+        "term",
+        "tertiary",
+        "textobject",
+        "th",
+        "thead",
+        "title",
+        "tr",
+        "valsi",
+        "variablelist",
+        "varlistentry",
+        "veljvo",
+        "xref",
+    ];
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn vendored_markup_uses_only_the_inventoried_element_vocabulary() {
+        let mut found = BTreeSet::new();
+        for (source_path, _, compressed) in EMBEDDED_CLL_CHAPTERS {
+            let xml = decode_chapter_xml(compressed).expect("embedded chapter should decompress");
+            let xml = sanitize_xml_entities(&xml);
+            let document = Document::parse(&xml)
+                .unwrap_or_else(|error| panic!("{source_path} should parse: {error}"));
+            found.extend(
+                document
+                    .descendants()
+                    .filter(Node::is_element)
+                    .map(|node| node.tag_name().name().to_owned()),
+            );
+        }
+        let inventoried = VENDORED_ELEMENT_NAMES
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            found.difference(&inventoried).collect::<Vec<_>>(),
+            Vec::<&String>::new(),
+            "the vendored sources use markup the importer has never been checked against"
+        );
+        assert_eq!(
+            inventoried.difference(&found).collect::<Vec<_>>(),
+            Vec::<&String>::new(),
+            "the inventory lists markup the vendored sources no longer use"
+        );
+    }
+
+    /// colojban 1.3.4 broke the PEG appendix's single `programlisting` into
+    /// prose and variable lists, leaving no `programlisting` anywhere in the
+    /// book - and `screen`, `simpara`, `math`, and the five admonition elements
+    /// have never appeared in it. The importer keeps handling all of them on
+    /// purpose: its block vocabulary is a statement about the input format,
+    /// DocBook, not about one edition of one document, and because unrecognized
+    /// markup degrades silently (see `VENDORED_ELEMENT_NAMES`), narrowing the
+    /// vocabulary to whatever the current edition happens to use would turn any
+    /// future reintroduction into invisible data loss rather than an error.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn preformatted_block_handling_covers_docbook_rather_than_one_edition() {
+        let unused = [
+            "programlisting",
+            "screen",
+            "simpara",
+            "math",
+            "note",
+            "tip",
+            "warning",
+            "important",
+            "caution",
+        ];
+        let probe = format!(
+            "<article>{}</article>",
+            unused
+                .iter()
+                .map(|name| format!("<{name}>held</{name}>"))
+                .collect::<String>()
+        );
+        let document = Document::parse(&probe).expect("probe document should parse");
+        for (node, name) in document.root_element().children().zip(unused) {
+            assert!(
+                is_block_element(node),
+                "`{name}` must stay a block element even while the book does not use it"
+            );
+        }
+
+        let context = SectionParseContext {
+            chapter_id: "probe".to_owned(),
+            division: CllDivision::Appendix,
+            section_id: "probe".to_owned(),
+            section_number: None,
+            section_title: "Probe".to_owned(),
+            source_path: "probe.xml".to_owned(),
+        };
+        let listing = Document::parse("<programlisting>a\n  b</programlisting>")
+            .expect("probe listing should parse");
+        let blocks = parse_block(
+            listing.root_element(),
+            &context,
+            AnchorMode::TopLevel,
+            &mut BlockParseState {
+                chapter_example_counter: 0,
+            },
+            &mut Vec::new(),
+            &mut Vec::new(),
+        );
+        assert!(
+            matches!(blocks.as_slice(), [CllBlock::Code { text, .. }] if text == "a\n  b"),
+            "a program listing keeps its own line structure: {blocks:?}"
+        );
+    }
 }
