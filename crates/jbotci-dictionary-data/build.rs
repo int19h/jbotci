@@ -720,7 +720,7 @@ fn merge_extracted_rafsi(
     raw_structured_rafsi: &BTreeMap<String, Vec<String>>,
     table: &ExtractedRafsiTable,
 ) -> Result<(), Box<dyn Error>> {
-    let mut claims = snapshot_rafsi_claims(dictionary);
+    let mut claims = snapshot_rafsi_claims(dictionary, raw_structured_rafsi);
     for (word, forms) in &table.rafsi {
         // Best-definition selection has already reduced the snapshot to one
         // entry per word, so an extracted word resolves to exactly one target.
@@ -790,23 +790,37 @@ fn merge_extracted_rafsi(
 
 /// Index every rafsi form the snapshot already claims, listed or universal.
 ///
-/// This mirrors the rafsi keys [`build_owned_indexes`] would produce, so a
-/// clash found here is exactly a clash that would land in the rafsi index.
+/// Listed claims come from `raw_structured_rafsi`, i.e. from *every*
+/// definition row of the unreduced export: upstream attaches rafsi per row, so
+/// a claim can sit on a row best-definition selection dropped, and the
+/// fail-closed audit must refuse an extracted form against it rather than
+/// graft over it. Universal gismu forms come from the embedded entries — a
+/// word that selection dropped entirely is not in the dictionary, so its
+/// universal forms claim nothing in the rafsi index the merge protects.
+///
+/// The listed half is therefore a superset of the keys
+/// [`build_owned_indexes`] would produce; every extra key is a deliberate
+/// re-audit trigger, not an index clash.
 #[requires(true)]
 #[ensures(true)]
-fn snapshot_rafsi_claims(dictionary: &ImportedDictionary) -> BTreeMap<String, RafsiClaim> {
+fn snapshot_rafsi_claims(
+    dictionary: &ImportedDictionary,
+    raw_structured_rafsi: &BTreeMap<String, Vec<String>>,
+) -> BTreeMap<String, RafsiClaim> {
     let mut claims = BTreeMap::new();
-    for entry in &dictionary.entries {
-        for rafsi in &entry.rafsi {
+    for (word, forms) in raw_structured_rafsi {
+        for rafsi in forms {
             claims
                 .entry(normalize_lookup_query(rafsi))
                 .or_insert_with(|| {
                     new!(RafsiClaim {
-                        word: entry.word.clone(),
+                        word: word.clone(),
                         origin: RafsiClaimOrigin::SnapshotListed,
                     })
                 });
         }
+    }
+    for entry in &dictionary.entries {
         if entry.word_type.is_gismu_like() {
             for (form, _) in universal_gismu_rafsi_forms(&entry.word) {
                 claims.entry(form).or_insert_with(|| {

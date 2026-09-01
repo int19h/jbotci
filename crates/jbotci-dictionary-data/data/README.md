@@ -81,8 +81,9 @@ snapshot, so the build fails, naming the offending word or form, when:
   of its definition rows, selected or not, since upstream attaches rafsi per
   row and a claim may sit on a row best-definition selection drops;
 - a listed form is not a CLL-derivable short rafsi of its word;
-- a listed form is already claimed by another entry's listed rafsi or by some
-  gismu's universal rafsi form;
+- a listed form is already claimed by another word's listed rafsi — again on
+  any of its definition rows, selected or not — or by an embedded gismu's
+  universal rafsi form;
 - two listed words claim the same form.
 
 ### Refresh protocol

@@ -158,7 +158,7 @@ def test_source_order_sequence_supports_iteration_indices_and_slices() -> None:
     assert not hasattr(dictionary.english, "index")
     assert not hasattr(entries, "count")
     assert not hasattr(entries, "index")
-    assert len(entries) == 17_536
+    assert len(entries) == 30_793
     assert entries[0].word == dictionary.english[0].word
     assert entries[dictionary.EntryIndex(0)].word == entries[0].word
     assert entries[-1].word == entries[len(entries) - 1].word
@@ -402,11 +402,15 @@ def test_word_type_predicates_delegate_through_exact_native_enum_conversion() ->
     assert dictionary.WordType.ZEI_LUJVO.is_lujvo_like()
     assert dictionary.WordType.OBSOLETE_ZEI_LUJVO.is_lujvo_like()
     assert not dictionary.WordType.GISMU.is_lujvo_like()
-    # Only experimental and obsolete types make provisional rafsi claims.
+    # Experimental and obsolete types make provisional rafsi claims; so does
+    # NALVLA, the one exception not named for a register — an entry Lensisku
+    # never classified cannot bind the standard register either (it mirrors
+    # the postcondition on the Rust `rafsi_claim_kind`).
     for word_type in dictionary.WordType:
         assert word_type.rafsi_claim_kind() is (
             dictionary.RafsiClaimKind.EXPERIMENTAL
-            if word_type.startswith(("experimental ", "obsolete "))
+            if word_type is dictionary.WordType.NALVLA
+            or word_type.startswith(("experimental ", "obsolete "))
             else dictionary.RafsiClaimKind.OFFICIAL
         )
     with pytest.raises(TypeError):

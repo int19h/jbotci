@@ -39,7 +39,7 @@ impl DictionarySnapshotMetadata {
     /// while it is compiled rather than when it is first read.
     #[expect(
         clippy::too_many_arguments,
-        reason = "one argument per recorded provenance field, in field order;                   the only caller is machine-generated"
+        reason = "one argument per recorded provenance field, in field order; the only caller is machine-generated"
     )]
     #[requires(entry_count <= definition_count, "selection drops definitions, never invents them")]
     #[ensures(ret.entry_count == entry_count && ret.definition_count == definition_count)]
