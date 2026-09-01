@@ -204,15 +204,24 @@ impl FromStr for CllSectionNumber {
         let invalid = || CllSectionNumberError::Invalid {
             text: text.to_owned(),
         };
-        match text.split_once('.') {
-            Some((chapter, index)) => Ok(Self::Section {
+        let number = match text.split_once('.') {
+            Some((chapter, index)) => Self::Section {
                 chapter: chapter.parse().map_err(|_| invalid())?,
                 index: index.parse().map_err(|_| invalid())?,
-            }),
-            None => Ok(Self::WholeChapter {
+            },
+            None => Self::WholeChapter {
                 chapter: text.parse().map_err(|_| invalid())?,
-            }),
+            },
+        };
+        // Rust's integer parsers accept a leading `+` and leading zeroes, so
+        // `+6.3`, `06.3` and `6.03` would all parse to the number that prints
+        // as `6.3`. A section number is the exact string the book prints, and
+        // callers rely on it printing back byte for byte, so a spelling that
+        // does not round-trip is not that number.
+        if number.to_string() != text {
+            return Err(invalid());
         }
+        Ok(number)
     }
 }
 

@@ -1961,6 +1961,33 @@ mod tests {
             );
         }
 
+        // Rust's integer parsers accept a leading `+` and leading zeroes, so
+        // these all parse to numbers that print as `6.3` or `20`. A section
+        // number is the exact string the book prints, so a spelling that does
+        // not round-trip is rejected rather than silently canonicalized - and
+        // rejected through serde too, which is where untrusted text arrives.
+        for text in ["06.3", "+6.3", "6.+3", "6.03", "020", "+20", "6.3 "] {
+            assert!(
+                text.parse::<CllSectionNumber>().is_err(),
+                "`{text}` does not print back as itself and is not a section number"
+            );
+            assert!(
+                serde_json::from_str::<CllSectionNumber>(&format!("{text:?}")).is_err(),
+                "serde should reject `{text}`"
+            );
+        }
+
+        // The canonical spellings round-trip through serde unchanged.
+        for text in ["6.3", "20", "21.17"] {
+            let number = serde_json::from_str::<CllSectionNumber>(&format!("{text:?}"))
+                .unwrap_or_else(|error| panic!("`{text}` should deserialize: {error}"));
+            assert_eq!(number.to_string(), text);
+            assert_eq!(
+                serde_json::to_string(&number).expect("section numbers serialize"),
+                format!("{text:?}")
+            );
+        }
+
         // A section of chapter 6 cannot claim chapter 22's number, and an
         // appendix section cannot claim any number - through serde either.
         let section = |division: &str, number: &str| {

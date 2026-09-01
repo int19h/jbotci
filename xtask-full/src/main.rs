@@ -50,11 +50,11 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 use xtask_common::fixtures::{
-    self, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend, FixtureProfile,
-    FixtureSelector, LoadedTestCase, MorphologyExpectation, MuplisForm, Provenance, ProvenanceData,
-    RunSummary, SyntaxExpectation, TestCase, TextExpectation, fixture_matches_selector,
-    fixture_paths, import_export_file, load_fixture_path, load_profile, validate_fixture_tree,
-    visit_fixture_tree, write_fixture_file,
+    self, CllSelector, ExpectationStatus, Expectations, Facet, FacetResult, FixtureBackend,
+    FixtureProfile, FixtureSelector, FixtureSelectorData, LoadedTestCase, MorphologyExpectation,
+    MuplisForm, MuplisSelector, Provenance, ProvenanceData, RunSummary, SyntaxExpectation,
+    TestCase, TextExpectation, fixture_matches_selector, fixture_paths, import_export_file,
+    load_fixture_path, load_profile, validate_fixture_tree, visit_fixture_tree, write_fixture_file,
 };
 use xtask_common::service_worker::{
     RELEASE_SERVICE_WORKER_TEMPLATE, render_release_service_worker,
@@ -375,6 +375,8 @@ struct FixtureRunArgs {
     cll_appendix: Option<String>,
     #[arg(long = "cll-section")]
     cll_section: Option<String>,
+    #[arg(long = "cll-section-id")]
+    cll_section_id: Option<String>,
     #[arg(long = "cll-example")]
     cll_example: Option<String>,
     #[arg(long = "muplis-collection")]
@@ -444,6 +446,8 @@ struct CllFixtureMetadataAuditArgs {
     cll_appendix: Option<String>,
     #[arg(long = "cll-section")]
     cll_section: Option<String>,
+    #[arg(long = "cll-section-id")]
+    cll_section_id: Option<String>,
     #[arg(long = "cll-example")]
     cll_example: Option<String>,
     #[arg(long)]
@@ -6909,6 +6913,7 @@ fn merge_cll_fixture_metadata_audit_selector(
     if args.cll_chapter.is_some()
         || args.cll_appendix.is_some()
         || args.cll_section.is_some()
+        || args.cll_section_id.is_some()
         || args.cll_example.is_some()
     {
         let mut cll = selector.cll.take().unwrap_or_default();
@@ -6920,6 +6925,9 @@ fn merge_cll_fixture_metadata_audit_selector(
         }
         if let Some(section) = &args.cll_section {
             cll.section_number = Some(section.clone());
+        }
+        if let Some(section) = &args.cll_section_id {
+            cll.section_id = Some(section.clone());
         }
         if let Some(example) = &args.cll_example {
             if example.starts_with('c') {
@@ -11219,6 +11227,7 @@ fn syntax_parser_benchmark_profile(args: &SyntaxParserBenchmarkArgs) -> Result<F
         cll_chapter: None,
         cll_appendix: None,
         cll_section: None,
+        cll_section_id: None,
         cll_example: None,
         muplis_collection: None,
         muplis_item: None,
@@ -11912,45 +11921,80 @@ fn fixture_test_chunk_output(
     })
 }
 
+/// Rebuild a selector as command-line arguments for a chunk worker.
+///
+/// Every field is destructured by name rather than read through `selector.x`,
+/// with no `..` rest pattern anywhere: a worker that silently drops a
+/// constraint runs the wrong fixtures and still reports success, and the full
+/// unfiltered gate cannot see it. Adding a selector field therefore has to
+/// fail to compile here until it is forwarded.
 #[requires(true)]
 #[ensures(true)]
 fn append_selector_args(command: &mut ProcessCommand, selector: &FixtureSelector) {
-    for value in &selector.provenance {
+    let data!(FixtureSelector {
+        provenance,
+        tags,
+        ids,
+        path_prefixes,
+        paths,
+        cll,
+        muplis,
+    }) = selector.as_data();
+    for value in provenance {
         command.arg("--provenance").arg(value);
     }
-    for value in &selector.tags {
+    for value in tags {
         command.arg("--tag").arg(value);
     }
-    for value in &selector.ids {
+    for value in ids {
         command.arg("--id").arg(value);
     }
-    for value in &selector.paths {
+    for value in paths {
         command.arg("--path").arg(value);
     }
-    for value in &selector.path_prefixes {
+    for value in path_prefixes {
         command.arg("--path-prefix").arg(value);
     }
-    if let Some(cll) = &selector.cll {
-        if let Some(chapter) = cll.chapter {
+    if let Some(CllSelector {
+        chapter,
+        appendix,
+        section_number,
+        section_id,
+        example_number,
+        example_id,
+    }) = cll
+    {
+        if let Some(chapter) = chapter {
             command.arg("--cll-chapter").arg(chapter.to_string());
         }
-        if let Some(section) = &cll.section_number {
+        if let Some(appendix) = appendix {
+            command.arg("--cll-appendix").arg(appendix);
+        }
+        if let Some(section) = section_number {
             command.arg("--cll-section").arg(section);
         }
-        if let Some(example) = &cll.example_id {
+        if let Some(section) = section_id {
+            command.arg("--cll-section-id").arg(section);
+        }
+        if let Some(example) = example_id {
             command.arg("--cll-example").arg(example);
-        } else if let Some(example) = &cll.example_number {
+        } else if let Some(example) = example_number {
             command.arg("--cll-example").arg(example);
         }
     }
-    if let Some(muplis) = &selector.muplis {
-        if let Some(collection) = &muplis.collection_id {
+    if let Some(MuplisSelector {
+        collection_id,
+        item_id,
+        form,
+    }) = muplis
+    {
+        if let Some(collection) = collection_id {
             command.arg("--muplis-collection").arg(collection);
         }
-        if let Some(item) = &muplis.item_id {
+        if let Some(item) = item_id {
             command.arg("--muplis-item").arg(item);
         }
-        if let Some(form) = &muplis.form {
+        if let Some(form) = form {
             command.arg("--muplis-form").arg(form.to_string());
         }
     }
@@ -12352,6 +12396,7 @@ fn merge_cli_selector(selector: FixtureSelector, args: &FixtureRunArgs) -> Fixtu
     if args.cll_chapter.is_some()
         || args.cll_appendix.is_some()
         || args.cll_section.is_some()
+        || args.cll_section_id.is_some()
         || args.cll_example.is_some()
     {
         let mut cll = selector.cll.take().unwrap_or_default();
@@ -12363,6 +12408,9 @@ fn merge_cli_selector(selector: FixtureSelector, args: &FixtureRunArgs) -> Fixtu
         }
         if let Some(section) = &args.cll_section {
             cll.section_number = Some(section.clone());
+        }
+        if let Some(section) = &args.cll_section_id {
+            cll.section_id = Some(section.clone());
         }
         if let Some(example) = &args.cll_example {
             if example.starts_with('c') {
@@ -14469,6 +14517,76 @@ mod tests {
             index_entries: Vec::new(),
             search_chunks: Vec::new(),
         })
+    }
+
+    /// Every selector constraint has to survive the trip to a chunk worker.
+    ///
+    /// Heavy profiles fan `fixture-test` out to subprocesses, and a dropped
+    /// constraint makes the worker run the wrong fixtures while still
+    /// reporting success - which the full unfiltered gate can never catch,
+    /// because it applies no constraints in the first place.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn chunk_workers_receive_every_selector_constraint() {
+        let selector = FixtureSelector::from_data(FixtureSelectorData {
+            provenance: vec!["cll".to_owned()],
+            tags: vec!["long-text".to_owned()],
+            ids: vec!["cll.chrestomathy.north-wind".to_owned()],
+            path_prefixes: vec!["cll/chrestomathy".to_owned()],
+            paths: vec!["cll/chrestomathy/north-wind.toml".to_owned()],
+            cll: Some(CllSelector {
+                chapter: Some(NonZeroU16::new(6).expect("6 is non-zero")),
+                appendix: Some("volume-chrestomathy".to_owned()),
+                section_number: Some("6.3".to_owned()),
+                section_id: Some("section-north-wind".to_owned()),
+                example_number: Some("6.34".to_owned()),
+                example_id: Some("c6e6d5".to_owned()),
+            }),
+            muplis: Some(MuplisSelector {
+                collection_id: Some("18".to_owned()),
+                item_id: Some("1".to_owned()),
+                form: Some(MuplisForm::Front),
+            }),
+        });
+
+        let mut command = ProcessCommand::new("xtask-full");
+        append_selector_args(&mut command, &selector);
+        let args = command
+            .get_args()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        // `example_id` deliberately wins over `example_number` on the single
+        // `--cll-example` flag, so that pair contributes one argument.
+        for expected in [
+            ["--provenance", "cll"],
+            ["--tag", "long-text"],
+            ["--id", "cll.chrestomathy.north-wind"],
+            ["--path", "cll/chrestomathy/north-wind.toml"],
+            ["--path-prefix", "cll/chrestomathy"],
+            ["--cll-chapter", "6"],
+            ["--cll-appendix", "volume-chrestomathy"],
+            ["--cll-section", "6.3"],
+            ["--cll-section-id", "section-north-wind"],
+            ["--cll-example", "c6e6d5"],
+            ["--muplis-collection", "18"],
+            ["--muplis-item", "1"],
+            ["--muplis-form", "front"],
+        ] {
+            let position = args
+                .windows(2)
+                .position(|window| window == expected)
+                .unwrap_or_else(|| {
+                    panic!("chunk workers must receive `{expected:?}`; got {args:?}")
+                });
+            assert!(position < args.len());
+        }
+        assert_eq!(
+            args.len(),
+            26,
+            "one flag and one value per constraint: {args:?}"
+        );
     }
 
     /// The stable division id a synthetic test site uses for a division.
