@@ -2547,7 +2547,7 @@ fn preformatted_text(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use super::*;
 
@@ -2570,6 +2570,23 @@ mod tests {
         "<informaltable><tgroup><thead><row><entry>PROBE</entry></row></thead>",
         "<tbody><row><entry>PROBE</entry></row></tbody></tgroup></informaltable>",
     );
+    /// A table written the way the vendored sources write one, `colgroup` and
+    /// all. The `colgroup` carries a payload it never carries in the book, so
+    /// the probe can tell "the importer discards this" from "the importer has
+    /// nothing to discard".
+    const COLGROUP_TABLE_PROBE: &str = concat!(
+        "<informaltable><colgroup>PROBEDISCARDED</colgroup>",
+        "<thead><tr><th>PROBE</th></tr></thead>",
+        "<tbody><tr><td>PROBE</td></tr></tbody></informaltable>",
+    );
+    /// An itemized gloss with a comment written where the book writes one: a
+    /// direct child, which `parse_interlinear_gloss_itemized_block` keeps out
+    /// of the rows and collects into the typed `comments` field instead.
+    const GLOSS_COMMENT_PROBE: &str = concat!(
+        "<interlinear-gloss-itemized><jbo><sumti>PROBE</sumti></jbo>",
+        "<comment>PROBE</comment></interlinear-gloss-itemized>",
+    );
+
     const CAPTION_TABLE_PROBE: &str =
         "<table><caption>PROBE</caption><tbody><tr><td>x</td></tr></tbody></table>";
     const CMAVO_LIST_PROBE: &str = concat!(
@@ -2594,11 +2611,15 @@ mod tests {
     );
     const EXAMPLE_PROBE: &str = concat!(
         "<example><title/><pronunciation><ipa>PROBE</ipa></pronunciation>",
-        "<interlinear-gloss><jbo><compound-cmavo>PROBE</compound-cmavo></jbo></interlinear-gloss></example>",
+        "<compound-cmavo>PROBE</compound-cmavo>",
+        "<interlinear-gloss><jbo>PROBE</jbo></interlinear-gloss></example>",
     );
+    /// MathML as the book writes it: under `mmlmath`, never under `dbmath`,
+    /// which carries plain text.
     const MATH_PROBE: &str = concat!(
-        "<dbmath><mrow><mfrac><mi>PROBE</mi><mn>2</mn></mfrac><mo>+</mo>",
-        "<msqrt><mi>x</mi></msqrt><msup><mi>y</mi><mn>2</mn></msup></mrow></dbmath>",
+        "<interlinear-gloss><mmlmath><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac>",
+        "<mo>+</mo><mn>3</mn><msqrt><mrow><mi>PROBE</mi></mrow></msqrt>",
+        "<msup><mi>y</mi><mn>2</mn></msup></mrow></mmlmath></interlinear-gloss>",
     );
 
     /// What the importer does with an element, as something the test can check
@@ -2627,32 +2648,43 @@ mod tests {
     #[invariant(::IndexKey { .. } => true)]
     #[invariant(::Structural { .. } => true)]
     #[invariant(::Transparent { .. } => true)]
+    #[invariant(::Ignored { .. } => true)]
     #[invariant(::Flattened { .. } => true)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum ElementDisposition {
         /// Part of a division's skeleton, read by `parse_chapter`/`parse_section`.
-        Division { probe: &'static str },
+        Division {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+        },
         /// `is_block_element` is true, and `parse_block` yields `block`.
         Block {
+            contexts: &'static [&'static str],
             probe: &'static str,
             block: &'static str,
         },
         /// `parse_inlines` yields at least one inline of kind `inline`.
         Inline {
+            contexts: &'static [&'static str],
             probe: &'static str,
             inline: &'static str,
         },
         /// Read only for a side effect - registering an anchor, feeding the
         /// index - and contributing no inline of its own.
-        Consumed { probe: &'static str },
+        Consumed {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+        },
         /// Read by `index_key` when building an `<indexterm>`'s entry.
         IndexKey {
+            contexts: &'static [&'static str],
             probe: &'static str,
             key: &'static str,
         },
         /// Meaningful only inside a container whose parser reads it *by name*:
         /// renaming the element changes what the container imports.
         Structural {
+            contexts: &'static [&'static str],
             probe: &'static str,
             block: &'static str,
         },
@@ -2662,11 +2694,75 @@ mod tests {
         /// the importer, so renaming the element changes nothing. A new sibling
         /// added to such a container would silently become another cell.
         Transparent {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            block: &'static str,
+        },
+        /// Present in a container that reads past it: its content reaches
+        /// nothing, and renaming it changes nothing either. The probe puts a
+        /// marker inside the element and requires that marker to be absent
+        /// from the import, which is what tells this apart from `Transparent`.
+        Ignored {
+            contexts: &'static [&'static str],
             probe: &'static str,
             block: &'static str,
         },
         /// No handler at all: reduced to its own text, deliberately.
-        Flattened { reason: &'static str },
+        Flattened {
+            contexts: &'static [&'static str],
+            probe: &'static str,
+            reason: &'static str,
+        },
+    }
+
+    impl ElementDisposition {
+        /// The containers this disposition speaks for.
+        #[requires(true)]
+        #[ensures(true)]
+        fn contexts(&self) -> &'static [&'static str] {
+            match self {
+                Self::Division { contexts, .. }
+                | Self::Block { contexts, .. }
+                | Self::Inline { contexts, .. }
+                | Self::Consumed { contexts, .. }
+                | Self::IndexKey { contexts, .. }
+                | Self::Structural { contexts, .. }
+                | Self::Transparent { contexts, .. }
+                | Self::Ignored { contexts, .. }
+                | Self::Flattened { contexts, .. } => contexts,
+            }
+        }
+
+        /// Whether the claim is about how a container treats the element, and
+        /// so has to be probed inside one of the containers the book uses.
+        #[requires(true)]
+        #[ensures(true)]
+        fn is_container_relative(&self) -> bool {
+            matches!(
+                self,
+                Self::Structural { .. }
+                    | Self::Transparent { .. }
+                    | Self::Ignored { .. }
+                    | Self::Flattened { .. }
+            )
+        }
+
+        /// The XML this disposition is checked against.
+        #[requires(true)]
+        #[ensures(!ret.is_empty())]
+        fn probe(&self) -> &'static str {
+            match self {
+                Self::Division { probe, .. }
+                | Self::Block { probe, .. }
+                | Self::Inline { probe, .. }
+                | Self::Consumed { probe, .. }
+                | Self::IndexKey { probe, .. }
+                | Self::Structural { probe, .. }
+                | Self::Transparent { probe, .. }
+                | Self::Ignored { probe, .. }
+                | Self::Flattened { probe, .. } => probe,
+            }
+        }
     }
 
     /// Every element name that appears anywhere in the vendored sources, with
@@ -2677,647 +2773,861 @@ mod tests {
     /// so a new tag cannot appear without an entry; and it checks every entry's
     /// disposition against the importer, so an entry cannot be added without
     /// either a handler or an explicit statement that the tag is flattened.
-    const VENDORED_ELEMENTS: &[(&str, ElementDisposition)] = &[
+    const VENDORED_ELEMENTS: &[(&str, &[ElementDisposition])] = &[
         (
             "anchor",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &["bridgehead", "para", "term", "title"],
                 probe: r#"<para><anchor xml:id="probe"/>PROBE</para>"#,
                 inline: "Anchor",
-            },
+            }],
         ),
         (
             "article",
-            ElementDisposition::Division {
+            &[ElementDisposition::Division {
+                contexts: &[],
                 probe: DIVISION_PROBE,
-            },
+            }],
         ),
         (
             "attitudinal-scale",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "blockquote",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["section"],
                 probe: "<blockquote><para>PROBE</para></blockquote>",
                 block: "BlockQuote",
-            },
+            }],
         ),
         (
             "bridgehead",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["section"],
                 probe: "<bridgehead>PROBE</bridgehead>",
                 block: "Heading",
-            },
+            }],
         ),
         (
             "caption",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["table"],
                 probe: CAPTION_TABLE_PROBE,
                 block: "Table",
-            },
+            }],
         ),
         (
             "chapter",
-            ElementDisposition::Division {
+            &[ElementDisposition::Division {
+                contexts: &[],
                 probe: CHAPTER_ROOT_PROBE,
-            },
+            }],
         ),
         (
             "citetitle",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &["para"],
                 probe: "<para><citetitle>PROBE</citetitle></para>",
                 inline: "CiteTitle",
-            },
+            }],
         ),
         (
             "cmavo",
-            ElementDisposition::Inline {
-                probe: "<para><cmavo>PROBE</cmavo></para>",
+            &[ElementDisposition::Inline {
+                contexts: &["cmavo-entry", "gloss", "jbo"],
+                probe: "<jbo><cmavo>PROBE</cmavo></jbo>",
                 inline: "Link",
-            },
+            }],
         ),
         (
             "cmavo-entry",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["cmavo-list"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "cmavo-list",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["listitem", "section", "td"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "cmavo-list-head",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["cmavo-list"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "cmevla",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &["para", "td"],
                 probe: "<para><cmevla>PROBE</cmevla></para>",
                 inline: "Link",
-            },
+            }],
         ),
         (
             "colgroup",
-            ElementDisposition::Flattened {
-                reason: "a column-width declaration carrying no text; the importer reads a table's rows, never its column groups",
-            },
+            &[ElementDisposition::Ignored {
+                contexts: &["informaltable", "table"],
+                probe: COLGROUP_TABLE_PROBE,
+                block: "Table",
+            }],
         ),
         (
             "comment",
-            ElementDisposition::Flattened {
-                reason: "an inline parenthetical printed as part of the gloss line it annotates, so its own text is the content",
-            },
+            &[
+                ElementDisposition::Structural {
+                    contexts: &["interlinear-gloss-itemized"],
+                    probe: GLOSS_COMMENT_PROBE,
+                    block: "InterlinearGloss",
+                },
+                ElementDisposition::Flattened {
+                    probe: "<jbo>PROBE <comment>PROBE</comment></jbo>",
+                    contexts: &["gloss", "jbo", "natlang", "pronunciation"],
+                    reason: "an inline parenthetical printed as part of the line it annotates, so its own text is the content",
+                },
+            ],
         ),
         (
             "compound-cmavo",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["example"],
                 probe: EXAMPLE_PROBE,
                 block: "Example",
-            },
+            }],
         ),
         (
             "content",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["definition"],
                 probe: "<definition><content>PROBE</content></definition>",
                 block: "Definition",
-            },
+            }],
         ),
         (
             "dbinlinemath",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "description",
+                    "gloss",
+                    "natlang",
+                    "para",
+                    "quote",
+                    "score",
+                    "td",
+                ],
                 probe: "<para><dbinlinemath><mi>PROBE</mi></dbinlinemath></para>",
                 inline: "InlineMath",
-            },
+            }],
         ),
         (
             "dbmath",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["interlinear-gloss", "natlang", "para"],
                 probe: MATH_PROBE,
-                block: "DisplayMath",
-            },
+                block: "InterlinearGloss",
+            }],
         ),
         (
             "definition",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["example", "para", "section", "td"],
                 probe: "<definition><content>PROBE</content></definition>",
                 block: "Definition",
-            },
+            }],
         ),
         (
             "description",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "diphthong",
-            ElementDisposition::Flattened {
+            &[ElementDisposition::Flattened {
+                probe: "<para><diphthong>PROBE</diphthong></para>",
+                contexts: &["member", "para", "td"],
                 reason: "names a diphthong inline; the book prints the letters themselves, which is what the text carries",
-            },
+            }],
         ),
         (
             "elidable",
-            ElementDisposition::Inline {
-                probe: "<para><elidable>PROBE</elidable></para>",
+            &[ElementDisposition::Inline {
+                contexts: &["gloss", "jbo"],
+                probe: "<jbo><elidable>PROBE</elidable></jbo>",
                 inline: "Elidable",
-            },
+            }],
         ),
         (
             "emphasis",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &["description", "gloss", "natlang", "para", "quote", "td"],
                 probe: "<para><emphasis>PROBE</emphasis></para>",
                 inline: "Emphasis",
-            },
+            }],
         ),
         (
             "example",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["para", "section"],
                 probe: EXAMPLE_PROBE,
                 block: "Example",
-            },
+            }],
         ),
         (
             "foreignphrase",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &["member", "para", "quote"],
                 probe: "<para><foreignphrase>PROBE</foreignphrase></para>",
                 inline: "LanguageSpan",
-            },
+            }],
         ),
         (
             "gismu",
-            ElementDisposition::Inline {
-                probe: "<para><gismu>PROBE</gismu></para>",
+            &[ElementDisposition::Inline {
+                contexts: &["cmavo-entry"],
+                probe: "<cmavo-entry><gismu>PROBE</gismu></cmavo-entry>",
                 inline: "Link",
-            },
+            }],
         ),
         (
             "gloss",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &[
+                    "interlinear-gloss",
+                    "interlinear-gloss-itemized",
+                    "lujvo-making",
+                ],
                 probe: GLOSS_PROBE,
                 block: "InterlinearGloss",
-            },
+            }],
         ),
         (
             "grammar-template",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["member", "para", "section", "td"],
                 probe: "<grammar-template>PROBE</grammar-template>",
                 block: "GrammarTemplate",
-            },
+            }],
         ),
         (
             "imagedata",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["imageobject"],
                 probe: MEDIA_PROBE,
                 block: "Media",
-            },
+            }],
         ),
         (
             "imageobject",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["mediaobject"],
                 probe: MEDIA_PROBE,
                 block: "Media",
-            },
+            }],
         ),
         (
             "indexterm",
-            ElementDisposition::Consumed {
+            &[ElementDisposition::Consumed {
+                contexts: &[
+                    "content",
+                    "definition",
+                    "description",
+                    "para",
+                    "td",
+                    "title",
+                ],
                 probe: "<para><indexterm><primary>PROBE</primary></indexterm>PROBE</para>",
-            },
+            }],
         ),
         (
             "informaltable",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["listitem", "para", "section"],
                 probe: TABLE_PROBE,
                 block: "Table",
-            },
+            }],
         ),
         (
             "interlinear-gloss",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["example", "section", "td"],
                 probe: GLOSS_PROBE,
                 block: "InterlinearGloss",
-            },
+            }],
         ),
         (
             "interlinear-gloss-itemized",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["example"],
                 probe: GLOSS_ITEMIZED_PROBE,
                 block: "InterlinearGloss",
-            },
+            }],
         ),
         (
             "ipa",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["pronunciation"],
                 probe: EXAMPLE_PROBE,
                 block: "Example",
-            },
+            }],
         ),
         (
             "itemizedlist",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["article", "example", "grammar-template", "section"],
                 probe: "<itemizedlist><listitem><para>PROBE</para></listitem></itemizedlist>",
                 block: "List",
-            },
+            }],
         ),
         (
             "jbo",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &[
+                    "compound-cmavo",
+                    "interlinear-gloss",
+                    "interlinear-gloss-itemized",
+                    "lojbanization",
+                    "lujvo-making",
+                    "pronunciation",
+                ],
                 probe: GLOSS_PROBE,
                 block: "InterlinearGloss",
-            },
+            }],
         ),
         (
             "jbophrase",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "example",
+                    "gloss",
+                    "interlinear-gloss",
+                    "natlang",
+                    "para",
+                    "quote",
+                    "secondary",
+                    "td",
+                    "title",
+                ],
                 probe: "<para><jbophrase>PROBE</jbophrase></para>",
                 inline: "LanguageSpan",
-            },
+            }],
         ),
         (
             "letteral",
-            ElementDisposition::Flattened {
+            &[ElementDisposition::Flattened {
+                probe: "<para><letteral>PROBE</letteral></para>",
+                contexts: &["description", "member", "para", "quote", "td"],
                 reason: "names a letter inline; the book prints the letter itself, which is what the text carries",
-            },
+            }],
         ),
         (
             "link",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &["para", "td"],
                 probe: r#"<para><link xlink:href="https://example.invalid/" xmlns:xlink="http://www.w3.org/1999/xlink">PROBE</link></para>"#,
                 inline: "Link",
-            },
+            }],
         ),
         (
             "listitem",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["itemizedlist", "orderedlist", "varlistentry"],
                 probe: "<itemizedlist><listitem><para>PROBE</para></listitem></itemizedlist>",
                 block: "List",
-            },
+            }],
         ),
         (
             "literallayout",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["section"],
                 probe: "<literallayout>PROBE</literallayout>",
                 block: "Code",
-            },
+            }],
         ),
         (
             "lojbanization",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["example"],
                 probe: "<lojbanization><jbo>PROBE</jbo><natlang>n</natlang></lojbanization>",
                 block: "Lojbanization",
-            },
+            }],
         ),
         (
             "lujvo-making",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["example"],
                 probe: LUJVO_PROBE,
                 block: "LujvoMaking",
-            },
+            }],
         ),
         (
             "mediaobject",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["chapter", "section"],
                 probe: MEDIA_PROBE,
                 block: "Media",
-            },
+            }],
         ),
         (
             "member",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["simplelist"],
                 probe: "<simplelist><member>PROBE</member></simplelist>",
                 block: "SimpleListTable",
-            },
+            }],
         ),
         (
             "mfrac",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["mmlmath", "mrow"],
                 probe: MATH_PROBE,
-                block: "DisplayMath",
-            },
+                block: "InterlinearGloss",
+            }],
         ),
         (
             "mi",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["mrow", "msup"],
                 probe: MATH_PROBE,
-                block: "DisplayMath",
-            },
+                block: "InterlinearGloss",
+            }],
         ),
         (
             "mmlinlinemath",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &["para"],
                 probe: "<para><mmlinlinemath><mi>PROBE</mi></mmlinlinemath></para>",
                 inline: "InlineMath",
-            },
+            }],
         ),
         (
             "mmlmath",
-            ElementDisposition::Inline {
-                probe: "<para><mmlmath><mi>PROBE</mi></mmlmath></para>",
+            &[ElementDisposition::Inline {
+                contexts: &["example", "interlinear-gloss"],
+                probe: "<interlinear-gloss><mmlmath><mi>PROBE</mi></mmlmath></interlinear-gloss>",
                 inline: "InlineMath",
-            },
+            }],
         ),
         (
             "mn",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["mfrac", "mrow", "msup"],
                 probe: MATH_PROBE,
-                block: "DisplayMath",
-            },
+                block: "InterlinearGloss",
+            }],
         ),
         (
             "mo",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["mrow"],
                 probe: MATH_PROBE,
-                block: "DisplayMath",
-            },
+                block: "InterlinearGloss",
+            }],
         ),
         (
             "modal-place",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "morphology",
-            ElementDisposition::Flattened {
+            &[ElementDisposition::Flattened {
+                probe: "<para><morphology>PROBE</morphology></para>",
+                contexts: &["member", "para", "td"],
                 reason: "names a morphological fragment inline; the book prints the fragment itself, which is what the text carries",
-            },
+            }],
         ),
         (
             "mrow",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["mfrac", "mmlinlinemath", "mmlmath", "mrow", "msqrt"],
                 probe: MATH_PROBE,
-                block: "DisplayMath",
-            },
+                block: "InterlinearGloss",
+            }],
         ),
         (
             "msqrt",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["mrow"],
                 probe: MATH_PROBE,
-                block: "DisplayMath",
-            },
+                block: "InterlinearGloss",
+            }],
         ),
         (
             "msup",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["mrow"],
                 probe: MATH_PROBE,
-                block: "DisplayMath",
-            },
+                block: "InterlinearGloss",
+            }],
         ),
         (
             "natlang",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &[
+                    "interlinear-gloss",
+                    "interlinear-gloss-itemized",
+                    "lojbanization",
+                    "lujvo-making",
+                    "pronunciation",
+                ],
                 probe: GLOSS_PROBE,
                 block: "InterlinearGloss",
-            },
+            }],
         ),
         (
             "orderedlist",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["listitem", "para", "section"],
                 probe: "<orderedlist><listitem><para>PROBE</para></listitem></orderedlist>",
                 block: "List",
-            },
+            }],
         ),
         (
             "para",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &[
+                    "article",
+                    "blockquote",
+                    "example",
+                    "interlinear-gloss",
+                    "listitem",
+                    "section",
+                    "td",
+                ],
                 probe: "<para>PROBE</para>",
                 block: "Paragraph",
-            },
+            }],
         ),
         (
             "phrase",
-            ElementDisposition::Structural {
-                probe: MEDIA_PROBE,
-                block: "Media",
-            },
+            &[
+                ElementDisposition::Structural {
+                    contexts: &["textobject"],
+                    probe: MEDIA_PROBE,
+                    block: "Media",
+                },
+                ElementDisposition::Flattened {
+                    probe: "<para><phrase>PROBE</phrase></para>",
+                    contexts: &["member", "para", "td"],
+                    reason: "outside a media object it only marks a run of prose, whose text is the content",
+                },
+            ],
         ),
         (
             "primary",
-            ElementDisposition::IndexKey {
+            &[ElementDisposition::IndexKey {
+                contexts: &["indexterm"],
                 probe: "<indexterm><primary>PROBE</primary></indexterm>",
                 key: "PROBE",
-            },
+            }],
         ),
         (
             "pronunciation",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["example"],
                 probe: EXAMPLE_PROBE,
                 block: "Example",
-            },
+            }],
         ),
         (
             "pseudo-cmavo",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "quote",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "content",
+                    "description",
+                    "gloss",
+                    "member",
+                    "natlang",
+                    "para",
+                    "phrase",
+                    "primary",
+                    "quote",
+                    "secondary",
+                    "td",
+                    "title",
+                ],
                 probe: "<para><quote>PROBE</quote></para>",
                 inline: "Quote",
-            },
+            }],
         ),
         (
             "rafsi",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "cmavo-entry",
+                    "description",
+                    "lujvo-making",
+                    "member",
+                    "para",
+                    "quote",
+                    "rafsi-group",
+                    "td",
+                ],
                 probe: "<para><rafsi>PROBE</rafsi></para>",
                 inline: "Link",
-            },
+            }],
         ),
         (
             "rafsi-group",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "score",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["lujvo-making"],
                 probe: LUJVO_PROBE,
                 block: "LujvoMaking",
-            },
+            }],
         ),
         (
             "secondary",
-            ElementDisposition::IndexKey {
+            &[ElementDisposition::IndexKey {
+                contexts: &["indexterm"],
                 probe: "<indexterm><primary>a</primary><secondary>PROBE</secondary></indexterm>",
                 key: "a; PROBE",
-            },
+            }],
         ),
         (
             "section",
-            ElementDisposition::Division {
+            &[ElementDisposition::Division {
+                contexts: &["article", "chapter"],
                 probe: DIVISION_PROBE,
-            },
+            }],
         ),
         (
             "selbri",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["gloss", "jbo"],
                 probe: GLOSS_ITEMIZED_PROBE,
                 block: "InterlinearGloss",
-            },
+            }],
         ),
         (
             "selmaho",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "series",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["cmavo-entry"],
                 probe: CMAVO_LIST_PROBE,
                 block: "CmavoList",
-            },
+            }],
         ),
         (
             "simplelist",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["example", "para", "section", "td"],
                 probe: "<simplelist><member>PROBE</member></simplelist>",
                 block: "SimpleListTable",
-            },
+            }],
         ),
         (
             "subscript",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "content",
+                    "dbinlinemath",
+                    "dbmath",
+                    "description",
+                    "gloss",
+                    "para",
+                    "primary",
+                    "quote",
+                    "subscript",
+                    "sumti",
+                    "superscript",
+                    "td",
+                    "term",
+                ],
                 probe: "<para><subscript>PROBE</subscript></para>",
                 inline: "Subscript",
-            },
+            }],
         ),
         (
             "sumti",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["gloss", "jbo"],
                 probe: GLOSS_ITEMIZED_PROBE,
                 block: "InterlinearGloss",
-            },
+            }],
         ),
         (
             "superscript",
-            ElementDisposition::Inline {
-                probe: "<para><superscript>PROBE</superscript></para>",
+            &[ElementDisposition::Inline {
+                contexts: &["dbinlinemath", "dbmath", "description", "quote"],
+                probe: "<quote><superscript>PROBE</superscript></quote>",
                 inline: "Superscript",
-            },
+            }],
         ),
         (
             "table",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["section"],
                 probe: CAPTION_TABLE_PROBE,
                 block: "Table",
-            },
+            }],
         ),
         (
             "tbody",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["informaltable"],
                 probe: TABLE_PROBE,
                 block: "Table",
-            },
+            }],
         ),
         (
             "td",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["cmavo-list-head", "tr"],
                 probe: TABLE_PROBE,
                 block: "Table",
-            },
+            }],
         ),
         (
             "term",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["varlistentry"],
                 probe: "<variablelist><varlistentry><term>PROBE</term><listitem><para>x</para></listitem></varlistentry></variablelist>",
                 block: "VariableList",
-            },
+            }],
         ),
         (
             "tertiary",
-            ElementDisposition::IndexKey {
+            &[ElementDisposition::IndexKey {
+                contexts: &["indexterm"],
                 probe: "<indexterm><primary>a</primary><secondary>b</secondary><tertiary>PROBE</tertiary></indexterm>",
                 key: "a; b; PROBE",
-            },
+            }],
         ),
         (
             "textobject",
-            ElementDisposition::Transparent {
+            &[ElementDisposition::Transparent {
+                contexts: &["mediaobject"],
                 probe: MEDIA_PROBE,
                 block: "Media",
-            },
+            }],
         ),
         (
             "th",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["tr"],
                 probe: TABLE_PROBE,
                 block: "Table",
-            },
+            }],
         ),
         (
             "thead",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["informaltable"],
                 probe: TABLE_PROBE,
                 block: "Table",
-            },
+            }],
         ),
         (
             "title",
-            ElementDisposition::Division {
+            &[ElementDisposition::Division {
+                contexts: &["article", "chapter", "cmavo-list", "example", "section"],
                 probe: DIVISION_PROBE,
-            },
+            }],
         ),
         (
             "tr",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["informaltable", "table", "tbody", "thead"],
                 probe: TABLE_PROBE,
                 block: "Table",
-            },
+            }],
         ),
         (
             "valsi",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &[
+                    "attitudinal-scale",
+                    "cmavo",
+                    "content",
+                    "definition",
+                    "description",
+                    "gismu",
+                    "gloss",
+                    "grammar-template",
+                    "member",
+                    "natlang",
+                    "para",
+                    "quote",
+                    "secondary",
+                    "td",
+                    "title",
+                ],
                 probe: "<para><valsi>PROBE</valsi></para>",
                 inline: "Link",
-            },
+            }],
         ),
         (
             "variablelist",
-            ElementDisposition::Block {
+            &[ElementDisposition::Block {
+                contexts: &["section"],
                 probe: "<variablelist><varlistentry><term>PROBE</term><listitem><para>x</para></listitem></varlistentry></variablelist>",
                 block: "VariableList",
-            },
+            }],
         ),
         (
             "varlistentry",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["variablelist"],
                 probe: "<variablelist><varlistentry><term>PROBE</term><listitem><para>x</para></listitem></varlistentry></variablelist>",
                 block: "VariableList",
-            },
+            }],
         ),
         (
             "veljvo",
-            ElementDisposition::Structural {
+            &[ElementDisposition::Structural {
+                contexts: &["lujvo-making"],
                 probe: LUJVO_PROBE,
                 block: "LujvoMaking",
-            },
+            }],
         ),
         (
             "xref",
-            ElementDisposition::Inline {
+            &[ElementDisposition::Inline {
+                contexts: &["bridgehead", "description", "para", "rafsi", "td"],
                 probe: r#"<para><xref linkend="probe-section"/>PROBE</para>"#,
                 inline: "Link",
-            },
+            }],
         ),
     ];
 
@@ -3369,6 +3679,9 @@ mod tests {
     /// use, so an element's own content can be told from its siblings'.
     const UNIQUE_MARKER: &str = "PROBEUNIQUE";
 
+    /// Payload for an element whose content the importer must discard.
+    const DISCARDED_MARKER: &str = "PROBEDISCARDED";
+
     #[requires(true)]
     #[ensures(true)]
     fn probe_context() -> SectionParseContext {
@@ -3410,6 +3723,43 @@ mod tests {
         parse_inlines(document.root_element())
     }
 
+    /// The tags a probe places `name` under. A disposition has to be probed in
+    /// a container the book really uses, or the answer it records is about a
+    /// shape the importer never meets.
+    #[requires(!name.is_empty())]
+    #[ensures(true)]
+    fn probe_parents(probe: &str, name: &str) -> BTreeSet<String> {
+        let document = Document::parse(probe).unwrap_or_else(|error| panic!("{probe}: {error}"));
+        document
+            .descendants()
+            .filter(|node| node.is_element() && node.tag_name().name() == name)
+            .filter_map(|node| node.parent_element())
+            .map(|parent| parent.tag_name().name().to_owned())
+            .collect()
+    }
+
+    /// Every parent tag the vendored sources put each element under.
+    #[requires(true)]
+    #[ensures(true)]
+    fn vendored_parents() -> BTreeMap<String, BTreeSet<String>> {
+        let mut parents: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for (source_path, _, compressed) in EMBEDDED_CLL_CHAPTERS {
+            let xml = decode_chapter_xml(compressed).expect("embedded chapter should decompress");
+            let xml = sanitize_xml_entities(&xml);
+            let document = Document::parse(&xml)
+                .unwrap_or_else(|error| panic!("{source_path} should parse: {error}"));
+            for node in document.descendants().filter(Node::is_element) {
+                if let Some(parent) = node.parent_element() {
+                    parents
+                        .entry(node.tag_name().name().to_owned())
+                        .or_default()
+                        .insert(parent.tag_name().name().to_owned());
+                }
+            }
+        }
+        parents
+    }
+
     /// The probe with `name`'s own payload text made unique, so that a check
     /// for it proves *this* element's content survived rather than some
     /// sibling's. Returns `None` for an element that carries no text of its own
@@ -3418,10 +3768,24 @@ mod tests {
     #[requires(!name.is_empty())]
     #[ensures(ret.as_ref().is_none_or(|marked| marked.contains(UNIQUE_MARKER)))]
     fn with_unique_payload(probe: &str, name: &str) -> Option<String> {
-        let plain = format!("<{name}>PROBE</{name}>");
-        probe
-            .contains(&plain)
-            .then(|| probe.replace(&plain, &format!("<{name}>{UNIQUE_MARKER}</{name}>")))
+        let open = format!("<{name}>");
+        let close = format!("</{name}>");
+        let start = probe.find(&open)? + open.len();
+        let end = probe[start..].find(&close)? + start;
+        (!probe[start..end].is_empty() && !probe[start..end].contains('<'))
+            .then(|| format!("{}{UNIQUE_MARKER}{}", &probe[..start], &probe[end..]))
+    }
+
+    /// Whether the probe gives `name` element children - the shape of a wrapper
+    /// whose content is its children rather than its own text.
+    #[requires(!name.is_empty())]
+    #[ensures(true)]
+    fn probe_wraps_elements(probe: &str, name: &str) -> bool {
+        let document = Document::parse(probe).unwrap_or_else(|error| panic!("{probe}: {error}"));
+        document
+            .descendants()
+            .filter(|node| node.is_element() && node.tag_name().name() == name)
+            .any(|node| node.children().any(|child| child.is_element()))
     }
 
     /// The probe with `name`'s own tags renamed to an element the importer has
@@ -3495,8 +3859,64 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn every_inventoried_element_is_treated_as_the_inventory_declares() {
-        for (name, disposition) in VENDORED_ELEMENTS {
-            let is_block = matches!(disposition, ElementDisposition::Block { .. });
+        let vendored = vendored_parents();
+        let mut context_problems = Vec::new();
+        for (name, dispositions) in VENDORED_ELEMENTS {
+            assert!(
+                !dispositions.is_empty(),
+                "`{name}` must declare how the importer treats it"
+            );
+            let is_block = dispositions
+                .iter()
+                .any(|disposition| matches!(disposition, ElementDisposition::Block { .. }));
+
+            // Every context the book uses this element in has to be accounted
+            // for by some disposition, and no disposition may claim a context
+            // the book never writes. Without this an element could be declared
+            // by whichever single container gives the flattering answer -
+            // `colgroup` as `Flattened` because it flattens inside a `<para>`
+            // it never appears in, or `comment` as `Flattened` while a gloss
+            // reads it by name.
+            let declared = dispositions
+                .iter()
+                .flat_map(|disposition| {
+                    disposition
+                        .contexts()
+                        .iter()
+                        .map(|context| (*context).to_owned())
+                })
+                .collect::<BTreeSet<_>>();
+            let actual = vendored.get(*name).cloned().unwrap_or_default();
+            if declared != actual {
+                context_problems.push(format!(
+                    "`{name}` declares contexts {declared:?} but the sources use it in {actual:?}"
+                ));
+            }
+
+            // A container-relative claim has to be probed inside a container the
+            // book really uses it in. `parse_block` and `parse_inlines` dispatch
+            // on the tag name alone, so those claims hold in any container and
+            // their probes are free-standing; but whether an element is read by
+            // its container, passed through, ignored, or flattened is a fact
+            // about the container, and answering it in a shape the book never
+            // writes answers a different question. Probing `colgroup` in a
+            // `<para>` is how it came to be called flattened.
+            for disposition in *dispositions {
+                if !disposition.is_container_relative() {
+                    continue;
+                }
+                let contexts = disposition
+                    .contexts()
+                    .iter()
+                    .map(|context| (*context).to_owned())
+                    .collect::<BTreeSet<_>>();
+                let probed = probe_parents(disposition.probe(), name);
+                if probed.is_empty() || !probed.is_subset(&contexts) {
+                    context_problems.push(format!(
+                        "`{name}` is probed under {probed:?}, not among its claimed contexts {contexts:?}"
+                    ));
+                }
+            }
             let block_probe = format!("<{name}>PROBE</{name}>");
             let document = Document::parse(&block_probe).expect("bare probe parses");
             assert_eq!(
@@ -3506,145 +3926,197 @@ mod tests {
                 if is_block { "" } else { "not " }
             );
 
-            match disposition {
-                ElementDisposition::Division { probe } => {
-                    let document = Document::parse(probe).expect("division probe parses");
-                    let (chapter, sections, ..) =
-                        parse_chapter(document.root_element(), CllDivision::Appendix, "probe.xml")
-                            .expect("a division probe imports");
-                    assert!(
-                        format!("{chapter:?}{sections:?}").contains("PROBE"),
-                        "`{name}` belongs to the division skeleton, so its text must survive import"
-                    );
-                }
-                ElementDisposition::Block { probe, block } => {
-                    let (blocks, examples) = probe_blocks(probe);
-                    assert_eq!(
-                        blocks
-                            .iter()
-                            .map(|value| variant_name(&format!("{value:?}")))
-                            .collect::<Vec<_>>(),
-                        vec![(*block).to_owned()],
-                        "`{name}` must import as a single {block} block"
-                    );
-                    assert!(
-                        format!("{blocks:?}{examples:?}").contains("PROBE"),
-                        "`{name}`'s content must survive import"
-                    );
-                }
-                ElementDisposition::Inline { probe, inline } => {
-                    let inlines = probe_inlines(probe);
-                    assert!(
-                        inlines
-                            .iter()
-                            .any(|value| variant_name(&format!("{value:?}")) == *inline),
-                        "`{name}` must import as a {inline} inline, got {inlines:?}"
-                    );
-                }
-                ElementDisposition::Consumed { probe } => {
-                    let inlines = probe_inlines(probe);
-                    assert!(
-                        inlines
-                            .iter()
-                            .all(|value| matches!(value, CllInline::Text(_))),
-                        "`{name}` is read for its side effect and contributes no inline of its own, got {inlines:?}"
-                    );
-                }
-                ElementDisposition::IndexKey { probe, key } => {
-                    let document = Document::parse(probe).expect("index probe parses");
-                    assert_eq!(
-                        index_key(document.root_element()).as_deref(),
-                        Some(*key),
-                        "`{name}` must contribute to the index key"
-                    );
-                }
-                ElementDisposition::Structural { probe, block } => {
-                    assert!(
-                        probe.contains(&format!("<{name}>"))
-                            || probe.contains(&format!("<{name} ")),
-                        "`{name}` must appear in its own container probe"
-                    );
-                    let (blocks, examples) = probe_blocks(probe);
-                    assert_eq!(
-                        blocks
-                            .iter()
-                            .map(|value| variant_name(&format!("{value:?}")))
-                            .collect::<Vec<_>>(),
-                        vec![(*block).to_owned()],
-                        "`{name}`'s container must import as a single {block} block"
-                    );
-                    assert!(
-                        format!("{blocks:?}{examples:?}").contains("PROBE"),
-                        "`{name}` is read by its container, so its text must survive import"
-                    );
-                    if let Some(marked) = with_unique_payload(probe, name) {
-                        let (marked_blocks, marked_examples) = probe_blocks(&marked);
+            for disposition in *dispositions {
+                match disposition {
+                    ElementDisposition::Division { probe, .. } => {
+                        let document = Document::parse(probe).expect("division probe parses");
+                        let (chapter, sections, ..) = parse_chapter(
+                            document.root_element(),
+                            CllDivision::Appendix,
+                            "probe.xml",
+                        )
+                        .expect("a division probe imports");
                         assert!(
-                            format!("{marked_blocks:?}{marked_examples:?}").contains(UNIQUE_MARKER),
-                            "`{name}`'s own text must reach the import, not just some sibling's"
+                            format!("{chapter:?}{sections:?}").contains("PROBE"),
+                            "`{name}` belongs to the division skeleton, so its text must survive import"
                         );
                     }
-                    let (without, without_examples) = probe_blocks(&without_element(probe, name));
-                    assert_ne!(
-                        format!("{blocks:?}{examples:?}"),
-                        format!("{without:?}{without_examples:?}"),
-                        "`{name}` is declared structural, but renaming it away leaves the container's import unchanged, so nothing reads it"
-                    );
-                }
-                ElementDisposition::Transparent { probe, block } => {
-                    assert!(
-                        probe.contains(&format!("<{name}>"))
-                            || probe.contains(&format!("<{name} ")),
-                        "`{name}` must appear in its own container probe"
-                    );
-                    let (blocks, examples) = probe_blocks(probe);
-                    assert_eq!(
-                        blocks
-                            .iter()
-                            .map(|value| variant_name(&format!("{value:?}")))
-                            .collect::<Vec<_>>(),
-                        vec![(*block).to_owned()],
-                        "`{name}`'s container must import as a single {block} block"
-                    );
-                    assert!(
-                        format!("{blocks:?}{examples:?}").contains("PROBE"),
-                        "`{name}`'s content must survive import even though its name is not consulted"
-                    );
-                    if let Some(marked) = with_unique_payload(probe, name) {
-                        let (marked_blocks, marked_examples) = probe_blocks(&marked);
+                    ElementDisposition::Block { probe, block, .. } => {
+                        let (blocks, examples) = probe_blocks(probe);
+                        assert_eq!(
+                            blocks
+                                .iter()
+                                .map(|value| variant_name(&format!("{value:?}")))
+                                .collect::<Vec<_>>(),
+                            vec![(*block).to_owned()],
+                            "`{name}` must import as a single {block} block"
+                        );
                         assert!(
-                            format!("{marked_blocks:?}{marked_examples:?}").contains(UNIQUE_MARKER),
-                            "`{name}`'s own text must reach the import, not just some sibling's"
+                            format!("{blocks:?}{examples:?}").contains("PROBE"),
+                            "`{name}`'s content must survive import"
                         );
                     }
-                    let (without, without_examples) = probe_blocks(&without_element(probe, name));
-                    assert_eq!(
-                        format!("{blocks:?}{examples:?}"),
-                        format!("{without:?}{without_examples:?}"),
-                        "`{name}` is declared transparent, but renaming it changes what the container imports, so the name is consulted after all"
-                    );
-                }
-                ElementDisposition::Flattened { reason } => {
-                    assert!(
-                        !reason.is_empty(),
-                        "`{name}` is flattened, which has to be a stated decision"
-                    );
-                    let inlines = probe_inlines(&format!("<para><{name}>PROBE</{name}></para>"));
-                    assert!(
-                        inlines
-                            .iter()
-                            .all(|value| matches!(value, CllInline::Text(_))),
-                        "`{name}` is declared flattened but the importer gives it a typed inline: {inlines:?}"
-                    );
-                    assert!(
+                    ElementDisposition::Inline { probe, inline, .. } => {
+                        let inlines = probe_inlines(probe);
+                        assert!(
+                            inlines
+                                .iter()
+                                .any(|value| variant_name(&format!("{value:?}")) == *inline),
+                            "`{name}` must import as a {inline} inline, got {inlines:?}"
+                        );
+                    }
+                    ElementDisposition::Consumed { probe, .. } => {
+                        let inlines = probe_inlines(probe);
+                        assert!(
+                            inlines
+                                .iter()
+                                .all(|value| matches!(value, CllInline::Text(_))),
+                            "`{name}` is read for its side effect and contributes no inline of its own, got {inlines:?}"
+                        );
+                    }
+                    ElementDisposition::IndexKey { probe, key, .. } => {
+                        let document = Document::parse(probe).expect("index probe parses");
+                        assert_eq!(
+                            index_key(document.root_element()).as_deref(),
+                            Some(*key),
+                            "`{name}` must contribute to the index key"
+                        );
+                    }
+                    ElementDisposition::Structural { probe, block, .. } => {
+                        assert!(
+                            probe.contains(&format!("<{name}>"))
+                                || probe.contains(&format!("<{name} ")),
+                            "`{name}` must appear in its own container probe"
+                        );
+                        let (blocks, examples) = probe_blocks(probe);
+                        assert_eq!(
+                            blocks
+                                .iter()
+                                .map(|value| variant_name(&format!("{value:?}")))
+                                .collect::<Vec<_>>(),
+                            vec![(*block).to_owned()],
+                            "`{name}`'s container must import as a single {block} block"
+                        );
+                        assert!(
+                            format!("{blocks:?}{examples:?}").contains("PROBE"),
+                            "`{name}` is read by its container, so its text must survive import"
+                        );
+                        if let Some(marked) = with_unique_payload(probe, name) {
+                            let (marked_blocks, marked_examples) = probe_blocks(&marked);
+                            assert!(
+                                format!("{marked_blocks:?}{marked_examples:?}")
+                                    .contains(UNIQUE_MARKER),
+                                "`{name}`'s own text must reach the import, not just some sibling's"
+                            );
+                        }
+                        let (without, without_examples) =
+                            probe_blocks(&without_element(probe, name));
+                        assert_ne!(
+                            format!("{blocks:?}{examples:?}"),
+                            format!("{without:?}{without_examples:?}"),
+                            "`{name}` is declared structural, but renaming it away leaves the container's import unchanged, so nothing reads it"
+                        );
+                    }
+                    ElementDisposition::Transparent { probe, block, .. } => {
+                        assert!(
+                            probe.contains(&format!("<{name}>"))
+                                || probe.contains(&format!("<{name} ")),
+                            "`{name}` must appear in its own container probe"
+                        );
+                        let (blocks, examples) = probe_blocks(probe);
+                        assert_eq!(
+                            blocks
+                                .iter()
+                                .map(|value| variant_name(&format!("{value:?}")))
+                                .collect::<Vec<_>>(),
+                            vec![(*block).to_owned()],
+                            "`{name}`'s container must import as a single {block} block"
+                        );
+                        assert!(
+                            format!("{blocks:?}{examples:?}").contains("PROBE"),
+                            "`{name}`'s content must survive import even though its name is not consulted"
+                        );
+                        // Transparency means content passes through. An element
+                        // carrying its own text must have that text reach the
+                        // import - which is what an ignored element like
+                        // `colgroup` fails - and a wrapper must have children to
+                        // pass through in the first place.
+                        match with_unique_payload(probe, name) {
+                            Some(marked) => {
+                                let (marked_blocks, marked_examples) = probe_blocks(&marked);
+                                assert!(
+                                    format!("{marked_blocks:?}{marked_examples:?}")
+                                        .contains(UNIQUE_MARKER),
+                                    "`{name}`'s own text must reach the import, not just some sibling's"
+                                );
+                            }
+                            None => assert!(
+                                probe_wraps_elements(probe, name),
+                                "`{name}` is declared transparent, but its probe gives it nothing to pass through"
+                            ),
+                        }
+                        let (without, without_examples) =
+                            probe_blocks(&without_element(probe, name));
+                        assert_eq!(
+                            format!("{blocks:?}{examples:?}"),
+                            format!("{without:?}{without_examples:?}"),
+                            "`{name}` is declared transparent, but renaming it changes what the container imports, so the name is consulted after all"
+                        );
+                    }
+                    ElementDisposition::Ignored { probe, block, .. } => {
+                        assert!(
+                            probe.contains(&format!("<{name}>"))
+                                || probe.contains(&format!("<{name} ")),
+                            "`{name}` must appear in its own container probe"
+                        );
+                        let (blocks, examples) = probe_blocks(probe);
+                        assert_eq!(
+                            blocks
+                                .iter()
+                                .map(|value| variant_name(&format!("{value:?}")))
+                                .collect::<Vec<_>>(),
+                            vec![(*block).to_owned()],
+                            "`{name}`'s container must import as a single {block} block"
+                        );
+                        assert!(
+                            !format!("{blocks:?}{examples:?}").contains(DISCARDED_MARKER),
+                            "`{name}` is declared ignored, but its container carried its content into the import"
+                        );
+                        let (without, without_examples) =
+                            probe_blocks(&without_element(probe, name));
+                        assert_eq!(
+                            format!("{blocks:?}{examples:?}"),
+                            format!("{without:?}{without_examples:?}"),
+                            "`{name}` is declared ignored, but renaming it changes what the container imports"
+                        );
+                    }
+                    ElementDisposition::Flattened { probe, reason, .. } => {
+                        assert!(
+                            !reason.is_empty(),
+                            "`{name}` is flattened, which has to be a stated decision"
+                        );
+                        let inlines = probe_inlines(probe);
+                        assert!(
+                            inlines
+                                .iter()
+                                .all(|value| matches!(value, CllInline::Text(_))),
+                            "`{name}` is declared flattened but the importer gives it a typed inline: {inlines:?}"
+                        );
+                        assert!(
                         inlines.iter().any(
                             |value| matches!(value, CllInline::Text(text) if text.contains("PROBE"))
                         ),
                         "`{name}` is declared flattened, so its own text is all that survives"
                     );
+                    }
                 }
             }
         }
+        assert!(
+            context_problems.is_empty(),
+            "the inventory's contexts disagree with the vendored sources:\n{}",
+            context_problems.join("\n")
+        );
     }
 
     /// The importer's block vocabulary is a statement about the input format,

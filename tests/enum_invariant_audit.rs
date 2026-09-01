@@ -536,6 +536,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
     ),
     (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Ignored",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
         "crates/jbotci-cll/src/import.rs:ElementDisposition::IndexKey",
         "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
     ),
