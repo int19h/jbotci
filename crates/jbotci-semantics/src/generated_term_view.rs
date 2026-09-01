@@ -17,17 +17,18 @@ use jbotci_syntax::generated_model::{
     BareNaTermSyntax, BoGroupedBridiTailSyntax, BoGroupedBridiTailWithoutTailTermsSyntax,
     BoundTermContinuationSyntax, BoundTermSyntax, BridiTailBoJointSyntax,
     BridiTailBoJointWithoutTailTermsSyntax, CeheTermSyntax, ElidedNaheFihoTagTermSyntax,
-    ExpTailTermsPrefixSyntax, FihoiAdverbialTermSyntax, ForethoughtTermsetSyntax, GekTermsetSyntax,
-    JaiTaggedSumtiTermSyntax, KeTermsetSyntax, LeadingTermTagTenseModalSyntax, LinkedTermSyntax,
-    LooseTermSyntax, NaKuTermSyntax, NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax,
-    NonabsTermSyntax, NormalTermSyntax, NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax,
-    PlaceTaggedSumtiTermSyntax, PlainLinkedSumtiSyntax, SelbriSimpleBridiTailSyntax,
+    ExpSoiAdverbialTermSyntax, ExpTailTermsPrefixSyntax, FihoiProposalAdverbialTermSyntax,
+    ForethoughtTermsetSyntax, GekTermsetSyntax, JaiTaggedSumtiTermSyntax, KeTermsetSyntax,
+    LeadingTermTagTenseModalSyntax, LinkedTermSyntax, LooseTermSyntax, NaKuTermSyntax,
+    NoihaAdverbialTermSyntax, NonabsTaggedSumtiTermSyntax, NonabsTermSyntax, NormalTermSyntax,
+    NuhiTermsetSyntax, PlaceTaggedLinkedSumtiSyntax, PlaceTaggedSumtiTermSyntax,
+    PlainLinkedSumtiSyntax, SelbriSimpleBridiTailSyntax,
     SelbriSimpleBridiTailWithoutTailTermsSyntax, SimpleBridiTailSyntax,
-    SimpleBridiTailWithoutTailTermsSyntax, SimpleTermSyntax, SoiAdverbialTermSyntax,
-    SumtiBoundSyntax, SumtiBoundTailSyntax, SumtiConnectiveSyntax, SumtiTermSyntax,
-    TaggedOrElidedSumtiSyntax, TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax,
-    TenseModalSyntax, TenseTaggedLinkedSumtiSyntax, TermSyntax, ZantufaGekTermsetSyntax,
-    ZantufaJoikChainedPlaceTagTermSyntax,
+    SimpleBridiTailWithoutTailTermsSyntax, SimpleTermSyntax, SumtiBoundSyntax,
+    SumtiBoundTailSyntax, SumtiConnectiveSyntax, SumtiTermSyntax, TaggedOrElidedSumtiSyntax,
+    TaggedSumtiBeforeTagTermSyntax, TaggedSumtiTermSyntax, TenseModalSyntax,
+    TenseTaggedLinkedSumtiSyntax, TermSyntax, ZantufaGekTermsetSyntax,
+    ZantufaJoikChainedPlaceTagTermSyntax, ZantufaXoiAdverbialTermSyntax,
 };
 
 /// A borrowed tag-led term leaf.
@@ -268,8 +269,9 @@ pub(crate) fn bound_term_continuation_operand(
 #[invariant(::TaggedSumtiBeforeTagTerm(_) => true)]
 #[invariant(::TaggedSumtiTerm(_) => true)]
 #[invariant(::NoihaAdverbialTerm(_) => true)]
-#[invariant(::FihoiAdverbialTerm(_) => true)]
-#[invariant(::SoiAdverbialTerm(_) => true)]
+#[invariant(::FihoiProposalAdverbialTerm(_) => true)]
+#[invariant(::ZantufaXoiAdverbialTerm(_) => true)]
+#[invariant(::ExpSoiAdverbialTerm(_) => true)]
 #[invariant(::NaKuTerm(_) => true)]
 #[invariant(::SumtiTerm(_) => true)]
 #[invariant(::BareNaTerm(_) => true)]
@@ -287,8 +289,9 @@ pub(crate) enum GeneratedSimpleTermRef<'syntax> {
     TaggedSumtiBeforeTagTerm(&'syntax TaggedSumtiBeforeTagTermSyntax),
     TaggedSumtiTerm(GeneratedTaggedTermRef<'syntax>),
     NoihaAdverbialTerm(&'syntax NoihaAdverbialTermSyntax),
-    FihoiAdverbialTerm(&'syntax FihoiAdverbialTermSyntax),
-    SoiAdverbialTerm(&'syntax SoiAdverbialTermSyntax),
+    FihoiProposalAdverbialTerm(&'syntax FihoiProposalAdverbialTermSyntax),
+    ZantufaXoiAdverbialTerm(&'syntax ZantufaXoiAdverbialTermSyntax),
+    ExpSoiAdverbialTerm(&'syntax ExpSoiAdverbialTermSyntax),
     NaKuTerm(&'syntax NaKuTermSyntax),
     SumtiTerm(&'syntax SumtiTermSyntax),
     BareNaTerm(&'syntax BareNaTermSyntax),
@@ -318,8 +321,11 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 Self::TaggedSumtiTerm(GeneratedTaggedTermRef::from_guarded(term))
             }
             SimpleTermSyntax::NoihaAdverbialTerm(term) => Self::NoihaAdverbialTerm(term),
-            SimpleTermSyntax::FihoiAdverbialTerm(term) => Self::FihoiAdverbialTerm(term),
-            SimpleTermSyntax::SoiAdverbialTerm(term) => Self::SoiAdverbialTerm(term),
+            SimpleTermSyntax::FihoiProposalAdverbialTerm(term) => {
+                Self::FihoiProposalAdverbialTerm(term)
+            }
+            SimpleTermSyntax::ZantufaXoiAdverbialTerm(term) => Self::ZantufaXoiAdverbialTerm(term),
+            SimpleTermSyntax::ExpSoiAdverbialTerm(term) => Self::ExpSoiAdverbialTerm(term),
             SimpleTermSyntax::NaKuTerm(term) => Self::NaKuTerm(term),
             SimpleTermSyntax::SumtiTerm(term) => Self::SumtiTerm(term),
             SimpleTermSyntax::BareNaTerm(term) => Self::BareNaTerm(term),
@@ -350,8 +356,13 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 GeneratedTaggedTermRef::from_guarded(term),
             )),
             BoundTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
-            BoundTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
-            BoundTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            BoundTermSyntax::FihoiProposalAdverbialTerm(term) => {
+                Some(Self::FihoiProposalAdverbialTerm(term))
+            }
+            BoundTermSyntax::ZantufaXoiAdverbialTerm(term) => {
+                Some(Self::ZantufaXoiAdverbialTerm(term))
+            }
+            BoundTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             BoundTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             BoundTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             BoundTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
@@ -385,8 +396,11 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 GeneratedTaggedTermRef::from_guarded(term),
             )),
             TermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
-            TermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
-            TermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            TermSyntax::FihoiProposalAdverbialTerm(term) => {
+                Some(Self::FihoiProposalAdverbialTerm(term))
+            }
+            TermSyntax::ZantufaXoiAdverbialTerm(term) => Some(Self::ZantufaXoiAdverbialTerm(term)),
+            TermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             TermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             TermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             TermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
@@ -419,8 +433,13 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 GeneratedTaggedTermRef::from_guarded(term),
             )),
             CeheTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
-            CeheTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
-            CeheTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            CeheTermSyntax::FihoiProposalAdverbialTerm(term) => {
+                Some(Self::FihoiProposalAdverbialTerm(term))
+            }
+            CeheTermSyntax::ZantufaXoiAdverbialTerm(term) => {
+                Some(Self::ZantufaXoiAdverbialTerm(term))
+            }
+            CeheTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             CeheTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             CeheTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             CeheTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
@@ -451,8 +470,13 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 GeneratedTaggedTermRef::from_guarded(term),
             )),
             LooseTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
-            LooseTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
-            LooseTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            LooseTermSyntax::FihoiProposalAdverbialTerm(term) => {
+                Some(Self::FihoiProposalAdverbialTerm(term))
+            }
+            LooseTermSyntax::ZantufaXoiAdverbialTerm(term) => {
+                Some(Self::ZantufaXoiAdverbialTerm(term))
+            }
+            LooseTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             LooseTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             LooseTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             LooseTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
@@ -489,8 +513,13 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 GeneratedTaggedTermRef::from_unguarded(term),
             )),
             NonabsTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
-            NonabsTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
-            NonabsTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            NonabsTermSyntax::FihoiProposalAdverbialTerm(term) => {
+                Some(Self::FihoiProposalAdverbialTerm(term))
+            }
+            NonabsTermSyntax::ZantufaXoiAdverbialTerm(term) => {
+                Some(Self::ZantufaXoiAdverbialTerm(term))
+            }
+            NonabsTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             NonabsTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             NonabsTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             NonabsTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
@@ -528,8 +557,13 @@ impl<'syntax> GeneratedSimpleTermRef<'syntax> {
                 GeneratedTaggedTermRef::from_unguarded(term),
             )),
             NormalTermSyntax::NoihaAdverbialTerm(term) => Some(Self::NoihaAdverbialTerm(term)),
-            NormalTermSyntax::FihoiAdverbialTerm(term) => Some(Self::FihoiAdverbialTerm(term)),
-            NormalTermSyntax::SoiAdverbialTerm(term) => Some(Self::SoiAdverbialTerm(term)),
+            NormalTermSyntax::FihoiProposalAdverbialTerm(term) => {
+                Some(Self::FihoiProposalAdverbialTerm(term))
+            }
+            NormalTermSyntax::ZantufaXoiAdverbialTerm(term) => {
+                Some(Self::ZantufaXoiAdverbialTerm(term))
+            }
+            NormalTermSyntax::ExpSoiAdverbialTerm(term) => Some(Self::ExpSoiAdverbialTerm(term)),
             NormalTermSyntax::NaKuTerm(term) => Some(Self::NaKuTerm(term)),
             NormalTermSyntax::SumtiTerm(term) => Some(Self::SumtiTerm(term)),
             NormalTermSyntax::BareNaTerm(term) => Some(Self::BareNaTerm(term)),
@@ -578,8 +612,9 @@ impl<'syntax> GeneratedAssociationPayloadRef<'syntax> {
             | GeneratedSimpleTermRef::ElidedNaheFihoTagTerm(_)
             | GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(_)
             | GeneratedSimpleTermRef::NoihaAdverbialTerm(_)
-            | GeneratedSimpleTermRef::FihoiAdverbialTerm(_)
-            | GeneratedSimpleTermRef::SoiAdverbialTerm(_)
+            | GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(_)
+            | GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(_)
+            | GeneratedSimpleTermRef::ExpSoiAdverbialTerm(_)
             | GeneratedSimpleTermRef::BareNaTerm(_)
             | GeneratedSimpleTermRef::GekTermset(_)
             | GeneratedSimpleTermRef::ZantufaGekTermset(_)

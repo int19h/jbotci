@@ -1068,6 +1068,18 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
+        name: "selbri relative clauses",
+        parent: Some("selbri"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "selbri relative clause",
+        parent: Some("selbri relative clauses"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
         name: "sumti association phrase",
         parent: Some("relative clause"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -1562,6 +1574,12 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
     },
     SyntaxConstructMetadata {
         name: "SOI adverbial",
+        parent: Some("term"),
+        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
+        wiring: SyntaxConstructWiring::Parser,
+    },
+    SyntaxConstructMetadata {
+        name: "XOI adverbial",
         parent: Some("term"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
         wiring: SyntaxConstructWiring::Parser,

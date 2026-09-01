@@ -1472,8 +1472,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing ElidedNaheFihoTagTermSyntax node",
     ),
     (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::FihoiAdverbialTerm",
-        "borrowed leaf validity is owned by the invariant-bearing FihoiAdverbialTermSyntax node",
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ExpSoiAdverbialTerm",
+        "borrowed leaf validity is owned by the invariant-bearing ExpSoiAdverbialTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ForethoughtTermset",
@@ -1512,8 +1512,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing PlaceTaggedSumtiTermSyntax node",
     ),
     (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::SoiAdverbialTerm",
-        "borrowed leaf validity is owned by the invariant-bearing SoiAdverbialTermSyntax node",
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::FihoiProposalAdverbialTerm",
+        "borrowed leaf validity is owned by the invariant-bearing FihoiProposalAdverbialTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm",
+        "borrowed leaf validity is owned by the invariant-bearing ZantufaXoiAdverbialTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::SumtiTerm",

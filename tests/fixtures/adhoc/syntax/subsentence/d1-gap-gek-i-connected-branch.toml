@@ -1,0 +1,12 @@
+id = "adhoc.syntax.subsentence.d1-gap-gek-i-connected-branch"
+lojban = "lo broda poi ge mi brode ije do brodi gi da brodi ku'o cu brodi"
+tags = ["adhoc", "syntax", "subsentence-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-8 subsentence ownership matrix witness"
+description = "The documented gek gap, rejection side: rolling Zantufa's statement-level gek_statement takes I-connected statements as branches, while the sentence-level gek_sentence inside bridi that carries the accepted twin takes sentences. A gek whose own branch is I-connected therefore has no route in either profile."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [25, 26], source-text = "i", message = "unexpected cmavo" }]

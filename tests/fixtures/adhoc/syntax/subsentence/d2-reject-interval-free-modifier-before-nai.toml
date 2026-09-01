@@ -1,0 +1,12 @@
+id = "adhoc.syntax.subsentence.d2-reject-interval-free-modifier-before-nai"
+lojban = "broda no'oi mi brode bi'i to do brodi toi nai no'oi do brodi"
+tags = ["adhoc", "syntax", "subsentence-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-8 subsentence ownership matrix witness"
+description = "The interval form of the same placement: interval <- SE_clause? BIhI_clause NAI_clause? (:349) has no slot before NAI either. The closed interval needs no witness of its own -- its jbotci node already carries the slot on the closing GAhO, after the NAI, where the source puts it."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [46, 51], source-text = "no'oi", message = "unexpected cmavo" }]

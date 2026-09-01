@@ -1975,6 +1975,23 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     propagation_compound(trailing, vec![leading]),
                 )
             }
+            // A relative clause on a tanru unit restricts what the unit relates without
+            // changing its place structure, exactly as a sumti relative clause does, so the
+            // frame is the leading unit's.
+            generated::PlainBoSelbriSyntax::ExpRelativeTanruUnit(unit) => {
+                let leading = self.analyze_relation_unit(&unit.leading_unit);
+                let Some(tail) = unit.bo_tail.as_deref() else {
+                    return leading;
+                };
+                let trailing = self.analyze_plain_bo_selbri(&tail.trailing_selbri);
+                self.add_frame(
+                    self.raw_for_node(unit),
+                    PlaceFrameKind::Compound,
+                    None,
+                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
+                    propagation_compound(trailing, vec![leading]),
+                )
+            }
             generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(selbri) => {
                 let branches = match selbri {
                     generated::ForethoughtSelbriConnectionSyntax::StandardForethoughtSelbriConnection(
@@ -2872,8 +2889,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             }
             GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => self.walk_node(term),
-            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => self.walk_node(term),
-            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => self.walk_node(term),
+            GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::NaKuTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::BareNaTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::GekTermset(term) => self.walk_node(term),
@@ -3602,11 +3620,14 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 }
                 self.walk_node(&term.sumti);
             }
-            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
-                self.walk_node(&term.statement);
+            GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => {
+                self.walk_node(&term.subsentence);
             }
-            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
-                self.walk_node(&term.statement);
+            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => {
+                self.walk_node(&term.0.statement);
+            }
+            GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => {
+                self.walk_node(&term.0.subsentence);
             }
             GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => match term {
                 generated::NoihaAdverbialTermSyntax::NoihaVariableAdverbialTerm(term) => {
@@ -5056,8 +5077,9 @@ impl<'index, 'tree> TreeVisitor<'tree>
 fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -> bool {
     matches!(
         node,
-        GeneratedSyntaxNodeRef::SimpleTermSyntaxFihoiAdverbialTerm(_)
-            | GeneratedSyntaxNodeRef::SimpleTermSyntaxSoiAdverbialTerm(_)
+        GeneratedSyntaxNodeRef::SimpleTermSyntaxFihoiProposalAdverbialTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxZantufaXoiAdverbialTerm(_)
+            | GeneratedSyntaxNodeRef::SimpleTermSyntaxExpSoiAdverbialTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxTaggedSumtiBeforeTagTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxNaKuTerm(_)
             | GeneratedSyntaxNodeRef::SimpleTermSyntaxBareNaTerm(_)
@@ -5581,6 +5603,18 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
 
     #[requires(true)]
     #[ensures(true)]
+    fn bind_prenex_cei_predicate_targets_for_zantufa_relative_statement(
+        &mut self,
+        terms: &'tree [generated::TermSyntax],
+        statement: &'tree generated::ZantufaRelativeStatementSyntax,
+    ) {
+        if let Some(bridi) = self.zantufa_relative_statement_main_predicate_id(statement) {
+            self.bind_prenex_cei_predicate_targets(terms, bridi);
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
     fn bind_prenex_cei_predicate_targets_for_subbridi(
         &mut self,
         terms: &'tree [generated::TermSyntax],
@@ -5638,6 +5672,31 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             generated::StatementBaseSyntax::TextGroupStatement(_)
             | generated::StatementBaseSyntax::ForethoughtStatement(_) => None,
+        }
+    }
+
+    /// The tailored Zantufa relative statement's main predicate, resolved the way the shared
+    /// statement's is: through the prenexes down to the bridi, and absent for an I-connection or
+    /// a TUhE group, neither of which has one predicate a prenex CEI could name.
+    #[requires(true)]
+    #[ensures(true)]
+    fn zantufa_relative_statement_main_predicate_id(
+        &self,
+        statement: &'tree generated::ZantufaRelativeStatementSyntax,
+    ) -> Option<BridiNodeId> {
+        match statement {
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(
+                statement,
+            ) => self.zantufa_relative_statement_main_predicate_id(&statement.inner_statement),
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(_) => None,
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(base) => {
+                match base {
+                    generated::ZantufaRelativeStatementBaseSyntax::TextGroupStatement(_) => None,
+                    generated::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
+                        statement,
+                    ) => Some(BridiNodeId(self.raw_for_node(&statement.0))),
+                }
+            }
         }
     }
 
@@ -6132,15 +6191,8 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 generated::BridiRelativeClauseSyntax::IncidentalBridiRelativeClause(clause) => {
                     self.visit_subbridi(&clause.subbridi);
                 }
-                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.visit_statement(&clause.statement);
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.visit_statement(&clause.statement);
+                generated::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) => {
+                    self.visit_zantufa_statement_relative_clause(clause);
                 }
             },
         }
@@ -6169,21 +6221,108 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_subbridi(&clause.subbridi);
                     self.relative_heads.pop();
                 }
-                generated::BridiRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
-                    clause,
-                ) => {
+                generated::BridiRelativeClauseSyntax::ZantufaStatementRelativeClause(clause) => {
                     self.relative_heads.push(reference_head_id);
-                    self.visit_statement(&clause.statement);
-                    self.relative_heads.pop();
-                }
-                generated::BridiRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
-                    clause,
-                ) => {
-                    self.relative_heads.push(reference_head_id);
-                    self.visit_statement(&clause.statement);
+                    self.visit_zantufa_statement_relative_clause(clause);
                     self.relative_heads.pop();
                 }
             },
+        }
+    }
+
+    /// Rolling Zantufa's statement relative clause. Its body is the tailored
+    /// `zantufa_relative_statement` family rather than the shared statement node, so it is
+    /// walked here with the same prenex-binding and utterance bookkeeping the shared node gets.
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_zantufa_statement_relative_clause(
+        &mut self,
+        clause: &'tree generated::ZantufaStatementRelativeClauseSyntax,
+    ) {
+        match clause {
+            generated::ZantufaStatementRelativeClauseSyntax::ZantufaRestrictiveStatementRelativeClause(
+                clause,
+            ) => {
+                self.visit_zantufa_relative_statement(&clause.statement);
+            }
+            generated::ZantufaStatementRelativeClauseSyntax::ZantufaIncidentalStatementRelativeClause(
+                clause,
+            ) => {
+                self.visit_zantufa_relative_statement(&clause.statement);
+            }
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_zantufa_relative_statement(
+        &mut self,
+        statement: &'tree generated::ZantufaRelativeStatementSyntax,
+    ) {
+        let statement_id = StatementNodeId(self.raw_for_node(statement));
+        for source in std::mem::take(&mut self.pending_next_utterance_sources) {
+            self.add_edge(
+                ReferenceKind::Utterance,
+                source,
+                target_resolved_node(statement_id.0),
+                ReferenceRule::DiheFollowing,
+            );
+        }
+        let previous_utterance = self.current_utterance.replace(statement_id.0);
+        match statement {
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativePrenexStatement(
+                statement,
+            ) => {
+                let previous_da_bindings = self.da_bindings.clone();
+                for term in &statement.prenex_terms {
+                    self.walk_node(term);
+                }
+                let previous_selbri_variable_bindings = self.selbri_variable_bindings.clone();
+                self.bind_prenex_relation_variables(&statement.prenex_terms);
+                let previous_cei_bridi_bindings = self.cei_bridi_bindings.clone();
+                self.bind_prenex_cei_predicate_targets_for_zantufa_relative_statement(
+                    &statement.prenex_terms,
+                    &statement.inner_statement,
+                );
+                self.visit_zantufa_relative_statement(&statement.inner_statement);
+                self.cei_bridi_bindings = previous_cei_bridi_bindings;
+                self.selbri_variable_bindings = previous_selbri_variable_bindings;
+                self.da_bindings = previous_da_bindings;
+            }
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeConnectedStatement(
+                connection,
+            ) => {
+                self.visit_zantufa_relative_statement_base(&connection.leading_statement);
+                // The whole continuation, as the shared statement visitor walks its own: the
+                // `i` and the connective may carry a tense-modal tag, and references inside
+                // that tag are as real as the ones in the statement it introduces.
+                for continuation in &connection.continuations {
+                    self.walk_node(continuation);
+                }
+            }
+            generated::ZantufaRelativeStatementSyntax::ZantufaRelativeStatementBase(statement) => {
+                self.visit_zantufa_relative_statement_base(statement);
+            }
+        }
+        self.current_utterance = previous_utterance;
+        self.utterance_history.push(statement_id.0);
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_zantufa_relative_statement_base(
+        &mut self,
+        statement: &'tree generated::ZantufaRelativeStatementBaseSyntax,
+    ) {
+        match statement {
+            generated::ZantufaRelativeStatementBaseSyntax::TextGroupStatement(statement) => {
+                self.walk_node(statement);
+            }
+            generated::ZantufaRelativeStatementBaseSyntax::ZantufaRelativeBridiStatement(
+                statement,
+            ) => {
+                self.walk_node(&statement.0);
+            }
         }
     }
 
@@ -6439,6 +6578,13 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
         match selbri {
             generated::PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
                 self.visit_relation_unit(&unit.leading_unit);
+                if let Some(tail) = unit.bo_tail.as_deref() {
+                    self.visit_plain_bo_selbri(&tail.trailing_selbri);
+                }
+            }
+            generated::PlainBoSelbriSyntax::ExpRelativeTanruUnit(unit) => {
+                self.visit_relation_unit(&unit.leading_unit);
+                self.walk_node(unit.relative_clauses.as_ref());
                 if let Some(tail) = unit.bo_tail.as_deref() {
                     self.visit_plain_bo_selbri(&tail.trailing_selbri);
                 }
@@ -7306,11 +7452,14 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                     self.visit_relation(&term.selbri);
                 }
             },
-            GeneratedSimpleTermRef::FihoiAdverbialTerm(term) => {
-                self.visit_statement(&term.statement);
+            GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => {
+                self.visit_subbridi(&term.subsentence);
             }
-            GeneratedSimpleTermRef::SoiAdverbialTerm(term) => {
-                self.visit_statement(&term.statement);
+            GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm(term) => {
+                self.visit_zantufa_relative_statement(&term.0.statement);
+            }
+            GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => {
+                self.visit_subbridi(&term.0.subsentence);
             }
             GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(&term.0),
             GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}
@@ -8785,6 +8934,9 @@ fn generated_plain_bo_selbri_first_token(
 ) -> Option<&Token> {
     match selbri {
         generated::PlainBoSelbriSyntax::PlainBoTanruUnit(unit) => {
+            generated_tanru_unit_first_token(&unit.leading_unit)
+        }
+        generated::PlainBoSelbriSyntax::ExpRelativeTanruUnit(unit) => {
             generated_tanru_unit_first_token(&unit.leading_unit)
         }
         generated::PlainBoSelbriSyntax::ForethoughtSelbriConnection(_) => None,

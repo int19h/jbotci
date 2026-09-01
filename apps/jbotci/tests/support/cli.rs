@@ -2394,14 +2394,16 @@ fn gentufa_syntax_errors_go_to_stderr() {
         let stderr = String::from_utf8(error).expect("stderr utf8");
         assert!(stderr.contains("syntax.unexpected-cmavo"), "{stderr}");
         assert!(stderr.contains("unexpected cmavo"));
+        // The frontier this surface reaches moved with epoch 8: the tanru unit now offers a
+        // camxes-exp relative clause after its CEI chain, so the deepest expectation at the KU
+        // is the tanru unit's rather than the statement connection's. What the test is for --
+        // that the rendered diagnostic goes to stderr with its code, its message and its
+        // context -- is unchanged.
         assert!(
-            stderr.contains("expected: free modifier or statement connective"),
+            stderr.contains("expected: free modifier, linked arguments, or pro-bridi assignment"),
             "{stderr}"
         );
-        assert!(
-            stderr.contains("while parsing statement connection"),
-            "{stderr}"
-        );
+        assert!(stderr.contains("while parsing tanru unit"), "{stderr}");
         assert!(!stderr.contains("expected one of:"));
         assert!(!stderr.contains("needs one of:"));
         assert!(!stderr.contains("{be}"));

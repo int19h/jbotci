@@ -1,0 +1,12 @@
+id = "adhoc.syntax.subsentence.d2-reject-connective-free-modifier-before-nai"
+lojban = "broda no'oi mi brode je to do brodi toi nai no'oi do brodi"
+tags = ["adhoc", "syntax", "subsentence-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-8 subsentence ownership matrix witness"
+description = "Negative witness for the free-modifier placement camxes-exp's joik does not spell: the chain's free* is OUTSIDE the connective ((ZIhE_clause / joik) free*, :199 and :214) and joik has no slot before NAI_clause (:347). The merged-head form. je nai to do brodi toi and je to do brodi toi are both accepted, so what is refused is the placement and not the free modifier."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [44, 49], source-text = "no'oi", message = "unexpected cmavo" }]
