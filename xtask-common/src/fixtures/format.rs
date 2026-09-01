@@ -160,6 +160,7 @@ fn push_expectations_toml(
             output.push_str("\n[expectations.morphology.recovered]\n");
             push_field(output, "status", &recovered.status)?;
             push_optional_field(output, "max-errors", &recovered.max_errors)?;
+            push_optional_field(output, "raw", &recovered.raw)?;
             if !recovered.diagnostics.is_empty() {
                 push_field(output, "diagnostics", &recovered.diagnostics)?;
             }
@@ -186,6 +187,7 @@ fn push_expectations_toml(
             output.push_str("\n[expectations.syntax.recovered]\n");
             push_field(output, "status", &recovered.status)?;
             push_optional_field(output, "max-errors", &recovered.max_errors)?;
+            push_optional_field(output, "raw", &recovered.raw)?;
             if !recovered.diagnostics.is_empty() {
                 push_field(output, "diagnostics", &recovered.diagnostics)?;
             }

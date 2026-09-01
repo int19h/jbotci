@@ -1,0 +1,13 @@
+id = "adhoc.syntax.descriptors.d5-vei-quantifier-missing-tail-rejected-zantufa"
+lojban = "lo vei pa su'i re ve'o cu blabi"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D5.2 genuine-error witness (#552), zantufa axis"
+description = "The zantufa-axis twin of the VEI missing-tail control."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [23, 25], source-text = "cu", message = "unexpected cmavo" }]

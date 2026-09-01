@@ -1,0 +1,17 @@
+id = "adhoc.syntax.descriptors.d0-recovered-leading-operand-refuses-sumti5"
+lojban = "lo re mlatu cu"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 R7 recovered witness (description_tail_sumti.sumti, Sumti5 refused)"
+description = "A recovered parse whose leading-operand candidate IS a quantifier-bearing sumti_5 form. The classifier answers Sumti5 and the restricted site refuses it, so the optional slot stays empty and the tail body re-parses the same text; the digest pins the whole recovered tree, and therefore the winning owner at the site."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-statement", byte-span = [14, 14], source-text = "", message = "incomplete statement" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "d67eddfbfdcdd25eda9cd6578e7fa4b31d8694d23767908f9b55b53f69c62610" }
+diagnostics = [{ severity = "error", code = "syntax.incomplete-statement", byte-span = [14, 14], source-text = "", message = "incomplete statement" }]

@@ -1,0 +1,12 @@
+id = "adhoc.syntax.descriptors.d5-pa-leading-missing-tail-rejected"
+lojban = "lo re cu blabi"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D5.2 PA-leading control (#552)"
+description = "The failure path the deleted !pa_word() guard used to produce, re-derived structurally by the sumti_6 operand tier restriction."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "cu", message = "unexpected cmavo" }]

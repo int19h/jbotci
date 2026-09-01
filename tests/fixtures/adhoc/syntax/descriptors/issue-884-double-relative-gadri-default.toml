@@ -1,0 +1,12 @@
+id = "adhoc.syntax.descriptors.issue-884-double-relative-gadri-default"
+lojban = "lo mlatu ku poi mi zgana ku'o poi do zgana ku'o cu blabi"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D4.3 GAD twin no-delta control (#884)"
+description = "The gadri twin is already correct at the default profile because the gadri descriptor carries no relative list of its own."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [30, 33], source-text = "poi", message = "unexpected cmavo" }]

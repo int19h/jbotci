@@ -110,6 +110,13 @@ pub mod generated_model {
         sumti_bound: SumtiBoundSyntax;
         sumti_forethought: SumtiForethoughtSyntax;
         sumti_base: SumtiBaseSyntax;
+        // The description/quantifier operand tier boundary (epoch 9, #552 / #837 SUM-02).
+        // `description_leading_operand` is `sumti_base` restricted to the camxes `sumti_6`
+        // tier.  It is declared here, rather than being written inline at its two consuming
+        // field sites, so that it has its own parser identity and therefore its own FIRST
+        // set, elidable-terminator analysis and recovery metadata -- the identity #552 asks
+        // for and the identity both consumers receive.
+        description_leading_operand: SumtiBaseSyntax;
         selbri: SelbriSyntax;
         selbri_without_terminal_relative: SelbriWithoutTerminalRelativeSyntax;
         description_relative_full_selbri: SelbriSyntax;
@@ -952,6 +959,17 @@ pub mod generated_model {
         selbri_without_terminal_relative,
         selbri,
     ) = selbri_without_terminal_relative.map_to(selbri);
+
+    // The restricted leading/inner operand of the description and quantifier sites (epoch 9,
+    // #552 / #837 SUM-02).  camxes spells both sites with `sumti_6`, while jbotci's `sumti_base`
+    // is `sumti_6` plus two `sumti_5`-tier arms; the classifier removes exactly those two from
+    // this route and leaves the produced type, and therefore every tree, unchanged.  The
+    // restriction is written once here and consumed by name at both sites.
+    alias "sumti" description_leading_operand(
+        sumti_base,
+    ) = sumti_base
+        .reject_output(crate::grammar::sumti_operand_tier::QuantifierBearingSumtiRejection)
+        .recursive_output(description_leading_operand);
 
     /// Product node for relative clauses; preserves `first` and `additional` in source order.
     rule "relative clauses" relative_clause_list(sumti, subbridi, tense_modal, statement_relative_clause, normal_term) -> struct {
@@ -2937,7 +2955,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among the `forethought_sumti` and `simple_sumti` forms.
-    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, subbridi, tense_modal, mekso, selbri, letter_tokens, free_modifier, statement, statement_relative_clause, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
+    rule "sumti" sumti_forethought(sumti, sumti_forethought, sumti_base, description_leading_operand, subbridi, tense_modal, mekso, selbri, letter_tokens, free_modifier, statement, statement_relative_clause, zantufa_mex, zantufa_tcita_selci, normal_term) -> enum {
         /// Uses the `forethought_sumti` product form, whose payload preserves `gek`, `leading_sumti`, `first_branch`, `additional_branches`, and `gihi`.
         forethought_sumti,
         /// Uses the `simple_sumti` product form, whose payload preserves `base_sumti` and `relative_clauses`.
@@ -3079,15 +3097,15 @@ pub mod generated_model {
     }
 
     /// Product node for sumti; preserves `base_sumti` and `relative_clauses` in source order.
-    rule "sumti" simple_sumti(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, statement_relative_clause, normal_term) -> struct {
+    rule "sumti" simple_sumti(sumti, sumti_base, description_leading_operand, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, statement_relative_clause, normal_term) -> struct {
         /// The shared base sumti child syntax node.
-        field base_sumti <- arc(sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, normal_term));
+        field base_sumti <- arc(sumti_atom(sumti, sumti_base, description_leading_operand, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, normal_term));
         /// The optional relative clauses component.
         field relative_clauses <- opt(relative_clause_list(sumti, subbridi, tense_modal, statement_relative_clause, normal_term));
     }
 
     /// Sum node for sumti; selects among the `sumti_base` and `quantified_sumti` forms.
-    rule "sumti" sumti_atom(sumti, sumti_base, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, normal_term) -> enum {
+    rule "sumti" sumti_atom(sumti, sumti_base, description_leading_operand, subbridi, tense_modal, mekso, letter_tokens, free_modifier, statement, normal_term) -> enum {
         /// Uses the nested `sumti_base` sum form and preserves its selected alternative.
         sumti_base,
         /// Uses the `quantified_sumti` product form, whose payload preserves `quantifier` and `inner_sumti`.
@@ -3095,7 +3113,7 @@ pub mod generated_model {
     }
 
     /// Sum node for sumti; selects among 16 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-    rule "sumti" sumti_base(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
+    rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
         /// Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.
         scalar_negated_sumti_with_bo,
         /// Uses the `scalar_negated_sumti` product form, whose payload preserves `nahe`, `inner_sumti`, and `luhu`.
@@ -3131,11 +3149,13 @@ pub mod generated_model {
     }
 
     /// Product node for quantified sumti; preserves `quantifier` and `inner_sumti` in source order.
-    rule "quantified sumti" quantified_sumti(sumti_base, mekso, letter_tokens, free_modifier) -> struct {
+    rule "quantified sumti" quantified_sumti(description_leading_operand, mekso, letter_tokens, free_modifier) -> struct {
         /// The `quantifier` grammar result in the `quantifier` structural role of the `quantified_sumti` production.
         field quantifier <- quantifier(mekso, letter_tokens, free_modifier);
-        /// The shared inner sumti child syntax node.
-        field inner_sumti <- arc(sumti_base);
+        /// The shared inner sumti child syntax node, restricted to the camxes `sumti_6` operand
+        /// tier: camxes spells this site `sumti_5 <- quantifier? sumti_6`, so an outer quantifier
+        /// can never take a quantifier-bearing operand (#837 SUM-02).
+        field inner_sumti <- arc(description_leading_operand);
     }
 
     /// Product node for sumti connective; preserves `connective` and `sumti` in source order.
@@ -4234,7 +4254,7 @@ pub mod generated_model {
     }
 
     /// Product node for description; preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku` in source order.
-    rule "description" description_connection_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "description" description_connection_sumti(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The shared leading description head child syntax node.
         field leading_description_head <- arc(description_head());
         /// The `description_head_connective` connective joining the adjacent constituents of the `description_connection_sumti` production.
@@ -4242,29 +4262,29 @@ pub mod generated_model {
         /// The shared trailing description head child syntax node.
         field trailing_description_head <- arc(description_head());
         /// The `description_tail` grammar result in the `tail` structural role of the `description_connection_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
+        field tail <- description_tail(sumti, description_leading_operand, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `description`, `tail`, and `ku` in source order.
-    rule "description" descriptor_with_gadri_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "description" descriptor_with_gadri_sumti(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The `description_head` grammar result in the `description` structural role of the `descriptor_with_gadri_sumti` production.
         field description <- description_head();
         /// The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_gadri_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
+        field tail <- description_tail(sumti, description_leading_operand, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `outer_quantifier`, `description`, `tail`, and `ku` in source order.
-    rule "description" descriptor_with_outer_quantifier_sumti(sumti, sumti_base, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "description" descriptor_with_outer_quantifier_sumti(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The `quantifier` grammar result in the `outer_quantifier` structural role of the `descriptor_with_outer_quantifier_sumti` production.
         field outer_quantifier <- quantifier(mekso, letter_tokens, free_modifier);
         /// The `description_head` grammar result in the `description` structural role of the `descriptor_with_outer_quantifier_sumti` production.
         field description <- description_head();
         /// The `description_tail` grammar result in the `tail` structural role of the `descriptor_with_outer_quantifier_sumti` production.
-        field tail <- description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
+        field tail <- description_tail(sumti, description_leading_operand, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
         /// The optional `Ku` cmavo marker.
         field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
@@ -4288,9 +4308,9 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `leading_tail_elements` and `tail` in source order.
-    rule "description tail" description_tail(sumti, sumti_base, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "description tail" description_tail(sumti, description_leading_operand, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The `leading_description_tail_elements` grammar result in the `leading_tail_elements` structural role of the `description_tail` production.
-        field leading_tail_elements <- leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
+        field leading_tail_elements <- leading_description_tail_elements(sumti, description_leading_operand, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
         /// The shared tail child syntax node.
         field tail <- arc(description_tail_body(sumti, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term));
     }
@@ -4306,18 +4326,23 @@ pub mod generated_model {
     }
 
     /// Product node for description tail; preserves `tail_sumti` and `relative_clauses` in source order.
-    rule "description tail" leading_description_tail_elements(sumti, sumti_base, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
+    rule "description tail" leading_description_tail_elements(sumti, description_leading_operand, subbridi, selbri, tense_modal, statement, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
         /// The optional tail sumti component.
-        field tail_sumti <- opt(description_tail_sumti(sumti_base));
+        field tail_sumti <- opt(description_tail_sumti(description_leading_operand));
         /// The optional relative clauses component.
         field relative_clauses <- opt(bare_continuable_relative_clause_list(sumti, description_relative_subbridi, tense_modal, description_relative_statement_relative_clause, normal_term));
     }
 
     /// Transparent product node for description tail; preserves the `sumti` component.
-    rule "description tail" description_tail_sumti(sumti_base) -> struct {
-        assert !pa_word();
-        /// The shared sumti child syntax node.
-        field sumti <- arc(sumti_base);
+    ///
+    /// The leading element of a description tail is camxes `sumti_6`
+    /// (`sumti_tail <- (sumti_6 relative_clauses?)? sumti_tail_1`, camxes.peg:156), so it can
+    /// carry no quantifier at all.  The retired `assert !pa_word()` blocked only the PA
+    /// spelling and let `vei ... ve'o` through, which is #552; the structural restriction on
+    /// `description_leading_operand` replaces it and covers every quantifier spelling.
+    rule "description tail" description_tail_sumti(description_leading_operand) -> struct {
+        /// The shared sumti child syntax node, restricted to the camxes `sumti_6` operand tier.
+        field sumti <- arc(description_leading_operand);
     }
 
     /// Product node for description tail; preserves `selbri` and `relative_clauses` in source order.

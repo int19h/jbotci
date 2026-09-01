@@ -43,6 +43,7 @@ mod generated_runtime;
 mod parse_error;
 mod parser_core;
 mod selbri_boundary;
+mod sumti_operand_tier;
 pub(crate) mod tokens;
 use parse_error::{
     SharedStack, SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError,

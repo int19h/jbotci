@@ -687,6 +687,15 @@ pub struct RecoveredExpectation {
         skip_serializing_if = "Option::is_none"
     )]
     pub max_errors: Option<usize>,
+    /// The debug rendering of the RECOVERED parse product, in the same form the strict
+    /// facets spell as `raw`.
+    ///
+    /// `tree` below is a projection -- the parsed tokens and the recovery items -- and two
+    /// different winning rules can share it. A recovered witness that has to pin WHICH rule
+    /// owns an extent needs the node spine itself, which is what this carries. It is opt-in:
+    /// a fixture that does not spell it is not given one, exactly as `tree` behaves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub raw: Option<TextExpectation>,
     #[serde(default)]
     pub diagnostics: Vec<DiagnosticExpectation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

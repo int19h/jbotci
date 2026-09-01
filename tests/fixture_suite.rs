@@ -1401,6 +1401,7 @@ fn writer_keeps_tree_and_output_values() {
                 recovered: Some(new!(RecoveredExpectation {
                     status: ExpectationStatus::Success,
                     max_errors: None,
+                    raw: None,
                     diagnostics: vec![],
                     tree: None,
                 })),
@@ -2127,6 +2128,31 @@ fn assert_recovered_morphology_expectation(
     assert_eq!(actual_status, expectation.status, "{}", test_case.id);
     let diagnostics = recovered_morphology_diagnostics(test_case, &attempt);
     assert_eq!(diagnostics, expectation.diagnostics, "{}", test_case.id);
+    if let Some(expected_raw) = &expectation.raw {
+        assert!(
+            text_expectation_matches(expected_raw, &format!("{:?}", attempt.words)),
+            "{}: recovered morphology raw differs",
+            test_case.id
+        );
+    }
+}
+
+/// Whether an actual rendering satisfies a text expectation, digest form included.
+///
+/// The recovered trees these witnesses pin run to tens of kilobytes, so they are spelled as a
+/// `sha256` digest rather than inline; a digest pins the WHOLE tree, which is what makes a
+/// recovered witness able to prove which rule won an extent.
+#[requires(true)]
+#[ensures(true)]
+fn text_expectation_matches(expectation: &TextExpectation, actual: &str) -> bool {
+    if expectation.sha256.is_none() {
+        return actual == expectation.text;
+    }
+    (expectation.text.is_empty() || actual == expectation.text)
+        && expectation.sha256.as_deref().is_none_or(|expected| {
+            use sha2::Digest;
+            format!("{:x}", sha2::Sha256::digest(actual.as_bytes())) == expected
+        })
 }
 
 #[requires(true)]
@@ -2284,6 +2310,16 @@ fn assert_recovered_syntax_expectation(test_case: &TestCase, expectation: &Recov
         )
     });
     assert_eq!(diagnostics, expectation.diagnostics, "{}", test_case.id);
+    if let Some(expected_raw) = &expectation.raw {
+        assert!(
+            text_expectation_matches(
+                expected_raw,
+                &format!("{:?}", recovered.parse_tree.as_ref())
+            ),
+            "{}: recovered syntax raw tree differs",
+            test_case.id
+        );
+    }
     if let Some(expected_tree) = &expectation.tree {
         assert_eq!(
             recovered_syntax_tree_expectation(&recovered),
