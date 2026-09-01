@@ -77,7 +77,9 @@ snapshot, so the build fails, naming the offending word or form, when:
 
 - a listed word is missing from the snapshot;
 - a listed word is not a gismu or experimental gismu;
-- a listed word already carries structured rafsi in the snapshot;
+- a listed word already carries structured rafsi in the snapshot — on *any*
+  of its definition rows, selected or not, since upstream attaches rafsi per
+  row and a claim may sit on a row best-definition selection drops;
 - a listed form is not a CLL-derivable short rafsi of its word;
 - a listed form is already claimed by another entry's listed rafsi or by some
   gismu's universal rafsi form;

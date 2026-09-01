@@ -5640,8 +5640,8 @@ fn build_vlacku_dictionary_info() -> VlackuDictionaryInfo {
     let metadata = jbotci_dictionary_data::english_metadata();
     let entries = dictionary.entries();
     VlackuDictionaryInfo {
-        lensisku_created_at: metadata.lensisku_created_at.to_owned(),
-        lensisku_created_date: lensisku_created_date(metadata.lensisku_created_at),
+        lensisku_created_at: metadata.lensisku_created_at().to_owned(),
+        lensisku_created_date: lensisku_created_date(metadata.lensisku_created_at()),
         count_tree: dictionary_report_count_tree(entries),
         total_count: entries.len(),
     }

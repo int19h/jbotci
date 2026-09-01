@@ -251,6 +251,13 @@ fn run() -> Result<(), Box<dyn Error>> {
     })?;
     let mut imported = timed_stage("parse lensisku json", || parse_lensisku_json(&input))?;
     let definition_count = imported.entries.len();
+    // Captured before the reduction below: upstream records rafsi per
+    // definition row, so a structured claim can sit on a row that
+    // best-definition selection is about to drop, and the fail-closed
+    // extracted-rafsi audit must still see it.
+    let raw_structured_rafsi = timed_stage("collect raw structured rafsi", || {
+        collect_raw_structured_rafsi(&imported)
+    });
     // Lensisku's unfiltered export carries every definition of every word,
     // including rows that never got any text and repeat submissions of the
     // same text; jbotci embeds the one definition per word that Lensisku's own
@@ -273,7 +280,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         load_extracted_rafsi(&extracted_rafsi_path)
     })?;
     timed_stage("merge extracted rafsi", || {
-        merge_extracted_rafsi(&mut imported, &extracted_rafsi)
+        merge_extracted_rafsi(&mut imported, &raw_structured_rafsi, &extracted_rafsi)
     })?;
     let leaked_entries = timed_stage("leak entries", || leak_entries(&imported));
     let indexes = timed_stage("build lookup indexes", || {
@@ -664,6 +671,29 @@ fn load_extracted_rafsi(path: &Path) -> Result<ExtractedRafsiTable, Box<dyn Erro
     Ok(serde_json::from_str(&input)?)
 }
 
+/// Index every word's structured rafsi across *all* of its definition rows.
+///
+/// Run against the unreduced snapshot: rafsi belong to the word upstream, but
+/// the export attaches them per definition row, so a claim can appear only on
+/// a row that best-definition selection drops.
+#[requires(true)]
+#[ensures(ret.values().all(|forms| !forms.is_empty()))]
+fn collect_raw_structured_rafsi(dictionary: &ImportedDictionary) -> BTreeMap<String, Vec<String>> {
+    let mut raw: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for entry in &dictionary.entries {
+        if entry.rafsi.is_empty() {
+            continue;
+        }
+        let forms = raw.entry(entry.word.clone()).or_default();
+        for form in &entry.rafsi {
+            if !forms.contains(form) {
+                forms.push(form.clone());
+            }
+        }
+    }
+    raw
+}
+
 /// Merge the vendored extracted rafsi into the imported snapshot.
 ///
 /// The merge is deliberately fail-closed: the extracted table was audited
@@ -687,46 +717,44 @@ fn load_extracted_rafsi(path: &Path) -> Result<ExtractedRafsiTable, Box<dyn Erro
 )]
 fn merge_extracted_rafsi(
     dictionary: &mut ImportedDictionary,
+    raw_structured_rafsi: &BTreeMap<String, Vec<String>>,
     table: &ExtractedRafsiTable,
 ) -> Result<(), Box<dyn Error>> {
     let mut claims = snapshot_rafsi_claims(dictionary);
     for (word, forms) in &table.rafsi {
-        // A word may legitimately have several snapshot entries (one per
-        // definition); rafsi belong to the word, so every entry gets them, and
-        // every entry has to pass the same checks.
-        let targets = dictionary
+        // Best-definition selection has already reduced the snapshot to one
+        // entry per word, so an extracted word resolves to exactly one target.
+        let Some(index) = dictionary
             .entries
             .iter()
-            .enumerate()
-            .filter(|(_, entry)| entry.word == *word)
-            .map(|(index, _)| index)
-            .collect::<Vec<_>>();
-        if targets.is_empty() {
+            .position(|entry| entry.word == *word)
+        else {
             return Err(format!(
                 "extracted rafsi word `{word}` is missing from the dictionary snapshot; \
                  re-audit the extraction against the refreshed snapshot"
             )
             .into());
+        };
+        let entry = &dictionary.entries[index];
+        if !entry.word_type.is_gismu_like() {
+            return Err(format!(
+                "extracted rafsi word `{word}` is a {} in the dictionary snapshot, \
+                 but short rafsi belong to gismu",
+                entry.word_type.as_str()
+            )
+            .into());
         }
-        for &index in &targets {
-            let entry = &dictionary.entries[index];
-            if !entry.word_type.is_gismu_like() {
-                return Err(format!(
-                    "extracted rafsi word `{word}` is a {} in the dictionary snapshot, \
-                     but short rafsi belong to gismu",
-                    entry.word_type.as_str()
-                )
-                .into());
-            }
-            if !entry.rafsi.is_empty() {
-                return Err(format!(
-                    "extracted rafsi word `{word}` now carries structured rafsi {:?} in the \
-                     dictionary snapshot; re-audit the extracted entry against them and drop it \
-                     from {VENDORED_EXTRACTED_RAFSI}",
-                    entry.rafsi
-                )
-                .into());
-            }
+        // Checked against every raw definition row, not just the selected one:
+        // upstream may record its structured claim on a row the selection
+        // dropped, and grafting the extracted forms over that would be exactly
+        // the corruption this fail-closed audit exists to prevent.
+        if let Some(structured) = raw_structured_rafsi.get(word) {
+            return Err(format!(
+                "extracted rafsi word `{word}` now carries structured rafsi {structured:?} in the \
+                 dictionary snapshot; re-audit the extracted entry against them and drop it \
+                 from {VENDORED_EXTRACTED_RAFSI}",
+            )
+            .into());
         }
 
         let derivable = possible_short_rafsi_forms(word);
@@ -755,9 +783,7 @@ fn merge_extracted_rafsi(
             );
         }
 
-        for index in targets {
-            dictionary.entries[index].rafsi = forms.clone();
-        }
+        dictionary.entries[index].rafsi = forms.clone();
     }
     Ok(())
 }
@@ -876,21 +902,23 @@ fn render_metadata(metadata: &DictionaryMetadata) -> TokenStream {
     let definition_count = usize_literal(metadata.definition_count);
     let entry_count = usize_literal(metadata.entry_count);
 
+    // Arguments in declaration order; `new` is `const`, so the invariant is
+    // checked while the generated `static` compiles.
     quote! {
-        crate::DictionarySnapshotMetadata {
-            language_tag: #language_tag,
-            language_realname: #language_realname,
-            source_language_tag: #source_language_tag,
-            format: #format,
-            positive_scores_only: #positive_scores_only,
-            filename: #filename,
-            metadata_url: #metadata_url,
-            download_url: #download_url,
-            lensisku_created_at: #lensisku_created_at,
-            sha256: #sha256,
-            definition_count: #definition_count,
-            entry_count: #entry_count,
-        }
+        crate::DictionarySnapshotMetadata::new(
+            #language_tag,
+            #language_realname,
+            #source_language_tag,
+            #format,
+            #positive_scores_only,
+            #filename,
+            #metadata_url,
+            #download_url,
+            #lensisku_created_at,
+            #sha256,
+            #definition_count,
+            #entry_count,
+        )
     }
 }
 

@@ -454,18 +454,19 @@ jbotci_dictionary::places::definition_place_segments_for_definition_line	functio
 jbotci_dictionary::places::definition_place_segments_for_notes_line	function	fn definition_place_segments_for_notes_line (input : & str , place_map : & DefinitionPlaceMap ,) -> Vec < DefinitionPlaceSegment >	rust-only		implementation-representation	Definition place-marker parsing and line segmentation are Rust-side definition-text rendering machinery used by the output crate (moved from jbotci-output, which is outside the Python API scope); Python dictionary results carry the raw definition and notes text and no line-formatting internals.
 jbotci_dictionary::universal_gismu_rafsi_forms	function	fn universal_gismu_rafsi_forms (word : & str) -> Vec < (String , RafsiSource) >	direct	jbotci.dictionary.universal_gismu_rafsi_forms		
 jbotci_dictionary_data::DictionarySnapshotMetadata	struct	()	direct	jbotci.dictionary.DictionarySnapshotMetadata		
-jbotci_dictionary_data::DictionarySnapshotMetadata::definition_count	field	usize	direct	jbotci.dictionary.DictionarySnapshotMetadata.definition_count		
-jbotci_dictionary_data::DictionarySnapshotMetadata::download_url	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.download_url		
-jbotci_dictionary_data::DictionarySnapshotMetadata::entry_count	field	usize	direct	jbotci.dictionary.DictionarySnapshotMetadata.entry_count		
-jbotci_dictionary_data::DictionarySnapshotMetadata::filename	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.filename		
-jbotci_dictionary_data::DictionarySnapshotMetadata::format	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.format		
-jbotci_dictionary_data::DictionarySnapshotMetadata::language_realname	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.language_realname		
-jbotci_dictionary_data::DictionarySnapshotMetadata::language_tag	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.language_tag		
-jbotci_dictionary_data::DictionarySnapshotMetadata::lensisku_created_at	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.lensisku_created_at		
-jbotci_dictionary_data::DictionarySnapshotMetadata::metadata_url	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.metadata_url		
-jbotci_dictionary_data::DictionarySnapshotMetadata::positive_scores_only	field	bool	direct	jbotci.dictionary.DictionarySnapshotMetadata.positive_scores_only		
-jbotci_dictionary_data::DictionarySnapshotMetadata::sha256	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.sha256		
-jbotci_dictionary_data::DictionarySnapshotMetadata::source_language_tag	field	& 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.source_language_tag		
+jbotci_dictionary_data::DictionarySnapshotMetadata::definition_count	method	const fn definition_count (& self) -> usize	direct	jbotci.dictionary.DictionarySnapshotMetadata.definition_count		
+jbotci_dictionary_data::DictionarySnapshotMetadata::download_url	method	const fn download_url (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.download_url		
+jbotci_dictionary_data::DictionarySnapshotMetadata::entry_count	method	const fn entry_count (& self) -> usize	direct	jbotci.dictionary.DictionarySnapshotMetadata.entry_count		
+jbotci_dictionary_data::DictionarySnapshotMetadata::filename	method	const fn filename (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.filename		
+jbotci_dictionary_data::DictionarySnapshotMetadata::format	method	const fn format (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.format		
+jbotci_dictionary_data::DictionarySnapshotMetadata::language_realname	method	const fn language_realname (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.language_realname		
+jbotci_dictionary_data::DictionarySnapshotMetadata::language_tag	method	const fn language_tag (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.language_tag		
+jbotci_dictionary_data::DictionarySnapshotMetadata::lensisku_created_at	method	const fn lensisku_created_at (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.lensisku_created_at		
+jbotci_dictionary_data::DictionarySnapshotMetadata::metadata_url	method	const fn metadata_url (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.metadata_url		
+jbotci_dictionary_data::DictionarySnapshotMetadata::new	method	const fn new (language_tag : & 'static str , language_realname : & 'static str , source_language_tag : & 'static str , format : & 'static str , positive_scores_only : bool , filename : & 'static str , metadata_url : & 'static str , download_url : & 'static str , lensisku_created_at : & 'static str , sha256 : & 'static str , definition_count : usize , entry_count : usize ,) -> Self	subsumed	jbotci.dictionary.DictionarySnapshotMetadata		Python exposes the same information through this named immutable class, closed union, constructor, property, or normalized operation.
+jbotci_dictionary_data::DictionarySnapshotMetadata::positive_scores_only	method	const fn positive_scores_only (& self) -> bool	direct	jbotci.dictionary.DictionarySnapshotMetadata.positive_scores_only		
+jbotci_dictionary_data::DictionarySnapshotMetadata::sha256	method	const fn sha256 (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.sha256		
+jbotci_dictionary_data::DictionarySnapshotMetadata::source_language_tag	method	const fn source_language_tag (& self) -> & 'static str	direct	jbotci.dictionary.DictionarySnapshotMetadata.source_language_tag		
 jbotci_dictionary_data::english	function	fn english () -> & 'static Dictionary < 'static >	direct	jbotci.dictionary.english		
 jbotci_dictionary_data::english_metadata	function	fn english_metadata () -> & 'static DictionarySnapshotMetadata	direct	jbotci.dictionary.english_metadata		
 jbotci_jvozba::JvozbaBuildResult	struct	()	direct	jbotci.jvozba.JvozbaBuildResult		

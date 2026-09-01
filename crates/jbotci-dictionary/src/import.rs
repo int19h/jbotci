@@ -28,9 +28,10 @@ impl ImportedDictionary {
     /// dropped.
     ///
     /// Lensisku's unfiltered export contains definition rows that never got any
-    /// text — as of the 2026-09-01 English export, nine of them, every one
-    /// negatively scored. A row that defines nothing is not a dictionary entry
-    /// and [`crate::Dictionary::validate`] rejects it outright.
+    /// text — nine of them in the 2026-09-01 English export, none positively
+    /// scored. The score is beside the point, though: a row that defines
+    /// nothing is not a dictionary entry, whatever its votes say, and
+    /// [`crate::Dictionary::validate`] rejects it outright.
     ///
     /// Run this *before* [`Self::retain_best_definition_per_word`]: a word that
     /// also has a real definition then keeps it even when the empty row would
@@ -83,6 +84,15 @@ impl ImportedDictionary {
             .len()
             == self.entries.len(),
         "no word keeps more than one definition"
+    )]
+    #[expensive_ensures(
+        old(self.entries.clone()).iter().all(|candidate| {
+            self.entries
+                .iter()
+                .find(|survivor| survivor.word == candidate.word)
+                .is_some_and(|survivor| !candidate.outranks(survivor))
+        }),
+        "every word's survivor is the entry its whole pre-call group ranks highest"
     )]
     pub fn retain_best_definition_per_word(&mut self) -> usize {
         let mut best: BTreeMap<&str, usize> = BTreeMap::new();

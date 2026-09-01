@@ -533,9 +533,12 @@ struct VendorDictionaryArgs {
     #[arg(long, default_value = "crates/jbotci-dictionary-data/data")]
     output: PathBuf,
     /// Verify the committed snapshot against its metadata. Reads no network.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "check_upstream")]
     check: bool,
     /// Report whether Lensisku now serves an export unlike the committed one.
+    ///
+    /// Informational: drift is upstream's normal state (the live export moves
+    /// with every edit and vote), so it reports rather than fails.
     #[arg(long)]
     check_upstream: bool,
 }
@@ -4498,12 +4501,13 @@ fn vendor_dictionary(args: VendorDictionaryArgs) -> Result<()> {
     fs::write(&paths.metadata, metadata_text)
         .with_context(|| format!("writing `{}`", paths.metadata.display()))?;
     println!(
-        "vendored {} Lensisku definition(s) into `{}`; {} entr(ies) survive best-definition \
-         selection, dropping {} duplicate definition(s)",
+        "vendored {} Lensisku definition(s) into `{}`; {} entr(ies) survive, dropping {} \
+         undefined and {} duplicate definition(s)",
         counts.definition_count,
         paths.dictionary.display(),
         counts.entry_count,
-        counts.definition_count - counts.entry_count
+        counts.undefined_count,
+        counts.definition_count - counts.undefined_count - counts.entry_count
     );
     Ok(())
 }
@@ -4537,12 +4541,14 @@ impl DictionarySnapshotPaths {
 
 /// How many definitions a snapshot holds, and how many entries it embeds.
 #[invariant(
-    entry_count <= definition_count,
-    "selection drops definitions, never invents them"
+    entry_count + undefined_count <= *definition_count,
+    "selection and the undefined-row discard drop definitions, never invent them"
 )]
 #[derive(Debug, Clone, Copy)]
 struct DictionarySnapshotCounts {
     definition_count: usize,
+    /// Rows discarded for having no definition text at all.
+    undefined_count: usize,
     entry_count: usize,
 }
 
@@ -4556,10 +4562,11 @@ struct DictionarySnapshotCounts {
 fn dictionary_snapshot_counts(dictionary_text: &str) -> Result<DictionarySnapshotCounts> {
     let mut imported = parse_lensisku_json(dictionary_text)?;
     let definition_count = imported.entries.len();
-    imported.retain_defined_entries();
+    let undefined_count = imported.retain_defined_entries();
     imported.retain_best_definition_per_word();
     Ok(new!(DictionarySnapshotCounts {
         definition_count: definition_count,
+        undefined_count: undefined_count,
         entry_count: imported.entries.len(),
     }))
 }

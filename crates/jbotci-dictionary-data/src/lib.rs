@@ -10,28 +10,154 @@ use jbotci_dictionary::Dictionary;
 /// may carry several definitions of one word, of which the snapshot keeps the
 /// one Lensisku's own ranking prefers.
 ///
-/// The type carries no generated invariant because its only value is embedded
-/// as a `static`, which a validated wrapper cannot initialize. Its one real
-/// constraint — `entry_count <= definition_count` — is enforced where the value
-/// is produced (`build.rs`'s own metadata type) and re-checked on every read
-/// through [`english_metadata`].
+/// The type carries no *generated* invariant because its only value is
+/// embedded as a `static`, which a validated wrapper cannot initialize.
+/// Correctness by construction comes from [`Self::new`] instead: the fields
+/// are private, so every value passes its `const` validation — for the
+/// embedded `static`, at compile time.
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DictionarySnapshotMetadata {
-    pub language_tag: &'static str,
-    pub language_realname: &'static str,
-    /// Language of the defined words, `jbo` for every snapshot jbotci vendors.
-    pub source_language_tag: &'static str,
-    pub format: &'static str,
-    /// Whether the export was restricted to positively scored definitions.
-    pub positive_scores_only: bool,
-    pub filename: &'static str,
-    pub metadata_url: &'static str,
-    pub download_url: &'static str,
-    pub lensisku_created_at: &'static str,
-    pub sha256: &'static str,
-    pub definition_count: usize,
-    pub entry_count: usize,
+    language_tag: &'static str,
+    language_realname: &'static str,
+    source_language_tag: &'static str,
+    format: &'static str,
+    positive_scores_only: bool,
+    filename: &'static str,
+    metadata_url: &'static str,
+    download_url: &'static str,
+    lensisku_created_at: &'static str,
+    sha256: &'static str,
+    definition_count: usize,
+    entry_count: usize,
+}
+
+impl DictionarySnapshotMetadata {
+    /// Assemble validated snapshot metadata.
+    ///
+    /// `const`, so the generated `static` in `dictionary_en.rs` is validated
+    /// while it is compiled rather than when it is first read.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one argument per recorded provenance field, in field order;                   the only caller is machine-generated"
+    )]
+    #[requires(entry_count <= definition_count, "selection drops definitions, never invents them")]
+    #[ensures(ret.entry_count == entry_count && ret.definition_count == definition_count)]
+    pub const fn new(
+        language_tag: &'static str,
+        language_realname: &'static str,
+        source_language_tag: &'static str,
+        format: &'static str,
+        positive_scores_only: bool,
+        filename: &'static str,
+        metadata_url: &'static str,
+        download_url: &'static str,
+        lensisku_created_at: &'static str,
+        sha256: &'static str,
+        definition_count: usize,
+        entry_count: usize,
+    ) -> Self {
+        Self {
+            language_tag,
+            language_realname,
+            source_language_tag,
+            format,
+            positive_scores_only,
+            filename,
+            metadata_url,
+            download_url,
+            lensisku_created_at,
+            sha256,
+            definition_count,
+            entry_count,
+        }
+    }
+
+    /// Return the tag of the language the definitions are written in.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn language_tag(&self) -> &'static str {
+        self.language_tag
+    }
+
+    /// Return the human-readable name of the definition language.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn language_realname(&self) -> &'static str {
+        self.language_realname
+    }
+
+    /// Return the language of the defined words, `jbo` for every snapshot
+    /// jbotci vendors.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn source_language_tag(&self) -> &'static str {
+        self.source_language_tag
+    }
+
+    /// Return the upstream export format.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn format(&self) -> &'static str {
+        self.format
+    }
+
+    /// Report whether the export was restricted to positively scored
+    /// definitions.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn positive_scores_only(&self) -> bool {
+        self.positive_scores_only
+    }
+
+    /// Return the vendored snapshot filename.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn filename(&self) -> &'static str {
+        self.filename
+    }
+
+    /// Return the URL the language metadata was resolved from.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn metadata_url(&self) -> &'static str {
+        self.metadata_url
+    }
+
+    /// Return the URL the snapshot was downloaded from.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn download_url(&self) -> &'static str {
+        self.download_url
+    }
+
+    /// Return the moment Lensisku produced the export.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn lensisku_created_at(&self) -> &'static str {
+        self.lensisku_created_at
+    }
+
+    /// Return the SHA-256 of the vendored snapshot file.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn sha256(&self) -> &'static str {
+        self.sha256
+    }
+
+    /// Return the number of definition rows the export carried.
+    #[requires(true)]
+    #[ensures(ret >= self.entry_count)]
+    pub const fn definition_count(&self) -> usize {
+        self.definition_count
+    }
+
+    /// Return the number of entries this crate embeds.
+    #[requires(true)]
+    #[ensures(ret <= self.definition_count)]
+    pub const fn entry_count(&self) -> usize {
+        self.entry_count
+    }
 }
 
 include!(concat!(env!("OUT_DIR"), "/dictionary_en.rs"));
@@ -45,11 +171,7 @@ pub fn english() -> &'static Dictionary<'static> {
 
 /// Return metadata for the embedded English Lensisku dictionary snapshot.
 #[requires(true)]
-#[ensures(ret.entry_count == ENGLISH.entries().len())]
-#[ensures(
-    ret.entry_count <= ret.definition_count,
-    "selection drops definitions, never invents them"
-)]
+#[ensures(ret.entry_count() == ENGLISH.entries().len())]
 pub fn english_metadata() -> &'static DictionarySnapshotMetadata {
     &ENGLISH_METADATA
 }
@@ -80,14 +202,14 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn embedded_metadata_matches_dictionary() {
-        assert_eq!(english_metadata().entry_count, english().entries().len());
+        assert_eq!(english_metadata().entry_count(), english().entries().len());
         assert_eq!(
-            english_metadata().lensisku_created_at,
+            english_metadata().lensisku_created_at(),
             "2026-09-01T11:38:52Z"
         );
-        assert_eq!(english_metadata().definition_count, 33053);
-        assert!(english_metadata().definition_count > english_metadata().entry_count);
-        assert!(!english_metadata().positive_scores_only);
+        assert_eq!(english_metadata().definition_count(), 33053);
+        assert!(english_metadata().definition_count() > english_metadata().entry_count());
+        assert!(!english_metadata().positive_scores_only());
     }
 
     #[test]
