@@ -120,7 +120,7 @@ it directly in TOML:
 ```toml
 id = "cll.chrestomathy.north-wind"
 lojban-filename = "texts/north-wind.lojban"
-tags = ["long-text", "regression-baseline"]
+tags = ["long-text", "regression-baseline", "owner-waived-baseline"]
 ```
 
 `lojban-filename` is relative to the fixture TOML file. It is mutually
@@ -136,6 +136,20 @@ CLL plus muplis reference-analysis tests.
 Tags are for ad hoc organization that is not already captured by provenance,
 path, or structured selectors. For example, CLL chapter membership belongs in
 `provenance`, not in `tags`.
+
+Two tags make a fixture describe the standing of its own expectations, and the
+formatter turns each into a comment at the top of the file, so the note cannot
+be lost when the fixture is rewritten:
+
+- `regression-baseline` - the expectations are parser output recorded as a
+  baseline, not semantically verified truth.
+- `owner-waived-baseline` - stronger, and rarer: the detailed expectations are
+  implementation-generated and were accepted under an explicit owner waiver
+  rather than reviewed field by field, because no prior baseline existed to
+  prove the change surface-only. The comment records what *was* independently
+  established and what was not. Select the set with
+  `fixture-test --tag owner-waived-baseline`; it currently holds the four
+  chrestomathy long texts colojban 1.3.4 replaced or added.
 
 Profiles live under `tests/fixtures/profiles/` and combine facet selection with the
 same selectors accepted by `cargo xtask fixture-list` and `cargo xtask
