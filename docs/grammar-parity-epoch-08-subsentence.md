@@ -1848,7 +1848,7 @@ an assumption.** `cargo build -p jbotci` (debug), `dx build`, `maturin develop` 
 Python generator checks -- `generate_syntax_models.py`, `generate_domain_enum_stubs.py`,
 `compose_stubs.py`, `generate_api_matrix.py` -- did not run. The condition for skipping them is
 that the change touches nothing under `bindings/python/`, `crates/jbotci-ui` or the generated
-model, and `git diff --name-only 28d256f577 HEAD` returns exactly one path:
+model, and `git diff --name-only 28d256f577 0aa021bcd4` -- the gated code tree -- returns exactly one path:
 `crates/jbotci-syntax/src/grammar/baseline_relative.rs`. The grammar model in `generated.rs` and
 both macro crates are untouched, so no generated Rust, Python module, stub or API-matrix row can
 have moved. The expensive-contracts row is NOT among the skips even though the change is small:
@@ -1864,7 +1864,7 @@ parses strictly.
 **There is no peak-RSS pair, and that is the reported result rather than an omission.** The
 standing instruction ties the pair to adding a production; this round adds none. It adds one enum,
 one predicate rewritten from a boolean to that enum, its recovered twin, four call sites reading
-it positively or negatively, and two tests. `git diff 28d256f577 HEAD` touches no generated path
+it positively or negatively, and two tests. `git diff 28d256f577 0aa021bcd4` touches no generated path
 at all -- not the four `generate_syntax_models.py` writes, not `docs/api-parity.tsv`, not
 `crates/jbotci-syntax/tests/recovery-anchor-metadata.snapshot.txt`, which is still byte-identical
 to `2284b50691`. `tests/struct_invariant_audit.rs` and `tests/enum_invariant_audit.rs` need no new
