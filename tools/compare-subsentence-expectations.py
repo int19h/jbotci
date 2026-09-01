@@ -340,7 +340,7 @@ EXPECTED_MECHANICAL: dict[str, int] = {
 }
 EXPECTED_MANUAL = 29
 EXPECTED_PROSE = 0
-EXPECTED_NEW_WITNESSES = 99
+EXPECTED_NEW_WITNESSES = 106
 
 class Divergence(Exception):
     def __init__(self, path: str, reason: str) -> None:

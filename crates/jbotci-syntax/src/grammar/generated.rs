@@ -6786,6 +6786,35 @@ pub mod generated_model {
         // reusing `exp_selbri_relative_clause_connective`: the probe must never contribute a
         // node or the connective's own experimental warning.
         //
+        // Spelled from tokens, but with the free-modifier placements the four connective rules
+        // it stands for actually carry, which is the same rule
+        // `zantufa_kuho_terminated_statement_relative_clause` states for its own marker: a
+        // reservation that is not the SAME LANGUAGE as the thing it reserves fails at exactly
+        // the boundary where they differ, and the prefix-steal happens there. Each `.wf()`
+        // below is one an owning rule carries -- `cmavo(Zihe).wf()` in both
+        // `zihe_selbri_relative_connective` and the sumti site's `joined_relative_clause_tail`,
+        // the closing `selmaho(Gaho).wf()` of `closed_interval_connective`, and the
+        // `head`/`nai` pair of `simple_interval_connective` and of the
+        // `exp_relative_clause_connective` that the sumti site's `exp_relative_continuation`
+        // uses for camxes-exp's `joik` at :199. Between them they cover both placements a
+        // stranded connective can present: camxes-exp's own `(ZIhE_clause / joik) free*`
+        // (:214), which lands after the completed connective, and the head-before-NAI slot the
+        // shared connective nodes carry, which is unsourced (#847) but which the epoch base
+        // already reaches at the enclosing site and which this epoch may therefore not
+        // withdraw. Without them `broda po'oi mi brode zi'e to do brodi toi pe mi` and every
+        // other measured member of its class -- both connective families, GOI and NOI markers,
+        // both sites, one interposed free or several, TO/TOI, SEI and vocative flavours, with
+        // and without a NAI behind the head -- are base-A/head-R: the probe fails, the arm
+        // takes clause one, and the enclosing list whose own connective would have consumed
+        // those frees never gets a list to own. The measured table is in the epoch ledger's
+        // round-5 section.
+        //
+        // Refusing the head-before-NAI placement remains a separate job, done by
+        // `ProhibitedRelativeConnectiveFreeModifierRejection` on the chain's own completed
+        // continuations, where it decides what this epoch's new route may PRODUCE. This probe
+        // produces nothing, so recognising the placement here neither loosens that rejection
+        // nor emits the free modifiers' own diagnostics.
+        //
         // The marker inventory is the whole atom inventory of the sites that own the stranded
         // list, which is NOI *and* GOI: `relative_clause_atom` is
         // `sumti_association_relative_clause` (`selmaho(Goi)`) or `bridi_relative_clause`,
@@ -6795,27 +6824,32 @@ pub mod generated_model {
         // no `selbri_relative_clause` can begin with GOI either, since exp's marker there is
         // `NOhOI` alone (:1907), so the by-construction argument is the same for both classes.
         //
+        // The marker choice stays bare. The probe ends there, so a `free*` after it could not
+        // change the boolean, and probing one at end of input moves the recorded failure
+        // frontier onto the probe -- the same reason `zantufa_kuho_terminated_statement_relative_clause`
+        // leaves its `ku'o` unwrapped.
+        //
         // It is a TRAILING assertion rather than a `followed_by` on `bo_tail` because the
         // probe must observe the position after everything the unit consumed -- chain and BO
         // tail alike -- without making any field opaque to recovery metadata: wrapping the
         // field cost this rule all three of its `Cmavo(Bo)` resume anchors.
         assert !(
             choice((
-                cmavo(Zihe).ignored(),
+                cmavo(Zihe).wf().ignored(),
                 (
                     selmaho(Gaho),
                     opt(selmaho(Se)),
                     selmaho(Bihi),
                     opt(cmavo(Nai)),
-                    selmaho(Gaho),
+                    selmaho(Gaho).wf(),
                 )
                     .ignored(),
-                (opt(selmaho(Se)), selmaho(Bihi), opt(cmavo(Nai))).ignored(),
+                (opt(selmaho(Se)), selmaho(Bihi).wf(), opt(cmavo(Nai).wf())).ignored(),
                 (
                     opt(selmaho(Na)),
                     opt(selmaho(Se)),
-                    choice((selmaho(Joi), selmaho(Ja), selmaho(A))),
-                    opt(cmavo(Nai)),
+                    choice((selmaho(Joi), selmaho(Ja), selmaho(A))).wf(),
+                    opt(cmavo(Nai).wf()),
                 )
                     .ignored(),
             )),

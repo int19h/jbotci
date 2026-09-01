@@ -21,6 +21,7 @@ use super::generated_model::{
     ZantufaXoiStatementAdverbialSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
+use crate::tree::WithFreeModifiers;
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy)]
@@ -176,13 +177,25 @@ fn is_prohibited_connective_free_modifier(
                 head,
                 nai,
             } = connective;
-            nai.is_some() && !head.free_modifiers.is_empty()
+            prohibited_free_modifier_placement(head, nai.as_ref())
         }
         ExpSelbriRelativeClauseConnectiveSyntax::SimpleIntervalConnective(connective) => {
             let SimpleIntervalConnectiveSyntax { se: _, bihi, nai } = connective;
-            nai.is_some() && !bihi.free_modifiers.is_empty()
+            prohibited_free_modifier_placement(bihi, nai.as_ref())
         }
     }
+}
+
+/// The shared half of the two head-before-optional-NAI shapes: a `NAI` present and at least one
+/// free modifier standing in front of it. It is one predicate rather than two so the chain's
+/// rejection and the S3 list classifier that has to anticipate it cannot drift apart.
+#[requires(true)]
+#[ensures(true)]
+fn prohibited_free_modifier_placement<T, F>(
+    head: &WithFreeModifiers<T, F>,
+    nai: Option<&WithFreeModifiers<T, F>>,
+) -> bool {
+    nai.is_some() && !head.free_modifiers.is_empty()
 }
 
 /// The prohibited placement, read off a recovered connective.
@@ -429,19 +442,32 @@ fn is_exp_selbri_relative_clause(value: &RelativeClauseAtomSyntax) -> bool {
 /// (JOI_clause / JA_clause / A_clause) NAI_clause?` under an explicit A-JA-JOI merge (:346).
 /// D2's chain and this list therefore hold the SAME two connective nodes,
 /// `zihe_selbri_relative_connective`/`joined_relative_clause_tail` for ZIhE and
-/// `exp_relative_clause_connective` for the joik, so every connective a continuation here can
-/// present is one the exp chain consumes and the test is the clause alone. Rolling Zantufa's
-/// bare adjacency is the one tail with no camxes-exp counterpart, and it is refused by shape.
+/// `exp_relative_clause_connective` for the joik. Rolling Zantufa's bare adjacency is the one
+/// tail with no camxes-exp counterpart, and it is refused by shape.
+///
+/// Holding the same node is no longer the same as spelling the same language, which is why the
+/// connective is tested and not just the clause. `ProhibitedRelativeConnectiveFreeModifierRejection`
+/// makes the chain refuse one placement the shared node still parses -- a free modifier before a
+/// present `NAI` -- so a continuation carrying that placement is one this list can present and the
+/// chain cannot keep. Returning it here would hand the list to a route that will not take it, and
+/// `broda po'oi mi brode je to do brodi toi nai po'oi do brodi` -- `A` at `0d791fd35c` through
+/// this very arm -- would be withdrawn, which is a base surface this epoch may not spend. A
+/// classifier that defers to a route has to be the same language as that route, exactly as the
+/// tanru unit's own mixed-list reservation has to be.
 #[requires(true)]
 #[ensures(true)]
 fn is_exp_selbri_relative_continuation(value: &RelativeClauseTailSyntax) -> bool {
     match value {
         RelativeClauseTailSyntax::RelativeClauseExpContinuation(continuation) => {
-            let ExpRelativeContinuationSyntax {
-                connective: _,
-                inner,
-            } = continuation.0.as_ref();
-            is_exp_selbri_relative_clause(inner)
+            let ExpRelativeContinuationSyntax { connective, inner } = continuation.0.as_ref();
+            let ExpRelativeClauseConnectiveSyntax {
+                na: _,
+                se: _,
+                head,
+                nai,
+            } = connective;
+            !prohibited_free_modifier_placement(head, nai.as_ref())
+                && is_exp_selbri_relative_clause(inner)
         }
         RelativeClauseTailSyntax::JoinedRelativeClauseTail(joined) => {
             is_exp_selbri_relative_clause(&joined.inner)
@@ -617,7 +643,16 @@ fn recovered_is_exp_selbri_relative_continuation(
         recovered::RelativeClauseTailSyntax::RelativeClauseExpContinuation(continuation) => {
             valid(continuation).is_some_and(|continuation| {
                 valid(&continuation.0).is_some_and(|continuation| {
-                    valid(&continuation.inner).is_some_and(recovered_is_exp_selbri_relative_clause)
+                    valid(&continuation.connective).is_some_and(|connective| {
+                        let recovered::ExpRelativeClauseConnectiveSyntax {
+                            na: _,
+                            se: _,
+                            head,
+                            nai,
+                        } = connective;
+                        !recovered_prohibited_free_modifier_placement(head, nai.as_ref())
+                    }) && valid(&continuation.inner)
+                        .is_some_and(recovered_is_exp_selbri_relative_clause)
                 })
             })
         }
