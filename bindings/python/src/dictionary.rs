@@ -544,6 +544,7 @@ impl PythonStringEnum for WordType {
             WordType::ObsoleteCmevla,
             WordType::BuLetteral,
             WordType::Phrase,
+            WordType::Nalvla,
         ];
         VARIANTS
     }
@@ -565,6 +566,7 @@ impl PythonStringEnum for WordType {
             Self::ObsoleteCmevla => "OBSOLETE_CMEVLA",
             Self::BuLetteral => "BU_LETTERAL",
             Self::Phrase => "PHRASE",
+            Self::Nalvla => "NALVLA",
         })
     }
 
@@ -2853,6 +2855,22 @@ impl PyDictionarySnapshotMetadata {
         self.metadata.format
     }
 
+    /// Return the tag of the language the snapshot's words are written in.
+    #[requires(true)]
+    #[ensures(ret == self.metadata.source_language_tag)]
+    #[getter]
+    fn source_language_tag(&self) -> &'static str {
+        self.metadata.source_language_tag
+    }
+
+    /// Report whether the export kept only positively scored definitions.
+    #[requires(true)]
+    #[ensures(ret == self.metadata.positive_scores_only)]
+    #[getter]
+    fn positive_scores_only(&self) -> bool {
+        self.metadata.positive_scores_only
+    }
+
     /// Return the vendored snapshot filename.
     #[requires(true)]
     #[ensures(ret == self.metadata.filename)]
@@ -2891,6 +2909,17 @@ impl PyDictionarySnapshotMetadata {
     #[getter]
     fn sha256(&self) -> &'static str {
         self.metadata.sha256
+    }
+
+    /// Return the exact number of definitions the upstream export carried.
+    ///
+    /// A word may have several definitions upstream; the snapshot embeds one
+    /// per word, so this never falls below [`Self::entry_count`].
+    #[requires(true)]
+    #[ensures(ret == self.metadata.definition_count)]
+    #[getter]
+    fn definition_count(&self) -> usize {
+        self.metadata.definition_count
     }
 
     /// Return the exact number of embedded entries.
@@ -4211,6 +4240,7 @@ class DictionaryValidationError(JbotciError):
                 ("download_url", rust_metadata.download_url),
                 ("lensisku_created_at", rust_metadata.lensisku_created_at),
                 ("sha256", rust_metadata.sha256),
+                ("source_language_tag", rust_metadata.source_language_tag),
             ] {
                 assert_eq!(
                     python_metadata
@@ -4228,6 +4258,22 @@ class DictionaryValidationError(JbotciError):
                     .extract::<usize>()
                     .unwrap(),
                 rust_metadata.entry_count
+            );
+            assert_eq!(
+                python_metadata
+                    .getattr("definition_count")
+                    .unwrap()
+                    .extract::<usize>()
+                    .unwrap(),
+                rust_metadata.definition_count
+            );
+            assert_eq!(
+                python_metadata
+                    .getattr("positive_scores_only")
+                    .unwrap()
+                    .extract::<bool>()
+                    .unwrap(),
+                rust_metadata.positive_scores_only
             );
         });
     }

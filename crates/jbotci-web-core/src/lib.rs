@@ -5671,6 +5671,10 @@ fn dictionary_report_count_tree(entries: &[DictionaryEntry<'_>]) -> Vec<VlackuDi
             Vec::new(),
         ),
         dictionary_type_node("phrases", entries, &[WordType::Phrase], Vec::new()),
+        // Lensisku's untyped catch-all. Listed so the tree still accounts for
+        // every entry behind `total_count`; the `count > 0` filter hides it
+        // whenever the snapshot has none.
+        dictionary_type_node("untyped", entries, &[WordType::Nalvla], Vec::new()),
     ]
     .into_iter()
     .filter(|node| node.count > 0)

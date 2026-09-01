@@ -114,17 +114,18 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
         dictionary.PronunciationTargetSequenceView
         is native._dictionary_PronunciationTargetSequenceView
     )
-    assert len(dictionary.english) == 17_536
+    assert len(dictionary.english) == 30_793
     assert dictionary.english_metadata.entry_count == len(dictionary.english)
     assert dictionary.english_metadata.language_tag == "en"
     assert dictionary.english_metadata.language_realname == "English"
     assert dictionary.english_metadata.format == "json"
     assert dictionary.english_metadata.filename == "dictionary-en.json"
-    assert dictionary.english_metadata.lensisku_created_at == (
-        "2026-07-27T07:10:51.776063Z"
-    )
+    assert dictionary.english_metadata.lensisku_created_at == "2026-09-01T11:38:52Z"
+    assert dictionary.english_metadata.source_language_tag == "jbo"
+    assert dictionary.english_metadata.positive_scores_only is False
+    assert dictionary.english_metadata.definition_count == 33_053
     assert dictionary.english_metadata.sha256 == (
-        "ba268ad701f8f44656ea4b17a1fd9539cfc1a3c523d0bdf581a44e3e93bb412f"
+        "d446173f1e2acb4d590999c4f120f407ff6021c3945c94c5f9ee8d79a85cb5b1"
     )
     assert repr(dictionary.english) == "jbotci.dictionary.english"
     assert dictionary.Dictionary.__name__ == "Dictionary"

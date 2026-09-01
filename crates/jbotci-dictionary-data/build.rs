@@ -37,17 +37,30 @@ const VENDORED_DICTIONARY: &str = "data/dictionary-en.json";
 const VENDORED_METADATA: &str = "data/dictionary-en.metadata.toml";
 const VENDORED_EXTRACTED_RAFSI: &str = "data/extracted-rafsi-en.json";
 
+/// Provenance of the vendored snapshot, as written by `cargo xtask
+/// vendor-dictionary` (see `data/README.md`).
+///
+/// `definition_count` counts the rows of the vendored JSON and `entry_count`
+/// the entries that survive best-definition selection; the two differ whenever
+/// the export carries several definitions of one word.
+#[invariant(
+    entry_count <= definition_count,
+    "selection drops definitions, never invents them"
+)]
 #[derive(Debug, Clone, Deserialize)]
-#[invariant(true)]
+#[serde(deny_unknown_fields)]
 struct DictionaryMetadata {
     language_tag: String,
     language_realname: String,
+    source_language_tag: String,
     format: String,
+    positive_scores_only: bool,
     filename: String,
     metadata_url: String,
     download_url: String,
     lensisku_created_at: String,
     sha256: String,
+    definition_count: usize,
     entry_count: usize,
 }
 
@@ -237,8 +250,24 @@ fn run() -> Result<(), Box<dyn Error>> {
         load_dictionary_metadata(&metadata_path)
     })?;
     let mut imported = timed_stage("parse lensisku json", || parse_lensisku_json(&input))?;
+    let definition_count = imported.entries.len();
+    // Lensisku's unfiltered export carries every definition of every word,
+    // including rows that never got any text and repeat submissions of the
+    // same text; jbotci embeds the one definition per word that Lensisku's own
+    // ranking would pick among those that actually define something.
+    let undefined = timed_stage("discard undefined entries", || {
+        imported.retain_defined_entries()
+    });
+    let duplicates = timed_stage("select best definitions", || {
+        imported.retain_best_definition_per_word()
+    });
+    emit_build_timing(format_args!(
+        "kept {} of {definition_count} definition(s), dropping {undefined} undefined \
+         and {duplicates} duplicate",
+        imported.entries.len()
+    ));
     timed_stage("validate dictionary metadata", || {
-        validate_dictionary_metadata(&metadata, &imported, input.as_bytes())
+        validate_dictionary_metadata(&metadata, definition_count, &imported, input.as_bytes())
     })?;
     let extracted_rafsi = timed_stage("load extracted rafsi", || {
         load_extracted_rafsi(&extracted_rafsi_path)
@@ -595,9 +624,18 @@ fn load_dictionary_metadata(path: &Path) -> Result<DictionaryMetadata, Box<dyn E
 #[ensures(true)]
 fn validate_dictionary_metadata(
     metadata: &DictionaryMetadata,
+    definition_count: usize,
     dictionary: &ImportedDictionary,
     dictionary_bytes: &[u8],
 ) -> Result<(), Box<dyn Error>> {
+    if metadata.definition_count != definition_count {
+        return Err(format!(
+            "metadata definition_count {} does not match {definition_count} snapshot definitions",
+            metadata.definition_count
+        )
+        .into());
+    }
+
     if metadata.entry_count != dictionary.entries.len() {
         return Err(format!(
             "metadata entry_count {} does not match {} dictionary entries",
@@ -827,24 +865,30 @@ fn render_dictionary(
 fn render_metadata(metadata: &DictionaryMetadata) -> TokenStream {
     let language_tag = string_literal(&metadata.language_tag);
     let language_realname = string_literal(&metadata.language_realname);
+    let source_language_tag = string_literal(&metadata.source_language_tag);
     let format = string_literal(&metadata.format);
+    let positive_scores_only = metadata.positive_scores_only;
     let filename = string_literal(&metadata.filename);
     let metadata_url = string_literal(&metadata.metadata_url);
     let download_url = string_literal(&metadata.download_url);
     let lensisku_created_at = string_literal(&metadata.lensisku_created_at);
     let sha256 = string_literal(&metadata.sha256);
+    let definition_count = usize_literal(metadata.definition_count);
     let entry_count = usize_literal(metadata.entry_count);
 
     quote! {
         crate::DictionarySnapshotMetadata {
             language_tag: #language_tag,
             language_realname: #language_realname,
+            source_language_tag: #source_language_tag,
             format: #format,
+            positive_scores_only: #positive_scores_only,
             filename: #filename,
             metadata_url: #metadata_url,
             download_url: #download_url,
             lensisku_created_at: #lensisku_created_at,
             sha256: #sha256,
+            definition_count: #definition_count,
             entry_count: #entry_count,
         }
     }
@@ -1097,6 +1141,7 @@ fn render_word_type(word_type: WordType) -> TokenStream {
         WordType::ObsoleteCmevla => quote! { jbotci_dictionary::WordType::ObsoleteCmevla },
         WordType::BuLetteral => quote! { jbotci_dictionary::WordType::BuLetteral },
         WordType::Phrase => quote! { jbotci_dictionary::WordType::Phrase },
+        WordType::Nalvla => quote! { jbotci_dictionary::WordType::Nalvla },
     }
 }
 

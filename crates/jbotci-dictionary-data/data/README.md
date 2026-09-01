@@ -5,15 +5,56 @@ and compiled by `jbotci-dictionary-data`. Keeping the build inputs inside the
 crate makes every Cargo source package—and therefore the Python sdist—complete
 without reaching back into a repository checkout.
 
+## Which export is vendored
+
+The snapshot is Lensisku's **unfiltered** English export — the
+`positive_scores_only=false` variant. Keeping the flag on, as jbotci did until
+jbotci issue #881, silently dropped every word whose best English definition
+scores zero or less: 12,471 of the 30,797 words in the 2026-09-01 export, most
+of them simply never voted on.
+
+That export comes from the **authenticated** `/api/export/dictionary` route.
+The anonymous `/api/export/cached` route cannot serve it, for two independent
+reasons found in Lensisku's own sources:
+
+- its nightly job pre-warms only the `positive_scores_only=true` variant
+  (`export_all_dictionaries` says so in a comment), so the unfiltered variant
+  is never in the cache and the download 404s; and
+- Lensisku migration `V151` invalidates every cached row for a language pair on
+  *any* definition edit or vote, so English — its most-edited language — is
+  effectively never cached at all, in any variant.
+
+Since upstream migration `V157`, the unfiltered export returns *every*
+definition of every word rather than the best one per word, duplicates and
+repeat submissions included. `jbotci-dictionary-data` embeds one definition per
+word, chosen by Lensisku's own ranking — highest vote score, lowest definition
+id to break a tie — in
+`ImportedDictionary::retain_best_definition_per_word`. The vendored JSON stays
+the verbatim export, so recovering the alternates later needs no re-fetch. The
+metadata records both counts: `definition_count` for the file's rows,
+`entry_count` for the entries actually embedded.
+
+## Refreshing
+
 Refresh the English JSON snapshot with:
 
 ```sh
-cargo xtask vendor-dictionary
+LENSISKU_USERNAME=... LENSISKU_PASSWORD=... cargo run -r -p xtask-full -- vendor-dictionary
 ```
 
-Use `cargo xtask vendor-dictionary --check` in CI or review workflows to verify
-that the current cached export still validates without rewriting the vendored
-files.
+Credentials are read from the environment, never from the command line, so they
+stay out of process listings and shell history. `LENSISKU_TOKEN` is used
+directly when set; otherwise the username and password are exchanged for one at
+`/api/auth/login`.
+
+Use `cargo run -r -p xtask-full -- vendor-dictionary --check` in CI or review
+workflows. It reads only the working tree: it recomputes the vendored file's
+SHA-256, definition count, and embedded entry count and fails on any mismatch
+with `dictionary-en.metadata.toml`. It needs no credentials and no network.
+
+`--check-upstream` answers the different question of whether Lensisku now
+serves an export unlike the committed one. It fetches, so it needs credentials,
+and it never rewrites the vendored files.
 
 ## Extracted rafsi (`extracted-rafsi-en.json`)
 
@@ -57,3 +98,18 @@ checks, **re-audit — never override**:
 3. If a word vanished or changed word type, drop it.
 
 Do not relax the validations to make a refreshed snapshot build.
+
+### Re-audits on record
+
+**2026-09-01** (issue #881, unfiltered export): 55 words / 60 forms became 37
+words / 40 forms.
+
+- 14 words now carry structured rafsi in the snapshot, and in **every** case
+  they are exactly the forms the extraction had proposed — no divergence to
+  record: `corci`, `ditcu`, `dutso`, `flese`, `jonse`, `kibro`, `sfite`,
+  `tonsi`, `vedli`, `vujnu`, `xrotu`, `zandi`, `zucna`, `zviki`.
+- 4 words lost their only form to another entry, so they were dropped whole:
+  `dzoli`'s `dzo` to `dzodu`, `grava`'s `gav` to `ganvi`, `kligo`'s `kig` to
+  `kirgo`, and `losmo`'s `los` to `losxa`. The last is a consequence of the
+  unfiltered export itself: `losxa` scores 0, so its claim on `los` was
+  invisible while the snapshot kept only positively scored definitions.

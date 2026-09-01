@@ -4,17 +4,33 @@ use bityzba::{invariant, requires};
 use jbotci_dictionary::Dictionary;
 
 /// Metadata for a vendored Lensisku dictionary snapshot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// `definition_count` counts the definitions Lensisku exported and
+/// `entry_count` the entries this crate embeds. They differ because an export
+/// may carry several definitions of one word, of which the snapshot keeps the
+/// one Lensisku's own ranking prefers.
+///
+/// The type carries no generated invariant because its only value is embedded
+/// as a `static`, which a validated wrapper cannot initialize. Its one real
+/// constraint — `entry_count <= definition_count` — is enforced where the value
+/// is produced (`build.rs`'s own metadata type) and re-checked on every read
+/// through [`english_metadata`].
 #[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DictionarySnapshotMetadata {
     pub language_tag: &'static str,
     pub language_realname: &'static str,
+    /// Language of the defined words, `jbo` for every snapshot jbotci vendors.
+    pub source_language_tag: &'static str,
     pub format: &'static str,
+    /// Whether the export was restricted to positively scored definitions.
+    pub positive_scores_only: bool,
     pub filename: &'static str,
     pub metadata_url: &'static str,
     pub download_url: &'static str,
     pub lensisku_created_at: &'static str,
     pub sha256: &'static str,
+    pub definition_count: usize,
     pub entry_count: usize,
 }
 
@@ -30,6 +46,10 @@ pub fn english() -> &'static Dictionary<'static> {
 /// Return metadata for the embedded English Lensisku dictionary snapshot.
 #[requires(true)]
 #[ensures(ret.entry_count == ENGLISH.entries().len())]
+#[ensures(
+    ret.entry_count <= ret.definition_count,
+    "selection drops definitions, never invents them"
+)]
 pub fn english_metadata() -> &'static DictionarySnapshotMetadata {
     &ENGLISH_METADATA
 }
@@ -61,10 +81,10 @@ mod tests {
     #[ensures(true)]
     fn embedded_metadata_matches_dictionary() {
         assert_eq!(english_metadata().entry_count, english().entries().len());
-        assert_eq!(
-            english_metadata().lensisku_created_at,
-            "2026-07-27T07:10:51.776063Z"
-        );
+        assert_eq!(english_metadata().lensisku_created_at, "2026-09-01T11:38:52Z");
+        assert_eq!(english_metadata().definition_count, 33053);
+        assert!(english_metadata().definition_count > english_metadata().entry_count);
+        assert!(!english_metadata().positive_scores_only);
     }
 
     #[test]
@@ -216,12 +236,11 @@ mod tests {
     fn extracted_rafsi_are_merged_into_the_embedded_dictionary() {
         // The vendored extraction (issue #768) backfills rafsi that the
         // snapshot only ever stated in prose; downstream they are ordinary
-        // listed rafsi.
-        assert_extracted_rafsi("xrotu", &["xro"]);
-        assert_extracted_rafsi("dutso", &["tso"]);
-        assert_extracted_rafsi("vujnu", &["vu'u", "vuj"]);
+        // listed rafsi. Every word named here must still be extraction-only:
+        // Lensisku has since recorded structured rafsi for several words the
+        // extraction covered (issue #881), and those were dropped from the
+        // table, so asserting them here would no longer test the merge.
         assert_extracted_rafsi("celdi", &["cle"]);
-        assert_extracted_rafsi("ditcu", &["dit"]);
         assert_extracted_rafsi("supso", &["sus"]);
 
         // Losers of the owner-adjudicated conflicts keep no rafsi at all:

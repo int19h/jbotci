@@ -1465,6 +1465,9 @@ mod tests {
                         !matches!(word.as_data(), data!(WordLike::PlainWord(_)))
                     })
             }
+            // Lensisku's untyped catch-all claims no morphological category,
+            // so there is nothing for the entry's morphology to contradict.
+            WordType::Nalvla => true,
         }
     }
 
