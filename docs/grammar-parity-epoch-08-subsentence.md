@@ -1112,9 +1112,11 @@ packaged in either artifact, which the receipts confirm independently: both sdis
 base's wheels.
 
 Head figures are from run 33428074787 at `2284b50691`; the native member sizes are read out of the
-wheels themselves rather than from the receipts, because a receipt records the archive total.
-Windows has no head receipt -- the assertion fires before it is written -- so its member size is
-the one the failure itself reports, which is the same measurement.
+wheels themselves rather than from the receipts, because a receipt records the archive total. The
+Windows row is the exception and is measured at `a0a843bcb0`, from run 33452035154 -- the run this
+change unblocked -- because the failing run never wrote a Windows receipt or uploaded its wheel.
+Its member is 93,184 bytes larger there than the `117,420,544` the round-2 failure reported, which
+is round 3's own grammar and nothing else.
 
 | platform | wheel FILE, base | wheel FILE, head | head vs PyPI's 100 MiB | native member, base | native member, head | member delta |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1122,7 +1124,7 @@ the one the failure itself reports, which is the same measurement.
 | linux-aarch64 | 22,558,641 | 23,201,669 | **22.1%** | 99,684,848 | 102,478,320 | +2,793,472 (+2.8%) |
 | macos-x86_64 | 22,407,514 | 23,079,905 | **22.0%** | 95,085,152 | 97,916,640 | +2,831,488 (+3.0%) |
 | macos-aarch64 | 21,343,727 | 21,984,004 | **21.0%** | 90,685,632 | 93,386,576 | +2,700,944 (+3.0%) |
-| windows-x86_64 | 25,631,284 | not yet built | base was **24.4%** | 113,667,584 | **117,420,544** | +3,752,960 (+3.3%) |
+| windows-x86_64 | 25,631,284 | 26,479,419 | **25.3%** | 113,667,584 | 117,513,728 | +3,846,144 (+3.4%) |
 | sdist-wheel-x86_64 | 23,417,904 | 24,113,209 | **23.0%** | 107,888,432 | 110,903,936 | +3,015,504 (+2.8%) |
 | sdist | 3,011,193 | 3,051,332 | **2.9%** | -- | -- | -- |
 
@@ -1163,7 +1165,8 @@ Verification, at this tree:
 | fixed inspector on the head `linux-x86_64` wheel (110,904,928-byte member) | passes, receipt `archive_bytes` 24,116,350 / `unpacked_bytes` 115,744,528 / 24 entries |
 | fixed inspector on that wheel with a 3 MB `jbotci/stray-blob.bin` added | **fails** `AssertionError: ('jbotci/stray-blob.bin', 3000000)` -- the member shape check is intact |
 
-The Windows wheel file size at head is the one figure this section cannot fill: the receipt is
-written after the assertion, so the failing run never produced it. The `Python wheels` run at the
-commit that carries this change will, and at the base ratio it lands near 26.4 MB, about 25% of
-PyPI's limit.
+`Build windows-x86_64` is **green** at `a0a843bcb0` (run 33452035154), which is the check the
+change exists to unblock. Its receipt closes the table's one gap: the Windows wheel FILE is
+26,479,419 bytes -- **25.3% of PyPI's 100 MiB limit**, over a 117,513,728-byte member, a 4.43:1
+compression ratio. It is the largest artifact this project distributes and it is a quarter of the
+only limit that is real.
