@@ -14319,10 +14319,10 @@ mod tests {
             plain_text: String::new(),
         });
         new!(CllSite {
-            metadata: new!(CllMetadata {
-                title: "Test CLL".to_owned(),
+            metadata: CllMetadata {
+                edition: jbotci_cll::cll_edition().clone(),
                 chapter_count: 1,
-            }),
+            },
             chapters: vec![new!(CllChapter {
                 chapter_id: chapter_id.to_owned(),
                 division: CllDivision::Appendix,

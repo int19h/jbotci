@@ -13,9 +13,9 @@ use jbotci_cll::{
     DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT,
     chrestomathy_section_parse_href, cll_first_section_id, cll_index_entries, cll_lookup_section,
     cll_next_section_id, cll_numbered_title, cll_previous_section_id,
-    cll_resolve_section_reference,
-    cll_search_all_chunks, cll_search_chunk_href, cll_section_chapter_title, cukta_search,
-    embedded_cll_site, format_section_display_title, truncate_preview,
+    cll_resolve_section_reference, cll_search_all_chunks, cll_search_chunk_href,
+    cll_section_chapter_title, cukta_search, embedded_cll_site, format_section_display_title,
+    truncate_preview,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
