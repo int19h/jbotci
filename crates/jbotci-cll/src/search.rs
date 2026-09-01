@@ -533,7 +533,7 @@ fn chunk_kind_allowed(kind: CllSearchChunkKind, filter: CuktaTargetFilter) -> bo
 
 #[requires(true)]
 #[ensures(!ret.is_empty())]
-pub(super) fn search_chunk_kind_label(kind: CllSearchChunkKind) -> &'static str {
+pub fn search_chunk_kind_label(kind: CllSearchChunkKind) -> &'static str {
     match kind {
         CllSearchChunkKind::Section => "section",
         CllSearchChunkKind::Paragraph => "paragraph",

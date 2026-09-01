@@ -1924,10 +1924,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "web Cukta page data is a presentation DTO produced by build_cukta_web_page",
     ),
     (
-        "crates/jbotci-web-core/src/lib.rs:CuktaSearchResultCard",
-        "web Cukta result cards are projected from ranked CLL search matches",
-    ),
-    (
         "crates/jbotci-web-core/src/lib.rs:CuktaSectionLink",
         "web Cukta section links are presentation DTOs built from resolved CLL sections",
     ),

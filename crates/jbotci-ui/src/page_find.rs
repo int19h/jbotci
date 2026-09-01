@@ -688,7 +688,7 @@ fn collect_cukta_search_card_page_find_entries(
     entries: &mut Vec<PageFindTextEntry>,
     card: &CuktaSearchResultCard,
 ) {
-    push_page_find_entry(entries, format!("{} · {}", card.kind, card.section_label));
+    push_page_find_entry(entries, cukta_search_card_meta(card));
     push_page_find_entry(entries, format!("{}. {}", card.rank, card.label));
     if let Some(similarity) = &card.similarity_label {
         push_page_find_entry(entries, similarity.clone());

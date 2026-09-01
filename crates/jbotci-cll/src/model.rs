@@ -421,6 +421,19 @@ impl CllParagraphRole {
 /// ordinary prose in transports that carry no styling.
 pub const CLL_STATUS_NOTE_LABEL: &str = "Rule status";
 
+/// What separates that label from the note's body in element-tree transports.
+/// It is a real text node rather than only a CSS margin, so the DOM text a
+/// reader copies out of the web app reads the same as the HTML the CLI and the
+/// MCP tool emit.
+pub const CLL_STATUS_NOTE_LABEL_SEPARATOR: &str = " ";
+
+/// The classes a rule-status note carries when a section is read. Shared by the
+/// HTML renderer and the web reader so the two presentations cannot drift.
+pub const CLL_STATUS_NOTE_BLOCK_CLASSES: &str = "cll-para cll-status-note";
+
+/// The classes a rule-status note carries when it is a search hit's preview.
+pub const CLL_STATUS_NOTE_PREVIEW_CLASSES: &str = "cll-search-preview cll-status-note";
+
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]

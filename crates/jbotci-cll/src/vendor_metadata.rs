@@ -5,18 +5,29 @@
 //!
 //! The accepted format is deliberately narrow rather than a general `.env`
 //! dialect. A vendored file that uses a construct this module does not
-//! interpret — single quotes, escapes, an inline comment — is rejected with an
-//! explanation instead of being silently misread into the reported edition,
-//! because a wrong edition is worse than a failed build.
+//! interpret — single quotes, escapes, an inline comment, whitespace around the
+//! separator — is rejected with an explanation instead of being silently
+//! misread into the reported edition, because a wrong edition is worse than a
+//! failed build.
+//!
+//! The separator is a literal token, and whitespace inside it is part of the
+//! token rather than padding: `.env` records are written `KEY=VALUE` and the pin
+//! record is written `key: value`, so the callers pass `"="` and `": "`
+//! respectively. Nothing is trimmed away before validation, so a record that is
+//! not spelled exactly that way is a parse error rather than something this
+//! module quietly normalizes.
 //!
 //! Accepted:
 //!
-//! - blank lines and whole-line `#` comments, which are skipped;
-//! - otherwise exactly `KEY<separator>VALUE`, where `KEY` is non-empty and made
-//!   of ASCII alphanumerics, `_`, or `-`, and no key repeats;
-//! - `VALUE` either bare, or wrapped in one pair of double quotes; either way
-//!   it must be non-empty and carry no leading or trailing whitespace, and it
-//!   must contain no `"`, no `\`, and no `#`.
+//! - a blank line, or a comment line beginning with `#` at column 0; both are
+//!   skipped, and a trailing `\r` from a CRLF line ending is ignored;
+//! - otherwise exactly `KEY<separator>VALUE` with no other whitespace adjoining
+//!   the separator, where `KEY` is non-empty, made only of ASCII alphanumerics,
+//!   `_`, or `-` (which also excludes indentation and `export `), and no key
+//!   repeats;
+//! - `VALUE` either bare, or wrapped in one pair of double quotes; either way it
+//!   must be non-empty, carry no leading or trailing whitespace inside or
+//!   outside the quotes, and contain no `"`, no `\`, and no `#`.
 //!
 //! `build.rs` includes this file by path to produce the generated edition
 //! constants, and the crate's own tests include it so they check the same parse
@@ -26,32 +37,39 @@
 use bityzba::{ensures, requires};
 
 /// Parses one flat `KEY<separator>VALUE` record file. Values come back in file
-/// order, canonical: trimmed, unquoted, and non-empty.
+/// order, canonical: unquoted, non-empty, and already free of padding because
+/// padding was rejected rather than stripped.
 #[requires(!source_name.is_empty())]
+#[requires(!separator.is_empty())]
 #[ensures(ret.as_ref().is_ok_and(|fields| fields
     .iter()
-    .all(|(key, value)| !key.is_empty() && !value.is_empty() && value.trim() == value))
+    .all(|(key, value)| !key.is_empty() && !value.is_empty() && value.trim() == value.as_str()))
     || ret.is_err())]
 pub(crate) fn parse_key_value_file(
     text: &str,
-    separator: char,
+    separator: &str,
     source_name: &str,
 ) -> Result<Vec<(String, String)>, String> {
     let mut fields: Vec<(String, String)> = Vec::new();
     for line in text.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
+        // `lines` splits on `\n` and leaves a CRLF file's `\r` behind. That is a
+        // line ending rather than record content, so it is the one thing
+        // dropped before the record is validated as written.
+        let line = line.strip_suffix('\r').unwrap_or(line);
+        if line.trim().is_empty() || line.starts_with('#') {
             continue;
         }
         let (key, value) = line
             .split_once(separator)
             .ok_or_else(|| format!("{source_name} has a line without {separator:?}: {line:?}"))?;
-        let key = key.trim();
         if key.is_empty() {
             return Err(format!(
                 "{source_name} has a line with an empty key: {line:?}"
             ));
         }
+        // The charset check is what rejects a padded key such as `A =one`, an
+        // indented record, and an `export KEY=...` prefix: none of them is a
+        // form this module interprets.
         if !key.chars().all(|character| {
             character.is_ascii_alphanumeric() || character == '_' || character == '-'
         }) {
@@ -67,13 +85,21 @@ pub(crate) fn parse_key_value_file(
     Ok(fields)
 }
 
-/// Unwraps and validates one record's value. Rejects every construct the
-/// module does not interpret rather than guessing at its meaning.
+/// Unwraps and validates one record's value exactly as written. Rejects every
+/// construct the module does not interpret rather than guessing at its meaning.
 #[requires(!key.is_empty())]
 #[requires(!source_name.is_empty())]
-#[ensures(ret.as_ref().is_ok_and(|value| !value.is_empty() && value.trim() == value) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|value| !value.is_empty() && value.trim() == value.as_str())
+    || ret.is_err())]
 fn parse_value(value: &str, key: &str, source_name: &str) -> Result<String, String> {
-    let value = value.trim();
+    // Checked before anything is stripped, so padding outside the quotes is
+    // observed rather than discarded: `A= two`, `A=two `, and `A= "two"` are
+    // all records this module does not interpret.
+    if value.trim() != value {
+        return Err(format!(
+            "{source_name} pads the value of {key:?} with whitespace"
+        ));
+    }
     if value.starts_with('\'') {
         return Err(format!(
             "{source_name} single-quotes the value of {key:?}, which is not an interpreted form here"
@@ -96,9 +122,10 @@ fn parse_value(value: &str, key: &str, source_name: &str) -> Result<String, Stri
             ));
         }
     }
+    // The remaining padding case is inside the quotes, as in `A="   "`.
     if value.trim() != value {
         return Err(format!(
-            "{source_name} pads the value of {key:?} with whitespace"
+            "{source_name} pads the quoted value of {key:?} with whitespace"
         ));
     }
     if value.is_empty() {

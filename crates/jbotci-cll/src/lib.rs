@@ -63,18 +63,18 @@ pub use links::{
 mod search;
 #[cfg(test)]
 use search::block_tagged_words;
+pub use search::search_chunk_kind_label;
 pub use search::{
     CllSearchChunk, CllSearchChunkKind, CllSearchMatch, CuktaRequest, CuktaSearchMode,
     CuktaSearchOutput, CuktaTargetFilter, clamp_cukta_result_count, cll_search_all_chunks,
     cll_search_section_chunks, collect_tagged_words, cukta_search, cukta_word_search_matches,
     parse_word_search_terms, truncate_preview,
 };
-use search::{build_search_chunks, example_plain_text, search_chunk_kind_label};
+use search::{build_search_chunks, example_plain_text};
 
 mod render;
 use render::{
-    CLL_STATUS_NOTE_PREVIEW_CLASSES, push_status_note_markdown, render_block_html,
-    render_block_markdown, render_status_note_html,
+    push_status_note_markdown, render_block_html, render_block_markdown, render_status_note_html,
 };
 
 mod visitor;
@@ -955,9 +955,12 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../vendor/cll.VENDORED_FROM"
         ));
-        let env = vendor_metadata::parse_key_value_file(vendored_env, '=', ENV_NAME)
+        // The separators are literal tokens: `.env` records are written
+        // `KEY=VALUE` and the pin record `key: value`, and the space after the
+        // colon is part of the separator rather than padding to discard.
+        let env = vendor_metadata::parse_key_value_file(vendored_env, "=", ENV_NAME)
             .expect("the vendored .env should parse");
-        let pin = vendor_metadata::parse_key_value_file(vendored_pin, ':', PIN_NAME)
+        let pin = vendor_metadata::parse_key_value_file(vendored_pin, ": ", PIN_NAME)
             .expect("the vendored pin record should parse");
         let field = |fields: &[(String, String)], key: &str, source: &str| {
             vendor_metadata::required_field(fields, key, source)
@@ -994,9 +997,9 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn vendored_metadata_parser_rejects_uninterpreted_shapes() {
-        let parse = |text: &str| vendor_metadata::parse_key_value_file(text, '=', "test");
+        let parse = |text: &str| vendor_metadata::parse_key_value_file(text, "=", "test");
 
-        assert!(parse("A=one\n# comment\n\nB=two\n").is_ok());
+        assert!(parse("A=one\n# comment\n\nB=two\r\n").is_ok());
         assert!(parse("A=one\nA=two\n").is_err(), "duplicate key");
         assert!(parse("A='one'\n").is_err(), "single-quoted value");
         assert!(parse("A=\"one\n").is_err(), "unterminated quote");
@@ -1006,14 +1009,42 @@ mod tests {
         assert!(parse("A=\"   \"\n").is_err(), "quoted whitespace value");
         assert!(parse("export A=one\n").is_err(), "unsupported key syntax");
         assert!(parse("no separator here\n").is_err(), "missing separator");
+        // Whitespace adjoining the separator is not padding to be discarded: a
+        // record spelled any way but exactly `KEY=VALUE` is one this module
+        // does not interpret, so it is an error rather than a normalization.
+        assert!(parse("A =one\n").is_err(), "padded key");
+        assert!(parse("A= one\n").is_err(), "value padded before");
+        assert!(parse("A=one \n").is_err(), "value padded after");
+        assert!(parse("A= \"one\"\n").is_err(), "padded quoted value");
+        assert!(parse("  A=one\n").is_err(), "indented record");
         assert_eq!(
-            parse("A=\"one\"\nB= two \n")
+            parse("A=\"one\"\nB=two\n")
                 .expect("canonical values")
                 .into_iter()
                 .map(|(_, value)| value)
                 .collect::<Vec<_>>(),
             vec!["one".to_owned(), "two".to_owned()],
         );
+
+        // The pin record's separator carries its own space, so the same rules
+        // apply to the spelling that file actually uses.
+        let parse_pin = |text: &str| vendor_metadata::parse_key_value_file(text, ": ", "test");
+        assert_eq!(
+            parse_pin("upstream-url: https://example.invalid/cll\n")
+                .expect("the pin spelling should parse")
+                .into_iter()
+                .map(|(key, value)| (key, value))
+                .collect::<Vec<_>>(),
+            vec![(
+                "upstream-url".to_owned(),
+                "https://example.invalid/cll".to_owned(),
+            )],
+        );
+        assert!(
+            parse_pin("commit:abc\n").is_err(),
+            "separator space missing"
+        );
+        assert!(parse_pin("commit:  abc\n").is_err(), "value padded before");
     }
 
     /// The pin record and the book's own version must name the same release in

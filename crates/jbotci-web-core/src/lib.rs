@@ -1697,13 +1697,20 @@ pub struct CuktaTargetOption {
     pub selected: bool,
 }
 
-#[invariant(true)]
+/// One rendered search hit. `kind` stays the typed chunk kind rather than a
+/// display string so the card can carry `CllSearchChunk`'s guarantee that only
+/// a paragraph projection has a paragraph designation — otherwise a
+/// deserialized card could claim to be a rule-status section.
+#[invariant(
+    role.is_none() || *kind == CllSearchChunkKind::Paragraph,
+    "only a paragraph projection carries a paragraph's designation"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct CuktaSearchResultCard {
     pub rank: usize,
     pub similarity_label: Option<String>,
-    pub kind: String,
+    pub kind: CllSearchChunkKind,
     /// The designation of the paragraph this hit was projected from, so the
     /// reader sets a rule-status note off in search results the same way it
     /// does when the note's own section is read.
@@ -1717,7 +1724,7 @@ pub struct CuktaSearchResultCard {
 impl CuktaSearchResultCard {
     /// Whether this hit is one of the edition's rule-status notes.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(ret -> self.kind == CllSearchChunkKind::Paragraph)]
     pub fn is_status_note(&self) -> bool {
         self.role
             .as_ref()
@@ -2734,20 +2741,22 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
             let results = output
                 .matches
                 .into_iter()
-                .map(|item| CuktaSearchResultCard {
-                    rank: item.rank,
-                    similarity_label: item
-                        .similarity
-                        .map(|similarity| format!("{:.0}%", similarity * 100.0)),
-                    kind: cukta_chunk_kind_label(item.chunk.kind).to_owned(),
-                    role: item.chunk.role.clone(),
-                    label: item.chunk.label.clone(),
-                    href: cukta_chunk_href(base_path, &item.chunk),
-                    section_label: format!(
-                        "{}. {}",
-                        item.chunk.section_number, item.chunk.section_title
-                    ),
-                    preview: truncate_preview(&item.chunk.text, 420),
+                .map(|item| {
+                    new!(CuktaSearchResultCard {
+                        rank: item.rank,
+                        similarity_label: item
+                            .similarity
+                            .map(|similarity| format!("{:.0}%", similarity * 100.0)),
+                        kind: item.chunk.kind,
+                        role: item.chunk.role.clone(),
+                        label: item.chunk.label.clone(),
+                        href: cukta_chunk_href(base_path, &item.chunk),
+                        section_label: format!(
+                            "{}. {}",
+                            item.chunk.section_number, item.chunk.section_title
+                        ),
+                        preview: truncate_preview(&item.chunk.text, 420),
+                    })
                 })
                 .collect::<Vec<_>>();
             let has_more = output.has_more;
@@ -2827,16 +2836,16 @@ pub fn build_cukta_semantic_web_page_with_loading(
             if !cukta_chunk_allowed(chunk.kind, targets) {
                 continue;
             }
-            results.push(CuktaSearchResultCard {
+            results.push(new!(CuktaSearchResultCard {
                 rank: results.len() + 1,
                 similarity_label: Some(format!("{:.0}%", hit.score * 100.0)),
-                kind: cukta_chunk_kind_label(chunk.kind).to_owned(),
+                kind: chunk.kind,
                 role: chunk.role.clone(),
                 label: chunk.label.clone(),
                 href: cukta_chunk_href(base_path, chunk),
                 section_label: format!("{}. {}", chunk.section_number, chunk.section_title),
                 preview: truncate_preview(&chunk.text, 420),
-            });
+            }));
             if results.len() > search_state.count {
                 break;
             }
@@ -4265,16 +4274,6 @@ fn cukta_mode_query_value(mode: CuktaWebMode) -> &'static str {
     match mode {
         CuktaWebMode::Meaning => "smuni",
         CuktaWebMode::Word => "valsi",
-    }
-}
-
-#[requires(true)]
-#[ensures(!ret.is_empty())]
-fn cukta_chunk_kind_label(kind: CllSearchChunkKind) -> &'static str {
-    match kind {
-        CllSearchChunkKind::Section => "section",
-        CllSearchChunkKind::Paragraph => "paragraph",
-        CllSearchChunkKind::Example => "example",
     }
 }
 
@@ -6150,6 +6149,38 @@ mod tests {
     use jbotci_morphology::{GlideMark, StressMark};
     use jbotci_search::vlacku::INVALID_LOJBAN_WORD_MESSAGE_PREFIX;
     use std::collections::BTreeSet;
+
+    /// A search card must not be able to claim a rule-status designation for a
+    /// projection that cannot have one — including when it arrives over the
+    /// wire rather than from the builders.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn search_cards_reject_a_designation_without_a_paragraph_projection() {
+        let card = |kind: &str, role: &str| {
+            format!(
+                r#"{{"rank":1,"similarity-label":null,"kind":"{kind}","role":{role},
+                   "label":"L","href":"/h","section-label":"2.1. S","preview":"p"}}"#
+            )
+        };
+
+        let paragraph =
+            serde_json::from_str::<CuktaSearchResultCard>(&card("paragraph", "\"status-note\""))
+                .expect("a paragraph projection may carry the designation");
+        assert!(paragraph.is_status_note());
+        assert!(
+            serde_json::from_str::<CuktaSearchResultCard>(&card("section", "null"))
+                .is_ok_and(|card| !card.is_status_note())
+        );
+
+        for kind in ["section", "example"] {
+            assert!(
+                serde_json::from_str::<CuktaSearchResultCard>(&card(kind, "\"status-note\""))
+                    .is_err(),
+                "a {kind} projection must not carry a paragraph designation"
+            );
+        }
+    }
 
     #[requires(true)]
     #[ensures(ret.preset == Some(GimfihiPreset::Data1995))]
@@ -8867,7 +8898,7 @@ mod tests {
         };
         assert!(has_more);
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].kind, "section");
+        assert_eq!(results[0].kind, CllSearchChunkKind::Section);
         assert_eq!(results[0].rank, 1);
     }
 

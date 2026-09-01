@@ -41,16 +41,10 @@ pub(crate) fn render_status_note_html(
     body: &str,
 ) -> String {
     format!(
-        "<aside{id_attribute} class=\"{classes}\"><span class=\"cll-status-note-label\">{}</span> {body}</aside>",
+        "<aside{id_attribute} class=\"{classes}\"><span class=\"cll-status-note-label\">{}</span>{CLL_STATUS_NOTE_LABEL_SEPARATOR}{body}</aside>",
         escape_html(CLL_STATUS_NOTE_LABEL),
     )
 }
-
-/// The classes a status note carries when a section is read.
-pub(crate) const CLL_STATUS_NOTE_BLOCK_CLASSES: &str = "cll-para cll-status-note";
-
-/// The classes a status note carries when it is a search hit's preview.
-pub(crate) const CLL_STATUS_NOTE_PREVIEW_CLASSES: &str = "cll-search-preview cll-status-note";
 
 #[invariant(true)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

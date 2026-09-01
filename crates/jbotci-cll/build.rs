@@ -186,9 +186,10 @@ fn read_edition(
     import_metadata: &CllImportMetadata,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let env_text = fs::read_to_string(env_path)?;
-    let env = parse_key_value_file(&env_text, '=', "vendor/cll/.env")?;
+    let env = parse_key_value_file(&env_text, "=", "vendor/cll/.env")?;
     let vendored_from_text = fs::read_to_string(vendored_from_path)?;
-    let vendored_from = parse_key_value_file(&vendored_from_text, ':', "vendor/cll.VENDORED_FROM")?;
+    let vendored_from =
+        parse_key_value_file(&vendored_from_text, ": ", "vendor/cll.VENDORED_FROM")?;
 
     let title = required_field(&env, "TITLE", "vendor/cll/.env")?;
     let version = required_field(&env, "VERSION", "vendor/cll/.env")?;
