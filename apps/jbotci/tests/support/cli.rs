@@ -3545,24 +3545,24 @@ fn vlacku_rafsi_lookup_returns_source_entry() {
 fn vlacku_surfaces_extracted_rafsi_in_both_directions() {
     // Issue #768: rafsi recovered from prose are ordinary rafsi on the card
     // and resolve back to their gismu through the rafsi index.
-    let word_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "xrotu"], false);
+    let word_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "celdi"], false);
 
     assert_eq!(word_run.status, CliStatus::Success);
     assert!(word_run.stderr.is_empty(), "{}", word_run.stderr);
-    assert!(word_run.stdout.contains("1. xrotu | by: selckiku"));
-    assert!(word_run.stdout.contains("  rafsi: xro"));
+    assert!(word_run.stdout.contains("1. celdi | by: blamaa"));
+    assert!(word_run.stdout.contains("  rafsi: cle"));
 
-    let rafsi_run = run_cli_capture(&["jbotci", "vlacku", "--rafsi", "xro"], false);
+    let rafsi_run = run_cli_capture(&["jbotci", "vlacku", "--rafsi", "cle"], false);
 
     assert_eq!(rafsi_run.status, CliStatus::Success);
     assert!(rafsi_run.stderr.is_empty(), "{}", rafsi_run.stderr);
-    assert!(rafsi_run.stdout.contains("1. xrotu | by: selckiku"));
+    assert!(rafsi_run.stdout.contains("1. celdi | by: blamaa"));
 
     // A word with two extracted rafsi lists both.
-    let multi_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "vujnu"], false);
+    let multi_run = run_cli_capture(&["jbotci", "vlacku", "--valsi", "xekce"], false);
 
     assert_eq!(multi_run.status, CliStatus::Success);
-    assert!(multi_run.stdout.contains("  rafsi: vu'u vuj"));
+    assert!(multi_run.stdout.contains("  rafsi: xe'e xec"));
 }
 
 #[test]
