@@ -919,6 +919,10 @@ instead is decline, which lets `plain_bo_tanru_unit` return the bare unit and le
 list reach whichever site owns it. The full profile is the oracle and agrees: 26,666 fixtures,
 72,614 passed, 519 xfailed, 0 failed, with only the two #877 pins moving.
 
+[**Corrected in round 4.** The construction argument is sound but the marker inventory above is
+not the whole one: a relative clause can also begin with GOI, and four base-`ACCEPT` surfaces --
+two of them in the default profile -- were withdrawn by the gap. See the round-4 section.]
+
 Three things follow that were not in the round-2 picture.
 
 **The class is wider than the two pinned shapes, and reaches the default profile.** The same
@@ -956,6 +960,10 @@ That `followed_by` degrades anchors at all is pre-existing -- the grammar has ei
 `followed_by` sites with the same silence -- and is left alone here rather than fixed in the macro,
 because making it transparent would add anchors at all eight and that is a recovery change no
 review round has asked for.
+
+[**Superseded in round 4.** The DSL's trailing `assert !(...)` observes the same parser position
+without wrapping any field, so the three rows come back and the snapshot returns byte-identical to
+`2284b50691`. The trade is not paid at all.]
 
 Witnesses: `d1-s3-leading-selbri-zihe-mixed-list` and `d1-s3-leading-selbri-jek-mixed-list` are
 the two #877 shapes, now owner/tree/diagnostics success pins showing a bare `leading_selbri` and
@@ -1083,9 +1091,9 @@ allowlist row in `tests/struct_invariant_audit.rs`, exactly as its five siblings
 do. The row was added and the whole gate re-run from the top rather than resumed, so every figure
 above comes from one run at one commit.
 
-`fixture-test --profile all` is 26,666 fixtures rather than round 2's 26,645 because the count in
-that table predates round 2's own witness additions; against `2284b50691` this round is +4 net
-(six added, two renamed away).
+`fixture-test --profile all` is 26,666 fixtures rather than round 2's 26,662: against
+`2284b50691` this round is +4 net (six added, two renamed away). The 26,645 in round 1's table is
+the round-1 figure and predates round 2's own witness additions.
 
 The final commit adds only this section and the two above it to `docs/`, plus the regenerated
 Python model files. `cargo fmt --all --check`, the comparer, its unit tests and the four Python
@@ -1170,3 +1178,206 @@ change exists to unblock. Its receipt closes the table's one gap: the Windows wh
 26,479,419 bytes -- **25.3% of PyPI's 100 MiB limit**, over a 117,513,728-byte member, a 4.43:1
 compression ratio. It is the largest artifact this project distributes and it is a quarter of the
 only limit that is real.
+
+## Round 4
+
+Both reviewers returned `CHANGES` on `a0a843bcb0`. One blocking finding, two mediums and two
+provenance corrections; the macros strict/recovered asymmetry both reviewers wanted tracked is
+now issue #878 and is not touched here.
+
+### The blocking hole: the reservation read NOI, but these sites read NOI *and* GOI
+
+Round 3's reservation spelled its marker inventory as rolling Zantufa's whole NOI
+(`poi`, `po'oi`, `voi`, `voi'i`, `noi`, `no'oi`) and argued that it could not remove an accepted
+surface because a connective standing in front of a relative marker is a sequence no production
+can begin. The argument is right. The inventory was not: **a relative clause can also begin with
+GOI.** `relative_clause_atom` is `sumti_association_relative_clause` -- `selmaho(Goi)`, which is
+`goi`/`pe`/`po`/`po'e`/`po'u` -- or `bridi_relative_clause`, and only the second of those is
+NOI-led. All three sources agree: `relative_clause_1 <- GOI_clause free* nonabs_term GEhU?`
+(camxes.peg:168), `GOI_clause free* term GEhU?` (camxes-exp.peg:207), `GOI_clause term GEhU?`
+(zantufa-1.9999.peg:43), each of them an alternative of the same `relative_clause` the
+`ZIhE`/joik chain joins.
+
+So a chain stopped before a **GOI** continuation stranded the connective exactly as one stopped
+before a NOI continuation did, the probe did not fire, and the round-3 fix left four
+base-`ACCEPT` surfaces rejected -- two of them in the **default profile**, where the round-3
+section's own argument for putting the reservation on the exp arm applies verbatim.
+
+The fix is one alternative: `selmaho(Goi)` joins the marker `choice`. The atom inventory is now
+read exhaustively rather than partially, and it is exhausted: `relative_clause_atom`'s two arms
+are the GOI phrase and `bridi_relative_clause`, whose three arms spell Zantufa's NOI
+(`zantufa_statement_relative_clause`, both aliases), camxes-standard's `poi`/`voi`
+(`restrictive_bridi_relative_clause`) and its `noi` (`incidental_bridi_relative_clause`). There
+is no third marker class at these sites.
+
+The by-construction argument survives the widening unchanged, because it is the same argument:
+camxes-exp's own selbri-relative clause is `NOhOI_clause free* subsentence KUhOI_elidible`
+(camxes-exp.peg:214-218) with `NOhOI <- no'oi / po'oi` (:1907), so no `selbri_relative_clause`
+can begin with GOI either. A GOI clause behind the connective is a clause the greedy chain could
+never have taken, which is exactly the condition the probe exists to detect.
+
+Measured with the epoch-base binary (`/build/jbotci/target/main/release/jbotci`, `main` is
+exactly `0d791fd35c`) and this round's head binary, via `jbotci gentufa` A/R, over
+`/build/jbotci/scratch/epoch08/r4-surfaces.txt`. The round-3 head column is Qwen's, reported in
+the round-3 review at `a0a843bcb0`; a dash is a surface that round did not measure.
+
+| surface | profile | base | round-3 head | round-4 head |
+| --- | --- | --- | --- | --- |
+| `lo broda po'oi mi brode zi'e pe mi ku cu brodi` | default | **A** | **R** | **A** |
+| `lo broda po'oi mi brode je pe mi ku cu brodi` | default | **A** | **R** | **A** |
+| `broda po'oi mi brode zi'e pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `broda po'oi mi brode je pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda no'oi mi brode zi'e pe mi ku cu brodi` | default | R | R | **A** |
+| `lo broda no'oi mi brode je pe mi ku cu brodi` | default | R | -- | **A** |
+| `broda po'oi mi brode zi'e goi ko'a` | `(+zantufa-terms)` | A | -- | A |
+| `lo broda po'oi mi brode zi'e goi ko'a ku cu brodi` | default | A | -- | A |
+| `lo broda poi mi brode zi'e pe mi ku cu brodi` (control) | default | A | A | A |
+| `lo broda pe mi ku cu brodi` (control) | default | A | A | A |
+| `lo broda po'oi mi brode ku'o zi'e pe mi ku cu brodi` (control) | default | A | -- | A |
+| `lo broda no'oi mi brode zi'e poi do brodi ku cu brodi` (round-3 pin) | default | R | A | A |
+| `broda po'oi mi brode zi'e poi do brodi` (round-3 pin) | `(+zantufa-terms)` | A | A | A |
+| `broda po'oi mi brode je poi do brodi` (round-3 pin) | `(+zantufa-terms)` | A | A | A |
+| `broda po'oi mi brode bi'i pe mi` | `(+zantufa-terms)` | R | -- | R |
+| `broda po'oi mi brode ga'o bi'i ga'o pe mi` | `(+zantufa-terms)` | R | -- | R |
+
+The four blocking rows are repaid and no control moves. Two rows deserve a note.
+
+The `no'oi`-led description rows are **new acceptances rather than repaid regressions**, which is
+why they are pinned separately: `no'oi` has no baseline arm at all, so they reject at the epoch
+base, and D2 kept them rejected for a second reason until this round. Qwen flagged the first of
+them as a missed accept from the same hole; it is, and so is its joik twin.
+
+The two interval rows stay `R` on both sides, and that is correct rather than a residual. The
+probe's *connective* inventory is camxes-exp's whole `joik`, intervals included, because that is
+what the selbri chain spells; the enclosing relative-clause list's connective inventory is
+`exp_relative_clause_connective` (`NA? SE? (JOI / JA / A) NAI?`) and has no interval arm. So on
+`bi'i` the exp arm declines -- correctly, the parse is dead either way -- and no site can own the
+stranded list. Nothing accepted is withdrawn: the base rejects them too.
+
+Six witnesses, all `success`, all with pinned diagnostics:
+
+| witness | site | connective | GOI word | warnings |
+| --- | --- | --- | --- | --- |
+| `d1-s3-leading-selbri-zihe-goi-mixed-list` | S3 selbri parent | `zi'e` | `pe` | the `po'oi` clause, twice |
+| `d1-s3-leading-selbri-jek-goi-mixed-list` | S3 selbri parent | `je` | `pe` | the `po'oi` clause twice, plus `je` |
+| `d1-s3-leading-selbri-zihe-goi-proper-mixed-list` | S3 selbri parent | `zi'e` | `goi` | the `po'oi` clause, twice |
+| `d2-goi-mixed-list-description-site` | description field, DEFAULT profile | `zi'e` | `pe` | the `po'oi` clause |
+| `d2-goi-jek-mixed-list-description-site` | description field, DEFAULT profile | `je` | `pe` | the `po'oi` clause, plus `je` |
+| `d2-goi-mixed-list-description-site-nohoi` | description field, DEFAULT profile | `zi'e` | `pe` | the `no'oi` clause |
+
+Every one of them shows the leading selbri as a bare `PlainBoTanruUnit` with no
+`ExpRelativeTanruUnit` anywhere, one `RelativeClauseListSyntax` at the owning site holding the
+`po'oi`/`no'oi` clause and one `SumtiAssociationRelativeClauseSyntax`, joined by
+`JoinedRelativeClauseTailSyntax` on the `zi'e` shapes and `RelativeClauseExpContinuationSyntax`
+on the `je` ones. The GOI clause is silent in all six; the marker clause carries the warnings it
+carried in round 3. The third witness exists because the arm is `selmaho(Goi)` and not a cmavo
+list: narrowing it back to `pe` would regress `goi` itself without moving any other pin.
+
+### Sol's medium 1: the recovered rejection now proves every node it stands on
+
+`ProhibitedRelativeConnectiveFreeModifierRejection`'s recovered twin checked its wrappers with
+`valid(...)` but then read `nai.is_some()` and a non-empty free-modifier vector. Both of those
+are slot occupancy, not proof: a recovered `Prefix` or `Error` placeholder occupies the slot it
+stands in for, so a run of unparsed input could drive a rejection -- the fail-OPEN direction, in a
+classifier whose whole job is to withdraw a surface.
+
+The predicate now requires a valid head/BIhI token, a valid NAI token, and **at least one valid
+free-modifier node** between them, via a shared `recovered_prohibited_free_modifier_placement`
+helper the two head-before-optional-NAI arms both call. The strict twin is unchanged: its nodes
+are valid by construction.
+
+`recovered_prohibited_placement_needs_every_node_proven` pins it directly, in the shape of the
+existing recovered-classifier tests: two positive controls (the merged-head and interval forms,
+fully proven), then a placeholder head, a placeholder BIhI, a placeholder NAI, a free-modifier
+slot holding only placeholders, an empty free-modifier slot, an absent NAI, an unparsed
+connective and an unparsed continuation -- nine cases, none of which may reject.
+
+### Sol's medium 2: the anchor trade is repaid in full
+
+Sol's cheaper option works. The grammar DSL already permits a bare `assert !(...)` between or
+after fields (`bridi_tail_continuation`, `following_paragraph_statement`), and the reservation
+placed there observes the same parser position -- after everything the unit consumed, chain and
+BO tail alike -- without wrapping any field:
+
+```
+rule "tanru unit" exp_relative_tanru_unit(...) -> struct {
+    field leading_unit <- arc(tanru_unit);
+    field relative_clauses <- arc(exp_selbri_relative_clauses);
+    field bo_tail <- opt(arc(plain_bo_selbri_tail(plain_bo_selbri)));
+    assert !(
+        choice((ZIhE, GAhO SE? BIhI NAI? GAhO, SE? BIhI NAI?, NA? SE? (JOI/JA/A) NAI?)),
+        choice((GOI, poi, po'oi, voi, voi'i, noi, no'oi)),
+    );
+}
+```
+
+`crates/jbotci-syntax/tests/recovery-anchor-metadata.snapshot.txt` is now **byte-identical to its
+state at `2284b50691`**, before the reservation existed: all three
+`resume 2 origin FieldFirst start [Cmavo(Bo)]` rows are back, one on each field, and no row is
+added. Round 3's paragraph on the placement trade is superseded by this: the trade is not paid at
+all. The general observation in it still stands -- `followed_by` has no recovery classification of
+its own, and the eight `followed_by` sites this grammar still has are silent in the same way --
+and is still left to the macro, which no review round has asked to change.
+
+### Qwen's minor residuals
+
+`bindings/python/tools/python_artifacts.py` dated the ratchet retirement 2026-08-19; `eade172099`
+is dated 2026-08-16 and `artifact-policy.toml` says "Until 2026-08-16". Corrected in the file.
+The same wrong date is in `a0a843bcb0`'s commit message, which is published and cited by SHA in
+this ledger, in the round-3 reviews and in the PR; it is recorded here as an erratum rather than
+reworded, because rewording it would rewrite `a0a843bcb0` and `35c6180f41` and invalidate every
+citation of them. **Erratum: the retirement ruling `a0a843bcb0` cites is dated 2026-08-16, not
+2026-08-19.**
+
+The round-3 gate note's "rather than round 2's 26,645" cited the round-1 figure; round 2 reported
+26,662, and the sentence now says so.
+
+### The round-4 gate
+
+Run with `/build/jbotci/logs/epoch08-r4-gate.sh`, sequentially, over the working tree whose
+content is `41973d9f95` plus `97af122d2f` -- the two code commits, byte-identical to what the
+gate saw. Both `cargo test` components use `--no-fail-fast`, so green means the whole set is
+green rather than green up to the first failing target.
+
+| component | result | log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch08-r4-g-fmt.log` |
+| `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,654 passed, 0 failed, 16 ignored | `epoch08-r4-g-workspace.log` |
+| `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,653 passed, 0 failed, 8 ignored | `epoch08-r4-g-expensive.log` |
+| `fixture-test --profile all` | 26,672 fixtures, 72,620 passed, 519 xfailed, 0 failed | `epoch08-r4-g-fixtures.log` |
+| tagged facet `subsentence-epoch` | 99 fixtures, 3 facets, 101 passed, 0 failed | `epoch08-r4-g-tagged-facet.log` |
+| frozen syntax facet, same tag | 99 fixtures, 99 passed, 0 failed | `epoch08-r4-g-frozen-facet.log` |
+| comparer | 122 changed / 86 + 6 + 1 + 0 + 0 mechanical / 29 manual / 0 prose / 99 epoch-new / 0 unpaired / 0 witnesses missing diagnostics | `epoch08-r4-g-comparer.log` |
+| comparer unit tests | 27 tests, green | `epoch08-r4-g-comparer-test.log` |
+| `cargo build -p jbotci` (debug) | green | `epoch08-r4-g-debug-jbotci.log` |
+| `dx build` | green | `epoch08-r4-g-dx.log` |
+| `maturin develop` | green | `epoch08-r4-g-maturin.log` |
+| `generate_syntax_models.py --check` | green | `epoch08-r4-g-generate_syntax_models.log` |
+| `generate_domain_enum_stubs.py --check` | green | `epoch08-r4-g-generate_domain_enum_stubs.log` |
+| `compose_stubs.py --check` | green | `epoch08-r4-g-compose_stubs.log` |
+| `generate_api_matrix.py --check` | green | `epoch08-r4-g-generate_api_matrix.log` |
+
+The two `cargo test` counts are each one higher than round 3's -- the new recovered-placeholder
+test, which the `--all-targets` component runs a second time. Everything else is round 3's figure
+plus the six witnesses: `+6` fixtures, `+6` passed, `+6` on both facet rows, and `93 -> 99`
+epoch-new witnesses with `EXPECTED_NEW_WITNESSES` moved with them.
+
+One row carries a note, for the same structural reason a row carried one in round 3. The comparer
+derives its witness set from `git diff --diff-filter=A 0d791fd35c..HEAD -- tests/fixtures`, so it
+is the one component that reads the index rather than the worktree: on the gate's own pass the six
+witnesses were still uncommitted and it reported them as unpaired and exited 1. It was re-run
+unchanged at `97af122d2f`, once the two code commits existed, and is green there with the figures
+above. Nothing else in the gate reads git.
+
+**There is no peak-RSS pair, and that is the reported result rather than an omission.** The lead's
+standing instruction ties the pair to adding a production, and this round adds none: one
+alternative inside an existing lookahead `choice`, the same lookahead respelled as a trailing
+assertion, and a tightened predicate in a classifier that already existed. The generated artefacts
+are the proof -- the four Python model files regenerate to a **docstring-only** diff (one line
+each, the `bo_tail` field comment that moved off the field), `docs/api-parity.tsv` does not move,
+`tests/struct_invariant_audit.rs` needs no new row, and the recovery anchor snapshot gains three
+rows and loses none.
+
+The final commit adds only this section, the two round-3 supersession notes and the
+`python_artifacts.py` date correction. `cargo fmt --all --check`, the comparer, its unit tests and
+the four Python checks were re-run at that commit; no other row reads `docs/` or that comment.

@@ -347,7 +347,7 @@ def _check_wheel(entries: dict[str, bytes], platform: str) -> None:
         #
         # This assertion used to carry `<= 115_000_000` on the member as well.
         # That bound was a survivor of the per-platform byte budgets the owner
-        # retired on 2026-08-19 (see `artifact-policy.toml`): it was
+        # retired on 2026-08-16 (see `artifact-policy.toml`): it was
         # project-invented, no publishing target imposes anything on a member
         # INSIDE the archive, and its own comment prescribed the very
         # recalibrate-every-epoch cycle the ruling ended -- epochs 3 through 6b
