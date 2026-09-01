@@ -1,4 +1,7 @@
 use std::collections::BTreeMap;
+use std::fmt;
+use std::num::{NonZeroU16, NonZeroUsize};
+use std::str::FromStr;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, expensive_invariant, invariant, new, requires};
@@ -80,6 +83,192 @@ pub struct CllMetadata {
     pub chapter_count: usize,
 }
 
+/// How the book designates one of its top-level divisions.
+///
+/// Numbered chapters are designated by a chapter number. Appendices are
+/// designated by their title alone: the book neither numbers nor letters them,
+/// and its own table of contents runs 1-N and then lists the appendices by
+/// title. The appendix variant therefore has no number to carry, which makes an
+/// appendix with a chapter number unrepresentable rather than merely
+/// discouraged, and `NonZeroU16` keeps a numbered chapter from claiming
+/// chapter 0.
+#[invariant(true)]
+#[invariant(::Chapter => true)]
+#[invariant(::Appendix => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum CllDivision {
+    Chapter { number: NonZeroU16 },
+    Appendix,
+}
+
+impl CllDivision {
+    /// The chapter number of a numbered chapter; `None` for an appendix.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self, Self::Chapter { .. }))]
+    pub const fn chapter_number(self) -> Option<NonZeroU16> {
+        match self {
+            Self::Chapter { number } => Some(number),
+            Self::Appendix => None,
+        }
+    }
+
+    /// The number the book gives to this division's `section_index`-th section
+    /// (`6.3`), or `None` when the division is an appendix and its sections are
+    /// cited by title and stable id instead.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self, Self::Chapter { .. }))]
+    #[ensures(ret.map(CllSectionNumber::chapter) == self.chapter_number())]
+    pub fn section_number(self, section_index: NonZeroUsize) -> Option<CllSectionNumber> {
+        self.chapter_number()
+            .map(|chapter| CllSectionNumber::Section {
+                chapter,
+                index: section_index,
+            })
+    }
+
+    /// The number the book prints for a division that has no `<section>`
+    /// children of its own - the bare chapter number - or `None` for an
+    /// appendix.
+    #[requires(true)]
+    #[ensures(ret.is_some() == matches!(self, Self::Chapter { .. }))]
+    #[ensures(ret.map(CllSectionNumber::chapter) == self.chapter_number())]
+    pub fn whole_chapter_number(self) -> Option<CllSectionNumber> {
+        self.chapter_number()
+            .map(|chapter| CllSectionNumber::WholeChapter { chapter })
+    }
+
+    /// How a cross-reference to the division as a whole reads. Numbered
+    /// chapters cite as `Chapter N`; appendices cite by their own title, which
+    /// is the only designation the book gives them.
+    #[requires(!title.is_empty())]
+    #[ensures(!ret.is_empty())]
+    pub fn xref_label(self, title: &str) -> String {
+        match self.chapter_number() {
+            Some(number) => format!("Chapter {number}"),
+            None => title.to_owned(),
+        }
+    }
+}
+
+/// The number the book prints for a section of a numbered chapter.
+///
+/// The chapter is part of the number rather than a field beside it, so a
+/// section number that disagrees with the chapter it belongs to cannot be
+/// written down - not through a constructor, and not through serde, which
+/// reads and writes these as the strings the book prints (`6.3`, `20`).
+#[invariant(true)]
+#[invariant(::WholeChapter => true)]
+#[invariant(::Section => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CllSectionNumber {
+    /// A numbered chapter with no `<section>` children of its own, printed as
+    /// the bare chapter number.
+    WholeChapter { chapter: NonZeroU16 },
+    /// The `index`-th section of a numbered chapter, printed `chapter.index`.
+    Section {
+        chapter: NonZeroU16,
+        index: NonZeroUsize,
+    },
+}
+
+impl CllSectionNumber {
+    /// The chapter this number names. Reading it off the number is what makes
+    /// division/number agreement checkable rather than assumed.
+    #[requires(true)]
+    #[ensures(true)]
+    pub const fn chapter(self) -> NonZeroU16 {
+        match self {
+            Self::WholeChapter { chapter } | Self::Section { chapter, .. } => chapter,
+        }
+    }
+}
+
+impl fmt::Display for CllSectionNumber {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::WholeChapter { chapter } => write!(formatter, "{chapter}"),
+            Self::Section { chapter, index } => write!(formatter, "{chapter}.{index}"),
+        }
+    }
+}
+
+impl FromStr for CllSectionNumber {
+    type Err = CllSectionNumberError;
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|number| number.to_string() == text) || ret.is_err())]
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let invalid = || CllSectionNumberError::Invalid {
+            text: text.to_owned(),
+        };
+        let number = match text.split_once('.') {
+            Some((chapter, index)) => Self::Section {
+                chapter: chapter.parse().map_err(|_| invalid())?,
+                index: index.parse().map_err(|_| invalid())?,
+            },
+            None => Self::WholeChapter {
+                chapter: text.parse().map_err(|_| invalid())?,
+            },
+        };
+        // Rust's integer parsers accept a leading `+` and leading zeroes, so
+        // `+6.3`, `06.3` and `6.03` would all parse to the number that prints
+        // as `6.3`. A section number is the exact string the book prints, and
+        // callers rely on it printing back byte for byte, so a spelling that
+        // does not round-trip is not that number.
+        if number.to_string() != text {
+            return Err(invalid());
+        }
+        Ok(number)
+    }
+}
+
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[invariant(true)]
+#[invariant(::Invalid => true)]
+pub enum CllSectionNumberError {
+    #[error(
+        "`{text}` is not a CLL section number; expected a chapter number such as `20` or a chapter and section such as `6.3`, both counted from one"
+    )]
+    Invalid { text: String },
+}
+
+impl Serialize for CllSectionNumber {
+    #[requires(true)]
+    #[ensures(true)]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.collect_str(self)
+    }
+}
+
+impl<'de> Deserialize<'de> for CllSectionNumber {
+    #[requires(true)]
+    #[ensures(true)]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let text = String::deserialize(deserializer)?;
+        text.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+/// The heading a division or section shows: `"6.3. Some title"` where the book
+/// gives a number, and the bare title where it designates by title alone.
+#[requires(!title.is_empty())]
+#[ensures(ret.ends_with(title))]
+pub fn cll_numbered_title(number: Option<impl fmt::Display>, title: &str) -> String {
+    match number {
+        Some(number) => format!("{number}. {title}"),
+        None => title.to_owned(),
+    }
+}
+
 #[invariant(metadata.chapter_count == chapters.len(), "metadata chapter count mirrors loaded chapters")]
 #[expensive_invariant(
     cll_site_section_references_are_consistent(
@@ -98,7 +287,7 @@ pub struct CllMetadata {
         examples_by_id,
         example_ids_by_normalized_reference,
     ),
-    "example indexes must be keyed by anchor id and reference existing sections"
+    "example indexes must be keyed by anchor id and agree with the section they reference"
 )]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllSite {
@@ -115,13 +304,12 @@ pub struct CllSite {
 }
 
 #[invariant(!chapter_id.is_empty())]
-#[invariant(*chapter_number > 0)]
 #[invariant(!chapter_title.is_empty())]
 #[expensive_invariant(root_section_ids.iter().all(|section_id| !section_id.is_empty()))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllChapter {
     pub chapter_id: String,
-    pub chapter_number: u16,
+    pub division: CllDivision,
     pub chapter_title: String,
     pub root_section_ids: Vec<String>,
     pub prelude_blocks: Vec<CllBlock>,
@@ -129,8 +317,10 @@ pub struct CllChapter {
 
 #[invariant(!section_id.is_empty())]
 #[invariant(!chapter_id.is_empty())]
-#[invariant(*chapter_number > 0)]
-#[invariant(!number.is_empty())]
+#[invariant(
+    number.map(CllSectionNumber::chapter) == division.chapter_number(),
+    "a section carries the number the book prints for it, which names the section's own chapter; an appendix section carries no number at all"
+)]
 #[invariant(!title.is_empty())]
 #[invariant(parent_section_id.as_ref().is_none_or(|section_id| !section_id.is_empty()))]
 #[invariant(!source_path.is_empty())]
@@ -139,8 +329,8 @@ pub struct CllChapter {
 pub struct CllSection {
     pub section_id: String,
     pub chapter_id: String,
-    pub chapter_number: u16,
-    pub number: String,
+    pub division: CllDivision,
+    pub number: Option<CllSectionNumber>,
     pub title: String,
     pub parent_section_id: Option<String>,
     pub child_section_ids: Vec<String>,
@@ -166,8 +356,10 @@ pub struct CllIndexEntry {
     pub section_ids: Vec<String>,
 }
 
-#[invariant(*chapter > 0)]
-#[invariant(!section_number.is_empty())]
+#[invariant(
+    section_number.map(CllSectionNumber::chapter) == division.chapter_number(),
+    "a reference into a numbered chapter carries that chapter's own section number; appendix references are keyed by section id alone"
+)]
 #[invariant(!section_id.is_empty())]
 #[invariant(example_number.is_some() == example_id.is_some())]
 #[invariant(example_number.as_ref().is_none_or(|number| !number.is_empty()))]
@@ -175,8 +367,8 @@ pub struct CllIndexEntry {
 #[invariant(!source_path.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CllReference {
-    pub chapter: u16,
-    pub section_number: String,
+    pub division: CllDivision,
+    pub section_number: Option<CllSectionNumber>,
     pub section_id: String,
     pub example_number: Option<String>,
     pub example_id: Option<String>,
@@ -277,8 +469,7 @@ fn cll_site_section_references_are_consistent(
         && sections_by_id.iter().all(|(section_id, section)| {
             section_id == &section.section_id
                 && chapters.iter().any(|chapter| {
-                    chapter.chapter_id == section.chapter_id
-                        && chapter.chapter_number == section.chapter_number
+                    chapter.chapter_id == section.chapter_id && chapter.division == section.division
                 })
                 && section
                     .parent_section_id
@@ -343,7 +534,12 @@ fn cll_site_example_references_are_consistent(
                 .example_id
                 .as_ref()
                 .is_some_and(|reference_id| reference_id == example_id)
-            && sections_by_id.contains_key(&example.reference.section_id)
+            && sections_by_id
+                .get(&example.reference.section_id)
+                .is_some_and(|section| {
+                    section.division == example.reference.division
+                        && section.number == example.reference.section_number
+                })
     }) && example_ids_by_normalized_reference
         .iter()
         .all(|(reference, example_id)| {
@@ -477,14 +673,12 @@ pub(crate) struct CllChrestomathyGroupText {
 }
 
 #[invariant(!section_id.is_empty())]
-#[invariant(!section_number.is_empty())]
 #[invariant(!section_title.is_empty())]
 #[invariant(!source_path.is_empty())]
 #[invariant(!text.trim().is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CllChrestomathySectionText {
     pub section_id: String,
-    pub section_number: String,
     pub section_title: String,
     pub source_path: String,
     pub text: String,

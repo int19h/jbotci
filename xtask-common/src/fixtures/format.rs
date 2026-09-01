@@ -1,7 +1,10 @@
-use bityzba::requires;
+use bityzba::{data, requires};
 use serde::Serialize;
 
-use super::{BracketExpectations, CommandOutputExpectation, Expectations, Provenance, TestCase};
+use super::{
+    BracketExpectations, CommandOutputExpectation, Expectations, Provenance, ProvenanceData,
+    TestCase,
+};
 
 #[requires(test_case.is_valid_fixture_metadata())]
 #[bityzba::ensures(ret.is_err() || ret.as_ref().is_ok_and(|text| !text.is_empty()))]
@@ -47,50 +50,52 @@ fn push_provenance_toml(
 ) -> Result<(), toml::ser::Error> {
     output.push_str("\n[[provenance]]\n");
     push_field(output, "kind", provenance.kind_name())?;
-    match provenance {
-        Provenance::Cll {
+    match provenance.as_data() {
+        data!(Provenance::Cll {
             chapter,
+            appendix,
             section_number,
             section_id,
             example_number,
             example_id,
             source_path,
-        } => {
-            push_field(output, "chapter", chapter)?;
-            push_field(output, "section-number", section_number)?;
+        }) => {
+            push_optional_field(output, "chapter", chapter)?;
+            push_optional_field(output, "appendix", appendix)?;
+            push_optional_field(output, "section-number", section_number)?;
             push_field(output, "section-id", section_id)?;
             push_optional_field(output, "example-number", example_number)?;
             push_optional_field(output, "example-id", example_id)?;
             push_optional_field(output, "source-path", source_path)?;
         }
-        Provenance::Muplis {
+        data!(Provenance::Muplis {
             collection_id,
             item_id,
             form,
             url,
-        } => {
+        }) => {
             push_field(output, "collection-id", collection_id)?;
             push_optional_field(output, "item-id", item_id)?;
             push_optional_field(output, "form", form)?;
             push_optional_field(output, "url", url)?;
         }
-        Provenance::Corpus {
+        data!(Provenance::Corpus {
             corpus,
             entry_id,
             md5,
-        } => {
+        }) => {
             push_field(output, "corpus", corpus)?;
             push_optional_field(output, "entry-id", entry_id)?;
             push_optional_field(output, "md5", md5)?;
         }
-        Provenance::Adhoc { description } => {
+        data!(Provenance::Adhoc { description }) => {
             push_optional_field(output, "description", description)?;
         }
-        Provenance::Other {
+        data!(Provenance::Other {
             name,
             url,
             description,
-        } => {
+        }) => {
             push_field(output, "name", name)?;
             push_optional_field(output, "url", url)?;
             push_optional_field(output, "description", description)?;

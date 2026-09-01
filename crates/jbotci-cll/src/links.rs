@@ -133,12 +133,17 @@ pub(super) fn build_section_reference_index(site: &CllSite) -> BTreeMap<String, 
     let mut index = BTreeMap::new();
     for section in site.sections_by_id.values() {
         insert_reference(&mut index, &section.section_id, &section.section_id);
-        insert_reference(&mut index, &section.number, &section.section_id);
-        insert_reference(
-            &mut index,
-            &format!("section-{}", section.number),
-            &section.section_id,
-        );
+        // Appendix sections have no number to cite: their stable `xml:id`,
+        // registered above and recorded in fixture provenance, is their
+        // addressable form, and their title is their displayed designation.
+        if let Some(number) = section.number {
+            insert_reference(&mut index, &number.to_string(), &section.section_id);
+            insert_reference(
+                &mut index,
+                &format!("section-{number}"),
+                &section.section_id,
+            );
+        }
     }
     for (anchor_id, anchor) in &site.anchors_by_id {
         if let Some(section_id) = resolve_anchor_section_id(site, anchor) {

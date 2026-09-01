@@ -3,6 +3,7 @@
 mod support;
 
 use std::fs;
+use std::num::NonZeroU16;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -17,7 +18,7 @@ use support::fixtures::{
     FixtureExport, FixtureSelector, GentufaOutputExpectation, JvozbaExpectation,
     JvozbaFixtureInput, JvozbaFixtureMode, JvozbaOutputExpectation, JvozbaSegmentExpectation,
     JvozbaSegmentKindExpectation, LoadedTestCase, MorphologyExpectation, MuplisForm,
-    OutputExpectations, Provenance, RecoveredExpectation, RecoveredTreeExpectation,
+    OutputExpectations, Provenance, ProvenanceData, RecoveredExpectation, RecoveredTreeExpectation,
     RecoveredTreeRecoveryItemExpectation, RecoveredTreeRecoveryItemKindExpectation,
     ReferenceExpectation, ScriptBracketExpectations, SemanticsExpectations, SyntaxExpectation,
     TestCase, TextExpectation, VlaseiOutputExpectation, XfailExpectation, filter_fixtures,
@@ -733,14 +734,15 @@ fn profile_filters_cll_chapter_and_muplis_form() {
             translation_en: None,
             gloss_en: None,
             tags: vec![],
-            provenance: vec![Provenance::Cll {
-                chapter: 18,
-                section_number: "18.3".into(),
+            provenance: vec![new!(Provenance::Cll {
+                chapter: Some(nonzero_chapter(18)),
+                appendix: None,
+                section_number: Some("18.3".into()),
                 section_id: "c18s3".into(),
                 example_number: Some("18.12".into()),
                 example_id: Some("c18e3d1".into()),
                 source_path: Some("vendor/cll/chapters/18.xml".into()),
-            }],
+            })],
             expectations: Expectations::default(),
         },
     );
@@ -754,19 +756,19 @@ fn profile_filters_cll_chapter_and_muplis_form() {
             translation_en: None,
             gloss_en: None,
             tags: vec![],
-            provenance: vec![Provenance::Muplis {
+            provenance: vec![new!(Provenance::Muplis {
                 collection_id: "18".into(),
                 item_id: Some("1".into()),
                 form: Some(MuplisForm::Front),
                 url: None,
-            }],
+            })],
             expectations: Expectations::default(),
         },
     );
     let fixtures = vec![cll, muplis];
     let mut cll_selector_data = FixtureSelector::default().into_data();
     cll_selector_data.cll = Some(CllSelector {
-        chapter: Some(18),
+        chapter: Some(nonzero_chapter(18)),
         example_id: Some("c18e3d1".into()),
         ..CllSelector::default()
     });
@@ -880,7 +882,7 @@ fn fake_runner_counts_failures() {
             translation_en: None,
             gloss_en: None,
             tags: vec!["smoke".into()],
-            provenance: vec![Provenance::Adhoc { description: None }],
+            provenance: vec![new!(Provenance::Adhoc { description: None })],
             expectations: Expectations::default(),
         },
     );
@@ -918,7 +920,7 @@ fn fake_runner_counts_xfails() {
             translation_en: None,
             gloss_en: None,
             tags: vec![],
-            provenance: vec![Provenance::Adhoc { description: None }],
+            provenance: vec![new!(Provenance::Adhoc { description: None })],
             expectations: Expectations::default(),
         },
     );
@@ -957,7 +959,7 @@ fn parallel_runner_matches_serial_summary() {
             translation_en: None,
             gloss_en: None,
             tags: vec![],
-            provenance: vec![Provenance::Adhoc { description: None }],
+            provenance: vec![new!(Provenance::Adhoc { description: None })],
             expectations: Expectations::default(),
         },
     );
@@ -971,7 +973,7 @@ fn parallel_runner_matches_serial_summary() {
             translation_en: None,
             gloss_en: None,
             tags: vec![],
-            provenance: vec![Provenance::Adhoc { description: None }],
+            provenance: vec![new!(Provenance::Adhoc { description: None })],
             expectations: Expectations::default(),
         },
     );
@@ -1284,9 +1286,9 @@ fn import_writes_toml_fixture() {
             translation_en: None,
             gloss_en: None,
             tags: vec!["generated".into()],
-            provenance: vec![Provenance::Adhoc {
+            provenance: vec![new!(Provenance::Adhoc {
                 description: Some("test".into()),
-            }],
+            })],
             expectations: Expectations::default(),
         }],
     };
@@ -1868,6 +1870,179 @@ fn write_fixture_rejects_invalid_metadata_by_contract() {
     };
     let fixture_path = temp_root("jbotci-invalid-fixture-contract").join("invalid.toml");
     let _ = write_fixture_file(fixture_path, &test_case);
+}
+
+/// A chapter number for tests. `Provenance::Cll` mirrors the core model's
+/// `NonZeroU16`, so chapter 0 cannot be written down at all.
+#[requires(number > 0)]
+#[ensures(ret.get() == number)]
+fn nonzero_chapter(number: u16) -> NonZeroU16 {
+    NonZeroU16::new(number).expect("test chapter numbers are non-zero")
+}
+
+/// The division fields a malformed CLL provenance block can carry, paired with
+/// the reason the `Provenance::Cll` invariant rejects it.
+const MALFORMED_CLL_PROVENANCE_BLOCKS: &[(&str, &str)] = &[
+    (
+        "chapter = 18\nappendix = \"volume-chrestomathy\"\nsection-number = \"18.3\"\n",
+        "names both a chapter and an appendix",
+    ),
+    ("", "names neither a chapter nor an appendix"),
+    (
+        "chapter = 18\n",
+        "a numbered chapter without its section number",
+    ),
+    (
+        "appendix = \"volume-chrestomathy\"\nsection-number = \"23.1\"\n",
+        "an appendix carrying a section number",
+    ),
+    (
+        "chapter = 0\nsection-number = \"0.1\"\n",
+        "chapter 0, which NonZeroU16 rules out",
+    ),
+    ("appendix = \"\"\n", "an empty appendix id"),
+    (
+        "chapter = 18\nsection-number = \"\"\n",
+        "an empty section number",
+    ),
+];
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn malformed_cll_provenance_is_rejected_by_the_public_toml_loader() {
+    let root = temp_root("jbotci-malformed-cll-provenance-toml");
+    fs::create_dir_all(&root).expect("create temp fixture root");
+
+    // The well-formed shapes both load.
+    for (block, shape) in [
+        (
+            "chapter = 18\nsection-number = \"18.3\"\n",
+            "numbered chapter",
+        ),
+        ("appendix = \"volume-chrestomathy\"\n", "appendix"),
+    ] {
+        let path = root.join("valid.toml");
+        fs::write(
+            &path,
+            format!(
+                "id = \"cll.example\"\nlojban = \"coi\"\n\n[[provenance]]\nkind = \"cll\"\n{block}section-id = \"section-example\"\n"
+            ),
+        )
+        .expect("write fixture");
+        load_fixture_file(&path)
+            .unwrap_or_else(|error| panic!("{shape} provenance should load: {error}"));
+    }
+
+    for (block, reason) in MALFORMED_CLL_PROVENANCE_BLOCKS {
+        let path = root.join("invalid.toml");
+        fs::write(
+            &path,
+            format!(
+                "id = \"cll.example\"\nlojban = \"coi\"\n\n[[provenance]]\nkind = \"cll\"\n{block}section-id = \"section-example\"\n"
+            ),
+        )
+        .expect("write fixture");
+
+        // Every public load path rejects it, not just the separately callable
+        // tree validator: the invariant runs inside `Provenance`'s deserializer.
+        assert!(
+            matches!(
+                load_fixture_file(&path),
+                Err(FixtureError::ParseToml { .. })
+            ),
+            "load_fixture_file should reject {reason}"
+        );
+        assert!(
+            matches!(
+                load_fixture_path(&path),
+                Err(FixtureError::ParseToml { .. })
+            ),
+            "load_fixture_path should reject {reason}"
+        );
+        assert!(
+            matches!(
+                load_fixture_tree(&root),
+                Err(FixtureError::ParseToml { .. })
+            ),
+            "load_fixture_tree should reject {reason}"
+        );
+        assert!(
+            matches!(
+                validate_fixture_tree(&root),
+                Err(FixtureError::ParseToml { .. })
+            ),
+            "validate_fixture_tree should reject {reason}"
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn malformed_cll_provenance_is_rejected_by_the_public_json_import() {
+    let root = temp_root("jbotci-malformed-cll-provenance-json");
+    fs::create_dir_all(&root).expect("create temp import root");
+    let input = root.join("export.json");
+    let output = root.join("fixtures");
+
+    for (chapter, appendix, section_number, reason) in [
+        (
+            Some(18u16),
+            Some("volume-chrestomathy"),
+            Some("18.3"),
+            "names both a chapter and an appendix",
+        ),
+        (None, None, None, "names neither a chapter nor an appendix"),
+        (
+            Some(18),
+            None,
+            None,
+            "a numbered chapter without its section number",
+        ),
+        (
+            None,
+            Some("volume-chrestomathy"),
+            Some("23.1"),
+            "an appendix carrying a section number",
+        ),
+        (
+            Some(0),
+            None,
+            Some("0.1"),
+            "chapter 0, which NonZeroU16 rules out",
+        ),
+        (None, Some(""), None, "an empty appendix id"),
+    ] {
+        let mut provenance = serde_json::Map::new();
+        provenance.insert("kind".into(), serde_json::json!("cll"));
+        if let Some(chapter) = chapter {
+            provenance.insert("chapter".into(), serde_json::json!(chapter));
+        }
+        if let Some(appendix) = appendix {
+            provenance.insert("appendix".into(), serde_json::json!(appendix));
+        }
+        if let Some(section_number) = section_number {
+            provenance.insert("section-number".into(), serde_json::json!(section_number));
+        }
+        provenance.insert("section-id".into(), serde_json::json!("section-example"));
+        let export = serde_json::json!({
+            "cases": [{
+                "id": "cll.example",
+                "lojban": "coi",
+                "provenance": [serde_json::Value::Object(provenance)],
+            }],
+        });
+        fs::write(&input, serde_json::to_string(&export).expect("json")).expect("write export");
+
+        assert!(
+            matches!(
+                import_export_file(&input, &output),
+                Err(FixtureError::ParseJson { .. })
+            ),
+            "import_export_file should reject {reason}"
+        );
+    }
 }
 
 #[requires(!test_case.id.is_empty())]

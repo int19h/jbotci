@@ -3,6 +3,7 @@ extern crate bityzba;
 use std::env;
 use std::fs;
 use std::io::Write;
+use std::num::{NonZeroU16, NonZeroUsize};
 use std::path::{Path, PathBuf};
 
 #[allow(unused_imports)]
@@ -88,30 +89,41 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
         .collect::<Result<Vec<_>, _>>()?;
     chapters.retain(|path| path.extension().is_some_and(|extension| extension == "xml"));
     chapters.sort();
-    let numbered_chapter_count = chapters
-        .iter()
-        .filter(|path| {
-            path.file_stem()
-                .and_then(|value| value.to_str())
-                .is_some_and(|stem| !stem.is_empty() && stem.chars().all(|ch| ch.is_ascii_digit()))
-        })
-        .count();
 
     let out_dir = PathBuf::from(env::var("OUT_DIR")?);
     let mut generated = String::new();
-    generated.push_str("pub const EMBEDDED_CLL_CHAPTERS: &[(&str, u16, &[u8])] = &[\n");
+    generated.push_str("pub const EMBEDDED_CLL_CHAPTERS: &[(&str, CllDivision, &[u8])] = &[\n");
+    // `NN.xml` files are the numbered chapters and `aNN.xml` files are the
+    // appendices; the sort above puts every numbered chapter before every
+    // appendix, so a numbered chapter's sorted position is its chapter number
+    // and appendices never need one synthesized for them.
+    let mut numbered_chapter_count = 0usize;
     for (chapter_index, path) in chapters.into_iter().enumerate() {
         let file_name = path
             .file_name()
             .and_then(|value| value.to_str())
             .ok_or("chapter path has no UTF-8 file name")?;
-        let chapter_number = chapter_number_for_file_name(file_name, numbered_chapter_count)?;
-        if usize::from(chapter_number) != chapter_index + 1 {
-            return Err(format!(
-                "CLL chapter file {file_name} maps to chapter {chapter_number}, but sorted position is {}",
-                chapter_index + 1
-            )
-            .into());
+        let division = division_for_file_name(file_name)?;
+        match division {
+            EmbeddedDivision::Chapter { number } => {
+                if usize::from(number.get()) != chapter_index + 1 {
+                    return Err(format!(
+                        "CLL chapter file {file_name} maps to chapter {number}, but sorted position is {}",
+                        chapter_index + 1
+                    )
+                    .into());
+                }
+                numbered_chapter_count += 1;
+            }
+            EmbeddedDivision::Appendix { number } => {
+                if chapter_index != numbered_chapter_count + number.get() - 1 {
+                    return Err(format!(
+                        "CLL appendix file {file_name} is appendix {number}, but sorted position {} does not follow the {numbered_chapter_count} numbered chapters",
+                        chapter_index + 1
+                    )
+                    .into());
+                }
+            }
         }
         println!("cargo:rerun-if-changed={}", path.display());
         let source = fs::read(&path)?;
@@ -121,8 +133,9 @@ fn write_embedded_chapters() -> Result<(), Box<dyn std::error::Error>> {
         fs::write(&compressed_path, compressed)?;
         generated.push_str("    (");
         generated.push_str(&format!("{file_name:?}"));
-        generated.push_str(&format!(", {chapter_number}, "));
-        generated.push_str("include_bytes!(concat!(env!(\"OUT_DIR\"), \"/\", ");
+        generated.push_str(", ");
+        generated.push_str(&division.rust_literal());
+        generated.push_str(", include_bytes!(concat!(env!(\"OUT_DIR\"), \"/\", ");
         generated.push_str(&format!("{compressed_file_name:?}"));
         generated.push_str("))");
         generated.push_str("),\n");
@@ -235,33 +248,56 @@ fn validate_chrestomathy_metadata(path: &Path) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
+/// How a vendored chapter file names its division. The appendix ordinal is the
+/// file's own `aNN` position and is used only to check that the vendored files
+/// are complete and in order; it never becomes a chapter number.
+#[invariant(true)]
+#[invariant(::Chapter => true)]
+#[invariant(::Appendix => true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EmbeddedDivision {
+    Chapter { number: NonZeroU16 },
+    Appendix { number: NonZeroUsize },
+}
+
+impl EmbeddedDivision {
+    #[requires(true)]
+    #[ensures(ret.starts_with("CllDivision::"))]
+    fn rust_literal(self) -> String {
+        match self {
+            // `Option::unwrap` is a `const fn`, and the ordinal is already
+            // known non-zero here, so the generated table stays a plain `const`.
+            Self::Chapter { number } => format!(
+                "CllDivision::Chapter {{ number: std::num::NonZeroU16::new({number}).unwrap() }}"
+            ),
+            Self::Appendix { .. } => "CllDivision::Appendix".to_owned(),
+        }
+    }
+}
+
 #[requires(!file_name.is_empty())]
-#[requires(numbered_chapter_count > 0)]
-#[ensures(ret.as_ref().is_ok_and(|number| *number > 0) || ret.is_err())]
-fn chapter_number_for_file_name(
-    file_name: &str,
-    numbered_chapter_count: usize,
-) -> Result<u16, Box<dyn std::error::Error>> {
+#[ensures(
+    ret.as_ref().is_ok_and(|division| {
+        matches!(division, EmbeddedDivision::Appendix { .. }) == file_name.starts_with('a')
+    }) || ret.is_err(),
+    "`aNN.xml` names appendices and `NN.xml` names numbered chapters; anything else is rejected"
+)]
+fn division_for_file_name(file_name: &str) -> Result<EmbeddedDivision, Box<dyn std::error::Error>> {
     let stem = file_name
         .strip_suffix(".xml")
         .ok_or_else(|| format!("CLL chapter file does not end in .xml: {file_name}"))?;
     if !stem.is_empty() && stem.chars().all(|ch| ch.is_ascii_digit()) {
-        let number = stem.parse::<u16>()?;
-        if number == 0 {
-            return Err(format!("CLL chapter file has zero chapter number: {file_name}").into());
-        }
-        return Ok(number);
+        let number = NonZeroU16::new(stem.parse::<u16>()?)
+            .ok_or_else(|| format!("CLL chapter file has zero chapter number: {file_name}"))?;
+        return Ok(EmbeddedDivision::Chapter { number });
     }
     if let Some(appendix_stem) = stem.strip_prefix('a')
         && !appendix_stem.is_empty()
         && appendix_stem.chars().all(|ch| ch.is_ascii_digit())
     {
-        let appendix_number = appendix_stem.parse::<usize>()?;
-        if appendix_number == 0 {
-            return Err(format!("CLL appendix file has zero appendix number: {file_name}").into());
-        }
-        return u16::try_from(numbered_chapter_count + appendix_number)
-            .map_err(|error| error.into());
+        let number = NonZeroUsize::new(appendix_stem.parse::<usize>()?)
+            .ok_or_else(|| format!("CLL appendix file has zero appendix number: {file_name}"))?;
+        return Ok(EmbeddedDivision::Appendix { number });
     }
     Err(format!("CLL chapter file has unsupported numeric prefix: {file_name}").into())
 }
