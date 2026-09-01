@@ -1,9 +1,9 @@
 #![recursion_limit = "1024"]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::env;
 use std::ffi::OsStr;
 use std::fmt;
-use std::env;
 use std::fs;
 use std::io::ErrorKind;
 use std::num::NonZeroU16;
@@ -4631,8 +4631,7 @@ fn check_vendored_dictionary(paths: &DictionarySnapshotPaths) -> Result<Vendored
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
 fn load_dictionary_metadata(path: &Path) -> Result<DictionaryMetadata> {
-    let text =
-        fs::read_to_string(path).with_context(|| format!("reading `{}`", path.display()))?;
+    let text = fs::read_to_string(path).with_context(|| format!("reading `{}`", path.display()))?;
     toml::from_str(&text).with_context(|| format!("parsing `{}`", path.display()))
 }
 

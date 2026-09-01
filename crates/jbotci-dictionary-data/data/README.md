@@ -10,8 +10,8 @@ without reaching back into a repository checkout.
 The snapshot is Lensisku's **unfiltered** English export — the
 `positive_scores_only=false` variant. Keeping the flag on, as jbotci did until
 jbotci issue #881, silently dropped every word whose best English definition
-scores zero or less: 12,471 of the 30,797 words in the 2026-09-01 export, most
-of them simply never voted on.
+scores zero or less: 12,464 of this snapshot's 30,793 embedded words, most of
+them simply never voted on.
 
 That export comes from the **authenticated** `/api/export/dictionary` route.
 The anonymous `/api/export/cached` route cannot serve it, for two independent

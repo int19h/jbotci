@@ -81,7 +81,10 @@ mod tests {
     #[ensures(true)]
     fn embedded_metadata_matches_dictionary() {
         assert_eq!(english_metadata().entry_count, english().entries().len());
-        assert_eq!(english_metadata().lensisku_created_at, "2026-09-01T11:38:52Z");
+        assert_eq!(
+            english_metadata().lensisku_created_at,
+            "2026-09-01T11:38:52Z"
+        );
         assert_eq!(english_metadata().definition_count, 33053);
         assert!(english_metadata().definition_count > english_metadata().entry_count);
         assert!(!english_metadata().positive_scores_only);
