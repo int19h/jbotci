@@ -354,7 +354,7 @@ def _check_wheel(entries: dict[str, bytes], platform: str) -> None:
         # each spent a commit on it, and epoch 8 was the next. The real
         # constraint is PyPI's 100 MiB per-file limit on the DISTRIBUTED FILE,
         # and `_check_limits` still asserts it at a 95 MiB tripwire; the
-        # largest wheel this project builds is 24.1 MB, 23% of that limit,
+        # largest wheel this project builds is 26.5 MB, 25.3% of that limit,
         # because the member is compressed roughly 4.5:1 on every platform.
         assert name == native[0], (name, len(contents))
 

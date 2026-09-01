@@ -1137,12 +1137,22 @@ is round 3's own grammar and nothing else.
 | sdist | 3,011,193 | 3,051,332 | **2.9%** | -- | -- | -- |
 
 **The wheel FILE is nowhere near PyPI's limit, so there is no genuine constraint here.** The
-largest artifact this project distributes is 24.1 MB, **23% of PyPI's 100 MiB per-file limit** and
-24% of the 95 MiB tripwire `artifact-policy.toml` keeps for it. The gap is compression: the
-extension module compresses about 4.5:1 on every platform, so the member can be 117 MB while the
-file that is actually uploaded is 26 MB. Epoch 8's growth is uniform and unremarkable -- +2.8% to
-+3.3% on the member, +2.9% to +3.0% on the file -- which is what a warning-union epoch's larger
+largest artifact this project distributes is 26.5 MB, **25.3% of PyPI's 100 MiB per-file limit**
+and 26.6% of the 95 MiB tripwire `artifact-policy.toml` keeps for it. The gap is compression: the
+extension module compresses between 4.2:1 and 4.6:1, so the member can be 117 MB while the file
+that is actually uploaded is 26 MB. Epoch 8's growth is uniform and unremarkable -- +2.8% to
++3.4% on the member, +2.9% to +3.3% on the file -- which is what a warning-union epoch's larger
 generated parser looks like.
+
+[**Corrected in round 5.** This paragraph was written before the Windows row existed and was not
+updated when it arrived, so it named the linux-x86_64 wheel as the largest artifact and carried
+that row's ranges. Every figure in it is now read off the table above: Windows is the largest at
+26,479,419 bytes, `26,479,419 / 104,857,600 = 25.3%` of PyPI's limit and `/ 99,614,720 = 26.6%`
+of the tripwire; the member deltas span `+2,793,472 / 99,684,848 = 2.80%` to
+`+3,846,144 / 113,667,584 = 3.38%`, the wheel-FILE deltas `+643,028 / 22,558,641 = 2.85%` to
+`+848,135 / 25,631,284 = 3.31%`, and the compression ratios `97,916,640 / 23,079,905 = 4.24:1` to
+`110,904,928 / 24,116,350 = 4.60:1`. The sdist is excluded from both growth ranges: it is not a
+wheel, it carries no native member, and its own file growth is 1.3%.]
 
 **The bound that fired is a survivor of the class the owner retired**, and the ruling applies
 directly. `artifact-policy.toml` records that on 2026-08-16 the per-platform `baseline_bytes` /
@@ -1381,3 +1391,338 @@ rows and loses none.
 The final commit adds only this section, the two round-3 supersession notes and the
 `python_artifacts.py` date correction. `cargo fmt --all --check`, the comparer, its unit tests and
 the four Python checks were re-run at that commit; no other row reads `docs/` or that comment.
+
+
+## Round 5
+
+### Sol's High: the interposed free modifier -- measured first, then repaid
+
+The lead's ruling was to measure before fixing, because this finding was read off the source
+rather than off a binary. It is measured, over 58 surfaces, with the base binary built at
+`0d791fd35c`, the round-4 head binary built at `ede3f8d53b` and this round's head, all three
+probed by `jbotci gentufa` A/R through `/build/jbotci/scratch/epoch08/r5-probe.sh` over
+`r5-surfaces.txt`.
+
+**Sol is right, and the class is wider than the citation.** Twenty-eight surfaces are `A` at the
+base and `R` at `ede3f8d53b`. Bold marks them; all twenty-eight are `A` again.
+
+
+**A -- interposed `to ... toi`, GOI marker `pe`**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e to do brodi toi pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `broda po'oi mi brode je to do brodi toi pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode zi'e to do brodi toi pe mi ku cu brodi` | default | **A** | **R** | **A** |
+| `lo broda po'oi mi brode je to do brodi toi pe mi ku cu brodi` | default | **A** | **R** | **A** |
+
+**B -- interposed `to ... toi`, NOI marker `poi`**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e to do brodi toi poi do brodi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `broda po'oi mi brode je to do brodi toi poi do brodi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode zi'e to do brodi toi poi do brodi ku cu brodi` | default | **A** | **R** | **A** |
+| `lo broda po'oi mi brode je to do brodi toi poi do brodi ku cu brodi` | default | **A** | **R** | **A** |
+
+**C -- interposed `to ... toi`, GOI marker `goi`**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e to do brodi toi goi ko'a` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `broda po'oi mi brode je to do brodi toi goi ko'a` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode zi'e to do brodi toi goi ko'a ku cu brodi` | default | **A** | **R** | **A** |
+| `lo broda po'oi mi brode je to do brodi toi goi ko'a ku cu brodi` | default | **A** | **R** | **A** |
+
+**D -- two interposed free modifiers**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e to do brodi toi to mi brodu toi pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode zi'e to do brodi toi to mi brodu toi pe mi ku cu brodi` | default | **A** | **R** | **A** |
+| `broda po'oi mi brode je to do brodi toi to mi brodu toi pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode je to do brodi toi to mi brodu toi pe mi ku cu brodi` | default | **A** | **R** | **A** |
+
+**E -- a SEI free modifier in the same slot, its SEhU elided**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e sei mi cusku pe mi` | `(+zantufa-terms)` | R | R | R |
+| `lo broda po'oi mi brode zi'e sei mi cusku pe mi ku cu brodi` | default | **A** | **R** | **A** |
+| `broda po'oi mi brode je sei mi cusku pe mi` | `(+zantufa-terms)` | R | R | R |
+| `lo broda po'oi mi brode je sei mi cusku pe mi ku cu brodi` | default | **A** | **R** | **A** |
+
+**F -- a vocative free modifier in the same slot, its DOhU elided**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e doi la .djan. pe mi` | `(+zantufa-terms)` | R | R | R |
+| `lo broda po'oi mi brode zi'e doi la .djan. pe mi ku cu brodi` | default | R | R | R |
+
+**G -- control: the free modifier BEFORE the connective, inside clause 1**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode to do brodi toi zi'e pe mi` | `(+zantufa-terms)` | A | A | A |
+| `lo broda po'oi mi brode to do brodi toi zi'e pe mi ku cu brodi` | default | A | A | A |
+| `broda po'oi mi brode to do brodi toi je pe mi` | `(+zantufa-terms)` | A | A | A |
+| `lo broda po'oi mi brode to do brodi toi je pe mi ku cu brodi` | default | A | A | A |
+
+**H -- the head-before-NAI placement, which the shared connective node still spells**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode je to do brodi toi nai pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode je to do brodi toi nai pe mi ku cu brodi` | default | **A** | **R** | **A** |
+
+**I -- control: an interposed free before a NOhOI continuation the chain itself forms**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e to do brodi toi po'oi do brodi` | `(+zantufa-terms)` | A | A | A |
+| `broda po'oi mi brode je to do brodi toi po'oi do brodi` | `(+zantufa-terms)` | A | A | A |
+| `lo broda po'oi mi brode zi'e to do brodi toi po'oi do brodi ku cu brodi` | default | A | A | A |
+
+**J -- control: the round-4 witnesses, no interposed free**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e pe mi` | `(+zantufa-terms)` | A | A | A |
+| `broda po'oi mi brode je pe mi` | `(+zantufa-terms)` | A | A | A |
+| `lo broda po'oi mi brode zi'e pe mi ku cu brodi` | default | A | A | A |
+| `lo broda po'oi mi brode je pe mi ku cu brodi` | default | A | A | A |
+| `broda po'oi mi brode zi'e goi ko'a` | `(+zantufa-terms)` | A | A | A |
+| `lo broda po'oi mi brode zi'e goi ko'a ku cu brodi` | default | A | A | A |
+
+**K -- control: the enclosing list's own connective, with an interposed free**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `lo broda pe mi zi'e to do brodi toi pe do ku cu brodi` | default | A | A | A |
+| `lo broda pe mi je to do brodi toi pe do ku cu brodi` | default | A | A | A |
+| `broda pe mi zi'e to do brodi toi pe do` | `(+zantufa-terms)` | A | A | A |
+
+**L -- control: the interval family, which no enclosing site owns**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode bi'i to do brodi toi pe mi` | `(+zantufa-terms)` | R | R | R |
+| `broda po'oi mi brode ga'o bi'i ga'o to do brodi toi pe mi` | `(+zantufa-terms)` | R | R | R |
+
+**M -- the NOhOI continuations, where the S3 ownership classifier decides**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode je to do brodi toi nai po'oi do brodi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode je to do brodi toi nai po'oi do brodi ku cu brodi` | default | **A** | **R** | **A** |
+| `broda po'oi mi brode je nai po'oi do brodi` | `(+zantufa-terms)` | A | A | A |
+| `lo broda po'oi mi brode je nai po'oi do brodi ku cu brodi` | default | A | A | A |
+| `broda po'oi mi brode zi'e to do brodi toi no'oi do brodi` | `(+zantufa-terms)` | R | A | A |
+| `broda po'oi mi brode bi'i po'oi do brodi` | `(+zantufa-terms)` | R | A | A |
+| `broda po'oi mi brode bi'i to do brodi toi po'oi do brodi` | `(+zantufa-terms)` | R | A | A |
+| `broda po'oi mi brode ga'o bi'i ga'o to do brodi toi po'oi do brodi` | `(+zantufa-terms)` | R | A | A |
+| `broda po'oi mi brode je to do brodi toi po'oi do brodi bo brode` | `(+zantufa-terms)` | A | A | A |
+| `lo broda po'oi mi brode zi'e to do brodi toi po'oi do brodi bo brode ku cu brodi` | default | A | A | A |
+
+**N -- SEI and vocative frees with their own terminator present**
+
+| surface | profile | base `0d791fd35c` | round-4 head `ede3f8d53b` | round-5 head |
+| --- | --- | --- | --- | --- |
+| `broda po'oi mi brode zi'e sei mi cusku se'u pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode zi'e sei mi cusku se'u pe mi ku cu brodi` | default | **A** | **R** | **A** |
+| `broda po'oi mi brode je sei mi cusku se'u pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode je sei mi cusku se'u pe mi ku cu brodi` | default | **A** | **R** | **A** |
+| `broda po'oi mi brode zi'e doi la .djan. do'u pe mi` | `(+zantufa-terms)` | **A** | **R** | **A** |
+| `lo broda po'oi mi brode zi'e doi la .djan. do'u pe mi ku cu brodi` | default | **A** | **R** | **A** |
+
+**Twenty-seven of the twenty-eight are the reservation's**, and the reason is exactly Sol's:
+camxes-exp's chain is `(ZIhE_clause / joik) free* selbri_relative_clause` (:214) and jbotci's
+owning connective rules spell that `free*` with `.wf()`, so a free modifier standing between the
+connective and the relative marker is part of the stranded boundary rather than a break in it.
+The probe had no free-modifier slot anywhere, so on every one of these it failed to match, the
+arm took clause 1 into the leading selbri, and the enclosing list -- whose own connective would
+have consumed those very free modifiers, which block K measures directly -- never got a list to
+own.
+
+The probe now carries **exactly the `.wf()` placements its four owning rules carry, and nothing
+more**: `cmavo(Zihe).wf()` as `zihe_selbri_relative_connective` and the sumti site's
+`joined_relative_clause_tail` spell it, the closing `selmaho(Gaho).wf()` of
+`closed_interval_connective`, and the `head`/`nai` pair of `simple_interval_connective` and of
+the `exp_relative_clause_connective` that `exp_relative_continuation` uses for camxes-exp's
+`joik` at :199. That is the rule
+`zantufa_kuho_terminated_statement_relative_clause` already states for its own marker, and for
+the same reason: a reservation that is not the same language as the thing it reserves fails at
+exactly the boundary where they differ, and the prefix-steal happens there. The marker choice
+stays bare, because the probe ends there and a `free*` after it cannot change the boolean while
+probing one at end of input would move the recorded failure frontier onto the probe.
+
+Between them those placements cover both slots a stranded connective can present. One is
+camxes-exp's own, after the completed connective -- blocks A to D and N. The other is the
+head-before-NAI slot the shared nodes carry, which is unsourced and belongs to #847 -- block H
+-- and which the reservation has to recognise even though the chain refuses it, because the
+enclosing site reaches it at the epoch base and this epoch may not spend a base surface tidying
+another family's slot. Round 3's refusal is not loosened by this. The probe is a boolean inside a
+rewinding lookahead and produces no node and no diagnostic, so recognising a placement there is
+not accepting it.
+
+**The twenty-eighth is not the reservation's, and the reservation alone did not repay it.** It is
+the S3 row of block M, `broda po'oi mi brode je to do brodi toi nai po'oi do brodi`, still `R` on
+an intermediate build that carried the reservation fix alone. Its cause is
+`ExpSelbriRelativeListRejection`, the S3 ownership classifier, which returned a completed list to
+camxes-exp's tanru-unit relative whenever every CLAUSE was one that route could form. Its own
+documentation said why the connective needed no test: D2's chain and this list hold the same two
+connective nodes, "so every connective a continuation here can present is one the exp chain
+consumes and the test is the clause alone". Round 3 made that false.
+`ProhibitedRelativeConnectiveFreeModifierRejection` makes the chain refuse a free modifier before
+a present `NAI`, so the list was handed to a route that would not take it and the extent the base
+read through the rolling-Zantufa S3 arm was lost. At the description site the same shape is
+repaid by the reservation instead, because the DEFAULT profile has no S3 parent at all -- which
+is why block M carries both and only the `(+zantufa-terms)` one needed the second fix.
+
+The classifier now tests the connective with the same predicate the rejection uses, factored into
+one `prohibited_free_modifier_placement` function that the strict rejection and the classifier
+both call, so the two cannot drift apart again; the recovered classifier calls round 4's
+fail-closed `recovered_prohibited_free_modifier_placement` for the same reason. Both fixes are
+one defect shape -- **a classifier that defers to a route it is not the same language as** --
+which is the third time this epoch has paid for it and the first time both halves are named
+together.
+
+**One epoch-new acceptance comes with the classifier fix, and it is pinned rather than left to be
+discovered.** With the list no longer returned to a route that refuses it, the rolling-Zantufa S3
+arm owns `broda no'oi mi brode je to do brodi toi nai no'oi do brodi` under `ZANTUFA-TERMS`: `R`
+at the base, `A` now. That is coherent rather than a leak -- Zantufa's NOI inventory covers
+`no'oi` (zantufa-1.9999.peg:590), its relative list joins with a `joik`, and the shared connective
+node carries the unsourced head slot #847 owns -- and it does not contradict round 3, whose
+refusal is on the camxes-exp chain and whose two negative witnesses are DEFAULT-profile and still
+reject. The tree here is `ZantufaRelativeSelbri`, not the exp tanru-unit relative. It is pinned
+as `d2-s3-free-modifier-before-nai-nohoi-chain`.
+
+**Nothing else moves, and the three-column table is what shows it.** The four other `R` -> `A`
+rows in block M -- `zi'e to ... toi no'oi` and the three `bi'i` chains -- are `A` at
+`ede3f8d53b` too, so they are round 2's chain adoption rather than this round's. Every control
+holds: a free modifier BEFORE the connective was never in the class (block G), the round-4
+witnesses are untouched (block J), the enclosing list's own connective took an interposed free at
+the base and still does (block K), and a NOhOI continuation the chain can actually form is still
+the chain's (block I).
+
+Two groups stay `R` on all three columns and neither is a residual.
+
+**Blocks E and F are a measurement about the free modifier, not about the reservation**, and
+block N is the control that proves it. `sei mi cusku` and `doi la .djan.` both have elidable
+terminators, and with the terminator elided their own bodies run on and swallow the relative
+marker that follows: the base's diagnostic on
+`broda po'oi mi brode zi'e sei mi cusku pe mi` is `incomplete sumti` at end of input, expecting
+"free modifier or sumti association phrase", because `pe mi` went into the SEI. The base rejects
+these for that reason and so does the head. Put the terminator in -- `se'u`, `do'u` -- and all
+six surfaces in block N are in the class and repaid, at both sites and for both connective
+families. The two DEFAULT-profile rows of block E are `A` at the base for the ordinary reason
+that a description's `ku` closes the run before it can swallow anything, and they are in the
+class and repaid too.
+
+**Block L stays `R` for the reason round 4 already recorded**, unchanged by adding a free
+modifier. The probe's connective inventory is camxes-exp's whole `joik`, intervals included,
+because that is what the selbri chain spells; the enclosing relative-clause list's inventory is
+`exp_relative_clause_connective` (`NA? SE? (JOI / JA / A) NAI?`) and has no interval arm at all.
+So on `bi'i` there is no site that could own the stranded list, the parse is dead either way, and
+nothing accepted is withdrawn.
+
+Seven witnesses, all `success`, all with pinned trees and diagnostics:
+
+| witness | site | connective | free modifier | marker | what it holds |
+| --- | --- | --- | --- | --- | --- |
+| `d1-s3-free-modifier-zihe-mixed-list` | S3 selbri parent | `zi'e` | `to ... toi` | `pe` | the reservation's ZIhE arm |
+| `d1-s3-free-modifier-jek-mixed-list` | S3 selbri parent | `je` | `to ... toi` | `poi` | the reservation's joik arm |
+| `d2-free-modifier-mixed-list-description-site` | description field, DEFAULT | `zi'e` | `to ... toi` | `pe` | the same ZIhE arm where no S3 parent exists |
+| `d2-free-modifier-jek-mixed-list-description-site` | description field, DEFAULT | `je` | `to ... toi` | `poi` | the same joik arm there |
+| `d1-s3-free-modifier-before-nai-mixed-list` | S3 selbri parent | `je ... nai` | `to ... toi` | `po'oi` | the S3 ownership classifier's connective test |
+| `d2-free-modifier-before-nai-description-site` | description field, DEFAULT | `je ... nai` | `to ... toi` | `pe` | the reservation's head-before-NAI recognition |
+| `d2-s3-free-modifier-before-nai-nohoi-chain` | S3 selbri parent | `je ... nai` | `to ... toi` | `no'oi` | the one epoch-new acceptance, measured |
+
+**Both parsers are covered, and by different instruments.** Round 3's macro asymmetry is the
+reason this is stated rather than assumed: the fixture harness parses through
+`parse_syntax_tree_with_source_and_options`, which is the STRICT parser, while `jbotci gentufa`
+parses with RECOVERY. The seven witnesses are the strict evidence and the 58-surface A/R table
+above is the recovered evidence, over the same surfaces, and they agree everywhere.
+
+**The recovered classifier's new test fails in the conservative direction, deliberately.** It
+requires `valid(&continuation.connective)` before reading the placement off it, so a continuation
+whose connective did not parse is no longer classified as one camxes-exp's chain could form.
+That is a behaviour change in recovery -- previously the connective was not read at all, so such a
+continuation was returned to the exp route on the strength of its clause alone -- and it is the
+right direction: an unproven connective cannot prove exp-formability, and the consequence of not
+returning is that the rolling-Zantufa S3 arm keeps a list, which is what the base did. It matches
+the `valid(...)` discipline every other fact in this file already follows.
+
+Each of the first six shows the leading selbri as a bare `PlainBoTanruUnit` with no
+`ExpRelativeTanruUnit` anywhere and one `RelativeClauseListSyntax` at the owning site, joined by
+`JoinedRelativeClauseTailSyntax` on the `zi'e` shapes and `RelativeClauseExpContinuationSyntax`
+on the `je` ones; the seventh shows `ZantufaRelativeSelbri` over a two-clause list, which is the
+whole point of pinning it. The `to ... toi` free modifiers are silent in all seven -- they are
+baseline syntax -- so the pinned diagnostics are the markers' and the connective's alone.
+
+### Sol's Low: the artifact figures
+
+Corrected in both places, and re-measured off the round-3 table rather than copied. The paragraph
+was written before the Windows row existed and named the linux-x86_64 wheel as the largest
+artifact; the Windows wheel is larger. `26,479,419 / 104,857,600 = 25.3%` of PyPI's per-file
+limit and `/ 99,614,720 = 26.6%` of the 95 MiB tripwire, so "24.1 MB, 23%" and "24% of the
+tripwire" become "26.5 MB, 25.3%" and "26.6%". The member deltas span
+`+2,793,472 / 99,684,848 = 2.80%` to `+3,846,144 / 113,667,584 = 3.38%` and the wheel-FILE deltas
+`+643,028 / 22,558,641 = 2.85%` to `+848,135 / 25,631,284 = 3.31%`, so the ranges become +2.8% to
++3.4% on the member and +2.9% to +3.3% on the file. Sol's figures and mine agree.
+
+Two figures in the same sentence were loose for the same reason and are fixed with them: the
+compression ratio is `4.24:1` to `4.60:1` rather than "about 4.5:1 on every platform", and the
+sdist is now stated as excluded from the growth ranges -- it is not a wheel, carries no native
+member, and grows 1.3%. `bindings/python/tools/python_artifacts.py` carries the one-line form of
+the same correction.
+
+### The round-5 gate
+
+Run with `/build/jbotci/logs/epoch08-r5-gate.sh`, sequentially, over the tree of the code commit.
+The gate's own header names `04959a89b8`, which is that commit before its message was amended for
+the final measured counts; `git rev-parse 04959a89b8^{tree}` and `c5e17c5380^{tree}` are the same
+tree, so every row below was run on exactly the content that ships. Both `cargo test` components
+use `--no-fail-fast`, so green means the whole set is green rather than green up to the first
+failing target.
+
+| component | result | log |
+| --- | --- | --- |
+| `cargo fmt --all --check` | clean | `epoch08-r5-g-fmt.log` |
+| `cargo test -r --workspace --features jbotci-dictionary/import --no-fail-fast` | 103 targets, 1,654 passed, 0 failed, 16 ignored | `epoch08-r5-g-workspace.log` |
+| `cargo test -r --workspace --all-targets --features expensive_contracts --no-fail-fast` | 70 targets, 1,653 passed, 0 failed, 8 ignored | `epoch08-r5-g-expensive.log` |
+| `fixture-test --profile all` | 26,679 fixtures, 72,627 passed, 519 xfailed, 0 failed | `epoch08-r5-g-fixtures.log` |
+| tagged facet `subsentence-epoch` | 106 fixtures, 3 facets, 108 passed, 0 failed | `epoch08-r5-g-tagged-facet.log` |
+| frozen syntax facet, same tag | 106 fixtures, 106 passed, 0 failed | `epoch08-r5-g-frozen-facet.log` |
+| comparer | 122 changed / 0 + 0 + 6 + 1 + 86 mechanical / 29 manual / 0 prose / 106 epoch-new / 0 unpaired / 0 witnesses missing diagnostics | `epoch08-r5-g-comparer.log` |
+| comparer unit tests | 27 tests, green | `epoch08-r5-g-comparer-test.log` |
+| `cargo build -p jbotci` (debug) | green | `epoch08-r5-g-debug-jbotci.log` |
+| `dx build` | green | `epoch08-r5-g-dx.log` |
+| `maturin develop` | green | `epoch08-r5-g-maturin.log` |
+| `generate_syntax_models.py --check` | green | `epoch08-r5-g-generate_syntax_models.log` |
+| `generate_domain_enum_stubs.py --check` | green | `epoch08-r5-g-generate_domain_enum_stubs.log` |
+| `compose_stubs.py --check` | green | `epoch08-r5-g-compose_stubs.log` |
+| `generate_api_matrix.py --check` | green | `epoch08-r5-g-generate_api_matrix.log` |
+
+Every count is round 4's plus the seven witnesses and nothing else: `+7` fixtures and `+7` passed
+on the full profile, `+7` on both facet rows, and `99 -> 106` epoch-new witnesses with
+`EXPECTED_NEW_WITNESSES` moved with them. The two `cargo test` totals are unchanged, because this
+round adds no test target. The comparer needed no note this round -- the witnesses were committed
+before it ran, so its `git diff --diff-filter=A` witness derivation saw all seven and reported
+zero unpaired.
+
+**There is no peak-RSS pair, and that is the reported result rather than an omission.** The
+lead's standing instruction ties the pair to adding a production, and this round adds none: four
+`.wf()` postfixes inside an existing lookahead `choice`, one destructure and one call added to a
+classifier that already existed, and one three-line predicate factored out of two copies of
+itself. The generated artefacts are the proof, and they are all empty deltas:
+`git diff ede3f8d53b HEAD` touches nothing under `bindings/python/`, does not move
+`docs/api-parity.tsv`, and leaves
+`crates/jbotci-syntax/tests/recovery-anchor-metadata.snapshot.txt` byte-identical -- still
+byte-identical to `2284b50691` as well, which is where round 4 left it. `tests/struct_invariant_audit.rs`
+needs no new row: no node type changed.
+
+The final commit adds only this section, the round-5 section above it, the round-3 supersession
+note on the artifact figures, and the one-line `python_artifacts.py` correction.
+`cargo fmt --all --check`, the comparer, its unit tests and the four Python checks were re-run at
+that commit; no other row reads `docs/` or that comment.
