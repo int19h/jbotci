@@ -38,7 +38,15 @@ jobs:
       DIOXUS_CLI_ROOT: ${{ github.workspace }}/.github-cache/dioxus-cli/0.7.9
       DIOXUS_CLI_TARGET_DIR: ${{ github.workspace }}/.github-cache/cargo-target/dioxus-cli-0.7.9
       NODE_VERSION: 24.14.0
-      CARGO_BUILD_JOBS: 4
+      # Two, not four.  `jbotci-syntax` and its test target each peak near 8.8 GB of rustc
+      # resident memory -- measured at the epoch-8 base and at epoch 9 alike -- on a runner with
+      # 16 GB, so a four-way schedule that puts one of them beside three ordinary units exceeds
+      # the runner and the step dies with SIGKILL. The measured concurrent peak of this exact
+      # command is 14.5 GB at the epoch-8 base and 17.4 GB at epoch 9's head, while the per-unit
+      # peaks differ by 0.7%: the epoch does not make any unit materially bigger, it only removes
+      # what little headroom the four-way schedule had left. Two jobs keep the peak at roughly one
+      # big unit plus one ordinary one.
+      CARGO_BUILD_JOBS: 2
       RUSTUP_HOME: /usr/local/rustup
     steps:
       - name: Install build dependencies

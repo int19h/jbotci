@@ -7605,20 +7605,6 @@ class SumtiBaseSyntaxNameSumti:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class SumtiBaseSyntaxDescriptionConnectionSumti:
-    'Uses the `description_connection_sumti` product form, whose payload preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku`.'
-    __match_args__: ClassVar[tuple[Literal['description_connection_sumti']]]
-    def __new__(cls, description_connection_sumti: RecoveredField[DescriptionConnectionSumtiSyntax]) -> SumtiBaseSyntaxDescriptionConnectionSumti: ...
-    @property
-    def description_connection_sumti(self) -> RecoveredField[DescriptionConnectionSumtiSyntax]:
-        'Uses the `description_connection_sumti` product form, whose payload preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti:
     'Uses the `descriptor_with_outer_quantifier_sumti` product form, whose payload preserves `outer_quantifier`, `description`, `tail`, and `ku`.'
     __match_args__: ClassVar[tuple[Literal['descriptor_with_outer_quantifier_sumti']]]
@@ -7640,6 +7626,34 @@ class SumtiBaseSyntaxDescriptorWithGadriSumti:
     @property
     def descriptor_with_gadri_sumti(self) -> RecoveredField[DescriptorWithGadriSumtiSyntax]:
         'Uses the `descriptor_with_gadri_sumti` product form, whose payload preserves `description`, `tail`, and `ku`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SumtiBaseSyntaxExpDescriptorWithLeadingSumtiSumti:
+    'Uses the camxes-exp `exp_descriptor_with_leading_sumti_sumti` product form, whose payload preserves `description`, `tail`, and `ku`.'
+    __match_args__: ClassVar[tuple[Literal['exp_descriptor_with_leading_sumti_sumti']]]
+    def __new__(cls, exp_descriptor_with_leading_sumti_sumti: RecoveredField[ExpDescriptorWithLeadingSumtiSumtiSyntax]) -> SumtiBaseSyntaxExpDescriptorWithLeadingSumtiSumti: ...
+    @property
+    def exp_descriptor_with_leading_sumti_sumti(self) -> RecoveredField[ExpDescriptorWithLeadingSumtiSumtiSyntax]:
+        'Uses the camxes-exp `exp_descriptor_with_leading_sumti_sumti` product form, whose payload preserves `description`, `tail`, and `ku`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class SumtiBaseSyntaxZantufaDescriptorWithRelativesFirstSumti:
+    'Uses the rolling-Zantufa `zantufa_descriptor_with_relatives_first_sumti` product form, whose payload preserves `description`, `tail`, and `ku`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_descriptor_with_relatives_first_sumti']]]
+    def __new__(cls, zantufa_descriptor_with_relatives_first_sumti: RecoveredField[ZantufaDescriptorWithRelativesFirstSumtiSyntax]) -> SumtiBaseSyntaxZantufaDescriptorWithRelativesFirstSumti: ...
+    @property
+    def zantufa_descriptor_with_relatives_first_sumti(self) -> RecoveredField[ZantufaDescriptorWithRelativesFirstSumtiSyntax]:
+        'Uses the rolling-Zantufa `zantufa_descriptor_with_relatives_first_sumti` product form, whose payload preserves `description`, `tail`, and `ku`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -7716,8 +7730,8 @@ class SumtiBaseSyntaxProSumti:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for sumti; selects among 16 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
-SumtiBaseSyntax: TypeAlias = SumtiBaseSyntaxScalarNegatedSumtiWithBo | SumtiBaseSyntaxScalarNegatedSumti | SumtiBaseSyntaxLaheSumti | SumtiBaseSyntaxLaheTermWrapper | SumtiBaseSyntaxScalarNegatedTermWrapperWithBo | SumtiBaseSyntaxScalarNegatedTermWrapper | SumtiBaseSyntaxBridiDescriptionSumti | SumtiBaseSyntaxNameSumti | SumtiBaseSyntaxDescriptionConnectionSumti | SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti | SumtiBaseSyntaxDescriptorWithGadriSumti | SumtiBaseSyntaxDescriptorWithoutGadriSumti | SumtiBaseSyntaxNumberSumti | SumtiBaseSyntaxLerfuStringSumti | SumtiBaseSyntaxQuotedSumti | SumtiBaseSyntaxProSumti
+# Sum node for sumti; selects among 17 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
+SumtiBaseSyntax: TypeAlias = SumtiBaseSyntaxScalarNegatedSumtiWithBo | SumtiBaseSyntaxScalarNegatedSumti | SumtiBaseSyntaxLaheSumti | SumtiBaseSyntaxLaheTermWrapper | SumtiBaseSyntaxScalarNegatedTermWrapperWithBo | SumtiBaseSyntaxScalarNegatedTermWrapper | SumtiBaseSyntaxBridiDescriptionSumti | SumtiBaseSyntaxNameSumti | SumtiBaseSyntaxDescriptorWithOuterQuantifierSumti | SumtiBaseSyntaxDescriptorWithGadriSumti | SumtiBaseSyntaxExpDescriptorWithLeadingSumtiSumti | SumtiBaseSyntaxZantufaDescriptorWithRelativesFirstSumti | SumtiBaseSyntaxDescriptorWithoutGadriSumti | SumtiBaseSyntaxNumberSumti | SumtiBaseSyntaxLerfuStringSumti | SumtiBaseSyntaxQuotedSumti | SumtiBaseSyntaxProSumti
 
 @final
 class QuantifiedSumtiSyntax:
@@ -7730,7 +7744,7 @@ class QuantifiedSumtiSyntax:
         ...
     @property
     def inner_sumti(self) -> RecoveredField[SumtiBaseSyntax]:
-        'The shared inner sumti child syntax node.'
+        'The shared inner sumti child syntax node, restricted to the camxes `sumti_6` operand\ntier: camxes spells this site `sumti_5 <- quantifier? sumti_6`, so an outer quantifier\ncan never take a quantifier-bearing operand (#837 SUM-02).'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -7838,13 +7852,63 @@ class ZantufaPriorityRawMeksoQuantifierSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class QuantifierSyntaxZantufaPriorityRawMeksoQuantifier:
-    'Uses the `zantufa_priority_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_priority_raw_mekso_quantifier']]]
-    def __new__(cls, zantufa_priority_raw_mekso_quantifier: RecoveredField[ZantufaPriorityRawMeksoQuantifierSyntax]) -> QuantifierSyntaxZantufaPriorityRawMeksoQuantifier: ...
+class ZantufaPriorityRawMeksoQuantifierWithRelativesSyntax:
+    'Product node for quantifier; preserves `mekso` and required `relative_clauses` in source order.'
+    __match_args__: ClassVar[tuple[Literal['mekso'], Literal['relative_clauses']]]
+    def __new__(cls, mekso: RecoveredField[MeksoSyntax], relative_clauses: RecoveredField[RelativeClauseListSyntax]) -> ZantufaPriorityRawMeksoQuantifierWithRelativesSyntax: ...
     @property
-    def zantufa_priority_raw_mekso_quantifier(self) -> RecoveredField[ZantufaPriorityRawMeksoQuantifierSyntax]:
-        'Uses the `zantufa_priority_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+    def mekso(self) -> RecoveredField[MeksoSyntax]:
+        'The shared mekso child syntax node.'
+        ...
+    @property
+    def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax]:
+        'The trailing relative clauses rolling Zantufa\'s quantifier admits.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRawMeksoQuantifierWithRelativesSyntax:
+    'Product node for quantifier; preserves `mekso` and required `relative_clauses` in source order.'
+    __match_args__: ClassVar[tuple[Literal['mekso'], Literal['relative_clauses']]]
+    def __new__(cls, mekso: RecoveredField[MeksoSyntax], relative_clauses: RecoveredField[RelativeClauseListSyntax]) -> ZantufaRawMeksoQuantifierWithRelativesSyntax: ...
+    @property
+    def mekso(self) -> RecoveredField[MeksoSyntax]:
+        'The shared mekso child syntax node.'
+        ...
+    @property
+    def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax]:
+        'The trailing relative clauses rolling Zantufa\'s quantifier admits.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class QuantifierSyntaxZantufaPriorityRawMeksoQuantifierWithRelatives:
+    'Uses the `zantufa_priority_raw_mekso_quantifier_with_relatives` product form, whose payload preserves `mekso` and `relative_clauses`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_priority_raw_mekso_quantifier_with_relatives_candidate']]]
+    def __new__(cls, zantufa_priority_raw_mekso_quantifier_with_relatives_candidate: RecoveredField[ZantufaPriorityRawMeksoQuantifierWithRelativesSyntax]) -> QuantifierSyntaxZantufaPriorityRawMeksoQuantifierWithRelatives: ...
+    @property
+    def zantufa_priority_raw_mekso_quantifier_with_relatives_candidate(self) -> RecoveredField[ZantufaPriorityRawMeksoQuantifierWithRelativesSyntax]:
+        'Uses the `zantufa_priority_raw_mekso_quantifier_with_relatives` product form, whose payload preserves `mekso` and `relative_clauses`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class QuantifierSyntaxZantufaPriorityRawMeksoQuantifier:
+    'Uses the classified `zantufa_priority_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_priority_raw_mekso_quantifier_candidate']]]
+    def __new__(cls, zantufa_priority_raw_mekso_quantifier_candidate: RecoveredField[ZantufaPriorityRawMeksoQuantifierSyntax]) -> QuantifierSyntaxZantufaPriorityRawMeksoQuantifier: ...
+    @property
+    def zantufa_priority_raw_mekso_quantifier_candidate(self) -> RecoveredField[ZantufaPriorityRawMeksoQuantifierSyntax]:
+        'Uses the classified `zantufa_priority_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -7880,21 +7944,41 @@ class QuantifierSyntaxPaRunQuantifier:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class QuantifierSyntaxZantufaRawMeksoQuantifier:
-    'Uses the `zantufa_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
-    __match_args__: ClassVar[tuple[Literal['zantufa_raw_mekso_quantifier']]]
-    def __new__(cls, zantufa_raw_mekso_quantifier: RecoveredField[ZantufaRawMeksoQuantifierSyntax]) -> QuantifierSyntaxZantufaRawMeksoQuantifier: ...
+class QuantifierSyntaxZantufaRawMeksoQuantifierWithRelatives:
+    'Uses the recovered-fallback `zantufa_raw_mekso_quantifier_with_relatives` product form, whose payload preserves `mekso` and `relative_clauses`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_raw_mekso_quantifier_with_relatives_candidate']]]
+    def __new__(cls, zantufa_raw_mekso_quantifier_with_relatives_candidate: RecoveredField[ZantufaRawMeksoQuantifierWithRelativesSyntax]) -> QuantifierSyntaxZantufaRawMeksoQuantifierWithRelatives: ...
     @property
-    def zantufa_raw_mekso_quantifier(self) -> RecoveredField[ZantufaRawMeksoQuantifierSyntax]:
-        'Uses the `zantufa_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+    def zantufa_raw_mekso_quantifier_with_relatives_candidate(self) -> RecoveredField[ZantufaRawMeksoQuantifierWithRelativesSyntax]:
+        'Uses the recovered-fallback `zantufa_raw_mekso_quantifier_with_relatives` product form, whose payload preserves `mekso` and `relative_clauses`.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for quantifier; selects among the `zantufa_priority_raw_mekso_quantifier`, `mekso_quantifier`, `pa_run_quantifier`, and `zantufa_raw_mekso_quantifier` forms.
-QuantifierSyntax: TypeAlias = QuantifierSyntaxZantufaPriorityRawMeksoQuantifier | QuantifierSyntaxMeksoQuantifier | QuantifierSyntaxPaRunQuantifier | QuantifierSyntaxZantufaRawMeksoQuantifier
+@final
+class QuantifierSyntaxZantufaRawMeksoQuantifier:
+    'Uses the recovered-fallback `zantufa_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+    __match_args__: ClassVar[tuple[Literal['zantufa_raw_mekso_quantifier']]]
+    def __new__(cls, zantufa_raw_mekso_quantifier: RecoveredField[ZantufaRawMeksoQuantifierSyntax]) -> QuantifierSyntaxZantufaRawMeksoQuantifier: ...
+    @property
+    def zantufa_raw_mekso_quantifier(self) -> RecoveredField[ZantufaRawMeksoQuantifierSyntax]:
+        'Uses the recovered-fallback `zantufa_raw_mekso_quantifier` product form, whose payload preserves `mekso`.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+# Sum node for quantifier; selects among the six raw-mex and baseline quantifier forms.
+#
+# The order is what makes the four-row ownership policy hold: a successfully matching
+# with-relatives priority arm wins BEFORE the no-relatives arm can match and be rejected, so
+# a no-relatives rejection can never withdraw a surface the with-relatives variant would
+# have taken; and the two recovered-fallback arms stay strictly unreachable on a strict
+# parse, because every genuine raw-mex candidate is taken by the priority route above them.
+QuantifierSyntax: TypeAlias = QuantifierSyntaxZantufaPriorityRawMeksoQuantifierWithRelatives | QuantifierSyntaxZantufaPriorityRawMeksoQuantifier | QuantifierSyntaxMeksoQuantifier | QuantifierSyntaxPaRunQuantifier | QuantifierSyntaxZantufaRawMeksoQuantifierWithRelatives | QuantifierSyntaxZantufaRawMeksoQuantifier
 
 @final
 class NumberMeksoSyntax:
@@ -10778,57 +10862,6 @@ class DescriptionHeadSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class DescriptionHeadConnectiveSyntax:
-    'Transparent product node for descriptor connective; preserves the `connective` component.'
-    __match_args__: ClassVar[tuple[Literal['connective']]]
-    def __new__(cls, connective: RecoveredField[JekConnectiveSyntax]) -> DescriptionHeadConnectiveSyntax: ...
-    @property
-    def connective(self) -> RecoveredField[JekConnectiveSyntax]:
-        'The shared connective child syntax node.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class DescriptionConnectionSumtiSyntax:
-    'Product node for description; preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku` in source order.'
-    __match_args__: ClassVar[tuple[Literal['leading_description_head'], Literal['connective'], Literal['trailing_description_head'], Literal['tail'], Literal['ku']]]
-    def __new__(
-        cls,
-        leading_description_head: RecoveredField[DescriptionHeadSyntax],
-        connective: RecoveredField[DescriptionHeadConnectiveSyntax],
-        trailing_description_head: RecoveredField[DescriptionHeadSyntax],
-        tail: RecoveredField[DescriptionTailSyntax],
-        ku: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
-    ) -> DescriptionConnectionSumtiSyntax: ...
-    @property
-    def leading_description_head(self) -> RecoveredField[DescriptionHeadSyntax]:
-        'The shared leading description head child syntax node.'
-        ...
-    @property
-    def connective(self) -> RecoveredField[DescriptionHeadConnectiveSyntax]:
-        'The `description_head_connective` connective joining the adjacent constituents of the `description_connection_sumti` production.'
-        ...
-    @property
-    def trailing_description_head(self) -> RecoveredField[DescriptionHeadSyntax]:
-        'The shared trailing description head child syntax node.'
-        ...
-    @property
-    def tail(self) -> RecoveredField[DescriptionTailSyntax]:
-        'The `description_tail` grammar result in the `tail` structural role of the `description_connection_sumti` production.'
-        ...
-    @property
-    def ku(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
-        'The optional `Ku` cmavo marker.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class DescriptorWithGadriSumtiSyntax:
     'Product node for description; preserves `description`, `tail`, and `ku` in source order.'
     __match_args__: ClassVar[tuple[Literal['description'], Literal['tail'], Literal['ku']]]
@@ -10920,6 +10953,105 @@ class DescriptorWithoutGadriSumtiSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class ExpFullSumtiDescriptionTailSyntax:
+    'Product node for description tail; preserves `leading_sumti` and `tail` in source order.'
+    __match_args__: ClassVar[tuple[Literal['leading_sumti'], Literal['tail']]]
+    def __new__(cls, leading_sumti: RecoveredField[SumtiSyntax], tail: RecoveredField[DescriptionTailBodySyntax]) -> ExpFullSumtiDescriptionTailSyntax: ...
+    @property
+    def leading_sumti(self) -> RecoveredField[SumtiSyntax]:
+        'The full leading sumti this camxes-exp arm admits where the baseline admits a sumti_6.'
+        ...
+    @property
+    def tail(self) -> RecoveredField[DescriptionTailBodySyntax]:
+        'The shared tail child syntax node.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ExpDescriptorWithLeadingSumtiSumtiSyntax:
+    'Product node for description; preserves `description`, `tail`, and `ku` in source order.'
+    __match_args__: ClassVar[tuple[Literal['description'], Literal['tail'], Literal['ku']]]
+    def __new__(
+        cls,
+        description: RecoveredField[DescriptionHeadSyntax],
+        tail: RecoveredField[ExpFullSumtiDescriptionTailSyntax],
+        ku: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ExpDescriptorWithLeadingSumtiSumtiSyntax: ...
+    @property
+    def description(self) -> RecoveredField[DescriptionHeadSyntax]:
+        'The shared description head child syntax node.'
+        ...
+    @property
+    def tail(self) -> RecoveredField[ExpFullSumtiDescriptionTailSyntax]:
+        'The camxes-exp full-sumti leading tail, refused wherever the baseline route owns the extent.'
+        ...
+    @property
+    def ku(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Ku` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaRelativesFirstDescriptionTailSyntax:
+    'Product node for description tail; preserves `relative_clauses`, `leading_sumti`, and `tail` in source order.'
+    __match_args__: ClassVar[tuple[Literal['relative_clauses'], Literal['leading_sumti'], Literal['tail']]]
+    def __new__(
+        cls,
+        relative_clauses: RecoveredField[RelativeClauseListSyntax],
+        leading_sumti: RecoveredField[SumtiSyntax],
+        tail: RecoveredField[DescriptionTailBodySyntax],
+    ) -> ZantufaRelativesFirstDescriptionTailSyntax: ...
+    @property
+    def relative_clauses(self) -> RecoveredField[RelativeClauseListSyntax]:
+        'The leading relative clauses rolling Zantufa places before the leading sumti.'
+        ...
+    @property
+    def leading_sumti(self) -> RecoveredField[SumtiSyntax]:
+        'The full leading sumti, which rolling Zantufa admits after the relatives.'
+        ...
+    @property
+    def tail(self) -> RecoveredField[DescriptionTailBodySyntax]:
+        'The shared tail child syntax node.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class ZantufaDescriptorWithRelativesFirstSumtiSyntax:
+    'Product node for description; preserves `description`, `tail`, and `ku` in source order.'
+    __match_args__: ClassVar[tuple[Literal['description'], Literal['tail'], Literal['ku']]]
+    def __new__(
+        cls,
+        description: RecoveredField[DescriptionHeadSyntax],
+        tail: RecoveredField[ZantufaRelativesFirstDescriptionTailSyntax],
+        ku: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None,
+    ) -> ZantufaDescriptorWithRelativesFirstSumtiSyntax: ...
+    @property
+    def description(self) -> RecoveredField[DescriptionHeadSyntax]:
+        'The shared description head child syntax node.'
+        ...
+    @property
+    def tail(self) -> RecoveredField[ZantufaRelativesFirstDescriptionTailSyntax]:
+        'The rolling-Zantufa relatives-first leading tail.'
+        ...
+    @property
+    def ku(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
+        'The optional `Ku` cmavo marker.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class DescriptionTailSyntax:
     'Product node for description tail; preserves `leading_tail_elements` and `tail` in source order.'
     __match_args__: ClassVar[tuple[Literal['leading_tail_elements'], Literal['tail']]]
@@ -11002,12 +11134,12 @@ class LeadingDescriptionTailElementsSyntax:
 
 @final
 class DescriptionTailSumtiSyntax:
-    'Transparent product node for description tail; preserves the `sumti` component.'
+    'Transparent product node for description tail; preserves the `sumti` component.\n\nThe leading element of a description tail is camxes `sumti_6`\n(`sumti_tail <- (sumti_6 relative_clauses?)? sumti_tail_1`, camxes.peg:156), so it can\ncarry no quantifier at all.  The retired `assert !pa_word()` blocked only the PA\nspelling and let `vei ... ve\'o` through, which is #552; the structural restriction on\n`description_leading_operand` replaces it and covers every quantifier spelling.'
     __match_args__: ClassVar[tuple[Literal['sumti']]]
     def __new__(cls, sumti: RecoveredField[SumtiBaseSyntax]) -> DescriptionTailSumtiSyntax: ...
     @property
     def sumti(self) -> RecoveredField[SumtiBaseSyntax]:
-        'The shared sumti child syntax node.'
+        'The shared sumti child syntax node, restricted to the camxes `sumti_6` operand tier.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
