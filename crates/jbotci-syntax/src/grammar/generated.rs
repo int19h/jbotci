@@ -3112,7 +3112,7 @@ pub mod generated_model {
         quantified_sumti,
     }
 
-    /// Sum node for sumti; selects among 16 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
+    /// Sum node for sumti; selects among 15 forms including `scalar_negated_sumti_with_bo`, `scalar_negated_sumti`, and `lahe_sumti`.
     rule "sumti" sumti_base(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_string, letter_tokens, free_modifier, statement, statement_relative_clause, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> enum {
         /// Uses the `scalar_negated_sumti_with_bo` product form, whose payload preserves `nahe`, `bo`, `inner_sumti`, and `luhu`.
         scalar_negated_sumti_with_bo,
@@ -3130,8 +3130,6 @@ pub mod generated_model {
         bridi_description_sumti,
         /// Uses the `name_sumti` product form, whose payload preserves `la`, `relative_clauses`, and `names`.
         name_sumti,
-        /// Uses the `description_connection_sumti` product form, whose payload preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku`.
-        description_connection_sumti,
         /// Uses the `descriptor_with_outer_quantifier_sumti` product form, whose payload preserves `outer_quantifier`, `description`, `tail`, and `ku`.
         descriptor_with_outer_quantifier_sumti,
         /// Uses the `descriptor_with_gadri_sumti` product form, whose payload preserves `description`, `tail`, and `ku`.
@@ -4260,26 +4258,6 @@ pub mod generated_model {
     rule "descriptor" description_head -> struct {
         /// The required description-head word from either selmaho `Le` or selmaho `La`.
         field description <- choice((selmaho(Le), selmaho(La))).wf();
-    }
-
-    /// Transparent product node for descriptor connective; preserves the `connective` component.
-    rule "descriptor connective" description_head_connective -> struct {
-        /// The shared connective child syntax node.
-        field connective <- arc(jek_connective);
-    }
-
-    /// Product node for description; preserves `leading_description_head`, `connective`, `trailing_description_head`, `tail`, and `ku` in source order.
-    rule "description" description_connection_sumti(sumti, description_leading_operand, term, subbridi, selbri, selbri_without_terminal_relative, text, mekso, tense_modal, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term) -> struct {
-        /// The shared leading description head child syntax node.
-        field leading_description_head <- arc(description_head());
-        /// The `description_head_connective` connective joining the adjacent constituents of the `description_connection_sumti` production.
-        field connective <- description_head_connective();
-        /// The shared trailing description head child syntax node.
-        field trailing_description_head <- arc(description_head());
-        /// The `description_tail` grammar result in the `tail` structural role of the `description_connection_sumti` production.
-        field tail <- description_tail(sumti, description_leading_operand, subbridi, selbri, selbri_without_terminal_relative, tense_modal, mekso, letter_tokens, statement, free_modifier, description_relative_subbridi, description_relative_statement_relative_clause, normal_term);
-        /// The optional `Ku` cmavo marker.
-        field ku <- opt(cmavo(Ku).wf()).elidable_terminator(Ku);
     }
 
     /// Product node for description; preserves `description`, `tail`, and `ku` in source order.

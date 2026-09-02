@@ -5985,10 +5985,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_description_tail(argument_id, &sumti.tail);
                 false
             }
-            generated::SumtiBaseSyntax::DescriptionConnectionSumti(sumti) => {
-                self.visit_description_tail(argument_id, &sumti.tail);
-                false
-            }
             generated::SumtiBaseSyntax::DescriptorWithoutGadriSumti(sumti) => {
                 self.walk_node(&sumti.quantifier);
                 self.visit_relation(&sumti.selbri);
@@ -8676,9 +8672,6 @@ fn generated_argument_letter_base_from_sumti_base(
             generated_description_tail_base_letter(&description.tail)
         }
         generated::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
-            generated_description_tail_base_letter(&description.tail)
-        }
-        generated::SumtiBaseSyntax::DescriptionConnectionSumti(description) => {
             generated_description_tail_base_letter(&description.tail)
         }
         generated::SumtiBaseSyntax::DescriptorWithoutGadriSumti(description) => {

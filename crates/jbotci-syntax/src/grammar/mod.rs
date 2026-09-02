@@ -5391,19 +5391,6 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                     self.warn_cbm_la_name_form(&description.description, &description.tail);
                 }
             }
-            generated::generated_model::NodeRef::SumtiBaseSyntaxDescriptionConnectionSumti(base) => {
-                if let generated::generated_model::SumtiBaseSyntax::DescriptionConnectionSumti(
-                    description,
-                ) = base
-                    && self.cbm_enabled
-                    && description.leading_description_head.0.value.is_cmavo(Cmavo::La)
-                {
-                    self.warn_cbm_la_name_form(
-                        &description.leading_description_head,
-                        &description.tail,
-                    );
-                }
-            }
             _ => {}
         }
     }
