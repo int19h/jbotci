@@ -39,6 +39,7 @@ mod baseline_relative;
 mod baseline_selbri;
 mod baseline_tag;
 mod baseline_termset;
+mod description_leading;
 mod generated;
 mod generated_runtime;
 mod parse_error;
@@ -5369,6 +5370,23 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                 ExperimentalConstruct::ExperimentalMexOperatorConnective,
                 operator,
             ),
+            // The two epoch-9 description-leading routes warn at the LEADING SUMTI's own first
+            // token rather than at the descriptor head: the head is shared with the baseline
+            // route, and what is experimental is the leading element the route admits after it.
+            generated::generated_model::NodeRef::ExpFullSumtiDescriptionTailSyntax(tail) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalExpDescriptionLeadingSumti,
+                    tail.leading_sumti.as_ref(),
+                );
+            }
+            generated::generated_model::NodeRef::ZantufaRelativesFirstDescriptionTailSyntax(
+                tail,
+            ) => {
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalZantufaDescriptionLeadingSumti,
+                    tail.leading_sumti.as_ref(),
+                );
+            }
             generated::generated_model::NodeRef::SumtiBaseSyntaxDescriptorWithGadriSumti(base) => {
                 if let generated::generated_model::SumtiBaseSyntax::DescriptorWithGadriSumti(
                     description,

@@ -28,7 +28,9 @@
 //! restricted `sumti_6` slot.
 //!
 //! Both matches are exhaustive and `..`-free over the generated `SumtiBaseSyntax` sum, so a
-//! future arm is a compile error rather than a silent classification.
+//! future arm is a compile error rather than a silent classification.  That is the mechanism
+//! working: the epoch's two new descriptor arms had to be classified here before they could
+//! compile, and both are `sumti_6`-tier descriptor forms, so both are permitted.
 
 use std::sync::OnceLock;
 
@@ -57,7 +59,7 @@ pub(crate) enum SumtiOperandTier {
 /// Classify a strict candidate.  A strict parse always selected an arm, so the answer is proven.
 #[requires(true)]
 #[ensures(ret != SumtiOperandTier::Unproven, "a strict candidate always selected an arm")]
-fn strict_tier(candidate: &SumtiBaseSyntax) -> SumtiOperandTier {
+pub(crate) fn sumti_base_tier(candidate: &SumtiBaseSyntax) -> SumtiOperandTier {
     match candidate {
         SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(_)
         | SumtiBaseSyntax::DescriptorWithoutGadriSumti(_) => SumtiOperandTier::Sumti5,
@@ -70,6 +72,8 @@ fn strict_tier(candidate: &SumtiBaseSyntax) -> SumtiOperandTier {
         | SumtiBaseSyntax::BridiDescriptionSumti(_)
         | SumtiBaseSyntax::NameSumti(_)
         | SumtiBaseSyntax::DescriptorWithGadriSumti(_)
+        | SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(_)
+        | SumtiBaseSyntax::ZantufaDescriptorWithRelativesFirstSumti(_)
         | SumtiBaseSyntax::NumberSumti(_)
         | SumtiBaseSyntax::LerfuStringSumti(_)
         | SumtiBaseSyntax::QuotedSumti(_)
@@ -80,7 +84,9 @@ fn strict_tier(candidate: &SumtiBaseSyntax) -> SumtiOperandTier {
 /// Classify the arm of a recovered candidate whose wrapper proved a selection.
 #[requires(true)]
 #[ensures(ret != SumtiOperandTier::Unproven, "a selected arm always establishes a tier")]
-fn recovered_arm_tier(candidate: &recovered::SumtiBaseSyntax) -> SumtiOperandTier {
+pub(crate) fn recovered_sumti_base_tier(
+    candidate: &recovered::SumtiBaseSyntax,
+) -> SumtiOperandTier {
     match candidate {
         recovered::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(_)
         | recovered::SumtiBaseSyntax::DescriptorWithoutGadriSumti(_) => SumtiOperandTier::Sumti5,
@@ -93,6 +99,8 @@ fn recovered_arm_tier(candidate: &recovered::SumtiBaseSyntax) -> SumtiOperandTie
         | recovered::SumtiBaseSyntax::BridiDescriptionSumti(_)
         | recovered::SumtiBaseSyntax::NameSumti(_)
         | recovered::SumtiBaseSyntax::DescriptorWithGadriSumti(_)
+        | recovered::SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(_)
+        | recovered::SumtiBaseSyntax::ZantufaDescriptorWithRelativesFirstSumti(_)
         | recovered::SumtiBaseSyntax::NumberSumti(_)
         | recovered::SumtiBaseSyntax::LerfuStringSumti(_)
         | recovered::SumtiBaseSyntax::QuotedSumti(_)
@@ -116,7 +124,7 @@ fn recovered_tier(
     candidate: &recovered::Recovered<recovered::SumtiBaseSyntax>,
 ) -> SumtiOperandTier {
     match candidate {
-        recovered::Recovered::Valid(candidate) => recovered_arm_tier(candidate),
+        recovered::Recovered::Valid(candidate) => recovered_sumti_base_tier(candidate),
         recovered::Recovered::Prefix(_) | recovered::Recovered::Error(_) => {
             SumtiOperandTier::Unproven
         }
@@ -264,7 +272,7 @@ impl OutputRejection<SumtiBaseSyntax> for QuantifierBearingSumtiRejection {
     }
 
     fn rejects(&self, value: &SumtiBaseSyntax) -> bool {
-        tier_is_rejected(strict_tier(value))
+        tier_is_rejected(sumti_base_tier(value))
     }
 }
 

@@ -3109,6 +3109,8 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaStatementRelativeClause,
     ExperimentalZantufaStatementFreeModifier,
     ExperimentalZantufaStatementAbstraction,
+    ExperimentalExpDescriptionLeadingSumti,
+    ExperimentalZantufaDescriptionLeadingSumti,
     ExperimentalZantufaMex,
     ExperimentalZantufaRahoiQuote,
     ExperimentalZantufaMuhoiSelbriUnit,
@@ -3277,6 +3279,12 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaStatementAbstraction => {
                 "syntax.warning.experimental-zantufa-statement-abstraction"
             }
+            Self::ExperimentalExpDescriptionLeadingSumti => {
+                "syntax.warning.experimental-exp-description-leading-sumti"
+            }
+            Self::ExperimentalZantufaDescriptionLeadingSumti => {
+                "syntax.warning.experimental-zantufa-description-leading-sumti"
+            }
             Self::ExperimentalZantufaMex => "syntax.warning.experimental-zantufa-mex",
             Self::ExperimentalZantufaRahoiQuote => {
                 "syntax.warning.experimental-zantufa-rahoi-quote"
@@ -3416,6 +3424,12 @@ impl ExperimentalConstruct {
             }
             Self::ExperimentalZantufaStatementAbstraction => {
                 "Zantufa statement payload in abstraction"
+            }
+            Self::ExperimentalExpDescriptionLeadingSumti => {
+                "full sumti as the leading element of a description tail"
+            }
+            Self::ExperimentalZantufaDescriptionLeadingSumti => {
+                "relative clauses before the leading sumti of a description tail"
             }
             Self::ExperimentalZantufaMex => "Zantufa mex grammar form",
             Self::ExperimentalZantufaRahoiQuote => "Zantufa RAhOI rafsi quote",

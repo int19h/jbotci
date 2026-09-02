@@ -293,6 +293,8 @@ define_syntax_string_enum_binding!(
         ExperimentalConstruct::ExperimentalZantufaStatementRelativeClause => ("EXPERIMENTAL_ZANTUFA_STATEMENT_RELATIVE_CLAUSE", "experimental-zantufa-statement-relative-clause"),
         ExperimentalConstruct::ExperimentalZantufaStatementFreeModifier => ("EXPERIMENTAL_ZANTUFA_STATEMENT_FREE_MODIFIER", "experimental-zantufa-statement-free-modifier"),
         ExperimentalConstruct::ExperimentalZantufaStatementAbstraction => ("EXPERIMENTAL_ZANTUFA_STATEMENT_ABSTRACTION", "experimental-zantufa-statement-abstraction"),
+        ExperimentalConstruct::ExperimentalExpDescriptionLeadingSumti => ("EXPERIMENTAL_EXP_DESCRIPTION_LEADING_SUMTI", "experimental-exp-description-leading-sumti"),
+        ExperimentalConstruct::ExperimentalZantufaDescriptionLeadingSumti => ("EXPERIMENTAL_ZANTUFA_DESCRIPTION_LEADING_SUMTI", "experimental-zantufa-description-leading-sumti"),
         ExperimentalConstruct::ExperimentalZantufaMex => ("EXPERIMENTAL_ZANTUFA_MEX", "experimental-zantufa-mex"),
         ExperimentalConstruct::ExperimentalZantufaRahoiQuote => ("EXPERIMENTAL_ZANTUFA_RAHOI_QUOTE", "experimental-zantufa-rahoi-quote"),
         ExperimentalConstruct::ExperimentalZantufaMuhoiSelbriUnit => ("EXPERIMENTAL_ZANTUFA_MUHOI_SELBRI_UNIT", "experimental-zantufa-muhoi-selbri-unit"),

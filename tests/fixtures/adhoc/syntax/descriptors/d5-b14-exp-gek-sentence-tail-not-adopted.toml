@@ -1,0 +1,12 @@
+id = "adhoc.syntax.descriptors.d5-b14-exp-gek-sentence-tail-not-adopted"
+lojban = "lo ge mi klama gi do bajra cu blabi"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D5.1/B14 retained-gap pin (#830)"
+description = "camxes-exp's sumti_tail arm 4 takes a gek_sentence as the WHOLE tail (camxes-exp.peg:194); std and zantufa have no such arm. Not adopted; the row exists so the production is neither lost silently nor adopted unreviewed."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [9, 14], source-text = "klama", message = "unexpected brivla" }]

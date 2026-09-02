@@ -1,0 +1,13 @@
+id = "adhoc.syntax.descriptors.d3a-union-composite-name-leading-zantufa"
+lojban = "le mi jo'u la djan. selmrilu cu blabi"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3a union-composite witness (#830), zantufa axis"
+description = "The zantufa-axis twin: the composite exists only at the DEFAULT profile. Under --dialect zantufa the CBM name handling takes the LA surface (the same reason lo la djan mlatu cu blabi is jb-zantufa R while it is jb-default A), so the name-leading component the composite rests on is not available and the surface rejects."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [29, 31], source-text = "cu", message = "unexpected cmavo" }]

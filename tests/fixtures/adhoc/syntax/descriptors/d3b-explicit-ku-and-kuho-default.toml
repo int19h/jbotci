@@ -1,0 +1,12 @@
+id = "adhoc.syntax.descriptors.d3b-explicit-ku-and-kuho-default"
+lojban = "lo poi mi zgana ku'o mi mlatu ku cu blabi"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3b terminator witness (#830), explicit KU and KUhO, default axis"
+description = "The default profile rejects the relatives-first ordering however its terminators are written."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [21, 23], source-text = "mi", message = "unexpected cmavo" }]

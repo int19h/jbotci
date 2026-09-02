@@ -77,6 +77,7 @@ define_dialect_features! {
     UnrestrictedFree => "unrestricted-free",
     ZantufaAdverbials => "zantufa-adverbials",
     ZantufaConnectives => "zantufa-connectives",
+    ZantufaDescriptions => "zantufa-descriptions",
     ZantufaMex => "zantufa-mex",
     ZantufaMexReinterpretation => "zantufa-mex-reinterpretation",
     ZantufaSelbriReinterpretation => "zantufa-selbri-reinterpretation",
@@ -1487,7 +1488,7 @@ fn builtin_dialect_sources() -> Vec<(&'static str, &'static str)> {
         ("term-hierarchy", "()"),
         (
             "zantufa",
-            "(cbm soi-adverbials +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MEX +ZANTUFA-MORPHOLOGY)",
+            "(cbm soi-adverbials +ZANTUFA-CONNECTIVES +ZANTUFA-TERMS +ZANTUFA-TAGS +ZANTUFA-ADVERBIALS +ZANTUFA-QUOTES +ZANTUFA-MEX +ZANTUFA-DESCRIPTIONS +ZANTUFA-MORPHOLOGY)",
         ),
         ("jboponei", "((po ↦ lo su'u) (nei ↦ kei))"),
         (

@@ -1,0 +1,17 @@
+id = "adhoc.syntax.descriptors.d3a-recovered-unproven-leading-sumti"
+lojban = "le broda pe la gy cu na broda"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3a recovered table row 3 (#830): Unproven under a Valid wrapper"
+description = "The row that occupancy alone would get wrong: the leading sumti slot IS Valid, and a discriminator under it is occupied without its own token being parsed. Recursive entry evidence answers Unproven, and Unproven is refused, so the extent stays with the baseline route."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "cu", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "87bd69bc5b7af436b34d8269d47995ae0ddd773bb55d51aa3258a5194ef1e503" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [18, 20], source-text = "cu", message = "unexpected cmavo" }]

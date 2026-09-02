@@ -148,6 +148,7 @@ pub(crate) struct SyntaxGrammarDialect {
     pub unrestricted_free_enabled: bool,
     pub zantufa_adverbials_enabled: bool,
     pub zantufa_connectives_enabled: bool,
+    pub zantufa_descriptions_enabled: bool,
     pub zantufa_mex_enabled: bool,
     pub zantufa_mex_reinterpretation_enabled: bool,
     pub zantufa_selbri_reinterpretation_enabled: bool,
@@ -166,6 +167,7 @@ impl SyntaxGrammarDialect {
             unrestricted_free_enabled: features.contains(&DialectFeature::UnrestrictedFree),
             zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
             zantufa_connectives_enabled: features.contains(&DialectFeature::ZantufaConnectives),
+            zantufa_descriptions_enabled: features.contains(&DialectFeature::ZantufaDescriptions),
             zantufa_mex_enabled: features.contains(&DialectFeature::ZantufaMex),
             zantufa_mex_reinterpretation_enabled: features
                 .contains(&DialectFeature::ZantufaMexReinterpretation),
@@ -187,6 +189,7 @@ pub(crate) enum SyntaxGrammarFeature {
     UnrestrictedFree,
     ZantufaAdverbials,
     ZantufaConnectives,
+    ZantufaDescriptions,
     ZantufaMex,
     ZantufaMexReinterpretation,
     ZantufaSelbriReinterpretation,
@@ -204,6 +207,7 @@ impl SyntaxGrammarFeature {
             Self::UnrestrictedFree => dialect.unrestricted_free_enabled,
             Self::ZantufaAdverbials => dialect.zantufa_adverbials_enabled,
             Self::ZantufaConnectives => dialect.zantufa_connectives_enabled,
+            Self::ZantufaDescriptions => dialect.zantufa_descriptions_enabled,
             Self::ZantufaMex => dialect.zantufa_mex_enabled,
             Self::ZantufaMexReinterpretation => dialect.zantufa_mex_reinterpretation_enabled,
             Self::ZantufaSelbriReinterpretation => dialect.zantufa_selbri_reinterpretation_enabled,
@@ -221,6 +225,7 @@ impl SyntaxGrammarFeature {
             Self::UnrestrictedFree => "UNRESTRICTED-FREE feature",
             Self::ZantufaAdverbials => "ZANTUFA-ADVERBIALS feature",
             Self::ZantufaConnectives => "ZANTUFA-CONNECTIVES feature",
+            Self::ZantufaDescriptions => "ZANTUFA-DESCRIPTIONS feature",
             Self::ZantufaMex => "ZANTUFA-MEX feature",
             Self::ZantufaMexReinterpretation => "ZANTUFA-MEX-REINTERPRETATION feature",
             Self::ZantufaSelbriReinterpretation => "ZANTUFA-SELBRI-REINTERPRETATION feature",
@@ -2125,6 +2130,7 @@ thread_local! {
 #[ensures(true)]
 fn classifier_site_tracing_enabled() -> bool {
     crate::grammar::sumti_operand_tier::trace_enabled()
+        || crate::grammar::description_leading::trace_enabled()
 }
 
 #[requires(true)]

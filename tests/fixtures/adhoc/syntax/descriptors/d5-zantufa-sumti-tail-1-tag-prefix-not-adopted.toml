@@ -1,0 +1,12 @@
+id = "adhoc.syntax.descriptors.d5-zantufa-sumti-tail-1-tag-prefix-not-adopted"
+lojban = "lo ba re mlatu cu blabi"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D5.1 retained-gap pin (#830)"
+description = "rolling Zantufa's sumti_tail_1 carries a tag? prefix (zantufa-1.9999.peg:41) that no other source and no jbotci route has. R/R/A; outside #830's stated criteria, so not adopted."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-brivla", byte-span = [9, 14], source-text = "mlatu", message = "unexpected brivla" }]

@@ -1,0 +1,17 @@
+id = "adhoc.syntax.descriptors.d3a-recovered-baseline-derivable-leading-sumti"
+lojban = "le le pe le broda ku brode"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3a recovered table row 1 (#830): baseline-derivable"
+description = "A recovered camxes-exp candidate whose leading sumti is an extent the BASELINE leading operand derives. R1 keeps it baseline: the classifier answers BaselineDerivable, the route refuses the candidate and emits no D3a warning."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-sumti", byte-span = [26, 26], source-text = "", message = "incomplete sumti" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "458d05494e5f60d7c66422a9787ed0bfb646ff77895816ba0ccf6fef4b9ba2f6" }
+diagnostics = [{ severity = "error", code = "syntax.incomplete-sumti", byte-span = [26, 26], source-text = "", message = "incomplete sumti" }]
