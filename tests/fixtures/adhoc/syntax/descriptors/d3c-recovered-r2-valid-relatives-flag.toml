@@ -1,0 +1,18 @@
+id = "adhoc.syntax.descriptors.d3c-recovered-r2-valid-relatives-flag"
+lojban = "tirna re poi cmalu"
+dialect = "(+zantufa-mex)"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3c recovered truth table R2 (#830): a Valid relatives slot, explicit feature flag"
+description = "A recovered with-relatives quantifier candidate whose relative list is Valid down to a PARSED opening marker. Entry evidence succeeds and the with-relatives variant keeps Zantufa ownership. The recovered spine intentionally carries no generated construct warning: plan-v7 D3c B8 froze that generation out of scope, #891 tracks the follow-up, and the strict-spine witness pins the warning. The dialect and the bare flag are two code paths and #634 requires both to be witnessed."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-sumti", byte-span = [18, 18], source-text = "", message = "incomplete sumti" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "dfe4fd8fa3e473d9b1ac02f95cec719b73dd174c4966f79e84eb4d730dd14f40" }
+diagnostics = [{ severity = "error", code = "syntax.incomplete-sumti", byte-span = [18, 18], source-text = "", message = "incomplete sumti" }]

@@ -2131,6 +2131,7 @@ thread_local! {
 fn classifier_site_tracing_enabled() -> bool {
     crate::grammar::sumti_operand_tier::trace_enabled()
         || crate::grammar::description_leading::trace_enabled()
+        || crate::grammar::zantufa_quantifier_relatives::trace_enabled()
 }
 
 #[requires(true)]

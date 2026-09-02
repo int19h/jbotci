@@ -47,6 +47,7 @@ mod parser_core;
 mod selbri_boundary;
 mod sumti_operand_tier;
 pub(crate) mod tokens;
+mod zantufa_quantifier_relatives;
 use parse_error::{
     SharedStack, SyntaxFound, SyntaxFoundData, SyntaxParseCustomKind, SyntaxParseError,
 };
@@ -5350,6 +5351,15 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
                 quantifier,
             ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
             generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifier(
+                quantifier,
+            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
+            // The two with-relatives variants ride the same category (#830 D3c): the trailing
+            // relative list is rolling Zantufa's own quantifier shape, so the construct a reader
+            // is being warned about is the Zantufa mex quantifier, not a second thing.
+            generated::generated_model::NodeRef::QuantifierSyntaxZantufaPriorityRawMeksoQuantifierWithRelatives(
+                quantifier,
+            ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
+            generated::generated_model::NodeRef::QuantifierSyntaxZantufaRawMeksoQuantifierWithRelatives(
                 quantifier,
             ) => self.warn_first_token(ExperimentalConstruct::ExperimentalZantufaMex, quantifier),
             generated::generated_model::NodeRef::ZantufaMexContinuationSyntax(continuation)

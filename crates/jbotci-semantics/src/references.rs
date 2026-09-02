@@ -4092,6 +4092,18 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifier(quantifier) => {
                 self.walk_node(&quantifier.0);
             }
+            // Rolling Zantufa's quantifier relatives attach to the quantifier itself, so both
+            // the mex and the relative list are walked from here.
+            generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifierWithRelatives(
+                quantifier,
+            ) => {
+                self.walk_node(&quantifier.mekso);
+                self.walk_node(&quantifier.relative_clauses);
+            }
+            generated::QuantifierSyntax::ZantufaRawMeksoQuantifierWithRelatives(quantifier) => {
+                self.walk_node(&quantifier.mekso);
+                self.walk_node(&quantifier.relative_clauses);
+            }
             generated::QuantifierSyntax::PaRunQuantifier(_) => {}
         }
     }

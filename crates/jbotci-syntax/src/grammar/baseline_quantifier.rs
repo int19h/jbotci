@@ -39,7 +39,8 @@ use jbotci_tree::Chain;
 use super::generated_model::{
     AfterthoughtMeksoOperandSyntax, BoundOrSimpleMeksoOperandSyntax, InfixMeksoSyntax,
     MeksoBaseSyntax, MeksoOperandSyntax, MeksoPrecedenceSyntax, MeksoSyntax, NumberMeksoSyntax,
-    ParenthesizedMeksoOperandSyntax, SimpleMeksoOperandSyntax, recovered,
+    ParenthesizedMeksoOperandSyntax, SimpleMeksoOperandSyntax,
+    ZantufaPriorityRawMeksoQuantifierSyntax, recovered,
 };
 use super::generated_runtime::OutputRejection;
 
@@ -251,24 +252,38 @@ pub(crate) struct BaselineQuantifierRejection;
 
 const BASELINE_QUANTIFIER_REJECTION_NAME: &str = "baseline quantifier surface";
 
+// The rejection is attached at RULE level rather than to the inner `mekso` field, because epoch 9
+// gives the priority raw route a with-relatives sibling variant and a field-level predicate
+// cannot see a slot parsed after it.  The completed product this classifier sees structurally
+// cannot carry relatives -- the with-relatives variant is a different rule -- so the four-row
+// ownership policy is enforced jointly: rows 1 and 3 by this classifier, rows 2 and 4 by variant
+// selection.  Descending into `mekso` here is what keeps the surface test identical to the one
+// #634 accepted.
 #[contract_trait]
-impl OutputRejection<MeksoSyntax> for BaselineQuantifierRejection {
+impl OutputRejection<ZantufaPriorityRawMeksoQuantifierSyntax> for BaselineQuantifierRejection {
     fn rejected_name(&self) -> &'static str {
         BASELINE_QUANTIFIER_REJECTION_NAME
     }
 
-    fn rejects(&self, value: &MeksoSyntax) -> bool {
-        is_baseline_quantifier_surface(value)
+    fn rejects(&self, value: &ZantufaPriorityRawMeksoQuantifierSyntax) -> bool {
+        is_baseline_quantifier_surface(value.0.as_ref())
     }
 }
 
 #[contract_trait]
-impl OutputRejection<recovered::Recovered<recovered::MeksoSyntax>> for BaselineQuantifierRejection {
+impl OutputRejection<recovered::Recovered<recovered::ZantufaPriorityRawMeksoQuantifierSyntax>>
+    for BaselineQuantifierRejection
+{
     fn rejected_name(&self) -> &'static str {
         BASELINE_QUANTIFIER_REJECTION_NAME
     }
 
-    fn rejects(&self, value: &recovered::Recovered<recovered::MeksoSyntax>) -> bool {
-        valid(value).is_some_and(recovered_is_baseline_quantifier_surface)
+    fn rejects(
+        &self,
+        value: &recovered::Recovered<recovered::ZantufaPriorityRawMeksoQuantifierSyntax>,
+    ) -> bool {
+        valid(value).is_some_and(|candidate| {
+            valid(candidate.0.as_ref()).is_some_and(recovered_is_baseline_quantifier_surface)
+        })
     }
 }
