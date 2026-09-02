@@ -1314,7 +1314,9 @@ mod tests {
                 _ => {}
             }
 
-            match ipa_morphology_text(&parsed, entry.word) {
+            let ipa = ipa_morphology_text(&parsed, entry.word);
+            let ipa_rendered = ipa.as_ref().is_ok_and(|ipa| !ipa.is_empty());
+            match ipa {
                 Ok(ipa)
                     if !ipa.is_empty()
                         && dictionary_ipa_xfail_reason(entry.word, entry.word_type).is_none() => {}
@@ -1341,7 +1343,13 @@ mod tests {
                 }
             }
 
-            assert_dictionary_words_syllabify(entry.word, entry.word_type, &parsed, &mut failures);
+            assert_dictionary_words_syllabify(
+                entry.word,
+                entry.word_type,
+                &parsed,
+                ipa_rendered,
+                &mut failures,
+            );
         }
 
         assert!(
@@ -1372,12 +1380,20 @@ mod tests {
         ))])
     }
 
+    /// `ipa_rendered` reports whether the entry produced IPA at all.
+    ///
+    /// `dictionary_ipa_xfails.tsv` serves both consumers of a failed
+    /// pronunciation: an entry that renders no IPA, and an entry whose
+    /// non-cmevla words do not syllabify. The staleness check therefore has to
+    /// see both, or an entry listed for the first reason reads as a stale
+    /// exception for the second.
     #[requires(true)]
     #[ensures(true)]
     fn assert_dictionary_words_syllabify(
         entry_word: &str,
         word_type: WordType,
         parsed: &[WordLike],
+        ipa_rendered: bool,
         failures: &mut Vec<String>,
     ) {
         let mut unsyllabifiable_cmevla_found = false;
@@ -1421,7 +1437,7 @@ mod tests {
         }
         if dictionary_ipa_xfail_reason(entry_word, word_type).is_some()
             && !unsyllabifiable_non_cmevla_found
-            && !matches!(word_type, WordType::Cmavo | WordType::ExperimentalCmavo)
+            && ipa_rendered
         {
             failures.push(format!(
                 "{entry_word} [{}] still has stale non-cmevla syllable exception",
@@ -1465,6 +1481,9 @@ mod tests {
                         !matches!(word.as_data(), data!(WordLike::PlainWord(_)))
                     })
             }
+            // Lensisku's untyped catch-all claims no morphological category,
+            // so there is nothing for the entry's morphology to contradict.
+            WordType::Nalvla => true,
         }
     }
 

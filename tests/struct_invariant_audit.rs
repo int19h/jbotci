@@ -320,10 +320,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "JOHAU shorthand swap records are static internal mappings with closed code and atom fields",
     ),
     (
-        "crates/jbotci-dictionary-data/build.rs:DictionaryMetadata",
-        "vendored Lensisku metadata is validated against dictionary contents and hashes in the build script",
-    ),
-    (
         "crates/jbotci-dictionary-data/build.rs:GeneratedLujvoEntry",
         "generated lujvo entries are build-script intermediates created from morphology-backed decomposition and checked through Dictionary::validate",
     ),

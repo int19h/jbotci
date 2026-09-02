@@ -504,6 +504,13 @@ pub enum WordType {
     BuLetteral,
     #[serde(rename = "phrase")]
     Phrase,
+    /// Lensisku's `typeid = 0`, its "not a word" catch-all.
+    ///
+    /// In practice it marks an entry whose submitter never chose a type rather
+    /// than a considered judgement that the text is unpronounceable, so the
+    /// snapshot keeps such entries and treats their claims as provisional.
+    #[serde(rename = "nalvla")]
+    Nalvla,
 }
 
 impl WordType {
@@ -520,18 +527,23 @@ impl WordType {
     /// type must be classified consciously, because an unclassified claimant
     /// would silently hand an already-spelled rafsi to a new gismu.
     ///
-    /// The rule is uniform across the taxonomy — a claim is [`Experimental`]
-    /// exactly when the type itself is experimental or obsolete, and
-    /// [`Official`] otherwise — which the postcondition cross-checks against
-    /// the Lensisku type names.
+    /// The rule is nearly uniform across the taxonomy — a claim is
+    /// [`Experimental`] exactly when the type itself is experimental or
+    /// obsolete, and [`Official`] otherwise — which the postcondition
+    /// cross-checks against the Lensisku type names. [`Nalvla`] is the one
+    /// exception: it is not named for a register, but an untyped entry cannot
+    /// bind the standard register either.
     ///
     /// [`Experimental`]: RafsiClaimKind::Experimental
     /// [`Official`]: RafsiClaimKind::Official
+    /// [`Nalvla`]: WordType::Nalvla
     #[requires(true)]
     #[ensures(
         (ret == RafsiClaimKind::Experimental)
-            == (self.as_str().starts_with("experimental ") || self.as_str().starts_with("obsolete ")),
-        "only experimental and obsolete word types make merely experimental claims"
+            == (self == Self::Nalvla
+                || self.as_str().starts_with("experimental ")
+                || self.as_str().starts_with("obsolete ")),
+        "only experimental, obsolete, and untyped word types make merely experimental claims"
     )]
     pub fn rafsi_claim_kind(self) -> RafsiClaimKind {
         match self {
@@ -558,6 +570,9 @@ impl WordType {
             | Self::ObsoleteCmavo
             | Self::ObsoleteFuivla
             | Self::ObsoleteCmevla => RafsiClaimKind::Experimental,
+            // An entry Lensisku never classified has no standing to hold a
+            // form against a word that was classified.
+            Self::Nalvla => RafsiClaimKind::Experimental,
         }
     }
 
@@ -588,6 +603,7 @@ impl WordType {
             Self::ObsoleteCmevla => "obsolete cmevla",
             Self::BuLetteral => "bu-letteral",
             Self::Phrase => "phrase",
+            Self::Nalvla => "nalvla",
         }
     }
 }
@@ -1509,6 +1525,7 @@ mod tests {
                 WordType::ObsoleteCmevla,
                 WordType::BuLetteral,
                 WordType::Phrase,
+                WordType::Nalvla,
             ]
             .map(WordType::rafsi_claim_kind),
             [
@@ -1527,6 +1544,7 @@ mod tests {
                 RafsiClaimKind::Experimental,
                 RafsiClaimKind::Official,
                 RafsiClaimKind::Official,
+                RafsiClaimKind::Experimental,
             ]
         );
     }

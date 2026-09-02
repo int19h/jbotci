@@ -385,13 +385,21 @@ def _check_sdist(entries: dict[str, bytes]) -> None:
         assert name != "bindings/python/docs/api-parity.tsv", name
         if len(contents) <= 1_500_000:
             continue
+        # A SHAPE check, deliberately without a byte ceiling: the vendored
+        # dictionary snapshot is the only member an sdist may carry above
+        # 1.5 MB, so anything else this large is an accident rather than the
+        # packaged sources growing. The `10_000_000` cap this allowlist used
+        # to carry was a project-invented member budget of the kind the owner
+        # retired on 2026-08-16 (see `artifact-policy.toml`), and it fired on
+        # intended growth: issue #881 vendors the complete unfiltered Lensisku
+        # export (16.8 MB) precisely so the alternates stay recoverable. The
+        # real constraint is PyPI's 100 MiB per-file limit on the DISTRIBUTED
+        # archive, which `_check_limits` still asserts at a 95 MiB tripwire;
+        # the JSON compresses far below that inside the sdist.
         allowed_large_members = {
-            "crates/jbotci-dictionary-data/data/dictionary-en.json": 10_000_000,
+            "crates/jbotci-dictionary-data/data/dictionary-en.json",
         }
-        assert (
-            name in allowed_large_members
-            and len(contents) <= allowed_large_members[name]
-        ), (name, len(contents))
+        assert name in allowed_large_members, (name, len(contents))
 
 
 def _normalized_workspace_manifest(contents: bytes) -> bytes:

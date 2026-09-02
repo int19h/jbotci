@@ -109,6 +109,8 @@ pub enum WordTypeFilter {
     ObsoleteZeiLujvo,
     Brivla,
     Phrase,
+    /// Lensisku's untyped catch-all; see [`WordType::Nalvla`].
+    Nalvla,
 }
 
 impl WordTypeFilter {
@@ -133,6 +135,7 @@ impl WordTypeFilter {
             "obsolete-zei-lujvo" => Some(Self::ObsoleteZeiLujvo),
             "brivla" => Some(Self::Brivla),
             "phrase" => Some(Self::Phrase),
+            "nalvla" => Some(Self::Nalvla),
             _ => None,
         }
     }
@@ -158,6 +161,7 @@ impl WordTypeFilter {
             Self::ObsoleteZeiLujvo => "obsolete-zei-lujvo",
             Self::Brivla => "brivla",
             Self::Phrase => "phrase",
+            Self::Nalvla => "nalvla",
         }
     }
 
@@ -180,6 +184,7 @@ impl WordTypeFilter {
             WordType::ObsoleteCmevla => Self::ObsoleteCmevla,
             WordType::BuLetteral => Self::BuLetteral,
             WordType::Phrase => Self::Phrase,
+            WordType::Nalvla => Self::Nalvla,
         }
     }
 
@@ -197,6 +202,7 @@ impl WordTypeFilter {
             WordType::Fuivla | WordType::ObsoleteFuivla => Self::Fuivla,
             WordType::Lujvo | WordType::ZeiLujvo | WordType::ObsoleteZeiLujvo => Self::Lujvo,
             WordType::Phrase => Self::Phrase,
+            WordType::Nalvla => Self::Nalvla,
         }
     }
 
@@ -227,7 +233,8 @@ impl WordTypeFilter {
                 | Self::ObsoleteFuivla
                 | Self::ZeiLujvo
                 | Self::ObsoleteZeiLujvo
-                | Self::Phrase => false,
+                | Self::Phrase
+                | Self::Nalvla => false,
             }
     }
 
@@ -245,6 +252,9 @@ impl WordTypeFilter {
             Self::Lujvo | Self::ZeiLujvo | Self::ObsoleteZeiLujvo => Self::Lujvo,
             Self::Brivla => Self::Brivla,
             Self::Phrase => Self::Phrase,
+            // Untyped entries group under themselves: they belong to no
+            // morphological family, which is exactly what the type records.
+            Self::Nalvla => Self::Nalvla,
         }
     }
 

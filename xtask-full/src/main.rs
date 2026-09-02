@@ -1,6 +1,7 @@
 #![recursion_limit = "1024"]
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::env;
 use std::ffi::OsStr;
 use std::fmt;
 use std::fs;
@@ -12,7 +13,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 #[allow(unused_imports)]
 use bityzba::{contract_trait, data, ensures, invariant, new, requires};
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -61,6 +62,10 @@ use xtask_common::service_worker::{
 };
 use xtask_common::web_assets::{WEB_ASSET_SYNC_TEMP_DIR_NAME, remove_web_asset_sync_temp_dir};
 
+const DEFAULT_LENSISKU_SOURCE_LANGUAGE: &str = "jbo";
+const LENSISKU_TOKEN_ENV: &str = "LENSISKU_TOKEN";
+const LENSISKU_USERNAME_ENV: &str = "LENSISKU_USERNAME";
+const LENSISKU_PASSWORD_ENV: &str = "LENSISKU_PASSWORD";
 const DIOXUS_WEB_PUBLIC_INPUT_DIR: &str = "target/jbotci-web-public";
 const SHARED_UI_ASSET_DIR: &str = "crates/jbotci-ui/assets";
 const RELEASE_SERVICE_WORKER_FILE_NAME: &str = "service-worker.js";
@@ -514,12 +519,28 @@ struct VendorDictionaryArgs {
     base_url: String,
     #[arg(long, default_value = "en")]
     language: String,
+    /// Language of the words being defined; Lensisku keys exports on it.
+    #[arg(long, default_value = DEFAULT_LENSISKU_SOURCE_LANGUAGE)]
+    source_language: String,
     #[arg(long, default_value = "json")]
     format: String,
+    /// Export only definitions whose vote score is positive.
+    ///
+    /// Off by default: leaving it on is what kept every word without a
+    /// positively scored definition out of the vendored snapshot.
+    #[arg(long)]
+    positive_scores_only: bool,
     #[arg(long, default_value = "crates/jbotci-dictionary-data/data")]
     output: PathBuf,
-    #[arg(long)]
+    /// Verify the committed snapshot against its metadata. Reads no network.
+    #[arg(long, conflicts_with = "check_upstream")]
     check: bool,
+    /// Report whether Lensisku now serves an export unlike the committed one.
+    ///
+    /// Informational: drift is upstream's normal state (the live export moves
+    /// with every edit and vote), so it reports rather than fails.
+    #[arg(long)]
+    check_upstream: bool,
 }
 
 #[derive(Debug, Args)]
@@ -827,27 +848,39 @@ impl ContainerEngine {
     }
 }
 
+/// One entry of Lensisku's public language table.
 #[derive(Debug, Clone, Deserialize)]
 #[invariant(true)]
-struct CachedExport {
-    language_tag: String,
-    language_realname: String,
-    format: String,
-    filename: String,
-    created_at: String,
+struct LensiskuLanguage {
+    tag: String,
+    real_name: String,
 }
 
-#[derive(Debug, Serialize)]
-#[invariant(true)]
-struct DictionaryMetadata<'a> {
-    language_tag: &'a str,
-    language_realname: &'a str,
-    format: &'a str,
-    filename: &'a str,
-    metadata_url: &'a str,
-    download_url: &'a str,
-    lensisku_created_at: &'a str,
-    sha256: &'a str,
+/// Provenance recorded beside a vendored Lensisku dictionary snapshot.
+///
+/// `definition_count` counts the rows of the vendored file and `entry_count`
+/// the entries that survive
+/// [`ImportedDictionary::retain_best_definition_per_word`], which is what
+/// `jbotci-dictionary-data` embeds. The two differ whenever the export carries
+/// several definitions of one word.
+#[invariant(
+    entry_count <= definition_count,
+    "selection drops definitions, never invents them"
+)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DictionaryMetadata {
+    language_tag: String,
+    language_realname: String,
+    source_language_tag: String,
+    format: String,
+    positive_scores_only: bool,
+    filename: String,
+    metadata_url: String,
+    download_url: String,
+    lensisku_created_at: String,
+    sha256: String,
+    definition_count: usize,
     entry_count: usize,
 }
 
@@ -4367,78 +4400,327 @@ fn fixture_import(args: FixtureImportArgs) -> Result<()> {
     Ok(())
 }
 
+/// Vendor a Lensisku dictionary export into `crates/jbotci-dictionary-data/data`.
+///
+/// The export comes from the authenticated `/api/export/dictionary` route
+/// rather than the anonymous `/api/export/cached` one. The cached route cannot
+/// serve what jbotci needs: the nightly job pre-warms only the
+/// `positive_scores_only=true` variant, and any definition edit or vote drops
+/// every cached row for the language pair, so English is essentially never
+/// cached at all.
 #[requires(true)]
 #[ensures(true)]
 fn vendor_dictionary(args: VendorDictionaryArgs) -> Result<()> {
-    let base_url = args.base_url.trim_end_matches('/').to_owned();
-    let metadata_url = format!("{base_url}/api/export/cached");
-    let exports_text = fetch_text(&metadata_url)
-        .with_context(|| format!("fetching Lensisku export metadata from `{metadata_url}`"))?;
-    let exports = serde_json::from_str::<Vec<CachedExport>>(&exports_text)
-        .with_context(|| format!("parsing Lensisku export metadata from `{metadata_url}`"))?;
-    let export = exports
-        .iter()
-        .find(|export| export.language_tag == args.language && export.format == args.format)
-        .cloned()
-        .with_context(|| {
-            format!(
-                "finding cached Lensisku export for language `{}` and format `{}`",
-                args.language, args.format
-            )
-        })?;
-
-    let download_url = format!(
-        "{base_url}/api/export/cached/{}/{}",
-        export.language_tag, export.format
-    );
-    let dictionary_text = fetch_text(&download_url)
-        .with_context(|| format!("fetching Lensisku dictionary from `{download_url}`"))?;
-    let imported = parse_lensisku_json(&dictionary_text)
-        .with_context(|| format!("validating Lensisku dictionary from `{download_url}`"))?;
-    if imported.entries.is_empty() {
-        bail!("Lensisku dictionary export from `{download_url}` contained no entries");
-    }
-    let pretty_json = pretty_json(&dictionary_text)
-        .with_context(|| format!("pretty-printing Lensisku dictionary from `{download_url}`"))?;
-    let sha256 = sha256_hex(pretty_json.as_bytes());
-    let metadata = DictionaryMetadata {
-        language_tag: &export.language_tag,
-        language_realname: &export.language_realname,
-        format: &export.format,
-        filename: &export.filename,
-        metadata_url: &metadata_url,
-        download_url: &download_url,
-        lensisku_created_at: &export.created_at,
-        sha256: &sha256,
-        entry_count: imported.entries.len(),
-    };
-    let metadata_text =
-        toml::to_string_pretty(&metadata).context("rendering dictionary metadata")?;
+    let output = absolute_path(&args.output)?;
+    let paths = DictionarySnapshotPaths::for_language(&output, &args.language);
 
     if args.check {
+        let report = check_vendored_dictionary(&paths)?;
         println!(
-            "validated {} Lensisku entries from {} created at {}",
-            imported.entries.len(),
-            download_url,
-            export.created_at
+            "validated committed snapshot `{}`: {} definition(s), {} embedded entr(ies), sha256 {}",
+            paths.dictionary.display(),
+            report.definition_count,
+            report.entry_count,
+            report.sha256
         );
         return Ok(());
     }
 
-    fs::create_dir_all(&args.output)
-        .with_context(|| format!("creating `{}`", args.output.display()))?;
-    let dictionary_path = args.output.join(&export.filename);
-    let metadata_path = args.output.join("dictionary-en.metadata.toml");
-    fs::write(&dictionary_path, pretty_json)
-        .with_context(|| format!("writing `{}`", dictionary_path.display()))?;
-    fs::write(&metadata_path, metadata_text)
-        .with_context(|| format!("writing `{}`", metadata_path.display()))?;
+    let base_url = args.base_url.trim_end_matches('/').to_owned();
+    let languages_url = format!("{base_url}/api/language/languages");
+    let languages_text = fetch_text(&languages_url)
+        .with_context(|| format!("fetching Lensisku languages from `{languages_url}`"))?;
+    let languages = serde_json::from_str::<Vec<LensiskuLanguage>>(&languages_text)
+        .with_context(|| format!("parsing Lensisku languages from `{languages_url}`"))?;
+    let language = lensisku_language(&languages, &args.language)?;
+    // Resolved only to fail early on a typo; the export identifies it by tag.
+    lensisku_language(&languages, &args.source_language)?;
+
+    let download_url = format!(
+        "{base_url}/api/export/dictionary/{}?format={}&source_lang={}&positive_scores_only={}",
+        args.language, args.format, args.source_language, args.positive_scores_only
+    );
+    let token = lensisku_bearer_token(&base_url)?;
+    let dictionary_text = fetch_text_with_bearer(&download_url, &token)
+        .with_context(|| format!("fetching Lensisku dictionary from `{download_url}`"))?;
+    let retrieved_at = rfc3339_now()?;
+    let pretty_json = pretty_json(&dictionary_text)
+        .with_context(|| format!("pretty-printing Lensisku dictionary from `{download_url}`"))?;
+    let counts = dictionary_snapshot_counts(&pretty_json)
+        .with_context(|| format!("validating Lensisku dictionary from `{download_url}`"))?;
+    if counts.definition_count == 0 {
+        bail!("Lensisku dictionary export from `{download_url}` contained no entries");
+    }
+    let sha256 = sha256_hex(pretty_json.as_bytes());
+
+    if args.check_upstream {
+        let committed = load_dictionary_metadata(&paths.metadata)?;
+        if committed.sha256 == sha256 {
+            println!(
+                "committed snapshot `{}` matches the export now served by `{download_url}`",
+                paths.dictionary.display()
+            );
+        } else {
+            println!(
+                "committed snapshot `{}` is out of date: it holds {} definition(s) \
+                 ({} embedded entr(ies)) created at {}, while `{download_url}` now serves \
+                 {} definition(s) ({} embedded entr(ies))",
+                paths.dictionary.display(),
+                committed.definition_count,
+                committed.entry_count,
+                committed.lensisku_created_at,
+                counts.definition_count,
+                counts.entry_count
+            );
+        }
+        return Ok(());
+    }
+
+    let metadata = new!(DictionaryMetadata {
+        language_tag: args.language.clone(),
+        language_realname: language.real_name.clone(),
+        source_language_tag: args.source_language.clone(),
+        format: args.format.clone(),
+        positive_scores_only: args.positive_scores_only,
+        filename: paths.filename.clone(),
+        metadata_url: languages_url,
+        download_url: download_url,
+        // The route generates the export on request, so the moment Lensisku
+        // built it is the moment we asked for it.
+        lensisku_created_at: retrieved_at,
+        sha256: sha256,
+        definition_count: counts.definition_count,
+        entry_count: counts.entry_count,
+    });
+    let metadata_text =
+        toml::to_string_pretty(&metadata).context("rendering dictionary metadata")?;
+
+    fs::create_dir_all(&output).with_context(|| format!("creating `{}`", output.display()))?;
+    fs::write(&paths.dictionary, pretty_json)
+        .with_context(|| format!("writing `{}`", paths.dictionary.display()))?;
+    fs::write(&paths.metadata, metadata_text)
+        .with_context(|| format!("writing `{}`", paths.metadata.display()))?;
     println!(
-        "vendored {} Lensisku entries into `{}`",
-        imported.entries.len(),
-        dictionary_path.display()
+        "vendored {} Lensisku definition(s) into `{}`; {} entr(ies) survive, dropping {} \
+         undefined and {} duplicate definition(s)",
+        counts.definition_count,
+        paths.dictionary.display(),
+        counts.entry_count,
+        counts.undefined_count,
+        counts.definition_count - counts.undefined_count - counts.entry_count
     );
     Ok(())
+}
+
+/// Where a vendored snapshot and its metadata live.
+#[invariant(
+    filename.ends_with(".json"),
+    "the vendored snapshot is the export's JSON"
+)]
+#[derive(Debug, Clone)]
+struct DictionarySnapshotPaths {
+    filename: String,
+    dictionary: PathBuf,
+    metadata: PathBuf,
+}
+
+impl DictionarySnapshotPaths {
+    #[requires(!language_tag.is_empty())]
+    #[ensures(ret.dictionary.starts_with(output) && ret.metadata.starts_with(output))]
+    fn for_language(output: &Path, language_tag: &str) -> Self {
+        let filename = format!("dictionary-{language_tag}.json");
+        let dictionary = output.join(&filename);
+        let metadata = output.join(format!("dictionary-{language_tag}.metadata.toml"));
+        new!(DictionarySnapshotPaths {
+            filename: filename,
+            dictionary: dictionary,
+            metadata: metadata,
+        })
+    }
+}
+
+/// How many definitions a snapshot holds, and how many entries it embeds.
+#[invariant(
+    entry_count + undefined_count <= *definition_count,
+    "selection and the undefined-row discard drop definitions, never invent them"
+)]
+#[derive(Debug, Clone, Copy)]
+struct DictionarySnapshotCounts {
+    definition_count: usize,
+    /// Rows discarded for having no definition text at all.
+    undefined_count: usize,
+    entry_count: usize,
+}
+
+/// Count the definitions and embedded entries of a snapshot's JSON text.
+///
+/// The reduction has to stay in step with `jbotci-dictionary-data`'s
+/// `build.rs`, so both call the same two `ImportedDictionary` operations in the
+/// same order.
+#[requires(true)]
+#[ensures(true)]
+fn dictionary_snapshot_counts(dictionary_text: &str) -> Result<DictionarySnapshotCounts> {
+    let mut imported = parse_lensisku_json(dictionary_text)?;
+    let definition_count = imported.entries.len();
+    let undefined_count = imported.retain_defined_entries();
+    imported.retain_best_definition_per_word();
+    Ok(new!(DictionarySnapshotCounts {
+        definition_count: definition_count,
+        undefined_count: undefined_count,
+        entry_count: imported.entries.len(),
+    }))
+}
+
+/// What `--check` established about the committed snapshot.
+#[invariant(sha256.len() == 64, "a SHA-256 digest is 64 hex characters")]
+#[derive(Debug, Clone)]
+struct VendoredDictionaryReport {
+    definition_count: usize,
+    entry_count: usize,
+    sha256: String,
+}
+
+/// Verify the committed snapshot against its recorded metadata.
+///
+/// This reads only the working tree. Asking Lensisku whether a newer export
+/// exists is a different question, and `--check-upstream` asks it (jbotci
+/// issue #684).
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn check_vendored_dictionary(paths: &DictionarySnapshotPaths) -> Result<VendoredDictionaryReport> {
+    let metadata = load_dictionary_metadata(&paths.metadata)?;
+    if metadata.filename != paths.filename {
+        bail!(
+            "`{}` records filename `{}`, but the snapshot beside it is `{}`",
+            paths.metadata.display(),
+            metadata.filename,
+            paths.filename
+        );
+    }
+    let dictionary_text = fs::read_to_string(&paths.dictionary)
+        .with_context(|| format!("reading `{}`", paths.dictionary.display()))?;
+    let sha256 = sha256_hex(dictionary_text.as_bytes());
+    if sha256 != metadata.sha256 {
+        bail!(
+            "`{}` hashes to {sha256}, but `{}` records {}",
+            paths.dictionary.display(),
+            paths.metadata.display(),
+            metadata.sha256
+        );
+    }
+    let counts = dictionary_snapshot_counts(&dictionary_text)
+        .with_context(|| format!("parsing `{}`", paths.dictionary.display()))?;
+    if counts.definition_count != metadata.definition_count {
+        bail!(
+            "`{}` holds {} definition(s), but `{}` records {}",
+            paths.dictionary.display(),
+            counts.definition_count,
+            paths.metadata.display(),
+            metadata.definition_count
+        );
+    }
+    if counts.entry_count != metadata.entry_count {
+        bail!(
+            "`{}` embeds {} entr(ies), but `{}` records {}",
+            paths.dictionary.display(),
+            counts.entry_count,
+            paths.metadata.display(),
+            metadata.entry_count
+        );
+    }
+    Ok(new!(VendoredDictionaryReport {
+        definition_count: counts.definition_count,
+        entry_count: counts.entry_count,
+        sha256: sha256,
+    }))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn load_dictionary_metadata(path: &Path) -> Result<DictionaryMetadata> {
+    let text = fs::read_to_string(path).with_context(|| format!("reading `{}`", path.display()))?;
+    toml::from_str(&text).with_context(|| format!("parsing `{}`", path.display()))
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|language| language.tag == tag) || ret.is_err())]
+fn lensisku_language<'a>(
+    languages: &'a [LensiskuLanguage],
+    tag: &str,
+) -> Result<&'a LensiskuLanguage> {
+    languages
+        .iter()
+        .find(|language| language.tag == tag)
+        .with_context(|| format!("finding Lensisku language `{tag}`"))
+}
+
+/// Obtain a bearer token for Lensisku's authenticated export route.
+///
+/// `LENSISKU_TOKEN` is used verbatim when set. Otherwise `LENSISKU_USERNAME`
+/// and `LENSISKU_PASSWORD` are exchanged for one. Credentials are never
+/// command-line arguments, so they stay out of process listings and shell
+/// history.
+#[requires(!base_url.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|token| !token.is_empty()) || ret.is_err())]
+fn lensisku_bearer_token(base_url: &str) -> Result<String> {
+    if let Some(token) = env::var_os(LENSISKU_TOKEN_ENV) {
+        let token = token
+            .into_string()
+            .map_err(|_| anyhow!("`{LENSISKU_TOKEN_ENV}` is not valid UTF-8"))?;
+        let token = token.trim().to_owned();
+        if token.is_empty() {
+            bail!("`{LENSISKU_TOKEN_ENV}` is empty");
+        }
+        return Ok(token);
+    }
+
+    let username = lensisku_credential(LENSISKU_USERNAME_ENV)?;
+    let password = lensisku_credential(LENSISKU_PASSWORD_ENV)?;
+    let login_url = format!("{base_url}/api/auth/login");
+    // Serialized here rather than through `send_json`, which the workspace's
+    // `ureq` does not enable.
+    let login_body = serde_json::to_string(&serde_json::json!({
+        "username_or_email": username,
+        "password": password,
+    }))
+    .context("rendering the Lensisku login request")?;
+    let response = ureq::post(&login_url)
+        .header("Content-Type", "application/json")
+        .send(login_body.as_bytes())
+        .with_context(|| format!("POST `{login_url}`"))?
+        .body_mut()
+        .read_to_string()
+        .with_context(|| format!("reading response body from `{login_url}`"))?;
+    let token = serde_json::from_str::<LensiskuAuthResponse>(&response)
+        .with_context(|| format!("parsing the login response from `{login_url}`"))?
+        .access_token;
+    if token.is_empty() {
+        bail!("`{login_url}` returned an empty access token");
+    }
+    Ok(token)
+}
+
+#[requires(!name.is_empty())]
+#[ensures(ret.as_ref().is_ok_and(|value| !value.is_empty()) || ret.is_err())]
+fn lensisku_credential(name: &str) -> Result<String> {
+    let value = env::var(name).with_context(|| {
+        format!(
+            "reading `{name}`; set `{LENSISKU_TOKEN_ENV}`, or \
+             `{LENSISKU_USERNAME_ENV}` and `{LENSISKU_PASSWORD_ENV}`, to reach \
+             Lensisku's authenticated export route"
+        )
+    })?;
+    if value.trim().is_empty() {
+        bail!("`{name}` is empty");
+    }
+    Ok(value)
+}
+
+/// Lensisku's `/api/auth/login` response.
+#[derive(Debug, Deserialize)]
+#[invariant(true)]
+struct LensiskuAuthResponse {
+    access_token: String,
 }
 
 #[requires(true)]
@@ -6567,6 +6849,21 @@ fn fetch_text(url: &str) -> Result<String> {
         .body_mut()
         .with_config()
         .limit(64 * 1024 * 1024)
+        .read_to_string()
+        .with_context(|| format!("reading response body from `{url}`"))?;
+    Ok(text)
+}
+
+#[requires(!token.is_empty())]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn fetch_text_with_bearer(url: &str, token: &str) -> Result<String> {
+    let text = ureq::get(url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .call()
+        .with_context(|| format!("GET `{url}`"))?
+        .body_mut()
+        .with_config()
+        .limit(256 * 1024 * 1024)
         .read_to_string()
         .with_context(|| format!("reading response body from `{url}`"))?;
     Ok(text)

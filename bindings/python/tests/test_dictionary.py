@@ -114,17 +114,18 @@ def test_english_objects_have_stable_identity_and_metadata() -> None:
         dictionary.PronunciationTargetSequenceView
         is native._dictionary_PronunciationTargetSequenceView
     )
-    assert len(dictionary.english) == 17_536
+    assert len(dictionary.english) == 30_793
     assert dictionary.english_metadata.entry_count == len(dictionary.english)
     assert dictionary.english_metadata.language_tag == "en"
     assert dictionary.english_metadata.language_realname == "English"
     assert dictionary.english_metadata.format == "json"
     assert dictionary.english_metadata.filename == "dictionary-en.json"
-    assert dictionary.english_metadata.lensisku_created_at == (
-        "2026-07-27T07:10:51.776063Z"
-    )
+    assert dictionary.english_metadata.lensisku_created_at == "2026-09-01T11:38:52Z"
+    assert dictionary.english_metadata.source_language_tag == "jbo"
+    assert dictionary.english_metadata.positive_scores_only is False
+    assert dictionary.english_metadata.definition_count == 33_053
     assert dictionary.english_metadata.sha256 == (
-        "ba268ad701f8f44656ea4b17a1fd9539cfc1a3c523d0bdf581a44e3e93bb412f"
+        "d446173f1e2acb4d590999c4f120f407ff6021c3945c94c5f9ee8d79a85cb5b1"
     )
     assert repr(dictionary.english) == "jbotci.dictionary.english"
     assert dictionary.Dictionary.__name__ == "Dictionary"
@@ -157,7 +158,7 @@ def test_source_order_sequence_supports_iteration_indices_and_slices() -> None:
     assert not hasattr(dictionary.english, "index")
     assert not hasattr(entries, "count")
     assert not hasattr(entries, "index")
-    assert len(entries) == 17_536
+    assert len(entries) == 30_793
     assert entries[0].word == dictionary.english[0].word
     assert entries[dictionary.EntryIndex(0)].word == entries[0].word
     assert entries[-1].word == entries[len(entries) - 1].word
@@ -401,11 +402,15 @@ def test_word_type_predicates_delegate_through_exact_native_enum_conversion() ->
     assert dictionary.WordType.ZEI_LUJVO.is_lujvo_like()
     assert dictionary.WordType.OBSOLETE_ZEI_LUJVO.is_lujvo_like()
     assert not dictionary.WordType.GISMU.is_lujvo_like()
-    # Only experimental and obsolete types make provisional rafsi claims.
+    # Experimental and obsolete types make provisional rafsi claims; so does
+    # NALVLA, the one exception not named for a register — an entry Lensisku
+    # never classified cannot bind the standard register either (it mirrors
+    # the postcondition on the Rust `rafsi_claim_kind`).
     for word_type in dictionary.WordType:
         assert word_type.rafsi_claim_kind() is (
             dictionary.RafsiClaimKind.EXPERIMENTAL
-            if word_type.startswith(("experimental ", "obsolete "))
+            if word_type is dictionary.WordType.NALVLA
+            or word_type.startswith(("experimental ", "obsolete "))
             else dictionary.RafsiClaimKind.OFFICIAL
         )
     with pytest.raises(TypeError):

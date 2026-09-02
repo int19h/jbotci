@@ -2550,7 +2550,10 @@ mod tests {
         assert_eq!(collision_delta, 19);
         let output = compose_gismu(dictionary, &request).expect("output");
         assert_eq!(output.candidate_count, 16_320);
-        assert_eq!(output.filtered_count, 12_222 - collision_delta);
+        // The baseline tracks the snapshot: the unfiltered export (#881) added
+        // enough gismu-like words to filter out 358 more candidates outright,
+        // while `collision_delta` still isolates only #672's own additions.
+        assert_eq!(output.filtered_count, 11_864 - collision_delta);
         assert_eq!(output.winner.as_deref(), Some("trado"));
         assert_eq!(
             output
@@ -2660,10 +2663,10 @@ mod tests {
         };
 
         let collision_delta = refreshed_snapshot_collision_delta(dictionary, &request);
-        assert_eq!(collision_delta, 112);
+        assert_eq!(collision_delta, 128);
         let output = compose_gismu(dictionary, &request).expect("#587 reproduction");
         assert_eq!(output.candidate_count, 96_475);
-        assert_eq!(output.filtered_count, 82_567 - collision_delta);
+        assert_eq!(output.filtered_count, 80_921 - collision_delta);
         assert_eq!(output.candidates.len(), 160);
         let top = output
             .candidates
