@@ -9217,7 +9217,13 @@ fn regenerate_morphology_fixture(fixture: &mut LoadedTestCase) -> std::result::R
         .morphology
         .as_ref()
         .and_then(|expectation| expectation.recovered.as_ref())
-        .map(|recovered| (recovered.max_errors, recovered.tree.clone()));
+        .map(|recovered| {
+            (
+                recovered.max_errors,
+                recovered.raw.clone(),
+                recovered.tree.clone(),
+            )
+        });
     let (status, raw, diagnostics) = match attempt.result {
         Ok(words) => {
             let raw = (had_raw || !checks_diagnostics).then(|| format_debug_value(&words));
@@ -9248,7 +9254,7 @@ fn regenerate_morphology_fixture(fixture: &mut LoadedTestCase) -> std::result::R
         expectation.diagnostics = Some(diagnostics);
     }
 
-    if let Some((max_errors, tree)) = recovered_configuration {
+    if let Some((max_errors, previous_raw, tree)) = recovered_configuration {
         let recovered = segment_words_with_modifiers_recovered_with_options_and_source_id(
             &fixture.test_case.lojban,
             &options,
@@ -9263,9 +9269,13 @@ fn regenerate_morphology_fixture(fixture: &mut LoadedTestCase) -> std::result::R
             &fixture.test_case.lojban,
             &recovered,
         );
+        let raw = previous_raw.map(|previous| {
+            refreshed_text_expectation(Some(&previous), format_debug_value(&recovered.words))
+        });
         expectation.recovered = Some(new!(fixtures::RecoveredExpectation {
             status,
             max_errors,
+            raw,
             diagnostics,
             tree,
         }));
@@ -9339,10 +9349,13 @@ fn regenerate_syntax_fixture(fixture: &mut LoadedTestCase) -> std::result::Resul
     }
     let had_raw = expectation.raw.is_some();
     let checks_diagnostics = expectation.diagnostics.is_some();
-    let recovered_configuration = expectation
-        .recovered
-        .as_ref()
-        .map(|recovered| (recovered.max_errors, recovered.tree.is_some()));
+    let recovered_configuration = expectation.recovered.as_ref().map(|recovered| {
+        (
+            recovered.max_errors,
+            recovered.raw.clone(),
+            recovered.tree.is_some(),
+        )
+    });
 
     let dialect = fixture
         .test_case
@@ -9431,7 +9444,7 @@ fn regenerate_syntax_fixture(fixture: &mut LoadedTestCase) -> std::result::Resul
         expectation.diagnostics = Some(diagnostics);
     }
 
-    if let Some((max_errors, has_tree)) = recovered_configuration {
+    if let Some((max_errors, previous_raw, has_tree)) = recovered_configuration {
         let mut recovered_options = ParseOptions::default().with_dialect_definition(&dialect);
         if let Some(max_errors) = max_errors {
             recovered_options = recovered_options.with_max_recovery_errors(max_errors);
@@ -9458,10 +9471,17 @@ fn regenerate_syntax_fixture(fixture: &mut LoadedTestCase) -> std::result::Resul
                 diagnostic.code.clone(),
             )
         });
+        let raw = previous_raw.map(|previous| {
+            refreshed_text_expectation(
+                Some(&previous),
+                format_debug_value(recovered.parse_tree.as_ref()),
+            )
+        });
         let tree = has_tree.then(|| recovered_syntax_tree_expectation(&recovered));
         expectation.recovered = Some(new!(fixtures::RecoveredExpectation {
             status,
             max_errors,
+            raw,
             diagnostics,
             tree,
         }));
@@ -13898,6 +13918,15 @@ fn run_recovered_syntax_fixture(
             expectation.diagnostics
         ));
     }
+    if let Some(expected_raw) = &expectation.raw
+        && !debug_value_matches_expectation(recovered.parse_tree.as_ref(), expected_raw)
+    {
+        return FacetResult::failed(format_text_expectation_mismatch(
+            "recovered syntax raw",
+            expected_raw,
+            &format_debug_prefix(recovered.parse_tree.as_ref()),
+        ));
+    }
     if let Some(expected_tree) = &expectation.tree {
         let actual_tree = recovered_syntax_tree_expectation(&recovered);
         if *expected_tree != actual_tree {
@@ -14182,14 +14211,22 @@ fn run_recovered_morphology_fixture(
     }
     let diagnostics =
         recovered_morphology_diagnostic_expectation_items(&fixture.test_case.lojban, &recovered);
-    if expectation.diagnostics == diagnostics {
-        FacetResult::passed()
-    } else {
-        FacetResult::failed(format!(
+    if expectation.diagnostics != diagnostics {
+        return FacetResult::failed(format!(
             "recovered morphology diagnostics mismatch: expected {:?}, got {diagnostics:?}",
             expectation.diagnostics
-        ))
+        ));
     }
+    if let Some(expected_raw) = &expectation.raw
+        && !debug_value_matches_expectation(&recovered.words, expected_raw)
+    {
+        return FacetResult::failed(format_text_expectation_mismatch(
+            "recovered morphology raw",
+            expected_raw,
+            &format_debug_prefix(&recovered.words),
+        ));
+    }
+    FacetResult::passed()
 }
 
 #[requires(true)]

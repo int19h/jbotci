@@ -1,0 +1,17 @@
+id = "adhoc.syntax.descriptors.d0-recovered-through-quantified-operand"
+lojban = "re la cu blabi"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 R7 recovered-path witness (quantified_sumti.inner_sumti)"
+description = "A recovered parse that descends through the RESTRICTED quantified-sumti operand: the operand is a name sumti, the classifier answers Sumti6, and the recovered QuantifiedSumti owner survives."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "cu", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "1f878b29f9a005fd17c7a6b4f69b7897cf6bb29aaac72489bb65f7edb8a0dfd5" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "cu", message = "unexpected cmavo" }]

@@ -1639,12 +1639,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "descriptor connective",
-        parent: Some("description"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "relative clause connective",
         parent: Some("relative clauses"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
@@ -3042,12 +3036,30 @@ pub enum ExperimentalConstruct {
     ExperimentalNaheArgumentWithoutBo,
     ExperimentalVuhoScopedAttachment,
     ExperimentalNohoiSelbriRelativeClause,
+    /// Legacy v0 category. NEVER EMITTED: no producer exists in the generated grammar.
+    /// Its route was removed as unsourced; only camxes-standard's own connective tiers
+    /// survive. Retained only for Rust/Python API stability; scheduled for removal with
+    /// its three siblings in #885.
     ExperimentalSimplerSumtiConnective,
     ExperimentalExplicitCuPredicateTailStarter,
     ExperimentalRelativeClauseConnective,
+    /// Legacy v0 category. NEVER EMITTED: no producer exists in the generated grammar.
+    /// Its route was removed as unsourced; forethought connection keeps its own gated
+    /// categories. Retained only for Rust/Python API stability; scheduled for removal
+    /// with its three siblings in #885.
     ExperimentalSimplerForethoughtConnective,
+    /// Legacy v0 category. NEVER EMITTED: no producer exists in the generated grammar.
+    /// Its route was removed by epoch 6 (R6: no reference parser and no upstream `.peg`
+    /// admits a bare JA between terms; `docs/grammar-parity-epoch-06-terms.md`).
+    /// Retained only for Rust/Python API stability; scheduled for removal with its three
+    /// siblings in #885.
     ExperimentalSimplerTermConnective,
     ExperimentalMexOperatorConnective,
+    /// Legacy v0 category. NEVER EMITTED: no producer exists in the generated grammar.
+    /// Its route was removed by epoch 9 / #837 SUM-01 (R6: no reference parser and no
+    /// upstream `.peg` admits a connective between description heads).
+    /// Retained only for Rust/Python API stability; scheduled for removal with its three
+    /// siblings in #885.
     ExperimentalSimplerDescriptorHeadConnective,
     ExperimentalJiAsJaConnective,
     ExperimentalGadganzuGadri,
@@ -3097,6 +3109,8 @@ pub enum ExperimentalConstruct {
     ExperimentalZantufaStatementRelativeClause,
     ExperimentalZantufaStatementFreeModifier,
     ExperimentalZantufaStatementAbstraction,
+    ExperimentalExpDescriptionLeadingSumti,
+    ExperimentalZantufaDescriptionLeadingSumti,
     ExperimentalZantufaMex,
     ExperimentalZantufaRahoiQuote,
     ExperimentalZantufaMuhoiSelbriUnit,
@@ -3265,6 +3279,12 @@ impl ExperimentalConstruct {
             Self::ExperimentalZantufaStatementAbstraction => {
                 "syntax.warning.experimental-zantufa-statement-abstraction"
             }
+            Self::ExperimentalExpDescriptionLeadingSumti => {
+                "syntax.warning.experimental-exp-description-leading-sumti"
+            }
+            Self::ExperimentalZantufaDescriptionLeadingSumti => {
+                "syntax.warning.experimental-zantufa-description-leading-sumti"
+            }
             Self::ExperimentalZantufaMex => "syntax.warning.experimental-zantufa-mex",
             Self::ExperimentalZantufaRahoiQuote => {
                 "syntax.warning.experimental-zantufa-rahoi-quote"
@@ -3404,6 +3424,12 @@ impl ExperimentalConstruct {
             }
             Self::ExperimentalZantufaStatementAbstraction => {
                 "Zantufa statement payload in abstraction"
+            }
+            Self::ExperimentalExpDescriptionLeadingSumti => {
+                "full sumti as the leading element of a description tail"
+            }
+            Self::ExperimentalZantufaDescriptionLeadingSumti => {
+                "relative clauses before the leading sumti of a description tail"
             }
             Self::ExperimentalZantufaMex => "Zantufa mex grammar form",
             Self::ExperimentalZantufaRahoiQuote => "Zantufa RAhOI rafsi quote",

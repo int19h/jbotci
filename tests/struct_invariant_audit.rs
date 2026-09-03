@@ -1216,6 +1216,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "zero-sized grammar refinement policy has no independently invalid state",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_quantifier.rs:BaselineQuantifierRejection",
+        "zero-sized grammar refinement policy has no independently invalid state",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:BaselineSelbriAssignmentRejection",
         "zero-sized grammar refinement policy has no independently invalid state",
     ),
@@ -1276,6 +1280,26 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:QuantifierBearingSumtiRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/description_leading.rs:ExpDescriptionLeadingSumtiRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_quantifier_relatives.rs:UnstartedRelativeListRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/description_leading.rs:ParsedTokenProbe",
+        "a single accumulating flag whose every value is a valid state of the traversal",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:CandidateExtentProbe",
+        "one optional endpoint pair, so a half-set extent cannot be spelled at all",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarDialect",
         "generated grammar dialect flags are independent booleans projected from ParseOptions",
     ),
@@ -1306,6 +1330,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ParserStateFinish",
         "parser finish value carries deduplicated warnings and optional trace report from ParserState",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:QuantifierFormVisitor",
+        "test traversal accumulator over the strict model; the closed QuantifierForm enum already excludes every non-quantifier node, and each prefix of the source-ordered form sequence is a valid intermediate visit state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/mod.rs:RecoveredVisitor",
+        "test traversal accumulator over the recovered model; it collects the same closed QuantifierForm values, so every prefix of the source-ordered form sequence is a valid intermediate visit state",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryCheckpointCollection",

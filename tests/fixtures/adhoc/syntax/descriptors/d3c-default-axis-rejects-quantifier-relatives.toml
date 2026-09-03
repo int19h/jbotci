@@ -1,0 +1,12 @@
+id = "adhoc.syntax.descriptors.d3c-default-axis-rejects-quantifier-relatives"
+lojban = "tirna re poi mi zgana ku'o cmalu"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3c witness (#830), default axis"
+description = "The trailing relative list on a quantifier is rolling-Zantufa-only, so the default profile rejects it."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 12], source-text = "poi", message = "unexpected cmavo" }]

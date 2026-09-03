@@ -1,0 +1,12 @@
+id = "adhoc.syntax.descriptors.d3-two-leading-sumti-rejected"
+lojban = "lo mi lo gerku ku mlatu cu blabi"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3 negative control (#830)"
+description = "R/R/R everywhere: only ONE leading sumti is admitted, in every source."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "lo", message = "unexpected cmavo" }]

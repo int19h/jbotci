@@ -4092,6 +4092,18 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
             generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifier(quantifier) => {
                 self.walk_node(&quantifier.0);
             }
+            // Rolling Zantufa's quantifier relatives attach to the quantifier itself, so both
+            // the mex and the relative list are walked from here.
+            generated::QuantifierSyntax::ZantufaPriorityRawMeksoQuantifierWithRelatives(
+                quantifier,
+            ) => {
+                self.walk_node(&quantifier.mekso);
+                self.walk_node(&quantifier.relative_clauses);
+            }
+            generated::QuantifierSyntax::ZantufaRawMeksoQuantifierWithRelatives(quantifier) => {
+                self.walk_node(&quantifier.mekso);
+                self.walk_node(&quantifier.relative_clauses);
+            }
             generated::QuantifierSyntax::PaRunQuantifier(_) => {}
         }
     }
@@ -5985,8 +5997,23 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_description_tail(argument_id, &sumti.tail);
                 false
             }
-            generated::SumtiBaseSyntax::DescriptionConnectionSumti(sumti) => {
-                self.visit_description_tail(argument_id, &sumti.tail);
+            // camxes-exp's full-sumti leading element: the leading sumti is an argument in its
+            // own right, and the body is the shared one.
+            generated::SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(sumti) => {
+                self.visit_argument(&sumti.tail.leading_sumti);
+                self.visit_description_tail_body(argument_id, sumti.tail.tail.as_ref());
+                false
+            }
+            // Rolling Zantufa's relatives-first ordering: the relatives precede the leading
+            // sumti in the source, and they attach to the description rather than to it.
+            generated::SumtiBaseSyntax::ZantufaDescriptorWithRelativesFirstSumti(sumti) => {
+                self.visit_relative_clause_list(
+                    argument_id,
+                    argument_id,
+                    &sumti.tail.relative_clauses,
+                );
+                self.visit_argument(&sumti.tail.leading_sumti);
+                self.visit_description_tail_body(argument_id, sumti.tail.tail.as_ref());
                 false
             }
             generated::SumtiBaseSyntax::DescriptorWithoutGadriSumti(sumti) => {
@@ -6025,7 +6052,18 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 self.visit_relative_clause_list_without_head(clauses);
             }
         }
-        match tail.tail.as_ref() {
+        self.visit_description_tail_body(argument_id, tail.tail.as_ref());
+    }
+
+    /// The shared body of a description tail, whichever leading-element route reached it.
+    #[requires(true)]
+    #[ensures(true)]
+    fn visit_description_tail_body(
+        &mut self,
+        argument_id: SumtiNodeId,
+        body: &'tree generated::DescriptionTailBodySyntax,
+    ) {
+        match body {
             generated::DescriptionTailBodySyntax::RelationDescriptionTail(tail) => {
                 self.visit_relation(&tail.selbri);
                 if let Some(clauses) = &tail.relative_clauses {
@@ -8675,10 +8713,13 @@ fn generated_argument_letter_base_from_sumti_base(
         generated::SumtiBaseSyntax::DescriptorWithGadriSumti(description) => {
             generated_description_tail_base_letter(&description.tail)
         }
-        generated::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
-            generated_description_tail_base_letter(&description.tail)
+        generated::SumtiBaseSyntax::ExpDescriptorWithLeadingSumtiSumti(description) => {
+            generated_description_tail_body_base_letter(description.tail.tail.as_ref())
         }
-        generated::SumtiBaseSyntax::DescriptionConnectionSumti(description) => {
+        generated::SumtiBaseSyntax::ZantufaDescriptorWithRelativesFirstSumti(description) => {
+            generated_description_tail_body_base_letter(description.tail.tail.as_ref())
+        }
+        generated::SumtiBaseSyntax::DescriptorWithOuterQuantifierSumti(description) => {
             generated_description_tail_base_letter(&description.tail)
         }
         generated::SumtiBaseSyntax::DescriptorWithoutGadriSumti(description) => {
@@ -8710,7 +8751,17 @@ fn generated_description_tail_base_letter(
     {
         return Some(letter);
     }
-    match tail.tail.as_ref() {
+    generated_description_tail_body_base_letter(tail.tail.as_ref())
+}
+
+/// The base letter a description tail's shared body contributes, whichever leading-element
+/// route reached it.
+#[requires(true)]
+#[ensures(ret.as_ref().is_none_or(|key| !key.is_empty()))]
+fn generated_description_tail_body_base_letter(
+    body: &generated::DescriptionTailBodySyntax,
+) -> Option<String> {
+    match body {
         generated::DescriptionTailBodySyntax::RelationDescriptionTail(tail) => {
             generated_selbri_base_letter(&tail.selbri)
         }

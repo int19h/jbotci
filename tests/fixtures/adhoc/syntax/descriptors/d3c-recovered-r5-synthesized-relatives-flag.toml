@@ -1,0 +1,18 @@
+id = "adhoc.syntax.descriptors.d3c-recovered-r5-synthesized-relatives-flag"
+lojban = "tirna vei re ve'o"
+dialect = "(+zantufa-mex)"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3c recovered truth table R5 (#830): a synthesized zero-width relatives slot, explicit feature flag"
+description = "A BASELINE-surface mex whose mandatory relatives field the runtime satisfied by synthesizing a MissingRequiredField, having consumed no input and never entered the relative-list production. Entry evidence fails, the with-relatives variant is refused, and the extent goes back to the baseline route with no warning delta - the row that has no strict-path symptom at all. The dialect and the bare flag are two code paths and #634 requires both to be witnessed."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.incomplete-sumti", byte-span = [17, 17], source-text = "", message = "incomplete sumti" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "6ba632cd4d00b8506a8648ead3cf35e4c1fc1da6add3e3948f7e3396e30c515f" }
+diagnostics = [{ severity = "error", code = "syntax.incomplete-sumti", byte-span = [17, 17], source-text = "", message = "incomplete sumti" }]

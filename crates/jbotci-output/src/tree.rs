@@ -634,7 +634,7 @@ fn generated_syntax_constructor_name(constructor: &'static str) -> &'static str 
         | "InitialParagraphStatement"
         | "TrailingIjekParagraphStatement" => "ParagraphStatementSyntax",
         "PrenexFragment" => "Prenex",
-        "DescriptionHeadConnective" | "EkConnective" | "JehiConnective" => "Afterthought",
+        "EkConnective" | "JehiConnective" => "Afterthought",
         "JekConnective" | "ParagraphJekConnective" => "Selbri",
         "GihekConnective" => "BridiTail",
         "CeheConnective"

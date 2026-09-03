@@ -1,0 +1,17 @@
+id = "adhoc.syntax.descriptors.d3a-recovered-quantifier-guard-control"
+lojban = "lo re lo gerku ku mlatu cu"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3a recovered !quantifier control (#830)"
+description = "A recovered surface whose description-tail leading position opens with a quantifier. The camxes-exp route is never consulted there - the rule's !quantifier lookahead excludes it and the baseline route claims the identical extent first - so no D3a classification happens and no D3a warning is emitted."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "cu", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "f007cc3b29415a5cbe9b1c198b2025d97ec575210563a5adea6ad0cb2d98b96e" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [24, 26], source-text = "cu", message = "unexpected cmavo" }]

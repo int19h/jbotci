@@ -1,0 +1,13 @@
+id = "adhoc.syntax.descriptors.d5-pa-leading-missing-tail-rejected-zantufa"
+lojban = "lo re cu blabi"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D5.2 PA-leading control (#552), zantufa axis"
+description = "The zantufa-axis twin of the PA-leading missing-tail control."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 8], source-text = "cu", message = "unexpected cmavo" }]

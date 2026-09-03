@@ -1,0 +1,18 @@
+id = "adhoc.syntax.descriptors.d3c-recovered-r4-prefix-trial-relatives-flag"
+lojban = "tirna re poi cmalu kei"
+dialect = "(+zantufa-mex)"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3c recovered truth table R4 (#830): a Prefix relatives classifier trial, explicit feature flag"
+description = "An intermediate, globally unsuccessful FINAL recovery trial for this surface builds a with-relatives candidate whose relative_clauses slot is Prefix over a parsed opener. Its trace records `slot=prefix entry=parsed-opener started=yes decision=accept`: R4 counts that started Prefix as PRESENT and keeps Zantufa ownership at the classifier. The fixture digest instead pins the winning recovered tree, where Prefix is on outer_quantifier and the nested relative_clauses slot is Valid. The recorded 12,668-surface bounded search found no winning-tree R4 surface; this is a measured-bounded deviation from F4, not an impossibility claim (`~/git/grammar-review/reports/implementation/epoch-09-descriptions/reviews/pr-r5-r4-winning-prefix-search.md`). The recovered spine intentionally carries no generated construct warning: plan-v7 D3c B8 froze that generation out of scope and #891 tracks the follow-up. The dialect and the bare flag are two code paths and #634 requires both to be witnessed."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [19, 22], source-text = "kei", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "dc76c22a501ca9b39d1a99498889bb55b65a773c87544e12d07494d1121b6446" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [19, 22], source-text = "kei", message = "unexpected cmavo" }]

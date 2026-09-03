@@ -1,0 +1,17 @@
+id = "adhoc.syntax.descriptors.d0-recovered-quantified-operand-refuses-sumti5"
+lojban = "re vei pa ve'o lo mlatu ku cu"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 R7 recovered witness (quantified_sumti.inner_sumti, Sumti5 refused)"
+description = "The same refusal at the OTHER restricted site: the operand of an outer quantifier is itself quantifier-bearing, the classifier answers Sumti5, the product fails and ordered choice falls through to the sumti_base arm of sumti_atom. This is #837 SUM-02 on the recovered spine."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 17], source-text = "lo", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "2c0fe4e11d82ac67d35b9196249aad72573fffb40db726875dcf9c285016d428" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [15, 17], source-text = "lo", message = "unexpected cmavo" }]

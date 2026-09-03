@@ -1,0 +1,12 @@
+id = "adhoc.syntax.descriptors.d3-only-relatives-no-tail-rejected"
+lojban = "lo mi ku'o mlatu cu blabi"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3 negative control (#830)"
+description = "R/R/R everywhere: a stray KUhO with no relative clause to close."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [6, 10], source-text = "ku'o", message = "unexpected cmavo" }]

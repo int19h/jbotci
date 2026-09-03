@@ -148,6 +148,7 @@ pub(crate) struct SyntaxGrammarDialect {
     pub unrestricted_free_enabled: bool,
     pub zantufa_adverbials_enabled: bool,
     pub zantufa_connectives_enabled: bool,
+    pub zantufa_descriptions_enabled: bool,
     pub zantufa_mex_enabled: bool,
     pub zantufa_mex_reinterpretation_enabled: bool,
     pub zantufa_selbri_reinterpretation_enabled: bool,
@@ -166,6 +167,7 @@ impl SyntaxGrammarDialect {
             unrestricted_free_enabled: features.contains(&DialectFeature::UnrestrictedFree),
             zantufa_adverbials_enabled: features.contains(&DialectFeature::ZantufaAdverbials),
             zantufa_connectives_enabled: features.contains(&DialectFeature::ZantufaConnectives),
+            zantufa_descriptions_enabled: features.contains(&DialectFeature::ZantufaDescriptions),
             zantufa_mex_enabled: features.contains(&DialectFeature::ZantufaMex),
             zantufa_mex_reinterpretation_enabled: features
                 .contains(&DialectFeature::ZantufaMexReinterpretation),
@@ -187,6 +189,7 @@ pub(crate) enum SyntaxGrammarFeature {
     UnrestrictedFree,
     ZantufaAdverbials,
     ZantufaConnectives,
+    ZantufaDescriptions,
     ZantufaMex,
     ZantufaMexReinterpretation,
     ZantufaSelbriReinterpretation,
@@ -204,6 +207,7 @@ impl SyntaxGrammarFeature {
             Self::UnrestrictedFree => dialect.unrestricted_free_enabled,
             Self::ZantufaAdverbials => dialect.zantufa_adverbials_enabled,
             Self::ZantufaConnectives => dialect.zantufa_connectives_enabled,
+            Self::ZantufaDescriptions => dialect.zantufa_descriptions_enabled,
             Self::ZantufaMex => dialect.zantufa_mex_enabled,
             Self::ZantufaMexReinterpretation => dialect.zantufa_mex_reinterpretation_enabled,
             Self::ZantufaSelbriReinterpretation => dialect.zantufa_selbri_reinterpretation_enabled,
@@ -221,6 +225,7 @@ impl SyntaxGrammarFeature {
             Self::UnrestrictedFree => "UNRESTRICTED-FREE feature",
             Self::ZantufaAdverbials => "ZANTUFA-ADVERBIALS feature",
             Self::ZantufaConnectives => "ZANTUFA-CONNECTIVES feature",
+            Self::ZantufaDescriptions => "ZANTUFA-DESCRIPTIONS feature",
             Self::ZantufaMex => "ZANTUFA-MEX feature",
             Self::ZantufaMexReinterpretation => "ZANTUFA-MEX-REINTERPRETATION feature",
             Self::ZantufaSelbriReinterpretation => "ZANTUFA-SELBRI-REINTERPRETATION feature",
@@ -2108,6 +2113,46 @@ where
     .boxed()
 }
 
+thread_local! {
+    /// The generated-rule stack captured at the most recent traced `reject_output` entry.
+    ///
+    /// Debug-trace plumbing only: a classifier's `rejects` method is handed a completed
+    /// candidate and nothing else, so this is where it reads the consumer that invoked it.
+    static OUTPUT_REJECTION_SITE: std::cell::RefCell<Vec<&'static str>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Whether any classifier trace that reads the consumer site is switched on.
+///
+/// The seam costs a snapshot of `&'static str` rule names per refinement, so it is off unless one
+/// of the traces below is asking for it. A new classifier trace joins this disjunction.
+#[requires(true)]
+#[ensures(true)]
+fn classifier_site_tracing_enabled() -> bool {
+    crate::grammar::sumti_operand_tier::trace_enabled()
+        || crate::grammar::description_leading::trace_enabled()
+        || crate::grammar::zantufa_quantifier_relatives::trace_enabled()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn publish_output_rejection_site(frames: &[crate::grammar::SyntaxRuleFrame]) {
+    OUTPUT_REJECTION_SITE.with_borrow_mut(|site| {
+        site.clear();
+        site.extend(frames.iter().map(crate::grammar::SyntaxRuleFrame::rule));
+    });
+}
+
+/// The generated-rule stack, outermost first, at the classifier call now running.
+///
+/// Empty unless a classifier trace is switched on; see
+/// [`crate::grammar::sumti_operand_tier::trace_enabled`].
+#[requires(true)]
+#[ensures(true)]
+pub(crate) fn output_rejection_site<T>(read: impl FnOnce(&[&'static str]) -> T) -> T {
+    OUTPUT_REJECTION_SITE.with_borrow(|site| read(site))
+}
+
 /// A typed refinement that can reject an otherwise successful parser output.
 #[contract_trait]
 pub(crate) trait OutputRejection<O> {
@@ -2139,6 +2184,13 @@ where
                 return Err(error);
             }
         };
+        // The classifier sees only the completed candidate, never the parser state, so a
+        // classifier that traces its own answers cannot say WHICH consumer invoked it. Publishing
+        // the active rule stack here is the seam that answers that; it costs a snapshot of
+        // `&'static str` names and runs only while such a trace is switched on.
+        if classifier_site_tracing_enabled() {
+            publish_output_rejection_site(input.state().active_syntax_rules());
+        }
         if !rejection.rejects(&value) {
             return Ok(value);
         }

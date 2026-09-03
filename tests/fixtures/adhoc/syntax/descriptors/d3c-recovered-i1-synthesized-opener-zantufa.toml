@@ -1,0 +1,18 @@
+id = "adhoc.syntax.descriptors.d3c-recovered-i1-synthesized-opener-zantufa"
+lojban = "tirna re zi'e noi cmalu"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "descriptions-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "epoch-9 D3c SEVENTH recovered control (#830, I1): Valid over a synthesized opener"
+description = "The slot is a slot-level Valid whose NESTED first atom was synthesized, which is exactly the shape a presence test would accept. The recursive descent refuses it, so the candidate falls to the no-relatives variant and the baseline classifier produces the absent-slot answer."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 13], source-text = "zi'e", message = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "8bb2640aad7e105ccc0e7a48ad24aa96802e4f952edcecd6086dd4e9e3cd19b4" }
+diagnostics = [{ severity = "error", code = "syntax.unexpected-cmavo", byte-span = [9, 13], source-text = "zi'e", message = "unexpected cmavo" }]
