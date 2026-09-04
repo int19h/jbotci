@@ -9,89 +9,112 @@ jbotci ("Lojban tool") is intended to be a "swiss army knife" of Lojban in a sin
 The project is hosted at GitHub (https://github.com/int19h/jbotci) with a mirror on Codeberg (https://codeberg.org/int_19h/jbotci). Issues and PRs should be created on GitHub. If Codeberg access is required, use token in ~/git/.codeberg/jbotci.token to access it using forjego-cli to browse or create issues.
 
 
-# Autonomous agent coordination
+# Herdr Collab coordination
 
-When a session is dispatched through `~/git/agent-ops`, read and follow that
-repository's `docs/protocol.md` in addition to this file. Lead, implementation,
-and review are duties rather than model-specific roles; use only the explicitly
-assigned IRC identity, never a shared default identity.
+Use Herdr Collab project **`jbotci`** for multi-session work. Select it
+explicitly with `herdr-collab --project jbotci ...` or
+`HERDR_COLLAB_PROJECT=jbotci`; a current directory, repository name, checkout,
+or worktree never selects a collaboration project or mailbox. Use only the
+session named by `HERDR_COLLAB_SESSION` or `--session`.
 
-Every autonomously implemented work item requires a separate adversarial review
-by a dispatcher-backed run from a different model family than the implementer,
-even when lead and implementation were performed by different models. The
-reviewer exists to catch the implementer's honest mistakes, not because the
-implementer is untrusted: reviewer effort goes to reading the code, and a
-reviewer must not re-run test suites whose results the implementer has already
-reported. Review verdict, lead approval, clean worktree, and final acceptance
-must all name the same exact commit before merge.
+Herdr Collab supplies durable identity and messaging, not a mandatory PM
+hierarchy. Lead, implementation, research, and review are task-tailored duties;
+session handles and groups are conventions chosen for the task, not permissions
+or fixed model assignments. Record the intended participants, duties, review
+order, write boundaries, issue/PR, and completion conditions in the task brief
+or linked GitHub issue. A self-contained task may proceed directly from its
+prompt or durable mail. Use a GitHub issue or PR when the task needs a durable
+public record or belongs in the project backlog; do not create process-only
+issues merely because multiple sessions participate. The task also decides
+whether the primary session implements directly or delegates.
 
-Heavy verification (the full fixture profile, expensive contracts, debug and
-Dioxus builds) runs once, before merge, arranged by the lead, and only for the
-suites the change can actually affect — not per commit, not per submission, and
-not by the reviewer. Work items freeze at most a light check set (formatting
-plus fast tests). Do not build evidence-trail scaffolding — digest manifests,
-attestation chains, byte-exactness proofs — unless the owner explicitly asks;
-due diligence belongs to the design and the code, not to ceremony.
+- A session launched with `herdr-collab --project jbotci agent spawn ...` is
+  already registered and receives its project and session identity. It must use
+  that identity and must not run
+  `herdr-collab --project jbotci session join ...` again. A manually launched
+  session joins exactly once with
+  `herdr-collab --project jbotci session join --agent-kind KIND HANDLE`,
+  then uses that returned handle through `HERDR_COLLAB_SESSION` or `--session`.
+  Confirm uncertain identity with
+  `herdr-collab --project jbotci session list --live` or
+  `herdr-collab --project jbotci session show SESSION --live`; never infer it
+  from the worktree.
+- Use `herdr-collab --project jbotci send ...` for assignments, decisions,
+  blockers, questions that need an
+  answer, handoffs, exact commit submissions, review verdicts, and completion
+  notices. Continue the same decision thread with
+  `herdr-collab --project jbotci reply MESSAGE_ID ...`.
+  `herdr-collab --project jbotci show MESSAGE_ID` prints the selected message
+  body, while `herdr-collab --project jbotci --json show MESSAGE_ID` exposes its
+  complete record; follow any referenced message IDs explicitly. Use
+  `herdr-collab --project jbotci ack --disposition DISPOSITION MESSAGE_ID` for
+  messages whose disposition is required. An acknowledgement records receipt/
+  disposition, not agreement. Direct
+  `herdr-collab --project jbotci agent prompt --to SESSION ...` text is transient
+  wake-up/context and must not be the only copy of load-bearing coordination.
+- Check `herdr-collab --project jbotci status` and
+  `herdr-collab --project jbotci inbox` at natural boundaries: after joining,
+  before taking new work, before and after a handoff or review, before merge/
+  release, and before retiring. Use
+  `herdr-collab --project jbotci wait --timeout DURATION` when progress genuinely
+  depends on a later publication; do not busy-poll. Retire a completed identity
+  with `herdr-collab --project jbotci session retire SESSION` only after its
+  required replies and acknowledgements are settled.
+- Never edit Herdr Collab state files manually. Use the executable's session,
+  group, messaging, acknowledgement, and retirement commands so validation,
+  immutable history, and recipient accounting remain intact.
+- Never auto-answer trust, permission, approval, or unrelated prompts on behalf
+  of another session or the user. Surface them to the person or session with
+  authority to decide.
 
-## Codex interactive implementation PM protocol
+Keep coordination proportional to the work. A small change can use a lead, one
+implementation session, and one independent reviewer; a cross-cutting change
+may define research, implementation, and specialist review groups. When work is
+delegated or multiple writers/reviewers participate, their prompts must define
+duties, write boundaries, branches/worktrees where relevant, and handoff order;
+Herdr Collab records those conventions but does not enforce them. Avoid
+concurrent edits to overlapping files or worktrees unless the task explicitly
+coordinates them.
 
-The following is the standard protocol for future implementation requests made
-directly by the human owner to a top-level, owner-attended interactive Codex
-session. When the owner tells such a session to implement a change in this
-repository, that Codex session is the PM/lead, not the implementation agent.
-Before doing task-specific work, it must reread the current `~/git/agent-ops`
-repository guidance and operating documentation, including at least
-`AGENTS.md`, `README.md`, `docs/protocol.md`, and `docs/storage.md`; remembered
-summaries are not a substitute for the current protocol.
+Investigate and agree on scope before coding, then run checks proportional to
+the change. Significant changes should receive independent review appropriate
+to their risk and task; the task chooses the reviewer roster and model families.
+When review occurs, name the full base and submitted head, review that exact
+commit from a clean worktree, and send findings to the session assigned to
+resolve them. Any code change makes earlier approval stale. Review verdicts,
+acceptance, clean-tree checks, CI, and merge must all identify the same exact
+commit.
 
-This subsection is deliberately scoped by both host and duty. It does **not**
-apply to a Claude-led interactive PM session, even though `CLAUDE.md` includes
-this file; Claude PM sessions follow their own Claude-specific instructions.
-It also does not apply recursively to dispatcher-backed children or other
-subagents that happen to read this file. A Sol implementation run, an Opus or
-Kimi planning/review run, and any other dispatched role must perform only the
-duty assigned by the PM and the agent-ops work item. Such a run must not assume
-the PM role, create a second issue/dispatch hierarchy, or restart this protocol
-merely because it can read these instructions or receives a follow-up message.
-Only a top-level, owner-attended Codex session given the implementation request
-directly by the human owner activates this protocol.
+Arrange expensive contracts, the full fixture profile, debug/Dioxus builds,
+and other heavy verification once on the merge candidate, and only when the
+change can affect them. Reviewers read the implementation and reported test
+evidence; they do not redundantly rerun heavy suites. Freeze at most a light
+check set (formatting plus fast tests). Do not add evidence-trail scaffolding
+unless explicitly requested; due diligence belongs in the design, code, review,
+and durable task record.
 
-For every implementation request in scope, the Codex PM must:
+Compact only immediately before an anticipated long pause, while the native
+conversation and prompt cache are still likely available, and only after
+durably sending a status or handoff that names the task and issue if any,
+branch/worktree, exact HEAD, completed and outstanding checks, decisions,
+blockers, and relevant message IDs. After the requested compaction, verify the
+session identity and live state with
+`herdr-collab --project jbotci session show "$HERDR_COLLAB_SESSION" --live`.
+If a later cache-expired dialog
+offers continuation choices, default to continuing the full existing native
+conversation and do not compact then. Durable issues, PRs, reports, and mail are
+recovery sources only if the native context is actually unavailable, not a
+replacement for it. Use
+`herdr-collab --project jbotci agent resume SESSION` for a non-live native
+session and verify its identity before prompting it.
 
-1. Investigate the request and the relevant implementation paths in depth.
-   Search GitHub for existing issues, create any missing issues, record durable
-   scope and acceptance criteria there, and explicitly sequence dependencies or
-   prerequisite correctness-preserving refactors.
-2. Produce a concrete implementation and verification plan, then run that plan
-   past both dispatcher-backed Opus and Kimi planning reviewers. Reconcile their
-   findings into the issue and plan before implementation begins. Opus runs must
-   use `--permission-mode bypassPermissions`.
-3. Create and use an agent-ops work item with a light frozen check set and
-   roles. Hand implementation to a dispatcher-backed Codex Sol subagent running
-   at `xhigh` reasoning effort (the Sol-xhigh implementation subagent). That
-   implementation run owns code changes, tests, commits, and creation of the
-   GitHub pull request; the interactive Codex PM remains the supervisor and does
-   not author the implementation.
-4. Review the pull request itself and obtain code reviews from both
-   dispatcher-backed Opus and Kimi runs; these are code reviews, and the
-   reviewers must not re-run suites the implementer already ran. Keep
-   substantive findings and design decisions in durable GitHub issue or
-   pull-request comments. Return actionable feedback to the Sol implementation
-   session and iterate until the PM, Opus, and Kimi are all satisfied, the
-   independent review verdict names the merge-candidate commit, and required
-   tests and CI are green once at that candidate. Any implementation change
-   makes earlier exact-HEAD approvals stale and requires review of the new
-   commit.
-5. Merge only the accepted exact commit from a clean worktree. After merge,
-   deploy the result to the **test** environment and verify that the test
-   deployment completed successfully. Test deployment is part of this standard
-   flow; production deployment is not.
-
-A production deployment requires a new, explicit instruction from the human
-owner naming production on every individual occasion. Never infer production
-authorization from an implementation request, merge approval, release language,
-a prior production deployment, or this standing protocol, and never carry such
-authorization forward to another change.
+Merge only the accepted exact commit from a clean worktree. Deployment to a
+test environment, when relevant, must be verified rather than inferred from a
+successful command. A production deployment requires a new, explicit
+instruction naming production on every individual occasion. Never infer it from
+an implementation request, merge approval, release language, test-deployment
+permission, or a prior production deployment, and never carry authorization
+forward to another change.
 
 
 # Porting guide
@@ -393,11 +416,11 @@ If you have made any product changes, always build the `jbotci` debug binary and
 
 # Disk and build layout
 
-On the dev box, all transient artifacts live on the dedicated `/build` partition (fast, directly mounted XFS); the full protocol is `~/git/agent-ops/docs/storage.md`. The invariant: everything under `/build` must be safe to wipe — build output, caches, scratch, logs. Anything that must survive belongs in a repository, the issue tracker, or `~/artifacts`.
+On the dev box, all transient artifacts live on the dedicated `/build` partition (fast, directly mounted XFS). The invariant: everything under `/build` must be safe to wipe — build output, caches, scratch, logs. Anything that must survive belongs in a repository, the issue tracker, or `~/artifacts`.
 
 - The canonical checkout's `target` is a symlink to `/build/jbotci/target/main`; a plain `cargo build` already lands in the right place. Do not replace the symlink with a real directory, and never let build output land under `~/git` (a slow, chronically near-full virtiofs share).
 - Builds in worktrees set `CARGO_TARGET_DIR=/build/jbotci/target/<lane>`, where `<lane>` names the worktree or work item (e.g. `issue-642`).
-- Transient test artifacts, pipeline intermediates, and per-issue work areas go to `/build/jbotci/scratch/<topic>`; long run logs (e.g. codex exec logs) go to `/build/jbotci/logs/`.
+- Transient test artifacts, pipeline intermediates, and per-issue work areas go to `/build/jbotci/scratch/<topic>`; long-running agent and build logs go to `/build/jbotci/logs/`.
 - `/tmp` is a small RAM tmpfs shared by every session — never write large files there; use `/build/tmp` or `/build/jbotci/scratch` instead.
 - After a heavy all-targets test gate, purge that lane's heavy profile subtree (`target/<lane>/debug` if a debug all-targets build ever ran — those trees reach ~50G; release trees are smaller but still worth purging when the lane retires).
 
