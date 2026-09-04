@@ -14,8 +14,8 @@ The project is hosted at GitHub (https://github.com/int19h/jbotci) with a mirror
 Use Herdr Collab project **`jbotci`** for multi-session work. Select it
 explicitly with `herdr-collab --project jbotci ...` or
 `HERDR_COLLAB_PROJECT=jbotci`; a current directory, repository name, checkout,
-or worktree never selects a collaboration project or mailbox. Use only the
-session named by `HERDR_COLLAB_SESSION` or `--session`.
+or worktree never selects a collaboration project or mailbox. Every active
+participant uses the immutable session UUID in `HERDR_COLLAB_SESSION`.
 
 Herdr Collab supplies durable identity and messaging, not a mandatory PM
 hierarchy. Lead, implementation, research, and review are task-tailored duties;
@@ -29,16 +29,24 @@ issues merely because multiple sessions participate. The task also decides
 whether the primary session implements directly or delegates.
 
 - A session launched with `herdr-collab --project jbotci agent spawn ...` is
-  already registered and receives its project and session identity. It must use
-  that identity and must not run
+  already registered and receives `HERDR_COLLAB_PROJECT` and the immutable
+  session UUID in `HERDR_COLLAB_SESSION`. It must not run
   `herdr-collab --project jbotci session join ...` again. A manually launched
-  session joins exactly once with
-  `herdr-collab --project jbotci session join --agent-kind KIND HANDLE`,
-  then uses that returned handle through `HERDR_COLLAB_SESSION` or `--session`.
+  session chooses a human-facing handle, joins exactly once, and captures the
+  command's returned immutable session UUID:
+
+  ```bash
+  session_id=$(herdr-collab --project jbotci session join --agent-kind KIND HANDLE)
+  export HERDR_COLLAB_PROJECT=jbotci
+  export HERDR_COLLAB_SESSION="$session_id"
+  ```
+
+  The handle is a label, not the session identity used for commands.
   Confirm uncertain identity with
   `herdr-collab --project jbotci session list --live` or
-  `herdr-collab --project jbotci session show SESSION --live`; never infer it
-  from the worktree.
+  `herdr-collab --project jbotci session show "$HERDR_COLLAB_SESSION" --live`;
+  never infer it from the worktree. Elsewhere below, `SESSION` means an
+  immutable target session UUID, never a handle.
 - Use `herdr-collab --project jbotci send ...` for assignments, decisions,
   blockers, questions that need an
   answer, handoffs, exact commit submissions, review verdicts, and completion
@@ -58,8 +66,9 @@ whether the primary session implements directly or delegates.
   release, and before retiring. Use
   `herdr-collab --project jbotci wait --timeout DURATION` when progress genuinely
   depends on a later publication; do not busy-poll. Retire a completed identity
-  with `herdr-collab --project jbotci session retire SESSION` only after its
-  required replies and acknowledgements are settled.
+  with
+  `herdr-collab --project jbotci session retire "$HERDR_COLLAB_SESSION"` only
+  after its required replies and acknowledgements are settled.
 - Never edit Herdr Collab state files manually. Use the executable's session,
   group, messaging, acknowledgement, and retirement commands so validation,
   immutable history, and recipient accounting remain intact.
