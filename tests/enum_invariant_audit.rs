@@ -52,6 +52,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding worker request delegates payload validity to the typed vlacku tool request",
     ),
     (
+        "apps/jbotci/src/commands/gentufa.rs:GentufaSyntaxStage::MorphologyFailed",
+        "failed segmentation carries no payload; the owning analysis pins that its diagnostics are non-empty",
+    ),
+    (
+        "apps/jbotci/src/commands/gentufa.rs:GentufaSyntaxStage::Parsed",
+        "parsed stage delegates validity to the typed syntax recovery parse built from its words",
+    ),
+    (
         "apps/jbotci/src/lib.rs:CliUsePrecomputed::Always",
         "CLI setup precomputed-pack policy is a closed clap value selector with no payload",
     ),

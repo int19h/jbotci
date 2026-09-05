@@ -235,7 +235,9 @@ fn discord_command_options() -> Vec<Value> {
                 string_option("text", "Lojban text to parse", true),
                 string_choices_option("format", "Output format", false, &["tree", "brackets", "json", "svg", "png"]),
                 string_option("dialect", "Dialect formula", false),
-                bool_option("show-elided", "Show elided terminators", false)
+                bool_option("show-elided", "Show elided terminators", false),
+                bool_option("show-glosses", "Add English gloss rows to svg/png diagrams", false),
+                bool_option("show-compounds", "Merge dictionary compounds into one leaf in svg/png diagrams (default on)", false)
             ]
         }),
         json!({
@@ -383,15 +385,20 @@ fn parse_discord_command(value: &Value) -> Result<DiscordCommand, String> {
 
 #[requires(true)]
 #[ensures(true)]
-fn parse_discord_gentufa(options: &[Value]) -> Result<ToolGentufaRequest, String> {
+pub(crate) fn parse_discord_gentufa(options: &[Value]) -> Result<ToolGentufaRequest, String> {
     Ok(ToolGentufaRequest {
         text: required_string_option(options, "text")?,
         format: parse_gentufa_format(optional_string_option(options, "format").as_deref())?,
         dialect: optional_string_option(options, "dialect"),
         show_defs: false,
         show_spans: false,
-        show_refs: Some(true),
+        // `None` keeps the tool's format-aware default (references only in the
+        // tree format); an explicit `Some(true)` is rejected by the CLI for
+        // every other advertised format.
+        show_refs: None,
         show_elided: optional_bool_option(options, "show-elided").unwrap_or(false),
+        show_glosses: optional_bool_option(options, "show-glosses").unwrap_or(false),
+        show_compounds: optional_bool_option(options, "show-compounds").unwrap_or(true),
         decompose_lujvo: false,
         indent: None,
     })
@@ -539,16 +546,19 @@ async fn render_discord_command(
 
 #[requires(true)]
 #[ensures(true)]
-fn gentufa_link(request: &ToolGentufaRequest) -> Option<String> {
+pub(crate) fn gentufa_link(request: &ToolGentufaRequest) -> Option<String> {
     Some(absolute_web_url(&web_route_url(
         "",
         &WebRoute::Gentufa(GentufaWebState {
             text: request.text.clone(),
             dialect: request.dialect.clone(),
             view_mode: GentufaWebViewMode::Blocks,
+            // The link targets the blocks view, which honors all three
+            // controls, so it carries what was asked for even when the chat
+            // format itself masked a control.
             show_elided: request.show_elided,
-            show_glosses: false,
-            show_compounds: true,
+            show_glosses: request.show_glosses,
+            show_compounds: request.show_compounds,
         }),
     )))
 }

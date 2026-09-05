@@ -267,10 +267,21 @@ pub struct ToolGentufaRequest {
         default = "tool_show_refs_default"
     )]
     pub show_refs: Option<bool>,
-    /// Show terminators/words that the grammar elides (omits implicitly). Off by
-    /// default.
+    /// Show the terminators the grammar elides (omits implicitly), e.g. `vau`
+    /// and `ku`, as if they had been written. Off by default. Ignored for `raw`,
+    /// which dumps the parsed model in which elided terminators do not exist.
     #[serde(default)]
     pub show_elided: bool,
+    /// Add an English gloss row under each word of the `svg`/`png` diagram. Off
+    /// by default. Only affects `svg`/`png`; ignored for other formats.
+    #[serde(default)]
+    pub show_glosses: bool,
+    /// Merge dictionary-attested compounds such as `pa moi` or `batke zei uidje`
+    /// into a single leaf of the `svg`/`png` diagram. On by default; set this to
+    /// `false` to keep every word as its own leaf. Only affects `svg`/`png`;
+    /// ignored for other formats.
+    #[serde(default = "tool_show_compounds_default")]
+    pub show_compounds: bool,
     /// Break compound words (lujvo) into their component rafsi in the output.
     /// Off by default.
     #[serde(default)]
@@ -291,6 +302,12 @@ impl ToolGentufaFormat {
     #[ensures(ret == matches!(self, Self::Tree | Self::Brackets | Self::Raw))]
     fn supports_definitions(self) -> bool {
         matches!(self, Self::Tree | Self::Brackets | Self::Raw)
+    }
+
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::Svg | Self::Png))]
+    fn is_image(self) -> bool {
+        matches!(self, Self::Svg | Self::Png)
     }
 
     #[requires(true)]
@@ -344,6 +361,13 @@ impl From<ToolGentufaRequest> for Command {
             .show_refs
             .unwrap_or(matches!(request.format, ToolGentufaFormat::Tree));
         let show_defs = request.show_defs && request.format.supports_definitions();
+        // Format-specific display controls are masked rather than rejected so
+        // every format the schema advertises stays valid for MCP and Discord
+        // callers (the CLI itself rejects them outside their format). Compounds
+        // default on, so the request value is honored only where it can apply.
+        let show_glosses = request.show_glosses && request.format.is_image();
+        let show_compounds = !request.format.is_image() || request.show_compounds;
+        let show_elided = request.show_elided && request.format != ToolGentufaFormat::Raw;
         let command_format = request.format.command_format();
         Self::Gentufa(GentufaInput {
             file: None,
@@ -363,7 +387,9 @@ impl From<ToolGentufaRequest> for Command {
             mark_glides: None,
             show_spans: request.show_spans,
             show_refs,
-            show_elided: request.show_elided,
+            show_elided,
+            show_glosses,
+            show_compounds,
             decompose_lujvo: request.decompose_lujvo,
             output_type: command_format.output_type,
             output_file: None,
@@ -1500,6 +1526,12 @@ fn tool_show_defs_default() -> bool {
 }
 
 #[requires(true)]
+#[ensures(ret)]
+fn tool_show_compounds_default() -> bool {
+    true
+}
+
+#[requires(true)]
 #[ensures(ret.as_object().is_some())]
 fn tool_show_refs_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
     schemars::json_schema!({
@@ -1687,6 +1719,8 @@ mod tests {
             show_spans: false,
             show_refs: None,
             show_elided: false,
+            show_glosses: false,
+            show_compounds: true,
             decompose_lujvo: false,
             indent: None,
         }
@@ -1761,6 +1795,161 @@ mod tests {
                     unreachable!("human format excluded from loop")
                 }
             }
+        }
+    }
+
+    #[requires(!text.is_empty())]
+    #[ensures(ret.format == format && ret.show_elided == show_elided)]
+    #[ensures(ret.show_glosses == show_glosses && ret.show_compounds == show_compounds)]
+    fn gentufa_display_request(
+        text: &str,
+        format: ToolGentufaFormat,
+        show_elided: bool,
+        show_glosses: bool,
+        show_compounds: bool,
+    ) -> ToolGentufaRequest {
+        ToolGentufaRequest {
+            text: text.to_owned(),
+            format,
+            dialect: None,
+            show_defs: false,
+            show_spans: false,
+            show_refs: None,
+            show_elided,
+            show_glosses,
+            show_compounds,
+            decompose_lujvo: false,
+            indent: None,
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_display_controls_default_to_compounds_on_and_glosses_off() {
+        let request: ToolGentufaRequest =
+            serde_json::from_value(serde_json::json!({ "text": "mi klama" }))
+                .expect("gentufa request without display controls");
+        assert!(!request.show_elided);
+        assert!(!request.show_glosses);
+        assert!(request.show_compounds);
+
+        let schema = tool_request_schema::<ToolGentufaRequest>();
+        for (property, default, note) in [
+            ("show-elided", false, "Ignored for `raw`"),
+            ("show-glosses", false, "ignored for other formats"),
+            ("show-compounds", true, "ignored for other formats"),
+        ] {
+            let property_schema = &schema["properties"][property];
+            assert_eq!(property_schema["type"], "boolean", "{property}");
+            assert_eq!(property_schema["default"], default, "{property}");
+            let description = property_schema["description"]
+                .as_str()
+                .unwrap_or_else(|| panic!("{property} description"));
+            assert!(description.contains(note), "{property}: {description}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_image_controls_are_masked_for_non_image_formats() {
+        for format in [
+            ToolGentufaFormat::Tree,
+            ToolGentufaFormat::Brackets,
+            ToolGentufaFormat::Raw,
+            ToolGentufaFormat::Json,
+        ] {
+            let text = "mi pa moi klama";
+            let baseline =
+                run_tool_gentufa(gentufa_display_request(text, format, false, false, true))
+                    .expect("baseline gentufa output");
+            let glossed =
+                run_tool_gentufa(gentufa_display_request(text, format, false, true, true))
+                    .expect("glossed gentufa output");
+            let uncoalesced =
+                run_tool_gentufa(gentufa_display_request(text, format, false, false, false))
+                    .expect("uncoalesced gentufa output");
+
+            assert_eq!(baseline.status, ToolStatus::Success, "{format:?}");
+            assert_eq!(glossed.stdout, baseline.stdout, "{format:?}");
+            assert_eq!(uncoalesced.stdout, baseline.stdout, "{format:?}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_elision_is_masked_for_raw_and_honored_elsewhere() {
+        let raw = run_tool_gentufa(gentufa_display_request(
+            "mi klama",
+            ToolGentufaFormat::Raw,
+            false,
+            false,
+            true,
+        ))
+        .expect("raw gentufa output");
+        let raw_elided = run_tool_gentufa(gentufa_display_request(
+            "mi klama",
+            ToolGentufaFormat::Raw,
+            true,
+            false,
+            true,
+        ))
+        .expect("raw gentufa output with show-elided");
+        assert_eq!(raw.status, ToolStatus::Success);
+        assert_eq!(raw_elided.stdout, raw.stdout);
+
+        for format in [
+            ToolGentufaFormat::Tree,
+            ToolGentufaFormat::Brackets,
+            ToolGentufaFormat::Json,
+            ToolGentufaFormat::Svg,
+        ] {
+            let plain = run_tool_gentufa(gentufa_display_request(
+                "mi klama", format, false, false, true,
+            ))
+            .expect("plain gentufa output");
+            let elided = run_tool_gentufa(gentufa_display_request(
+                "mi klama", format, true, false, true,
+            ))
+            .expect("elided gentufa output");
+            assert_eq!(elided.status, ToolStatus::Success, "{format:?}");
+            let plain = plain.stdout_text().expect("UTF-8 output");
+            let elided = elided.stdout_text().expect("UTF-8 output");
+            assert!(!plain.contains("vau"), "{format:?}: {plain}");
+            assert!(elided.contains("vau"), "{format:?}: {elided}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn gentufa_image_formats_honor_display_controls() {
+        for format in [ToolGentufaFormat::Svg, ToolGentufaFormat::Png] {
+            let text = "mi pa moi klama";
+            let baseline =
+                run_tool_gentufa(gentufa_display_request(text, format, false, false, true))
+                    .expect("baseline image");
+            let uncoalesced =
+                run_tool_gentufa(gentufa_display_request(text, format, false, false, false))
+                    .expect("uncoalesced image");
+            let glossed =
+                run_tool_gentufa(gentufa_display_request(text, format, false, true, true))
+                    .expect("glossed image");
+            let elided = run_tool_gentufa(gentufa_display_request(text, format, true, false, true))
+                .expect("elided image");
+            for output in [&baseline, &uncoalesced, &glossed, &elided] {
+                assert_eq!(output.status, ToolStatus::Success, "{format:?}");
+                assert_eq!(
+                    output.content_type.as_deref(),
+                    Some(format.content_type()),
+                    "{format:?}"
+                );
+            }
+            assert_ne!(uncoalesced.stdout, baseline.stdout, "{format:?}");
+            assert_ne!(glossed.stdout, baseline.stdout, "{format:?}");
+            assert_ne!(elided.stdout, baseline.stdout, "{format:?}");
         }
     }
 

@@ -1118,8 +1118,8 @@ mod tests {
     use bityzba::{ensures, invariant, requires};
     use ed25519_dalek::{Signer, SigningKey};
     use jbotci_cli::{
-        ToolAlineSaliences, ToolCollisionScope, ToolGimfihiFormat, ToolGimfihiScorer,
-        ToolGimfihiSource,
+        ToolAlineSaliences, ToolCollisionScope, ToolGentufaFormat, ToolGimfihiFormat,
+        ToolGimfihiScorer, ToolGimfihiSource, run_tool_gentufa,
     };
     use std::sync::atomic::{AtomicU64, Ordering};
     use tower::ServiceExt;
@@ -2156,6 +2156,9 @@ mod tests {
             &["tree", "brackets", "raw", "json", "svg", "png"],
         );
         assert_boolean_default_property(gentufa_schema, "show-refs", true);
+        assert_boolean_default_property(gentufa_schema, "show-elided", false);
+        assert_boolean_default_property(gentufa_schema, "show-glosses", false);
+        assert_boolean_default_property(gentufa_schema, "show-compounds", true);
         let gentufa_schema_text = serde_json::to_string(&gentufa_schema).expect("schema JSON");
         for stale_name in [
             "lojban",
@@ -2988,6 +2991,160 @@ mod tests {
                 .iter()
                 .all(|name| external_api_identifier_is_safe(name))
         );
+    }
+
+    #[requires(true)]
+    #[ensures(ret.len() == pairs.len())]
+    fn discord_gentufa_options(pairs: &[(&str, serde_json::Value)]) -> Vec<serde_json::Value> {
+        pairs
+            .iter()
+            .map(|(name, value)| serde_json::json!({ "name": name, "value": value }))
+            .collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn discord_gentufa_registration_advertises_display_controls() {
+        let registration = discord::discord_command_registration();
+        let gentufa = registration.payload["options"]
+            .as_array()
+            .expect("subcommand array")
+            .iter()
+            .find(|option| option["name"] == "gentufa")
+            .expect("gentufa subcommand");
+        let options = gentufa["options"].as_array().expect("gentufa options");
+        let shapes = options
+            .iter()
+            .map(|option| {
+                (
+                    option["name"].as_str().expect("option name"),
+                    option["type"].as_u64().expect("option type"),
+                    option["required"].as_bool().expect("option required"),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shapes,
+            vec![
+                ("text", 3, true),
+                ("format", 3, false),
+                ("dialect", 3, false),
+                ("show-elided", 5, false),
+                ("show-glosses", 5, false),
+                ("show-compounds", 5, false),
+            ]
+        );
+        for option in options {
+            let description = option["description"].as_str().expect("option description");
+            assert!(
+                description.chars().count() <= 100,
+                "Discord caps option descriptions at 100 characters: {description}"
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn discord_gentufa_parses_display_control_defaults_and_values() {
+        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[(
+            "text",
+            serde_json::json!("mi klama"),
+        )]))
+        .expect("default gentufa request");
+        assert_eq!(request.text, "mi klama");
+        assert_eq!(request.format, ToolGentufaFormat::Tree);
+        assert_eq!(request.show_refs, None);
+        assert!(!request.show_defs);
+        assert!(!request.show_elided);
+        assert!(!request.show_glosses);
+        assert!(request.show_compounds);
+
+        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
+            ("text", serde_json::json!("mi pa moi klama")),
+            ("format", serde_json::json!("png")),
+            ("dialect", serde_json::json!("zantufa")),
+            ("show-elided", serde_json::json!(true)),
+            ("show-glosses", serde_json::json!(true)),
+            ("show-compounds", serde_json::json!(false)),
+        ]))
+        .expect("explicit gentufa request");
+        assert_eq!(request.format, ToolGentufaFormat::Png);
+        assert_eq!(request.dialect.as_deref(), Some("zantufa"));
+        assert!(request.show_elided);
+        assert!(request.show_glosses);
+        assert!(!request.show_compounds);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn discord_gentufa_link_carries_the_requested_display_controls() {
+        let _env_guard = lock_test_env();
+        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[(
+            "text",
+            serde_json::json!("mi klama"),
+        )]))
+        .expect("default gentufa request");
+        let link = discord::gentufa_link(&request).expect("gentufa link");
+        let (_, query) = link.split_once('?').expect("link query");
+        let state = jbotci_web_core::parse_gentufa_web_route("/gentufa", query);
+        assert_eq!(state.text, "mi klama");
+        assert_eq!(state.view_mode, jbotci_web_core::GentufaWebViewMode::Blocks);
+        assert!(!state.show_elided);
+        assert!(!state.show_glosses);
+        assert!(state.show_compounds);
+        for key in ["elided", "glosses", "compounds"] {
+            assert!(!query.contains(key), "{query}");
+        }
+
+        // The chat format may mask a control, but the link targets the blocks
+        // view, which honors all three, so it reflects what was asked for.
+        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
+            ("text", serde_json::json!("mi pa moi klama")),
+            ("format", serde_json::json!("tree")),
+            ("show-elided", serde_json::json!(true)),
+            ("show-glosses", serde_json::json!(true)),
+            ("show-compounds", serde_json::json!(false)),
+        ]))
+        .expect("explicit gentufa request");
+        let link = discord::gentufa_link(&request).expect("gentufa link");
+        let (_, query) = link.split_once('?').expect("link query");
+        let state = jbotci_web_core::parse_gentufa_web_route("/gentufa", query);
+        assert_eq!(state.text, "mi pa moi klama");
+        assert!(state.show_elided);
+        assert!(state.show_glosses);
+        assert!(!state.show_compounds);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn discord_gentufa_executes_every_advertised_format_with_every_display_control() {
+        for format in ["tree", "brackets", "json", "svg", "png"] {
+            for (show_elided, show_glosses, show_compounds) in
+                [(false, false, true), (true, true, false)]
+            {
+                let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
+                    ("text", serde_json::json!("mi pa moi klama")),
+                    ("format", serde_json::json!(format)),
+                    ("show-elided", serde_json::json!(show_elided)),
+                    ("show-glosses", serde_json::json!(show_glosses)),
+                    ("show-compounds", serde_json::json!(show_compounds)),
+                ]))
+                .expect("gentufa request");
+                let output =
+                    run_tool_gentufa(request).unwrap_or_else(|error| panic!("{format}: {error}"));
+                assert_eq!(
+                    output.status,
+                    ToolStatus::Success,
+                    "{format} elided={show_elided} glosses={show_glosses} compounds={show_compounds}: {}",
+                    output.stderr
+                );
+                assert!(!output.stdout.is_empty(), "{format}");
+            }
+        }
     }
 
     #[tokio::test]

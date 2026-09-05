@@ -149,9 +149,7 @@ use jbotci_embeddings::{
     semantic_cukta_output, semantic_vlacku_hits,
 };
 use jbotci_gentufa::{
-    EmbeddedGentufaFonts, GentufaBlockAnnotation, GentufaBlockOptions, GentufaPngOptions,
-    GentufaScript, GentufaSvgOptions, WebSourceRange,
-    generated_model_blocks_layout_with_references, recovered_generated_model_blocks_layout,
+    EmbeddedGentufaFonts, GentufaBlockOptions, GentufaPngOptions, GentufaScript, GentufaSvgOptions,
     render_gentufa_blocks_png, render_gentufa_blocks_svg,
 };
 use jbotci_gimfihi::{
@@ -179,7 +177,7 @@ use jbotci_output::{
     compact_generated_model_json_string_with_options, compact_morphology_json_string_with_options,
     compact_morphology_json_value, compact_recovered_morphology_json_string_with_options,
     compact_recovered_syntax_json_string_with_options, format_definition_line_with_indexed_places,
-    format_notes_line_with_indexed_places, generated_reference_display, ipa_morphology_text,
+    format_notes_line_with_indexed_places, ipa_morphology_text,
     pretty_generated_model_brackets_with_options, pretty_generated_model_tree_with_options,
     pretty_morphology_brackets_with_options, pretty_morphology_tree_with_options,
     pretty_recovered_morphology_brackets_with_options, pretty_recovered_morphology_raw,
@@ -192,13 +190,17 @@ use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
     WordTypeFilter, dictionary_cards_for_word_likes, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_filters, dictionary_matches_for_word_likes, format_vote_display,
-    normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
+    dictionary_entry_passes_vlacku_filters, format_vote_display, normalize_word_type_filter,
+    parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{
-    ParseOptions, SYNTAX_TRACE_FILTERS, SyntaxRecoveryParseData,
+    ParseOptions, SYNTAX_TRACE_FILTERS, SyntaxRecoveryParse, SyntaxRecoveryParseData,
     parse_syntax_tree_with_recovery_with_source_and_options_attempt,
+};
+use jbotci_web_core::{
+    GentufaBlocksProjectionOptions, generated_model_gentufa_blocks_projection,
+    recovered_gentufa_blocks_projection,
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -759,8 +761,17 @@ pub struct GentufaInput {
     pub show_spans: bool,
     #[arg(long = "show-refs")]
     pub show_refs: bool,
+    /// Show the terminators the grammar elided (e.g. `vau`, `ku`) as if they had
+    /// been written. Supported by every format except raw.
     #[arg(long = "show-elided")]
     pub show_elided: bool,
+    /// Add an English gloss row under each word of a `--turtai blocks` image.
+    #[arg(long = "show-glosses")]
+    pub show_glosses: bool,
+    /// Keep every word as its own leaf of a `--turtai blocks` image instead of
+    /// merging dictionary-attested compounds such as `pa moi` into one leaf.
+    #[arg(long = "no-compounds", action = ArgAction::SetFalse)]
+    pub show_compounds: bool,
     #[arg(long = "decompose-lujvo")]
     pub decompose_lujvo: bool,
     #[arg(long = "output-type", value_enum)]
@@ -1757,79 +1768,93 @@ fn validate_gentufa_options(input: &GentufaInput, glyphs: GlyphStyle) -> Result<
             input.output_type.is_some(),
             "`--output-type` is only supported with `--turtai blocks`",
         )?;
+        validate_not_present(
+            input.show_glosses,
+            "`--show-glosses` is only supported with `--turtai blocks`",
+        )?;
+        // `show_compounds` is false exactly when `--no-compounds` was typed.
+        validate_not_present(
+            !input.show_compounds,
+            "`--no-compounds` is only supported with `--turtai blocks`",
+        )?;
     }
-    if input.format == GentufaFormat::Raw {
-        validate_raw_indent(input.indent)?;
-        if glyphs == GlyphStyle::Unicode {
-            validate_no_phoneme_projection(input.mark_stress, input.mark_glides, "raw")?;
+    match input.format {
+        GentufaFormat::Raw => {
+            validate_raw_indent(input.indent)?;
+            if glyphs == GlyphStyle::Unicode {
+                validate_no_phoneme_projection(input.mark_stress, input.mark_glides, "raw")?;
+            }
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.show_refs,
+                "`--show-refs` is only supported with `--turtai tree`",
+            )?;
+            // Raw dumps the parsed model, in which elided terminators do not
+            // exist (the other renderers synthesize them), so the flag could
+            // never take effect.
+            validate_not_present(
+                input.show_elided,
+                "`--show-elided` is not supported with `--turtai raw`",
+            )?;
+            validate_not_present(
+                input.decompose_lujvo,
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+            )?;
         }
-        validate_not_present(
-            input.show_spans,
-            "`--show-spans` is only supported with `--turtai tree`",
-        )?;
-        validate_not_present(
-            input.show_refs,
-            "`--show-refs` is only supported with `--turtai tree`",
-        )?;
-        validate_not_present(
-            input.decompose_lujvo,
-            "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
-        )?;
-    } else {
-        match input.format {
-            GentufaFormat::Json => {
-                validate_not_present(
-                    input.show_spans,
-                    "`--show-spans` is only supported with `--turtai tree`",
-                )?;
-                validate_not_present(
-                    input.show_refs,
-                    "`--show-refs` is only supported with `--turtai tree`",
-                )?;
-                validate_not_present(
-                    input.decompose_lujvo,
-                    "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
-                )?;
-            }
-            GentufaFormat::Blocks => {
-                validate_no_indent(
-                    input.indent,
-                    "`--indent` is only supported with raw, JSON, and tree output",
-                )?;
-                validate_not_present(
-                    input.show_defs,
-                    "`--show-defs` is not supported with `--turtai blocks`",
-                )?;
-                validate_not_present(
-                    input.show_spans,
-                    "`--show-spans` is only supported with `--turtai tree`",
-                )?;
-                validate_not_present(
-                    input.show_refs,
-                    "`--show-refs` is only supported with `--turtai tree`",
-                )?;
-                validate_not_present(
-                    input.decompose_lujvo,
-                    "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
-                )?;
-                let _ = resolve_gentufa_blocks_output_type(input)?;
-            }
-            GentufaFormat::Tree => {}
-            GentufaFormat::Brackets => {
-                validate_no_indent(
-                    input.indent,
-                    "`--indent` is only supported with raw, JSON, and tree output",
-                )?;
-                validate_not_present(
-                    input.show_spans,
-                    "`--show-spans` is only supported with `--turtai tree`",
-                )?;
-                validate_not_present(
-                    input.show_refs,
-                    "`--show-refs` is only supported with `--turtai tree`",
-                )?;
-            }
-            GentufaFormat::Raw => {}
+        GentufaFormat::Json => {
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.show_refs,
+                "`--show-refs` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.decompose_lujvo,
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+            )?;
+        }
+        GentufaFormat::Blocks => {
+            validate_no_indent(
+                input.indent,
+                "`--indent` is only supported with raw, JSON, and tree output",
+            )?;
+            validate_not_present(
+                input.show_defs,
+                "`--show-defs` is not supported with `--turtai blocks`",
+            )?;
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.show_refs,
+                "`--show-refs` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.decompose_lujvo,
+                "`--decompose-lujvo` is only supported with `--turtai tree` or `--turtai brackets`",
+            )?;
+            let _ = resolve_gentufa_blocks_output_type(input)?;
+        }
+        GentufaFormat::Tree => {}
+        GentufaFormat::Brackets => {
+            validate_no_indent(
+                input.indent,
+                "`--indent` is only supported with raw, JSON, and tree output",
+            )?;
+            validate_not_present(
+                input.show_spans,
+                "`--show-spans` is only supported with `--turtai tree`",
+            )?;
+            validate_not_present(
+                input.show_refs,
+                "`--show-refs` is only supported with `--turtai tree`",
+            )?;
         }
     }
     Ok(())

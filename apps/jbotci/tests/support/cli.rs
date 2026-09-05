@@ -1251,6 +1251,10 @@ fn gentufa_help_lists_formats_and_brackets_flags() {
     assert!(help.contains("--indent"));
     assert!(help.contains("--output-type"));
     assert!(help.contains("--output-file"));
+    assert!(help.contains("--show-elided"));
+    assert!(help.contains("--show-glosses"));
+    assert!(help.contains("--no-compounds"));
+    assert!(!help.contains("--show-compounds"));
     assert!(!help.contains("--wordKind"));
     assert!(!help.contains("--turtau"));
     assert!(!help.contains("--termoha"));
@@ -1727,6 +1731,126 @@ fn gentufa_blocks_rejects_text_only_options() {
         ],
         "`--decompose-lujvo`",
     );
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_display_flags_parse_with_expected_defaults() {
+    let Command::Gentufa(default_input) = Cli::try_parse_from(["jbotci", "gentufa", "mi", "klama"])
+        .expect("default gentufa")
+        .command
+    else {
+        panic!("expected gentufa command")
+    };
+    assert!(!default_input.show_elided);
+    assert!(!default_input.show_glosses);
+    assert!(default_input.show_compounds);
+
+    let Command::Gentufa(input) = Cli::try_parse_from([
+        "jbotci",
+        "gentufa",
+        "--turtai",
+        "blocks",
+        "--show-elided",
+        "--show-glosses",
+        "--no-compounds",
+        "mi",
+        "klama",
+    ])
+    .expect("display flags parse")
+    .command
+    else {
+        panic!("expected gentufa command")
+    };
+    assert!(input.show_elided);
+    assert!(input.show_glosses);
+    assert!(!input.show_compounds);
+    assert_eq!(input.text, vec!["mi", "klama"]);
+
+    // Every display flag is a one-shot toggle: repeating it is an error, exactly
+    // like the pre-existing gentufa flags.
+    for flag in ["--show-elided", "--show-glosses", "--no-compounds"] {
+        let error = Cli::try_parse_from([
+            "jbotci", "gentufa", "--turtai", "blocks", flag, flag, "mi", "klama",
+        ])
+        .expect_err("repeated display flag is rejected");
+        assert_eq!(error.kind(), ErrorKind::ArgumentConflict, "{flag}: {error}");
+    }
+    // There is no positive compounds flag: the default is on and only the
+    // negative flag exists.
+    for flag in ["--show-compounds", "--compounds"] {
+        let error = Cli::try_parse_from(["jbotci", "gentufa", flag, "mi", "klama"])
+            .expect_err("unknown compounds flag is rejected");
+        assert_eq!(error.kind(), ErrorKind::UnknownArgument, "{flag}: {error}");
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_image_only_flags_are_rejected_outside_blocks() {
+    for format in ["brackets", "tree", "json", "raw"] {
+        assert_gentufa_error_contains(
+            &[
+                "jbotci",
+                "gentufa",
+                "--turtai",
+                format,
+                "--show-glosses",
+                "mi",
+                "klama",
+            ],
+            "`--show-glosses` is only supported with `--turtai blocks`",
+        );
+        assert_gentufa_error_contains(
+            &[
+                "jbotci",
+                "gentufa",
+                "--turtai",
+                format,
+                "--no-compounds",
+                "mi",
+                "klama",
+            ],
+            "`--no-compounds` is only supported with `--turtai blocks`",
+        );
+    }
+    // The default format is brackets, so a bare invocation is rejected too
+    // instead of silently printing brackets without the requested effect.
+    assert_gentufa_error_contains(
+        &["jbotci", "gentufa", "--show-glosses", "mi", "klama"],
+        "`--show-glosses` is only supported with `--turtai blocks`",
+    );
+    assert_gentufa_error_contains(
+        &["jbotci", "gentufa", "--no-compounds", "mi", "klama"],
+        "`--no-compounds` is only supported with `--turtai blocks`",
+    );
+    // Raw dumps the parsed model, which has no elided terminators to show.
+    assert_gentufa_error_contains(
+        &[
+            "jbotci",
+            "gentufa",
+            "--turtai",
+            "raw",
+            "--show-elided",
+            "mi",
+            "klama",
+        ],
+        "`--show-elided` is not supported with `--turtai raw`",
+    );
+    for format in ["brackets", "tree", "json", "blocks"] {
+        let output = run_success_bytes(&[
+            "jbotci",
+            "gentufa",
+            "--turtai",
+            format,
+            "--show-elided",
+            "mi",
+            "klama",
+        ]);
+        assert!(!output.is_empty(), "{format}");
+    }
 }
 
 #[test]
@@ -2556,7 +2680,6 @@ fn gentufa_trace_writes_to_stderr_and_keeps_json_stdout_clean() {
 }
 
 #[test]
-#[ignore = "generated syntax CLI output temporarily disables elided terminator rendering"]
 #[requires(true)]
 #[ensures(true)]
 fn gentufa_show_elided_renders_tree_and_json_terminators() {
@@ -2603,6 +2726,181 @@ fn gentufa_show_elided_renders_tree_and_json_terminators() {
         assert!(json_stdout.contains("\"phonemes\": \"vau\""));
         assert!(json_stdout.contains("\"span\": [8, 8]"));
         assert!(json_stdout.contains("\"elided\": true"));
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_show_elided_renders_bracket_terminators() {
+    run_on_normal_stack(|| {
+        assert_eq!(
+            run_success_bytes(&["jbotci", "gentufa", "mi", "klama"]),
+            "(mi kláma)\n".as_bytes()
+        );
+        assert_eq!(
+            run_success_bytes(&["jbotci", "gentufa", "--show-elided", "mi", "klama"]),
+            "(mi [kláma vau])\n".as_bytes()
+        );
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_blocks_svg_honors_compound_gloss_and_elided_controls() {
+    run_on_normal_stack(|| {
+        let coalesced = String::from_utf8(run_success_bytes(&[
+            "jbotci",
+            "gentufa",
+            "--turtai",
+            "blocks",
+            "mi pa moi klama",
+        ]))
+        .expect("SVG is UTF-8");
+        assert!(coalesced.contains(">pa moĭ</text>"), "{coalesced}");
+        for text in [
+            "pa",
+            "moĭ",
+            "ordinal selbri",
+            "vau",
+            "first (having no predecessor)",
+        ] {
+            assert!(
+                !coalesced.contains(&format!(">{text}</text>")),
+                "{text}: {coalesced}"
+            );
+        }
+
+        let separate = String::from_utf8(run_success_bytes(&[
+            "jbotci",
+            "gentufa",
+            "--turtai",
+            "blocks",
+            "--no-compounds",
+            "mi pa moi klama",
+        ]))
+        .expect("SVG is UTF-8");
+        for text in ["pa", "moĭ", "ordinal selbri"] {
+            assert!(
+                separate.contains(&format!(">{text}</text>")),
+                "{text}: {separate}"
+            );
+        }
+        assert!(!separate.contains(">pa moĭ</text>"), "{separate}");
+
+        let glossed = String::from_utf8(run_success_bytes(&[
+            "jbotci",
+            "gentufa",
+            "--turtai",
+            "blocks",
+            "--show-glosses",
+            "mi pa moi klama",
+        ]))
+        .expect("SVG is UTF-8");
+        assert!(glossed.contains(">pa moĭ</text>"), "{glossed}");
+        for gloss in ["me", "first (having no predecessor)", "come"] {
+            assert!(
+                glossed.contains(&format!(">{gloss}</text>")),
+                "{gloss}: {glossed}"
+            );
+        }
+
+        let plain = String::from_utf8(run_success_bytes(&[
+            "jbotci", "gentufa", "--turtai", "blocks", "mi klama",
+        ]))
+        .expect("SVG is UTF-8");
+        assert!(!plain.contains(">vau</text>"), "{plain}");
+        let elided = String::from_utf8(run_success_bytes(&[
+            "jbotci",
+            "gentufa",
+            "--turtai",
+            "blocks",
+            "--show-elided",
+            "mi klama",
+        ]))
+        .expect("SVG is UTF-8");
+        assert!(elided.contains(">vau</text>"), "{elided}");
+        assert!(elided.contains(">bridi tail</text>"), "{elided}");
+    });
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn gentufa_recovered_blocks_svg_honors_display_controls() {
+    run_on_normal_stack(|| {
+        let source = "ba pu mi ku i do";
+        let coalesced =
+            run_cli_capture(&["jbotci", "gentufa", "--turtai", "blocks", source], false);
+        assert_eq!(coalesced.status, CliStatus::Failure);
+        assert!(!coalesced.stderr.is_empty());
+        assert_eq!(coalesced.stdout.matches("data-role=\"error\"").count(), 1);
+        assert!(
+            coalesced.stdout.contains(">ba pu</text>"),
+            "{}",
+            coalesced.stdout
+        );
+        assert!(
+            !coalesced.stdout.contains(">vau</text>"),
+            "{}",
+            coalesced.stdout
+        );
+
+        let separate = run_cli_capture(
+            &[
+                "jbotci",
+                "gentufa",
+                "--turtai",
+                "blocks",
+                "--no-compounds",
+                source,
+            ],
+            false,
+        );
+        assert_eq!(separate.status, CliStatus::Failure);
+        assert_eq!(separate.stderr, coalesced.stderr);
+        for text in ["ba", "pu", "time tense"] {
+            assert!(
+                separate.stdout.contains(&format!(">{text}</text>")),
+                "{text}: {}",
+                separate.stdout
+            );
+        }
+        assert!(
+            !separate.stdout.contains(">ba pu</text>"),
+            "{}",
+            separate.stdout
+        );
+
+        let decorated = run_cli_capture(
+            &[
+                "jbotci",
+                "gentufa",
+                "--turtai",
+                "blocks",
+                "--show-elided",
+                "--show-glosses",
+                source,
+            ],
+            false,
+        );
+        assert_eq!(decorated.status, CliStatus::Failure);
+        assert_eq!(decorated.stderr, coalesced.stderr);
+        assert_eq!(decorated.stdout.matches("data-role=\"error\"").count(), 1);
+        assert_eq!(decorated.stdout.matches(">vau</text>").count(), 2);
+        assert!(
+            decorated.stdout.contains(">ba pu</text>"),
+            "{}",
+            decorated.stdout
+        );
+        for gloss in ["will have been", "me", "end simple bridi", "you"] {
+            assert!(
+                decorated.stdout.contains(&format!(">{gloss}</text>")),
+                "{gloss}: {}",
+                decorated.stdout
+            );
+        }
     });
 }
 
