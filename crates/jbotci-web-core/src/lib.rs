@@ -28,8 +28,8 @@ use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
 use jbotci_gentufa::{
-    AppliedGentufaCompound, GentufaCompoundKind, GentufaCompoundMember, GentufaCompoundSpec,
-    block_annotation_recipients, generated_model_blocks_layout_with_compounds,
+    AppliedGentufaCompound, GentufaCompoundKind, GentufaCompoundLayout, GentufaCompoundMember,
+    GentufaCompoundSpec, block_annotation_recipients, generated_model_blocks_layout_with_compounds,
     generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
     range_from_span as web_range_from_source_span, recovered_generated_model_blocks_layout,
     recovered_generated_model_blocks_layout_with_compounds, reference_slot_label_from_output,
@@ -60,10 +60,10 @@ use jbotci_morphology::{
 };
 use jbotci_output::{
     BracketRenderOptions, BracketSourceFragment, BracketSourceFragmentRole, BracketSourceRange,
-    DefinitionPlaceMap, GlyphStyle, TreeRenderOptions, format_definition_line_with_indexed_places,
-    generated_reference_display, generated_reference_slot_name_for_place_slot,
-    indexed_place_spans_for_definition_line, indexed_place_spans_for_notes_line,
-    ipa_morphology_text, phoneme_render_options_for_script,
+    DefinitionPlaceMap, GlyphStyle, OutputError, TreeRenderOptions,
+    format_definition_line_with_indexed_places, generated_reference_display,
+    generated_reference_slot_name_for_place_slot, indexed_place_spans_for_definition_line,
+    indexed_place_spans_for_notes_line, ipa_morphology_text, phoneme_render_options_for_script,
     pretty_bracket_source_fragments_with_options, pretty_generated_model_brackets_with_options,
     pretty_recovered_syntax_bracket_source_fragments_with_options,
     pretty_recovered_syntax_brackets_with_options, render_lojban_text_for_script_with_options,
@@ -703,27 +703,21 @@ fn valid_gentufa_result_for_web(
         render_options.phonemes,
     )
     .unwrap_or_else(|_| source.to_owned());
-    let tree_options = TreeRenderOptions {
-        color: false,
-        indent: 2,
-        phonemes: render_options.phonemes,
-        glyphs: GlyphStyle::Unicode,
-        show_spans: true,
-        show_refs: true,
-        decompose_lujvo: false,
-        show_elided: options.show_elided,
+    let projection = match generated_model_gentufa_blocks_projection(
+        &generated_model,
+        source,
+        words,
+        &gentufa_blocks_projection_options(options),
+    ) {
+        Ok(projection) => projection,
+        Err(error) => {
+            return GentufaWebResult::Error(GentufaError {
+                phase: Some(DiagnosticPhase::Syntax),
+                message: error.to_string(),
+                diagnostics,
+            });
+        }
     };
-    let reference_display =
-        match generated_reference_display(&generated_model, source, tree_options) {
-            Ok(display) => display,
-            Err(error) => {
-                return GentufaWebResult::Error(GentufaError {
-                    phase: Some(DiagnosticPhase::Syntax),
-                    message: error.to_string(),
-                    diagnostics,
-                });
-            }
-        };
     let bracket_options = bracket_render_options(&render_options);
     let brackets_text = match pretty_generated_model_brackets_with_options(
         &generated_model,
@@ -753,74 +747,15 @@ fn valid_gentufa_result_for_web(
             });
         }
     };
-    let block_options = gentufa_block_options(options);
-    let mut generated_annotations =
-        dictionary_annotations_for_words(jbotci_dictionary_data::english(), words, "");
-    let bare_blocks_layout = generated_syntax_blocks_layout_with_references(
-        &generated_model,
-        source,
-        Some(&reference_display.analysis.syntax_index),
-        Some(&reference_display.references),
-        &generated_annotations,
-        &block_options,
-    );
-    generated_annotations.extend(dictionary_annotations_for_elided_blocks(
-        &bare_blocks_layout.blocks,
-        "",
-    ));
     let bracket_fragments = gentufa_bracket_fragments_from_source(
         &bracket_source_fragments,
-        &bare_blocks_layout,
-        &generated_annotations,
+        &projection.bare,
+        &projection.annotations,
     );
-    let compound_projection = options
-        .show_compounds
-        .then(|| {
-            let matches = compounds_for_projection(source, words, &bare_blocks_layout);
-            if matches.is_empty() {
-                return None;
-            }
-            let specs = compound_specs(&matches, &bare_blocks_layout);
-            let projection = generated_model_blocks_layout_with_compounds::<DictionaryTooltipCard>(
-                &generated_model,
-                source,
-                Some(&reference_display.analysis.syntax_index),
-                Some(&reference_display.references),
-                &[],
-                &block_options,
-                &specs,
-            )
-            .into_data();
-            if projection.applied.is_empty() {
-                return None;
-            }
-            let annotations = compound_projection_annotations(
-                &generated_annotations,
-                &matches,
-                &projection.applied,
-            );
-            Some(attach_generated_reference_tooltips_to_blocks_layout(
-                projection.layout,
-                &reference_display.analysis,
-                source,
-                &block_options,
-                "",
-                &annotations,
-            ))
-        })
-        .flatten();
-    let bare_blocks_layout = attach_generated_reference_tooltips_to_blocks_layout(
-        bare_blocks_layout,
-        &reference_display.analysis,
-        source,
-        &block_options,
-        "",
-        &generated_annotations,
-    );
-    let tree_rows = generated_model_tree_rows_from_blocks(&bare_blocks_layout);
-    let blocks_layout = compound_projection.unwrap_or(bare_blocks_layout);
+    let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
+    let features = web_feature_availability_for_annotations(&projection.annotations);
+    let blocks_layout = projection.into_blocks_layout();
     let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
-    let features = web_feature_availability_for_annotations(&generated_annotations);
 
     GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
@@ -857,27 +792,19 @@ fn recovered_gentufa_success_for_web(
     let brackets_text =
         pretty_recovered_syntax_brackets_with_options(parse, source, bracket_options)
             .unwrap_or_else(|error| error.to_string());
-    let block_options = gentufa_block_options(options);
-    let mut annotations =
-        dictionary_annotations_for_words(jbotci_dictionary_data::english(), words, "");
-    let bare_blocks_layout = recovered_generated_model_blocks_layout(
-        parse.parse_tree.as_ref(),
+    let projection = recovered_gentufa_blocks_projection(
+        parse,
         source,
-        parse.errors.len(),
-        &annotations,
-        &block_options,
+        words,
+        &gentufa_blocks_projection_options(options),
     );
-    annotations.extend(dictionary_annotations_for_elided_blocks(
-        &bare_blocks_layout.blocks,
-        "",
-    ));
     let bracket_fragments = pretty_recovered_syntax_bracket_source_fragments_with_options(
         parse,
         source,
         bracket_options,
     )
     .map(|fragments| {
-        gentufa_bracket_fragments_from_source(&fragments, &bare_blocks_layout, &annotations)
+        gentufa_bracket_fragments_from_source(&fragments, &projection.bare, &projection.annotations)
     })
     .unwrap_or_else(|_| {
         vec![GentufaBracketFragment::Text {
@@ -885,41 +812,10 @@ fn recovered_gentufa_success_for_web(
             role: GentufaBlockRole::Normal,
         }]
     });
-    let compound_projection = options
-        .show_compounds
-        .then(|| {
-            let matches = compounds_for_projection(source, words, &bare_blocks_layout);
-            if matches.is_empty() {
-                return None;
-            }
-            let specs = compound_specs(&matches, &bare_blocks_layout);
-            let projection =
-                recovered_generated_model_blocks_layout_with_compounds::<DictionaryTooltipCard>(
-                    parse.parse_tree.as_ref(),
-                    source,
-                    parse.errors.len(),
-                    &[],
-                    &block_options,
-                    &specs,
-                )
-                .into_data();
-            if projection.applied.is_empty() {
-                return None;
-            }
-            let annotations =
-                compound_projection_annotations(&annotations, &matches, &projection.applied);
-            Some(attach_empty_reference_tooltips_to_blocks_layout(
-                projection.layout,
-                &annotations,
-            ))
-        })
-        .flatten();
-    let bare_blocks_layout =
-        attach_empty_reference_tooltips_to_blocks_layout(bare_blocks_layout, &annotations);
-    let tree_rows = generated_model_tree_rows_from_blocks(&bare_blocks_layout);
-    let blocks_layout = compound_projection.unwrap_or(bare_blocks_layout);
+    let tree_rows = generated_model_tree_rows_from_blocks(&projection.bare);
+    let features = web_feature_availability_for_annotations(&projection.annotations);
+    let blocks_layout = projection.into_blocks_layout();
     let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
-    let features = web_feature_availability_for_annotations(&annotations);
 
     GentufaWebResult::Success(GentufaSuccess {
         ipa_text,
@@ -930,6 +826,230 @@ fn recovered_gentufa_success_for_web(
         tree_rows,
         diagnostics,
         features,
+    })
+}
+
+/// Resolved controls for the dictionary-backed blocks projection that every
+/// surface (browser, server export, CLI, MCP, Discord) renders from.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GentufaBlocksProjectionOptions {
+    pub blocks: GentufaBlockOptions,
+    pub show_compounds: bool,
+}
+
+/// One parse projected into annotated block layouts.
+///
+/// `bare` keeps every word as its own leaf and is what tree rows and bracket
+/// fragments derive from. `coalesced` merges dictionary-attested compounds into
+/// single leaves and exists only when compound recognition was requested and at
+/// least one compound was applied, so choosing it over `bare` never re-renders an
+/// identical layout. `annotations` are the ordinary word and elided-terminator
+/// dictionary annotations shared by both layouts.
+#[invariant(
+    bare.blocks.iter().all(|block| block.compound_kind.is_none()),
+    "the bare layout never coalesces compounds"
+)]
+#[invariant(
+    coalesced.as_ref().is_none_or(|layout| layout.blocks.iter().any(|block| block.compound_kind.is_some())),
+    "a coalesced layout exists only when it contains an applied compound leaf"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GentufaBlocksProjection {
+    pub annotations: Vec<GentufaBlockAnnotation<DictionaryTooltipCard>>,
+    pub bare: GentufaBlocksLayout,
+    pub coalesced: Option<GentufaBlocksLayout>,
+}
+
+impl GentufaBlocksProjection {
+    /// The layout to render: the coalesced one when compounds were applied,
+    /// otherwise the bare one.
+    #[requires(true)]
+    #[ensures(ret.blocks.iter().any(|block| block.compound_kind.is_some()) == old(self.coalesced.is_some()))]
+    pub fn into_blocks_layout(self) -> GentufaBlocksLayout {
+        let data!(GentufaBlocksProjection {
+            bare,
+            coalesced,
+            ..
+        }) = self.into_data();
+        coalesced.unwrap_or(bare)
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.blocks.script == options.script)]
+#[ensures(ret.show_compounds == options.show_compounds)]
+fn gentufa_blocks_projection_options(
+    options: &GentufaWebOptions,
+) -> GentufaBlocksProjectionOptions {
+    GentufaBlocksProjectionOptions {
+        blocks: GentufaBlockOptions {
+            script: options.script,
+            show_elided: options.show_elided,
+            phonemes: options.phonemes,
+        },
+        show_compounds: options.show_compounds,
+    }
+}
+
+/// Reference tooltips resolve against the word texts the block view shows, so
+/// the reference model is built from the same phoneme and elision settings as
+/// the blocks. `show_spans`, `color`, and `indent` only affect the text renderer
+/// and are fixed here so no surface can drift from another.
+#[requires(true)]
+#[ensures(ret.show_refs && !ret.show_spans && ret.show_elided == options.show_elided)]
+fn gentufa_blocks_reference_options(options: &GentufaBlockOptions) -> TreeRenderOptions {
+    TreeRenderOptions {
+        color: false,
+        indent: 2,
+        phonemes: options.phonemes,
+        glyphs: GlyphStyle::Unicode,
+        show_spans: false,
+        show_refs: true,
+        decompose_lujvo: false,
+        show_elided: options.show_elided,
+    }
+}
+
+/// Dictionary-backed blocks projection of a valid parse. Owns the reference
+/// display (place-structure markers and their tooltips) so every surface derives
+/// it from the resolved options rather than supplying its own.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|projection| options.show_compounds || projection.coalesced.is_none()) || ret.is_err())]
+pub fn generated_model_gentufa_blocks_projection(
+    syntax: &jbotci_syntax::generated_model::TextSyntax,
+    source: &str,
+    words: &[WordLike],
+    options: &GentufaBlocksProjectionOptions,
+) -> Result<GentufaBlocksProjection, OutputError> {
+    let reference_display = generated_reference_display(
+        syntax,
+        source,
+        gentufa_blocks_reference_options(&options.blocks),
+    )?;
+    let syntax_index = Some(&reference_display.analysis.syntax_index);
+    let references = Some(&reference_display.references);
+    Ok(gentufa_blocks_projection_with(
+        source,
+        words,
+        options,
+        |annotations| {
+            generated_syntax_blocks_layout_with_references(
+                syntax,
+                source,
+                syntax_index,
+                references,
+                annotations,
+                &options.blocks,
+            )
+        },
+        |specs| {
+            generated_model_blocks_layout_with_compounds::<DictionaryTooltipCard>(
+                syntax,
+                source,
+                syntax_index,
+                references,
+                &[],
+                &options.blocks,
+                specs,
+            )
+        },
+        |layout, annotations| {
+            attach_generated_reference_tooltips_to_blocks_layout(
+                layout,
+                &reference_display.analysis,
+                source,
+                &options.blocks,
+                "",
+                annotations,
+            )
+        },
+    ))
+}
+
+/// Dictionary-backed blocks projection of a recovered parse. Error regions act
+/// as compound barriers and no place-structure references are shown.
+#[requires(!parse.errors.is_empty())]
+#[ensures(options.show_compounds || ret.coalesced.is_none())]
+pub fn recovered_gentufa_blocks_projection(
+    parse: &RecoveredSyntaxParse,
+    source: &str,
+    words: &[WordLike],
+    options: &GentufaBlocksProjectionOptions,
+) -> GentufaBlocksProjection {
+    gentufa_blocks_projection_with(
+        source,
+        words,
+        options,
+        |annotations| {
+            recovered_generated_model_blocks_layout(
+                parse.parse_tree.as_ref(),
+                source,
+                parse.errors.len(),
+                annotations,
+                &options.blocks,
+            )
+        },
+        |specs| {
+            recovered_generated_model_blocks_layout_with_compounds::<DictionaryTooltipCard>(
+                parse.parse_tree.as_ref(),
+                source,
+                parse.errors.len(),
+                &[],
+                &options.blocks,
+                specs,
+            )
+        },
+        |layout, annotations| attach_empty_reference_tooltips_to_blocks_layout(layout, annotations),
+    )
+}
+
+/// Shared body of both projections. Only the layout builders and the tooltip
+/// attachment depend on the parse kind; the dictionary side (word and elided
+/// annotations, recovery barriers, exact compound recognition, specs,
+/// coalescing, and suppression of annotations absorbed by an applied compound)
+/// is identical for valid and recovered parses.
+#[requires(true)]
+#[ensures(options.show_compounds || ret.coalesced.is_none())]
+fn gentufa_blocks_projection_with(
+    source: &str,
+    words: &[WordLike],
+    options: &GentufaBlocksProjectionOptions,
+    bare_layout: impl FnOnce(
+        &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    ) -> BareGentufaBlocksLayout,
+    compound_layout: impl FnOnce(&[GentufaCompoundSpec]) -> GentufaCompoundLayout<DictionaryTooltipCard>,
+    attach_tooltips: impl Fn(
+        BareGentufaBlocksLayout,
+        &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    ) -> GentufaBlocksLayout,
+) -> GentufaBlocksProjection {
+    let mut annotations =
+        dictionary_annotations_for_words(jbotci_dictionary_data::english(), words, "");
+    let bare = bare_layout(&annotations);
+    annotations.extend(dictionary_annotations_for_elided_blocks(&bare.blocks, ""));
+    let coalesced = options
+        .show_compounds
+        .then(|| {
+            let matches = compounds_for_projection(source, words, &bare);
+            if matches.is_empty() {
+                return None;
+            }
+            let specs = compound_specs(&matches, &bare);
+            let projection = compound_layout(&specs).into_data();
+            if projection.applied.is_empty() {
+                return None;
+            }
+            let compound_annotations =
+                compound_projection_annotations(&annotations, &matches, &projection.applied);
+            Some(attach_tooltips(projection.layout, &compound_annotations))
+        })
+        .flatten();
+    let bare = attach_tooltips(bare, &annotations);
+    new!(GentufaBlocksProjection {
+        annotations,
+        bare,
+        coalesced,
     })
 }
 
@@ -1415,16 +1535,6 @@ fn gentufa_render_options(options: &GentufaWebOptions) -> GentufaWebOptions {
     GentufaWebOptions {
         phonemes: phoneme_render_options_for_script(options.script, options.phonemes),
         ..options.clone()
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.script == options.script)]
-fn gentufa_block_options(options: &GentufaWebOptions) -> GentufaBlockOptions {
-    GentufaBlockOptions {
-        script: options.script,
-        show_elided: options.show_elided,
-        phonemes: options.phonemes,
     }
 }
 
@@ -5436,7 +5546,7 @@ fn reference_label_with_slot(label: &ReferenceLabel, slot: ReferenceSlotLabel) -
 #[ensures(true)]
 fn gentufa_bracket_fragments_from_source(
     fragments: &[BracketSourceFragment],
-    blocks_layout: &BareGentufaBlocksLayout,
+    blocks_layout: &GentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     let mut output = Vec::new();
@@ -5453,7 +5563,7 @@ fn gentufa_bracket_fragments_from_source(
 #[ensures(true)]
 fn append_gentufa_bracket_fragments_from_source(
     fragments: &[BracketSourceFragment],
-    blocks_layout: &BareGentufaBlocksLayout,
+    blocks_layout: &GentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
     output: &mut Vec<GentufaBracketFragment>,
 ) {
@@ -5496,7 +5606,7 @@ fn decorated_bracket_fragment(
     children: Vec<GentufaBracketFragment>,
     range: Option<WebSourceRange>,
     text: Option<&str>,
-    blocks_layout: &BareGentufaBlocksLayout,
+    blocks_layout: &GentufaBlocksLayout,
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> Vec<GentufaBracketFragment> {
     if children.is_empty() {
@@ -5560,7 +5670,7 @@ fn annotation_for_range_and_text<'a>(
 #[requires(true)]
 #[ensures(true)]
 fn bracket_color_for_range_and_text(
-    blocks_layout: &BareGentufaBlocksLayout,
+    blocks_layout: &GentufaBlocksLayout,
     range: Option<WebSourceRange>,
     text: Option<&str>,
 ) -> Option<String> {

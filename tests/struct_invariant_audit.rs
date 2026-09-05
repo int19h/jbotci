@@ -2008,6 +2008,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "dictionary tooltip cards are presentation payloads projected from validated vlacku cards",
     ),
     (
+        "crates/jbotci-web-core/src/lib.rs:GentufaBlocksProjectionOptions",
+        "projection options pair already validated block options with an independent compound toggle",
+    ),
+    (
         "crates/jbotci-web-core/src/lib.rs:GentufaCell",
         "web cells are renderer transport data built from parser leaves",
     ),

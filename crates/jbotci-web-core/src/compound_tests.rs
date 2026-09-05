@@ -339,3 +339,61 @@ fn client_and_server_exports_share_the_resolved_compound_layout() {
         }
     }
 }
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn projection_selects_the_coalesced_layout_only_when_a_compound_was_applied() {
+    for (source, has_compound) in [("mi pa moi klama", true), ("mi klama", false)] {
+        for show_compounds in [false, true] {
+            for show_elided in [false, true] {
+                let options = GentufaWebOptions {
+                    show_compounds,
+                    show_elided,
+                    ..GentufaWebOptions::default()
+                };
+                let morphology = analyze_gentufa_morphology_source(source, &options).unwrap();
+                let analysis = complete_gentufa_source_analysis(source, &options, morphology);
+                let data!(GentufaSourceAnalysis {
+                    morphology,
+                    parse: recovery,
+                    ..
+                }) = analysis.into_data();
+                let words = morphology.into_data().words;
+                let data!(SyntaxRecoveryParse::Valid { parse: valid }) = recovery.into_data()
+                else {
+                    panic!("{source} parses without recovery");
+                };
+                let projection = generated_model_gentufa_blocks_projection(
+                    &valid.parse_tree,
+                    source,
+                    &words,
+                    &gentufa_blocks_projection_options(&options),
+                )
+                .unwrap();
+                assert_eq!(
+                    projection.coalesced.is_some(),
+                    has_compound && show_compounds,
+                    "{source} compounds={show_compounds}"
+                );
+                assert!(
+                    projection
+                        .bare
+                        .blocks
+                        .iter()
+                        .all(|block| block.compound_kind.is_none())
+                );
+                assert_eq!(
+                    projection
+                        .bare
+                        .blocks
+                        .iter()
+                        .any(|block| block.role.is_elided()),
+                    show_elided
+                );
+                let expected = parse(source, show_compounds, show_elided).blocks_layout;
+                assert_eq!(projection.into_blocks_layout(), expected);
+            }
+        }
+    }
+}
