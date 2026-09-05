@@ -2,7 +2,17 @@
 
 #![recursion_limit = "1024"]
 
+mod compounds;
 mod render;
+pub use compounds::{
+    AppliedGentufaCompound, GentufaCompoundExpectation, GentufaCompoundExpectationData,
+    GentufaCompoundKind, GentufaCompoundLayout, GentufaCompoundMember,
+    GentufaCompoundNonApplication, GentufaCompoundNonApplicationReason, GentufaCompoundSpec,
+};
+use compounds::{
+    BlockLeafOrigin, BlockLeafOriginData, CompositeKind, node_compound_kind, part_compound_kind,
+    rewrite_compounds,
+};
 
 use std::cmp::Reverse;
 use std::collections::HashMap;
@@ -161,6 +171,10 @@ pub fn reference_slot_display_text(slot: &ReferenceSlotLabel) -> String {
     blocks.iter().all(|block| block.role.is_error() == block.error_index.is_some()),
     "only recovered error blocks carry diagnostic indices"
 )]
+#[expensive_invariant(blocks.iter().filter(|block| block.is_leaf && block.role.is_normal()).all(|block| block.row + block.row_span == *max_row), "normal leaves reach the bottom row")]
+#[expensive_invariant(blocks.iter().enumerate().all(|(index, block)| blocks[index + 1..].iter().all(|other|
+    block.row + block.row_span <= other.row || other.row + other.row_span <= block.row
+        || block.col + block.col_span <= other.col || other.col + other.col_span <= block.col)), "block rectangles never overlap")]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
@@ -193,6 +207,8 @@ pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
         }),
     "empty error markers must have zero-width source ranges"
 )]
+#[invariant(compound_kind.is_none() || (*is_leaf && role.is_normal() && *col_span >= 2))]
+#[invariant(match compound_kind {Some(GentufaCompoundKind::CmavoSequence) => *token_kind == Some(WordKind::Cmavo), Some(GentufaCompoundKind::Zei) => token_kind.is_none(), None => true})]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
@@ -205,6 +221,8 @@ pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_index: Option<usize>,
     pub token_kind: Option<WordKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compound_kind: Option<GentufaCompoundKind>,
     pub ref_markers: Vec<ReferenceMarker<ReferenceTooltip>>,
     pub span: Option<WebSourceRange>,
     pub node_types: Vec<String>,
@@ -333,11 +351,44 @@ pub enum ReferenceMarkerSource {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 pub struct GentufaBlockAnnotation<Tooltip = ()> {
-    pub range: WebSourceRange,
-    pub text: Option<String>,
+    pub target: GentufaAnnotationTarget,
     pub glosses: Vec<String>,
     pub definition: Option<String>,
     pub tooltip: Option<Tooltip>,
+}
+
+#[invariant(::SourceRange { .. } => true)]
+#[invariant(::Block { block_id, .. } => !block_id.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GentufaAnnotationTarget {
+    SourceRange {
+        range: WebSourceRange,
+        text: Option<String>,
+    },
+    Block {
+        block_id: String,
+        range: WebSourceRange,
+    },
+}
+
+impl<Tooltip> GentufaBlockAnnotation<Tooltip> {
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn range(&self) -> WebSourceRange {
+        match self.target.as_data() {
+            data!(GentufaAnnotationTarget::SourceRange { range, .. })
+            | data!(GentufaAnnotationTarget::Block { range, .. }) => *range,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn text(&self) -> Option<&str> {
+        match self.target.as_data() {
+            data!(GentufaAnnotationTarget::SourceRange { text, .. }) => text.as_deref(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -385,7 +436,9 @@ pub fn generated_model_blocks_layout_with_references<Tooltip: Clone>(
     let mut collector =
         GeneratedBlockCollector::<false>::new(source, options, syntax_index, reference_model);
     syntax.visit_in_order(&mut collector);
-    finish_blocks_layout(collector, annotations)
+    finish_blocks_layout(collector, annotations, &[])
+        .into_data()
+        .layout
 }
 
 #[requires(true)]
@@ -402,21 +455,73 @@ pub fn recovered_generated_model_blocks_layout<Tooltip: Clone>(
 ) -> GentufaBlocksLayout<Tooltip> {
     let mut collector = GeneratedBlockCollector::<true>::new(source, options, None, None);
     syntax.visit_in_order(&mut collector);
-    finish_blocks_layout(collector, annotations)
+    finish_blocks_layout(collector, annotations, &[])
+        .into_data()
+        .layout
 }
 
 #[requires(true)]
-#[ensures(ret.max_col >= ret.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
+#[ensures(true)]
+pub fn generated_model_blocks_layout_with_compounds<Tooltip: Clone>(
+    syntax: &GeneratedTextSyntax,
+    source: &str,
+    syntax_index: Option<&GeneratedSyntaxIndex<'_>>,
+    reference_model: Option<&ReferenceDisplayModel>,
+    annotations: &[GentufaBlockAnnotation<Tooltip>],
+    options: &GentufaBlockOptions,
+    specs: &[GentufaCompoundSpec],
+) -> GentufaCompoundLayout<Tooltip> {
+    let mut collector =
+        GeneratedBlockCollector::<false>::new(source, options, syntax_index, reference_model);
+    syntax.visit_in_order(&mut collector);
+    finish_blocks_layout(collector, annotations, specs)
+}
+
+#[requires(true)]
+#[ensures(ret.layout.blocks.iter().all(|block| block.error_index.is_none_or(|index| index < error_count)))]
+pub fn recovered_generated_model_blocks_layout_with_compounds<Tooltip: Clone>(
+    syntax: &RecoveredTextSyntax,
+    source: &str,
+    error_count: usize,
+    annotations: &[GentufaBlockAnnotation<Tooltip>],
+    options: &GentufaBlockOptions,
+    specs: &[GentufaCompoundSpec],
+) -> GentufaCompoundLayout<Tooltip> {
+    let mut collector = GeneratedBlockCollector::<true>::new(source, options, None, None);
+    syntax.visit_in_order(&mut collector);
+    finish_blocks_layout(collector, annotations, specs)
+}
+
+#[requires(true)]
+#[ensures(true)]
 fn finish_blocks_layout<Tooltip: Clone, const RECOVERED: bool>(
     collector: GeneratedBlockCollector<'_, '_, '_, '_, RECOVERED>,
     annotations: &[GentufaBlockAnnotation<Tooltip>],
-) -> GentufaBlocksLayout<Tooltip> {
+    specs: &[GentufaCompoundSpec],
+) -> GentufaCompoundLayout<Tooltip> {
+    let source = collector.source;
     let Some(root) = collector.finish() else {
-        return new!(GentufaBlocksLayout {
-            blocks: Vec::new(),
-            max_col: 0,
-            max_row: 0,
+        return new!(GentufaCompoundLayout {
+            layout: new!(GentufaBlocksLayout {
+                blocks: Vec::new(),
+                max_col: 0,
+                max_row: 0
+            }),
+            applied: Vec::new(),
+            unapplied: specs
+                .iter()
+                .enumerate()
+                .map(|(spec_index, _)| GentufaCompoundNonApplication {
+                    spec_index,
+                    reason: GentufaCompoundNonApplicationReason::MissingOrAmbiguousMember
+                })
+                .collect(),
         });
+    };
+    let (root, applied, unapplied) = if specs.is_empty() {
+        (root, Vec::new(), Vec::new())
+    } else {
+        rewrite_compounds(root, source, specs)
     };
     let root = collapse_safe_multi_child_parents(collapse_single_child_chains(root));
     let root = assign_tree_depths_and_ancestors(root);
@@ -424,10 +529,14 @@ fn finish_blocks_layout<Tooltip: Clone, const RECOVERED: bool>(
     let mut temp_blocks = Vec::new();
     let max_col = push_positioned_blocks(&root, 0, max_depth, None, &mut temp_blocks);
     let blocks = annotate_blocks(assign_block_colors(temp_blocks, max_depth), annotations);
-    new!(GentufaBlocksLayout {
-        blocks,
-        max_col,
-        max_row: max_depth + 1,
+    new!(GentufaCompoundLayout {
+        layout: new!(GentufaBlocksLayout {
+            blocks,
+            max_col,
+            max_row: max_depth + 1
+        }),
+        applied,
+        unapplied
     })
 }
 
@@ -985,12 +1094,30 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             self.push_word(word);
             return;
         }
+        let kind = if matches!(
+            word_like.as_data(),
+            data!(jbotci_morphology::WordLike::ZeiCompound { .. })
+        ) {
+            CompositeKind::Zei
+        } else if matches!(
+            word_like.as_data(),
+            data!(jbotci_morphology::WordLike::LerfuWord { .. })
+        ) {
+            CompositeKind::Bu
+        } else {
+            CompositeKind::Quote
+        };
+        let group = RawSyntaxNodeId(self.next_id);
         let mut collector = MorphologyBlockLeafCollector::new();
         word_like.visit_in_order(&mut collector);
         for leaf in collector.finish() {
             match leaf.into_data() {
                 data!(MorphologyBlockLeaf::Word { word, context }) => {
-                    self.push_word_in_context(word, context);
+                    self.push_word_in_context(
+                        word,
+                        context,
+                        Some(new!(BlockLeafOrigin::CompositeMember { group, kind })),
+                    );
                 }
                 data!(MorphologyBlockLeaf::Verbatim(verbatim)) => self.push_verbatim(verbatim),
             }
@@ -1020,12 +1147,19 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             token_kind: None,
             raw_text: raw_text.clone(),
             display_text: raw_text,
+            origin: new!(BlockLeafOrigin::Verbatim),
+            columns: NonZeroUsize::MIN,
         }));
     }
 
     #[requires(true)]
     #[ensures(true)]
-    fn push_word_in_context(&mut self, word: &Word, context: LeadingPauseContext) {
+    fn push_word_in_context(
+        &mut self,
+        word: &Word,
+        context: LeadingPauseContext,
+        origin: Option<BlockLeafOrigin>,
+    ) {
         let span = word.span();
         let range = range_from_span(span);
         self.recovery_projection.separate();
@@ -1039,13 +1173,21 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             token_kind: Some(word.kind()),
             raw_text: source_text_for_range(self.source, Some(range)),
             display_text: render_word_in_context(word, self.options, context),
+            origin: origin.unwrap_or_else(|| if word.kind() == WordKind::Cmavo {
+                new!(BlockLeafOrigin::PlainCmavo {
+                    canonical: word.canonical_phonemes()
+                })
+            } else {
+                new!(BlockLeafOrigin::PlainOther)
+            }),
+            columns: NonZeroUsize::MIN,
         }));
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn push_word(&mut self, word: &Word) {
-        self.push_word_in_context(word, LeadingPauseContext::IndependentWord);
+        self.push_word_in_context(word, LeadingPauseContext::IndependentWord, None);
     }
 
     #[requires(true)]
@@ -1070,6 +1212,8 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             token_kind: Some(WordKind::Cmavo),
             raw_text: String::new(),
             display_text: render_elided_cmavo(cmavo, self.options),
+            origin: new!(BlockLeafOrigin::Elided),
+            columns: NonZeroUsize::MIN,
         }));
     }
 
@@ -1103,6 +1247,8 @@ impl<'source, 'options, 'index, 'tree, const RECOVERED: bool>
             token_kind: None,
             raw_text: raw_text.clone(),
             display_text: raw_text,
+            origin: new!(BlockLeafOrigin::Error),
+            columns: NonZeroUsize::MIN,
         }));
     }
 }
@@ -1326,6 +1472,7 @@ fn generated_block_tree_node_from_parts(
         None
     };
     Some(new!(BlockTreeNode {
+        keep_structural_host: false,
         id,
         field_label,
         node_ids,
@@ -1559,6 +1706,7 @@ fn generated_chain_link_element_field(constructor: &str) -> Option<&'static str>
 }
 
 #[invariant(!node_ids.is_empty(), "block tree nodes must carry at least one syntax id")]
+#[invariant(!*keep_structural_host || !children.is_empty(), "shared compound identity needs a surviving structural host")]
 #[invariant(!label.is_empty(), "block tree nodes must have a display label")]
 #[invariant(
     field_label.as_ref().is_none_or(|label| !label.is_empty()),
@@ -1586,6 +1734,7 @@ struct BlockTreeNode {
     raw_text: String,
     leaf_word: Option<String>,
     computed_gloss: Option<String>,
+    keep_structural_host: bool,
     children: Vec<BlockTreeNode>,
 }
 
@@ -1607,6 +1756,9 @@ struct BlockTreeNode {
         || (range.byte_start == range.byte_end && range.char_start == range.char_end),
     "empty error markers must have zero-width source ranges"
 )]
+#[invariant(role.is_error() == matches!(origin.as_data(), data!(BlockLeafOrigin::Error)))]
+#[invariant(role.is_elided() == matches!(origin.as_data(), data!(BlockLeafOrigin::Elided)))]
+#[invariant(match origin.as_data() {data!(BlockLeafOrigin::Compound {..}) => columns.get() >= 2, _ => columns.get() == 1})]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct BlockLeafPart {
     id: RawSyntaxNodeId,
@@ -1616,6 +1768,8 @@ struct BlockLeafPart {
     token_kind: Option<WordKind>,
     raw_text: String,
     display_text: String,
+    origin: BlockLeafOrigin,
+    columns: NonZeroUsize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1638,7 +1792,9 @@ struct BlockTemp<Tooltip> {
 
 #[invariant(true)]
 struct BlockCollapseFrame {
-    node: BlockTreeNode,
+    // Children live in the sibling accumulators while the frame is open, so
+    // revalidate the complete node only after all of them have been restored.
+    node: BlockTreeNodeData,
     remaining_children: Vec<BlockTreeNode>,
     collapsed_children: Vec<BlockTreeNode>,
 }
@@ -1655,7 +1811,7 @@ fn collapse_single_child_chains(node: BlockTreeNode) -> BlockTreeNode {
             let mut remaining_children = std::mem::take(&mut node_data.children);
             remaining_children.reverse();
             frames.push(BlockCollapseFrame {
-                node: BlockTreeNode::from_data(node_data),
+                node: node_data,
                 remaining_children,
                 collapsed_children: Vec::new(),
             });
@@ -1680,7 +1836,7 @@ fn collapse_single_child_chains(node: BlockTreeNode) -> BlockTreeNode {
             continue;
         }
 
-        let mut node_data = frame.node.into_data();
+        let mut node_data = frame.node;
         node_data.children = frame.collapsed_children;
         completed = Some(collapse_single_child_node(BlockTreeNode::from_data(
             node_data,
@@ -1691,7 +1847,7 @@ fn collapse_single_child_chains(node: BlockTreeNode) -> BlockTreeNode {
 #[requires(true)]
 #[ensures(true)]
 fn collapse_single_child_node(mut node: BlockTreeNode) -> BlockTreeNode {
-    if node.children.len() == 1 {
+    if !node.keep_structural_host && node.children.len() == 1 {
         let mut node_data = node.into_data();
         let child = node_data
             .children
@@ -1711,7 +1867,8 @@ fn collapse_single_child_node(mut node: BlockTreeNode) -> BlockTreeNode {
 #[requires(true)]
 #[ensures(true)]
 fn can_collapse_single_child(parent: &BlockTreeNode, child: &BlockTreeNode) -> bool {
-    parent.leaf_word.is_none()
+    !parent.keep_structural_host
+        && parent.leaf_word.is_none()
         && parent.token_kind.is_none()
         && parent.leaf_parts.iter().all(|part| part.role.is_normal())
         && spans_compatible(parent.span, child.span)
@@ -1810,7 +1967,8 @@ fn collapse_safe_multi_child_parents(node: BlockTreeNode) -> BlockTreeNode {
 #[requires(true)]
 #[ensures(true)]
 fn should_collapse_safe_multi_child_parent(node: &BlockTreeNode) -> bool {
-    node.children.len() > 1
+    !node.keep_structural_host
+        && node.children.len() > 1
         && node.leaf_parts.is_empty()
         && node.node_types.first().is_some_and(|node_type| {
             matches!(
@@ -1885,7 +2043,7 @@ fn push_positioned_blocks<Tooltip>(
             return push_split_leaf_blocks(node, col, max_depth, parent_id, blocks);
         }
         push_leaf_or_structural_block(node, col, max_depth, parent_id, blocks);
-        return col + 1;
+        return col + node.leaf_parts.first().map_or(1, |part| part.columns.get());
     }
     let start_col = col;
     let mut next_col = col;
@@ -1917,7 +2075,7 @@ fn push_positioned_blocks<Tooltip>(
                         max_depth.saturating_sub(leaf_depth) + 1,
                     ),
                 });
-                next_col += 1;
+                next_col += part.columns.get();
             }
         }
     }
@@ -2009,15 +2167,22 @@ fn push_split_leaf_blocks<Tooltip>(
 ) -> usize {
     let leaf_depth = node.depth + 1;
     let row_span = max_depth.saturating_sub(leaf_depth) + 1;
-    for (offset, part) in node.leaf_parts.iter().enumerate() {
+    let mut next_col = col;
+    for part in &node.leaf_parts {
         blocks.push(BlockTemp {
             id: part.id,
             parent_id: Some(node.id),
             child_ids: Vec::new(),
-            block: synthetic_leaf_block(node, part, col + offset, leaf_depth, row_span),
+            block: synthetic_leaf_block(node, part, next_col, leaf_depth, row_span),
         });
+        next_col += part.columns.get();
     }
-    let col_span = node.leaf_parts.len().max(1);
+    let col_span = node
+        .leaf_parts
+        .iter()
+        .map(|part| part.columns.get())
+        .sum::<usize>()
+        .max(1);
     blocks.push(BlockTemp {
         id: node.id,
         parent_id,
@@ -2038,18 +2203,23 @@ fn synthetic_leaf_block<Tooltip>(
 ) -> GentufaBlock<Tooltip> {
     new!(GentufaBlock {
         block_id: format!("n{}", part.id.0),
-        node_ids: node.node_ids.iter().map(|id| id.0).collect(),
+        node_ids: if node.keep_structural_host {
+            vec![part.id.0]
+        } else {
+            node.node_ids.iter().map(|id| id.0).collect()
+        },
         label: part.display_text.clone(),
         is_leaf: true,
         role: part.role,
         error_index: part.error_index,
         token_kind: part.token_kind,
+        compound_kind: part_compound_kind(part),
         ref_markers: Vec::new(),
         span: Some(part.range),
         node_types: node.node_types.clone(),
         ancestors: synthetic_leaf_ancestors(node),
         col,
-        col_span: 1,
+        col_span: part.columns.get(),
         row,
         row_span,
         color: String::new(),
@@ -2082,6 +2252,8 @@ fn push_leaf_or_structural_block<Tooltip>(
     if let [part] = node.leaf_parts.as_slice()
         && !part.role.is_normal()
     {
+        // This terminal is the node's only emitted block. Unlike split leaves,
+        // it has no separate structural host to retain the node's annotations.
         blocks.push(BlockTemp {
             id: part.id,
             parent_id,
@@ -2092,11 +2264,16 @@ fn push_leaf_or_structural_block<Tooltip>(
                 col,
                 node.depth,
                 max_depth.saturating_sub(node.depth) + 1,
-            ),
+            )
+            .with_data(data! {
+                ref_markers: node.ref_markers.clone(),
+                computed_gloss: node.computed_gloss.clone(),
+            }),
         });
         return;
     }
-    let is_leaf = node.leaf_word.is_some() && node.token_kind.is_some();
+    let is_leaf = node.leaf_word.is_some()
+        && (node.token_kind.is_some() || node_compound_kind(node).is_some());
     let row_span = if is_leaf {
         max_depth.saturating_sub(node.depth) + 1
     } else {
@@ -2110,7 +2287,7 @@ fn push_leaf_or_structural_block<Tooltip>(
             node,
             is_leaf,
             col,
-            1,
+            node.leaf_parts.first().map_or(1, |part| part.columns.get()),
             node.depth,
             row_span,
             node_display_text(node),
@@ -2148,6 +2325,7 @@ fn block_from_tree_node<Tooltip>(
         role: node.role,
         error_index: node.error_index,
         token_kind: node.token_kind,
+        compound_kind: node_compound_kind(node),
         ref_markers: node.ref_markers.clone(),
         span: node.span,
         node_types: node.node_types.clone(),
@@ -2231,14 +2409,11 @@ fn annotate_blocks<Tooltip: Clone>(
     blocks: Vec<GentufaBlock<Tooltip>>,
     annotations: &[GentufaBlockAnnotation<Tooltip>],
 ) -> Vec<GentufaBlock<Tooltip>> {
+    let recipients = block_annotation_recipients(&blocks, annotations);
     blocks
         .into_iter()
-        .map(|block| {
-            let annotation = if block.role.is_elided() {
-                annotation_for_range_and_text(annotations, block.span, Some(&block.display_text))
-            } else {
-                annotation_for_range_and_text(annotations, block.span, None)
-            };
+        .zip(recipients)
+        .map(|(block, annotation)| {
             if let Some(annotation) = annotation {
                 return block.with_data(data! {
                     glosses: annotation.glosses.clone(),
@@ -2252,24 +2427,63 @@ fn annotate_blocks<Tooltip: Clone>(
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn annotation_for_range_and_text<'a, Tooltip>(
+#[ensures(ret.len() == blocks.len())]
+pub fn block_annotation_recipients<'a, Tooltip, ReferenceTooltip>(
+    blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
     annotations: &'a [GentufaBlockAnnotation<Tooltip>],
-    range: Option<WebSourceRange>,
-    text: Option<&str>,
-) -> Option<&'a GentufaBlockAnnotation<Tooltip>> {
-    let range = range?;
-    if let Some(text) = text {
-        let exact = annotations.iter().find(|annotation| {
-            annotation.range == range && annotation.text.as_deref() == Some(text)
-        });
-        if exact.is_some() || range.byte_start == range.byte_end {
-            return exact;
+) -> Vec<Option<&'a GentufaBlockAnnotation<Tooltip>>> {
+    let mut recipients = vec![None; blocks.len()];
+    for annotation in annotations {
+        if let Some(index) = annotation_recipient(blocks, &annotation.target) {
+            recipients[index].get_or_insert(annotation);
         }
     }
-    annotations
-        .iter()
-        .find(|annotation| annotation.range == range)
+    recipients
+}
+
+/// Resolve one presentation host, shared by initial annotation and later enrichment.
+#[requires(true)]
+#[ensures(ret.is_none_or(|index| index < blocks.len()))]
+fn annotation_recipient<Tooltip, ReferenceTooltip>(
+    blocks: &[GentufaBlock<Tooltip, ReferenceTooltip>],
+    target: &GentufaAnnotationTarget,
+) -> Option<usize> {
+    match target.as_data() {
+        data!(GentufaAnnotationTarget::Block { block_id, range }) => {
+            blocks.iter().position(|block| {
+                block.block_id == *block_id
+                    && block.span == Some(*range)
+                    && block.role.is_normal()
+                    && block.is_leaf
+                    && block.compound_kind.is_some()
+            })
+        }
+        data!(GentufaAnnotationTarget::SourceRange { range, text }) => {
+            if range.byte_start == range.byte_end {
+                let text = text.as_ref()?;
+                return blocks.iter().position(|block| {
+                    block.role.is_elided()
+                        && block.span == Some(*range)
+                        && block.display_text == *text
+                });
+            }
+            let mut leaves = blocks.iter().enumerate().filter(|(_, block)| {
+                block.role.is_normal() && block.is_leaf && block.span == Some(*range)
+            });
+            let first = leaves.next();
+            if first.is_some() && leaves.next().is_none() {
+                return first.map(|(index, _)| index);
+            }
+            blocks
+                .iter()
+                .enumerate()
+                .filter(|(_, block)| {
+                    block.role.is_normal() && !block.is_leaf && block.span == Some(*range)
+                })
+                .max_by_key(|(index, block)| (block.row, Reverse(*index)))
+                .map(|(index, _)| index)
+        }
+    }
 }
 
 #[requires(true)]
@@ -2853,6 +3067,7 @@ mod tests {
     #[ensures(true)]
     fn generated_chain_link_split_keeps_suffix_after_element_for_blocks() {
         let link = new!(BlockTreeNode {
+            keep_structural_host: false,
             id: RawSyntaxNodeId(1),
             field_label: None,
             node_ids: vec![RawSyntaxNodeId(1)],
@@ -3058,6 +3273,7 @@ mod tests {
     #[ensures(ret.depth == depth)]
     fn test_block_tree_node(depth: usize, leaf_part_count: usize) -> BlockTreeNode {
         new!(BlockTreeNode {
+            keep_structural_host: false,
             id: RawSyntaxNodeId(depth),
             field_label: None,
             node_ids: vec![RawSyntaxNodeId(depth)],
@@ -3084,6 +3300,8 @@ mod tests {
         (0..count)
             .map(|index| {
                 new!(BlockLeafPart {
+                    origin: new!(BlockLeafOrigin::PlainOther),
+                    columns: NonZeroUsize::MIN,
                     id: RawSyntaxNodeId(index),
                     range: new!(WebSourceRange {
                         byte_start: index,
@@ -3294,6 +3512,8 @@ mod tests {
     #[ensures(ret.display_text == display_text)]
     fn test_leaf_part(id: usize, display_text: &str, range: WebSourceRange) -> BlockLeafPart {
         new!(BlockLeafPart {
+            origin: new!(BlockLeafOrigin::PlainOther),
+            columns: NonZeroUsize::MIN,
             id: RawSyntaxNodeId(id),
             range,
             role: GentufaBlockRole::Normal,
@@ -3315,6 +3535,7 @@ mod tests {
         display_text: &str,
     ) -> BlockTreeNode {
         new!(BlockTreeNode {
+            keep_structural_host: false,
             id: RawSyntaxNodeId(id),
             field_label,
             node_ids: vec![RawSyntaxNodeId(id)],

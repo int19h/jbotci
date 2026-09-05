@@ -2,6 +2,9 @@
 
 //! Shared web/API view models and gentufa parser facade.
 
+#[cfg(test)]
+mod compound_tests;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::OnceLock;
@@ -24,14 +27,17 @@ use jbotci_diagnostics::{
 use jbotci_dialect::{DialectDefinition, parse_dialect_definition};
 use jbotci_dictionary::{Dictionary, DictionaryEntry, WordType};
 use jbotci_embedding_inputs::embedding_input_corpus_json;
+use jbotci_gentufa::{
+    AppliedGentufaCompound, GentufaCompoundKind, GentufaCompoundMember, GentufaCompoundSpec,
+    block_annotation_recipients, generated_model_blocks_layout_with_compounds,
+    generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
+    range_from_span as web_range_from_source_span, recovered_generated_model_blocks_layout,
+    recovered_generated_model_blocks_layout_with_compounds, reference_slot_label_from_output,
+};
 pub use jbotci_gentufa::{
     DEFAULT_GENTUFA_PNG_SCALE, GentufaBlockAnnotation, GentufaBlockOptions, GentufaBlockRole,
     GentufaScript, ReferenceLabel, ReferenceMarkerRole, ReferenceMarkerSource,
     ReferenceMarkerSourceData, ReferenceSlotLabel, WebSourceRange, reference_slot_display_text,
-};
-use jbotci_gentufa::{
-    generated_model_blocks_layout_with_references as generated_syntax_blocks_layout_with_references,
-    recovered_generated_model_blocks_layout, reference_slot_label_from_output,
 };
 pub use jbotci_gimfihi::{
     CollisionScope, GIMFIHI_DEFAULT_COUNT, GIMFIHI_MAX_COUNT, GIMFIHI_MAX_WEIGHT,
@@ -63,6 +69,9 @@ use jbotci_output::{
     pretty_recovered_syntax_brackets_with_options, render_lojban_text_for_script_with_options,
 };
 use jbotci_phonetic::lojban_text_to_ipa;
+use jbotci_search::compounds::{
+    CompoundBarrier, ParsedCompoundKind, ParsedCompoundMatch, compound_cards, recognize_compounds,
+};
 use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, ParsedWordDictionaryMatch, VlackuCard, VlackuCompositionKind,
     VlackuRequest, VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
@@ -112,6 +121,8 @@ pub struct GentufaWebOptions {
     pub script: GentufaScript,
     pub show_elided: bool,
     pub show_glosses: bool,
+    #[serde(default = "default_true")]
+    pub show_compounds: bool,
     pub show_definitions: bool,
     pub error_context_depth: usize,
     pub phonemes: PhonemeRenderOptions,
@@ -128,6 +139,7 @@ impl Default for GentufaWebOptions {
             script: GentufaScript::Latin,
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
             show_definitions: false,
             error_context_depth: 1,
             phonemes: PhonemeRenderOptions::default(),
@@ -144,6 +156,8 @@ pub struct GentufaWebState {
     pub view_mode: GentufaWebViewMode,
     pub show_elided: bool,
     pub show_glosses: bool,
+    #[serde(default = "default_true")]
+    pub show_compounds: bool,
 }
 
 impl Default for GentufaWebState {
@@ -157,8 +171,15 @@ impl Default for GentufaWebState {
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         }
     }
+}
+
+#[requires(true)]
+#[ensures(ret)]
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -752,7 +773,43 @@ fn valid_gentufa_result_for_web(
         &bare_blocks_layout,
         &generated_annotations,
     );
-    let blocks_layout = attach_generated_reference_tooltips_to_blocks_layout(
+    let compound_projection = options
+        .show_compounds
+        .then(|| {
+            let matches = compounds_for_projection(source, words, &bare_blocks_layout);
+            if matches.is_empty() {
+                return None;
+            }
+            let specs = compound_specs(&matches, &bare_blocks_layout);
+            let projection = generated_model_blocks_layout_with_compounds::<DictionaryTooltipCard>(
+                &generated_model,
+                source,
+                Some(&reference_display.analysis.syntax_index),
+                Some(&reference_display.references),
+                &[],
+                &block_options,
+                &specs,
+            )
+            .into_data();
+            if projection.applied.is_empty() {
+                return None;
+            }
+            let annotations = compound_projection_annotations(
+                &generated_annotations,
+                &matches,
+                &projection.applied,
+            );
+            Some(attach_generated_reference_tooltips_to_blocks_layout(
+                projection.layout,
+                &reference_display.analysis,
+                source,
+                &block_options,
+                "",
+                &annotations,
+            ))
+        })
+        .flatten();
+    let bare_blocks_layout = attach_generated_reference_tooltips_to_blocks_layout(
         bare_blocks_layout,
         &reference_display.analysis,
         source,
@@ -760,7 +817,8 @@ fn valid_gentufa_result_for_web(
         "",
         &generated_annotations,
     );
-    let tree_rows = generated_model_tree_rows_from_blocks(&blocks_layout);
+    let tree_rows = generated_model_tree_rows_from_blocks(&bare_blocks_layout);
+    let blocks_layout = compound_projection.unwrap_or(bare_blocks_layout);
     let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
     let features = web_feature_availability_for_annotations(&generated_annotations);
 
@@ -827,9 +885,39 @@ fn recovered_gentufa_success_for_web(
             role: GentufaBlockRole::Normal,
         }]
     });
-    let blocks_layout =
+    let compound_projection = options
+        .show_compounds
+        .then(|| {
+            let matches = compounds_for_projection(source, words, &bare_blocks_layout);
+            if matches.is_empty() {
+                return None;
+            }
+            let specs = compound_specs(&matches, &bare_blocks_layout);
+            let projection =
+                recovered_generated_model_blocks_layout_with_compounds::<DictionaryTooltipCard>(
+                    parse.parse_tree.as_ref(),
+                    source,
+                    parse.errors.len(),
+                    &[],
+                    &block_options,
+                    &specs,
+                )
+                .into_data();
+            if projection.applied.is_empty() {
+                return None;
+            }
+            let annotations =
+                compound_projection_annotations(&annotations, &matches, &projection.applied);
+            Some(attach_empty_reference_tooltips_to_blocks_layout(
+                projection.layout,
+                &annotations,
+            ))
+        })
+        .flatten();
+    let bare_blocks_layout =
         attach_empty_reference_tooltips_to_blocks_layout(bare_blocks_layout, &annotations);
-    let tree_rows = generated_model_tree_rows_from_blocks(&blocks_layout);
+    let tree_rows = generated_model_tree_rows_from_blocks(&bare_blocks_layout);
+    let blocks_layout = compound_projection.unwrap_or(bare_blocks_layout);
     let ipa_text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
     let features = web_feature_availability_for_annotations(&annotations);
 
@@ -853,12 +941,14 @@ fn attach_empty_reference_tooltips_to_blocks_layout(
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlocksLayout {
     let layout = layout.into_data();
+    let recipients = block_annotation_recipients(&layout.blocks, dictionary_annotations);
     new!(GentufaBlocksLayout {
         blocks: layout
             .blocks
             .into_iter()
-            .map(|block| {
-                attach_empty_reference_tooltips_to_block(block, dictionary_annotations)
+            .zip(recipients)
+            .map(|(block, annotation)| {
+                attach_empty_reference_tooltips_to_block(block, annotation)
             })
             .collect(),
         max_col: layout.max_col,
@@ -871,22 +961,11 @@ fn attach_empty_reference_tooltips_to_blocks_layout(
 #[ensures(ret.role.is_error() -> ret.tooltip.is_none())]
 fn attach_empty_reference_tooltips_to_block(
     block: BareGentufaBlock,
-    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    dictionary_annotation: Option<&GentufaBlockAnnotation<DictionaryTooltipCard>>,
 ) -> GentufaBlock {
     let block = block.into_data();
-    let dictionary_annotation = (!block.role.is_error())
-        .then(|| {
-            annotation_for_range_and_text(
-                dictionary_annotations,
-                block.span,
-                block
-                    .role
-                    .is_elided()
-                    .then_some(block.display_text.as_str()),
-            )
-        })
-        .flatten();
     new!(GentufaBlock {
+        compound_kind: block.compound_kind,
         block_id: block.block_id,
         node_ids: block.node_ids,
         label: block.label,
@@ -1043,18 +1122,15 @@ fn attach_generated_reference_tooltips_to_blocks_layout(
     dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
 ) -> GentufaBlocksLayout {
     let layout = layout.into_data();
+    let recipients = block_annotation_recipients(&layout.blocks, dictionary_annotations);
     new!(GentufaBlocksLayout {
         blocks: layout
             .blocks
             .into_iter()
-            .map(|block| {
+            .zip(recipients)
+            .map(|(block, annotation)| {
                 attach_generated_reference_tooltips_to_block(
-                    block,
-                    analysis,
-                    source,
-                    options,
-                    base_path,
-                    dictionary_annotations,
+                    block, analysis, source, options, base_path, annotation,
                 )
             })
             .collect(),
@@ -1071,18 +1147,11 @@ fn attach_generated_reference_tooltips_to_block(
     source: &str,
     options: &GentufaBlockOptions,
     base_path: &str,
-    dictionary_annotations: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    dictionary_annotation: Option<&GentufaBlockAnnotation<DictionaryTooltipCard>>,
 ) -> GentufaBlock {
     let block = block.into_data();
-    let dictionary_annotation = annotation_for_range_and_text(
-        dictionary_annotations,
-        block.span,
-        block
-            .role
-            .is_elided()
-            .then_some(block.display_text.as_str()),
-    );
     new!(GentufaBlock {
+        compound_kind: block.compound_kind,
         block_id: block.block_id,
         node_ids: block.node_ids,
         label: block.label,
@@ -3131,6 +3200,7 @@ pub fn render_gentufa_state_web_export(
             script,
             show_elided: state.show_elided,
             show_glosses: state.show_glosses,
+            show_compounds: state.show_compounds,
             show_definitions: false,
             error_context_depth: 1,
             phonemes: PhonemeRenderOptions::default(),
@@ -3173,6 +3243,9 @@ pub fn gentufa_export_url(
     }
     if state.show_elided {
         pairs.push(("elided".to_owned(), "true".to_owned()));
+    }
+    if !state.show_compounds {
+        pairs.push(("compounds".to_owned(), "false".to_owned()));
     }
     if script != GentufaScript::Latin {
         pairs.push((
@@ -3283,6 +3356,7 @@ fn build_gentufa_page_meta(base_path: &str, state: &GentufaWebState) -> PageMeta
             script: GentufaScript::Latin,
             show_elided: state.show_elided,
             show_glosses: state.show_glosses,
+            show_compounds: state.show_compounds,
             show_definitions: false,
             error_context_depth: 1,
             phonemes: PhonemeRenderOptions::default(),
@@ -3830,6 +3904,7 @@ pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
         view_mode: state.view_mode,
         show_elided: state.show_elided,
         show_glosses: state.show_glosses,
+        show_compounds: state.show_compounds,
     }
 }
 
@@ -3848,6 +3923,7 @@ pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
             }
             "glosses" => state.show_glosses = parse_query_bool(&value, false),
             "elided" => state.show_elided = parse_query_bool(&value, false),
+            "compounds" => state.show_compounds = parse_query_bool(&value, true),
             _ => {}
         }
     }
@@ -3876,6 +3952,9 @@ pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
     }
     if state.show_elided {
         pairs.push(("elided".to_owned(), "true".to_owned()));
+    }
+    if !state.show_compounds {
+        pairs.push(("compounds".to_owned(), "false".to_owned()));
     }
     let path = prefixed_web_path(base_path, "/gentufa");
     if pairs.is_empty() {
@@ -4918,6 +4997,167 @@ fn dictionary_annotations_for_words(
         .collect()
 }
 
+/// Missing or recovered terminals are excluded before the global partition so an
+/// inapplicable longer candidate cannot shadow an applicable shorter interval.
+#[requires(true)]
+#[ensures(true)]
+fn compounds_for_projection(
+    source: &str,
+    words: &[WordLike],
+    layout: &BareGentufaBlocksLayout,
+) -> Vec<ParsedCompoundMatch> {
+    let columns = compound_projection_columns(layout);
+    let mut barriers = layout
+        .blocks
+        .iter()
+        .filter(|block| block.role.is_error())
+        .filter_map(|block| block.span)
+        .map(|range| {
+            new!(CompoundBarrier {
+                byte_start: range.byte_start,
+                byte_end: range.byte_end
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut spans = Vec::new();
+    for word in words {
+        spans.clear();
+        word.source_spans_into(&mut spans);
+        for span in &spans {
+            if !columns
+                .get(&(span.byte_start, span.byte_end))
+                .is_some_and(Option::is_some)
+            {
+                barriers.push(new!(CompoundBarrier {
+                    byte_start: span.byte_start,
+                    byte_end: span.byte_end
+                }));
+            }
+        }
+    }
+    recognize_compounds(jbotci_dictionary_data::english(), words, source, &barriers)
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compound_projection_columns(
+    layout: &BareGentufaBlocksLayout,
+) -> BTreeMap<(usize, usize), Option<std::num::NonZeroUsize>> {
+    let mut columns = BTreeMap::new();
+    for block in layout
+        .blocks
+        .iter()
+        .filter(|block| block.is_leaf && block.role.is_normal())
+    {
+        if let Some(range) = block.span {
+            columns
+                .entry((range.byte_start, range.byte_end))
+                .and_modify(|column| *column = None)
+                .or_insert(std::num::NonZeroUsize::new(block.col_span));
+        }
+    }
+    columns
+}
+
+#[requires(true)]
+#[ensures(ret.len() == matches.len())]
+fn compound_specs(
+    matches: &[ParsedCompoundMatch],
+    layout: &BareGentufaBlocksLayout,
+) -> Vec<GentufaCompoundSpec> {
+    let columns = compound_projection_columns(layout);
+    matches
+        .iter()
+        .map(|compound| {
+            let kind = match compound.kind {
+                ParsedCompoundKind::CmavoSequence => GentufaCompoundKind::CmavoSequence,
+                ParsedCompoundKind::Zei => GentufaCompoundKind::Zei,
+            };
+            let members: Vec<_> = compound
+                .members
+                .iter()
+                .enumerate()
+                .map(|(index, span)| {
+                    new!(GentufaCompoundMember {
+                        range: web_range_from_source_span(span),
+                        expectation: match kind {
+                            GentufaCompoundKind::CmavoSequence =>
+                                new!(jbotci_gentufa::GentufaCompoundExpectation::Cmavo {
+                                    canonical: compound.components[index].clone()
+                                }),
+                            GentufaCompoundKind::Zei =>
+                                new!(jbotci_gentufa::GentufaCompoundExpectation::ZeiMember),
+                        },
+                    })
+                })
+                .collect();
+            let columns = members
+                .iter()
+                .map(|member| {
+                    columns[&(member.range.byte_start, member.range.byte_end)]
+                        .expect("recognition excluded ambiguous or missing columns")
+                        .get()
+                })
+                .sum::<usize>();
+            new!(GentufaCompoundSpec {
+                kind,
+                range: web_range_from_source_span(&compound.span),
+                members,
+                lookup_text: compound.lookup_text.clone(),
+                columns: std::num::NonZeroUsize::new(columns)
+                    .expect("recognized members have bare source columns")
+            })
+        })
+        .collect()
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn compound_projection_annotations(
+    ordinary: &[GentufaBlockAnnotation<DictionaryTooltipCard>],
+    matches: &[ParsedCompoundMatch],
+    applied: &[AppliedGentufaCompound],
+) -> Vec<GentufaBlockAnnotation<DictionaryTooltipCard>> {
+    let mut annotations: Vec<_> = ordinary
+        .iter()
+        .filter(|annotation| {
+            !applied.iter().any(|item| {
+                item.spec.range == annotation.range()
+                    || item
+                        .spec
+                        .members
+                        .iter()
+                        .any(|member| member.range == annotation.range())
+            })
+        })
+        .cloned()
+        .collect();
+    for applied in applied {
+        let compound = matches
+            .iter()
+            .find(|item| {
+                web_range_from_source_span(&item.span) == applied.spec.range
+                    && item.lookup_text == applied.spec.lookup_text
+            })
+            .expect("applied spec belongs to this recognition result");
+        let card = compound_cards(jbotci_dictionary_data::english(), compound)
+            .into_iter()
+            .next()
+            .expect("attested compound has a real entry");
+        let card = dictionary_tooltip_card_from_search_card("", card);
+        annotations.push(GentufaBlockAnnotation {
+            target: new!(jbotci_gentufa::GentufaAnnotationTarget::Block {
+                block_id: applied.block_id.clone(),
+                range: applied.spec.range
+            }),
+            glosses: card.glosses.clone(),
+            definition: tooltip_definition_text(&card),
+            tooltip: Some(card),
+        });
+    }
+    annotations
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn dictionary_annotations_for_elided_blocks(
@@ -4931,8 +5171,10 @@ fn dictionary_annotations_for_elided_blocks(
             let range = block.span?;
             let card = dictionary_tooltip_for_word(base_path, &block.display_text)?;
             Some(GentufaBlockAnnotation {
-                range,
-                text: Some(block.display_text.clone()),
+                target: new!(jbotci_gentufa::GentufaAnnotationTarget::SourceRange {
+                    range,
+                    text: Some(block.display_text.clone()),
+                }),
                 glosses: card.glosses.clone(),
                 definition: tooltip_definition_text(&card),
                 tooltip: Some(card),
@@ -4943,7 +5185,7 @@ fn dictionary_annotations_for_elided_blocks(
 
 #[requires(parsed_match.byte_start <= parsed_match.byte_end)]
 #[requires(parsed_match.char_start <= parsed_match.char_end)]
-#[ensures(ret.range.byte_start == old(parsed_match.byte_start))]
+#[ensures(ret.range().byte_start == old(parsed_match.byte_start))]
 fn dictionary_annotation_from_match(
     parsed_match: ParsedWordDictionaryMatch,
     base_path: &str,
@@ -4955,13 +5197,15 @@ fn dictionary_annotation_from_match(
         .next()
         .map(|card| dictionary_tooltip_card_from_search_card(base_path, card));
     GentufaBlockAnnotation {
-        range: new!(WebSourceRange {
-            byte_start: parsed_match.byte_start,
-            byte_end: parsed_match.byte_end,
-            char_start: parsed_match.char_start,
-            char_end: parsed_match.char_end,
+        target: new!(jbotci_gentufa::GentufaAnnotationTarget::SourceRange {
+            range: new!(WebSourceRange {
+                byte_start: parsed_match.byte_start,
+                byte_end: parsed_match.byte_end,
+                char_start: parsed_match.char_start,
+                char_end: parsed_match.char_end,
+            }),
+            text: Some(parsed_match.lookup_text),
         }),
-        text: Some(parsed_match.lookup_text),
         glosses: first_card
             .as_ref()
             .map(|card| card.glosses.clone())
@@ -5296,13 +5540,13 @@ fn annotation_for_range_and_text<'a>(
     let Some(range) = range else {
         let text = text?;
         return dictionary_annotations.iter().find(|annotation| {
-            annotation.range.byte_start == annotation.range.byte_end
-                && annotation.text.as_deref() == Some(text)
+            annotation.range().byte_start == annotation.range().byte_end
+                && annotation.text() == Some(text)
         });
     };
     if let Some(text) = text {
         let exact = dictionary_annotations.iter().find(|annotation| {
-            same_byte_range(annotation.range, range) && annotation.text.as_deref() == Some(text)
+            same_byte_range(annotation.range(), range) && annotation.text() == Some(text)
         });
         if exact.is_some() || range.byte_start == range.byte_end {
             return exact;
@@ -5310,7 +5554,7 @@ fn annotation_for_range_and_text<'a>(
     }
     dictionary_annotations
         .iter()
-        .find(|annotation| same_byte_range(annotation.range, range))
+        .find(|annotation| same_byte_range(annotation.range(), range))
 }
 
 #[requires(true)]
@@ -8485,6 +8729,7 @@ mod tests {
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
                 show_glosses: false,
+                show_compounds: true,
             }),
         );
         assert_eq!(gentufa.title, "mi klama - jbotci gentufa");
@@ -8503,6 +8748,7 @@ mod tests {
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
                 show_glosses: false,
+                show_compounds: true,
             }),
         );
         assert!(
@@ -8587,6 +8833,7 @@ mod tests {
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         };
         let request = GentufaWebRequest {
             text: state.text.clone(),

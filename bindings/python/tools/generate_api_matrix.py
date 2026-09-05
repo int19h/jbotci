@@ -501,6 +501,26 @@ def classify_import_build_item(item: InventoryItem) -> Disposition | None:
             "Lensisku snapshot deserialization is repository data-build machinery; packaged Python exposes the validated embedded Dictionary and cannot produce these importer values.",
         )
     _, name = concept(item)
+    if path.startswith("jbotci_dictionary::compounds::"):
+        name = path.split("::")[2]
+    if name == "CmavoSequenceIndexEntry":
+        return rust_only(
+            "serialization-import",
+            "Validated static compound-key row used by generated dictionary data and Rust presentation recognition; Python exposes ordinary exact dictionary lookup.",
+        )
+    if name in {"cmavo_sequence_key", "is_compound_separator"} or (
+        name == "Dictionary" and path.rsplit("::", 1)[-1] in {
+            "cmavo_sequence_index", "max_cmavo_sequence_len", "lookup_cmavo_sequence",
+            "exact_definition_indices",
+        }
+    ):
+        return rust_only(
+            "implementation-representation",
+            "Rust compound presentation attestation and morphology-key machinery shared by Blocks and cursor hover; Python retains exact Dictionary lookup and does not expose a Blocks partition policy.",
+        )
+    if name == "DictionaryEntry" and path.endswith("::has_definition"):
+        return python_api(item, "subsumed", "jbotci.dictionary.DictionaryEntry.definition",
+            rationale="The predicate is exactly nonempty definition text, already exposed by the immutable Python entry.")
     if name == "OwnedDictionaryIndexes" or name.startswith("Owned"):
         return rust_only(
             "serialization-import",

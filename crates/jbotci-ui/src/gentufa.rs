@@ -501,6 +501,7 @@ pub(super) fn render_output_controls(
         div { class: "controls output-controls",
             { render_gloss_checkbox(display, current.show_glosses) }
             { render_elided_checkbox(display, current.show_elided) }
+            { render_compounds_checkbox(display, current.show_compounds) }
         }
     }
 }
@@ -519,6 +520,20 @@ pub(super) fn render_gloss_checkbox(
                 onchange: move |_| toggle_glosses(&mut display),
             }
             " gloss"
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn render_compounds_checkbox(
+    mut display: Signal<GentufaDisplayState>,
+    checked: bool,
+) -> Element {
+    rsx! {
+        label {
+            input { r#type: "checkbox", checked, onchange: move |_| toggle_compounds(&mut display) }
+            " Compounds"
         }
     }
 }

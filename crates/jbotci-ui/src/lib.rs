@@ -843,6 +843,7 @@ struct GimfihiAsyncResultState {
 struct GentufaDisplayState {
     show_elided: bool,
     show_glosses: bool,
+    show_compounds: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1037,10 +1038,12 @@ impl Default for GentufaDisplayState {
     #[requires(true)]
     #[ensures(!ret.show_elided)]
     #[ensures(!ret.show_glosses)]
+    #[ensures(ret.show_compounds)]
     fn default() -> Self {
         Self {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         }
     }
 }
@@ -1122,3 +1125,6 @@ fn _feature_availability_for_linking() -> WebFeatureAvailability {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod compound_dom_tests;

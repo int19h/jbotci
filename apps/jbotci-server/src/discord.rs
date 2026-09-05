@@ -548,6 +548,7 @@ fn gentufa_link(request: &ToolGentufaRequest) -> Option<String> {
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: request.show_elided,
             show_glosses: false,
+            show_compounds: true,
         }),
     )))
 }

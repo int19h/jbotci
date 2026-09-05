@@ -155,8 +155,13 @@ Producer exists; M1 is mapping. `Diagnostic`
     cards separated by horizontal rules.
   - **cmavo sequences** — replace the constituent card with only the longest
     dictionary-attested contiguous sequence that contains it. Contiguity
-    follows the segmented word stream, independent of whitespace or pauses;
-    equal-length candidates retain source order.
+    follows the segmented word stream, with only whitespace and periods allowed
+    in gaps between its source spans; equal-length candidates retain source order.
+    Attestation uses a morphology-derived index independent of dictionary tags,
+    so compact, spaced, and mixed headwords share canonical component keys.
+    Web Blocks uses the same index with a global longest-first, leftmost partition.
+    Hover remains cursor-local: in `ba pu ba`, Blocks groups `ba pu`, while hover
+    over the final `ba` documents `pu ba`.
   - **fu'ivla** — dictionary entry if present, else morphological
     classification.
   - **cmevla** — classification only (binding info is M2).

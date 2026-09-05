@@ -2656,6 +2656,7 @@ pub(super) fn cll_spa_inline_href(base_path: &str, kind: CllLinkKind, target: &s
                 view_mode: GentufaWebViewMode::Blocks,
                 show_elided: false,
                 show_glosses: false,
+                show_compounds: true,
             },
         ),
         CllLinkKind::Asset => cll_asset_href(base_path, target),

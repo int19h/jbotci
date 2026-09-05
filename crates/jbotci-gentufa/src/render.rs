@@ -1723,6 +1723,7 @@ mod tests {
     fn png_render_has_magic_header() {
         let layout: GentufaBlocksLayout<(), ()> = new!(GentufaBlocksLayout {
             blocks: vec![new!(GentufaBlock {
+                compound_kind: None,
                 block_id: "n1".to_owned(),
                 node_ids: vec![1],
                 label: "mi".to_owned(),
@@ -1780,6 +1781,7 @@ mod tests {
     #[ensures(ret.row == row)]
     fn test_gentufa_block(row: usize, row_span: usize, incoming_count: usize) -> GentufaBlock<()> {
         new!(GentufaBlock {
+            compound_kind: None,
             block_id: format!("test-{row}"),
             node_ids: Vec::new(),
             label: "ny".to_owned(),
@@ -1815,6 +1817,7 @@ mod tests {
         incoming_count: usize,
     ) -> GentufaBlock<()> {
         new!(GentufaBlock {
+            compound_kind: None,
             block_id: format!("wide-{row}"),
             node_ids: Vec::new(),
             label: "Cei".to_owned(),

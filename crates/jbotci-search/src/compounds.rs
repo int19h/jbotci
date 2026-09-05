@@ -5,7 +5,8 @@
 
 use std::collections::BTreeMap;
 
-use bityzba::{data, invariant, new, requires};
+#[allow(unused_imports)]
+use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, EntryIndex, is_compound_separator};
 use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
@@ -35,6 +36,43 @@ impl CompoundBarrier {
             || (self.byte_start == self.byte_end
                 && start < self.byte_start
                 && self.byte_start < end)
+    }
+}
+
+/// Prefix maxima make recovery checks logarithmic even for many skipped regions.
+#[expensive_invariant(end_by_start.iter().all(|(start, end)| start <= end))]
+#[expensive_invariant(end_by_start.values().zip(end_by_start.values().skip(1)).all(|(left, right)| left <= right))]
+#[derive(Default)]
+struct BarrierIndex {
+    end_by_start: BTreeMap<usize, usize>,
+}
+
+impl BarrierIndex {
+    #[requires(true)]
+    #[ensures(ret.end_by_start.len() <= barriers.len())]
+    fn from_barriers(barriers: &[CompoundBarrier]) -> Self {
+        let mut end_by_start = BTreeMap::<usize, usize>::new();
+        for barrier in barriers {
+            end_by_start
+                .entry(barrier.byte_start)
+                .and_modify(|end| *end = (*end).max(barrier.byte_end))
+                .or_insert(barrier.byte_end);
+        }
+        let mut maximum = 0;
+        for end in end_by_start.values_mut() {
+            maximum = maximum.max(*end);
+            *end = maximum;
+        }
+        new!(BarrierIndex { end_by_start })
+    }
+
+    #[requires(start <= end)]
+    #[ensures(true)]
+    fn intersects(&self, start: usize, end: usize) -> bool {
+        self.end_by_start
+            .range(..end)
+            .next_back()
+            .is_some_and(|(_, maximum)| start < *maximum)
     }
 }
 
@@ -94,45 +132,36 @@ fn plain_cmavo(word: &WordLike) -> Option<&Word> {
 
 #[requires(true)]
 #[ensures(true)]
-fn adjacent(
-    source: &str,
-    left: &SourceSpan,
-    right: &SourceSpan,
-    barriers: &[CompoundBarrier],
-) -> bool {
+fn adjacent(source: &str, left: &SourceSpan, right: &SourceSpan, barriers: &BarrierIndex) -> bool {
     left.source_id == right.source_id
         && source
             .get(left.byte_end..right.byte_start)
             .is_some_and(|gap| gap.chars().all(is_compound_separator))
-        && !barriers
-            .iter()
-            .any(|barrier| barrier.intersects(left.byte_start, right.byte_end))
+        && !barriers.intersects(left.byte_start, right.byte_end)
 }
 
 /// Recognize complete attested groups, with recovery excluded before overlap selection.
 #[requires(true)]
-#[ensures(ret.windows(2).all(|pair| pair[0].span.byte_end <= pair[1].span.byte_start))]
+#[ensures(true)]
+#[expensive_ensures(ret.windows(2).all(|pair| pair[0].span.byte_end <= pair[1].span.byte_start))]
 #[expensive_ensures(ret.iter().all(|item| !barriers.iter().any(|barrier| barrier.intersects(item.span.byte_start, item.span.byte_end))))]
+#[expensive_ensures(ret.iter().all(|item| item.entry_indices.iter().all(|index| dictionary.entry_for_index(*index).is_some_and(|entry| entry.has_definition()))))]
 pub fn recognize_compounds(
     dictionary: &Dictionary<'_>,
     words: &[WordLike],
     source: &str,
     barriers: &[CompoundBarrier],
 ) -> Vec<ParsedCompoundMatch> {
+    let barrier_index = BarrierIndex::from_barriers(barriers);
     let mut result = Vec::new();
     let mut run = CmavoRun::default();
     for word_like in words {
-        let word = plain_cmavo(word_like).filter(|word| {
-            !barriers
-                .iter()
-                .any(|barrier| barrier.intersects(word.span().byte_start, word.span().byte_end))
-        });
+        let word = plain_cmavo(word_like)
+            .filter(|word| !barrier_index.intersects(word.span().byte_start, word.span().byte_end));
         if word.is_none()
-            || run
-                .words
-                .last()
-                .zip(word)
-                .is_some_and(|(left, right)| !adjacent(source, left.span(), right.span(), barriers))
+            || run.words.last().zip(word).is_some_and(|(left, right)| {
+                !adjacent(source, left.span(), right.span(), &barrier_index)
+            })
         {
             append_partition(dictionary, std::mem::take(&mut run), &mut result);
         }
@@ -143,7 +172,7 @@ pub fn recognize_compounds(
             run = CmavoRun::from_data(run_data);
         } else if matches!(word_like.as_data(), data!(WordLike::ZeiCompound { .. })) {
             // This entire typed value is reserved even when no exact entry exists.
-            if let Some(compound) = attested_zei(dictionary, word_like, source, barriers) {
+            if let Some(compound) = attested_zei(dictionary, word_like, source, &barrier_index) {
                 result.push(compound);
             }
         }
@@ -154,6 +183,16 @@ pub fn recognize_compounds(
 
 #[requires(true)]
 #[ensures(true)]
+#[expensive_ensures((2..=run.words.len().min(dictionary.max_cmavo_sequence_len())).all(|len|
+    (0..=run.words.len() - len).all(|start|
+        dictionary.lookup_cmavo_sequence(&run.components[start..start + len]).is_empty()
+        || out.iter().any(|selected|
+            selected.kind == ParsedCompoundKind::CmavoSequence
+                && selected.span.byte_start < run.words[start + len - 1].span().byte_end
+                && run.words[start].span().byte_start < selected.span.byte_end
+                && (selected.members.len() > len || (selected.members.len() == len
+                    && selected.span.byte_start <= run.words[start].span().byte_start))))),
+    "every candidate is selected or overlaps a selected candidate with earlier priority")]
 fn append_partition(
     dictionary: &Dictionary<'_>,
     run: CmavoRun<'_>,
@@ -225,7 +264,7 @@ fn attested_zei(
     dictionary: &Dictionary<'_>,
     word: &WordLike,
     source: &str,
-    barriers: &[CompoundBarrier],
+    barriers: &BarrierIndex,
 ) -> Option<ParsedCompoundMatch> {
     let lookup_text = word_like_lookup_text(word)?;
     let targets: Vec<_> = dictionary.exact_definition_indices(&lookup_text).collect();
@@ -236,9 +275,7 @@ fn attested_zei(
     word.source_spans_into(&mut spans);
     let first = *spans.first()?;
     let last = *spans.last()?;
-    if barriers
-        .iter()
-        .any(|barrier| barrier.intersects(first.byte_start, last.byte_end))
+    if barriers.intersects(first.byte_start, last.byte_end)
         || !spans
             .windows(2)
             .all(|pair| adjacent(source, pair[0], pair[1], barriers))
@@ -273,11 +310,12 @@ pub fn cmavo_sequence_containing(
     index: usize,
 ) -> Option<ParsedCompoundMatch> {
     plain_cmavo(&words[index])?;
+    let barriers = BarrierIndex::default();
     let mut start = index;
     while start > 0
         && plain_cmavo(&words[start - 1])
             .zip(plain_cmavo(&words[start]))
-            .is_some_and(|(left, right)| adjacent(source, left.span(), right.span(), &[]))
+            .is_some_and(|(left, right)| adjacent(source, left.span(), right.span(), &barriers))
     {
         start -= 1;
     }
@@ -285,7 +323,7 @@ pub fn cmavo_sequence_containing(
     while end < words.len()
         && plain_cmavo(&words[end - 1])
             .zip(plain_cmavo(&words[end]))
-            .is_some_and(|(left, right)| adjacent(source, left.span(), right.span(), &[]))
+            .is_some_and(|(left, right)| adjacent(source, left.span(), right.span(), &barriers))
     {
         end += 1;
     }
@@ -368,6 +406,42 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn indexed_barriers_preserve_nested_duplicate_and_zero_width_boundaries() {
+        let barriers = [
+            new!(CompoundBarrier {
+                byte_start: 5,
+                byte_end: 8
+            }),
+            new!(CompoundBarrier {
+                byte_start: 2,
+                byte_end: 6
+            }),
+            new!(CompoundBarrier {
+                byte_start: 2,
+                byte_end: 3
+            }),
+            new!(CompoundBarrier {
+                byte_start: 10,
+                byte_end: 10
+            }),
+        ];
+        let index = BarrierIndex::from_barriers(&barriers);
+        for start in 0..=12 {
+            for end in start..=12 {
+                assert_eq!(
+                    index.intersects(start, end),
+                    barriers
+                        .iter()
+                        .any(|barrier| barrier.intersects(start, end)),
+                    "{start}..{end}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn zei_requires_an_exact_complete_entry_and_reserves_its_members() {
         for source in ["batke zei uidje", "denpa bu zei sance"] {
             let selected = matches(source, &[]);
@@ -385,5 +459,43 @@ mod tests {
         ] {
             assert!(matches(source, &[]).is_empty(), "{source}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn multilink_zei_attestation_distinguishes_exact_missing_and_empty_entries() {
+        let source = "batke zei uidje zei klama";
+        let words = segment_words_with_modifiers(source).unwrap();
+        let mut entry = *jbotci_dictionary_data::english()
+            .lookup_words("batke zei uidje")
+            .next()
+            .unwrap();
+        entry.word = source;
+        let key = jbotci_dictionary::normalize_lookup_query(source);
+        let rows = [jbotci_dictionary::WordIndexEntry {
+            key: &key,
+            targets: &[EntryIndex(0)],
+        }];
+        for definition in ["an attested multi-link entry", ""] {
+            entry.definition = definition;
+            let entries = [entry];
+            // Deliberately exercise the low-level attestation boundary with an empty
+            // definition, which a fully validated dictionary would already reject.
+            let dictionary =
+                Dictionary::from_static_slices(&entries, &rows, &[], &[], &[], &[], &[], &[], 0);
+            let selected = recognize_compounds(&dictionary, &words, source, &[]);
+            if definition.is_empty() {
+                assert!(selected.is_empty());
+            } else {
+                assert_eq!(selected.len(), 1);
+                assert_eq!(selected[0].kind, ParsedCompoundKind::Zei);
+                assert_eq!(selected[0].members.len(), 5);
+                assert_eq!(selected[0].lookup_text, source);
+                assert_eq!(selected[0].entry_indices, [EntryIndex(0)]);
+            }
+        }
+        let missing = Dictionary::from_static_slices(&[], &[], &[], &[], &[], &[], &[], &[], 0);
+        assert!(recognize_compounds(&missing, &words, source, &[]).is_empty());
     }
 }

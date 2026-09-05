@@ -447,13 +447,15 @@ fn gentufa_block_annotations(words: &[WordLike]) -> Vec<GentufaBlockAnnotation<(
             let parsed_match = parsed_match.into_data();
             let first = parsed_match.cards.first();
             GentufaBlockAnnotation {
-                range: new!(WebSourceRange {
-                    byte_start: parsed_match.byte_start,
-                    byte_end: parsed_match.byte_end,
-                    char_start: parsed_match.char_start,
-                    char_end: parsed_match.char_end,
+                target: new!(jbotci_gentufa::GentufaAnnotationTarget::SourceRange {
+                    range: new!(WebSourceRange {
+                        byte_start: parsed_match.byte_start,
+                        byte_end: parsed_match.byte_end,
+                        char_start: parsed_match.char_start,
+                        char_end: parsed_match.char_end,
+                    }),
+                    text: Some(parsed_match.lookup_text),
                 }),
-                text: Some(parsed_match.lookup_text),
                 glosses: first.map(|card| card.glosses.clone()).unwrap_or_default(),
                 definition: first
                     .map(|card| card.definition.trim().to_owned())

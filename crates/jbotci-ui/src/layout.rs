@@ -2826,6 +2826,7 @@ pub(super) fn web_options(
         script: settings.script,
         show_elided: display.show_elided,
         show_glosses: display.show_glosses,
+        show_compounds: display.show_compounds,
         show_definitions: false,
         error_context_depth: settings.error_context_depth,
         phonemes: PhonemeRenderOptions {
@@ -2907,6 +2908,14 @@ pub(super) fn toggle_elided(display: &mut Signal<GentufaDisplayState>) {
 pub(super) fn toggle_glosses(display: &mut Signal<GentufaDisplayState>) {
     let mut next = *display.read();
     next.show_glosses = !next.show_glosses;
+    display.set(next);
+}
+
+#[requires(true)]
+#[ensures(true)]
+pub(super) fn toggle_compounds(display: &mut Signal<GentufaDisplayState>) {
+    let mut next = *display.read();
+    next.show_compounds = !next.show_compounds;
     display.set(next);
 }
 

@@ -96,6 +96,14 @@ impl fmt::Display for JbotciRoute {
             WebRoute::Settings if !self.settings_query.is_empty() => {
                 format!("/settings?{}", self.settings_query)
             }
+            WebRoute::Gentufa(state) if self.gentufa_text_explicit && state.text.is_empty() => {
+                // An explicitly cleared input must survive display-control/history
+                // writes; an absent text parameter instead restores the saved input.
+                let mut url = gentufa_web_url("", state);
+                url.push(if url.contains('?') { '&' } else { '?' });
+                url.push_str("text=");
+                url
+            }
             _ => web_route_url("", &self.web_route),
         };
         if let Some(hash) = self.hash.as_ref().filter(|hash| !hash.is_empty()) {
@@ -319,6 +327,7 @@ pub(super) fn gentufa_state_from_parts(
         view_mode,
         show_elided: display.show_elided,
         show_glosses: display.show_glosses,
+        show_compounds: display.show_compounds,
     }
 }
 
@@ -508,6 +517,7 @@ pub(super) fn apply_web_route_to_client_state(
             gentufa_display.set(GentufaDisplayState {
                 show_elided: state.show_elided,
                 show_glosses: state.show_glosses,
+                show_compounds: state.show_compounds,
             });
         }
         WebRoute::Cukta(state) => {

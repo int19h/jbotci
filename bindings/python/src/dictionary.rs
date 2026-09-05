@@ -103,6 +103,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_dictionary_RafsiIndexMismatchValidationDetail",
     "_dictionary_SelmahoIndexMismatchValidationDetail",
     "_dictionary_PatternIndexMismatchValidationDetail",
+    "_dictionary_CmavoSequenceIndexMismatchValidationDetail",
     "_dictionary_InvalidSoundIndexEntryValidationDetail",
     "_dictionary_InvalidLujvoIndexEntryValidationDetail",
     "_dictionary_normalize_lookup_query",
@@ -3102,6 +3103,33 @@ impl PyPatternIndexMismatchValidationDetail {
     }
 }
 
+/// Validation detail for a mismatched generated compound sequence index.
+#[invariant(true)]
+#[pyclass(
+    name = "CmavoSequenceIndexMismatchValidationDetail",
+    frozen,
+    eq,
+    module = "jbotci.dictionary",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct PyCmavoSequenceIndexMismatchValidationDetail;
+
+#[pymethods]
+impl PyCmavoSequenceIndexMismatchValidationDetail {
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> &'static str {
+        "cmavo sequence index does not match dictionary entries"
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self) -> &'static str {
+        "jbotci.dictionary.CmavoSequenceIndexMismatchValidationDetail()"
+    }
+}
+
 /// An invalid generated sound record found during validation.
 #[invariant(true)]
 #[pyclass(
@@ -3229,6 +3257,9 @@ fn dictionary_validation_py_err(
         }
         DictionaryValidationError::PatternIndexMismatch => {
             Py::new(py, PyPatternIndexMismatchValidationDetail)?.into_any()
+        }
+        DictionaryValidationError::CmavoSequenceIndexMismatch => {
+            Py::new(py, PyCmavoSequenceIndexMismatchValidationDetail)?.into_any()
         }
         DictionaryValidationError::InvalidSoundIndexEntry { index, reason } => Py::new(
             py,
@@ -3359,6 +3390,10 @@ fn register_types(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PyPatternIndexMismatchValidationDetail>(
         module,
         "_dictionary_PatternIndexMismatchValidationDetail",
+    )?;
+    register_type::<PyCmavoSequenceIndexMismatchValidationDetail>(
+        module,
+        "_dictionary_CmavoSequenceIndexMismatchValidationDetail",
     )?;
     register_type::<PyInvalidSoundIndexEntryValidationDetail>(
         module,
@@ -3784,6 +3819,16 @@ class DictionaryValidationError(JbotciError):
                 DictionaryValidationError::PatternIndexMismatch,
                 "_dictionary_PatternIndexMismatchValidationDetail",
                 "PatternIndexMismatchValidationDetail",
+                None,
+                None,
+            );
+            assert_dictionary_validation_error_projection(
+                py,
+                &native_module,
+                &exception_type,
+                DictionaryValidationError::CmavoSequenceIndexMismatch,
+                "_dictionary_CmavoSequenceIndexMismatchValidationDetail",
+                "CmavoSequenceIndexMismatchValidationDetail",
                 None,
                 None,
             );

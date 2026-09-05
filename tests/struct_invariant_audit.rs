@@ -336,6 +336,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedded snapshot metadata is generated from validated build metadata and checked by dictionary-data tests",
     ),
     (
+        "crates/jbotci-dictionary/src/compounds.rs:CmavoSequenceIndexEntry",
+        "private static slice fields are constructed only by a const constructor checking key length, nonempty components and ordered targets; Dictionary::validate checks canonical keys and target attestation against morphology",
+    ),
+    (
         "crates/jbotci-dictionary/src/import.rs:ImportedDictionary",
         "raw Lensisku import shape is validated at parse and fixture-import boundaries",
     ),
@@ -390,10 +394,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-dictionary/src/lib.rs:Keyword",
         "keyword text is upstream dictionary data normalized by import generation",
-    ),
-    (
-        "crates/jbotci-dictionary/src/lib.rs:OwnedDictionaryIndexes",
-        "owned index aggregate is produced by build_owned_indexes",
     ),
     (
         "crates/jbotci-dictionary/src/lib.rs:OwnedPatternIndexEntry",
@@ -598,6 +598,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-f2llm-runtime/src/webgpu.rs:WebGpuRuntime",
         "WebGPU runtime owns mutable caches and transient buffers whose validity is maintained by its fallible methods",
+    ),
+    (
+        "crates/jbotci-gentufa/src/compounds.rs:GentufaCompoundNonApplication",
+        "a typed rejection reason can accompany any caller-relative specification index",
+    ),
+    (
+        "crates/jbotci-gentufa/src/compounds.rs:PreparedCompound",
+        "owned donor accumulators are filled during descent and drained at the validated insertion anchor; each collection can independently be empty during this transition, while member coverage and width are checked by prepare_compound before rewriting",
     ),
     (
         "crates/jbotci-gentufa/src/lib.rs:BlockCollapseFrame",
@@ -1813,7 +1821,7 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "crates/jbotci-ui/src/lib.rs:GentufaDisplayState",
-        "gentufa display toggles are two independent boolean URL controls with no invalid combination",
+        "gentufa display toggles are three independent boolean URL controls with no invalid combination",
     ),
     (
         "crates/jbotci-ui/src/lib.rs:GentufaLayoutInputs",

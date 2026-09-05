@@ -6,6 +6,86 @@ const EMBEDDINGS_JS: &str = include_str!("../assets/embeddings.js");
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn compounds_display_state_round_trips_disabled_and_explicit_empty_routes() {
+    assert!(GentufaDisplayState::default().show_compounds);
+    let current = parse_test_route("", "/gentufa?text=");
+    for show_compounds in [false, true] {
+        let display = GentufaDisplayState {
+            show_compounds,
+            ..GentufaDisplayState::default()
+        };
+        let state = gentufa_state_from_parts("", "", GentufaWebViewMode::Blocks, display, true);
+        let target = gentufa_route_for_committed_state(&state, true);
+        assert!(target.gentufa_text_explicit);
+        assert!(target.to_string().contains("text="));
+        assert_eq!(
+            target.to_string().contains("compounds=false"),
+            !show_compounds
+        );
+        let restored = parse_test_route("", &target.to_string());
+        assert_eq!(restored, target);
+        if !show_compounds {
+            assert_eq!(
+                gentufa_url_history_action(
+                    &current,
+                    &target,
+                    GentufaUrlWriteIntent::ReplaceCurrent
+                ),
+                GentufaUrlHistoryAction::ReplaceCurrent
+            );
+        }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn compounds_page_find_and_client_export_use_the_same_wide_leaf() {
+    let request = GentufaWebRequest {
+        text: "batke zei uidje".to_owned(),
+        options: GentufaWebOptions::default(),
+    };
+    let result = jbotci_web_core::parse_gentufa_for_web(&request);
+    let GentufaWebResult::Success(success) = &result else {
+        panic!("valid ZEI syntax");
+    };
+    let compound = success
+        .blocks_layout
+        .blocks
+        .iter()
+        .find(|block| block.compound_kind.is_some())
+        .unwrap();
+    assert_eq!(compound.col_span, 3);
+    assert_eq!(compound.raw_text, request.text);
+    let mut entries = Vec::new();
+    collect_gentufa_page_find_entries(
+        &mut entries,
+        &result,
+        Some(&request),
+        GentufaWebViewMode::Blocks,
+        GentufaDisplayState {
+            show_glosses: true,
+            ..GentufaDisplayState::default()
+        },
+        GentufaScript::Latin,
+    );
+    assert!(page_find_entry_texts(&entries).contains(&compound.label));
+    let export_request = WebComputeRequest::GentufaBlocksSvg {
+        layout: success.blocks_layout.clone(),
+        show_glosses: true,
+        script: GentufaScript::Latin,
+    };
+    let encoded = serde_json::to_value(export_request).unwrap();
+    let decoded: WebComputeRequest = serde_json::from_value(encoded).unwrap();
+    let WebComputeRequest::GentufaBlocksSvg { layout, .. } = decoded else {
+        unreachable!()
+    };
+    assert_eq!(layout, success.blocks_layout);
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn pwa_manifest_uses_root_routes_and_separate_maskable_icons() {
     let manifest: serde_json::Value =
         serde_json::from_str(include_str!("../assets/manifest.webmanifest"))
@@ -701,6 +781,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         }],
         blocks_layout: new!(GentufaBlocksLayout {
             blocks: vec![new!(GentufaBlock {
+                compound_kind: None,
                 block_id: "block-1".to_owned(),
                 node_ids: vec![1],
                 label: "block label".to_owned(),
@@ -760,6 +841,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
+            show_compounds: true,
         },
         GentufaScript::Latin,
     );
@@ -780,6 +862,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
+            show_compounds: true,
         },
         GentufaScript::Latin,
     );
@@ -796,6 +879,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: true,
+            show_compounds: true,
         },
         GentufaScript::Latin,
     );
@@ -2208,6 +2292,7 @@ fn pending_local_gentufa_writes_match_router_normalized_routes() {
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         }),
         true,
     );
@@ -2255,6 +2340,7 @@ fn gentufa_url_target_uses_committed_parse_state() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         },
         true,
     );
@@ -2291,6 +2377,7 @@ fn gentufa_parse_intent_pushes_changed_route() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         },
         true,
     );
@@ -2314,6 +2401,7 @@ fn gentufa_display_changes_replace_current_route() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         },
         true,
     );
@@ -2337,6 +2425,7 @@ fn gentufa_matching_route_has_no_url_write() {
         GentufaDisplayState {
             show_elided: false,
             show_glosses: false,
+            show_compounds: true,
         },
         true,
     );
@@ -3395,6 +3484,7 @@ fn test_gentufa_block(
     marker_roles: &[ReferenceMarkerRole],
 ) -> GentufaBlock {
     new!(GentufaBlock {
+        compound_kind: None,
         block_id: format!("test-{row}"),
         node_ids: Vec::new(),
         label: "test".to_owned(),

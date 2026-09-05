@@ -161,6 +161,7 @@ pub(super) fn AppShell() -> Element {
     let initial_gentufa_display = GentufaDisplayState {
         show_elided: initial_gentufa.show_elided,
         show_glosses: initial_gentufa.show_glosses,
+        show_compounds: initial_gentufa.show_compounds,
     };
     let view_mode = use_signal(move || initial_gentufa_view_mode);
     let gentufa_display = use_signal(move || initial_gentufa_display);
