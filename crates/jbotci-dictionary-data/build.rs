@@ -13,12 +13,13 @@ use jbotci_dictionary::import::{
     parse_lensisku_json,
 };
 use jbotci_dictionary::{
-    Dictionary, DictionaryEntry, DictionaryLujvoEntry, DictionaryLujvoSegment,
-    DictionaryLujvoSegmentKind, DictionaryPatternEntry, DictionarySoundEntry, DictionaryUser,
-    EntryIndex, Keyword, OwnedDictionaryIndexes, OwnedPatternIndexEntry, OwnedRafsiIndexEntry,
-    OwnedSelmahoIndexEntry, OwnedWordIndexEntry, Rafsi, RafsiIndexEntry, RafsiIndexTarget,
-    RafsiSource, RawSelmaho, SelmahoIndexEntry, WordIndexEntry, WordType, build_owned_indexes,
-    normalize_lookup_query, universal_gismu_rafsi_forms,
+    CmavoSequenceIndexEntry, Dictionary, DictionaryEntry, DictionaryLujvoEntry,
+    DictionaryLujvoSegment, DictionaryLujvoSegmentKind, DictionaryPatternEntry,
+    DictionarySoundEntry, DictionaryUser, EntryIndex, Keyword, OwnedCmavoSequenceIndexEntry,
+    OwnedDictionaryIndexes, OwnedPatternIndexEntry, OwnedRafsiIndexEntry, OwnedSelmahoIndexEntry,
+    OwnedWordIndexEntry, Rafsi, RafsiIndexEntry, RafsiIndexTarget, RafsiSource, RawSelmaho,
+    SelmahoIndexEntry, WordIndexEntry, WordType, build_owned_indexes, normalize_lookup_query,
+    universal_gismu_rafsi_forms,
 };
 use jbotci_jvozba::decompose_lujvo_like;
 use jbotci_morphology::{LujvoPart, possible_short_rafsi_forms};
@@ -297,6 +298,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let pattern_index = timed_stage("leak pattern index", || {
         leak_pattern_index(&indexes.pattern_index)
     });
+    let cmavo_sequence_index = leak_cmavo_sequence_index(&indexes.cmavo_sequence_index);
     let sound_index = timed_stage("leak sound index", || leak_sound_index(&sound_entries));
     let generation_dictionary = Dictionary::from_static_slices(
         leaked_entries,
@@ -306,6 +308,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         pattern_index,
         sound_index,
         &[],
+        cmavo_sequence_index,
+        indexes.max_cmavo_sequence_len,
     );
     let lujvo_entries = timed_stage("build lujvo index", || {
         build_lujvo_index(&generation_dictionary)
@@ -319,6 +323,8 @@ fn run() -> Result<(), Box<dyn Error>> {
         pattern_index,
         sound_index,
         lujvo_index,
+        cmavo_sequence_index,
+        indexes.max_cmavo_sequence_len,
     );
     timed_stage("validate generated dictionary", || dictionary.validate())?;
 
@@ -851,6 +857,11 @@ fn render_dictionary(
     let pattern_index = indexes.pattern_index.iter().map(render_pattern_index_entry);
     let sound_index = sound_index.iter().map(render_sound_index_entry);
     let lujvo_index = lujvo_index.iter().map(render_lujvo_index_entry);
+    let cmavo_sequence_index = indexes
+        .cmavo_sequence_index
+        .iter()
+        .map(render_cmavo_sequence_index_entry);
+    let max_cmavo_sequence_len = indexes.max_cmavo_sequence_len;
     let rendered_metadata = render_metadata(metadata);
 
     let tokens = quote! {
@@ -882,6 +893,8 @@ fn render_dictionary(
             #(#lujvo_index,)*
         ];
 
+        static CMAVO_SEQUENCE_INDEX: &[jbotci_dictionary::CmavoSequenceIndexEntry<'static>] = &[#(#cmavo_sequence_index,)*];
+
         pub static ENGLISH: jbotci_dictionary::Dictionary<'static> =
             jbotci_dictionary::Dictionary::from_static_slices(
                 ENTRIES,
@@ -891,6 +904,8 @@ fn render_dictionary(
                 PATTERN_INDEX,
                 SOUND_INDEX,
                 LUJVO_INDEX,
+                CMAVO_SEQUENCE_INDEX,
+                #max_cmavo_sequence_len,
             );
 
         pub static ENGLISH_METADATA: crate::DictionarySnapshotMetadata = #rendered_metadata;
@@ -1257,4 +1272,36 @@ fn u64_literal(value: u64) -> Literal {
 #[ensures(true)]
 fn f64_literal(value: f64) -> Literal {
     Literal::f64_unsuffixed(value)
+}
+
+#[requires(true)]
+#[ensures(ret.len() == index.len())]
+fn leak_cmavo_sequence_index(
+    index: &[OwnedCmavoSequenceIndexEntry],
+) -> &'static [CmavoSequenceIndexEntry<'static>] {
+    Box::leak(
+        index
+            .iter()
+            .map(|entry| {
+                let components = entry
+                    .components
+                    .iter()
+                    .map(|component| &*Box::leak(component.clone().into_boxed_str()))
+                    .collect::<Vec<_>>();
+                CmavoSequenceIndexEntry::from_static_parts(
+                    Box::leak(components.into_boxed_slice()),
+                    Box::leak(entry.targets.clone().into_boxed_slice()),
+                )
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    )
+}
+
+#[requires(true)]
+#[ensures(true)]
+fn render_cmavo_sequence_index_entry(entry: &OwnedCmavoSequenceIndexEntry) -> TokenStream {
+    let components = entry.components.iter().map(String::as_str);
+    let targets = entry.targets.iter().map(render_entry_index);
+    quote! { jbotci_dictionary::CmavoSequenceIndexEntry::from_static_parts(&[#(#components,)*], &[#(#targets,)*]) }
 }

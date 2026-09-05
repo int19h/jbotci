@@ -695,3 +695,27 @@ mod tests {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod compound_tests {
+    use super::*;
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn embedded_cmavo_sequence_index_has_audited_coverage() {
+        let dictionary = english();
+        assert_eq!(dictionary.cmavo_sequence_index().len(), 715);
+        assert_eq!(dictionary.max_cmavo_sequence_len(), 8);
+        assert!(!dictionary.lookup_cmavo_sequence(&["na", "a"]).is_empty());
+        for headword in ["ma;u", "madagasikara", "fa'onai", "o'ebu", "la dontu'u"] {
+            assert!(
+                dictionary.cmavo_sequence_index().iter().all(|row| row
+                    .targets()
+                    .iter()
+                    .all(|index| dictionary.entry_for_index(*index).unwrap().word != headword)),
+                "{headword}"
+            );
+        }
+    }
+}

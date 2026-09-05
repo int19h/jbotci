@@ -5,9 +5,15 @@ pub mod import;
 
 pub mod places;
 
+mod compounds;
+pub use compounds::{
+    CmavoSequenceIndexEntry, OwnedCmavoSequenceIndexEntry, cmavo_sequence_key,
+    is_compound_separator,
+};
+
 use std::collections::BTreeMap;
 
-use bityzba::{data, invariant, new, requires};
+use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_morphology::{ShortRafsiShape, fold_lojban_diacritic, possible_short_rafsi_forms};
 use jbotci_phonetic::{IpaTokenSequenceView, PronunciationTargetSequenceView};
 use serde::{Deserialize, Serialize};
@@ -28,6 +34,8 @@ pub struct Dictionary<'a> {
     pattern_index: &'a [DictionaryPatternEntry<'a>],
     sound_index: &'a [DictionarySoundEntry<'a>],
     lujvo_index: &'a [DictionaryLujvoEntry<'a>],
+    cmavo_sequence_index: &'a [CmavoSequenceIndexEntry<'a>],
+    max_cmavo_sequence_len: usize,
 }
 
 impl<'a> Dictionary<'a> {
@@ -46,6 +54,8 @@ impl<'a> Dictionary<'a> {
         pattern_index: &'a [DictionaryPatternEntry<'a>],
         sound_index: &'a [DictionarySoundEntry<'a>],
         lujvo_index: &'a [DictionaryLujvoEntry<'a>],
+        cmavo_sequence_index: &'a [CmavoSequenceIndexEntry<'a>],
+        max_cmavo_sequence_len: usize,
     ) -> Self {
         Self {
             entries,
@@ -55,6 +65,8 @@ impl<'a> Dictionary<'a> {
             pattern_index,
             sound_index,
             lujvo_index,
+            cmavo_sequence_index,
+            max_cmavo_sequence_len,
         }
     }
 
@@ -78,6 +90,23 @@ impl<'a> Dictionary<'a> {
         }
         if !pattern_index_matches(self.pattern_index, &expected.pattern_index) {
             return Err(DictionaryValidationError::PatternIndexMismatch);
+        }
+        if self.max_cmavo_sequence_len != expected.max_cmavo_sequence_len
+            || self.cmavo_sequence_index.len() != expected.cmavo_sequence_index.len()
+            || !self
+                .cmavo_sequence_index
+                .iter()
+                .zip(&expected.cmavo_sequence_index)
+                .all(|(actual, expected)| {
+                    actual
+                        .components()
+                        .iter()
+                        .copied()
+                        .eq(expected.components.iter().map(String::as_str))
+                        && actual.targets() == expected.targets
+                })
+        {
+            return Err(DictionaryValidationError::CmavoSequenceIndexMismatch);
         }
         validate_sound_index(self.entries, self.sound_index)?;
         validate_lujvo_index(self.entries, self.lujvo_index)?;
@@ -178,6 +207,49 @@ impl<'a> Dictionary<'a> {
             .word_index_entry(&normalized)
             .map_or(&[][..], |entry| entry.targets);
         targets.iter().map(|index| self.entry_at(*index))
+    }
+
+    /// Exact attestation in source order, with no synthetic or decomposition fallback.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn exact_definition_indices(&self, query: &str) -> impl Iterator<Item = EntryIndex> + '_ {
+        let normalized = normalize_lookup_query(query);
+        let targets = self
+            .word_index_entry(&normalized)
+            .map_or(&[][..], |entry| entry.targets);
+        targets
+            .iter()
+            .copied()
+            .filter(|index| self.entry_at(*index).has_definition())
+    }
+
+    /// Structured keys, ordered lexicographically by canonical morphology components.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn cmavo_sequence_index(&self) -> &'a [CmavoSequenceIndexEntry<'a>] {
+        self.cmavo_sequence_index
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn max_cmavo_sequence_len(&self) -> usize {
+        self.max_cmavo_sequence_len
+    }
+
+    /// Find real entries for a canonical component sequence without joining spellings.
+    #[requires(true)]
+    #[ensures(true)]
+    pub fn lookup_cmavo_sequence<S: AsRef<str>>(&self, components: &[S]) -> &'a [EntryIndex] {
+        self.cmavo_sequence_index
+            .binary_search_by(|entry| {
+                entry
+                    .components()
+                    .iter()
+                    .copied()
+                    .cmp(components.iter().map(AsRef::as_ref))
+            })
+            .ok()
+            .map_or(&[], |index| self.cmavo_sequence_index[index].targets())
     }
 
     /// Return the first non-empty gloss keyword for each lookup word.
@@ -807,14 +879,26 @@ pub struct RafsiCandidate {
     pub availability: RafsiAvailability,
 }
 
+impl DictionaryEntry<'_> {
+    /// Shared attestation predicate for exact entries and generated sequence targets.
+    #[requires(true)]
+    #[ensures(ret == !self.definition.is_empty())]
+    pub fn has_definition(&self) -> bool {
+        !self.definition.is_empty()
+    }
+}
+
 /// Owned indexes used by importers and validation.
+#[expensive_invariant(*max_cmavo_sequence_len == cmavo_sequence_index.iter().map(|entry| entry.components.len()).max().unwrap_or(0))]
+#[expensive_invariant(cmavo_sequence_index.windows(2).all(|pair| pair[0].components < pair[1].components))]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[invariant(true)]
 pub struct OwnedDictionaryIndexes {
     pub word_index: Vec<OwnedWordIndexEntry>,
     pub rafsi_index: Vec<OwnedRafsiIndexEntry>,
     pub selmaho_index: Vec<OwnedSelmahoIndexEntry>,
     pub pattern_index: Vec<OwnedPatternIndexEntry>,
+    pub cmavo_sequence_index: Vec<OwnedCmavoSequenceIndexEntry>,
+    pub max_cmavo_sequence_len: usize,
 }
 
 /// Owned word index entry.
@@ -870,6 +954,8 @@ pub enum DictionaryValidationError {
     SelmahoIndexMismatch,
     #[error("pattern index does not match dictionary entries")]
     PatternIndexMismatch,
+    #[error("cmavo sequence index does not match dictionary entries")]
+    CmavoSequenceIndexMismatch,
     #[error("invalid dictionary sound index entry at index {index}: {reason}")]
     InvalidSoundIndexEntry { index: usize, reason: &'static str },
     #[error("invalid dictionary lujvo index entry at index {index}: {reason}")]
@@ -884,9 +970,15 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
     let mut rafsi_map: BTreeMap<String, Vec<RafsiIndexTarget>> = BTreeMap::new();
     let mut selmaho_map: BTreeMap<String, Vec<EntryIndex>> = BTreeMap::new();
     let mut pattern_index = Vec::with_capacity(entries.len());
+    let mut cmavo_map: BTreeMap<Vec<String>, Vec<EntryIndex>> = BTreeMap::new();
 
     for (index, entry) in entries.iter().enumerate() {
         let entry_index = EntryIndex(index);
+        if entry.has_definition()
+            && let Some(components) = cmavo_sequence_key(entry.word)
+        {
+            cmavo_map.entry(components).or_default().push(entry_index);
+        }
         word_map
             .entry(normalize_lookup_query(entry.word))
             .or_default()
@@ -928,7 +1020,8 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
         });
     }
 
-    OwnedDictionaryIndexes {
+    let max_cmavo_sequence_len = cmavo_map.keys().map(Vec::len).max().unwrap_or(0);
+    new!(OwnedDictionaryIndexes {
         word_index: word_map
             .into_iter()
             .map(|(key, targets)| OwnedWordIndexEntry { key, targets })
@@ -942,7 +1035,17 @@ pub fn build_owned_indexes(entries: &[DictionaryEntry<'_>]) -> OwnedDictionaryIn
             .map(|(key, targets)| OwnedSelmahoIndexEntry { key, targets })
             .collect(),
         pattern_index,
-    }
+        cmavo_sequence_index: cmavo_map
+            .into_iter()
+            .map(|(components, targets)| {
+                new!(OwnedCmavoSequenceIndexEntry {
+                    components,
+                    targets
+                })
+            })
+            .collect(),
+        max_cmavo_sequence_len,
+    })
 }
 
 /// Return v0-compatible normalized lookup text.
@@ -1367,6 +1470,8 @@ mod tests {
             leak_pattern_index(&indexes.pattern_index),
             &[],
             &[],
+            &[],
+            0,
         );
         assert!(dictionary.validate().is_ok());
 
@@ -1569,6 +1674,8 @@ mod tests {
             leak_pattern_index(&indexes.pattern_index),
             &[],
             &[],
+            &[],
+            0,
         );
 
         assert!(dictionary.validate().is_ok());
@@ -1601,6 +1708,8 @@ mod tests {
             leak_pattern_index(&indexes.pattern_index),
             &[],
             &[],
+            &[],
+            0,
         );
 
         assert!(dictionary.validate().is_ok());
@@ -1629,6 +1738,8 @@ mod tests {
             leak_pattern_index(&indexes.pattern_index),
             &[],
             &[],
+            &[],
+            0,
         );
 
         assert!(dictionary.validate().is_ok());
@@ -1672,6 +1783,8 @@ mod tests {
             leak_pattern_index(&indexes.pattern_index),
             &[],
             &[],
+            &[],
+            0,
         );
 
         assert_eq!(
@@ -1680,6 +1793,97 @@ mod tests {
                 index: 0,
                 reason: "selma'o is empty",
             })
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn sequence_targets_ignore_tags_preserve_collisions_and_require_definitions() {
+        let mut missing = test_entry("pu ba", WordType::Phrase, &[], None);
+        missing.definition = "";
+        let entries = [
+            test_entry("puba", WordType::CmavoCompound, &[], None),
+            test_entry("pu ba", WordType::Nalvla, &[], None),
+        ];
+        let with_missing = [entries[0], entries[1], missing];
+        let incomplete_indexes = build_owned_indexes(&with_missing);
+        assert_eq!(
+            incomplete_indexes.cmavo_sequence_index[0].targets,
+            [EntryIndex(0), EntryIndex(1)]
+        );
+        let incomplete = Dictionary::from_static_slices(
+            &with_missing,
+            leak_word_index(&incomplete_indexes.word_index),
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            &[],
+            0,
+        );
+        assert_eq!(
+            incomplete
+                .exact_definition_indices("pu ba")
+                .collect::<Vec<_>>(),
+            [EntryIndex(1)]
+        );
+        let indexes = build_owned_indexes(&entries);
+        assert_eq!(indexes.cmavo_sequence_index.len(), 1);
+        assert_eq!(indexes.max_cmavo_sequence_len, 2);
+        assert_eq!(indexes.cmavo_sequence_index[0].components, ["pu", "ba"]);
+        assert_eq!(
+            indexes.cmavo_sequence_index[0].targets,
+            [EntryIndex(0), EntryIndex(1)]
+        );
+        let rows = [CmavoSequenceIndexEntry::from_static_parts(
+            &["pu", "ba"],
+            &[EntryIndex(0), EntryIndex(1)],
+        )];
+        let dictionary = Dictionary::from_static_slices(
+            &entries,
+            leak_word_index(&indexes.word_index),
+            leak_rafsi_index(&indexes.rafsi_index),
+            leak_selmaho_index(&indexes.selmaho_index),
+            leak_pattern_index(&indexes.pattern_index),
+            &[],
+            &[],
+            &rows,
+            2,
+        );
+        assert_eq!(dictionary.validate(), Ok(()));
+        assert_eq!(
+            dictionary.lookup_cmavo_sequence(&["pu", "ba"]),
+            rows[0].targets()
+        );
+        assert_eq!(
+            dictionary
+                .exact_definition_indices("pu ba")
+                .collect::<Vec<_>>(),
+            [EntryIndex(1)]
+        );
+        assert!(
+            dictionary
+                .exact_definition_indices("klama zei tavla")
+                .next()
+                .is_none()
+        );
+        let bad_maximum = Dictionary {
+            max_cmavo_sequence_len: 3,
+            ..dictionary
+        };
+        assert_eq!(
+            bad_maximum.validate(),
+            Err(DictionaryValidationError::CmavoSequenceIndexMismatch)
+        );
+        let missing_rows = Dictionary {
+            cmavo_sequence_index: &[],
+            ..dictionary
+        };
+        assert_eq!(
+            missing_rows.validate(),
+            Err(DictionaryValidationError::CmavoSequenceIndexMismatch)
         );
     }
 
