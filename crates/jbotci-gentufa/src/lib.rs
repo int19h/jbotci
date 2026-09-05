@@ -367,7 +367,7 @@ pub struct GentufaBlockAnnotation<Tooltip = ()> {
     pub tooltip: Option<Tooltip>,
 }
 
-#[invariant(::SourceRange { .. } => true)]
+#[invariant(::SourceRange { text, .. } => text.as_ref().is_none_or(|text| !text.is_empty()))]
 #[invariant(::Block { block_id, .. } => !block_id.is_empty())]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GentufaAnnotationTarget {
@@ -471,7 +471,8 @@ pub fn recovered_generated_model_blocks_layout<Tooltip: Clone>(
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.layout.max_col >= ret.layout.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
+#[ensures(ret.applied.len() + ret.unapplied.len() == specs.len())]
 pub fn generated_model_blocks_layout_with_compounds<Tooltip: Clone>(
     syntax: &GeneratedTextSyntax,
     source: &str,
@@ -488,6 +489,8 @@ pub fn generated_model_blocks_layout_with_compounds<Tooltip: Clone>(
 }
 
 #[requires(true)]
+#[ensures(ret.layout.max_col >= ret.layout.blocks.iter().map(|block| block.col + block.col_span).max().unwrap_or(0))]
+#[ensures(ret.applied.len() + ret.unapplied.len() == specs.len())]
 #[ensures(ret.layout.blocks.iter().all(|block| block.error_index.is_none_or(|index| index < error_count)))]
 pub fn recovered_generated_model_blocks_layout_with_compounds<Tooltip: Clone>(
     syntax: &RecoveredTextSyntax,

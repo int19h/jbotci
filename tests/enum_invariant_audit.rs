@@ -916,6 +916,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "shader uniform variant is a typed scalar slot whose valid range is shader-specific",
     ),
     (
+        "crates/jbotci-gentufa/src/compounds.rs:BlockLeafOrigin::CompositeMember",
+        "any syntax node id can identify a composite group; the typed composite kind and containing BlockLeafPart own member constraints",
+    ),
+    (
+        "crates/jbotci-gentufa/src/compounds.rs:BlockLeafOrigin::Compound",
+        "the typed compound kind has no additional payload constraint; BlockLeafPart enforces the compound column width",
+    ),
+    (
+        "crates/jbotci-gentufa/src/compounds.rs:BlockLeafOrigin::Elided",
+        "elided origin is a payload-free discriminator; BlockLeafPart enforces agreement with its elided role",
+    ),
+    (
+        "crates/jbotci-gentufa/src/compounds.rs:BlockLeafOrigin::Error",
+        "error origin is a payload-free discriminator; BlockLeafPart enforces agreement with its error role",
+    ),
+    (
+        "crates/jbotci-gentufa/src/compounds.rs:BlockLeafOrigin::PlainOther",
+        "non-cmavo plain-word origin carries no payload state to constrain",
+    ),
+    (
+        "crates/jbotci-gentufa/src/compounds.rs:BlockLeafOrigin::Verbatim",
+        "verbatim origin carries no payload state to constrain and excludes the part from compound matching",
+    ),
+    (
+        "crates/jbotci-gentufa/src/compounds.rs:GentufaCompoundExpectation::ZeiMember",
+        "ZEI member expectation has no payload; complete composite membership is checked against collected typed origins",
+    ),
+    (
         "crates/jbotci-gentufa/src/lib.rs:BlockLayoutChild::Leaf",
         "internal borrowed layout cursor delegates validity to the referenced leaf part",
     ),
@@ -1958,6 +1986,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-tree/src/lib.rs:WrappedNode::Tuple",
         "tree macro test wrapper delegates validity to the wrapped payload",
+    ),
+    (
+        "crates/jbotci-ui/src/compound_dom_tests.rs:CompoundDomRoute::CompoundDomPage",
+        "the DOM test router has one payload-free page and no route parameters to constrain",
     ),
     (
         "crates/jbotci-ui/src/diagnostics.rs:ActiveDiagnosticTarget::Context",

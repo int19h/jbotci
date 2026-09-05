@@ -298,7 +298,9 @@ fn run() -> Result<(), Box<dyn Error>> {
     let pattern_index = timed_stage("leak pattern index", || {
         leak_pattern_index(&indexes.pattern_index)
     });
-    let cmavo_sequence_index = leak_cmavo_sequence_index(&indexes.cmavo_sequence_index);
+    let cmavo_sequence_index = timed_stage("leak cmavo sequence index", || {
+        leak_cmavo_sequence_index(&indexes.cmavo_sequence_index)
+    });
     let sound_index = timed_stage("leak sound index", || leak_sound_index(&sound_entries));
     let generation_dictionary = Dictionary::from_static_slices(
         leaked_entries,

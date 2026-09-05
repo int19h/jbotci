@@ -16,7 +16,7 @@ pub struct CmavoSequenceIndexEntry<'a> {
 
 impl<'a> CmavoSequenceIndexEntry<'a> {
     #[requires(components.len() >= 2 && !targets.is_empty())]
-    #[ensures(true)]
+    #[ensures(ret.components.len() == components.len() && ret.targets.len() == targets.len())]
     pub const fn from_static_parts(components: &'a [&'a str], targets: &'a [EntryIndex]) -> Self {
         let mut index = 0;
         while index < components.len() {

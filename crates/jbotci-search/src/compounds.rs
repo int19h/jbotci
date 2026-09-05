@@ -5,8 +5,7 @@
 
 use std::collections::BTreeMap;
 
-#[allow(unused_imports)]
-use bityzba::{data, ensures, expensive_ensures, expensive_invariant, invariant, new, requires};
+use bityzba::{data, expensive_invariant, invariant, new, requires};
 use jbotci_dictionary::{Dictionary, EntryIndex, is_compound_separator};
 use jbotci_morphology::{Word, WordKind, WordLike, WordLikeData};
 use jbotci_source::SourceSpan;
@@ -131,9 +130,12 @@ fn plain_cmavo(word: &WordLike) -> Option<&Word> {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(!ret || (left.byte_end <= right.byte_start && left.char_end <= right.char_start))]
 fn adjacent(source: &str, left: &SourceSpan, right: &SourceSpan, barriers: &BarrierIndex) -> bool {
     left.source_id == right.source_id
+        // External span mappings must preserve both coordinate orders. Checking
+        // before selection keeps invalid spans out of cmavo and ZEI candidates.
+        && left.char_end <= right.char_start
         && source
             .get(left.byte_end..right.byte_start)
             .is_some_and(|gap| gap.chars().all(is_compound_separator))
@@ -223,6 +225,8 @@ fn append_partition(
 }
 
 #[requires(start < end && end <= run.words.len())]
+#[requires(run.words[start].span().byte_start <= run.words[end - 1].span().byte_end)]
+#[requires(run.words[start].span().char_start <= run.words[end - 1].span().char_end)]
 #[requires(!dictionary.lookup_cmavo_sequence(&run.components[start..end]).is_empty())]
 #[ensures(ret.kind == ParsedCompoundKind::CmavoSequence)]
 fn cmavo_match(
@@ -243,7 +247,7 @@ fn cmavo_match(
             first.char_start,
             last.char_end
         )
-        .expect("ordered morphology run"),
+        .expect("adjacency preserves byte and character order throughout the run"),
         members: run.words[start..end]
             .iter()
             .map(|word| word.span().clone())
@@ -400,6 +404,103 @@ mod tests {
         assert_eq!(shorter[0].components, ["bi", "no"]);
         for source in ["ba ! pu", "ba klama pu", "ba zo pu", "ba bu pu"] {
             assert!(matches(source, &[]).is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn zero_width_barrier_partitions_cmavo_runs_before_selection() {
+        let selected = matches(
+            "ba pu ba pu",
+            &[new!(CompoundBarrier {
+                byte_start: 5,
+                byte_end: 5,
+            })],
+        );
+        assert_eq!(selected.len(), 2);
+        assert!(selected.iter().all(|item| item.components == ["ba", "pu"]));
+        assert_eq!(selected[0].span.byte_end, 5);
+        assert_eq!(selected[1].span.byte_start, 6);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn barrier_inside_a_cmavo_excludes_its_entire_word() {
+        let source = "pa moi klama ba pu";
+        assert_eq!(matches(source, &[]).len(), 2);
+        let selected = matches(
+            source,
+            &[new!(CompoundBarrier {
+                byte_start: 4,
+                byte_end: 5,
+            })],
+        );
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected[0].components, ["ba", "pu"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn barriers_over_zei_members_or_gaps_exclude_the_complete_group() {
+        let source = "batke zei uidje ba pu";
+        assert_eq!(matches(source, &[]).len(), 2);
+        for barrier in [
+            new!(CompoundBarrier {
+                byte_start: 1,
+                byte_end: 2
+            }),
+            new!(CompoundBarrier {
+                byte_start: 5,
+                byte_end: 5
+            }),
+            new!(CompoundBarrier {
+                byte_start: 6,
+                byte_end: 9
+            }),
+            new!(CompoundBarrier {
+                byte_start: 11,
+                byte_end: 12
+            }),
+        ] {
+            let selected = matches(source, &[barrier]);
+            assert_eq!(selected.len(), 1, "{barrier:?}");
+            assert_eq!(selected[0].kind, ParsedCompoundKind::CmavoSequence);
+            assert_eq!(selected[0].components, ["ba", "pu"]);
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn inverted_character_order_is_rejected_before_compound_selection() {
+        for source in ["ba pu", "batke zei uidje"] {
+            let words =
+                segment_words_with_modifiers(source)
+                    .unwrap()
+                    .into_iter()
+                    .map(|word| {
+                        jbotci_morphology::map_word_like_spans(word, &|span| {
+                            if span.byte_start == 0 {
+                                let char_start = span.char_start + source.chars().count();
+                                let char_end = span.char_end + source.chars().count();
+                                Ok(span.with_data(
+                                    data! { char_start: char_start, char_end: char_end },
+                                ))
+                            } else {
+                                Ok(span)
+                            }
+                        })
+                        .unwrap()
+                    })
+                    .collect::<Vec<_>>();
+            let dictionary = jbotci_dictionary_data::english();
+            assert!(recognize_compounds(dictionary, &words, source, &[]).is_empty());
+            for index in 0..words.len() {
+                assert!(cmavo_sequence_containing(dictionary, &words, source, index).is_none());
+            }
         }
     }
 
