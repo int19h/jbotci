@@ -171,7 +171,7 @@ struct PreparedCompound<'a> {
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.1.len() + ret.2.len() == specs.len())]
 pub(super) fn rewrite_compounds(
     root: BlockTreeNode,
     source: &str,
@@ -367,7 +367,7 @@ struct RewrittenNode {
 
 /// Consume only emptied donor paths. Surviving ancestors retain their own identities.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.node.is_some() || !ret.removed_groups.is_empty())]
 fn rewrite_node(
     node: BlockTreeNode,
     source: &str,
@@ -479,8 +479,9 @@ fn rewrite_node(
         });
     }
     if !touched.is_empty() {
-        node.leaf_word = None;
-        node.token_kind = None;
+        let summary = generated_block_leaf_summary(&node.children, &node.leaf_parts);
+        node.leaf_word = summary.leaf_word.map(str::to_owned);
+        node.token_kind = summary.token_kind;
         node.span = generated_block_source_range(&node.children, &node.leaf_parts);
         node.raw_text = source_text_for_range(source, node.span);
     }
@@ -776,6 +777,56 @@ mod tests {
             lookup_text: "test attestation".to_owned(),
             columns: NonZeroUsize::new(words.len()).unwrap(),
         })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn straddling_compound_preserves_the_donor_nodes_remaining_word() {
+        let source = "mi re pa moi";
+        let words = segment_words_with_modifiers(source).unwrap();
+        let syntax = jbotci_syntax::parse_syntax_tree_generated_model_with_source_and_options(
+            &words,
+            source,
+            &jbotci_syntax::ParseOptions::default(),
+        )
+        .unwrap();
+        let spec = cmavo_spec(&words[2..]);
+        for show_elided in [false, true] {
+            let options = GentufaBlockOptions {
+                show_elided,
+                ..GentufaBlockOptions::default()
+            };
+            let bare = generated_model_blocks_layout::<()>(&syntax, source, &[], &options);
+            let projected = generated_model_blocks_layout_with_compounds::<()>(
+                &syntax,
+                source,
+                None,
+                None,
+                &[],
+                &options,
+                std::slice::from_ref(&spec),
+            );
+            assert!(projected.unapplied.is_empty());
+            assert_eq!(projected.applied.len(), 1);
+            assert_eq!(projected.layout.max_col, bare.max_col);
+            let retained = projected
+                .layout
+                .blocks
+                .iter()
+                .filter(|block| block.is_leaf && block.raw_text == "re")
+                .collect::<Vec<_>>();
+            assert_eq!(retained.len(), 1, "the donor must keep its remaining word");
+            assert_eq!(retained[0].display_text, "re");
+            assert_eq!(retained[0].token_kind, Some(WordKind::Cmavo));
+            assert_eq!(retained[0].compound_kind, None);
+            assert_eq!(retained[0].col_span, 1);
+            assert_eq!(
+                retained[0].span,
+                Some(range_from_span(words[1].bare_word().unwrap().span()))
+            );
+            assert_grid(&projected.layout);
+        }
     }
 
     #[test]

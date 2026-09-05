@@ -61,7 +61,7 @@ fn compounds_toggle_updates_the_checkbox_and_single_dom_documentation_host() {
             dom.render_immediate_to_vec();
         }
         let html = dioxus::ssr::render(&dom);
-        assert!(html.contains("Compounds"));
+        assert!(html.contains(" compounds"));
         assert_eq!(html.contains("checked"), enabled, "{html}");
         if enabled {
             assert_eq!(

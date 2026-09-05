@@ -533,7 +533,7 @@ pub(super) fn render_compounds_checkbox(
     rsx! {
         label {
             input { r#type: "checkbox", checked, onchange: move |_| toggle_compounds(&mut display) }
-            " Compounds"
+            " compounds"
         }
     }
 }

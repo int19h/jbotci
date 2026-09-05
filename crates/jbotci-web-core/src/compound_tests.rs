@@ -125,6 +125,53 @@ fn compound_blocks_have_one_documentation_host_and_preserve_other_projections() 
 #[test]
 #[requires(true)]
 #[ensures(true)]
+fn straddling_compound_preserves_the_remaining_number_and_its_annotations() {
+    for elided in [false, true] {
+        let enabled = parse("mi re pa moi", true, elided);
+        let disabled = parse("mi re pa moi", false, elided);
+        assert_eq!(
+            enabled.blocks_layout.max_col,
+            disabled.blocks_layout.max_col
+        );
+        let retained = enabled
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.is_leaf && block.raw_text == "re")
+            .expect("the number donor must retain its remaining re leaf");
+        let original = disabled
+            .blocks_layout
+            .blocks
+            .iter()
+            .find(|block| block.is_leaf && block.raw_text == "re")
+            .unwrap();
+        assert_eq!(retained.display_text, original.display_text);
+        assert_eq!(retained.glosses, original.glosses);
+        assert_eq!(retained.tooltip, original.tooltip);
+        assert_eq!(retained.span, original.span);
+        assert_eq!(retained.token_kind, original.token_kind);
+        let compounds = enabled
+            .blocks_layout
+            .blocks
+            .iter()
+            .filter(|block| block.compound_kind.is_some())
+            .collect::<Vec<_>>();
+        assert_eq!(compounds.len(), 1);
+        assert!(compounds[0].is_leaf);
+        assert_eq!(compounds[0].raw_text, "pa moi");
+        assert_eq!(compounds[0].col_span, 2);
+        assert!(
+            compounds[0]
+                .glosses
+                .iter()
+                .any(|gloss| gloss == "first" || gloss == "is first among")
+        );
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
 fn recovered_projection_keeps_error_barriers_and_later_compounds() {
     for source in ["ba pu mi ku i do", "mi ku i je do"] {
         for elided in [false, true] {

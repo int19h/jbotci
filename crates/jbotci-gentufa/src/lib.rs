@@ -175,6 +175,16 @@ pub fn reference_slot_display_text(slot: &ReferenceSlotLabel) -> String {
 #[expensive_invariant(blocks.iter().enumerate().all(|(index, block)| blocks[index + 1..].iter().all(|other|
     block.row + block.row_span <= other.row || other.row + other.row_span <= block.row
         || block.col + block.col_span <= other.col || other.col + other.col_span <= block.col)), "block rectangles never overlap")]
+// Together with containment and non-overlap, equal area means every grid cell
+// is covered exactly once, without scanning every cell against every block.
+#[expensive_invariant(
+    max_col.checked_mul(*max_row).is_some_and(|grid_area| {
+        blocks.iter().try_fold(0usize, |area, block| {
+            area.checked_add(block.col_span.checked_mul(block.row_span)?)
+        }) == Some(grid_area)
+    }),
+    "block rectangles must cover every grid cell exactly once"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
@@ -1456,21 +1466,9 @@ fn generated_block_tree_node_from_parts(
         return None;
     }
     children.sort_by_key(|child| child.span.map(|span| span.byte_start).unwrap_or(usize::MAX));
-    let display_text = leaf_parts
-        .iter()
-        .map(|part| part.display_text.as_str())
-        .collect::<Vec<_>>()
-        .join(" ");
-    let leaf_word = if children.is_empty() && leaf_parts.len() == 1 && !display_text.is_empty() {
-        Some(display_text)
-    } else {
-        None
-    };
-    let leaf_token_kind = if children.is_empty() && leaf_parts.len() == 1 {
-        leaf_parts[0].token_kind
-    } else {
-        None
-    };
+    let summary = generated_block_leaf_summary(&children, &leaf_parts);
+    let leaf_word = summary.leaf_word.map(str::to_owned);
+    let leaf_token_kind = summary.token_kind;
     Some(new!(BlockTreeNode {
         keep_structural_host: false,
         id,
@@ -1491,6 +1489,33 @@ fn generated_block_tree_node_from_parts(
         computed_gloss,
         children,
     }))
+}
+
+#[invariant(leaf_word.as_ref().is_none_or(|word| !word.is_empty()))]
+struct BlockLeafSummary<'part> {
+    leaf_word: Option<&'part str>,
+    token_kind: Option<WordKind>,
+}
+
+/// Construction and compound removal must classify the same surviving parts as leaves.
+#[requires(true)]
+#[ensures(ret.leaf_word.is_some() == (children.is_empty() && leaf_parts.len() == 1 && !leaf_parts[0].display_text.is_empty()))]
+#[ensures(ret.token_kind == if children.is_empty() && leaf_parts.len() == 1 { leaf_parts[0].token_kind } else { None })]
+fn generated_block_leaf_summary<'part>(
+    children: &[BlockTreeNode],
+    leaf_parts: &'part [BlockLeafPart],
+) -> BlockLeafSummary<'part> {
+    let part = if children.is_empty() && leaf_parts.len() == 1 {
+        Some(&leaf_parts[0])
+    } else {
+        None
+    };
+    new!(BlockLeafSummary {
+        leaf_word: part
+            .filter(|part| !part.display_text.is_empty())
+            .map(|part| part.display_text.as_str()),
+        token_kind: part.and_then(|part| part.token_kind),
+    })
 }
 
 #[requires(true)]
@@ -2204,6 +2229,8 @@ fn synthetic_leaf_block<Tooltip>(
     new!(GentufaBlock {
         block_id: format!("n{}", part.id.0),
         node_ids: if node.keep_structural_host {
+            // The shared donor identity belongs only to the structural host;
+            // its surviving own parts retain their individual identities.
             vec![part.id.0]
         } else {
             node.node_ids.iter().map(|id| id.0).collect()
