@@ -44,10 +44,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "rebuild error wraps the typed request-state error unchanged",
     ),
     (
-        "apps/jbotci-server/src/discord/components.rs:AttachmentRequest::Retain",
-        "a retained attachment is identified by its snowflake and validated name",
-    ),
-    (
         "apps/jbotci-server/src/discord/components.rs:InteractionResponse::EphemeralText",
         "private text response; the ephemeral constructor bounds the text",
     ),

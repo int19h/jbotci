@@ -537,13 +537,21 @@ fn gentufa_controls(request: &GentufaRequest) -> Result<Vec<ModalComponent>, Bou
                         options.include_diagram,
                     ),
                     option(FLAG_ELIDED, "Elided terminators", None, options.show_elided),
+                    // Both settings shape the diagram only; the text views
+                    // show the same parse either way, so the labels say so
+                    // rather than suggesting the analysis itself changes.
                     option(
                         FLAG_COMPOUNDS,
                         "Attested compounds",
-                        Some("Keep dictionary compounds together."),
+                        Some("Diagram only: draw a dictionary compound as one block."),
                         options.show_compounds,
                     ),
-                    option(FLAG_GLOSSES, "Glosses", None, options.show_glosses),
+                    option(
+                        FLAG_GLOSSES,
+                        "Glosses",
+                        Some("Diagram only: label blocks with their glosses."),
+                        options.show_glosses,
+                    ),
                 ],
                 0,
             )?,

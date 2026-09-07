@@ -24,16 +24,19 @@ use super::assemble::{AssembleError, AssembledMessage, assemble};
 use super::codec::{
     INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, ModalHeader, RequestHeader, decode_input_block,
 };
-use super::components::{InteractionResponse, MessagePayload, Modal, ModalComponent, ModalControl};
+use super::components::{
+    InteractionResponse, MessageComponent, MessagePayload, Modal, ModalComponent, ModalControl,
+    PayloadError, TextDisplay,
+};
 use super::dedupe::{Admission, DeliveryTicket, RecentInteractions};
 use super::diagram::DiagramLimits;
 use super::links::{AppLinkTooLarge, app_link};
-use super::locks::MessageLocks;
+use super::locks::{MessageGuard, MessageLocks};
 use super::modal::{Submission, SubmissionError, build as build_modal, parse_submission};
 use super::operations::{
-    OperationContext, OperationError, RequestValidationError, ToolOutcome, preflight, run_request,
+    OperationContext, OperationError, RequestValidationError, ToolOutcome, run_request,
 };
-use super::present::{render, render_validation_error};
+use super::present::{markdown, render, render_failure, render_validation_error};
 use super::request::{BuildTag, PublishedRequest, Revision, Snowflake};
 use super::schema::{CommandDecodeError, decode_command};
 use super::transport::{DiscordApi, InteractionToken, TransportError};
@@ -47,6 +50,12 @@ const HANDLER_BUDGET: Duration = Duration::from_secs(20);
 /// How long opening a form may take. Discord drops an interaction that is not
 /// answered within three seconds, and only an immediate answer can be a form.
 const MODAL_BUDGET: Duration = Duration::from_millis(2200);
+/// How long finishing an interaction may take once its work is over. Saying
+/// what happened is not the work, so it is not paid for out of the work's
+/// budget: a request that spent every second it had must still be able to
+/// report that. The interaction's token stays valid for fifteen minutes, so
+/// this only bounds how long the network lane is held for it.
+const SETTLE_BUDGET: Duration = Duration::from_secs(5);
 /// Most bytes a source attachment may carry back into a form.
 const SOURCE_ATTACHMENT_CAP: usize = 1 << 20;
 /// How long to wait for Discord to create the message its acknowledgement
@@ -195,10 +204,15 @@ impl DiscordService {
                 }
             }
             Err(error) => {
+                // Whether a result is already published is now unknown, and a
+                // first result written over an edited one would lose the
+                // reader's work. Publishing on a guess is the worse outcome,
+                // so this says what happened and writes nothing.
                 self.report_privately(
                     &target,
-                    &format!("jbotci could not read its own message back: {error}"),
-                    deadline,
+                    &format!(
+                        "jbotci could not read its own message back, so nothing was published: {error}"
+                    ),
                     Some(keepalive.clone()),
                 )
                 .await;
@@ -218,28 +232,119 @@ impl DiscordService {
         {
             Ok(message) => message,
             Err(error) => {
-                self.report_privately(
+                // The acknowledgement already promised a message. A private
+                // note beside an indicator that never resolves would leave
+                // the reader watching nothing, so the failure becomes the
+                // message instead.
+                self.publish_failure(
                     &target,
-                    &format!("jbotci could not build the result: {error}"),
-                    deadline,
-                    Some(keepalive.clone()),
+                    &published,
+                    &error,
+                    command.attachment_limit,
+                    Some(keepalive),
                 )
                 .await;
                 return;
             }
         };
-        // Read once more immediately before writing: a replay that saw a
-        // pending message a moment ago must not overwrite a result published
-        // in the meantime.
-        if let Ok(current) = self
-            .read_original(&target, deadline, Some(keepalive.clone()))
+        self.publish_first(&target, &message.payload, deadline, Some(keepalive))
+            .await;
+    }
+
+    /// Write a first message, once and only once. Every path that publishes
+    /// one reads the message immediately beforehand: a replay that saw a
+    /// pending message a moment ago must not overwrite a result published in
+    /// the meantime, and a read that fails settles nothing either way, so an
+    /// unknown state is a reason to write nothing rather than to write over
+    /// it. Failures publish through here for the same reason results do.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn publish_first(
+        &self,
+        target: &Target,
+        payload: &MessagePayload,
+        deadline: Instant,
+        keepalive: Option<WorkKeepalive>,
+    ) {
+        match self
+            .read_original(target, deadline, keepalive.clone())
             .await
-            && RequestHeader::of_message(&current).is_some()
         {
+            Ok(current) if RequestHeader::of_message(&current).is_some() => return,
+            Ok(_) => {}
+            Err(error) => {
+                self.report_privately(
+                    target,
+                    &format!(
+                        "jbotci could not check the message before publishing, so nothing was written: {error}"
+                    ),
+                    keepalive,
+                )
+                .await;
+                return;
+            }
+        }
+        self.write_and_confirm(target, payload, deadline, keepalive)
+            .await;
+    }
+
+    /// Finish a first publication whose result could not be produced. Where
+    /// the request still travels in a message, the failure carries its ⚙️
+    /// form and can be corrected there; where it does not, the message says
+    /// so and carries no form, because a form that cannot rebuild its request
+    /// would promise more than it can keep.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn publish_failure(
+        &self,
+        target: &Target,
+        published: &PublishedRequest,
+        error: &ResultError,
+        attachment_limit: Option<u64>,
+        keepalive: Option<WorkKeepalive>,
+    ) {
+        let deadline = Instant::now() + SETTLE_BUDGET;
+        let reason = error.to_string();
+        // A result is editable only where its ⚙️ form could reopen it. A
+        // request whose "Open in app" link does not fit was refused admission
+        // before publication, so it does not become an editable result whose
+        // form would have to offer a link that cannot exist: it is a refusal,
+        // said once, with nothing to change here.
+        let assembled = match error {
+            ResultError::Link(_) => None,
+            _ => assemble(
+                &render_failure(&reason, &published.request),
+                published,
+                self.attachment_limit(attachment_limit),
+            )
+            .ok(),
+        };
+        if let Some(message) = assembled {
+            self.publish_first(target, &message.payload, deadline, keepalive)
+                .await;
             return;
         }
-        self.write_and_confirm(&target, &message, deadline, Some(keepalive))
-            .await;
+        let text = format!(
+            "**Not run:** {}\n{}",
+            markdown::escape(&reason),
+            markdown::subtext(
+                "jbotci publishes only a result its ⚙️ form can reopen, so nothing was published here. Run the command again with a smaller request."
+            )
+        );
+        match text_only_payload(&text) {
+            Ok(payload) => {
+                self.publish_first(target, &payload, deadline, keepalive)
+                    .await;
+            }
+            Err(_) => {
+                self.report_privately(
+                    target,
+                    &format!("Nothing was published: {reason}"),
+                    keepalive,
+                )
+                .await;
+            }
+        }
     }
 
     /// The ⚙️ button opens the form. This answer must be immediate, so the
@@ -253,9 +358,14 @@ impl DiscordService {
     ) -> InteractionResponse {
         let ticket = match self.recent.admit(&component.id) {
             Admission::First(ticket) => ticket,
-            Admission::Duplicate | Admission::AtCapacity => {
+            Admission::Duplicate => {
                 return InteractionResponse::ephemeral(
                     "That form is already opening; try the button again in a moment.",
+                );
+            }
+            Admission::AtCapacity => {
+                return InteractionResponse::ephemeral(
+                    "jbotci is handling as much as it can right now; try the ⚙️ button again in a moment.",
                 );
             }
         };
@@ -329,6 +439,15 @@ impl DiscordService {
                 "This result changed while the form was open. Open the ⚙️ form again to work from what it shows now.",
             );
         }
+        // The form's identifier and the message both name who asked, and both
+        // come back from Discord. They must agree with each other and with
+        // whoever is submitting: the message is the published one, so it has
+        // the last word.
+        if submit.actor != published.initiator {
+            return InteractionResponse::ephemeral(
+                "Only the person who ran this command can change it. Run your own /jbotci to work with these settings.",
+            );
+        }
         let submission = match Submission::read(&submit.data) {
             Ok(submission) => submission,
             Err(error) => return InteractionResponse::ephemeral(&submission_error_text(&error)),
@@ -347,6 +466,11 @@ impl DiscordService {
                 "This result has been edited as many times as jbotci records. Run the command again to start over.",
             );
         };
+        // The result being replaced was made by whatever build published it;
+        // this one is made by the running build. When those differ the reader
+        // is told, because the text and the image they are looking at are the
+        // work of a different version of jbotci than the one they saw.
+        let rebuilt_by_another_build = published.build_tag != self.build_tag;
         let next = PublishedRequest {
             request,
             revision,
@@ -356,7 +480,13 @@ impl DiscordService {
         let service = Arc::clone(self);
         tokio::spawn(async move {
             service
-                .apply_submission(submit, next, header.revision, ticket)
+                .apply_submission(
+                    submit,
+                    next,
+                    header.revision,
+                    rebuilt_by_another_build,
+                    ticket,
+                )
                 .await;
         });
         InteractionResponse::DeferredUpdateMessage
@@ -373,24 +503,36 @@ impl DiscordService {
         submit: ModalSubmitInteraction,
         next: PublishedRequest,
         opened_from: Revision,
+        rebuilt_by_another_build: bool,
         ticket: Arc<DeliveryTicket>,
     ) {
         let deadline = Instant::now() + HANDLER_BUDGET;
+        // Until the lock is held, the delivery ticket alone stands for this
+        // work; reporting that the lock could not be taken needs nothing more.
         let keepalive: WorkKeepalive = ticket.clone();
         let target = Target {
             application_id: submit.application_id.clone(),
             token: submit.token.clone(),
         };
-        let Ok(_guard) = self.locks.acquire(&submit.message_id, deadline).await else {
+        let Ok(guard) = self.locks.acquire(&submit.message_id, deadline).await else {
             self.report_privately(
                 &target,
                 "jbotci is already changing this result; try again in a moment.",
-                deadline,
                 Some(keepalive.clone()),
             )
             .await;
             return;
         };
+        // From here the lock belongs to the work rather than to whoever is
+        // waiting for it. A write whose caller stopped waiting is still a
+        // write: releasing the message then would let a second submission
+        // read the old revision and publish, only for the first write to land
+        // afterwards and overwrite it. Carried in the keepalive, the lock is
+        // held for exactly as long as the work that writes.
+        let keepalive: WorkKeepalive = Arc::new(Retained {
+            _ticket: ticket,
+            _guard: guard,
+        });
         // The message is read again under the lock: an in-memory revision is
         // not a durable one, and another submission may have landed first.
         match self
@@ -402,7 +544,17 @@ impl DiscordService {
                     self.report_privately(
                         &target,
                         "This result changed while your form was open, so nothing was applied. Open the ⚙️ form again.",
-                        deadline,
+                        Some(keepalive.clone()),
+                    )
+                    .await;
+                    return;
+                }
+                // Checked again here against the message as Discord holds
+                // it now, which is the only authority on who published it.
+                Some(header) if header.initiator != submit.actor => {
+                    self.report_privately(
+                        &target,
+                        "Only the person who ran this command can change it, so nothing was applied.",
                         Some(keepalive.clone()),
                     )
                     .await;
@@ -413,7 +565,6 @@ impl DiscordService {
                     self.report_privately(
                         &target,
                         "jbotci could not find its own settings on that message, so nothing was applied.",
-                        deadline,
                         Some(keepalive.clone()),
                     )
                     .await;
@@ -424,7 +575,6 @@ impl DiscordService {
                 self.report_privately(
                     &target,
                     &format!("jbotci could not read the result before changing it: {error}"),
-                    deadline,
                     Some(keepalive.clone()),
                 )
                 .await;
@@ -437,6 +587,7 @@ impl DiscordService {
                 deadline,
                 Some(keepalive.clone()),
                 submit.attachment_limit,
+                rebuilt_by_another_build,
             )
             .await
         {
@@ -445,14 +596,13 @@ impl DiscordService {
                 self.report_privately(
                     &target,
                     &format!("Nothing was changed: {error}"),
-                    deadline,
                     Some(keepalive.clone()),
                 )
                 .await;
                 return;
             }
         };
-        self.write_and_confirm(&target, &message, deadline, Some(keepalive))
+        self.write_and_confirm(&target, &message.payload, deadline, Some(keepalive))
             .await;
     }
 
@@ -496,6 +646,7 @@ impl DiscordService {
         deadline: Instant,
         keepalive: Option<WorkKeepalive>,
         attachment_limit: Option<u64>,
+        rebuilt_by_another_build: bool,
     ) -> Result<AssembledMessage, ResultError> {
         let link = app_link(&published.request, &self.config.public_base_url)
             .map_err(ResultError::Link)?;
@@ -506,7 +657,18 @@ impl DiscordService {
                 RunError::Invalid(error) => ResultError::Invalid(error),
                 RunError::Failed(error) => ResultError::Operation(error),
             })?;
-        let rendered = render(&outcome, &published.request, link.as_deref());
+        let mut rendered = render(&outcome, &published.request, link.as_deref());
+        if rebuilt_by_another_build {
+            // Only when the versions actually differ: a note on every ordinary
+            // edit would be noise, and this one carries information.
+            let note = markdown::subtext(
+                "Recomputed by a different version of jbotci than the one that produced the previous result.",
+            );
+            rendered.notice = Some(match rendered.notice.take() {
+                Some(existing) => format!("{existing}\n{note}"),
+                None => note,
+            });
+        }
         assemble(
             &rendered,
             published,
@@ -524,9 +686,8 @@ impl DiscordService {
         keepalive: Option<WorkKeepalive>,
         attachment_limit: Option<u64>,
     ) -> Result<ToolOutcome, RunError> {
-        if let Err(error) = preflight(&published.request) {
-            return Err(RunError::Invalid(error));
-        }
+        // `run_request` admits the request itself, so nothing is validated
+        // twice and no part of it runs on this thread.
         let context = OperationContext {
             tools: &self.tools,
             governor: &self.governor,
@@ -563,12 +724,12 @@ impl DiscordService {
     async fn write_and_confirm(
         &self,
         target: &Target,
-        message: &AssembledMessage,
+        payload: &MessagePayload,
         deadline: Instant,
         keepalive: Option<WorkKeepalive>,
     ) {
         match self
-            .write_original(target, &message.payload, deadline, keepalive.clone())
+            .write_original(target, payload, deadline, keepalive.clone())
             .await
         {
             Ok(()) => {}
@@ -577,9 +738,7 @@ impl DiscordService {
                     .read_original(target, deadline, keepalive.clone())
                     .await
                 {
-                    Ok(current) => {
-                        message_fingerprint(&current) == payload_fingerprint(&message.payload)
-                    }
+                    Ok(current) => message_fingerprint(&current) == payload_fingerprint(payload),
                     Err(_) => false,
                 };
                 if !landed {
@@ -588,20 +747,14 @@ impl DiscordService {
                         &format!(
                             "jbotci could not confirm the change ({reason}); the result may be unchanged. Open the ⚙️ form again to check."
                         ),
-                        deadline,
                         keepalive,
                     )
                     .await;
                 }
             }
             Err(WriteError::Failed { reason }) => {
-                self.report_privately(
-                    target,
-                    &format!("Nothing was changed: {reason}"),
-                    deadline,
-                    keepalive,
-                )
-                .await;
+                self.report_privately(target, &format!("Nothing was changed: {reason}"), keepalive)
+                    .await;
             }
         }
     }
@@ -625,11 +778,10 @@ impl DiscordService {
                 let url = attachment_url(message, INPUT_ATTACHMENT_FILENAME)
                     .ok_or(StateError::NoSettings)?;
                 let api = self.api.clone();
-                let remaining = deadline.saturating_duration_since(Instant::now());
                 let bytes = self
                     .governor
                     .run_fetch_keeping(deadline, keepalive, move || {
-                        api.fetch_attachment(&url, SOURCE_ATTACHMENT_CAP, remaining)
+                        api.fetch_attachment(&url, SOURCE_ATTACHMENT_CAP, remaining_at(deadline))
                     })
                     .await
                     .map_err(|_| StateError::SourceUnavailable)?
@@ -681,7 +833,10 @@ impl DiscordService {
         match self
             .governor
             .run_fetch_keeping(deadline, keepalive, move || {
-                api.get_original(&application_id, &token)
+                // What is left is measured where the call is made, not where
+                // it was queued: time spent waiting for a lane belongs to the
+                // same deadline and must not be granted twice.
+                api.get_original(&application_id, &token, remaining_at(deadline))
             })
             .await
         {
@@ -708,7 +863,7 @@ impl DiscordService {
         match self
             .governor
             .run_fetch_keeping(deadline, keepalive, move || {
-                api.edit_original(&application_id, &token, &payload)
+                api.edit_original(&application_id, &token, &payload, remaining_at(deadline))
             })
             .await
         {
@@ -730,16 +885,19 @@ impl DiscordService {
         }
     }
 
-    /// Tell the acting reader something only they need to know.
+    /// Tell the acting reader something only they need to know. This is what
+    /// is said after the work is over, so it runs on its own budget: a
+    /// request that used every second it had would otherwise be unable to
+    /// report even that.
     #[requires(!text.trim().is_empty())]
     #[ensures(true)]
     async fn report_privately(
         &self,
         target: &Target,
         text: &str,
-        deadline: Instant,
         keepalive: Option<WorkKeepalive>,
     ) {
+        let deadline = Instant::now() + SETTLE_BUDGET;
         let api = self.api.clone();
         let application_id = target.application_id.clone();
         let token = target.token.clone();
@@ -747,10 +905,50 @@ impl DiscordService {
         let _ = self
             .governor
             .run_fetch_keeping(deadline, keepalive, move || {
-                api.create_ephemeral_followup(&application_id, &token, &text)
+                api.create_ephemeral_followup(
+                    &application_id,
+                    &token,
+                    &text,
+                    remaining_at(deadline),
+                )
             })
             .await;
     }
+}
+
+/// What is left of one absolute deadline. Called from inside the admitted
+/// worker so that waiting in the queue and talking to Discord share a single
+/// budget rather than each being given the whole of it.
+#[requires(true)]
+#[ensures(true)]
+fn remaining_at(deadline: Instant) -> Duration {
+    deadline.saturating_duration_since(Instant::now())
+}
+
+/// What running work holds onto for as long as it actually runs, whoever is
+/// still waiting for it: the delivery this interaction was admitted under,
+/// and the message lock when the work is going to write. Both are released
+/// when the last worker carrying this ends, not when a caller gives up.
+#[invariant(true)]
+#[derive(Debug)]
+struct Retained {
+    _ticket: Arc<DeliveryTicket>,
+    _guard: MessageGuard,
+}
+
+/// A message that is only words: no state, no attachments, nothing to reopen.
+/// This is what a request that cannot travel in a message leaves behind.
+#[requires(!text.trim().is_empty())]
+#[ensures(true)]
+fn text_only_payload(text: &str) -> Result<MessagePayload, PayloadError> {
+    let display =
+        TextDisplay::new(None, text.to_owned()).map_err(|_| PayloadError::TextBudget {
+            units: super::request::utf16_len(text),
+        })?;
+    MessagePayload::new(
+        vec1::Vec1::new(MessageComponent::TextDisplay(display)),
+        Vec::new(),
+    )
 }
 
 /// The message one interaction may read and write.
@@ -1181,8 +1379,9 @@ mod tests {
     use serde_json::json;
 
     use crate::discord::codec::SCHEMA_VERSION;
+    use crate::discord::operations::OperationError;
     use crate::discord::request::DiscordTool;
-    use crate::discord::work::WorkGovernor;
+    use crate::discord::work::{WorkError, WorkGovernor, WorkLane};
 
     const ACTOR: &str = "123456789012345678";
     const OTHER_ACTOR: &str = "222222222222222222";
@@ -1193,6 +1392,8 @@ mod tests {
     #[invariant(true)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum Reply {
+        /// The call is answered as usual.
+        Ok,
         /// The message has not been created yet.
         NotCreated,
         /// The write fails outright, and nothing changes.
@@ -1315,9 +1516,14 @@ mod tests {
             .lock()
             .expect("state")
             .push(("GET @original".to_owned(), Value::Null));
-        let planned = state.reads.lock().expect("state").pop_front();
-        if planned == Some(Reply::NotCreated) {
-            return (axum::http::StatusCode::NOT_FOUND, "unknown message").into_response();
+        match state.reads.lock().expect("state").pop_front() {
+            Some(Reply::NotCreated) => {
+                return (axum::http::StatusCode::NOT_FOUND, "unknown message").into_response();
+            }
+            Some(Reply::Failed) | Some(Reply::LostAndNotApplied) | Some(Reply::AppliedThenLost) => {
+                return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "lost").into_response();
+            }
+            Some(Reply::Ok) | None => {}
         }
         match state.original.lock().expect("state").clone() {
             Some(message) => axum::Json(message).into_response(),
@@ -2087,12 +2293,18 @@ mod tests {
         let mut interaction = command("90", "gentufa", vec![option("text", &long)]);
         interaction["attachment_size_limit"] = json!(64);
         service.handle(&interaction).await;
-        quiet(&discord).await;
-        let complaint = discord.private_messages().join("\n");
+        settle(&discord, 1).await;
+        // The source cannot travel, so no result is published; the message
+        // still has to stop saying it is thinking, and says why instead.
+        let published = discord.original().expect("a message");
+        let text = published.to_string();
         assert!(
-            discord.count("PATCH") == 0 && complaint.contains("shorten the input")
-                || discord.count("PATCH") == 1,
-            "either the source fits or the reader is told why not: {complaint}"
+            text.contains("Not run"),
+            "the message says what happened: {text}"
+        );
+        assert!(
+            !text.contains("custom_id"),
+            "a request that cannot travel carries no form: {text}"
         );
 
         // The same request with room for its file publishes it.
@@ -2151,6 +2363,315 @@ mod tests {
             }
             other => panic!("unexpected {other:?}"),
         }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn an_initial_failure_becomes_the_message_it_promised() {
+        // Work that cannot produce a result still owes the reader an answer:
+        // the acknowledgement already put a thinking indicator on screen, and
+        // only editing that message takes it away.
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        let published = PublishedRequest {
+            request: decode_command(
+                &command("110", "vlasei", vec![option("text", "mi klama")])["data"],
+            )
+            .expect("a request"),
+            revision: Revision::INITIAL,
+            initiator: Snowflake::parse(ACTOR).expect("snowflake"),
+            build_tag: BuildTag::current(),
+        };
+        let target = Target {
+            application_id: Snowflake::parse(APPLICATION).expect("snowflake"),
+            token: InteractionToken::parse("test-token").expect("a token"),
+        };
+        service
+            .publish_failure(
+                &target,
+                &published,
+                &ResultError::Operation(OperationError::Work(WorkError::Overloaded {
+                    lane: WorkLane::Compute,
+                })),
+                None,
+                None,
+            )
+            .await;
+        settle(&discord, 1).await;
+
+        let message = discord.original().expect("a message");
+        let text = message.to_string();
+        assert!(
+            text.contains("Not run"),
+            "the failure is the message: {text}"
+        );
+        // And it is an editable result: its form opens on the same request,
+        // so the reader can change it and try again.
+        let response = service
+            .handle(&component_interaction("111", &message, ACTOR))
+            .await;
+        let modal = modal_of(response);
+        let source = modal
+            .components
+            .iter()
+            .find_map(|component| match component {
+                ModalComponent::Label(labeled) => match &labeled.control {
+                    ModalControl::TextInput(input) => input.value.clone(),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("the source field");
+        assert_eq!(source, "mi klama", "the failed request reopens as it was");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_failure_never_replaces_a_result_that_was_already_published() {
+        // A failing replay arrives after the first delivery published a real
+        // result. The failure path reads the message before writing, exactly
+        // as the success path does, so the reader keeps their result.
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command("130", "vlasei", vec![option("text", "mi klama")]))
+            .await;
+        settle(&discord, 1).await;
+        let published = discord.original().expect("a result");
+
+        let request =
+            decode_command(&command("131", "vlasei", vec![option("text", "mi klama")])["data"])
+                .expect("a request");
+        let state = PublishedRequest {
+            request,
+            revision: Revision::INITIAL,
+            initiator: Snowflake::parse(ACTOR).expect("snowflake"),
+            build_tag: BuildTag::current(),
+        };
+        let target = Target {
+            application_id: Snowflake::parse(APPLICATION).expect("snowflake"),
+            token: InteractionToken::parse("test-token").expect("a token"),
+        };
+        let writes = discord.count("PATCH");
+        service
+            .publish_failure(
+                &target,
+                &state,
+                &ResultError::Operation(OperationError::Work(WorkError::Overloaded {
+                    lane: WorkLane::Compute,
+                })),
+                None,
+                None,
+            )
+            .await;
+        quiet(&discord).await;
+        assert_eq!(discord.count("PATCH"), writes, "nothing was written");
+        assert_eq!(
+            discord.original().expect("a result"),
+            published,
+            "the published result is untouched"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_form_whose_owner_disagrees_with_the_message_changes_nothing() {
+        // Both the form's identifier and the message name who asked, and both
+        // arrive from Discord. If they disagree, the message is the published
+        // one and wins: a form claiming otherwise applies nothing.
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command("150", "vlasei", vec![option("text", "mi klama")]))
+            .await;
+        settle(&discord, 1).await;
+        let published = discord.original().expect("a result");
+        let modal = modal_of(
+            service
+                .handle(&component_interaction("151", &published, ACTOR))
+                .await,
+        );
+
+        // The same message as if someone else had published it.
+        let gear = gear_of(&published);
+        let mut fields = gear.split('.').collect::<Vec<_>>();
+        assert_eq!(fields[5], ACTOR, "the header's initiator: {gear}");
+        fields[5] = OTHER_ACTOR;
+        let theirs = fields.join(".");
+        let their_message: Value =
+            serde_json::from_str(&published.to_string().replace(&gear, &theirs))
+                .expect("a message");
+        discord.publish(their_message.clone());
+
+        let writes = discord.count("PATCH");
+        let response = service
+            .handle(&submission("152", &modal, &their_message, ACTOR, &[]))
+            .await;
+        assert!(
+            ephemeral_text(&response).contains("Only the person who ran this command"),
+            "{response:?}"
+        );
+        quiet(&discord).await;
+        assert_eq!(discord.count("PATCH"), writes, "nothing was applied");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_result_recomputed_by_another_build_says_so() {
+        // A message published before an upgrade is edited afterwards: the
+        // text and any image are the work of a different version than the one
+        // the reader was looking at, and the result says so once.
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command("140", "vlasei", vec![option("text", "mi klama")]))
+            .await;
+        settle(&discord, 1).await;
+        let published = discord.original().expect("a result");
+
+        // The same message as an older build would have left it: only its
+        // build tag differs, and the tag is outside the source digest.
+        let gear = gear_of(&published);
+        let mut fields = gear.split('.').collect::<Vec<_>>();
+        assert_eq!(fields.len(), 8, "the header fields: {gear}");
+        assert_eq!(fields[6], BuildTag::current().as_str());
+        fields[6] = "oldbuild";
+        let older = fields.join(".");
+        let older_message: Value =
+            serde_json::from_str(&published.to_string().replace(&gear, &older)).expect("a message");
+        discord.publish(older_message.clone());
+
+        let modal = modal_of(
+            service
+                .handle(&component_interaction("141", &older_message, ACTOR))
+                .await,
+        );
+        let writes = discord.count("PATCH");
+        service
+            .handle(&submission("142", &modal, &older_message, ACTOR, &[]))
+            .await;
+        settle(&discord, writes + 1).await;
+        let edited = discord.original().expect("a result").to_string();
+        assert!(
+            edited.contains("Recomputed by a different version"),
+            "the reader is told which version made this: {edited}"
+        );
+
+        // An ordinary edit of a result from this build says nothing of the
+        // kind: the note carries information, so it must be rare.
+        let current = discord.original().expect("a result");
+        let modal = modal_of(
+            service
+                .handle(&component_interaction("143", &current, ACTOR))
+                .await,
+        );
+        let writes = discord.count("PATCH");
+        service
+            .handle(&submission("144", &modal, &current, ACTOR, &[]))
+            .await;
+        settle(&discord, writes + 1).await;
+        let edited = discord.original().expect("a result").to_string();
+        assert!(
+            !edited.contains("Recomputed by a different version"),
+            "no version note on an ordinary edit: {edited}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_replay_that_cannot_read_the_message_writes_nothing() {
+        // A redelivered command re-checks the message immediately before
+        // writing. When that check cannot be made at all, whether a result is
+        // already published is unknown, and writing would risk replacing an
+        // edited result with the command's defaults.
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        discord.plan_reads(&[Reply::Ok, Reply::Failed]);
+        service
+            .handle(&command("120", "vlasei", vec![option("text", "mi klama")]))
+            .await;
+        quiet(&discord).await;
+
+        assert_eq!(discord.count("PATCH"), 0, "nothing was written");
+        let complaint = discord.private_messages().join("\n");
+        assert!(
+            complaint.contains("nothing was written"),
+            "the reader is told why: {complaint}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_write_that_outlives_its_caller_keeps_the_message_locked() {
+        // The message lock belongs to the work that writes, not to whoever
+        // waits for it. Were it released when the caller gave up, a second
+        // submission could read the old revision, publish, and then be
+        // silently overwritten by the first write landing late.
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let locks = Arc::new(MessageLocks::new(4, 4));
+        let governor = WorkGovernor::new(Default::default());
+        let recent = Arc::new(RecentInteractions::new(4));
+        let message = Snowflake::parse(MESSAGE).expect("snowflake");
+        let Admission::First(ticket) = recent.admit(&message) else {
+            panic!("first delivery");
+        };
+        let guard = locks
+            .acquire(&message, Instant::now() + Duration::from_secs(5))
+            .await
+            .expect("the lock");
+        let keepalive: WorkKeepalive = Arc::new(Retained {
+            _ticket: Arc::new(ticket),
+            _guard: guard,
+        });
+
+        let running = Arc::new(AtomicBool::new(false));
+        let release = Arc::new(AtomicBool::new(false));
+        let started = Arc::clone(&running);
+        let held = Arc::clone(&release);
+        let outcome = governor
+            .run_fetch_keeping(
+                Instant::now() + Duration::from_millis(100),
+                Some(keepalive.clone()),
+                move || {
+                    started.store(true, Ordering::Release);
+                    while !held.load(Ordering::Acquire) {
+                        std::thread::sleep(Duration::from_millis(5));
+                    }
+                },
+            )
+            .await;
+        assert!(outcome.is_err(), "the caller stopped waiting for the write");
+        assert!(running.load(Ordering::Acquire), "the write had started");
+
+        // The waiting side lets go of everything it holds; the write has not.
+        drop(keepalive);
+        assert!(
+            locks
+                .acquire(&message, Instant::now() + Duration::from_millis(200))
+                .await
+                .is_err(),
+            "no later edit may enter while the write is in flight"
+        );
+        release.store(true, Ordering::Release);
+        assert!(
+            locks
+                .acquire(&message, Instant::now() + Duration::from_secs(5))
+                .await
+                .is_ok(),
+            "the message is free once the work really settles"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 3)]

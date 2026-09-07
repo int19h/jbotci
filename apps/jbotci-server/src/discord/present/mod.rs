@@ -180,17 +180,36 @@ pub(crate) fn render_validation_error(
     error: &RequestValidationError,
     request: &DiscordRequest,
 ) -> RenderedResult {
+    render_failure(&error.to_string(), request)
+}
+
+/// Present a first result that could not be produced at all: what happened,
+/// plus the gear that reopens the request. A failure is still a result, so it
+/// is a message like any other rather than a private note beside a message
+/// that never says anything.
+#[requires(true)]
+#[ensures(ret.tool() == request.tool())]
+pub(crate) fn render_failure(reason: &str, request: &DiscordRequest) -> RenderedResult {
     let tool = request.tool();
     let mut rendered = RenderedResult::new(tool, format!("{tool} · not run"));
-    rendered.body.push(format!(
-        "**Not run:** {}",
-        markdown::escape(&error.to_string())
-    ));
+    // The reason comes from an error type, not from a result, so it is short
+    // by construction; it is cut before escaping all the same, because one
+    // unexpectedly long reason must not be what makes a message unsendable.
+    let reason = reason
+        .chars()
+        .take(FAILURE_REASON_CHARS)
+        .collect::<String>();
+    rendered
+        .body
+        .push(format!("**Not run:** {}", markdown::escape(&reason)));
     rendered.notice = Some(markdown::subtext(
         "Use the ⚙️ button to correct the request.",
     ));
     rendered
 }
+
+/// Most characters of a failure reason a message repeats.
+const FAILURE_REASON_CHARS: usize = 500;
 
 #[requires(true)]
 #[ensures(true)]

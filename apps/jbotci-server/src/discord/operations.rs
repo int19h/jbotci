@@ -218,8 +218,11 @@ impl fmt::Display for RequestValidationError {
 
 impl std::error::Error for RequestValidationError {}
 
-/// Cheap checks that need no analysis: dialect formulas, blank fields,
-/// jvozba source-word segmentation and gimfihi source records.
+/// What can be judged about a request before doing any of its work: a field
+/// that is actually there, and a dialect that parses. Everything needing
+/// morphology, phonology or the dictionary is left to the tool's own run,
+/// which happens inside the compute lane; checking it here would do that work
+/// twice and do it on the runtime thread, where nothing bounds it.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn preflight(request: &DiscordRequest) -> Result<(), RequestValidationError> {
@@ -244,13 +247,11 @@ pub(crate) fn preflight(request: &DiscordRequest) -> Result<(), RequestValidatio
             }
             _ => Ok(()),
         },
-        DiscordRequest::Jvozba(request) => {
-            require_visible(&request.parts, SourceField::Parts)?;
-            jvozba_inputs(request).map(|_| ())
-        }
-        DiscordRequest::Gimfihi(request) => match gimfihi_plan(request)? {
-            GimfihiPlan::Setup { .. } | GimfihiPlan::Compose(_) => Ok(()),
-        },
+        DiscordRequest::Jvozba(request) => require_visible(&request.parts, SourceField::Parts),
+        // Reading gimfihi's source records needs the same phonology the run
+        // itself needs, so the run does it: `run_gimfihi` reports exactly the
+        // same error from inside its worker.
+        DiscordRequest::Gimfihi(_) => Ok(()),
     }
 }
 
@@ -693,6 +694,7 @@ async fn run_vlacku(
                 VLACKU_FETCH_LIMIT,
                 vlacku_search_options(&request),
                 Some(context.deadline),
+                context.keepalive.clone(),
             )
             .await
         {
@@ -850,6 +852,7 @@ async fn run_cukta(
                     CUKTA_FETCH_LIMIT,
                     targets,
                     Some(context.deadline),
+                    context.keepalive.clone(),
                 )
                 .await
             {
@@ -1309,22 +1312,46 @@ mod tests {
                 field: SourceField::Text
             })
         );
+        let empty_parts = DiscordRequest::Jvozba(JvozbaRequest {
+            parts: text("  "),
+            rafsi: None,
+            options: JvozbaOptions::default(),
+        });
+        assert_eq!(
+            preflight(&empty_parts),
+            Err(RequestValidationError::EmptyField {
+                field: SourceField::Parts
+            })
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn word_and_source_problems_are_reported_from_the_governed_run() {
+        // These need morphology and phonology, so they are found where that
+        // work is admitted rather than on the runtime thread beforehand; the
+        // caller still receives them as invalid input.
         let bad_parts = DiscordRequest::Jvozba(JvozbaRequest {
             parts: text("klama 'bajra"),
             rafsi: None,
             options: JvozbaOptions::default(),
         });
         assert!(matches!(
-            preflight(&bad_parts),
-            Err(RequestValidationError::JvozbaParts { .. })
+            run(bad_parts).await,
+            Err(OperationError::Invalid(
+                RequestValidationError::JvozbaParts { .. }
+            ))
         ));
         let bad_sources = DiscordRequest::Gimfihi(DiscordGimfihiRequest {
             sources: Some(text("eng:go, ???")),
             options: GimfihiOptions::default(),
         });
         assert!(matches!(
-            preflight(&bad_sources),
-            Err(RequestValidationError::GimfihiSources { .. })
+            run(bad_sources).await,
+            Err(OperationError::Invalid(
+                RequestValidationError::GimfihiSources { .. }
+            ))
         ));
         // Weights are required without a preset; the shared resolver says so.
         let no_weights = DiscordRequest::Gimfihi(DiscordGimfihiRequest {
@@ -1332,8 +1359,10 @@ mod tests {
             options: GimfihiOptions::default(),
         });
         assert!(matches!(
-            preflight(&no_weights),
-            Err(RequestValidationError::GimfihiSources { .. })
+            run(no_weights).await,
+            Err(OperationError::Invalid(
+                RequestValidationError::GimfihiSources { .. }
+            ))
         ));
     }
 

@@ -22,6 +22,9 @@ use super::request::Snowflake;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const SEND_TIMEOUT: Duration = Duration::from_secs(10);
 const RECEIVE_TIMEOUT: Duration = Duration::from_secs(15);
+/// The longest any one call may take when its caller states no deadline of
+/// its own. Every interaction call states one, so this bounds only the
+/// registration path.
 const GLOBAL_TIMEOUT: Duration = Duration::from_secs(30);
 /// Discord's documented request ceiling; uploads are bounded well below it.
 pub(crate) const MAX_REQUEST_BYTES: usize = 25 * 1024 * 1024;
@@ -345,16 +348,26 @@ impl DiscordApi {
     }
 
     /// `GET /webhooks/{app}/{token}/messages/@original`: the message the
-    /// interaction belongs to, as Discord currently has it.
+    /// interaction belongs to, as Discord currently has it. `timeout` is what
+    /// is left of the caller's own deadline, so a call cannot outlive the
+    /// interaction it belongs to.
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn get_original(
         &self,
         application_id: &Snowflake,
         token: &InteractionToken,
+        timeout: Duration,
     ) -> Result<Value, TransportError> {
         let url = self.original_message_url(application_id, token);
-        let response = self.agent.get(&url).call().map_err(classify)?;
+        let response = self
+            .agent
+            .get(&url)
+            .config()
+            .timeout_global(Some(timeout))
+            .build()
+            .call()
+            .map_err(classify)?;
         read_json_response(response, CallKind::ReadOnly)
     }
 
@@ -367,6 +380,7 @@ impl DiscordApi {
         application_id: &Snowflake,
         token: &InteractionToken,
         payload: &MessagePayload,
+        timeout: Duration,
     ) -> Result<Value, TransportError> {
         let url = self.original_message_url(application_id, token);
         let json = payload.to_json().to_string();
@@ -374,6 +388,9 @@ impl DiscordApi {
         let response = if uploads.is_empty() {
             self.agent
                 .patch(&url)
+                .config()
+                .timeout_global(Some(timeout))
+                .build()
                 .header("content-type", "application/json")
                 .send(json.as_bytes())
         } else {
@@ -394,6 +411,9 @@ impl DiscordApi {
             }
             self.agent
                 .patch(&url)
+                .config()
+                .timeout_global(Some(timeout))
+                .build()
                 .header("content-type", &body.content_type())
                 .send(body.bytes.as_slice())
         }
@@ -409,6 +429,7 @@ impl DiscordApi {
         application_id: &Snowflake,
         token: &InteractionToken,
         content: &str,
+        timeout: Duration,
     ) -> Result<(), TransportError> {
         let url = format!(
             "{}/webhooks/{}/{}",
@@ -425,6 +446,9 @@ impl DiscordApi {
         let response = self
             .agent
             .post(&url)
+            .config()
+            .timeout_global(Some(timeout))
+            .build()
             .header("content-type", "application/json")
             .send(body.as_bytes())
             .map_err(classify)?;

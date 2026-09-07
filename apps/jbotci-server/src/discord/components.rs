@@ -409,31 +409,23 @@ impl MessageComponent {
     }
 }
 
-/// One attachment of the edited message: either kept from the current message
-/// or uploaded with this request.
-#[invariant(::Retain { .. } => true)]
-#[invariant(::Upload { bytes, .. } => !bytes.is_empty())]
+/// One attachment uploaded with the edited message. An edit sends every
+/// attachment the message should end up with, so a file the previous result
+/// left behind disappears simply by not being sent again; nothing is ever
+/// carried over from the message as it stands.
+#[invariant(!bytes.is_empty(), "an attachment with no bytes is not a file")]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum AttachmentRequest {
-    Retain {
-        id: Snowflake,
-        name: AttachmentName,
-    },
-    Upload {
-        name: AttachmentName,
-        content_type: &'static str,
-        bytes: Vec<u8>,
-    },
+pub(crate) struct AttachmentRequest {
+    pub(crate) name: AttachmentName,
+    pub(crate) content_type: &'static str,
+    pub(crate) bytes: Vec<u8>,
 }
 
 impl AttachmentRequest {
     #[requires(true)]
     #[ensures(true)]
     pub(crate) fn name(&self) -> &AttachmentName {
-        match self.as_data() {
-            bityzba::data!(AttachmentRequest::Retain { name, .. })
-            | bityzba::data!(AttachmentRequest::Upload { name, .. }) => name,
-        }
+        &self.name
     }
 }
 
@@ -609,9 +601,8 @@ impl MessagePayload {
             "embeds": [],
             "allowed_mentions": { "parse": [] },
             "components": self.components.iter().map(MessageComponent::to_json).collect::<Vec<_>>(),
-            "attachments": self.attachments.iter().enumerate().map(|(index, attachment)| match attachment.as_data() {
-                bityzba::data!(AttachmentRequest::Retain { id, name }) => json!({ "id": id.as_str(), "filename": name.as_str() }),
-                bityzba::data!(AttachmentRequest::Upload { name, .. }) => json!({ "id": index, "filename": name.as_str() }),
+            "attachments": self.attachments.iter().enumerate().map(|(index, attachment)| {
+                json!({ "id": index, "filename": attachment.name().as_str() })
             }).collect::<Vec<_>>(),
         })
     }
@@ -624,13 +615,13 @@ impl MessagePayload {
         self.attachments
             .iter()
             .enumerate()
-            .filter_map(|(index, attachment)| match attachment.as_data() {
-                bityzba::data!(AttachmentRequest::Upload {
-                    name,
-                    content_type,
-                    bytes,
-                }) => Some((index, name, *content_type, bytes.as_slice())),
-                bityzba::data!(AttachmentRequest::Retain { .. }) => None,
+            .map(|(index, attachment)| {
+                (
+                    index,
+                    &attachment.name,
+                    attachment.content_type,
+                    attachment.bytes.as_slice(),
+                )
             })
             .collect()
     }
@@ -1003,7 +994,7 @@ mod tests {
                 })),
             ])
             .expect("components"),
-            vec![new!(AttachmentRequest::Upload {
+            vec![new!(AttachmentRequest {
                 name: png,
                 content_type: "image/png",
                 bytes: vec![0x89, b'P', b'N', b'G'],
@@ -1078,9 +1069,10 @@ mod tests {
 
         let invisible = MessagePayload::new(
             Vec1::new(MessageComponent::TextDisplay(text("a"))),
-            vec![new!(AttachmentRequest::Retain {
-                id: Snowflake::parse("1").expect("snowflake"),
+            vec![new!(AttachmentRequest {
                 name: AttachmentName::new("old.png").expect("name"),
+                content_type: "image/png",
+                bytes: vec![1],
             })],
         );
         assert!(matches!(

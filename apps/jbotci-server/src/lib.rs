@@ -48,7 +48,7 @@ use tokio::sync::{Semaphore, mpsc, oneshot};
 use tokio::time::Instant;
 use tower::ServiceExt;
 
-use crate::discord::work::{WorkError, WorkLane};
+use crate::discord::work::{WorkError, WorkKeepalive, WorkLane};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
@@ -275,12 +275,17 @@ enum EmbeddingJob {
         options: VlackuSearchOptions,
         reply:
             oneshot::Sender<std::result::Result<Vec<DictionarySemanticHit>, SemanticSearchError>>,
+        /// What the caller's delivery stands on while this job runs. A search
+        /// that has started keeps it, model loading included, until the job
+        /// is evaluated or discarded, however long the caller waits.
+        keepalive: Option<WorkKeepalive>,
     },
     CuktaSearch {
         query: SearchQuery,
         count: NonZeroUsize,
         targets: CuktaTargetFilter,
         reply: oneshot::Sender<std::result::Result<CuktaSearchOutput, SemanticSearchError>>,
+        keepalive: Option<WorkKeepalive>,
     },
 }
 
@@ -318,7 +323,11 @@ impl EmbeddingJob {
                 count,
                 options,
                 reply,
+                keepalive,
             } => {
+                // Dropped with the job, so the delivery it stands for outlives
+                // every caller that gave up while this ran.
+                let _keepalive = keepalive;
                 let result = loaded_embedding_service(cache)
                     .map_err(SemanticSearchError::unavailable)
                     .and_then(|service| {
@@ -344,7 +353,9 @@ impl EmbeddingJob {
                 count,
                 targets,
                 reply,
+                keepalive,
             } => {
+                let _keepalive = keepalive;
                 let result = embedded_cll_site()
                     .map_err(|error| SemanticSearchError::failed(error.to_string()))
                     .and_then(|site| {
@@ -475,7 +486,8 @@ impl ToolServices {
 
     /// Ranked dictionary entries for a meaning query, filtered by the entry
     /// filters in `options` while ranking. `deadline` bounds both the wait
-    /// for the worker and the result.
+    /// for the worker and the result; `keepalive` is what the started search
+    /// holds onto whether or not anyone is still waiting for it.
     #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.get()) || ret.is_err())]
     pub(crate) async fn semantic_vlacku_hits(
@@ -484,6 +496,7 @@ impl ToolServices {
         count: NonZeroUsize,
         options: VlackuSearchOptions,
         deadline: Option<Instant>,
+        keepalive: Option<WorkKeepalive>,
     ) -> std::result::Result<Vec<DictionarySemanticHit>, SemanticSearchError> {
         let (reply, received) = oneshot::channel();
         self.admit(
@@ -492,6 +505,7 @@ impl ToolServices {
                 count,
                 options,
                 reply,
+                keepalive,
             },
             deadline,
         )
@@ -508,6 +522,7 @@ impl ToolServices {
         count: NonZeroUsize,
         targets: CuktaTargetFilter,
         deadline: Option<Instant>,
+        keepalive: Option<WorkKeepalive>,
     ) -> std::result::Result<CuktaSearchOutput, SemanticSearchError> {
         let (reply, received) = oneshot::channel();
         self.admit(
@@ -516,6 +531,7 @@ impl ToolServices {
                 count,
                 targets,
                 reply,
+                keepalive,
             },
             deadline,
         )
@@ -1954,6 +1970,7 @@ mod tests {
             count: NonZeroUsize::new(5).expect("count"),
             options: VlackuSearchOptions::default(),
             reply,
+            keepalive: None,
         }
         .run(&mut cache);
         let hits = received.blocking_recv().expect("reply");
@@ -1969,6 +1986,7 @@ mod tests {
             count: NonZeroUsize::new(5).expect("count"),
             targets: CuktaTargetFilter::default(),
             reply,
+            keepalive: None,
         }
         .run(&mut cache);
         let search = received.blocking_recv().expect("reply");
@@ -2042,14 +2060,21 @@ mod tests {
             NonZeroUsize::new(5).expect("count"),
             VlackuSearchOptions::default(),
             Some(Instant::now() + deadline),
+            None,
         )
     }
 
     #[requires(true)]
     #[ensures(true)]
     fn reply_empty_hits(job: EmbeddingJob) {
-        if let EmbeddingJob::VlackuHits { reply, .. } = job {
+        if let EmbeddingJob::VlackuHits {
+            reply, keepalive, ..
+        } = job
+        {
+            // The reply is sent first, exactly as the real evaluator ends:
+            // what the job retained is released only as the job is dropped.
             let _ = reply.send(Ok(Vec::new()));
+            drop(keepalive);
         }
     }
 
@@ -2121,6 +2146,7 @@ mod tests {
                 NonZeroUsize::new(5).expect("count"),
                 VlackuSearchOptions::default(),
                 Some(Instant::now()),
+                None,
             )
             .await;
         assert_eq!(
@@ -2139,6 +2165,86 @@ mod tests {
             processed.load(std::sync::atomic::Ordering::SeqCst),
             2,
             "the abandoned job was never evaluated"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_started_meaning_search_holds_its_delivery_until_it_ends() {
+        // The embedding lane runs its own worker thread, so a caller that
+        // gives up (a cold model load outlasting a Discord deadline, say)
+        // must not release what the running search stands for: the same
+        // interaction could then be admitted and run a second time.
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        /// Stands in for a delivery: records the moment it is let go.
+        #[invariant(true)]
+        struct Probe {
+            released: Arc<AtomicBool>,
+        }
+
+        impl Drop for Probe {
+            #[requires(true)]
+            #[ensures(true)]
+            fn drop(&mut self) {
+                self.released.store(true, Ordering::Release);
+            }
+        }
+
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+        let started = Arc::new(AtomicBool::new(false));
+        let services = ToolServices::with_worker(1, 1, {
+            let started = Arc::clone(&started);
+            move || {
+                move |job| {
+                    started.store(true, Ordering::Release);
+                    // However long this takes, it is work that has begun.
+                    let _ = release_rx.recv();
+                    reply_empty_hits(job);
+                }
+            }
+        });
+
+        let released = Arc::new(AtomicBool::new(false));
+        let keepalive: WorkKeepalive = Arc::new(Probe {
+            released: Arc::clone(&released),
+        });
+        let outcome = services
+            .semantic_vlacku_hits(
+                search_query(),
+                NonZeroUsize::new(5).expect("count"),
+                VlackuSearchOptions::default(),
+                Some(Instant::now() + Duration::from_millis(80)),
+                Some(Arc::clone(&keepalive)),
+            )
+            .await;
+        assert_eq!(
+            outcome,
+            Err(SemanticSearchError::lane(WorkError::TimedOut {
+                lane: WorkLane::Embedding
+            })),
+            "the caller stopped waiting"
+        );
+        assert!(started.load(Ordering::Acquire), "the search had started");
+        // The caller lets go of everything it held; the search has not.
+        drop(keepalive);
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        assert!(
+            !released.load(Ordering::Acquire),
+            "the running search still stands for its delivery"
+        );
+
+        release_tx.send(()).expect("the worker is waiting");
+        for _ in 0..400 {
+            if released.load(Ordering::Acquire) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert!(
+            released.load(Ordering::Acquire),
+            "and lets it go once the work really ends"
         );
     }
 

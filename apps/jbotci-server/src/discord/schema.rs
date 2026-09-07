@@ -227,10 +227,12 @@ pub(crate) fn registration_payload() -> Value {
         "name": COMMAND_NAME,
         "type": 1,
         "description": COMMAND_DESCRIPTION,
-        // The command is installed both to guilds and to users, and works in
-        // direct messages, exactly as the registered command already does.
-        // A bulk overwrite replaces every field, so leaving these out would
-        // quietly narrow where the command can be used.
+        // The command is installed both to guilds and to users and works in
+        // direct messages, which is what the application is configured for
+        // and what the live registration already had. Discord documents these
+        // as defaulting to the application's configured contexts, so stating
+        // them does not widen anything: it pins the intended availability
+        // here rather than to a portal setting that may change.
         "integration_types": [0, 1],
         "contexts": [0, 1, 2],
         "dm_permission": true,

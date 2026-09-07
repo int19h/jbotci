@@ -264,7 +264,7 @@ pub(crate) fn assemble(
                 components.push(MessageComponent::File(FileComponent {
                     attachment: name.clone(),
                 }));
-                attachments.push(new!(AttachmentRequest::Upload {
+                attachments.push(new!(AttachmentRequest {
                     name,
                     content_type: TEXT_CONTENT_TYPE,
                     bytes,
@@ -306,7 +306,7 @@ pub(crate) fn assemble(
                 )),
             })),
         })));
-        attachments.push(new!(AttachmentRequest::Upload {
+        attachments.push(new!(AttachmentRequest {
             name,
             content_type: PNG_CONTENT_TYPE,
             bytes: image.bytes.clone(),
@@ -318,7 +318,7 @@ pub(crate) fn assemble(
         components.push(MessageComponent::File(FileComponent {
             attachment: name.clone(),
         }));
-        attachments.push(new!(AttachmentRequest::Upload {
+        attachments.push(new!(AttachmentRequest {
             name,
             content_type: TEXT_CONTENT_TYPE,
             bytes: block.into_bytes(),
@@ -585,9 +585,9 @@ mod tests {
             .attachments
             .iter()
             .find(|attachment| attachment.name().as_str() == name)
-            .and_then(|attachment| match attachment.as_data() {
-                data!(AttachmentRequest::Upload { bytes, .. }) => Some(bytes.clone()),
-                data!(AttachmentRequest::Retain { .. }) => None,
+            .map(|attachment| {
+                let data!(AttachmentRequest { bytes, .. }) = attachment.as_data();
+                bytes.clone()
             })
             .expect("uploaded attachment")
     }

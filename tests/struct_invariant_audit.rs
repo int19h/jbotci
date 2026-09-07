@@ -56,6 +56,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "what a form submission carries; the identifiers are validated types and the data is Discord's own payload",
     ),
     (
+        "apps/jbotci-server/src/discord/interaction.rs:Retained",
+        "what running work holds onto: a delivery ticket and a message lock, each already valid by its own construction; there is no relation between them to state",
+    ),
+    (
         "apps/jbotci-server/src/discord/interaction.rs:Target",
         "the application and token a message is read and written through, both validated types",
     ),
@@ -182,6 +186,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/lib.rs:GimfihiSchemaProperties",
         "typed schema test aggregate delegates constraints to each typed property projection",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:Probe",
+        "test double: it records only the moment it is dropped, which no state can make invalid",
     ),
     (
         "apps/jbotci-server/src/lib.rs:HealthResponse",
