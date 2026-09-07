@@ -925,9 +925,10 @@ impl DiscordService {
 
 /// An immediate answer about something the reader's own request produced. The
 /// reason is escaped, because Discord renders a message's content as Markdown
-/// and a reason quoting the request would otherwise be reformatted by it. An
-/// immediate answer cannot carry a file, so where a reason can be long the
-/// flows put it in the result or in a note that can.
+/// and a reason quoting the request would otherwise be reformatted by it. This
+/// application answers an interaction with inline JSON and uploads no file
+/// there, so where a reason can be long the flows put it in the result or in a
+/// private note, both of which can carry one.
 #[requires(!summary.trim().is_empty())]
 #[ensures(true)]
 fn ephemeral_about(summary: &str, reason: &str) -> InteractionResponse {

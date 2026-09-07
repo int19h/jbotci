@@ -159,21 +159,24 @@ true peak rather than a sample.
 Each of those diagrams is 8516×776 pixels, 6.6 of the 8 million a diagram may
 have, and 226 KB of PNG: a request near the cap rather than a small one.
 
-The embedding model is what dominates: about 240 MiB, loaded on the first
-meaning search and resident from then on. One diagram near the cap costs about
-50 MiB while it renders. Memory is not returned to the system after a peak, so
-the resident figure climbs towards the peak and stays there.
+The embedding model is what dominates: about 240 MiB in this run, loaded on
+the first meaning search and resident afterwards. One diagram near the cap
+added about 50 MiB while it rendered. Resident memory did not fall back after
+the peaks: it ended within 10 MiB of the highest point reached, so a service
+that has once been busy stays about that large.
 
-Two things make this fit the deployed instance's 512 MiB. Analysis runs one
-job at a time, so at most one diagram is ever being rasterized; and the
-deployment sets `MALLOC_ARENA_MAX=2`. Without that variable the same shape of
-run peaks at 591 MiB, because each thread that allocates gets an arena of its
-own and none of them are given back. With the previous limits (two analysis
-workers, sixteen megapixels) it peaks at 616 MiB even with the variable set.
-Neither of those fits.
+Two things brought the run inside the deployed instance's 512 MiB. Analysis
+runs one job at a time, so at most one diagram is ever being rasterized; and
+the runtime image sets `MALLOC_ARENA_MAX=2`. Without that variable the same
+sequence reached 591 MiB, and with the previous limits (two analysis workers,
+sixteen megapixels) it reached 616 MiB even with the variable set. Neither of
+those fits.
 
-These figures include the embedding model. A deployment without an embedding
-pack never loads it, and the same run peaks at 147 MiB.
+These are measurements of this sequence of requests on this machine, not a
+ceiling for every input: they say what these representative and near-limit
+requests cost, not what the largest possible request would. The figures above
+include the embedding model; the same sequence up to the first meaning search,
+which is where the model is loaded, stayed at 147 MiB.
 
 ## How a message remembers its request
 

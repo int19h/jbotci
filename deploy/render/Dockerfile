@@ -63,6 +63,11 @@ COPY --from=build /opt/jbotci/server ./server
 COPY --from=build /opt/jbotci/public ./public
 COPY --from=build --chown=jbotci:jbotci /opt/jbotci/embeddings ./embeddings
 
+# One arena per allocating thread is more than this instance can afford: with
+# the embedding model resident, the same measured run peaks at 591 MiB instead
+# of 429 (docs/discord-app.md). The service has 512 MiB, so the assumption
+# travels with the image rather than with a dashboard setting.
+ENV MALLOC_ARENA_MAX=2
 ENV IP=0.0.0.0
 ENV PORT=10000
 ENV DIOXUS_ASSET_ROOT=/
