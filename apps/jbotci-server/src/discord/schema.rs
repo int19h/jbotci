@@ -227,6 +227,13 @@ pub(crate) fn registration_payload() -> Value {
         "name": COMMAND_NAME,
         "type": 1,
         "description": COMMAND_DESCRIPTION,
+        // The command is installed both to guilds and to users, and works in
+        // direct messages, exactly as the registered command already does.
+        // A bulk overwrite replaces every field, so leaving these out would
+        // quietly narrow where the command can be used.
+        "integration_types": [0, 1],
+        "contexts": [0, 1, 2],
+        "dm_permission": true,
         "options": subcommands()
             .iter()
             .map(|subcommand| json!({
@@ -282,7 +289,6 @@ fn option_payload(option: &SlashOption) -> Value {
 #[invariant(::InvalidChoice { .. } => true)]
 #[invariant(::EmptyText { .. } => true)]
 #[invariant(::OversizeText { .. } => true)]
-#[invariant(::MissingQueryForMode { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum CommandDecodeError {
     NotJbotci {
@@ -324,10 +330,6 @@ pub(crate) enum CommandDecodeError {
         tool: DiscordTool,
         option: &'static str,
         error: OversizeSource,
-    },
-    /// A cukta mode that needs a query was chosen without one.
-    MissingQueryForMode {
-        mode: CuktaMode,
     },
 }
 
@@ -372,11 +374,6 @@ impl fmt::Display for CommandDecodeError {
             } => write!(
                 formatter,
                 "`/jbotci {tool}`: `{option}` is too long ({error})."
-            ),
-            Self::MissingQueryForMode { mode } => write!(
-                formatter,
-                "`/jbotci cukta` mode `{}` needs a query.",
-                mode.slash_value()
             ),
         }
     }
@@ -579,17 +576,17 @@ fn build_request(
             } else {
                 CuktaMode::Contents
             });
-            if mode.requires_query() && query.is_none() {
-                return Err(CommandDecodeError::MissingQueryForMode { mode });
-            }
-            DiscordRequest::Cukta(bityzba::new!(CuktaRequest {
+            // A mode without its query is an incomplete task, published with
+            // its ⚙️ form so the reader can finish it; it is not a command
+            // this build cannot read.
+            DiscordRequest::Cukta(CuktaRequest {
                 query,
                 options: CuktaOptions {
                     mode,
                     kinds: CuktaResultKindSet::empty(),
                     page: PageNumber::first(),
                 },
-            }))
+            })
         }
         DiscordTool::Jvozba => {
             let target = values
@@ -870,14 +867,16 @@ mod tests {
         };
         assert_eq!(section.options.mode, CuktaMode::Section);
 
-        let error = decode_command(&command_data("cukta", vec![option("mode", "word")]))
-            .expect_err("word search needs a query");
-        assert_eq!(
-            error,
-            CommandDecodeError::MissingQueryForMode {
-                mode: CuktaMode::Word
-            }
-        );
+        // A search mode with no query is recorded as asked: the mode stays,
+        // the query stays absent, and running it is what reports the gap.
+        let DiscordRequest::Cukta(incomplete) =
+            decode_command(&command_data("cukta", vec![option("mode", "word")]))
+                .expect("an incomplete task is still a request")
+        else {
+            panic!("cukta request");
+        };
+        assert_eq!(incomplete.options.mode, CuktaMode::Word);
+        assert_eq!(incomplete.query, None);
 
         // An explicit contents request with a query keeps the query but reads
         // the contents; the query is not silently discarded from the state.

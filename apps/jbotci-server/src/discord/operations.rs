@@ -53,7 +53,7 @@ use super::request::{
     PageNumber, SourceField, SourceText, VLACKU_MAX_PAGE, VlackuMode, VlackuRequest, VlaseiRequest,
     VlataiRequest,
 };
-use super::work::{WorkError, WorkGovernor};
+use super::work::{WorkError, WorkGovernor, WorkKeepalive};
 use crate::{SearchQuery, SemanticSearchError, SemanticSearchErrorData, ToolServices};
 
 /// Results fetched for a page-able search: the Discord cap plus one, so an
@@ -162,14 +162,27 @@ impl fmt::Display for PageUnavailable {
 /// that leaves the last result in place.
 #[invariant(::Dialect { .. } => true)]
 #[invariant(::EmptyField { .. } => true)]
+#[invariant(::CuktaQueryRequired { .. } => true)]
 #[invariant(::JvozbaParts { .. } => true)]
 #[invariant(::GimfihiSources { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RequestValidationError {
-    Dialect { message: String },
-    EmptyField { field: SourceField },
-    JvozbaParts { message: String },
-    GimfihiSources { errors: Vec<String> },
+    Dialect {
+        message: String,
+    },
+    EmptyField {
+        field: SourceField,
+    },
+    /// A book search or reference lookup with nothing to look for.
+    CuktaQueryRequired {
+        mode: CuktaMode,
+    },
+    JvozbaParts {
+        message: String,
+    },
+    GimfihiSources {
+        errors: Vec<String>,
+    },
 }
 
 impl fmt::Display for RequestValidationError {
@@ -178,6 +191,11 @@ impl fmt::Display for RequestValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Dialect { message } => write!(formatter, "invalid dialect formula: {message}"),
+            Self::CuktaQueryRequired { mode } => write!(
+                formatter,
+                "{} needs something to look for; add it in the form",
+                mode.label()
+            ),
             Self::EmptyField { field } => {
                 write!(formatter, "the {} field must not be blank", field.label())
             }
@@ -216,6 +234,13 @@ pub(crate) fn preflight(request: &DiscordRequest) -> Result<(), RequestValidatio
         DiscordRequest::Cukta(request) => match &request.query {
             Some(query) if request.options.mode.requires_query() => {
                 require_visible(query, SourceField::Query)
+            }
+            // A search or a reference lookup with nothing to look for is an
+            // incomplete task: the reader finishes it in the form.
+            None if request.options.mode.requires_query() => {
+                Err(RequestValidationError::CuktaQueryRequired {
+                    mode: request.options.mode,
+                })
             }
             _ => Ok(()),
         },
@@ -463,11 +488,15 @@ impl From<PageUnavailable> for OperationError {
 
 /// What an operation needs besides the request.
 #[invariant(true)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(crate) struct OperationContext<'a> {
     pub(crate) tools: &'a ToolServices,
     pub(crate) governor: &'a WorkGovernor,
     pub(crate) deadline: Instant,
+    /// What the running work stands for. It is carried into every compute
+    /// job, so a caller that stops waiting does not release a delivery whose
+    /// work is still going.
+    pub(crate) keepalive: Option<WorkKeepalive>,
     /// Discord's per-interaction attachment size limit, when supplied.
     pub(crate) attachment_size_limit: Option<u64>,
     pub(crate) diagram_limits: DiagramLimits,
@@ -487,7 +516,7 @@ pub(crate) async fn run_request(
             let attachment_size_limit = context.attachment_size_limit;
             context
                 .governor
-                .run_compute(context.deadline, move || {
+                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
                     run_gentufa(&request, limits, attachment_size_limit)
                 })
                 .await?
@@ -495,12 +524,16 @@ pub(crate) async fn run_request(
         }
         DiscordRequest::Vlasei(request) => context
             .governor
-            .run_compute(context.deadline, move || run_vlasei(&request))
+            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+                run_vlasei(&request)
+            })
             .await?
             .map(ToolOutcome::Vlasei),
         DiscordRequest::Vlatai(request) => context
             .governor
-            .run_compute(context.deadline, move || run_vlatai(&request))
+            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+                run_vlatai(&request)
+            })
             .await?
             .map(ToolOutcome::Vlatai),
         DiscordRequest::Vlacku(request) => {
@@ -509,12 +542,16 @@ pub(crate) async fn run_request(
         DiscordRequest::Cukta(request) => run_cukta(request, context).await.map(ToolOutcome::Cukta),
         DiscordRequest::Jvozba(request) => context
             .governor
-            .run_compute(context.deadline, move || run_jvozba(&request))
+            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+                run_jvozba(&request)
+            })
             .await?
             .map(ToolOutcome::Jvozba),
         DiscordRequest::Gimfihi(request) => context
             .governor
-            .run_compute(context.deadline, move || run_gimfihi(&request))
+            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
+                run_gimfihi(&request)
+            })
             .await?
             .map(ToolOutcome::Gimfihi),
     }
@@ -666,7 +703,7 @@ async fn run_vlacku(
         };
         return context
             .governor
-            .run_compute(context.deadline, move || {
+            .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
                 let options = vlacku_search_options(&request);
                 let cards = hits
                     .into_iter()
@@ -700,7 +737,7 @@ async fn run_vlacku(
     }
     context
         .governor
-        .run_compute(context.deadline, move || {
+        .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
             let search_request = match request.options.mode {
                 VlackuMode::Word => SearchRequest::valsi(query),
                 VlackuMode::Rafsi => SearchRequest::rafsi(query),
@@ -834,7 +871,7 @@ async fn run_cukta(
             let targets = cukta_targets(&request);
             context
                 .governor
-                .run_compute(context.deadline, move || {
+                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -857,7 +894,7 @@ async fn run_cukta(
         CuktaMode::Section => {
             context
                 .governor
-                .run_compute(context.deadline, move || {
+                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -880,7 +917,7 @@ async fn run_cukta(
         CuktaMode::Example => {
             context
                 .governor
-                .run_compute(context.deadline, move || {
+                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -899,7 +936,7 @@ async fn run_cukta(
         CuktaMode::Contents => {
             context
                 .governor
-                .run_compute(context.deadline, move || {
+                .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
@@ -1189,6 +1226,7 @@ mod tests {
                 tools: &tools,
                 governor: &governor,
                 deadline: Instant::now() + Duration::from_secs(60),
+                keepalive: None,
                 attachment_size_limit: None,
                 diagram_limits: DiagramLimits::default(),
             },
@@ -1421,28 +1459,28 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     async fn cukta_modes_produce_their_own_outcomes() {
-        let contents = run(DiscordRequest::Cukta(new!(CuktaRequest {
+        let contents = run(DiscordRequest::Cukta(CuktaRequest {
             query: None,
             options: CuktaOptions {
                 mode: CuktaMode::Contents,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        })))
+        }))
         .await
         .expect("contents");
         let ToolOutcome::Cukta(CuktaOutcome::Contents { chapters, .. }) = contents else {
             panic!("contents outcome");
         };
         assert!(chapters.len() > 10);
-        let section = run(DiscordRequest::Cukta(new!(CuktaRequest {
+        let section = run(DiscordRequest::Cukta(CuktaRequest {
             query: Some(text("5.2")),
             options: CuktaOptions {
                 mode: CuktaMode::Section,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        })))
+        }))
         .await
         .expect("section");
         let ToolOutcome::Cukta(CuktaOutcome::Section { section, .. }) = section else {
@@ -1451,28 +1489,28 @@ mod tests {
         let heading = format_section_display_title(section);
         assert!(heading.starts_with("5.2"), "{heading}");
         assert!(!section.blocks.is_empty());
-        let example = run(DiscordRequest::Cukta(new!(CuktaRequest {
+        let example = run(DiscordRequest::Cukta(CuktaRequest {
             query: Some(text("6.8")),
             options: CuktaOptions {
                 mode: CuktaMode::Example,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        })))
+        }))
         .await
         .expect("example");
         assert!(matches!(
             example,
             ToolOutcome::Cukta(CuktaOutcome::Example { .. })
         ));
-        let missing = run(DiscordRequest::Cukta(new!(CuktaRequest {
+        let missing = run(DiscordRequest::Cukta(CuktaRequest {
             query: Some(text("999.99")),
             options: CuktaOptions {
                 mode: CuktaMode::Section,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        })))
+        }))
         .await
         .expect("missing section");
         assert!(matches!(
@@ -1482,14 +1520,14 @@ mod tests {
                 ..
             })
         ));
-        let word = run(DiscordRequest::Cukta(new!(CuktaRequest {
+        let word = run(DiscordRequest::Cukta(CuktaRequest {
             query: Some(text("tanru")),
             options: CuktaOptions {
                 mode: CuktaMode::Word,
                 kinds: CuktaResultKindSet::empty().with(CuktaResultKind::Section),
                 page: PageNumber::first(),
             },
-        })))
+        }))
         .await
         .expect("word search");
         let ToolOutcome::Cukta(CuktaOutcome::Search { results, .. }) = word else {

@@ -841,7 +841,12 @@ pub(crate) struct CuktaOptions {
 
 /// The mode is always the resolved one: an explicit slash/modal choice, else
 /// meaning search when a query was given, else contents.
-#[invariant(!options.mode.requires_query() || query.is_some())]
+///
+/// A mode that needs a query may be recorded without one: asking for a search
+/// and not saying what to search for is an incomplete task, which the reader
+/// completes in the form, not a request that cannot exist. Running it is what
+/// requires the query, and that is checked where the request is run.
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CuktaRequest {
     pub(crate) query: Option<SourceText>,
@@ -1282,17 +1287,14 @@ impl DiscordRequest {
                 };
                 let kinds = CuktaResultKindSet::from_bits(((options_word >> 3) & 0b111) as u8)
                     .expect("three masked bits form a result-kind set");
+                // A mode that needs a query may have been published without
+                // one: that is an incomplete task the reader finishes in the
+                // form, and it must come back exactly as it was published.
                 let query = take(SourceField::Query);
-                if mode.requires_query() && query.is_none() {
-                    return Err(RequestStateError::MissingField {
-                        tool,
-                        field: SourceField::Query,
-                    });
-                }
-                Self::Cukta(new!(CuktaRequest {
+                Self::Cukta(CuktaRequest {
                     query,
                     options: CuktaOptions { mode, kinds, page },
-                }))
+                })
             }
             DiscordTool::Jvozba => Self::Jvozba(JvozbaRequest {
                 parts: required(take(SourceField::Parts), SourceField::Parts)?,
@@ -1608,22 +1610,22 @@ mod tests {
                     page: PageNumber::new(VLACKU_MAX_PAGE).expect("page"),
                 },
             })),
-            DiscordRequest::Cukta(new!(CuktaRequest {
+            DiscordRequest::Cukta(CuktaRequest {
                 query: None,
                 options: CuktaOptions {
                     mode: CuktaMode::Contents,
                     kinds: CuktaResultKindSet::empty(),
                     page: PageNumber::first(),
                 },
-            })),
-            DiscordRequest::Cukta(new!(CuktaRequest {
+            }),
+            DiscordRequest::Cukta(CuktaRequest {
                 query: Some(text("tanru")),
                 options: CuktaOptions {
                     mode: CuktaMode::Word,
                     kinds: CuktaResultKindSet::empty().with(CuktaResultKind::Example),
                     page: PageNumber::new(MAX_PAGE).expect("page"),
                 },
-            })),
+            }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: text("klama bajra"),
                 rafsi: Some(text("kla")),
@@ -1758,18 +1760,20 @@ mod tests {
             )
             .is_ok()
         );
-        assert!(matches!(
-            DiscordRequest::from_parts(
-                DiscordTool::Cukta,
-                0,
-                PageNumber::first(),
-                vec![(SourceField::Query, None)]
-            ),
-            Err(RequestStateError::MissingField {
-                field: SourceField::Query,
-                ..
-            })
-        ));
+        // A search mode published without its query is an incomplete task,
+        // and it comes back exactly as it was published so the form can
+        // finish it.
+        let DiscordRequest::Cukta(incomplete) = DiscordRequest::from_parts(
+            DiscordTool::Cukta,
+            0,
+            PageNumber::first(),
+            vec![(SourceField::Query, None)],
+        )
+        .expect("an incomplete task rebuilds") else {
+            panic!("cukta request");
+        };
+        assert_eq!(incomplete.options.mode, CuktaMode::Meaning);
+        assert_eq!(incomplete.query, None);
         let too_far = PageNumber::new(VLACKU_MAX_PAGE + 1).expect("page 24 exists");
         assert!(matches!(
             DiscordRequest::from_parts(

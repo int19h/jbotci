@@ -95,6 +95,8 @@ pub(crate) struct AppState {
     base_path: String,
     public_dir: PathBuf,
     tool_services: ToolServices,
+    /// The Discord application, when this deployment configured one.
+    discord: Option<Arc<discord::interaction::DiscordService>>,
     page_meta_builder: PageMetaBuilder,
 }
 
@@ -121,10 +123,13 @@ impl AppState {
     #[ensures(ret.base_path.starts_with('/'))]
     fn new(config: ServerConfig, page_meta_builder: PageMetaBuilder) -> Self {
         let config = config.into_data();
+        let tool_services = ToolServices::new();
+        let discord = discord::configured_service(tool_services.clone());
         new!(AppState {
             base_path: config.base_path,
             public_dir: config.public_dir,
-            tool_services: ToolServices::new(),
+            tool_services,
+            discord,
             page_meta_builder,
         })
     }
@@ -133,6 +138,13 @@ impl AppState {
     #[ensures(true)]
     pub(crate) fn tool_services(&self) -> ToolServices {
         self.tool_services.clone()
+    }
+
+    /// The Discord application, when this deployment has one configured.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn discord_service(&self) -> Option<Arc<discord::interaction::DiscordService>> {
+        self.discord.clone()
     }
 }
 
@@ -1857,8 +1869,10 @@ mod tests {
     fn discord_interaction(subcommand: &str, options: Vec<serde_json::Value>) -> serde_json::Value {
         serde_json::json!({
             "type": 2,
+            "id": "555555555555555555",
             "application_id": "123456789",
             "token": "test-token",
+            "member": { "user": { "id": "123456789012345678" } },
             "data": {
                 "name": "jbotci",
                 "options": [
@@ -3404,14 +3418,23 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn discord_reports_malformed_json_as_interaction_message() {
+    async fn discord_refuses_a_body_that_is_not_an_interaction() {
         let _env_guard = lock_test_env();
         let key = test_discord_signing_key();
         let public_key = hex_bytes(&key.verifying_key().to_bytes());
         configure_discord_test_env(&public_key);
         let app = router(test_config(test_static_dir()));
 
-        let response = post_signed_discord_body(app, "{".to_owned(), &key).await;
+        // A signed body that is not JSON is not an interaction to answer: it
+        // is a bad request, and saying so is more honest than replying in the
+        // channel about jbotci's own parser.
+        let response = post_signed_discord_body(app.clone(), "{".to_owned(), &key).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        // Valid JSON that is not an interaction jbotci handles is answered
+        // privately, because Discord expects an interaction response.
+        let response =
+            post_signed_discord_body(app, serde_json::json!({ "type": 9 }).to_string(), &key).await;
         assert_eq!(response.status(), StatusCode::OK);
         let json = response_json(response).await;
         assert_eq!(json["type"], 4);
@@ -3419,7 +3442,7 @@ mod tests {
             json["data"]["content"]
                 .as_str()
                 .expect("message content")
-                .contains("Invalid Discord interaction JSON")
+                .contains("not one jbotci understands")
         );
     }
 
@@ -3471,20 +3494,29 @@ mod tests {
         let public_key = hex_bytes(&key.verifying_key().to_bytes());
         configure_discord_test_env(&public_key);
         let app = router(test_config(test_static_dir()));
-        let mut interaction =
-            discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
-        interaction["application_id"] = serde_json::json!("123/456");
+        // An identifier that could travel into a URL path is not read at
+        // all, so nothing it names is ever requested.
+        for (field, value) in [
+            ("application_id", "123/456"),
+            ("token", "bad/token"),
+            ("id", "not-a-snowflake"),
+        ] {
+            let mut interaction =
+                discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
+            interaction[field] = serde_json::json!(value);
 
-        let response = post_signed_discord(app.clone(), interaction, &key).await;
-        assert_eq!(response.status(), StatusCode::OK);
-        let json = response_json(response).await;
-        assert_eq!(json["type"], 4);
-        assert!(
-            json["data"]["content"]
-                .as_str()
-                .expect("message content")
-                .contains("invalid application id or token")
-        );
+            let response = post_signed_discord(app.clone(), interaction, &key).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let json = response_json(response).await;
+            assert_eq!(json["type"], 4, "{field}");
+            assert!(
+                json["data"]["content"]
+                    .as_str()
+                    .expect("message content")
+                    .contains("not one jbotci understands"),
+                "{field}: {json}"
+            );
+        }
 
         let mut interaction =
             discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
@@ -3498,10 +3530,16 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn discord_command_registration_payload_matches_public_script_shape() {
-        let registration = discord::discord_command_registration();
-        assert_eq!(registration.payload["name"], "jbotci");
-        let subcommands = registration.payload["options"]
+    fn discord_command_registration_keeps_its_installation_contexts() {
+        // A bulk overwrite replaces every field of the command, so the
+        // registration must carry the contexts the installed command has:
+        // guild and user installs, usable in direct messages.
+        let payload = discord::discord_command_registration();
+        assert_eq!(payload["name"], "jbotci");
+        assert_eq!(payload["integration_types"], serde_json::json!([0, 1]));
+        assert_eq!(payload["contexts"], serde_json::json!([0, 1, 2]));
+        assert_eq!(payload["dm_permission"], serde_json::json!(true));
+        let subcommands = payload["options"]
             .as_array()
             .expect("subcommand array")
             .iter()
@@ -3509,167 +3547,15 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             subcommands,
-            vec!["gentufa", "vlasei", "vlacku", "cukta", "jvozba", "gimfihi"]
+            vec![
+                "gentufa", "vlasei", "vlatai", "vlacku", "cukta", "jvozba", "gimfihi"
+            ]
         );
         assert!(
             subcommands
                 .iter()
                 .all(|name| external_api_identifier_is_safe(name))
         );
-    }
-
-    #[requires(true)]
-    #[ensures(ret.len() == pairs.len())]
-    fn discord_gentufa_options(pairs: &[(&str, serde_json::Value)]) -> Vec<serde_json::Value> {
-        pairs
-            .iter()
-            .map(|(name, value)| serde_json::json!({ "name": name, "value": value }))
-            .collect()
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn discord_gentufa_registration_advertises_display_controls() {
-        let registration = discord::discord_command_registration();
-        let gentufa = registration.payload["options"]
-            .as_array()
-            .expect("subcommand array")
-            .iter()
-            .find(|option| option["name"] == "gentufa")
-            .expect("gentufa subcommand");
-        let options = gentufa["options"].as_array().expect("gentufa options");
-        let shapes = options
-            .iter()
-            .map(|option| {
-                (
-                    option["name"].as_str().expect("option name"),
-                    option["type"].as_u64().expect("option type"),
-                    option["required"].as_bool().expect("option required"),
-                )
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            shapes,
-            vec![
-                ("text", 3, true),
-                ("format", 3, false),
-                ("dialect", 3, false),
-                ("show-elided", 5, false),
-                ("show-glosses", 5, false),
-                ("show-compounds", 5, false),
-            ]
-        );
-        for option in options {
-            let description = option["description"].as_str().expect("option description");
-            assert!(
-                description.chars().count() <= 100,
-                "Discord caps option descriptions at 100 characters: {description}"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn discord_gentufa_parses_display_control_defaults_and_values() {
-        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[(
-            "text",
-            serde_json::json!("mi klama"),
-        )]))
-        .expect("default gentufa request");
-        assert_eq!(request.text, "mi klama");
-        assert_eq!(request.format, ToolGentufaFormat::Tree);
-        assert_eq!(request.show_refs, None);
-        assert!(!request.show_defs);
-        assert!(!request.show_elided);
-        assert!(!request.show_glosses);
-        assert!(request.show_compounds);
-
-        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
-            ("text", serde_json::json!("mi pa moi klama")),
-            ("format", serde_json::json!("png")),
-            ("dialect", serde_json::json!("zantufa")),
-            ("show-elided", serde_json::json!(true)),
-            ("show-glosses", serde_json::json!(true)),
-            ("show-compounds", serde_json::json!(false)),
-        ]))
-        .expect("explicit gentufa request");
-        assert_eq!(request.format, ToolGentufaFormat::Png);
-        assert_eq!(request.dialect.as_deref(), Some("zantufa"));
-        assert!(request.show_elided);
-        assert!(request.show_glosses);
-        assert!(!request.show_compounds);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn discord_gentufa_link_carries_the_requested_display_controls() {
-        let _env_guard = lock_test_env();
-        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[(
-            "text",
-            serde_json::json!("mi klama"),
-        )]))
-        .expect("default gentufa request");
-        let link = discord::gentufa_link(&request).expect("gentufa link");
-        let (_, query) = link.split_once('?').expect("link query");
-        let state = jbotci_web_core::parse_gentufa_web_route("/gentufa", query);
-        assert_eq!(state.text, "mi klama");
-        assert_eq!(state.view_mode, jbotci_web_core::GentufaWebViewMode::Blocks);
-        assert!(!state.show_elided);
-        assert!(!state.show_glosses);
-        assert!(state.show_compounds);
-        for key in ["elided", "glosses", "compounds"] {
-            assert!(!query.contains(key), "{query}");
-        }
-
-        // The chat format may mask a control, but the link targets the blocks
-        // view, which honors all three, so it reflects what was asked for.
-        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
-            ("text", serde_json::json!("mi pa moi klama")),
-            ("format", serde_json::json!("tree")),
-            ("show-elided", serde_json::json!(true)),
-            ("show-glosses", serde_json::json!(true)),
-            ("show-compounds", serde_json::json!(false)),
-        ]))
-        .expect("explicit gentufa request");
-        let link = discord::gentufa_link(&request).expect("gentufa link");
-        let (_, query) = link.split_once('?').expect("link query");
-        let state = jbotci_web_core::parse_gentufa_web_route("/gentufa", query);
-        assert_eq!(state.text, "mi pa moi klama");
-        assert!(state.show_elided);
-        assert!(state.show_glosses);
-        assert!(!state.show_compounds);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn discord_gentufa_executes_every_advertised_format_with_every_display_control() {
-        for format in ["tree", "brackets", "json", "svg", "png"] {
-            for (show_elided, show_glosses, show_compounds) in
-                [(false, false, true), (true, true, false)]
-            {
-                let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
-                    ("text", serde_json::json!("mi pa moi klama")),
-                    ("format", serde_json::json!(format)),
-                    ("show-elided", serde_json::json!(show_elided)),
-                    ("show-glosses", serde_json::json!(show_glosses)),
-                    ("show-compounds", serde_json::json!(show_compounds)),
-                ]))
-                .expect("gentufa request");
-                let output =
-                    run_tool_gentufa(request).unwrap_or_else(|error| panic!("{format}: {error}"));
-                assert_eq!(
-                    output.status,
-                    ToolStatus::Success,
-                    "{format} elided={show_elided} glosses={show_glosses} compounds={show_compounds}: {}",
-                    output.stderr
-                );
-                assert!(!output.stdout.is_empty(), "{format}");
-            }
-        }
     }
 
     #[tokio::test]

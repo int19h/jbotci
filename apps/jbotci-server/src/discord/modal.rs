@@ -1110,7 +1110,7 @@ pub(crate) fn parse_submission(
                 != previous.query.as_ref().map(SourceText::as_str)
                 || mode != previous.options.mode
                 || kinds != previous.options.kinds;
-            try_new!(CuktaRequest {
+            Ok(DiscordRequest::Cukta(CuktaRequest {
                 query,
                 options: CuktaOptions {
                     mode,
@@ -1121,11 +1121,7 @@ pub(crate) fn parse_submission(
                         page
                     },
                 },
-            })
-            .map(DiscordRequest::Cukta)
-            .map_err(|_| SubmissionError::EmptyField {
-                control: "query or reference",
-            })
+            }))
         }
         DiscordRequest::Jvozba(previous) => Ok(DiscordRequest::Jvozba(JvozbaRequest {
             parts: required_source(submission, ID_PARTS, "words")?,
@@ -1406,14 +1402,14 @@ mod tests {
                     page: PageNumber::new(4).expect("page"),
                 },
             })),
-            DiscordRequest::Cukta(new!(CuktaRequest {
+            DiscordRequest::Cukta(CuktaRequest {
                 query: Some(source("tanru")),
                 options: CuktaOptions {
                     mode: CuktaMode::Word,
                     kinds: CuktaResultKindSet::empty().with(CuktaResultKind::Example),
                     page: PageNumber::new(7).expect("page"),
                 },
-            })),
+            }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: source("klama bajra"),
                 rafsi: Some(source("kla")),
@@ -1460,14 +1456,14 @@ mod tests {
                 query: source("klama"),
                 options: VlackuOptions::default(),
             })),
-            DiscordRequest::Cukta(new!(CuktaRequest {
+            DiscordRequest::Cukta(CuktaRequest {
                 query: None,
                 options: CuktaOptions {
                     mode: CuktaMode::Contents,
                     kinds: CuktaResultKindSet::empty(),
                     page: PageNumber::first(),
                 },
-            })),
+            }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: source("klama bajra"),
                 rafsi: None,
@@ -1673,14 +1669,14 @@ mod tests {
         assert_eq!(parsed.sources, None, "an absent source field stays absent");
 
         // A cukta query keeps its spacing rather than being filtered away.
-        let cukta = DiscordRequest::Cukta(new!(CuktaRequest {
+        let cukta = DiscordRequest::Cukta(CuktaRequest {
             query: None,
             options: CuktaOptions {
                 mode: CuktaMode::Contents,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        }));
+        });
         let modal = build(&published(cukta.clone()), None).expect("a form");
         let spaced = with_value(
             &submit_unchanged(&modal),
@@ -1975,14 +1971,14 @@ mod tests {
         assert_eq!(reset.options.page.get(), 1);
 
         // Cukta and gimfi'i behave the same way.
-        let cukta = DiscordRequest::Cukta(new!(CuktaRequest {
+        let cukta = DiscordRequest::Cukta(CuktaRequest {
             query: Some(source("tanru")),
             options: CuktaOptions {
                 mode: CuktaMode::Word,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::new(5).expect("page"),
             },
-        }));
+        });
         let modal = build(&published(cukta.clone()), None).expect("a form");
         let changed = with_value(
             &submit_unchanged(&modal),

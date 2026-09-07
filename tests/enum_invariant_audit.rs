@@ -136,28 +136,80 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error reports the measured byte count and the applied limit",
     ),
     (
-        "apps/jbotci-server/src/discord/mod.rs:DiscordCommand::Cukta",
-        "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
+        "apps/jbotci-server/src/discord/interaction.rs:Interaction::Command",
+        "one kind of interaction, carrying the fields that kind sends; the reader refuses anything else before this exists",
     ),
     (
-        "apps/jbotci-server/src/discord/mod.rs:DiscordCommand::Gentufa",
-        "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
+        "apps/jbotci-server/src/discord/interaction.rs:Interaction::Component",
+        "one kind of interaction, carrying the fields that kind sends; the reader refuses anything else before this exists",
     ),
     (
-        "apps/jbotci-server/src/discord/mod.rs:DiscordCommand::Gimfihi",
-        "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
+        "apps/jbotci-server/src/discord/interaction.rs:Interaction::ModalSubmit",
+        "one kind of interaction, carrying the fields that kind sends; the reader refuses anything else before this exists",
     ),
     (
-        "apps/jbotci-server/src/discord/mod.rs:DiscordCommand::Jvozba",
-        "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
+        "apps/jbotci-server/src/discord/interaction.rs:Interaction::Ping",
+        "one kind of interaction, carrying the fields that kind sends; the reader refuses anything else before this exists",
     ),
     (
-        "apps/jbotci-server/src/discord/mod.rs:DiscordCommand::Vlacku",
-        "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
+        "apps/jbotci-server/src/discord/interaction.rs:RestError::Lane",
+        "how a read of the published message ended; every outcome is a possible one and the caller decides what it means",
     ),
     (
-        "apps/jbotci-server/src/discord/mod.rs:DiscordCommand::Vlasei",
-        "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
+        "apps/jbotci-server/src/discord/interaction.rs:RestError::NotCreatedYet",
+        "how a read of the published message ended; every outcome is a possible one and the caller decides what it means",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:RestError::Transport",
+        "how a read of the published message ended; every outcome is a possible one and the caller decides what it means",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Assemble",
+        "why a result could not be produced; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Invalid",
+        "why a result could not be produced; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Link",
+        "why a result could not be produced; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Operation",
+        "why a result could not be produced; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:RunError::Failed",
+        "how running a tool ended, wrapping the error the layer below reported",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:RunError::Invalid",
+        "how running a tool ended, wrapping the error the layer below reported",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:StateError::Block",
+        "why a published message could not be read back as a request; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:StateError::NoSettings",
+        "why a published message could not be read back as a request; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:StateError::Rebuild",
+        "why a published message could not be read back as a request; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:StateError::SourceUnavailable",
+        "why a published message could not be read back as a request; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:WriteError::Ambiguous",
+        "whether a failed write may still have landed; the reason is free text from the transport",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:WriteError::Failed",
+        "whether a failed write may still have landed; the reason is free text from the transport",
     ),
     (
         "apps/jbotci-server/src/discord/modal.rs:SubmissionError::CollisionCount",
@@ -272,6 +324,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error wraps the typed admission error unchanged",
     ),
     (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::CuktaQueryRequired",
+        "the mode the reader chose without saying what to look for; every mode that needs a query is a possible report",
+    ),
+    (
         "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::Dialect",
         "validation error carries the dialect parser's message",
     ),
@@ -381,10 +437,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     ),
     (
         "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::InvalidChoice",
-        "user-facing decode error carries only descriptive payload; any value is a valid report",
-    ),
-    (
-        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::MissingQueryForMode",
         "user-facing decode error carries only descriptive payload; any value is a valid report",
     ),
     (

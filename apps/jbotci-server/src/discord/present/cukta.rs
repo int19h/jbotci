@@ -215,14 +215,14 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn request(mode: CuktaMode, query: Option<&str>) -> CuktaRequest {
-        new!(CuktaRequest {
+        CuktaRequest {
             query: query.map(|text| SourceText::new(text).expect("text")),
             options: CuktaOptions {
                 mode,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        })
+        }
     }
 
     #[test]

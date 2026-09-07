@@ -32,6 +32,34 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "wrapper around a mutex whose inner set carries the invariant",
     ),
     (
+        "apps/jbotci-server/src/discord/interaction.rs:CommandInteraction",
+        "what a slash-command interaction carries; the identifiers are validated types and the data is Discord's own payload",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ComponentInteraction",
+        "what a button interaction carries; the identifiers are validated types and the message is Discord's own payload",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:DiscordService",
+        "the services one interaction needs, each carrying its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:FakeDiscord",
+        "test double: a local Discord that records what it was asked",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:FakeState",
+        "test double state: the message it holds and the requests it saw",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ModalSubmitInteraction",
+        "what a form submission carries; the identifiers are validated types and the data is Discord's own payload",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:Target",
+        "the application and token a message is read and written through, both validated types",
+    ),
+    (
         "apps/jbotci-server/src/discord/locks.rs:Entry",
         "lock entry pairs a mutex with an interest count; zero interest is reclaimed by the registry, so every count is valid while stored",
     ),
@@ -66,6 +94,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/discord/request.rs:CuktaOptions",
         "presentation options bag: every combination of its typed choices is a valid request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:CuktaRequest",
+        "a book task as the reader stated it: a mode that needs a query may be recorded without one, which is an incomplete task the form finishes, and running it is what requires the query",
     ),
     (
         "apps/jbotci-server/src/discord/request.rs:GentufaOptions",

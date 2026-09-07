@@ -837,14 +837,14 @@ mod tests {
             // Absent optional primary/secondary fields (cukta contents,
             // gimfihi without sources, missing dialect/rafsi).
             if tool == DiscordTool::Cukta {
-                let request = DiscordRequest::Cukta(new!(CuktaRequest {
+                let request = DiscordRequest::Cukta(CuktaRequest {
                     query: None,
                     options: CuktaOptions {
                         mode: CuktaMode::Contents,
                         kinds: CuktaResultKindSet::empty(),
                         page: PageNumber::first(),
                     },
-                }));
+                });
                 assert_round_trip(&publish(request, 1));
             }
             if tool == DiscordTool::Gimfihi {
@@ -961,7 +961,7 @@ mod tests {
                     page: PageNumber::new(VLACKU_MAX_PAGE).expect("page"),
                 },
             })),
-            DiscordRequest::Cukta(new!(CuktaRequest {
+            DiscordRequest::Cukta(CuktaRequest {
                 query: Some(text("6.8")),
                 options: CuktaOptions {
                     mode: CuktaMode::Example,
@@ -970,7 +970,7 @@ mod tests {
                         .with(CuktaResultKind::Paragraph),
                     page: PageNumber::new(25).expect("page"),
                 },
-            })),
+            }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: text("klama bajra"),
                 rafsi: Some(text("kla bar")),

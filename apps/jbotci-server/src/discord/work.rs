@@ -140,9 +140,17 @@ impl Lane {
     }
 
     /// Run `job` on the blocking pool under one of this lane's permits.
+    /// `keepalive` is carried into the worker and dropped when the job ends,
+    /// so a caller that gave up waiting does not release anything the running
+    /// work still stands for.
     #[requires(true)]
     #[ensures(true)]
-    async fn run<T, F>(&self, deadline: Instant, job: F) -> Result<T, WorkError>
+    async fn run<T, F>(
+        &self,
+        deadline: Instant,
+        keepalive: Option<WorkKeepalive>,
+        job: F,
+    ) -> Result<T, WorkError>
     where
         T: Send + 'static,
         F: FnOnce() -> T + Send + 'static,
@@ -190,8 +198,10 @@ impl Lane {
             return Err(WorkError::WaitTimedOut { lane });
         }
         let handle = tokio::task::spawn_blocking(move || {
-            // The permit lives exactly as long as the worker.
+            // The permit and whatever the caller tied to this work live
+            // exactly as long as the worker.
             let _permit = permit;
+            let _keepalive = keepalive;
             // The blocking pool has a queue of its own, and a caller that
             // already gave up cannot be told about a late result. Starting
             // expensive work here would only burn a worker, so check the
@@ -230,6 +240,10 @@ impl Drop for QueueSlot<'_> {
         self.counter.fetch_sub(1, Ordering::AcqRel);
     }
 }
+
+/// Something a running job keeps alive: the work has started, so whatever it
+/// stands for is still in progress even after its caller stopped waiting.
+pub(crate) type WorkKeepalive = Arc<dyn std::any::Any + Send + Sync>;
 
 /// Snapshot of lane occupancy, for diagnostics and tests.
 #[invariant(true)]
@@ -271,7 +285,23 @@ impl WorkGovernor {
         T: Send + 'static,
         F: FnOnce() -> T + Send + 'static,
     {
-        self.compute.run(deadline, job).await
+        self.compute.run(deadline, None, job).await
+    }
+
+    /// Run a CPU-bound job that keeps `keepalive` for as long as it runs.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn run_compute_keeping<T, F>(
+        &self,
+        deadline: Instant,
+        keepalive: Option<WorkKeepalive>,
+        job: F,
+    ) -> Result<T, WorkError>
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
+    {
+        self.compute.run(deadline, keepalive, job).await
     }
 
     /// Run a blocking network fetch.
@@ -282,7 +312,24 @@ impl WorkGovernor {
         T: Send + 'static,
         F: FnOnce() -> T + Send + 'static,
     {
-        self.fetch.run(deadline, job).await
+        self.fetch.run(deadline, None, job).await
+    }
+
+    /// Run a network job that keeps `keepalive` for as long as it runs, so a
+    /// request still in flight keeps standing for its delivery.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn run_fetch_keeping<T, F>(
+        &self,
+        deadline: Instant,
+        keepalive: Option<WorkKeepalive>,
+        job: F,
+    ) -> Result<T, WorkError>
+    where
+        T: Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
+    {
+        self.fetch.run(deadline, keepalive, job).await
     }
 
     #[requires(true)]

@@ -463,41 +463,41 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn cukta_links_open_sections_examples_searches_and_the_book() {
-        let section = DiscordRequest::Cukta(new!(CuktaRequest {
+        let section = DiscordRequest::Cukta(CuktaRequest {
             query: Some(SourceText::new("4.6").expect("text")),
             options: CuktaOptions {
                 mode: CuktaMode::Section,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        }));
+        });
         let url = url_of(&section);
         assert!(
             url.starts_with("https://jbotci.app/cukta/section/"),
             "{url}"
         );
 
-        let example = DiscordRequest::Cukta(new!(CuktaRequest {
+        let example = DiscordRequest::Cukta(CuktaRequest {
             query: Some(SourceText::new("4.27").expect("text")),
             options: CuktaOptions {
                 mode: CuktaMode::Example,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        }));
+        });
         let url = url_of(&example);
         let (before_hash, anchor) = url.split_once('#').expect("an example anchor");
         assert!(before_hash.contains("/cukta/section/"), "{url}");
         assert!(!anchor.is_empty(), "{url}");
 
-        let search = DiscordRequest::Cukta(new!(CuktaRequest {
+        let search = DiscordRequest::Cukta(CuktaRequest {
             query: Some(SourceText::new("tanru").expect("text")),
             options: CuktaOptions {
                 mode: CuktaMode::Word,
                 kinds: CuktaResultKindSet::empty().with(CuktaResultKind::Example),
                 page: PageNumber::first(),
             },
-        }));
+        });
         let (path, query) = route_parts(&url_of(&search));
         let CuktaWebView::Search(state) = parse_cukta_web_route(&path, &query).view else {
             panic!("a search route");
@@ -506,14 +506,14 @@ mod tests {
         assert_eq!(state.query, "tanru");
         assert_eq!(state.targets, vec![CuktaSearchTarget::Example]);
 
-        let contents = DiscordRequest::Cukta(new!(CuktaRequest {
+        let contents = DiscordRequest::Cukta(CuktaRequest {
             query: None,
             options: CuktaOptions {
                 mode: CuktaMode::Contents,
                 kinds: CuktaResultKindSet::empty(),
                 page: PageNumber::first(),
             },
-        }));
+        });
         let url = url_of(&contents);
         assert!(
             url.starts_with("https://jbotci.app/cukta/section/"),
