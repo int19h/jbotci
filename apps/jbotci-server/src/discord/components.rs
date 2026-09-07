@@ -907,9 +907,9 @@ pub(crate) enum InteractionResponse {
 }
 
 /// Bound `text` to what Discord accepts in a message's `content`, ending it
-/// with an ellipsis rather than sending a body Discord will reject. Every
-/// private note goes through here: some of them repeat a validation error,
-/// and an error about fifty malformed records is not short.
+/// with an ellipsis rather than sending a body Discord will reject. This is
+/// the last guard on the way out; a note whose reason is long says so and
+/// carries the whole of it as a file rather than arriving here oversized.
 #[requires(!text.trim().is_empty())]
 #[ensures(utf16_len(&ret) <= MAX_CONTENT_UNITS && !ret.is_empty())]
 pub(crate) fn bound_content(text: &str) -> String {

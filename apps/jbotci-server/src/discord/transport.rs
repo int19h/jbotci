@@ -28,6 +28,8 @@ const RECEIVE_TIMEOUT: Duration = Duration::from_secs(15);
 const GLOBAL_TIMEOUT: Duration = Duration::from_secs(30);
 /// Discord's documented request ceiling; uploads are bounded well below it.
 pub(crate) const MAX_REQUEST_BYTES: usize = 25 * 1024 * 1024;
+/// What every text file this application uploads is declared as.
+pub(crate) const TEXT_CONTENT_TYPE: &str = "text/plain; charset=utf-8";
 
 static MULTIPART_COUNTER: AtomicU64 = AtomicU64::new(0);
 
@@ -429,6 +431,7 @@ impl DiscordApi {
         application_id: &Snowflake,
         token: &InteractionToken,
         content: &str,
+        detail: Option<(&str, &[u8])>,
         timeout: Duration,
     ) -> Result<(), TransportError> {
         let url = format!(
@@ -437,21 +440,43 @@ impl DiscordApi {
             application_id,
             token.as_str()
         );
-        let body = json!({
+        let payload = json!({
             "content": content,
             "flags": FLAG_EPHEMERAL,
             "allowed_mentions": { "parse": [] },
+            "attachments": detail
+                .map(|(name, _)| json!([{ "id": 0, "filename": name }]))
+                .unwrap_or_else(|| json!([])),
         })
         .to_string();
-        let response = self
+        let request = self
             .agent
             .post(&url)
             .config()
             .timeout_global(Some(timeout))
-            .build()
-            .header("content-type", "application/json")
-            .send(body.as_bytes())
-            .map_err(classify)?;
+            .build();
+        let response = match detail {
+            // A note too long to read in a message carries the whole of it as
+            // a file, which means the same multipart body an edit uses.
+            Some((name, bytes)) => {
+                let body = MultipartBody::build(&payload, &[(0, name, TEXT_CONTENT_TYPE, bytes)]);
+                if body.bytes.len() > MAX_REQUEST_BYTES {
+                    return Err(TransportError::NotSent {
+                        reason: format!(
+                            "request body of {} bytes exceeds Discord's limit",
+                            body.bytes.len()
+                        ),
+                    });
+                }
+                request
+                    .header("content-type", &body.content_type())
+                    .send(body.bytes.as_slice())
+            }
+            None => request
+                .header("content-type", "application/json")
+                .send(payload.as_bytes()),
+        }
+        .map_err(classify)?;
         read_json_response(response, CallKind::Mutating).map(|_| ())
     }
 

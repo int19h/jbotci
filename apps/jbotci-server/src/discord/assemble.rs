@@ -33,7 +33,7 @@ pub(crate) const RESULT_ATTACHMENT_FILENAME: &str = "jbotci-result.txt";
 pub(crate) const DIAGRAM_ATTACHMENT_FILENAME: &str = "gentufa.png";
 /// Units of the primary source shown inline when the source is attached.
 const INPUT_PREVIEW_UNITS: usize = 200;
-const TEXT_CONTENT_TYPE: &str = "text/plain; charset=utf-8";
+use super::transport::TEXT_CONTENT_TYPE;
 const PNG_CONTENT_TYPE: &str = "image/png";
 const FENCE_CLOSE: &str = "\n```";
 /// Most units a presenter's notice keeps in the message under overflow, so an

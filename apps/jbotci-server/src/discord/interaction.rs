@@ -25,8 +25,8 @@ use super::codec::{
     INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, ModalHeader, RequestHeader, decode_input_block,
 };
 use super::components::{
-    InteractionResponse, MessageComponent, MessagePayload, Modal, ModalComponent, ModalControl,
-    PayloadError, TextDisplay, bound_content,
+    InteractionResponse, MAX_CONTENT_UNITS, MessageComponent, MessagePayload, Modal,
+    ModalComponent, ModalControl, PayloadError, TextDisplay, bound_content,
 };
 use super::dedupe::{Admission, DeliveryTicket, RecentInteractions};
 use super::diagram::DiagramLimits;
@@ -153,12 +153,12 @@ impl DiscordService {
         };
         let request = match decode_command(&command.data) {
             Ok(request) => request,
-            Err(error) => return InteractionResponse::ephemeral(&command_error_text(&error)),
+            Err(error) => return ephemeral_about("Not run.", &command_error_text(&error)),
         };
         // A request whose form could not offer its own link is refused before
         // anything is published, so every published result can reopen.
         if let Err(error) = app_link(&request, &self.config.public_base_url) {
-            return InteractionResponse::ephemeral(&format!("Not run: {error}"));
+            return ephemeral_about("Not run.", &error.to_string());
         }
         let published = PublishedRequest {
             request,
@@ -210,9 +210,8 @@ impl DiscordService {
                 // so this says what happened and writes nothing.
                 self.report_privately(
                     &target,
-                    &format!(
-                        "jbotci could not read its own message back, so nothing was published: {error}"
-                    ),
+                    "jbotci could not read its own message back, so nothing was published.",
+                    Some(&error.to_string()),
                     Some(keepalive.clone()),
                 )
                 .await;
@@ -275,9 +274,8 @@ impl DiscordService {
             Err(error) => {
                 self.report_privately(
                     target,
-                    &format!(
-                        "jbotci could not check the message before publishing, so nothing was written: {error}"
-                    ),
+                    "jbotci could not check the message before publishing, so nothing was written.",
+                    Some(&error.to_string()),
                     keepalive,
                 )
                 .await;
@@ -337,12 +335,8 @@ impl DiscordService {
                     .await;
             }
             Err(_) => {
-                self.report_privately(
-                    target,
-                    &format!("Nothing was published: {reason}"),
-                    keepalive,
-                )
-                .await;
+                self.report_privately(target, "Nothing was published.", Some(&reason), keepalive)
+                    .await;
             }
         }
     }
@@ -376,7 +370,7 @@ impl DiscordService {
             .await
         {
             Ok(published) => published,
-            Err(error) => return InteractionResponse::ephemeral(&error.to_string()),
+            Err(error) => return ephemeral_about("The form did not open.", &error.to_string()),
         };
         // The link is part of the form. A published state whose link no
         // longer fits (this deployment's address changed since) still opens,
@@ -387,9 +381,7 @@ impl DiscordService {
         };
         match build_modal(&published, link.as_deref()) {
             Ok(modal) => InteractionResponse::Modal(modal),
-            Err(error) => {
-                InteractionResponse::ephemeral(&format!("jbotci could not open the form: {error}"))
-            }
+            Err(error) => ephemeral_about("jbotci could not open the form.", &error.to_string()),
         }
     }
 
@@ -432,7 +424,7 @@ impl DiscordService {
             .await
         {
             Ok(published) => published,
-            Err(error) => return InteractionResponse::ephemeral(&error.to_string()),
+            Err(error) => return ephemeral_about("Nothing was applied.", &error.to_string()),
         };
         if published.revision != header.revision {
             return InteractionResponse::ephemeral(
@@ -450,16 +442,21 @@ impl DiscordService {
         }
         let submission = match Submission::read(&submit.data) {
             Ok(submission) => submission,
-            Err(error) => return InteractionResponse::ephemeral(&submission_error_text(&error)),
+            Err(error) => {
+                return ephemeral_about("Nothing was applied.", &submission_error_text(&error));
+            }
         };
         let request = match parse_submission(&published.request, &submission) {
             Ok(request) => request,
-            Err(error) => return InteractionResponse::ephemeral(&submission_error_text(&error)),
+            Err(error) => {
+                return ephemeral_about("Nothing was applied.", &submission_error_text(&error));
+            }
         };
         if let Err(error) = app_link(&request, &self.config.public_base_url) {
-            return InteractionResponse::ephemeral(&format!(
-                "Not applied, and the result is unchanged: {error}"
-            ));
+            return ephemeral_about(
+                "Not applied, and the result is unchanged.",
+                &error.to_string(),
+            );
         }
         let Some(revision) = published.revision.next() else {
             return InteractionResponse::ephemeral(
@@ -518,6 +515,7 @@ impl DiscordService {
             self.report_privately(
                 &target,
                 "jbotci is already changing this result; try again in a moment.",
+                None,
                 Some(keepalive.clone()),
             )
             .await;
@@ -544,6 +542,7 @@ impl DiscordService {
                     self.report_privately(
                         &target,
                         "This result changed while your form was open, so nothing was applied. Open the ⚙️ form again.",
+                        None,
                         Some(keepalive.clone()),
                     )
                     .await;
@@ -555,6 +554,7 @@ impl DiscordService {
                     self.report_privately(
                         &target,
                         "Only the person who ran this command can change it, so nothing was applied.",
+                        None,
                         Some(keepalive.clone()),
                     )
                     .await;
@@ -565,6 +565,7 @@ impl DiscordService {
                     self.report_privately(
                         &target,
                         "jbotci could not find its own settings on that message, so nothing was applied.",
+                        None,
                         Some(keepalive.clone()),
                     )
                     .await;
@@ -574,7 +575,8 @@ impl DiscordService {
             Err(error) => {
                 self.report_privately(
                     &target,
-                    &format!("jbotci could not read the result before changing it: {error}"),
+                    "jbotci could not read the result before changing it, so nothing was applied.",
+                    Some(&error.to_string()),
                     Some(keepalive.clone()),
                 )
                 .await;
@@ -595,7 +597,8 @@ impl DiscordService {
             Err(error) => {
                 self.report_privately(
                     &target,
-                    &format!("Nothing was changed: {error}"),
+                    "Nothing was changed.",
+                    Some(&error.to_string()),
                     Some(keepalive.clone()),
                 )
                 .await;
@@ -744,16 +747,15 @@ impl DiscordService {
                 if !landed {
                     self.report_privately(
                         target,
-                        &format!(
-                            "jbotci could not confirm the change ({reason}); the result may be unchanged. Open the ⚙️ form again to check."
-                        ),
+                        "jbotci could not confirm the change; the result may be unchanged. Open the ⚙️ form again to check.",
+                        Some(&reason),
                         keepalive,
                     )
                     .await;
                 }
             }
             Err(WriteError::Failed { reason }) => {
-                self.report_privately(target, &format!("Nothing was changed: {reason}"), keepalive)
+                self.report_privately(target, "Nothing was changed.", Some(&reason), keepalive)
                     .await;
             }
         }
@@ -885,37 +887,83 @@ impl DiscordService {
         }
     }
 
-    /// Tell the acting reader something only they need to know. This is what
-    /// is said after the work is over, so it runs on its own budget: a
-    /// request that used every second it had would otherwise be unable to
-    /// report even that.
-    #[requires(!text.trim().is_empty())]
+    /// Tell the acting reader something only they need to know: a sentence
+    /// jbotci wrote, and where there is one, the reason, which came from their
+    /// own request. This is what is said after the work is over, so it runs on
+    /// its own budget: a request that used every second it had would otherwise
+    /// be unable to report even that.
+    #[requires(!summary.trim().is_empty())]
     #[ensures(true)]
     async fn report_privately(
         &self,
         target: &Target,
-        text: &str,
+        summary: &str,
+        reason: Option<&str>,
         keepalive: Option<WorkKeepalive>,
     ) {
         let deadline = Instant::now() + SETTLE_BUDGET;
         let api = self.api.clone();
         let application_id = target.application_id.clone();
         let token = target.token.clone();
-        // The same bound the immediate answers use: a note repeating a long
-        // validation error must still be a note Discord will accept.
-        let text = bound_content(text);
+        let (content, detail) = private_note(summary, reason);
         let _ = self
             .governor
             .run_fetch_keeping(deadline, keepalive, move || {
                 api.create_ephemeral_followup(
                     &application_id,
                     &token,
-                    &text,
+                    &content,
+                    detail
+                        .as_ref()
+                        .map(|bytes| (PRIVATE_DETAIL_FILENAME, bytes.as_slice())),
                     remaining_at(deadline),
                 )
             })
             .await;
     }
+}
+
+/// An immediate answer about something the reader's own request produced. The
+/// reason is escaped, because Discord renders a message's content as Markdown
+/// and a reason quoting the request would otherwise be reformatted by it. An
+/// immediate answer cannot carry a file, so where a reason can be long the
+/// flows put it in the result or in a note that can.
+#[requires(!summary.trim().is_empty())]
+#[ensures(true)]
+fn ephemeral_about(summary: &str, reason: &str) -> InteractionResponse {
+    InteractionResponse::ephemeral(&format!("{summary}\n{}", markdown::escape(reason)))
+}
+
+/// The file a private note carries when its reason does not fit in a message.
+const PRIVATE_DETAIL_FILENAME: &str = "jbotci-detail.txt";
+
+/// What a private note shows, and what it carries. The reason came from the
+/// reader's own request, so it is escaped rather than rendered as Markdown;
+/// when the note cannot hold all of it, the message shows the beginning and
+/// the whole of it travels as a file. Fifty complaints are only useful all
+/// together, and an ellipsis is not an answer.
+#[requires(!summary.trim().is_empty())]
+#[ensures(super::request::utf16_len(&ret.0) <= MAX_CONTENT_UNITS)]
+fn private_note(summary: &str, reason: Option<&str>) -> (String, Option<Vec<u8>>) {
+    let Some(reason) = reason else {
+        return (bound_content(summary), None);
+    };
+    let escaped = markdown::escape(reason);
+    let whole = format!("{summary}\n{escaped}");
+    if super::request::utf16_len(&whole) <= MAX_CONTENT_UNITS {
+        return (whole, None);
+    }
+    let attached = markdown::subtext("The whole of it is attached.");
+    let room = MAX_CONTENT_UNITS
+        .saturating_sub(super::request::utf16_len(summary))
+        .saturating_sub(super::request::utf16_len(&attached))
+        .saturating_sub(2)
+        .max(1);
+    let (shown, _) = markdown::truncate_units(&escaped, room);
+    (
+        bound_content(&format!("{summary}\n{shown}\n{attached}")),
+        Some(reason.as_bytes().to_vec()),
+    )
 }
 
 /// What is left of one absolute deadline. Called from inside the admitted
@@ -1491,6 +1539,21 @@ mod tests {
                 .count()
         }
 
+        /// The complete text a private note carried as a file, in order.
+        #[requires(true)]
+        #[ensures(true)]
+        fn private_details(&self) -> Vec<String> {
+            self.requests()
+                .iter()
+                .filter(|(what, _)| what.starts_with("POST"))
+                .filter_map(|(_, body)| {
+                    body.get("jbotci_detail")
+                        .and_then(Value::as_str)
+                        .map(str::to_owned)
+                })
+                .collect()
+        }
+
         /// The private messages the acting reader was sent.
         #[requires(true)]
         #[ensures(true)]
@@ -1541,7 +1604,10 @@ mod tests {
         headers: axum::http::HeaderMap,
         body: axum::body::Bytes,
     ) -> axum::response::Response {
-        let payload = payload_json(&headers, &body);
+        let mut payload = payload_json(&headers, &body);
+        if let Some(uploaded) = uploaded_part(&headers, &body, "files[0]") {
+            payload["jbotci_result"] = json!(uploaded);
+        }
         state
             .recorded
             .lock()
@@ -1572,14 +1638,54 @@ mod tests {
     async fn followup(
         State(state): State<Arc<FakeState>>,
         Path((_application, _token)): Path<(String, String)>,
-        axum::Json(body): axum::Json<Value>,
+        headers: axum::http::HeaderMap,
+        body: axum::body::Bytes,
     ) -> axum::response::Response {
+        let mut payload = payload_json(&headers, &body);
+        // Discord refuses a message whose content is longer than this; the
+        // fake refuses it too, so a test cannot pass on a note that would not
+        // have been delivered.
+        let content = payload["content"].as_str().unwrap_or_default();
+        assert!(
+            crate::discord::request::utf16_len(content) <= 2000,
+            "a private note of {} units would be refused by Discord",
+            crate::discord::request::utf16_len(content)
+        );
+        if let Some(detail) = uploaded_part(&headers, &body, "files[0]") {
+            payload["jbotci_detail"] = json!(detail);
+        }
         state
             .recorded
             .lock()
             .expect("state")
-            .push(("POST followup".to_owned(), body));
+            .push(("POST followup".to_owned(), payload));
         axum::Json(json!({ "id": "1" })).into_response()
+    }
+
+    /// The bytes of one uploaded multipart part, as text.
+    #[requires(!name.is_empty())]
+    #[ensures(true)]
+    fn uploaded_part(
+        headers: &axum::http::HeaderMap,
+        body: &axum::body::Bytes,
+        name: &str,
+    ) -> Option<String> {
+        let content_type = headers
+            .get("content-type")
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or_default();
+        if !content_type.starts_with("multipart/") {
+            return None;
+        }
+        let text = String::from_utf8_lossy(body);
+        let marker = format!("name=\"{name}\"");
+        let start = text.find(&marker)?;
+        let after_headers = start + text[start..].find("\r\n\r\n")? + 4;
+        let end = text[after_headers..]
+            .find("\r\n--")
+            .map(|offset| after_headers + offset)
+            .unwrap_or(text.len());
+        Some(text[after_headers..end].to_owned())
     }
 
     /// The message Discord would hold after a write: the components as sent,
@@ -2515,6 +2621,19 @@ mod tests {
             attachments.contains(&"jbotci-result.txt"),
             "the whole complaint travels with the message: {attachments:?}"
         );
+        let uploaded = discord
+            .requests()
+            .iter()
+            .rev()
+            .find(|(what, _)| what.starts_with("PATCH"))
+            .and_then(|(_, body)| body.get("jbotci_result").cloned())
+            .and_then(|value| value.as_str().map(str::to_owned))
+            .expect("the attached result");
+        assert!(
+            uploaded.contains("??49"),
+            "the last complaint survives: {}",
+            &uploaded[uploaded.len().saturating_sub(200)..]
+        );
         // And the form still reopens on the request that caused it.
         let response = service
             .handle(&component_interaction("161", &message, ACTOR))
@@ -2561,12 +2680,21 @@ mod tests {
         assert_eq!(discord.count("PATCH"), writes, "the result is unchanged");
         let notes = discord.private_messages();
         let note = notes.last().expect("a private note");
-        assert!(
-            super::super::request::utf16_len(note) <= 2000,
-            "the note fits Discord's content limit: {} units",
-            super::super::request::utf16_len(note)
-        );
         assert!(note.contains("Nothing was changed"), "{note}");
+        // The fake refuses an oversized note the way Discord does, so getting
+        // here proves the bound. What matters beyond that is that nothing was
+        // lost: the last of the fifty complaints is in the delivered file.
+        let details = discord.private_details();
+        let detail = details.last().expect("the whole complaint");
+        assert!(
+            detail.contains("??49"),
+            "the last complaint survives: {}",
+            &detail[detail.len().saturating_sub(200)..]
+        );
+        assert!(
+            detail.len() > note.len(),
+            "the file carries more than the message shows"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
