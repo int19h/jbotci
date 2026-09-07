@@ -111,22 +111,34 @@ jobs:
           # printed line by line so the last samples before a runner shutdown
           # survive in the streamed log. Process lines carry the executable
           # name and resident size, never arguments or environment.
-          sample() {
+          #
+          # The sampler runs in a subshell with errexit and pipefail off: a
+          # grep that matches nothing and a pipe closed by head are ordinary
+          # outcomes here, and under this job's shell either would end the
+          # telemetry after one sample. The build itself keeps this shell's
+          # settings, so its exit status is still the step's.
+          (
+            set +e +o pipefail
             while true; do
               printf '## %s memory\n' "$(date -u +%H:%M:%S)"
               awk '/^(MemFree|MemAvailable|Cached|SwapFree|Committed_AS):/ {printf "##   %s %s kB\n", $1, $2}' /proc/meminfo
               for file in /sys/fs/cgroup/memory.current /sys/fs/cgroup/memory.events \
                           /sys/fs/cgroup/memory.pressure; do
-                [ -r "$file" ] && printf '##   %s %s\n' "$file" "$(tr '\n' ' ' < "$file")"
+                if [ -r "$file" ]; then
+                  printf '##   %s %s\n' "$file" "$(tr '\n' ' ' < "$file")"
+                fi
               done
-              ps -eo rss=,comm= --sort=-rss 2>/dev/null | head -4 |
-                awk '{printf "##   rss %s kB %s\n", $1, $2}'
-              sudo dmesg -T 2>/dev/null | grep -iE 'out of memory|killed process|oom-kill' |
-                tail -2 | sed 's/^/##   kernel /'
+              ps -eo rss=,comm= --sort=-rss 2>/dev/null |
+                awk 'NR <= 4 {printf "##   rss %s kB %s\n", $1, $2}'
+              df -k --output=avail,target / /home/runner /mnt 2>/dev/null |
+                awk 'NR > 1 {printf "##   free %s kB %s\n", $1, $2}'
+              sudo -n dmesg -T 2>/dev/null |
+                grep -iE 'out of memory|killed process|oom-kill' |
+                tail -2 |
+                sed 's/^/##   kernel /'
               sleep 3
             done
-          }
-          sample &
+          ) &
           sampler=$!
           trap 'kill "$sampler" 2>/dev/null || true' EXIT
           uv run --locked --project . --group dev maturin develop
