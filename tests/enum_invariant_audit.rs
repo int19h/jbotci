@@ -116,6 +116,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "payload assembly error carries only the offending name",
     ),
     (
+        "apps/jbotci-server/src/discord/dedupe.rs:Admission::First",
+        "carries the delivery ticket that protects the admitted id; every ticket is valid",
+    ),
+    (
         "apps/jbotci-server/src/discord/diagram.rs:DiagramError::Render",
         "render error carries only the renderer's message",
     ),
@@ -392,6 +396,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "admission error names the lane it concerns",
     ),
     (
+        "apps/jbotci-server/src/lib.rs:EmbeddingJob::Cukta",
+        "a rendered tool request paired with its typed reply channel; the request type validates itself",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingJob::CuktaSearch",
+        "query and count are validated types paired with the typed reply channel; the target filter admits every combination",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingJob::Vlacku",
+        "a rendered tool request paired with its typed reply channel; the request type validates itself",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingJob::VlackuHits",
+        "query, count and options are validated types (SearchQuery, NonZeroUsize, VlackuSearchOptions) paired with the typed reply channel",
+    ),
+    (
         "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Loaded",
         "loaded embedding cache validity is owned by the native embedding service type",
     ),
@@ -404,32 +424,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding search cache starts empty and is initialized on first semantic tool use",
     ),
     (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolOutcome::CuktaSearch",
-        "worker outcome wraps the typed CLL search output unchanged",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolOutcome::Rendered",
-        "worker outcome wraps the typed rendered tool output unchanged",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolOutcome::VlackuHits",
-        "worker outcome wraps the embedding index hits unchanged",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Cukta",
-        "embedding worker request delegates payload validity to the typed cukta tool request",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::CuktaSearch",
-        "typed embedding job carries a query, count and target filter; the worker method contracts bound them",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Vlacku",
-        "embedding worker request delegates payload validity to the typed vlacku tool request",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::VlackuHits",
-        "typed embedding job carries a query and count; the worker method contracts bound them",
+        "apps/jbotci-server/src/lib.rs:SemanticSearchError::Lane",
+        "wraps a WorkError; nothing further to constrain",
     ),
     (
         "apps/jbotci/src/commands/gentufa.rs:GentufaSyntaxStage::MorphologyFailed",

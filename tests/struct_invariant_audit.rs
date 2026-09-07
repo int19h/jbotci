@@ -24,6 +24,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error carries the rejected name text",
     ),
     (
+        "apps/jbotci-server/src/discord/dedupe.rs:DeliveryTicket",
+        "a handle pairing the registry with an admitted id; the registry state carries the invariants",
+    ),
+    (
         "apps/jbotci-server/src/discord/dedupe.rs:RecentInteractions",
         "wrapper around a mutex whose inner set carries the invariant",
     ),
@@ -134,10 +138,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/discord/work.rs:WorkSnapshot",
         "diagnostic counters; any values are a valid snapshot",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",
-        "embedding worker jobs pair a typed request with the response channel for that request",
     ),
     (
         "apps/jbotci-server/src/lib.rs:GimfihiSchemaProjection",

@@ -14,12 +14,15 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
-use tokio::sync::Semaphore;
+use tokio::sync::{Semaphore, TryAcquireError};
 use tokio::time::Instant;
 
-/// Numeric admission limits. The defaults are initial values for the
-/// single-instance service; the operating numbers are measured under #902
-/// before they are frozen. Tests construct their own.
+/// Numeric admission limits. `*_workers` is the number of jobs a lane runs at
+/// once; `*_queue` is how many further callers may wait for a worker (a
+/// caller that finds a worker idle never queues, so zero means "no backlog":
+/// idle workers admit, everything else is refused). The defaults are initial
+/// values for the single-instance service; the operating numbers are measured
+/// under #902 before they are frozen. Tests construct their own.
 #[invariant(*compute_workers > 0 && *fetch_workers > 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct WorkLimits {
@@ -47,6 +50,9 @@ impl Default for WorkLimits {
 pub(crate) enum WorkLane {
     Compute,
     Fetch,
+    /// The single embedding worker thread (meaning search); admitted by
+    /// `ToolServices`, reported with the same error type.
+    Embedding,
 }
 
 impl WorkLane {
@@ -56,6 +62,7 @@ impl WorkLane {
         match self {
             Self::Compute => "analysis",
             Self::Fetch => "attachment download",
+            Self::Embedding => "meaning search",
         }
     }
 }
@@ -141,25 +148,40 @@ impl Lane {
         F: FnOnce() -> T + Send + 'static,
     {
         let lane = self.kind;
-        // Admission: count ourselves as waiting before touching the semaphore
-        // so the queue bound covers the race between many arrivals. The slot
-        // is released by RAII: a caller dropped while it waits (aborted task,
-        // client gone) gives the slot back the same way a timed-out one does.
-        let waiting_before = self.waiting.fetch_add(1, Ordering::AcqRel);
-        if waiting_before >= self.max_waiting {
-            self.waiting.fetch_sub(1, Ordering::AcqRel);
-            return Err(WorkError::Overloaded { lane });
+        // A deadline that has already passed admits no new work, even when a
+        // worker is idle: nobody could use the result.
+        if Instant::now() >= deadline {
+            return Err(WorkError::WaitTimedOut { lane });
         }
-        let queue_slot = QueueSlot {
-            counter: &self.waiting,
-        };
-        let acquired =
-            tokio::time::timeout_at(deadline, Arc::clone(&self.permits).acquire_owned()).await;
-        drop(queue_slot);
-        let permit = match acquired {
-            Ok(Ok(permit)) => permit,
-            Ok(Err(_closed)) => return Err(WorkError::Overloaded { lane }),
-            Err(_elapsed) => return Err(WorkError::WaitTimedOut { lane }),
+        // An idle worker admits immediately; the waiting queue counts only the
+        // contenders beyond the idle workers.
+        let permit = match Arc::clone(&self.permits).try_acquire_owned() {
+            Ok(permit) => permit,
+            Err(TryAcquireError::Closed) => return Err(WorkError::Overloaded { lane }),
+            Err(TryAcquireError::NoPermits) => {
+                // Count ourselves as waiting before touching the semaphore so
+                // the queue bound covers the race between many arrivals. The
+                // slot is released by RAII: a caller dropped while it waits
+                // (aborted task, client gone) gives the slot back the same
+                // way a timed-out one does.
+                let waiting_before = self.waiting.fetch_add(1, Ordering::AcqRel);
+                if waiting_before >= self.max_waiting {
+                    self.waiting.fetch_sub(1, Ordering::AcqRel);
+                    return Err(WorkError::Overloaded { lane });
+                }
+                let queue_slot = QueueSlot {
+                    counter: &self.waiting,
+                };
+                let acquired =
+                    tokio::time::timeout_at(deadline, Arc::clone(&self.permits).acquire_owned())
+                        .await;
+                drop(queue_slot);
+                match acquired {
+                    Ok(Ok(permit)) => permit,
+                    Ok(Err(_closed)) => return Err(WorkError::Overloaded { lane }),
+                    Err(_elapsed) => return Err(WorkError::WaitTimedOut { lane }),
+                }
+            }
         };
         let handle = tokio::task::spawn_blocking(move || {
             // The permit lives exactly as long as the worker.
@@ -265,6 +287,70 @@ mod tests {
     use super::*;
     use std::sync::mpsc;
     use std::time::Duration;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn zero_queue_admits_idle_workers_and_refuses_backlog() {
+        let governor = governor(1, 0);
+        assert_eq!(
+            governor
+                .run_compute(Instant::now() + Duration::from_secs(1), || 1)
+                .await,
+            Ok(1)
+        );
+        let (release_tx, release_rx) = mpsc::channel::<()>();
+        let busy_governor = Arc::clone(&governor);
+        let busy = tokio::spawn(async move {
+            busy_governor
+                .run_compute(Instant::now() + Duration::from_secs(5), move || {
+                    let _ = release_rx.recv();
+                    2
+                })
+                .await
+        });
+        for _ in 0..200 {
+            if governor.snapshot().compute_active == 1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert_eq!(governor.snapshot().compute_active, 1);
+        assert_eq!(
+            governor
+                .run_compute(Instant::now() + Duration::from_secs(1), || 3)
+                .await,
+            Err(WorkError::Overloaded {
+                lane: WorkLane::Compute
+            }),
+            "no backlog is allowed once the only worker is busy"
+        );
+        release_tx.send(()).expect("worker waiting");
+        assert_eq!(busy.await.expect("task"), Ok(2));
+    }
+
+    #[tokio::test]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn an_expired_deadline_admits_no_work_even_with_idle_workers() {
+        let governor = governor(2, 4);
+        let ran = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&ran);
+        let result = governor
+            .run_compute(Instant::now(), move || {
+                counter.fetch_add(1, Ordering::SeqCst);
+                1
+            })
+            .await;
+        assert_eq!(
+            result,
+            Err(WorkError::WaitTimedOut {
+                lane: WorkLane::Compute
+            })
+        );
+        assert_eq!(ran.load(Ordering::SeqCst), 0);
+        assert_eq!(governor.snapshot().compute_active, 0);
+    }
 
     #[requires(true)]
     #[ensures(true)]

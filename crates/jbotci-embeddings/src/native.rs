@@ -475,6 +475,30 @@ impl NativeEmbeddingSearchService {
         )
     }
 
+    /// Ranked entries among those `entry_allowed` accepts; see
+    /// [`crate::semantic_vlacku_hits_filtered`].
+    #[requires(!query.trim().is_empty())]
+    #[requires(count > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count) || ret.is_err())]
+    pub fn semantic_vlacku_hits_filtered<F>(
+        &mut self,
+        query: &str,
+        count: usize,
+        entry_allowed: F,
+    ) -> Result<Vec<crate::DictionarySemanticHit>, EmbeddingError>
+    where
+        F: FnMut(usize) -> bool,
+    {
+        crate::semantic_vlacku_hits_filtered(
+            &mut self.backend,
+            query,
+            count,
+            &self.index_root,
+            &self.model_key,
+            entry_allowed,
+        )
+    }
+
     #[requires(!query.trim().is_empty())]
     #[requires(count > 0)]
     #[ensures(true)]

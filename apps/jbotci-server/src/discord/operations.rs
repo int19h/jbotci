@@ -12,6 +12,7 @@
 //! cap plus one so a capped set is reported as capped rather than complete.
 
 use std::fmt;
+use std::num::NonZeroUsize;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
@@ -53,12 +54,16 @@ use super::request::{
     VlataiRequest,
 };
 use super::work::{WorkError, WorkGovernor};
-use crate::ToolServices;
+use crate::{SearchQuery, SemanticSearchError, SemanticSearchErrorData, ToolServices};
 
 /// Results fetched for a page-able search: the Discord cap plus one, so an
 /// overflowing underlying result set is detected and reported as capped.
 pub(crate) const VLACKU_FETCH_COUNT: usize = PAGE_SIZE * VLACKU_MAX_PAGE as usize + 1;
+/// [`VLACKU_FETCH_COUNT`] as the worker's positive count.
+const VLACKU_FETCH_LIMIT: NonZeroUsize = NonZeroUsize::new(VLACKU_FETCH_COUNT).unwrap();
 pub(crate) const CUKTA_FETCH_COUNT: usize = PAGE_SIZE * MAX_PAGE as usize + 1;
+/// [`CUKTA_FETCH_COUNT`] as the worker's positive count.
+const CUKTA_FETCH_LIMIT: NonZeroUsize = NonZeroUsize::new(CUKTA_FETCH_COUNT).unwrap();
 pub(crate) const GIMFIHI_FETCH_COUNT: usize = PAGE_SIZE * MAX_PAGE as usize + 1;
 
 /// Source label attached to Discord diagnostics.
@@ -635,16 +640,28 @@ async fn run_vlacku(
     let query = request.query.as_str().trim().to_owned();
     if request.options.mode == VlackuMode::Meaning {
         let dictionary = jbotci_dictionary_data::english();
+        let Some(search_query) = SearchQuery::new(&query) else {
+            return Err(OperationError::Invalid(
+                RequestValidationError::EmptyField {
+                    field: SourceField::Query,
+                },
+            ));
+        };
+        // Entry filters travel with the job and apply while ranking, so the
+        // worker never materializes more than the fetch limit.
         let hits = match context
             .tools
-            .semantic_vlacku_hits(query, dictionary.entries().len())
+            .semantic_vlacku_hits(
+                search_query,
+                VLACKU_FETCH_LIMIT,
+                vlacku_search_options(&request),
+                Some(context.deadline),
+            )
             .await
         {
             Ok(hits) => hits,
             Err(error) => {
-                return Ok(VlackuOutcome::Unavailable {
-                    reason: error.to_string(),
-                });
+                return semantic_failure(error).map(|reason| VlackuOutcome::Unavailable { reason });
             }
         };
         return context
@@ -714,6 +731,19 @@ async fn run_vlacku(
 // Cukta
 // ---------------------------------------------------------------------------
 
+/// Map a typed meaning-search failure: a missing index is a presented
+/// outcome (its reason), while admission, deadline and search failures are
+/// operation errors.
+#[requires(true)]
+#[ensures(true)]
+fn semantic_failure(error: SemanticSearchError) -> Result<String, OperationError> {
+    match error.into_data() {
+        data!(SemanticSearchError::Unavailable { reason }) => Ok(reason),
+        data!(SemanticSearchError::Lane(error)) => Err(OperationError::Work(error)),
+        data!(SemanticSearchError::Failed { message }) => Err(OperationError::Internal { message }),
+    }
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn cukta_targets(request: &CuktaRequest) -> CuktaTargetFilter {
@@ -769,16 +799,27 @@ async fn run_cukta(
     match request.options.mode {
         CuktaMode::Meaning => {
             let targets = cukta_targets(&request);
+            let Some(search_query) = SearchQuery::new(&query) else {
+                return Err(OperationError::Invalid(
+                    RequestValidationError::EmptyField {
+                        field: SourceField::Query,
+                    },
+                ));
+            };
             let output = match context
                 .tools
-                .semantic_cukta_search(query, CUKTA_FETCH_COUNT, targets)
+                .semantic_cukta_search(
+                    search_query,
+                    CUKTA_FETCH_LIMIT,
+                    targets,
+                    Some(context.deadline),
+                )
                 .await
             {
                 Ok(output) => output,
                 Err(error) => {
-                    return Ok(CuktaOutcome::Unavailable {
-                        reason: error.to_string(),
-                    });
+                    return semantic_failure(error)
+                        .map(|reason| CuktaOutcome::Unavailable { reason });
                 }
             };
             let cards = output.matches.iter().map(cukta_card).collect::<Vec<_>>();

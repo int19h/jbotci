@@ -3073,7 +3073,7 @@ where
 }
 
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.max(1)) || ret.is_err())]
 pub fn semantic_vlacku_hits<B: EmbeddingBackend>(
     backend: &mut B,
     query: &str,
@@ -3081,22 +3081,49 @@ pub fn semantic_vlacku_hits<B: EmbeddingBackend>(
     index_root: &Path,
     model_key: &str,
 ) -> Result<Vec<DictionarySemanticHit>, EmbeddingError> {
+    semantic_vlacku_hits_filtered(backend, query, count, index_root, model_key, |_| true)
+}
+
+/// Ranked dictionary entries for `query` among the entries `entry_allowed`
+/// accepts. Filtering happens while ranking, so a caller with word-type or
+/// vote filters gets `count` matching hits from a bounded top-k instead of
+/// ranking the whole dictionary into memory and filtering afterwards.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.max(1)) || ret.is_err())]
+pub fn semantic_vlacku_hits_filtered<B, F>(
+    backend: &mut B,
+    query: &str,
+    count: usize,
+    index_root: &Path,
+    model_key: &str,
+    mut entry_allowed: F,
+) -> Result<Vec<DictionarySemanticHit>, EmbeddingError>
+where
+    B: EmbeddingBackend,
+    F: FnMut(usize) -> bool,
+{
     let (pack_dir, manifest) = load_latest_pack(index_root, model_key)?;
     let corpus = manifest_corpus(&manifest, VLACKU_CORPUS_ID)?;
     let loaded = load_cached_dictionary_corpus(&pack_dir, &manifest, corpus)?;
     let mut query_embedding = backend.embed(&build_retrieval_query_input(query))?.values;
     normalize_vector(&mut query_embedding);
-    let hits = top_vector_hits(
+    let items = &loaded.items;
+    let hits = top_vector_hits_by_row(
         &loaded.values,
         loaded.dimensions,
         &query_embedding,
         loaded.row_count,
         count.max(1),
+        |row_index| {
+            items
+                .get(row_index)
+                .is_some_and(|item| entry_allowed(item.entry_index))
+        },
     );
     Ok(hits
         .into_iter()
         .filter_map(|hit| {
-            let item = loaded.items.get(hit.row_index)?;
+            let item = items.get(hit.row_index)?;
             Some(DictionarySemanticHit {
                 entry_index: item.entry_index,
                 score: hit.score,
