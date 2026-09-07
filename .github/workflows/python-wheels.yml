@@ -105,6 +105,12 @@ jobs:
 
       - name: Build the editable extension
         working-directory: bindings/python
+        env:
+          # The telemetry from the previous probe run: two rustc processes,
+          # 10.7 GB and 4.8 GB resident, on a 16 GB runner with its 3 GB of
+          # swap already gone. One compilation at a time keeps the peak at the
+          # largest single crate instead of the sum of two.
+          CARGO_BUILD_JOBS: 1
         run: |
           set -u
           # Numeric telemetry only, sampled beside the unchanged build command,
