@@ -1,3 +1,8 @@
+pub(crate) mod codec;
+pub(crate) mod components;
+pub(crate) mod request;
+pub(crate) mod schema;
+
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 

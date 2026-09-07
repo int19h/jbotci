@@ -8,6 +8,86 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/discord/codec.rs:ModalHeader",
+        "modal custom-id header pairs a tool, revision and initiator with no cross-field constraint",
+    ),
+    (
+        "apps/jbotci-server/src/discord/codec.rs:SourceDigest",
+        "eight digest bytes; every value is a valid digest",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:FileComponent",
+        "file component wraps one validated attachment name",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:InvalidAttachmentName",
+        "error carries the rejected name text",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:CuktaOptions",
+        "presentation options bag: every combination of its typed choices is a valid request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:GentufaOptions",
+        "presentation options bag: every combination of its typed choices is a valid request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:GentufaRequest",
+        "typed request pairs bounded source text with an options bag; every combination is valid",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:GimfihiOptions",
+        "presentation options bag: every combination of its typed choices is a valid request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:GimfihiRequest",
+        "typed request pairs bounded source text with an options bag; every combination is valid",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:InvalidBuildTag",
+        "unit error marker",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:InvalidSnowflake",
+        "error carries the rejected text; validating it here would recurse into the snowflake parser",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:JvozbaOptions",
+        "presentation options bag: every combination of its typed choices is a valid request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:JvozbaRequest",
+        "typed request pairs bounded source text with an options bag; every combination is valid",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:PublishedRequest",
+        "publication metadata pairs a typed request with a revision, initiator and build tag; each field is validated by its own type",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:Revision",
+        "monotonic counter; every u32 is a valid revision",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:VlackuOptions",
+        "presentation options bag; the vlacku page bound is enforced by the owning request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:VlaseiOptions",
+        "presentation options bag: every combination of its typed choices is a valid request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:VlaseiRequest",
+        "typed request pairs bounded source text with an options bag; every combination is valid",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:VlataiOptions",
+        "presentation options bag: every combination of its typed choices is a valid request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:VlataiRequest",
+        "typed request pairs bounded source text with an options bag; every combination is valid",
+    ),
+    (
         "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",
         "embedding worker jobs pair a typed request with the response channel for that request",
     ),
@@ -1220,6 +1300,38 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "syntax macro parser AST delegates validity to typed syn and grammar payloads",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentNormalTermBoRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentSumtiBoRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentTermBoRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:BaselineTailContinuationRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:BaselineTailContinuationWithoutTailTermsRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:ExpPrefixUnderZantufaConnectiveRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:ExpPrefixUnderZantufaConnectiveWithoutTailTermsRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:GroupedTanruKeTailRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/baseline_mex.rs:BaselineMexRejection",
         "zero-sized grammar refinement policy has no independently invalid state",
     ),
@@ -1228,20 +1340,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "zero-sized grammar refinement policy has no independently invalid state",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:BaselineSelbriAssignmentRejection",
-        "zero-sized grammar refinement policy has no independently invalid state",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:C4NodeVisitor",
-        "tree-visitor discovery state is a boolean for which both states are valid",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:RecoveredC4NodeVisitor",
-        "recovered-tree visitor discovery state is a boolean for which both states are valid",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:RestrictedBaselineSelbriAssignmentRejection",
-        "zero-sized grammar refinement policy has no independently invalid state",
+        "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineReciprocalSoiRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
     (
         "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineRelativeContinuationRejection",
@@ -1264,20 +1364,40 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/baseline_relative.rs:BaselineReciprocalSoiRejection",
-        "zero-sized whole-candidate classification policy has no independently invalid state",
+        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:BaselineSelbriAssignmentRejection",
+        "zero-sized grammar refinement policy has no independently invalid state",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentNormalTermBoRejection",
-        "zero-sized whole-candidate classification policy has no independently invalid state",
+        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:C4NodeVisitor",
+        "tree-visitor discovery state is a boolean for which both states are valid",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentSumtiBoRejection",
-        "zero-sized whole-candidate classification policy has no independently invalid state",
+        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:RecoveredC4NodeVisitor",
+        "recovered-tree visitor discovery state is a boolean for which both states are valid",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/baseline_bo.rs:ConnectivePresentTermBoRejection",
-        "zero-sized whole-candidate classification policy has no independently invalid state",
+        "crates/jbotci-syntax/src/grammar/baseline_selbri.rs:RestrictedBaselineSelbriAssignmentRejection",
+        "zero-sized grammar refinement policy has no independently invalid state",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:BaselineTagRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ClassifiedAtom",
+        "the independent prefix flags and closed atom kind deliberately admit every typed combination",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:NonElidedNaheFihoTagTermRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:PostNaExtensionTagRejection",
+        "stateless parser rejection policy has exactly one valid value",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ZantufaTagRejection",
+        "stateless parser rejection policy has exactly one valid value",
     ),
     (
         "crates/jbotci-syntax/src/grammar/baseline_termset.rs:BaselineGekSumtiRejection",
@@ -1288,24 +1408,12 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:QuantifierBearingSumtiRejection",
-        "zero-sized whole-candidate classification policy has no independently invalid state",
-    ),
-    (
         "crates/jbotci-syntax/src/grammar/description_leading.rs:ExpDescriptionLeadingSumtiRejection",
-        "zero-sized whole-candidate classification policy has no independently invalid state",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/zantufa_quantifier_relatives.rs:UnstartedRelativeListRejection",
         "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
     (
         "crates/jbotci-syntax/src/grammar/description_leading.rs:ParsedTokenProbe",
         "a single accumulating flag whose every value is a valid state of the traversal",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:CandidateExtentProbe",
-        "one optional endpoint pair, so a half-set extent cannot be spelled at all",
     ),
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarDialect",
@@ -1406,46 +1514,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:SyntaxRuleObservationNode",
         "observation child indices are finalized and checked by the enclosing memo store APIs",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:BaselineTagRejection",
-        "stateless parser rejection policy has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ClassifiedAtom",
-        "the independent prefix flags and closed atom kind deliberately admit every typed combination",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:NonElidedNaheFihoTagTermRejection",
-        "stateless parser rejection policy has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:PostNaExtensionTagRejection",
-        "stateless parser rejection policy has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:ZantufaTagRejection",
-        "stateless parser rejection policy has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:BaselineTailContinuationRejection",
-        "stateless parser rejection policy has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:BaselineTailContinuationWithoutTailTermsRejection",
-        "stateless parser rejection policy has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:GroupedTanruKeTailRejection",
-        "stateless parser rejection policy has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:ExpPrefixUnderZantufaConnectiveRejection",
-        "stateless parser rejection policy has exactly one valid value",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_bridi_tail.rs:ExpPrefixUnderZantufaConnectiveWithoutTailTermsRejection",
-        "stateless parser rejection policy has exactly one valid value",
     ),
     (
         "crates/jbotci-syntax/src/grammar/parse_error.rs:SharedStackIter",
@@ -1568,8 +1636,20 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "combinator validity is fully expressed by the parser bounds on its Parser implementation",
     ),
     (
+        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:CandidateExtentProbe",
+        "one optional endpoint pair, so a half-set extent cannot be spelled at all",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/sumti_operand_tier.rs:QuantifierBearingSumtiRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
+    ),
+    (
         "crates/jbotci-syntax/src/grammar/tokens.rs:IncompleteKindCandidate",
         "diagnostic incomplete-kind candidates are copied ranking tuples built only from syntax metadata",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/zantufa_quantifier_relatives.rs:UnstartedRelativeListRejection",
+        "zero-sized whole-candidate classification policy has no independently invalid state",
     ),
     (
         "crates/jbotci-syntax/src/lib.rs:GeneratedModelSourceSpanVisitor",
