@@ -22,14 +22,15 @@ use tokio::time::Instant;
 /// caller that finds a worker idle never queues, so zero means "no backlog":
 /// idle workers admit, everything else is refused).
 ///
-/// The defaults are what the deployed instance can pay for, measured rather
-/// than guessed: with the embedding model resident the process holds about
-/// 380 MiB, and rendering a diagram near its cap costs another 50 while it
-/// runs. Two analysis workers at the previous sixteen-megapixel cap peaked at
-/// 616 MiB against a 512 MiB instance, so analysis runs one job at a time and
-/// the image itself is capped smaller (see `DiagramLimits`); that run peaks
-/// at 429 MiB. Network work is cheap and keeps four. Tests construct their
-/// own.
+/// The defaults are informed by local workload measurements against the
+/// deployed service memory budget rather than guessed: with the embedding
+/// model resident the process holds about 380 MiB, and rendering a diagram
+/// near its cap costs another 50 while it runs. Two analysis workers at the
+/// previous sixteen-megapixel cap peaked at 616 MiB against a 512 MiB budget,
+/// so analysis runs one job at a time and the image itself is capped smaller
+/// (see `DiagramLimits`); that run peaks at 429 MiB. Network work is cheap and
+/// keeps four. `docs/discord-app.md` records the workload and the architecture
+/// the figures come from. Tests construct their own.
 #[invariant(*compute_workers > 0 && *fetch_workers > 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct WorkLimits {

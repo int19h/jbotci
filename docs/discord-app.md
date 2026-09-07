@@ -146,6 +146,12 @@ interactions through the real endpoint with a local stand-in for Discord. Peak
 is the kernel's own high-water mark for the process (`VmHWM`), so it is the
 true peak rather than a sample.
 
+That machine is Linux on aarch64; the service is deployed on AMD64. Compiled
+code, allocation sizes and the allocator's behaviour all differ between the
+two, so these figures are the shape of the cost and the reason for each limit,
+not a measurement of the deployment. Nothing here has been measured on the
+deployed instance.
+
 | After | Resident | Peak |
 | --- | --- | --- |
 | Start, nothing asked | 42 MiB | 42 MiB |
@@ -165,15 +171,15 @@ added about 50 MiB while it rendered. Resident memory did not fall back after
 the peaks: it ended within 10 MiB of the highest point reached, so a service
 that has once been busy stays about that large.
 
-Two things brought the run inside the deployed instance's 512 MiB. Analysis
-runs one job at a time, so at most one diagram is ever being rasterized; and
-the runtime image sets `MALLOC_ARENA_MAX=2`. Without that variable the same
-sequence reached 591 MiB, and with the previous limits (two analysis workers,
-sixteen megapixels) it reached 616 MiB even with the variable set. Neither of
-those fits.
+Two things brought the run inside the service's 512 MiB budget on this host.
+Analysis runs one job at a time, so at most one diagram is ever being
+rasterized; and the runtime image sets `MALLOC_ARENA_MAX=2`. Without that
+variable the same sequence reached 591 MiB, and with the previous limits (two
+analysis workers, sixteen megapixels) it reached 616 MiB even with the variable
+set. Neither of those fits.
 
-These are measurements of this sequence of requests on this machine, not a
-ceiling for every input: they say what these representative and near-limit
+These are measurements of this sequence of requests on this host and this
+architecture, not a ceiling for every input: they say what these representative and near-limit
 requests cost, not what the largest possible request would. The figures above
 include the embedding model; the same sequence up to the first meaning search,
 which is where the model is loaded, stayed at 147 MiB.
