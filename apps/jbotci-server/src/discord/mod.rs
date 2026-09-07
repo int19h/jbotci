@@ -1,7 +1,10 @@
 pub(crate) mod codec;
 pub(crate) mod components;
 pub(crate) mod dedupe;
+pub(crate) mod diagram;
 pub(crate) mod locks;
+pub(crate) mod operations;
+pub(crate) mod present;
 pub(crate) mod request;
 pub(crate) mod schema;
 pub(crate) mod transport;

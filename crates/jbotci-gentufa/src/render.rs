@@ -1725,6 +1725,7 @@ mod tests {
             blocks: vec![new!(GentufaBlock {
                 compound_kind: None,
                 block_id: "n1".to_owned(),
+                parent_block_id: None,
                 node_ids: vec![1],
                 label: "mi".to_owned(),
                 is_leaf: true,
@@ -1783,6 +1784,7 @@ mod tests {
         new!(GentufaBlock {
             compound_kind: None,
             block_id: format!("test-{row}"),
+            parent_block_id: None,
             node_ids: Vec::new(),
             label: "ny".to_owned(),
             is_leaf: true,
@@ -1819,6 +1821,7 @@ mod tests {
         new!(GentufaBlock {
             compound_kind: None,
             block_id: format!("wide-{row}"),
+            parent_block_id: None,
             node_ids: Vec::new(),
             label: "Cei".to_owned(),
             is_leaf: false,

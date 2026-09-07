@@ -40,6 +40,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "guard pairs an owned mutex guard with the registry it releases into",
     ),
     (
+        "apps/jbotci-server/src/discord/operations.rs:GentufaOutcome",
+        "pairs a shared web result with an optional rendered diagram; a diagram exists only when rendering succeeded, which the operation enforces by erroring otherwise",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:JvozbaOutcome",
+        "pairs the typed inputs and target with the shared build result or error; every combination is a faithful report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationContext",
+        "borrowed service handles plus a deadline and limits validated by their own types",
+    ),
+    (
+        "apps/jbotci-server/src/discord/present/mod.rs:RenderedResult",
+        "presenter output: the status line is its own validated type and every combination of body chunks, diagnostics, notice, attachment text and image is a valid result",
+    ),
+    (
         "apps/jbotci-server/src/discord/request.rs:CuktaOptions",
         "presentation options bag: every combination of its typed choices is a valid request",
     ),

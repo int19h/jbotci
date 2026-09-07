@@ -1093,6 +1093,7 @@ fn attach_empty_reference_tooltips_to_block(
     new!(GentufaBlock {
         compound_kind: block.compound_kind,
         block_id: block.block_id,
+        parent_block_id: block.parent_block_id,
         node_ids: block.node_ids,
         label: block.label,
         is_leaf: block.is_leaf,
@@ -1133,45 +1134,53 @@ fn attach_empty_reference_tooltips_to_block(
     })
 }
 
+/// The tree view's rows: one per block, in preorder over the block
+/// hierarchy with siblings in source order. Siblings occupy disjoint column
+/// ranges, so column order is source order; the depth is the number of
+/// ancestors, and `guides` carries one ancestor colour per level.
 #[requires(true)]
 #[ensures(ret.len() == layout.blocks.len())]
 fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<GentufaTreeRow> {
-    let mut blocks = layout.blocks.iter().collect::<Vec<_>>();
-    blocks.sort_by_key(|block| {
-        (
-            block.row,
-            block.col,
-            usize::from(block.is_leaf),
-            &block.block_id,
-        )
-    });
-    let mut rows = Vec::with_capacity(blocks.len());
-    let mut parent_stack: Vec<(usize, String)> = Vec::new();
-    for block in blocks {
+    let mut children: BTreeMap<&str, Vec<&GentufaBlock>> = BTreeMap::new();
+    let mut roots = Vec::new();
+    for block in &layout.blocks {
+        match &block.parent_block_id {
+            Some(parent_id) => children.entry(parent_id.as_str()).or_default().push(block),
+            None => roots.push(block),
+        }
+    }
+    let source_order = |left: &&GentufaBlock, right: &&GentufaBlock| {
+        (left.col, left.block_id.as_str()).cmp(&(right.col, right.block_id.as_str()))
+    };
+    roots.sort_by(source_order);
+    for siblings in children.values_mut() {
+        siblings.sort_by(source_order);
+    }
+    let mut rows = Vec::with_capacity(layout.blocks.len());
+    let mut pending = roots
+        .into_iter()
+        .rev()
+        .map(|block| (block, Vec::new(), None))
+        .collect::<Vec<(&GentufaBlock, Vec<GentufaTreeGuide>, Option<usize>)>>();
+    while let Some((block, guides, parent_id)) = pending.pop() {
         let node_id = block_id_number(&block.block_id);
-        parent_stack.truncate(block.row);
-        let parent_id = block
-            .row
-            .checked_sub(1)
-            .and_then(|parent_depth| parent_stack.get(parent_depth))
-            .map(|(parent_id, _)| *parent_id);
-        let guides = parent_stack
-            .iter()
-            .map(|(_, color)| GentufaTreeGuide {
-                color: color.clone(),
-                line_top: true,
-                line_bottom: true,
-            })
-            .collect::<Vec<_>>();
-        if parent_stack.len() == block.row {
-            parent_stack.push((node_id, block.color.clone()));
-        } else if let Some(slot) = parent_stack.get_mut(block.row) {
-            *slot = (node_id, block.color.clone());
+        let block_children = children
+            .get(block.block_id.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let mut child_guides = guides.clone();
+        child_guides.push(GentufaTreeGuide {
+            color: block.color.clone(),
+            line_top: true,
+            line_bottom: true,
+        });
+        for child in block_children.iter().rev() {
+            pending.push((child, child_guides.clone(), Some(node_id)));
         }
         rows.push(GentufaTreeRow {
             node_id,
             parent_id,
-            depth: block.row,
+            depth: guides.len(),
             label: if block.role.is_error() {
                 "Error".to_owned()
             } else {
@@ -1179,7 +1188,7 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
             },
             color: block.color.clone(),
             guides,
-            has_children: false,
+            has_children: !block_children.is_empty(),
             cells: vec![GentufaCell {
                 text: block.display_text.clone(),
                 is_word: block.is_leaf,
@@ -1194,7 +1203,7 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
             rafsi_breakdown: rafsi_breakdown_for_block(block),
         });
     }
-    annotate_generated_model_tree_row_parent_state(rows)
+    rows
 }
 
 #[requires(block_id.starts_with('n'))]
@@ -1204,21 +1213,6 @@ fn block_id_number(block_id: &str) -> usize {
         .strip_prefix('n')
         .and_then(|suffix| suffix.parse::<usize>().ok())
         .unwrap_or(0)
-}
-
-#[requires(true)]
-#[ensures(ret.len() == old(rows.len()))]
-fn annotate_generated_model_tree_row_parent_state(
-    mut rows: Vec<GentufaTreeRow>,
-) -> Vec<GentufaTreeRow> {
-    let parent_ids = rows
-        .iter()
-        .filter_map(|row| row.parent_id)
-        .collect::<BTreeSet<_>>();
-    for row in &mut rows {
-        row.has_children = parent_ids.contains(&row.node_id);
-    }
-    rows
 }
 
 #[requires(true)]
@@ -1279,6 +1273,7 @@ fn attach_generated_reference_tooltips_to_block(
     new!(GentufaBlock {
         compound_kind: block.compound_kind,
         block_id: block.block_id,
+        parent_block_id: block.parent_block_id,
         node_ids: block.node_ids,
         label: block.label,
         is_leaf: block.is_leaf,
@@ -2612,7 +2607,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         .into_iter()
         .take(normalized_state.count)
         .enumerate()
-        .map(|(index, card)| vlacku_web_card_from_search_card(index + 1, card))
+        .map(|(index, card)| web_card_from_search_card(index + 1, card))
         .collect::<Vec<_>>();
     let message = if cards.is_empty() && output.diagnostics.is_empty() {
         Some("No matches found.".to_owned())
@@ -2820,7 +2815,7 @@ pub fn build_vlacku_semantic_web_result_with_loading(
         .into_iter()
         .take(normalized_state.count)
         .enumerate()
-        .map(|(index, card)| vlacku_web_card_from_search_card(index + 1, card))
+        .map(|(index, card)| web_card_from_search_card(index + 1, card))
         .collect::<Vec<_>>();
     let message = if cards.is_empty() {
         Some("No matches found.".to_owned())
@@ -5734,11 +5729,9 @@ fn byte_range_len(range: WebSourceRange) -> usize {
     range.byte_end.saturating_sub(range.byte_start)
 }
 
-/// Project one shared dictionary search card into the typed web card used by
-/// the browser, REST and Discord surfaces.
 #[requires(true)]
-#[ensures(ret.rank == rank)]
-pub fn vlacku_web_card_from_search_card(
+#[ensures(true)]
+fn web_card_from_search_card(
     rank: usize,
     card: jbotci_search::vlacku::VlackuCard,
 ) -> VlackuWebCard {
@@ -7618,6 +7611,77 @@ mod tests {
             vau_block.tooltip.as_ref().map(|card| card.href.as_str()),
             Some("/vlacku/vau")
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn tree_rows_follow_the_block_hierarchy_in_preorder() {
+        // `lo zarci ku` is a branch under the description; the elided `vau`
+        // that follows it is a sibling of the description under the bridi
+        // tail, never a parent of the branch before it.
+        let success = parse_success_with_options(
+            "mi klama lo zarci",
+            GentufaWebOptions {
+                show_elided: true,
+                ..GentufaWebOptions::default()
+            },
+        );
+        let rows = &success.tree_rows;
+        let shape = rows
+            .iter()
+            .map(|row| {
+                let parent = row.parent_id.and_then(|parent_id| {
+                    rows.iter()
+                        .find(|candidate| candidate.node_id == parent_id)
+                        .map(|parent| parent.label.as_str())
+                });
+                (row.label.as_str(), row.depth, parent, row.has_children)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                ("bridi", 0, None, true),
+                ("mi", 1, Some("bridi"), false),
+                ("bridi tail", 1, Some("bridi"), true),
+                ("kláma", 2, Some("bridi tail"), false),
+                ("description", 2, Some("bridi tail"), true),
+                ("lo", 3, Some("description"), false),
+                ("zárci", 3, Some("description"), false),
+                ("ku", 3, Some("description"), false),
+                ("vau", 2, Some("bridi tail"), false),
+            ]
+        );
+        for (index, row) in rows.iter().enumerate() {
+            if let Some(parent_id) = row.parent_id {
+                let parent_index = rows
+                    .iter()
+                    .position(|candidate| candidate.node_id == parent_id)
+                    .expect("parent row exists");
+                assert!(parent_index < index, "parents precede children");
+                assert_eq!(rows[parent_index].depth + 1, row.depth);
+            }
+            assert_eq!(row.guides.len(), row.depth);
+            let block = success
+                .blocks_layout
+                .blocks
+                .iter()
+                .find(|block| block_id_number(&block.block_id) == row.node_id)
+                .expect("row block");
+            assert_eq!(block.row, row.depth, "grid row is the tree depth");
+            assert_eq!(
+                row.has_children,
+                rows.iter()
+                    .any(|candidate| candidate.parent_id == Some(row.node_id))
+            );
+        }
+        let elided = rows
+            .iter()
+            .filter(|row| row.cells.iter().any(|cell| cell.role.is_elided()))
+            .map(|row| (row.label.as_str(), row.has_children))
+            .collect::<Vec<_>>();
+        assert_eq!(elided, vec![("ku", false), ("vau", false)]);
     }
 
     #[test]

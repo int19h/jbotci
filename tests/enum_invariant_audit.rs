@@ -104,6 +104,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "payload assembly error carries only the offending name",
     ),
     (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::Render",
+        "render error carries only the renderer's message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::TooComplex",
+        "error reports the measured block and column counts",
+    ),
+    (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::TooLarge",
+        "error reports the measured pixel dimensions",
+    ),
+    (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::TooManyBytes",
+        "error reports the measured byte count and the applied limit",
+    ),
+    (
         "apps/jbotci-server/src/discord/mod.rs:DiscordCommand::Cukta",
         "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
     ),
@@ -126,6 +142,118 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/discord/mod.rs:DiscordCommand::Vlasei",
         "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Contents",
+        "contents outcome lists typed chapter entries whose own invariant holds",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Example",
+        "example outcome wraps a CLL example validated by the CLL crate",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::NotFound",
+        "not-found outcome carries the kind and the reference the user typed",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Search",
+        "search outcome wraps a paged result whose own invariant holds",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Section",
+        "section outcome carries CLL blocks validated by the CLL crate",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Unavailable",
+        "unavailable outcome carries the embedding worker's reason text",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:GimfihiOutcome::Candidates",
+        "candidates outcome wraps shared gimfihi output and a paged result with their own invariants",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:GimfihiOutcome::Setup",
+        "setup outcome carries the preset and its language list from the shared preset table",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:GimfihiPlan::Compose",
+        "plan wraps a shared gimfihi request the resolver has already validated",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:GimfihiPlan::Setup",
+        "plan carries only the optional preset",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Diagram",
+        "error wraps the typed diagram error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Internal",
+        "error carries only a message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Invalid",
+        "error wraps the typed validation error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Page",
+        "error wraps the typed page error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Work",
+        "error wraps the typed admission error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::Dialect",
+        "validation error carries the dialect parser's message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::EmptyField",
+        "validation error names the blank field",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::GimfihiSources",
+        "validation error carries the shared parser/resolver messages",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::JvozbaParts",
+        "validation error carries the morphology parser's message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Cukta",
+        "outcome wrapper delegates validity to the typed cukta outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Gentufa",
+        "outcome wrapper delegates validity to the typed gentufa outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Gimfihi",
+        "outcome wrapper delegates validity to the typed gimfihi outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Jvozba",
+        "outcome wrapper delegates validity to the typed jvozba outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Vlacku",
+        "outcome wrapper delegates validity to the typed vlacku outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Vlasei",
+        "outcome wrapper delegates validity to the shared vlasei analysis",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Vlatai",
+        "outcome wrapper delegates validity to the shared vlatai report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:VlackuOutcome::Results",
+        "results outcome wraps a paged result and search diagnostics; valid_missing is derived by the operation",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:VlackuOutcome::Unavailable",
+        "unavailable outcome carries the embedding worker's reason text",
     ),
     (
         "apps/jbotci-server/src/discord/request.rs:DiscordRequest::Cukta",

@@ -1,10 +1,15 @@
 use super::*;
 
+mod discord;
 mod html;
 mod markdown;
 
+pub use discord::{
+    DISCORD_MARKDOWN_ESCAPED, discord_code_block, discord_inline_code, escape_discord_markdown,
+    escape_discord_markdown_line,
+};
 pub(crate) use html::render_block_html;
-pub(crate) use markdown::render_block_markdown;
+pub(crate) use markdown::{dialect_text, render_block_markdown, render_example_markdown};
 
 /// Appends a rule-status note as a labelled block quote.
 ///
@@ -16,6 +21,15 @@ pub(crate) use markdown::render_block_markdown;
 #[requires(true)]
 #[ensures(output.contains(CLL_STATUS_NOTE_LABEL))]
 pub(crate) fn push_status_note_markdown(output: &mut String, body: &str) {
+    output.push_str(&status_note_markdown(body));
+}
+
+/// A rule-status note as a labelled block quote. `body` is already rendered
+/// in the target Markdown dialect.
+#[requires(true)]
+#[ensures(ret.contains(CLL_STATUS_NOTE_LABEL) && ret.starts_with("> **"))]
+pub fn status_note_markdown(body: &str) -> String {
+    let mut output = String::new();
     output.push_str("> **");
     output.push_str(CLL_STATUS_NOTE_LABEL);
     output.push_str(".** ");
@@ -25,6 +39,7 @@ pub(crate) fn push_status_note_markdown(output: &mut String, body: &str) {
         }
         output.push_str(line);
     }
+    output
 }
 
 /// Renders a rule-status note as a labelled aside.

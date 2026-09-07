@@ -1149,9 +1149,35 @@ use crate::search::CllSearchChunk;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CllRenderFormat {
+    /// GitHub-flavoured Markdown: pipe tables, `$…$` math, the book's text
+    /// verbatim. What the CLI and the MCP tool emit.
     Markdown,
     Html,
     Raw,
+    /// Discord's Markdown dialect: no tables, math or HTML, `-#` subtext, and
+    /// every text run escaped so the client cannot misread it as formatting.
+    DiscordMarkdown,
+}
+
+/// The Markdown dialect a text format renders in.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CllMarkdownDialect {
+    GitHub,
+    Discord,
+}
+
+impl CllRenderFormat {
+    /// The Markdown dialect of a text format; `None` for HTML.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self == CllRenderFormat::Html))]
+    pub fn markdown_dialect(self) -> Option<CllMarkdownDialect> {
+        match self {
+            CllRenderFormat::Html => None,
+            CllRenderFormat::Markdown | CllRenderFormat::Raw => Some(CllMarkdownDialect::GitHub),
+            CllRenderFormat::DiscordMarkdown => Some(CllMarkdownDialect::Discord),
+        }
+    }
 }
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]

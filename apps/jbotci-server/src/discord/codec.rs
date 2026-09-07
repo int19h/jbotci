@@ -21,6 +21,7 @@ use std::fmt;
 use base64::Engine;
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires, try_new};
+use jbotci_cll::escape_discord_markdown_line;
 use sha2::{Digest, Sha256};
 
 use super::request::{
@@ -50,14 +51,6 @@ pub(crate) const INPUT_ATTACHMENT_FILENAME: &str = "jbotci-input.txt";
 
 /// Prefix of every header line in the input block (Discord subtext).
 const HEADER_PREFIX: &str = "-# ";
-
-/// Characters escaped inside source values. Discord renders `\` followed by
-/// any ASCII punctuation as the bare character, so escaping is invisible in
-/// the client and reversible on the way back. `-` and `#` are in the set so a
-/// value line can never look like a header line.
-const ESCAPED: &[char] = &[
-    '\\', '*', '_', '~', '`', '|', '>', '#', '-', '[', ']', '(', ')', '<', ':', '@',
-];
 
 // ---------------------------------------------------------------------------
 // Digest
@@ -680,35 +673,14 @@ fn flush_field_lines(
     result
 }
 
-/// Escape one line of a source value for a Text Display.
+/// Escape one line of a source value for a Text Display. This is the
+/// workspace's Discord text escape, so a value renders exactly as typed, can
+/// never look like a header line, and decodes back to itself.
 #[requires(!line.contains('\n'))]
 #[ensures(!ret.starts_with(HEADER_PREFIX) && !ret.starts_with('-'))]
 #[ensures(unescape_value_line(&ret).as_deref() == Ok(line))]
 pub(crate) fn escape_value_line(line: &str) -> String {
-    let mut escaped = String::with_capacity(line.len() + 8);
-    // Ordered-list and plus-bullet syntax is positional; escape the trigger
-    // character only where it would trigger.
-    let leading_list = line
-        .trim_start_matches(|character: char| character.is_ascii_digit())
-        .starts_with('.')
-        && line.starts_with(|character: char| character.is_ascii_digit());
-    let mut digits_seen = false;
-    for (index, character) in line.char_indices() {
-        let escape = ESCAPED.contains(&character)
-            || (index == 0 && character == '+')
-            || (character == '.' && leading_list && !digits_seen);
-        if character == '.' {
-            digits_seen = true;
-        }
-        if !character.is_ascii_digit() && character != '.' {
-            digits_seen = true;
-        }
-        if escape {
-            escaped.push('\\');
-        }
-        escaped.push(character);
-    }
-    escaped
+    escape_discord_markdown_line(line)
 }
 
 /// Reverse [`escape_value_line`]. Any `\` before ASCII punctuation is removed;
@@ -1205,7 +1177,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn escaping_neutralizes_markdown_and_header_syntax() {
-        assert_eq!(escape_value_line("-# text"), "\\-\\# text");
+        assert_eq!(escape_value_line("-# text"), "\\-# text");
         assert_eq!(escape_value_line("1. one"), "1\\. one");
         assert_eq!(escape_value_line("1.5 not a list"), "1\\.5 not a list");
         assert_eq!(escape_value_line("v1.5 not a list"), "v1.5 not a list");

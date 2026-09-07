@@ -783,6 +783,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
             blocks: vec![new!(GentufaBlock {
                 compound_kind: None,
                 block_id: "block-1".to_owned(),
+                parent_block_id: None,
                 node_ids: vec![1],
                 label: "block label".to_owned(),
                 is_leaf: true,
@@ -3486,6 +3487,7 @@ fn test_gentufa_block(
     new!(GentufaBlock {
         compound_kind: None,
         block_id: format!("test-{row}"),
+        parent_block_id: None,
         node_ids: Vec::new(),
         label: "test".to_owned(),
         is_leaf: true,
