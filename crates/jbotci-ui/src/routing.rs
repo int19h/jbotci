@@ -532,11 +532,16 @@ pub(super) fn apply_web_route_to_client_state(
             vlacku_committed_state.set(state.clone());
         }
         WebRoute::Gimfihi(state) => {
+            // The gimfi'i form is built from its own state, and a preset with
+            // no source records means "the preset's languages, still empty",
+            // which normalization spells out as editable rows. Every other
+            // page hydrates the route exactly as it arrived.
+            let state = normalize_gimfihi_state(state);
             gimfihi_source_word_memory.with_mut(|memory| {
-                update_gimfihi_source_word_memory(memory, state);
+                update_gimfihi_source_word_memory(memory, &state);
             });
             gimfihi_draft_state.set(state.clone());
-            gimfihi_committed_state.set(state.clone());
+            gimfihi_committed_state.set(state);
         }
         WebRoute::Settings => {}
     }

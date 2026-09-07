@@ -4021,6 +4021,12 @@ pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
     }
 }
 
+/// Reads the route's state exactly as the URL carries it. Text the reader
+/// typed (source text, dialect) is preserved verbatim, including surrounding
+/// whitespace and an explicitly empty optional field, so a link opens on the
+/// state it was made from. Canonicalizing that text for analysis, search or
+/// page metadata is [`normalize_gentufa_state`]'s job, applied where the
+/// value is used rather than where it is transported.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
@@ -4040,13 +4046,12 @@ pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
             _ => {}
         }
     }
-    normalize_gentufa_state(&state)
+    state
 }
 
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
-    let state = normalize_gentufa_state(state);
     let mut pairs = Vec::new();
     if !state.text.is_empty() {
         pairs.push(("text".to_owned(), state.text.clone()));
@@ -4111,6 +4116,9 @@ pub fn normalize_cukta_state(state: &CuktaWebState) -> CuktaWebState {
     }
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_cukta_state`] canonicalizes.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
@@ -4162,16 +4170,22 @@ pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
             }
         }
     }
-    normalize_cukta_state(&state)
+    state
 }
 
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn cukta_web_url(base_path: &str, state: &CuktaWebState) -> String {
-    let state = normalize_cukta_state(state);
     let prefix = base_path.trim_end_matches('/');
-    match state.view {
+    match state.view.clone() {
         CuktaWebView::Section { reference } => {
+            // A section route names a section: a state with no reference has
+            // no URL shape of its own and uses the book's entry section.
+            let reference = if reference.trim().is_empty() {
+                DEFAULT_CUKTA_SECTION_ID.to_owned()
+            } else {
+                reference
+            };
             format!("{prefix}/cukta/section/{}", percent_encode(&reference))
         }
         CuktaWebView::Index => format!("{prefix}/cukta/index"),
@@ -4522,6 +4536,9 @@ pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
     }
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_vlacku_state`] canonicalizes.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
@@ -4548,7 +4565,7 @@ pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
             _ => {}
         }
     }
-    normalize_vlacku_state(&state)
+    state
 }
 
 #[requires(true)]
@@ -4559,6 +4576,10 @@ fn is_gimfihi_route_logical(logical: &str) -> bool {
         || matches!(decoded.as_str(), "gimfihi" | "gimfi'i")
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_gimfihi_state`] canonicalizes (including filling a preset's
+/// source rows when none were given).
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
@@ -4608,7 +4629,7 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
             _ => {}
         }
     }
-    normalize_gimfihi_state(&state)
+    state
 }
 
 #[requires(true)]
@@ -4709,7 +4730,6 @@ pub fn normalize_gimfihi_state(state: &GimfihiWebState) -> GimfihiWebState {
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
-    let state = normalize_vlacku_state(state);
     let prefix = base_path.trim_end_matches('/');
     if state.mode == VlackuWebMode::Word
         && !state.query.is_empty()
@@ -4751,7 +4771,6 @@ pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn gimfihi_web_url(base_path: &str, state: &GimfihiWebState) -> String {
-    let state = normalize_gimfihi_state(state);
     let prefix = base_path.trim_end_matches('/');
     let mut pairs = Vec::new();
     if let Some(preset) = &state.preset {
@@ -8469,8 +8488,11 @@ mod tests {
         assert_eq!(state.mode, VlackuWebMode::Rafsi);
         assert_eq!(state.query, "kla");
         assert_eq!(state.count, 40);
+        // Transport keeps the filter the URL named; grouping it into the
+        // dictionary's word types belongs to the search.
+        assert_eq!(state.word_types, vec!["brivla".to_owned()]);
         assert_eq!(
-            state.word_types,
+            normalize_vlacku_state(&state).word_types,
             vec!["gismu".to_owned(), "lujvo".to_owned(), "fu'ivla".to_owned()]
         );
         assert_eq!(
@@ -8478,26 +8500,34 @@ mod tests {
             "/vlacku?mode=rafsi&q=kla&count=40&wordType=brivla"
         );
 
+        // A query in another script stays as written; the search folds it,
+        // and the canonical URL is built from that folded state.
         let cyrillic = parse_vlacku_web_route("/vlacku/клама", "");
         assert_eq!(cyrillic.mode, VlackuWebMode::Word);
-        assert_eq!(cyrillic.query, "klama");
-        assert_eq!(vlacku_web_url("", &cyrillic), "/vlacku/klama");
+        assert_eq!(cyrillic.query, "клама");
+        assert_eq!(normalize_vlacku_state(&cyrillic).query, "klama");
+        assert_eq!(
+            vlacku_web_url("", &normalize_vlacku_state(&cyrillic)),
+            "/vlacku/klama"
+        );
+        assert_eq!(
+            parse_vlacku_web_route(&vlacku_web_url("", &cyrillic), "").query,
+            "клама",
+            "the raw route round trips"
+        );
 
         let cyrillic_glide = parse_vlacku_web_route("/vlacku/шой", "");
         assert_eq!(cyrillic_glide.mode, VlackuWebMode::Word);
-        assert_eq!(cyrillic_glide.query, "coi");
-        assert_eq!(vlacku_web_url("", &cyrillic_glide), "/vlacku/coi");
+        assert_eq!(normalize_vlacku_state(&cyrillic_glide).query, "coi");
 
         let zbalermorna =
             parse_vlacku_web_route("/vlacku/\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", "");
         assert_eq!(zbalermorna.mode, VlackuWebMode::Word);
-        assert_eq!(zbalermorna.query, "klama");
-        assert_eq!(vlacku_web_url("", &zbalermorna), "/vlacku/klama");
+        assert_eq!(normalize_vlacku_state(&zbalermorna).query, "klama");
 
         let zbalermorna_glide = parse_vlacku_web_route("/vlacku/\u{ed86}\u{eda8}", "");
         assert_eq!(zbalermorna_glide.mode, VlackuWebMode::Word);
-        assert_eq!(zbalermorna_glide.query, "coi");
-        assert_eq!(vlacku_web_url("", &zbalermorna_glide), "/vlacku/coi");
+        assert_eq!(normalize_vlacku_state(&zbalermorna_glide).query, "coi");
     }
 
     #[test]
@@ -8794,37 +8824,134 @@ mod tests {
             vec![CuktaSearchTarget::Section, CuktaSearchTarget::Example]
         );
 
+        // The query travels as written and is folded where it is searched.
         let cyrillic = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=ложбан");
+        let folded = normalize_cukta_state(&cyrillic);
         let CuktaWebView::Search(search_state) = cyrillic.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
-        assert_eq!(search_state.query, "lojban");
+        assert_eq!(search_state.query, "ложбан");
+        let CuktaWebView::Search(folded_state) = folded.view else {
+            panic!("expected search state");
+        };
+        assert_eq!(folded_state.query, "lojban");
 
-        let cyrillic_glide = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=шой");
+        let cyrillic_glide =
+            normalize_cukta_state(&parse_cukta_web_route("/cukta/search", "?mode=valsi&q=шой"));
         let CuktaWebView::Search(search_state) = cyrillic_glide.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "coi");
 
-        let zbalermorna = parse_cukta_web_route(
+        let zbalermorna = normalize_cukta_state(&parse_cukta_web_route(
             "/cukta/search",
             "?mode=valsi&q=\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}",
-        );
+        ));
         let CuktaWebView::Search(search_state) = zbalermorna.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "lojban");
 
-        let zbalermorna_glide =
-            parse_cukta_web_route("/cukta/search", "?mode=valsi&q=\u{ed86}\u{eda8}");
+        let zbalermorna_glide = normalize_cukta_state(&parse_cukta_web_route(
+            "/cukta/search",
+            "?mode=valsi&q=\u{ed86}\u{eda8}",
+        ));
         let CuktaWebView::Search(search_state) = zbalermorna_glide.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "coi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn routes_carry_editable_text_exactly() {
+        // A link must open on the state it was made from: surrounding
+        // whitespace, an explicitly emptied optional field, non-Latin script
+        // and URL-reserved characters all survive the round trip untouched.
+        for (text, dialect) in [
+            ("  mi klama  ", Some("  (cbm)  ")),
+            ("mi klama", Some("")),
+            ("ta gerku\n .i mi klama", None),
+            ("zo'e & do = mi + ko #1 100% ¿lo?", Some("(cbm) & (xbm)")),
+            ("клама шой", Some("")),
+            ("\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", None),
+            ("\u{1f600} mi klama", None),
+        ] {
+            let state = GentufaWebState {
+                text: text.to_owned(),
+                dialect: dialect.map(str::to_owned),
+                view_mode: GentufaWebViewMode::Tree,
+                show_elided: true,
+                show_glosses: false,
+                show_compounds: false,
+            };
+            let url = gentufa_web_url("/jbotci", &state);
+            let query = url.split_once('?').map(|(_, query)| query).unwrap_or("");
+            let parsed = parse_gentufa_web_route("/jbotci/gentufa", query);
+            assert_eq!(parsed, state, "{url}");
+            assert_eq!(
+                parsed.dialect.is_some(),
+                dialect.is_some(),
+                "an explicitly empty dialect stays explicit: {url}"
+            );
+        }
+        // Normalization is still available, and is what analysis uses.
+        let padded = GentufaWebState {
+            text: "  mi klama  ".to_owned(),
+            dialect: Some("   ".to_owned()),
+            ..GentufaWebState::default()
+        };
+        let normalized = normalize_gentufa_state(&padded);
+        assert_eq!(normalized.text, "mi klama");
+        assert_eq!(normalized.dialect, None);
+
+        // The same exactness holds for the other linked tools' queries.
+        let vlacku = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "  going & coming  ".to_owned(),
+            count: 40,
+            word_types: vec!["brivla".to_owned()],
+        };
+        let url = vlacku_web_url("", &vlacku);
+        assert_eq!(
+            parse_vlacku_web_route("/vlacku", url.split_once('?').expect("query").1),
+            vlacku,
+            "{url}"
+        );
+        let cukta = CuktaWebState {
+            view: CuktaWebView::Search(CuktaWebSearchState {
+                mode: CuktaWebMode::Word,
+                query: "  tanru & ke  ".to_owned(),
+                count: 40,
+                targets: vec![CuktaSearchTarget::Example],
+            }),
+        };
+        let url = cukta_web_url("", &cukta);
+        assert_eq!(
+            parse_cukta_web_route("/cukta/search", url.split_once('?').expect("query").1),
+            cukta,
+            "{url}"
+        );
+        let gimfihi = GimfihiWebState {
+            preset: Some(GimfihiPreset::Ilmen6),
+            sources: vec![GimfihiWebSource {
+                language: "eng".to_owned(),
+                weight: Some("5".to_owned()),
+                word: "go".to_owned(),
+            }],
+            ..GimfihiWebState::default()
+        };
+        let url = gimfihi_web_url("", &gimfihi);
+        assert_eq!(
+            parse_gimfihi_web_route("/gimfihi", url.split_once('?').expect("query").1),
+            gimfihi,
+            "{url}"
+        );
     }
 
     #[test]

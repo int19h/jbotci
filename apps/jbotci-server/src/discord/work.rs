@@ -183,13 +183,28 @@ impl Lane {
                 }
             }
         };
+        // `timeout_at` polls what it wraps before it checks its timer, so a
+        // permit that frees at or after the deadline still arrives as `Ok`.
+        // Nobody can use that result, so hand the permit straight back.
+        if Instant::now() >= deadline {
+            return Err(WorkError::WaitTimedOut { lane });
+        }
         let handle = tokio::task::spawn_blocking(move || {
             // The permit lives exactly as long as the worker.
             let _permit = permit;
-            job()
+            // The blocking pool has a queue of its own, and a caller that
+            // already gave up cannot be told about a late result. Starting
+            // expensive work here would only burn a worker, so check the
+            // deadline once more at the moment the job really starts. Work
+            // that has begun is never abandoned: the permit stays with it.
+            if Instant::now() >= deadline {
+                return None;
+            }
+            Some(job())
         });
         match tokio::time::timeout_at(deadline, handle).await {
-            Ok(Ok(value)) => Ok(value),
+            Ok(Ok(Some(value))) => Ok(value),
+            Ok(Ok(None)) => Err(WorkError::WaitTimedOut { lane }),
             Ok(Err(_join)) => Err(WorkError::Panicked { lane }),
             Err(_elapsed) => Err(WorkError::TimedOut { lane }),
         }
@@ -327,6 +342,86 @@ mod tests {
         );
         release_tx.send(()).expect("worker waiting");
         assert_eq!(busy.await.expect("task"), Ok(2));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn work_queued_past_its_deadline_never_starts() {
+        // One blocking thread, so the second job is stuck in the blocking
+        // pool's queue behind the first with no timing race: its caller times
+        // out while it waits there. When the thread frees, the job must not
+        // run, because its result can no longer reach anyone.
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .max_blocking_threads(1)
+            .build()
+            .expect("runtime");
+        let governor = governor(2, 4);
+        let ran = Arc::new(AtomicUsize::new(0));
+        let started = Arc::new(AtomicUsize::new(0));
+        let (release_tx, release_rx) = mpsc::channel::<()>();
+        runtime.block_on(async {
+            let occupied = {
+                let governor = Arc::clone(&governor);
+                let started = Arc::clone(&started);
+                tokio::spawn(async move {
+                    governor
+                        .run_compute(Instant::now() + Duration::from_secs(30), move || {
+                            started.fetch_add(1, Ordering::SeqCst);
+                            release_rx.recv().expect("release");
+                            "occupied"
+                        })
+                        .await
+                })
+            };
+            // Wait for the occupying job without blocking a worker thread.
+            for _ in 0..400 {
+                if started.load(Ordering::SeqCst) == 1 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            assert_eq!(
+                started.load(Ordering::SeqCst),
+                1,
+                "the only blocking thread is taken"
+            );
+            let counter = Arc::clone(&ran);
+            let queued = governor
+                .run_compute(Instant::now() + Duration::from_millis(30), move || {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    "queued"
+                })
+                .await;
+            assert_eq!(
+                queued,
+                Err(WorkError::TimedOut {
+                    lane: WorkLane::Compute
+                }),
+                "the caller gives up while the job waits for a thread"
+            );
+            release_tx.send(()).expect("worker waiting");
+            assert_eq!(occupied.await.expect("task"), Ok("occupied"));
+            // Let the freed thread pick up the abandoned job.
+            for _ in 0..200 {
+                if governor.snapshot().compute_active == 0 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+            assert_eq!(
+                governor.snapshot().compute_active,
+                0,
+                "both permits returned"
+            );
+            assert_eq!(
+                ran.load(Ordering::SeqCst),
+                0,
+                "the expired job returned without doing its work"
+            );
+        });
     }
 
     #[tokio::test]
