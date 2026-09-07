@@ -824,6 +824,13 @@ pub(crate) enum ModalComponent {
 }
 
 impl ModalComponent {
+    /// Whether this is the modal's own text rather than a control.
+    #[requires(true)]
+    #[ensures(ret == matches!(self, Self::TextDisplay(_)))]
+    pub(crate) fn is_text_display(&self) -> bool {
+        matches!(self, Self::TextDisplay(_))
+    }
+
     #[requires(true)]
     #[ensures(ret.is_object())]
     fn to_json(&self) -> Value {

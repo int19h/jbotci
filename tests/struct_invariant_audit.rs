@@ -44,6 +44,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "guard pairs an owned mutex guard with the registry it releases into",
     ),
     (
+        "apps/jbotci-server/src/discord/modal.rs:Submission",
+        "the values one submission carried, keyed by control; whether a value belongs to its control is decided when the request is read, against that form schema",
+    ),
+    (
         "apps/jbotci-server/src/discord/operations.rs:GentufaOutcome",
         "pairs a shared web result with an optional rendered diagram; a diagram exists only when rendering succeeded, which the operation enforces by erroring otherwise",
     ),

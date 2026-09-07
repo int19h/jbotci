@@ -5,6 +5,7 @@ pub(crate) mod dedupe;
 pub(crate) mod diagram;
 pub(crate) mod links;
 pub(crate) mod locks;
+pub(crate) mod modal;
 pub(crate) mod operations;
 pub(crate) mod present;
 pub(crate) mod request;

@@ -118,7 +118,10 @@ pub fn discord_code_block(text: &str) -> String {
 /// the inserted spaces to the minimum a triple fence needs.
 #[requires(true)]
 #[ensures(!ret.contains("```"))]
-#[ensures(ret.replace(ZERO_WIDTH_SPACE, "") == text)]
+// Content of its own may already carry zero-width spaces, so what is
+// preserved is the text apart from them, not the text with mine removed.
+#[ensures(ret.chars().filter(|character| *character != ZERO_WIDTH_SPACE)
+    .eq(text.chars().filter(|character| *character != ZERO_WIDTH_SPACE)))]
 fn break_backtick_runs(text: &str) -> String {
     if longest_backtick_run(text) < 3 {
         return text.to_owned();
@@ -214,6 +217,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn content_that_already_carries_zero_width_spaces_is_still_carried() {
+        // A reader can paste a zero-width space; the block keeps it and still
+        // breaks the runs that would close the fence.
+        let text = "a\u{200b}b\n``\u{200b}`\n```";
+        let rendered = discord_code_block(text);
+        let inside = &rendered["```\n".len()..rendered.len() - "\n```".len()];
+        assert!(!inside.contains("```"), "{rendered:?}");
+        assert_eq!(
+            inside.matches('\u{200b}').count(),
+            3,
+            "one space is added to the run that needed it: {inside:?}"
+        );
+        assert_eq!(inside.replace('\u{200b}', ""), text.replace('\u{200b}', ""));
+        // Inline code refuses the value for its backticks, not its spaces.
+        assert_eq!(discord_inline_code("a\u{200b}b"), "`a\u{200b}b`");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn a_code_block_keeps_its_triple_fence_and_breaks_interior_runs() {
         for interior in [1usize, 2, 3, 4, 6, 7] {
             let ticks = "`".repeat(interior);
@@ -227,7 +250,7 @@ mod tests {
             );
             assert_eq!(
                 inside.replace('\u{200b}', ""),
-                text,
+                text.replace('\u{200b}', ""),
                 "the content is unchanged apart from the zero-width spaces"
             );
             if longest_backtick_run(&text) < 3 {

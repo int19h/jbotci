@@ -977,13 +977,19 @@ pub(crate) struct GimfihiOptions {
 
 impl Default for GimfihiOptions {
     #[requires(true)]
-    #[ensures(ret.preset.is_none() && ret.shapes.is_empty() && ret.collisions == CollisionScope::All)]
+    #[ensures(ret.preset.is_none() && ret.collisions == CollisionScope::All)]
+    // Both standard shapes, named rather than implied: the form shows them
+    // both checked, and a submission that changes nothing must mean what it
+    // was opened from.
+    #[ensures(ret.shapes.contains(GismuShape::Ccvcv) && ret.shapes.contains(GismuShape::Cvccv))]
     #[ensures(!ret.show_collisions && !ret.all_letters && !ret.require_free_short_rafsi)]
     #[ensures(ret.page.get() == 1)]
     fn default() -> Self {
         Self {
             preset: None,
-            shapes: GismuShapeSet::empty(),
+            shapes: GismuShapeSet::empty()
+                .with(GismuShape::Ccvcv)
+                .with(GismuShape::Cvccv),
             collisions: CollisionScope::All,
             show_collisions: false,
             all_letters: false,

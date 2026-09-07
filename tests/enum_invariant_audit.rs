@@ -160,6 +160,58 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "legacy Discord command wrapper delegates payload validity to the parsed typed tool request (removed at cutover)",
     ),
     (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::CollisionCount",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::DuplicateControl",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::EmptyField",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::MissingControl",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::NonTextValue",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::Oversize",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::PageCount",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::ShapeCount",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::TooManyValues",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::UnknownValue",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::WrongValueType",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmittedValue::Selected",
+        "one control's answer as Discord sent it: the values are checked against the control's own options when the request is read",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmittedValue::Text",
+        "one control's answer as Discord sent it: any string is a possible answer",
+    ),
+    (
         "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Contents",
         "contents outcome lists typed chapter entries whose own invariant holds",
     ),

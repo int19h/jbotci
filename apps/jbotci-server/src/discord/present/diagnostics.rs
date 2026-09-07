@@ -97,12 +97,12 @@ fn complete_text(source: &str, diagnostics: &[Diagnostic]) -> String {
             diagnostic.message
         )];
         for label in &diagnostic.labels {
-            if let Some(excerpt) = caret_excerpt(
+            if let Some((excerpt, _)) = caret_excerpt(
                 source,
                 label.span.byte_start,
                 label.span.byte_end,
                 &label.message,
-                usize::MAX,
+                ExcerptLimits::complete(),
             ) {
                 lines.push(excerpt);
             } else if !label.message.is_empty() {
@@ -165,13 +165,14 @@ fn render_one(source: &str, diagnostic: &Diagnostic) -> (String, bool) {
     let mut labels = diagnostic.labels.iter().collect::<Vec<_>>();
     labels.sort_by_key(|label| !label.primary);
     for label in labels {
-        if let Some(excerpt) = caret_excerpt(
+        if let Some((excerpt, excerpt_cut)) = caret_excerpt(
             source,
             label.span.byte_start,
             label.span.byte_end,
             &label.message,
-            MAX_EXCERPT_UNITS,
+            ExcerptLimits::shown(),
         ) {
+            cut |= excerpt_cut;
             lines.push(code_block(&excerpt));
         }
     }
@@ -193,8 +194,8 @@ fn caret_excerpt(
     byte_start: usize,
     byte_end: usize,
     label: &str,
-    max_excerpt_units: usize,
-) -> Option<String> {
+    limits: ExcerptLimits,
+) -> Option<(String, bool)> {
     if byte_start > source.len() || byte_end > source.len() || byte_start > byte_end {
         return None;
     }
@@ -212,8 +213,10 @@ fn caret_excerpt(
     let range_end = byte_end.min(line_end);
     let range_units = utf16_len(&source[byte_start..range_end]).max(1);
     // Keep the excerpt short: window around the labelled range.
-    let (shown_line, shown_prefix) = if utf16_len(line) > max_excerpt_units {
-        let window_start_units = prefix_units.saturating_sub(max_excerpt_units / 3);
+    let mut cut = false;
+    let (shown_line, shown_prefix) = if utf16_len(line) > limits.line_units {
+        cut = true;
+        let window_start_units = prefix_units.saturating_sub(limits.line_units / 3);
         let mut units = 0;
         let mut start_byte = 0;
         for (index, character) in line.char_indices() {
@@ -225,27 +228,64 @@ fn caret_excerpt(
             start_byte = index + character.len_utf8();
         }
         let windowed = &line[start_byte..];
-        let (windowed, _) = truncate_units(windowed, max_excerpt_units);
+        let (windowed, _) = truncate_units(windowed, limits.line_units);
         let shown_prefix = prefix_units.saturating_sub(units);
         (format!("…{windowed}"), shown_prefix + 1)
     } else {
         (line.to_owned(), prefix_units)
     };
-    let caret_units = range_units.min(max_excerpt_units);
+    let caret_units = range_units.min(limits.line_units);
     let mut caret_line = " ".repeat(shown_prefix);
     caret_line.push_str(&"^".repeat(caret_units));
     if !label.is_empty() {
         caret_line.push(' ');
-        let (label, _) = truncate_units(label, max_excerpt_units.min(MAX_MESSAGE_UNITS));
+        let (label, label_cut) = truncate_units(label, limits.label_units);
+        cut |= label_cut;
         caret_line.push_str(&label);
     }
     // Tabs would misalign the caret; show them as spaces in the excerpt.
-    Some(format!("{}\n{caret_line}", shown_line.replace('\t', " ")))
+    Some((
+        format!("{}\n{caret_line}", shown_line.replace('\t', " ")),
+        cut,
+    ))
+}
+
+/// How much of a labelled line an excerpt may show. The message keeps a
+/// window; the complete text keeps whole lines and whole labels.
+#[invariant(*line_units > 0 && *label_units > 0)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ExcerptLimits {
+    line_units: usize,
+    label_units: usize,
+}
+
+impl ExcerptLimits {
+    /// What the message shows.
+    #[requires(true)]
+    #[ensures(ret.line_units == MAX_EXCERPT_UNITS)]
+    fn shown() -> Self {
+        new!(ExcerptLimits {
+            line_units: MAX_EXCERPT_UNITS,
+            label_units: MAX_MESSAGE_UNITS,
+        })
+    }
+
+    /// Everything, for the attached result.
+    #[requires(true)]
+    #[ensures(ret.line_units == usize::MAX && ret.label_units == usize::MAX)]
+    fn complete() -> Self {
+        new!(ExcerptLimits {
+            line_units: usize::MAX,
+            label_units: usize::MAX,
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use bityzba::data;
     use jbotci_web_core::analyze_vlasei;
 
     #[test]
@@ -267,6 +307,44 @@ mod tests {
         assert!(rendered.complete.contains("morphology."), "{rendered:?}");
         assert_eq!(summary(&analysis.diagnostics).as_deref(), Some("1 error"));
         assert!(render_diagnostics(source, &[]).is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_complete_text_keeps_whole_labels_and_the_message_says_it_cut_them() {
+        // A label longer than the message's own bound is shown short there
+        // and whole in the complete text, and the diagnostics know they are
+        // an excerpt so the assembler attaches it.
+        let source = "mi 'klama do";
+        let analysis = analyze_vlasei(source, None, None).expect("analysis");
+        let long_label = "why this word cannot start here ".repeat(20);
+        let diagnostics = analysis
+            .diagnostics
+            .iter()
+            .map(|diagnostic| {
+                let mut labels = diagnostic.labels.clone();
+                if let Some(label) = labels.first_mut() {
+                    *label = label.clone().with_data(data! {
+                        message: long_label.clone(),
+                    });
+                }
+                diagnostic.clone().with_data(data! { labels: labels })
+            })
+            .collect::<Vec<_>>();
+        let rendered = render_diagnostics(source, &diagnostics).expect("diagnostics");
+        assert!(
+            rendered.is_excerpt,
+            "the label was shortened for the message"
+        );
+        assert!(
+            !rendered.shown.contains(&long_label),
+            "the message keeps its bound"
+        );
+        assert!(
+            rendered.complete.contains(&long_label),
+            "the complete text keeps the whole label"
+        );
     }
 
     #[test]
