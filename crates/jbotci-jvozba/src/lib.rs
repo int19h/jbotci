@@ -930,6 +930,29 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn an_unbounded_build_refuses_a_search_it_cannot_even_count() {
+        // No caller limit still leaves the arithmetic one: eighty ordinary
+        // words offer more spellings than a 64-bit count can hold, and a
+        // search whose size cannot be counted cannot be finished either. The
+        // refusal is therefore part of the unbounded API, not only of the
+        // bounded one, which is why every caller of it must handle it.
+        let dictionary = jbotci_dictionary_data::english();
+        let words = (0..80)
+            .map(|_| JvozbaInput::Word("klama".to_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &words),
+            Err(JvozbaError::TooMuchWork {
+                measure: JvozbaWorkMeasure::Placements,
+                amount: u64::MAX,
+                limit: u64::MAX,
+            })
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn builds_simple_lujvo_from_dictionary_words() {
         let result = build_best_jvozba_detailed(
             JvozbaMode::Lujvo,

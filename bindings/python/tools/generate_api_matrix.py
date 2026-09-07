@@ -48,6 +48,14 @@ RUST_ONLY_CONCEPTS: dict[tuple[str, str], tuple[str, str]] = {
         "implementation-representation",
         "Internal mutable storage for TraceRecorder; Python receives immutable trace events and reports.",
     ),
+    ("jbotci_jvozba", "JvozbaBuildLimits"): (
+        "implementation-representation",
+        "A hosting service's work budget: how much construction a caller that must answer within a deadline will pay for. Python receives the unbounded builder, as the CLI does, and the refusal it can still raise is exposed as TooMuchWorkError.",
+    ),
+    ("jbotci_jvozba", "build_best_jvozba_detailed_within"): (
+        "implementation-representation",
+        "The budgeted form of the builder, for a caller that must answer within a deadline. Python receives build_best_jvozba_detailed, whose refusals it raises with the same typed values.",
+    ),
     ("jbotci_morphology", "StringEnumMetadata"): (
         "implementation-representation",
         "Compile-time metadata used to register exact Python StrEnum classes, not a consumer domain value.",

@@ -7,7 +7,7 @@ use bityzba::{contract_trait, ensures, invariant, new, requires, try_new};
 use jbotci_jvozba::{
     JvozbaBuildResult as RustJvozbaBuildResult, JvozbaError as RustJvozbaError,
     JvozbaInput as RustJvozbaInput, JvozbaMode, JvozbaSegment as RustJvozbaSegment,
-    JvozbaSegmentKind, LujvoDecomposition as RustLujvoDecomposition,
+    JvozbaSegmentKind, JvozbaWorkMeasure, LujvoDecomposition as RustLujvoDecomposition,
     LujvoSegmentInfo as RustLujvoSegmentInfo,
 };
 use jbotci_morphology::LujvoPart;
@@ -32,6 +32,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_jvozba_FixedRafsi",
     "_jvozba_JvozbaSegmentKind",
     "_jvozba_JvozbaSegment",
+    "_jvozba_JvozbaWorkMeasure",
     "_jvozba_JvozbaBuildResult",
     "_jvozba_LujvoSegmentInfo",
     "_jvozba_LujvoDecomposition",
@@ -41,6 +42,7 @@ pub(crate) const NATIVE_EXPORTS: &[&str] = &[
     "_jvozba_FinalConsonant",
     "_jvozba_NoRafsiAvailable",
     "_jvozba_NoDictionaryEntry",
+    "_jvozba_TooMuchWork",
     "_jvozba_CouldNotBuildLujvo",
     "_jvozba_CouldNotBuildCompound",
     "_jvozba_build_best_jvozba_detailed",
@@ -113,6 +115,18 @@ define_jvozba_string_enum_binding!(
     {
         JvozbaSegmentKind::Rafsi => ("RAFSI", "rafsi"),
         JvozbaSegmentKind::Hyphen => ("HYPHEN", "hyphen"),
+    }
+);
+
+define_jvozba_string_enum_binding!(
+    JvozbaWorkMeasure,
+    "_jvozba_JvozbaWorkMeasure",
+    "JvozbaWorkMeasure",
+    "What a refused build measured too much of.",
+    {
+        JvozbaWorkMeasure::Pieces => ("PIECES", "pieces"),
+        JvozbaWorkMeasure::SpellingLetters => ("SPELLING_LETTERS", "spelling-letters"),
+        JvozbaWorkMeasure::Placements => ("PLACEMENTS", "placements"),
     }
 );
 
@@ -976,6 +990,105 @@ impl PyNoDictionaryEntry {
     }
 }
 
+/// Refusal of a search too large to finish: the request asks for more work
+/// than the build was allowed, or than a 64-bit count can express.
+#[invariant(true, "private construction fixes the retained Rust error variant")]
+#[pyclass(
+    name = "TooMuchWork",
+    frozen,
+    eq,
+    module = "jbotci.jvozba",
+    skip_from_py_object
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PyTooMuchWork {
+    value: RustJvozbaError,
+}
+
+impl PyTooMuchWork {
+    /// Read back the three figures the fixed variant always carries.
+    #[requires(true)]
+    #[ensures(true)]
+    fn measured(&self) -> (JvozbaWorkMeasure, u64, u64) {
+        let RustJvozbaError::TooMuchWork {
+            measure,
+            amount,
+            limit,
+        } = &self.value
+        else {
+            unreachable!("private class fixes the error variant")
+        };
+        (*measure, *amount, *limit)
+    }
+}
+
+#[pymethods]
+impl PyTooMuchWork {
+    #[classattr]
+    #[allow(non_upper_case_globals)]
+    const __match_args__: (&'static str, &'static str, &'static str) =
+        ("measure", "amount", "limit");
+
+    /// Construct the structured refusal with its exact measured figures.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|value| matches!(
+        value.value,
+        RustJvozbaError::TooMuchWork { .. }
+    )))]
+    #[new]
+    fn new(py: Python<'_>, measure: &Bound<'_, PyAny>, amount: u64, limit: u64) -> PyResult<Self> {
+        let measure = enum_from_python(py, measure)?;
+        Ok(Self {
+            value: RustJvozbaError::TooMuchWork {
+                measure,
+                amount,
+                limit,
+            },
+        })
+    }
+
+    /// Return which part of the search the refused request measured.
+    #[requires(true)]
+    #[ensures(ret.is_ok() || ret.is_err())]
+    #[getter]
+    fn measure(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        enum_to_python(py, self.measured().0)
+    }
+
+    /// Return how much of that measure the request would need.
+    #[requires(true)]
+    #[ensures(ret == self.measured().1)]
+    #[getter]
+    fn amount(&self) -> u64 {
+        self.measured().1
+    }
+
+    /// Return how much of that measure this build allowed.
+    #[requires(true)]
+    #[ensures(ret == self.measured().2)]
+    #[getter]
+    fn limit(&self) -> u64 {
+        self.measured().2
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __str__(&self) -> String {
+        self.value.to_string()
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn __repr__(&self) -> String {
+        let (measure, amount, limit) = self.measured();
+        format!(
+            "{PUBLIC_MODULE}.TooMuchWork(measure={PUBLIC_MODULE}.{}.{}, amount={amount}, limit={limit})",
+            JvozbaWorkMeasure::python_type_name(),
+            JvozbaWorkMeasure::python_member_name(measure)
+        )
+    }
+}
+
 /// Failure after every lujvo candidate was rejected by Rust morphology.
 #[invariant(true, "private construction fixes the retained Rust error variant")]
 #[pyclass(
@@ -1099,6 +1212,10 @@ fn jvozba_error_value_to_python(
             "NoRafsiAvailableError",
             Py::new(py, PyNoRafsiAvailable { value })?.into_any(),
         ),
+        value @ RustJvozbaError::TooMuchWork { .. } => (
+            "TooMuchWorkError",
+            Py::new(py, PyTooMuchWork { value })?.into_any(),
+        ),
         value @ RustJvozbaError::NoDictionaryEntry { .. } => (
             "NoDictionaryEntryError",
             Py::new(py, PyNoDictionaryEntry { value })?.into_any(),
@@ -1199,6 +1316,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PyJvozbaWord>(module, "_jvozba_Word")?;
     register_type::<PyFixedRafsi>(module, "_jvozba_FixedRafsi")?;
     register_string_enum::<JvozbaSegmentKind>(module)?;
+    register_string_enum::<JvozbaWorkMeasure>(module)?;
     register_type::<PyJvozbaSegment>(module, "_jvozba_JvozbaSegment")?;
     register_type::<PyJvozbaBuildResult>(module, "_jvozba_JvozbaBuildResult")?;
     register_type::<PyLujvoSegmentInfo>(module, "_jvozba_LujvoSegmentInfo")?;
@@ -1209,6 +1327,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     register_type::<PyFinalConsonant>(module, "_jvozba_FinalConsonant")?;
     register_type::<PyNoRafsiAvailable>(module, "_jvozba_NoRafsiAvailable")?;
     register_type::<PyNoDictionaryEntry>(module, "_jvozba_NoDictionaryEntry")?;
+    register_type::<PyTooMuchWork>(module, "_jvozba_TooMuchWork")?;
     register_type::<PyCouldNotBuildLujvo>(module, "_jvozba_CouldNotBuildLujvo")?;
     register_type::<PyCouldNotBuildCompound>(module, "_jvozba_CouldNotBuildCompound")?;
     register_function!(
@@ -1288,6 +1407,15 @@ mod tests {
                     },
                     exception_name: "NoDictionaryEntryError",
                     value_class_name: "NoDictionaryEntry",
+                },
+                ErrorProjectionCase {
+                    error: RustJvozbaError::TooMuchWork {
+                        measure: JvozbaWorkMeasure::Placements,
+                        amount: 8193,
+                        limit: 8192,
+                    },
+                    exception_name: "TooMuchWorkError",
+                    value_class_name: "TooMuchWork",
                 },
                 ErrorProjectionCase {
                     error: RustJvozbaError::CouldNotBuildLujvo,
