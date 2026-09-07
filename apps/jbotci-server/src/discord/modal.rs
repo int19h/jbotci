@@ -779,30 +779,13 @@ fn cukta_controls(request: &CuktaRequest) -> Result<Vec<ModalComponent>, BoundsE
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 3) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 2) || ret.is_err())]
 fn jvozba_controls(request: &JvozbaRequest) -> Result<Vec<ModalComponent>, BoundsError> {
     Ok(vec![
         labeled(
-            "Words",
-            Some("The words to combine, separated by spaces."),
+            "Parts",
+            Some("Words in order; a rafsi given as it is goes between hyphens: blanu -blo- zdani"),
             source_input(ID_PARTS, Some(request.parts.as_str()), true, None, false)?,
-        )?,
-        labeled(
-            "Fixed rafsi",
-            Some("Rafsi to use as given, separated by spaces or commas."),
-            source_input(
-                ID_RAFSI,
-                Some(
-                    request
-                        .rafsi
-                        .as_ref()
-                        .map(SourceText::as_str)
-                        .unwrap_or_default(),
-                ),
-                false,
-                None,
-                false,
-            )?,
         )?,
         labeled(
             "Build",
@@ -1132,8 +1115,7 @@ pub(crate) fn parse_submission(
             }))
         }
         DiscordRequest::Jvozba(previous) => Ok(DiscordRequest::Jvozba(JvozbaRequest {
-            parts: required_source(submission, ID_PARTS, "words")?,
-            rafsi: optional_source(submission, ID_RAFSI, "fixed rafsi", previous.rafsi.as_ref())?,
+            parts: required_source(submission, ID_PARTS, "parts")?,
             options: JvozbaOptions {
                 target: JvozbaTarget::from_slash_value(chosen_value(submission, ID_MODE, "build")?)
                     .ok_or_else(|| {
@@ -1420,7 +1402,6 @@ mod tests {
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: source("klama bajra"),
-                rafsi: Some(source("kla")),
                 options: JvozbaOptions {
                     target: JvozbaTarget::Cmevla,
                 },
@@ -1474,7 +1455,6 @@ mod tests {
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: source("klama bajra"),
-                rafsi: None,
                 options: JvozbaOptions::default(),
             }),
             DiscordRequest::Gimfihi(GimfihiRequest {
@@ -1653,7 +1633,6 @@ mod tests {
         // The same three states for the other optional fields.
         let jvozba = DiscordRequest::Jvozba(JvozbaRequest {
             parts: source("klama bajra"),
-            rafsi: None,
             options: JvozbaOptions::default(),
         });
         let modal = build(&published(jvozba.clone()), None).expect("a form");
@@ -1662,7 +1641,11 @@ mod tests {
         else {
             panic!("a jvozba request");
         };
-        assert_eq!(parsed.rafsi, None, "an absent rafsi field stays absent");
+        assert_eq!(
+            parsed.parts.as_str(),
+            "klama bajra",
+            "the ordered parts come back exactly as they were"
+        );
 
         let gimfihi = DiscordRequest::Gimfihi(GimfihiRequest {
             sources: None,

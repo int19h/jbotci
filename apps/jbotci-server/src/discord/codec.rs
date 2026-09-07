@@ -768,6 +768,51 @@ mod tests {
         }
     }
 
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_message_from_before_the_ordered_parts_syntax_reopens_as_the_same_build() {
+        // The wire state exactly as the previous version published it: two
+        // fields, the words and a whitespace-separated fixed rafsi list, with
+        // the digest taken over both. Nothing here is a reconstruction of the
+        // new format; it is what a message in a channel right now holds.
+        let tool = DiscordTool::Jvozba;
+        let legacy_fields: Vec<(SourceField, Option<&str>)> = vec![
+            (SourceField::Parts, Some("klama bajra")),
+            (SourceField::FixedRafsi, Some("kla bar")),
+        ];
+        let status = format!("{tool} · test");
+        let block = encode_input_block(tool, &legacy_fields, &status);
+        let presence = PresenceMask::of_fields(&legacy_fields);
+        let digest = SourceDigest::of_fields(tool, &legacy_fields);
+        let header = new!(RequestHeader {
+            tool,
+            store: SourceStore::Inline,
+            presence,
+            options_word: 0,
+            page: PageNumber::first(),
+            revision: Revision::INITIAL,
+            initiator: Snowflake::parse("123456789012345678").expect("snowflake"),
+            build_tag: BuildTag::parse("older").expect("tag"),
+            digest,
+        });
+
+        let decoded_fields =
+            decode_input_block(tool, header.presence, &block).expect("the old block decodes");
+        let rebuilt = header
+            .rebuild(decoded_fields)
+            .expect("the old state rebuilds");
+        let DiscordRequest::Jvozba(request) = &rebuilt.request else {
+            panic!("a jvozba request");
+        };
+        // The old builder put every fixed rafsi after all of the words, so
+        // this is the same sequence that message would have built.
+        assert_eq!(request.parts.as_str(), "klama bajra -kla- -bar-");
+
+        // And what it rebuilds to now publishes and reopens unchanged.
+        assert_round_trip(&rebuilt);
+    }
+
     /// Every awkward value the PM asked the codec to prove.
     #[requires(true)]
     #[ensures(!ret.is_empty())]
@@ -973,7 +1018,6 @@ mod tests {
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: text("klama bajra"),
-                rafsi: Some(text("kla bar")),
                 options: JvozbaOptions {
                     target: JvozbaTarget::Cmevla,
                 },

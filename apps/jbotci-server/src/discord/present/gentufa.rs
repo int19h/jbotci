@@ -175,7 +175,7 @@ fn append_fragments(fragments: &[GentufaBracketFragment], output: &mut String) {
 }
 
 /// A plain-text tree from the shared tree rows: labels for constructs, word
-/// text at the leaves, `⟨…⟩` around elided terminators and `✗` before error
+/// text at the leaves, `/ku/` for an elided terminator and `✗` before error
 /// regions.
 #[requires(true)]
 #[ensures(true)]
@@ -214,7 +214,10 @@ pub(crate) fn tree_text(rows: &[GentufaTreeRow]) -> String {
         let cell = row.cells.first();
         let text = match cell {
             Some(cell) if cell.is_word => match cell.role {
-                GentufaBlockRole::Elided => format!("⟨{}⟩", cell.text),
+                // An elided terminator is written the way the reference
+                // grammar writes it, between slashes, so it needs no legend
+                // to be read.
+                GentufaBlockRole::Elided => format!("/{}/", cell.text),
                 GentufaBlockRole::Error => format!("✗ {}", cell.text),
                 GentufaBlockRole::Normal => cell.text.clone(),
             },
@@ -227,25 +230,15 @@ pub(crate) fn tree_text(rows: &[GentufaTreeRow]) -> String {
         };
         lines.push(line);
     }
-    let has_elided = rows.iter().any(|row| {
-        row.cells
-            .iter()
-            .any(|cell| cell.role == GentufaBlockRole::Elided)
-    });
+    // Only the recovery marker still needs explaining: it reports input the
+    // parse could not use, which nothing else in the tree says.
     let has_error = rows.iter().any(|row| {
         row.cells
             .iter()
             .any(|cell| cell.role == GentufaBlockRole::Error)
     });
-    if has_elided || has_error {
-        let mut legend = Vec::new();
-        if has_elided {
-            legend.push("⟨ ⟩ elided");
-        }
-        if has_error {
-            legend.push("✗ skipped by recovery");
-        }
-        lines.push(legend.join(" · "));
+    if has_error {
+        lines.push("✗ skipped by recovery".to_owned());
     }
     lines.join("\n")
 }
@@ -341,9 +334,8 @@ mod tests {
                 "  ├ description",
                 "  │ ├ lo",
                 "  │ ├ zárci",
-                "  │ └ ⟨ku⟩",
-                "  └ ⟨vau⟩",
-                "⟨ ⟩ elided",
+                "  │ └ /ku/",
+                "  └ /vau/",
             ]
             .join("\n")
         );

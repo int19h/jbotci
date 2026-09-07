@@ -31,7 +31,8 @@ use jbotci_jvozba::{
     build_best_jvozba_detailed, build_best_jvozba_detailed_within, decompose_lujvo_like,
 };
 use jbotci_morphology::{
-    LujvoPart, MorphologyOptions, PhonemeRenderOptions, segment_words_with_modifiers,
+    LujvoPart, MorphologyOptions, PhonemeRenderOptions, Phonemes, normalize_lojban_input_text,
+    segment_words_with_modifiers,
 };
 use jbotci_search::vlacku::{
     VlackuCard, VlackuOutcome as SearchOutcome, VlackuRequest as SearchRequest,
@@ -974,20 +975,55 @@ async fn run_cukta(
 // Jvozba
 // ---------------------------------------------------------------------------
 
-/// The typed construction inputs: source words found by the morphology
-/// parser in the parts field (never by splitting on spaces), then the
-/// explicitly listed fixed rafsi.
+/// Read the ordered pieces of a compound from one field. A span between
+/// hyphens is a rafsi given literally, as in `blanu -blo- zdani`; everything
+/// outside those spans is words, and the morphology parser is what decides
+/// where a word begins and ends. The order the reader wrote is the order the
+/// builder receives, whichever kind comes first.
 #[requires(true)]
 #[ensures(true)]
 pub(crate) fn jvozba_inputs(
     request: &JvozbaRequest,
 ) -> Result<Vec<JvozbaInput>, RequestValidationError> {
-    let words = segment_words_with_modifiers(request.parts.as_str()).map_err(|error| {
+    let mut inputs = Vec::new();
+    let mut rest = request.parts.as_str();
+    while let Some(open) = rest.find(FIXED_RAFSI_DELIMITER) {
+        push_jvozba_words(&rest[..open], &mut inputs)?;
+        let after = &rest[open + FIXED_RAFSI_DELIMITER.len_utf8()..];
+        let Some(close) = after.find(FIXED_RAFSI_DELIMITER) else {
+            return Err(RequestValidationError::JvozbaParts {
+                message: format!(
+                    "a fixed rafsi opened with `{FIXED_RAFSI_DELIMITER}` was never closed; \
+                     write it as `-blo-`"
+                ),
+            });
+        };
+        inputs.push(JvozbaInput::FixedRafsi(fixed_rafsi_text(&after[..close])?));
+        rest = &after[close + FIXED_RAFSI_DELIMITER.len_utf8()..];
+    }
+    push_jvozba_words(rest, &mut inputs)?;
+    Ok(inputs)
+}
+
+/// What marks a rafsi given literally rather than looked up.
+const FIXED_RAFSI_DELIMITER: char = '-';
+
+/// Add the words of one span, in order. An empty or blank span contributes
+/// nothing, which is what lets a compound begin or end with a fixed rafsi.
+#[requires(true)]
+#[ensures(ret.is_err() || inputs.len() >= old(inputs.len()))]
+fn push_jvozba_words(
+    span: &str,
+    inputs: &mut Vec<JvozbaInput>,
+) -> Result<(), RequestValidationError> {
+    if span.trim().is_empty() {
+        return Ok(());
+    }
+    let words = segment_words_with_modifiers(span).map_err(|error| {
         RequestValidationError::JvozbaParts {
             message: error.to_string(),
         }
     })?;
-    let mut inputs = Vec::with_capacity(words.len());
     for word in &words {
         let Some(text) = word_like_lookup_text(word) else {
             return Err(RequestValidationError::JvozbaParts {
@@ -996,16 +1032,38 @@ pub(crate) fn jvozba_inputs(
         };
         inputs.push(JvozbaInput::Word(text));
     }
-    if let Some(rafsi) = &request.rafsi {
-        inputs.extend(
-            rafsi
-                .as_str()
-                .split(|character: char| character.is_whitespace() || character == ',')
-                .filter(|piece| !piece.is_empty())
-                .map(|piece| JvozbaInput::FixedRafsi(piece.to_owned())),
-        );
+    Ok(())
+}
+
+/// The canonical text of one literal rafsi. It is not looked up, so nothing
+/// else will catch a stray character: it must be Lojban letters and nothing
+/// more, in the spelling the rest of the workspace uses.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|text| !text.is_empty()) || ret.is_err())]
+fn fixed_rafsi_text(span: &str) -> Result<String, RequestValidationError> {
+    if span.is_empty() {
+        return Err(RequestValidationError::JvozbaParts {
+            message: "a fixed rafsi between hyphens is empty; write it as `-blo-`".to_owned(),
+        });
     }
-    Ok(inputs)
+    if span.chars().any(char::is_whitespace) {
+        return Err(RequestValidationError::JvozbaParts {
+            message: format!(
+                "`{span}` is not one rafsi: a fixed rafsi holds no spaces, and each one \
+                 needs its own hyphens"
+            ),
+        });
+    }
+    let normalized =
+        normalize_lojban_input_text(span).ok_or_else(|| RequestValidationError::JvozbaParts {
+            message: format!("`{span}` is not Lojban text, so it cannot be a rafsi"),
+        })?;
+    Phonemes::from_canonical(normalized.clone()).map_err(|_| {
+        RequestValidationError::JvozbaParts {
+            message: format!("`{span}` is not Lojban text, so it cannot be a rafsi"),
+        }
+    })?;
+    Ok(normalized)
 }
 
 /// How much work one Discord compound build may do. The search compares every
@@ -1314,7 +1372,6 @@ mod tests {
         );
         let empty_parts = DiscordRequest::Jvozba(JvozbaRequest {
             parts: text("  "),
-            rafsi: None,
             options: JvozbaOptions::default(),
         });
         assert_eq!(
@@ -1323,6 +1380,91 @@ mod tests {
                 field: SourceField::Parts
             })
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn ordered_parts_keep_words_and_literal_rafsi_in_the_order_written() {
+        let parse = |text: &str| {
+            jvozba_inputs(&JvozbaRequest {
+                parts: SourceText::new(text).expect("parts fit"),
+                options: JvozbaOptions::default(),
+            })
+        };
+        let word = |text: &str| JvozbaInput::Word(text.to_owned());
+        let rafsi = |text: &str| JvozbaInput::FixedRafsi(text.to_owned());
+
+        assert_eq!(
+            parse("blanu -blo- zdani").expect("a mix"),
+            vec![word("blanu"), rafsi("blo"), word("zdani")]
+        );
+        // A literal rafsi may open or close the compound, and two may follow
+        // each other; order is whatever was written.
+        assert_eq!(
+            parse("-blo- zdani").expect("leading"),
+            vec![rafsi("blo"), word("zdani")]
+        );
+        assert_eq!(
+            parse("zdani -blo-").expect("trailing"),
+            vec![word("zdani"), rafsi("blo")]
+        );
+        assert_eq!(
+            parse("-blo--kla- zdani").expect("adjacent"),
+            vec![rafsi("blo"), rafsi("kla"), word("zdani")]
+        );
+        // Apostrophes and the hyphen letter are ordinary rafsi text.
+        assert_eq!(
+            parse("mi -u'u- klama").expect("apostrophe"),
+            vec![word("mi"), rafsi("u'u"), word("klama")]
+        );
+        // Words are still segmented by morphology, not by spaces: written
+        // without a space, this is the cmavo `lo` followed by `jbobangu`,
+        // which is what the parser must see.
+        assert_eq!(
+            parse("lojbobangu").expect("morphology decides"),
+            vec![word("lo"), word("jbobangu")]
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn malformed_ordered_parts_say_what_is_wrong() {
+        let parse = |text: &str| {
+            jvozba_inputs(&JvozbaRequest {
+                parts: SourceText::new(text).expect("parts fit"),
+                options: JvozbaOptions::default(),
+            })
+        };
+        let message = |text: &str| match parse(text) {
+            Err(RequestValidationError::JvozbaParts { message }) => message,
+            other => panic!("expected a parts error for {text:?}, got {other:?}"),
+        };
+
+        assert!(
+            message("blanu -blo").contains("never closed"),
+            "{}",
+            message("blanu -blo")
+        );
+        assert!(
+            message("blanu -- zdani").contains("empty"),
+            "{}",
+            message("blanu -- zdani")
+        );
+        assert!(
+            message("blanu -blo kla- zdani").contains("no spaces"),
+            "{}",
+            message("blanu -blo kla- zdani")
+        );
+        assert!(
+            message("blanu -qwx- zdani").contains("not Lojban text"),
+            "{}",
+            message("blanu -qwx- zdani")
+        );
+        // A look-alike dash is not a delimiter; it reaches morphology as
+        // ordinary text and is refused there rather than silently accepted.
+        assert!(parse("blanu –blo– zdani").is_err());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1334,7 +1476,6 @@ mod tests {
         // caller still receives them as invalid input.
         let bad_parts = DiscordRequest::Jvozba(JvozbaRequest {
             parts: text("klama 'bajra"),
-            rafsi: None,
             options: JvozbaOptions::default(),
         });
         assert!(matches!(
@@ -1577,7 +1718,6 @@ mod tests {
     async fn jvozba_keeps_fixed_rafsi_typed_and_explains_constituents() {
         let ToolOutcome::Jvozba(outcome) = run(DiscordRequest::Jvozba(JvozbaRequest {
             parts: text("klama bajra"),
-            rafsi: None,
             options: JvozbaOptions::default(),
         }))
         .await
@@ -1602,19 +1742,26 @@ mod tests {
         assert_eq!(rafsi[0].source.as_deref(), Some("klama"));
         assert_eq!(rafsi[1].source.as_deref(), Some("bajra"));
 
-        let ToolOutcome::Jvozba(fixed) = run(DiscordRequest::Jvozba(JvozbaRequest {
-            parts: text("klama"),
-            rafsi: Some(text("bar")),
+        // A literal rafsi keeps the place it was written in, before the word
+        // that follows it.
+        let ToolOutcome::Jvozba(mixed) = run(DiscordRequest::Jvozba(JvozbaRequest {
+            parts: text("blanu -blo- zdani"),
             options: JvozbaOptions::default(),
         }))
         .await
         .expect("jvozba") else {
             panic!("jvozba outcome");
         };
-        assert_eq!(fixed.inputs[1], JvozbaInput::FixedRafsi("bar".to_owned()));
+        assert_eq!(
+            mixed.inputs,
+            vec![
+                JvozbaInput::Word("blanu".to_owned()),
+                JvozbaInput::FixedRafsi("blo".to_owned()),
+                JvozbaInput::Word("zdani".to_owned()),
+            ]
+        );
         let ToolOutcome::Jvozba(single) = run(DiscordRequest::Jvozba(JvozbaRequest {
             parts: text("klama"),
-            rafsi: None,
             options: JvozbaOptions::default(),
         }))
         .await

@@ -181,11 +181,10 @@ pub(crate) fn subcommands() -> Vec<SlashSubcommand> {
                 DiscordTool::Jvozba => (
                     "Build a lujvo or cmevla from source words",
                     vec![
-                        text_option("parts", "Source words in order, separated by spaces", true),
                         text_option(
-                            "rafsi",
-                            "Fixed rafsi to append after the words, separated by spaces",
-                            false,
+                            "parts",
+                            "Pieces in order; a rafsi as given goes in hyphens: blanu -blo- zdani",
+                            true,
                         ),
                         choice_option(
                             "mode",
@@ -600,7 +599,6 @@ fn build_request(
                 .unwrap_or_default();
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: values.required_text("parts")?,
-                rafsi: values.text("rafsi")?,
                 options: JvozbaOptions { target },
             })
         }
@@ -682,11 +680,7 @@ mod tests {
                 vec![("text", true, false)],
                 vec![("query", true, false), ("mode", false, true)],
                 vec![("query", false, false), ("mode", false, true)],
-                vec![
-                    ("parts", true, false),
-                    ("rafsi", false, false),
-                    ("mode", false, true)
-                ],
+                vec![("parts", true, false), ("mode", false, true)],
                 vec![("sources", false, false), ("preset", false, true)],
             ]
         );
@@ -814,16 +808,18 @@ mod tests {
         let DiscordRequest::Jvozba(jvozba) = decode_command(&command_data(
             "jvozba",
             vec![
-                option("parts", "klama bajra"),
-                option("rafsi", "kla"),
+                option("parts", "klama -kla- bajra"),
                 option("mode", "cmevla"),
             ],
         ))
         .expect("jvozba") else {
             panic!("jvozba request");
         };
-        assert_eq!(jvozba.parts.as_str(), "klama bajra");
-        assert_eq!(jvozba.rafsi.as_ref().map(SourceText::as_str), Some("kla"));
+        assert_eq!(
+            jvozba.parts.as_str(),
+            "klama -kla- bajra",
+            "one field carries words and literal rafsi in the order given"
+        );
         assert_eq!(jvozba.options.target, JvozbaTarget::Cmevla);
 
         let DiscordRequest::Gimfihi(gimfihi) =

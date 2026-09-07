@@ -19,6 +19,27 @@ Only the reader who ran the command can change what the message shows. Anyone
 can open the form to read the settings and use its link; submitting it as
 someone else explains that privately and changes nothing.
 
+### Building a word
+
+`jvozba` takes its pieces in one field, in the order they should appear. A
+piece written plainly is a word to look up; a piece between hyphens is a rafsi
+used exactly as given:
+
+    blanu -blo- zdani
+
+Words are found by the morphology parser, not by splitting on spaces, so
+`lojbobangu` is the cmavo `lo` followed by `jbobangu`. A hyphenated piece must
+hold one rafsi and no spaces; an unclosed hyphen, an empty pair and text that
+is not Lojban are each refused with what is wrong. A message published before
+this syntax reopens as the same build, with its old fixed rafsi written after
+the words as `-kla-`, which is where the previous version put them.
+
+### Reading a parse
+
+The tree view writes an elided terminator between slashes, as `/ku/` and
+`/vau/`, the way the reference grammar writes it. A parse that dropped input
+during recovery still says so.
+
 ## Configuration
 
 | Variable | Required | Meaning |

@@ -408,7 +408,6 @@ mod tests {
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: SourceText::new("klama bajra").expect("text"),
-                rafsi: None,
                 options: JvozbaOptions::default(),
             }),
         ] {

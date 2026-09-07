@@ -886,12 +886,45 @@ pub(crate) struct JvozbaOptions {
     pub(crate) target: JvozbaTarget,
 }
 
+/// Rewrite a message published before the ordered parts syntax. The old
+/// builder appended every fixed rafsi after all of the words, so writing them
+/// as trailing `-rafsi-` spans reproduces exactly the sequence that message
+/// would have built. A message with no such field is already ordered and is
+/// returned unchanged.
+#[requires(true)]
+#[ensures(ret.is_err() || old(legacy.is_none()) -> ret.as_ref().is_ok_and(|text| *text == old(parts.clone())))]
+fn jvozba_parts_with_legacy_rafsi(
+    parts: SourceText,
+    legacy: Option<SourceText>,
+) -> Result<SourceText, RequestStateError> {
+    let Some(legacy) = legacy else {
+        return Ok(parts);
+    };
+    let mut combined = parts.as_str().to_owned();
+    for piece in legacy
+        .as_str()
+        .split(|character: char| character.is_whitespace() || character == ',')
+        .filter(|piece| !piece.is_empty())
+    {
+        if !combined.is_empty() {
+            combined.push(' ');
+        }
+        combined.push('-');
+        combined.push_str(piece);
+        combined.push('-');
+    }
+    SourceText::new(&combined).map_err(|_| RequestStateError::LegacyPartsTooLong {
+        tool: DiscordTool::Jvozba,
+        units: utf16_len(&combined),
+    })
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct JvozbaRequest {
+    /// The pieces in the order the reader wrote them: words to look up, and
+    /// rafsi given literally between hyphens, as in `blanu -blo- zdani`.
     pub(crate) parts: SourceText,
-    /// Fixed rafsi appended after the words, kept as a distinct typed field.
-    pub(crate) rafsi: Option<SourceText>,
     pub(crate) options: JvozbaOptions,
 }
 
@@ -1084,7 +1117,10 @@ impl DiscordRequest {
             Self::Cukta(request) => vec![(SourceField::Query, request.query.as_ref())],
             Self::Jvozba(request) => vec![
                 (SourceField::Parts, Some(&request.parts)),
-                (SourceField::FixedRafsi, request.rafsi.as_ref()),
+                // Nothing is published in this field any more; it is kept in
+                // the layout so a message from before the ordered syntax
+                // still decodes, and its value is folded into the parts.
+                (SourceField::FixedRafsi, None),
             ],
             Self::Gimfihi(request) => vec![(SourceField::Sources, request.sources.as_ref())],
         }
@@ -1297,8 +1333,10 @@ impl DiscordRequest {
                 })
             }
             DiscordTool::Jvozba => Self::Jvozba(JvozbaRequest {
-                parts: required(take(SourceField::Parts), SourceField::Parts)?,
-                rafsi: take(SourceField::FixedRafsi),
+                parts: jvozba_parts_with_legacy_rafsi(
+                    required(take(SourceField::Parts), SourceField::Parts)?,
+                    take(SourceField::FixedRafsi),
+                )?,
                 options: JvozbaOptions {
                     target: if flag(0) {
                         JvozbaTarget::Cmevla
@@ -1406,6 +1444,7 @@ fn preset_from_code(code: u32) -> Option<GimfihiPreset> {
 #[invariant(::FieldLayout { .. } => true)]
 #[invariant(::MissingField { .. } => true)]
 #[invariant(::PageOutOfRange { .. } => true)]
+#[invariant(::LegacyPartsTooLong { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RequestStateError {
     UnknownOptionBits {
@@ -1428,6 +1467,13 @@ pub(crate) enum RequestStateError {
         page: u8,
         max: u8,
     },
+    /// A message published before the ordered parts syntax cannot be
+    /// rewritten into it, because the two old fields together are longer than
+    /// one field may be.
+    LegacyPartsTooLong {
+        tool: DiscordTool,
+        units: usize,
+    },
 }
 
 impl fmt::Display for RequestStateError {
@@ -1442,6 +1488,12 @@ impl fmt::Display for RequestStateError {
             Self::UnknownEnumValue { tool, what } => {
                 write!(formatter, "{tool}: unknown {what} value")
             }
+            Self::LegacyPartsTooLong { tool, units } => write!(
+                formatter,
+                "{tool}: this result was published before the ordered parts syntax, and its \
+                 words and fixed rafsi together need {units} characters, more than one field \
+                 holds. Run the command again with the parts in one field."
+            ),
             Self::FieldLayout { tool } => {
                 write!(formatter, "{tool}: source fields do not match the tool")
             }
@@ -1628,7 +1680,6 @@ mod tests {
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: text("klama bajra"),
-                rafsi: Some(text("kla")),
                 options: JvozbaOptions {
                     target: JvozbaTarget::Cmevla,
                 },
