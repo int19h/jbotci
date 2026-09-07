@@ -81,6 +81,17 @@ class LedgerTests(unittest.TestCase):
                 with self.assertRaises(ledger.ValidationError):
                     self.snap(observation)
 
+    def test_observation_and_winning_anchors_require_integer_extents(self):
+        for location in ["identity", "winner"]:
+            for field in ["byte_start", "byte_end"]:
+                with self.subTest(location=location, field=field):
+                    observation = self.observation()
+                    anchor = (observation["target"] if location == "identity" else
+                              observation["syntax"]["target"]["link"]["anchor"])
+                    anchor[field] = float(anchor[field])
+                    with self.assertRaises(ledger.ValidationError):
+                        self.snap(observation)
+
     def test_failure_needs_real_error_and_no_strict_tree(self):
         for change in ["no-diagnostics", "warning-only", "fake-tree", "fake-target", "missing-error"]:
             with self.subTest(change=change):

@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 from tools import links_jai_ledger as ledger
+from tools.rust_debug import DebugParser, NumberLiteral, exact_equal
 
 
 SCRIPT = Path(__file__).parents[1] / "compare-links-jai-expectations.py"
@@ -43,6 +44,27 @@ class ComparerTests(unittest.TestCase):
         fixture = self.fixture()
         delta = COMPARER.compare_pair(fixture, copy.deepcopy(fixture), "case.toml")
         self.assertEqual(delta.changed, ())
+
+    def test_scalar_type_changes_in_pinned_surfaces_are_not_identity(self):
+        for before, after in [(True, 1), (False, 0), (1, 1.0), (-0.0, 0.0)]:
+            for first, second in [(before, after), (after, before)]:
+                with self.subTest(first=first, second=second):
+                    old = self.fixture()
+                    old["expectations"]["syntax"]["tree"] = {"nested": [first]}
+                    new = copy.deepcopy(old)
+                    new["expectations"]["syntax"]["tree"]["nested"] = [second]
+                    delta = COMPARER.compare_pair(old, new, "case.toml")
+                    self.assertEqual(delta.changed, ("syntax.tree",))
+
+    def test_metadata_scalar_types_are_exact(self):
+        for before, after in [(True, 1), (False, 0), (1, 1.0), (-0.0, 0.0)]:
+            with self.subTest(before=before, after=after):
+                old = self.fixture()
+                old["provenance"] = [{"synthetic-value": before}]
+                new = copy.deepcopy(old)
+                new["provenance"][0]["synthetic-value"] = after
+                with self.assertRaisesRegex(ledger.ValidationError, "metadata changed"):
+                    COMPARER.compare_pair(old, new, "case.toml")
 
     def test_source_id_dialect_and_prose_changes_fail(self):
         for field, value in [("id", "other"), ("lojban", "mi brode"), ("dialect", "(zantufa)"),
@@ -200,6 +222,72 @@ class ComparerTests(unittest.TestCase):
                     syntax["recovered"] = {"raw": "different recovered tree"}
                 changed = COMPARER.compare_pair(before, after, "case.toml")
                 self.assertEqual(COMPARER.mechanical_jai(before, after, changed, "c-c"), 0)
+
+    def test_jai_mapping_preserves_scalar_types_and_numeric_literals(self):
+        old_node = JAI.product("JaiModalTanruUnitSyntax", jai="synthetic JAI",
+            tense_modal=JAI.NONE, inner_unit=JAI.arm("WordTanruUnit",
+                JAI.arm("WordTanruUnitSyntax", "synthetic word")))
+        mapped, count = JAI.rewrite(old_node)
+        self.assertEqual(count, 1)
+        for left, right in [("true", "1"), ("false", "0"), ("1", "1.0"),
+                            ("-0.0", "0.0"), ("1.0000000000000001", "1.0"),
+                            ("9007199254740993.0", "9007199254740992.0"),
+                            ('"1"', "1")]:
+            for before, after in [(left, right), (right, left)]:
+                with self.subTest(before=before, after=after):
+                    old = self.fixture()
+                    old["expectations"]["syntax"]["raw"] = (
+                        f"Envelope {{ unrelated: Some([{before}]), jai: {debug(old_node)} }}")
+                    new = copy.deepcopy(old)
+                    new["expectations"]["syntax"]["raw"] = (
+                        f"Envelope {{ unrelated: Some([{before}]), jai: {debug(mapped)} }}")
+                    delta = COMPARER.compare_pair(old, new, "case.toml")
+                    self.assertEqual(COMPARER.mechanical_jai(old, new, delta, "c-c"), 1)
+                    new["expectations"]["syntax"]["raw"] = (
+                        f"Envelope {{ unrelated: Some([{after}]), jai: {debug(mapped)} }}")
+                    delta = COMPARER.compare_pair(old, new, "case.toml")
+                    self.assertEqual(COMPARER.mechanical_jai(old, new, delta, "c-c"), 0)
+
+
+class DebugStructureTests(unittest.TestCase):
+    def test_literal_mode_is_opt_in_and_does_not_change_the_legacy_reader(self):
+        for text, value in [("1", 1), ("-0.0", -0.0), ("1.0", 1.0),
+                            ("1.0000000000000001", 1.0)]:
+            with self.subTest(text=text):
+                legacy = DebugParser(text).parse()
+                self.assertIs(type(legacy), type(value))
+                self.assertEqual(legacy, value)
+                self.assertEqual(DebugParser(text, preserve_number_literals=True).parse(),
+                                 NumberLiteral(text))
+        self.assertIs(DebugParser("true", preserve_number_literals=True).parse(), True)
+
+    def test_exact_equality_preserves_node_field_sequence_and_scalar_shapes(self):
+        unequal = [
+            (Form("Node"), Form("Other")),
+            (Form("Node"), Form("Node", fields=())),
+            (Form("Node", fields=()), Form("Node", args=())),
+            (JAI.product("Node", first=1, last=2), JAI.product("Node", last=2, first=1)),
+            (JAI.arm("Node", [True]), JAI.arm("Node", [1])),
+            (JAI.arm("Node", (1,)), JAI.arm("Node", (1.0,))),
+            ([1], (1,)), ([1], [1, 2]),
+            (NumberLiteral("1"), "1"), (NumberLiteral("1"), NumberLiteral("1.0")),
+        ]
+        for left, right in unequal:
+            with self.subTest(left=left, right=right):
+                self.assertFalse(exact_equal(left, right))
+                self.assertFalse(exact_equal(right, left))
+                self.assertTrue(exact_equal(left, copy.deepcopy(left)))
+        self.assertTrue(exact_equal({"first": [1], "last": True}, {"last": True, "first": [1]}))
+        self.assertFalse(exact_equal({"nested": [float("nan")]}, {"nested": [float("nan")]}))
+
+    def test_literal_reader_only_ignores_debug_layout_not_number_spelling(self):
+        before = DebugParser('Node { span: (1, 2), flag: true }', preserve_number_literals=True).parse()
+        after = DebugParser('Node{span:(1,2,),flag:true,}', preserve_number_literals=True).parse()
+        self.assertTrue(exact_equal(before, after))
+        for changed in ['Node { span: (1.0, 2), flag: true }',
+                        'Node { span: (1, 2), flag: 1 }',
+                        'Node { span: (1, 2), flag: "true" }']:
+            self.assertFalse(exact_equal(before, DebugParser(changed, preserve_number_literals=True).parse()))
 
 
 class JaiTranscriptionTests(unittest.TestCase):

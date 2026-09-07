@@ -34,11 +34,11 @@ from typing import Any, Mapping
 if __package__:
     from . import links_jai_ledger as ledger
     from . import links_jai_transcription as jai
-    from .rust_debug import DebugParseError, DebugParser
+    from .rust_debug import DebugParseError, DebugParser, exact_equal
 else:
     import links_jai_ledger as ledger
     import links_jai_transcription as jai
-    from rust_debug import DebugParseError, DebugParser
+    from rust_debug import DebugParseError, DebugParser, exact_equal
 
 
 SEMANTIC_BASE = "83490da32fc174528cdc3283b9aaedca4d90bdb0"
@@ -86,13 +86,13 @@ def surfaces(value: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
 def expectation_delta(before: Mapping[str, Any], after: Mapping[str, Any]) -> tuple[str, ...]:
     old, new = surfaces(before), surfaces(after)
     return tuple(sorted(key for key in old.keys() | new.keys()
-                        if key not in old or key not in new or old[key] != new[key]))
+                        if key not in old or key not in new or not exact_equal(old[key], new[key])))
 
 
 def compare_pair(old: Mapping[str, Any], new: Mapping[str, Any], path: str) -> FixtureDelta:
     old_metadata = {key: value for key, value in old.items() if key != "expectations"}
     new_metadata = {key: value for key, value in new.items() if key != "expectations"}
-    ledger.require(old_metadata == new_metadata, f"{path}: source, identity or metadata changed")
+    ledger.require(exact_equal(old_metadata, new_metadata), f"{path}: source, identity or metadata changed")
     case_id = ledger.nonempty_text(old.get("id"), f"{path}: fixture ID")
     before, after = old.get("expectations", {}), new.get("expectations", {})
     ledger.require(isinstance(before, Mapping) and isinstance(after, Mapping), f"{path}: malformed expectations")
@@ -157,8 +157,9 @@ def mechanical_jai(old: Mapping[str, Any], new: Mapping[str, Any], delta: Fixtur
             not isinstance(before.get("raw"), str) or not isinstance(after.get("raw"), str)):
         return 0
     try:
-        expected, count = jai.rewrite(DebugParser(before["raw"]).parse())
-        return count if count and expected == DebugParser(after["raw"]).parse() else 0
+        expected, count = jai.rewrite(DebugParser(before["raw"], preserve_number_literals=True).parse())
+        actual = DebugParser(after["raw"], preserve_number_literals=True).parse()
+        return count if count and exact_equal(expected, actual) else 0
     except (DebugParseError, jai.ManualShape):
         return 0
 

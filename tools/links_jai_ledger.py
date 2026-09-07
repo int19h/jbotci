@@ -19,6 +19,11 @@ import sys
 import tomllib
 from typing import Any, Mapping
 
+if __package__:
+    from .rust_debug import exact_equal
+else:
+    from rust_debug import exact_equal
+
 
 STAGES = ("base", "c-a", "c-b")
 SURFACES = (
@@ -84,7 +89,7 @@ class Identity:
     def check(self, observation: Mapping[str, Any]) -> None:
         require(isinstance(observation, Mapping), f"{self.id}: expected an observation object")
         for name in ("id", "path", "source", "dialect", "target"):
-            require(observation.get(name) == getattr(self, name), f"{self.id}: changed {name}")
+            require(exact_equal(observation.get(name), getattr(self, name)), f"{self.id}: changed {name}")
 
     def check_fixture(self, root: Path) -> None:
         """Expectation edits do not change identity; source/ID/dialect edits do."""
@@ -178,7 +183,7 @@ def snapshot(identity: Identity, observation: Mapping[str, Any], stage: str) -> 
         exact_keys(target, {"status", "link"}, "successful target")
         require(target["status"] == "found", f"{identity.id}: missing or ambiguous target")
         exact_keys(target["link"], {"anchor", "owner"}, "target link")
-        require(target["link"]["anchor"] == identity.target, f"{identity.id}: wrong successor anchor")
+        require(exact_equal(target["link"]["anchor"], identity.target), f"{identity.id}: wrong successor anchor")
         owner_name = nonempty_text(target["link"]["owner"], "target owner")
         variant = OWNERS.get(owner_name)
         require(variant is not None, f"{identity.id}: unknown owner")

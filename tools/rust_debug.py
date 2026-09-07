@@ -1,7 +1,9 @@
-"""Lossless structural reader shared by the parser-independent expectation comparers.
+"""Structural reader shared by the parser-independent expectation comparers.
 
 This recognizes Rust Debug syntax, not Lojban. Names, field order, strings and all
 source-span fields are retained; no projection or grammar rewrite happens here.
+Exact transcriptions opt into preserving numeric literals; the default retains
+the older description comparer's numeric conversion behavior.
 """
 
 from __future__ import annotations
@@ -17,6 +19,37 @@ class Form:
     name: str
     fields: tuple[tuple[str, Any], ...] | None = None
     args: tuple[Any, ...] | None = None
+
+
+@dataclass(frozen=True)
+class NumberLiteral:
+    """An untouched Debug number, distinct from strings and Python numeric values."""
+
+    text: str
+
+
+def exact_equal(left: Any, right: Any) -> bool:
+    """Compare Debug/fixture structures without coercing booleans or numbers.
+
+    Python container/dataclass equality recursively equates True with 1 and 1
+    with 1.0. Those are different pinned scalars. Debug fields and sequences
+    also retain their order and shape; JSON/TOML objects have unordered string
+    keys. Numeric Debug spelling is retained separately by NumberLiteral.
+    """
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, Form):
+        return (left.name == right.name and exact_equal(left.fields, right.fields)
+                and exact_equal(left.args, right.args))
+    if isinstance(left, (list, tuple)):
+        return len(left) == len(right) and all(exact_equal(a, b) for a, b in zip(left, right))
+    if isinstance(left, dict):
+        return left.keys() == right.keys() and all(
+            isinstance(key, str) and exact_equal(value, right[key]) for key, value in left.items())
+    if isinstance(left, float):
+        # Signed zero is visible in pinned output; NaN must not match itself.
+        return left == right and left.hex() == right.hex()
+    return left == right
 
 
 class DebugParseError(ValueError):
@@ -37,9 +70,10 @@ class DebugParser:
     token makes the parse quadratic.
     """
 
-    def __init__(self, text: str) -> None:
+    def __init__(self, text: str, *, preserve_number_literals: bool = False) -> None:
         self.text = text
         self.pos = 0
+        self.preserve_number_literals = preserve_number_literals
 
     def parse(self) -> Any:
         value = self._value()
@@ -70,6 +104,8 @@ class DebugParser:
         if number:
             token = number.group(0)
             self.pos = number.end()
+            if self.preserve_number_literals:
+                return NumberLiteral(token)
             return float(token) if "." in token else int(token)
         name = self._identifier()
         self._space()
