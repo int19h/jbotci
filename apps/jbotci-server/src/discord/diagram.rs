@@ -5,9 +5,9 @@
 //! buffer is allocated, and the encoded bytes are checked against both the
 //! application cap and the per-interaction `attachment_size_limit` Discord
 //! reports. A diagram outside the limits is refused with a clear reason; the
-//! caller keeps the previous coherent state. The numeric limits are what the
-//! deployed instance was measured to afford beside its analysis lane and its
-//! embedding model; `docs/discord-app.md` records the measurement and the
+//! caller keeps the previous coherent state. The numeric limits are informed
+//! by local workload measurements against the service memory budget;
+//! `docs/discord-app.md` records the workload, architecture limits, and
 //! reasoning behind each figure.
 
 use std::fmt;
