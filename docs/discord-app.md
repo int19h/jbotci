@@ -52,22 +52,33 @@ Discord documents these as defaulting to the application's configured
 contexts; stating them pins the intended availability to this repository
 rather than to a setting someone may change in the developer portal.
 
-**Rollback.** A command schema is replaced, never migrated: registering the
-previous build's binary with the same command restores the previous schema.
-Published messages are unaffected, since every message carries its own state
-and this build reads it back; a message published by a newer build carries a
-newer build tag, and an older build refuses settings it does not recognize
-rather than guessing at them. When a result is recomputed by a build other
-than the one that published it, the edited message says so, because its text
+**Rollback between builds that both have this application.** A command schema
+is replaced, never migrated: deploy the previous image and run its own
+`setup --discord-commands`, which writes the schema that build understands.
+Published messages keep working as far as the two schemas agree: every message
+carries its own state, and a build that meets a setting it does not recognize
+says so and refuses rather than guessing. A result recomputed by a build other
+than the one that published it says so in the edited message, because its text
 and its image are then the work of a different version.
 
-To roll back: deploy the previous image, then run `setup --discord-commands`
-from it. Global and guild registrations are separate lists, and a guild
-command shadows the global one of the same name: registering globally leaves a
-guild command exactly as it was. Removing one means deleting that guild
-command through the API, or overwriting that guild's command list without it;
-this application's `setup --discord-commands --guild` always writes its one
-command, so it cannot be used to empty a guild.
+**Rollback across this cutover.** The build before this one has no
+`setup --discord-commands`: the command is introduced here. Rolling back to it
+means deploying that image and restoring its registration another way — the
+registration saved before the upgrade, replayed as a bulk overwrite
+(`PUT /applications/{id}/commands`), or the registration script belonging to
+that exact older revision. Keep a copy of the current registration
+(`GET /applications/{id}/commands`) before upgrading, so there is something to
+restore. Messages published by this application do not survive that rollback
+as working results: the older endpoint cannot answer a ⚙️ button or a form at
+all, so those controls stop working and the reader has to run the command
+again on whichever version is deployed.
+
+**Guild and global registrations** are separate lists, and a guild command
+shadows the global one of the same name: registering globally leaves a guild
+command exactly as it was. Removing one means deleting that guild command
+through the API, or overwriting that guild's command list without it; this
+application's `setup --discord-commands --guild` always writes its one command,
+so it cannot be used to empty a guild.
 
 ## What one request may spend
 
@@ -90,7 +101,7 @@ Discord share it rather than each being given it whole.
 | Pages | 25 (23 for vlacku) | The page selector holds 25 choices; vlacku's shares its selector with two detail choices. |
 | App link | 4000 units for the whole link component | The application's own budget for one form text component, not a documented Discord limit. |
 | Compound construction | 8192 part placements, 24 pieces, 256 letters | Measured: 4096 placements take about 1.2s and 9216 about 3.1s in release on the development machine. |
-| Diagram | 600 blocks, 160 columns, 16 megapixels, 8 MiB | A diagram larger than this is refused with its reason, and the text result still publishes. |
+| Diagram | 600 blocks, 160 columns, 16 megapixels, 8 MiB | A diagram larger than this is refused with its reason, and the submission that asked for it changes nothing. |
 | Attachment | the interaction's own limit, at most 10 MiB | Discord states a per-interaction limit; the smaller of the two applies. |
 | Reporting | 5 seconds | Saying what happened is not the work, so it has its own budget: a request that spent all of its own can still report that. |
 
