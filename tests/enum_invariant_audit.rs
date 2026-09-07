@@ -8,6 +8,18 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/discord/assemble.rs:AssembleError::AttachmentName",
+        "wraps a validated InvalidAttachmentName; nothing further to constrain",
+    ),
+    (
+        "apps/jbotci-server/src/discord/assemble.rs:AssembleError::Bounds",
+        "wraps a validated BoundsError; nothing further to constrain",
+    ),
+    (
+        "apps/jbotci-server/src/discord/assemble.rs:AssembleError::Payload",
+        "wraps a validated PayloadError; nothing further to constrain",
+    ),
+    (
         "apps/jbotci-server/src/discord/codec.rs:HeaderDecodeError::Malformed",
         "custom-id decode error carries only the offending schema or field name",
     ),

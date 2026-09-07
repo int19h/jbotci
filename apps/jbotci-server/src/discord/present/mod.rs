@@ -21,7 +21,7 @@ use bityzba::{ensures, invariant, new, requires};
 
 use super::diagram::DiagramImage;
 use super::operations::{PagedResults, RequestValidationError, ToolOutcome};
-use super::request::{DiscordRequest, DiscordTool};
+use super::request::{DiscordRequest, DiscordTool, utf16_len};
 
 /// The status line that closes the input block: the tool name first, then
 /// the applied view/page and the diagnostics count, on one line.
@@ -165,9 +165,11 @@ fn outcome_tool(outcome: &ToolOutcome) -> DiscordTool {
     }
 }
 
-/// Notice for a result set the Discord presentation caps.
+/// Notice for a result set the Discord presentation caps. The app link itself
+/// lives in the ⚙️ form (it can be thousands of characters); the notice only
+/// says that the continuation exists, so its length is bounded.
 #[requires(true)]
-#[ensures(true)]
+#[ensures(ret.as_ref().is_none_or(|notice| notice.starts_with("-# ") && utf16_len(notice) < 160))]
 pub(crate) fn capped_notice<T>(
     results: &PagedResults<T>,
     app_link: Option<&str>,
@@ -179,8 +181,8 @@ pub(crate) fn capped_notice<T>(
         "Discord shows the first {} results; more exist.",
         results.shown_total
     );
-    if let Some(link) = app_link {
-        notice.push_str(&format!(" Continue in the app: {link}"));
+    if app_link.is_some() {
+        notice.push_str(" Open in app (⚙️) continues the full list.");
     }
     Some(markdown::subtext(&notice))
 }

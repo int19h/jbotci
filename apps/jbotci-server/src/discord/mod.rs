@@ -1,3 +1,4 @@
+pub(crate) mod assemble;
 pub(crate) mod codec;
 pub(crate) mod components;
 pub(crate) mod dedupe;
