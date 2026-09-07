@@ -90,9 +90,46 @@ jobs:
           mode: restore
           target-dir: .github-cache/cargo-target/python-wheels/generated
 
+      - name: Record the machine this job got
+        run: |
+          set -u
+          printf '## kernel %s\n' "$(uname -srm)"
+          printf '## processors %s\n' "$(nproc)"
+          awk '/^(MemTotal|SwapTotal):/ {printf "## %s %s kB\n", $1, $2}' /proc/meminfo
+          printf '## cgroup %s\n' "$(stat -fc %T /sys/fs/cgroup 2>/dev/null || echo unknown)"
+          for file in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory.high \
+                      /sys/fs/cgroup/memory.swap.max; do
+            [ -r "$file" ] && printf '## %s %s\n' "$file" "$(cat "$file")"
+          done
+          df -h / /home/runner | sed 's/^/## /'
+
       - name: Build the editable extension
         working-directory: bindings/python
-        run: uv run --locked --project . --group dev maturin develop
+        run: |
+          set -u
+          # Numeric telemetry only, sampled beside the unchanged build command,
+          # printed line by line so the last samples before a runner shutdown
+          # survive in the streamed log. Process lines carry the executable
+          # name and resident size, never arguments or environment.
+          sample() {
+            while true; do
+              printf '## %s memory\n' "$(date -u +%H:%M:%S)"
+              awk '/^(MemFree|MemAvailable|Cached|SwapFree|Committed_AS):/ {printf "##   %s %s kB\n", $1, $2}' /proc/meminfo
+              for file in /sys/fs/cgroup/memory.current /sys/fs/cgroup/memory.events \
+                          /sys/fs/cgroup/memory.pressure; do
+                [ -r "$file" ] && printf '##   %s %s\n' "$file" "$(tr '\n' ' ' < "$file")"
+              done
+              ps -eo rss=,comm= --sort=-rss 2>/dev/null | head -4 |
+                awk '{printf "##   rss %s kB %s\n", $1, $2}'
+              sudo dmesg -T 2>/dev/null | grep -iE 'out of memory|killed process|oom-kill' |
+                tail -2 | sed 's/^/##   kernel /'
+              sleep 3
+            done
+          }
+          sample &
+          sampler=$!
+          trap 'kill "$sampler" 2>/dev/null || true' EXIT
+          uv run --locked --project . --group dev maturin develop
 
       - name: Check generated syntax models
         working-directory: bindings/python
