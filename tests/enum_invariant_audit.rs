@@ -264,12 +264,32 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding search cache starts empty and is initialized on first semantic tool use",
     ),
     (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolOutcome::CuktaSearch",
+        "worker outcome wraps the typed CLL search output unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolOutcome::Rendered",
+        "worker outcome wraps the typed rendered tool output unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolOutcome::VlackuHits",
+        "worker outcome wraps the embedding index hits unchanged",
+    ),
+    (
         "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Cukta",
         "embedding worker request delegates payload validity to the typed cukta tool request",
     ),
     (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::CuktaSearch",
+        "typed embedding job carries a query, count and target filter; the worker method contracts bound them",
+    ),
+    (
         "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Vlacku",
         "embedding worker request delegates payload validity to the typed vlacku tool request",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::VlackuHits",
+        "typed embedding job carries a query and count; the worker method contracts bound them",
     ),
     (
         "apps/jbotci/src/commands/gentufa.rs:GentufaSyntaxStage::MorphologyFailed",

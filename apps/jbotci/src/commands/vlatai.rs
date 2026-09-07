@@ -197,56 +197,7 @@ fn vlatai_diagnostics(
     analysis: &ValsiAnalysis,
     source_id: Option<SourceId>,
 ) -> Result<Vec<Diagnostic>> {
-    let mut diagnostics =
-        morphology_warning_diagnostics(&analysis.warnings, source_id.clone(), &analysis.input);
-    match analysis.result.status {
-        ValsiAnalysisStatus::Invalid => {
-            let error = analysis
-                .result
-                .error
-                .as_ref()
-                .expect("invalid vlatai result carries error");
-            diagnostics.push(error.to_diagnostic(source_id, &analysis.input)?);
-        }
-        ValsiAnalysisStatus::NotSingleWord => {
-            diagnostics.push(vlatai_not_single_word_diagnostic(
-                source_id,
-                &analysis.input,
-                analysis.result.words.len(),
-            )?);
-        }
-        ValsiAnalysisStatus::Valid => {}
-    }
-    Ok(diagnostics)
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error) || ret.is_err())]
-fn vlatai_not_single_word_diagnostic(
-    source_id: Option<SourceId>,
-    source: &str,
-    word_count: usize,
-) -> Result<Diagnostic> {
-    let char_end = source.chars().count();
-    let span = source_span_from_char_offsets(source_id, source, 0, char_end)
-        .map_err(|error| anyhow!(error))?;
-    let (message, label) = if word_count == 0 {
-        ("input did not parse as one word", "parsed zero words")
-    } else {
-        (
-            "input parsed as multiple words",
-            "parsed more than one word",
-        )
-    };
-    Ok(Diagnostic::new(
-        DiagnosticSeverity::Error,
-        DiagnosticPhase::Morphology,
-        "vlatai.not-single-word".to_owned(),
-        message.to_owned(),
-        vec![DiagnosticLabel::new(span, label.to_owned(), true)],
-        vec![format!("parsed word count: {word_count}")],
-        None,
-    ))
+    jbotci_web_core::vlatai_diagnostics(analysis, source_id).map_err(|error| anyhow!(error))
 }
 
 #[requires(true)]
@@ -517,19 +468,12 @@ fn plain_word_classification_json(
     value
 }
 
-/// Return the short rafsi a gismu classification could claim, in sorted order.
-///
-/// Availability is deliberately absent: vlatai never consults the dictionary,
-/// so it reports what CLL phonotactics permit and leaves who already holds a
-/// rafsi to `vlacku`. Canonical phoneme text marks stress with acute accents,
-/// so it is folded back to plain gismu letters before derivation.
+/// The short rafsi a gismu classification could claim (shared with the other
+/// surfaces; formation possibility, not dictionary availability).
 #[requires(classification.category == WordKind::Gismu)]
 #[ensures(ret.windows(2).all(|pair| pair[0] < pair[1]))]
 fn vlatai_possible_rafsi(classification: &PlainWordClassification) -> Vec<String> {
-    possible_short_rafsi_forms(&fold_lojban_diacritics(&classification.phonemes))
-        .into_iter()
-        .map(|form| form.into_data().form)
-        .collect()
+    jbotci_web_core::possible_rafsi_for_gismu(classification)
 }
 
 #[requires(true)]

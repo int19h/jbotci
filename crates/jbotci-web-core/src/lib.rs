@@ -4,6 +4,12 @@
 
 #[cfg(test)]
 mod compound_tests;
+pub mod morphology_reports;
+
+pub use morphology_reports::{
+    VlaseiAnalysis, VlataiReport, analyze_vlasei, analyze_vlatai, possible_rafsi_for_gismu,
+    vlatai_diagnostics, vlatai_not_single_word_diagnostic,
+};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -1489,7 +1495,9 @@ fn source_text_for_metadata(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition, GentufaWebError> {
+pub(crate) fn dialect_definition(
+    source: Option<&str>,
+) -> Result<DialectDefinition, GentufaWebError> {
     match source.map(str::trim).filter(|source| !source.is_empty()) {
         Some(source) => parse_dialect_definition(source)
             .map_err(|error| GentufaWebError::Dialect(error.to_string())),
@@ -2604,7 +2612,7 @@ pub fn build_vlacku_web_result(state: &VlackuWebState) -> VlackuWebResult {
         .into_iter()
         .take(normalized_state.count)
         .enumerate()
-        .map(|(index, card)| web_card_from_search_card(index + 1, card))
+        .map(|(index, card)| vlacku_web_card_from_search_card(index + 1, card))
         .collect::<Vec<_>>();
     let message = if cards.is_empty() && output.diagnostics.is_empty() {
         Some("No matches found.".to_owned())
@@ -2812,7 +2820,7 @@ pub fn build_vlacku_semantic_web_result_with_loading(
         .into_iter()
         .take(normalized_state.count)
         .enumerate()
-        .map(|(index, card)| web_card_from_search_card(index + 1, card))
+        .map(|(index, card)| vlacku_web_card_from_search_card(index + 1, card))
         .collect::<Vec<_>>();
     let message = if cards.is_empty() {
         Some("No matches found.".to_owned())
@@ -5726,9 +5734,11 @@ fn byte_range_len(range: WebSourceRange) -> usize {
     range.byte_end.saturating_sub(range.byte_start)
 }
 
+/// Project one shared dictionary search card into the typed web card used by
+/// the browser, REST and Discord surfaces.
 #[requires(true)]
-#[ensures(true)]
-fn web_card_from_search_card(
+#[ensures(ret.rank == rank)]
+pub fn vlacku_web_card_from_search_card(
     rank: usize,
     card: jbotci_search::vlacku::VlackuCard,
 ) -> VlackuWebCard {

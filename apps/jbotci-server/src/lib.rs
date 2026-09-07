@@ -32,7 +32,8 @@ use jbotci_cli::{
     ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, run_tool_cukta,
     run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku, run_tool_vlacku_with_context,
 };
-use jbotci_embeddings::{load_latest_pack, model_spec};
+use jbotci_cll::{CuktaSearchOutput, CuktaTargetFilter, cll_search_all_chunks, embedded_cll_site};
+use jbotci_embeddings::{DictionarySemanticHit, load_latest_pack, model_spec};
 use jbotci_web_core::{
     FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
     MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
@@ -139,14 +140,66 @@ pub(crate) struct ToolServices {
 #[invariant(true)]
 struct EmbeddingToolJob {
     request: EmbeddingToolRequest,
-    response: oneshot::Sender<Result<ToolRenderedOutput>>,
+    response: oneshot::Sender<Result<EmbeddingToolOutcome>>,
 }
 
+/// Work for the single embedding worker thread. The rendered variants serve
+/// the CLI-shaped MCP/REST tools; the typed variants serve Discord, which
+/// presents the hits itself.
 #[invariant(::Cukta { .. } => true)]
 #[invariant(::Vlacku { .. } => true)]
+#[invariant(::VlackuHits { .. } => true)]
+#[invariant(::CuktaSearch { .. } => true)]
 enum EmbeddingToolRequest {
-    Cukta { request: ToolCuktaRequest },
-    Vlacku { request: ToolVlackuRequest },
+    Cukta {
+        request: ToolCuktaRequest,
+    },
+    Vlacku {
+        request: ToolVlackuRequest,
+    },
+    VlackuHits {
+        query: String,
+        count: usize,
+    },
+    CuktaSearch {
+        query: String,
+        count: usize,
+        targets: CuktaTargetFilter,
+    },
+}
+
+#[invariant(::Rendered(_) => true)]
+#[invariant(::VlackuHits(_) => true)]
+#[invariant(::CuktaSearch(_) => true)]
+#[derive(Debug)]
+enum EmbeddingToolOutcome {
+    Rendered(ToolRenderedOutput),
+    VlackuHits(Vec<DictionarySemanticHit>),
+    CuktaSearch(CuktaSearchOutput),
+}
+
+impl EmbeddingToolOutcome {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    fn kind(&self) -> &'static str {
+        match self {
+            Self::Rendered(_) => "rendered tool output",
+            Self::VlackuHits(_) => "dictionary hits",
+            Self::CuktaSearch(_) => "CLL search output",
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    fn into_rendered(self) -> Result<ToolRenderedOutput> {
+        match self {
+            Self::Rendered(output) => Ok(output),
+            other => Err(anyhow!(
+                "embedding worker returned {} for a rendered tool request",
+                other.kind()
+            )),
+        }
+    }
 }
 
 #[invariant(!message.trim().is_empty())]
@@ -198,6 +251,7 @@ impl ToolServices {
         if request.uses_semantic_search() {
             self.run_embedding_request(EmbeddingToolRequest::Cukta { request })
                 .await
+                .and_then(EmbeddingToolOutcome::into_rendered)
         } else {
             run_blocking_tool(move || run_tool_cukta(request)).await
         }
@@ -212,8 +266,56 @@ impl ToolServices {
         if request.uses_semantic_search() {
             self.run_embedding_request(EmbeddingToolRequest::Vlacku { request })
                 .await
+                .and_then(EmbeddingToolOutcome::into_rendered)
         } else {
             run_blocking_tool(move || run_tool_vlacku(request)).await
+        }
+    }
+
+    /// Ranked dictionary entries for a meaning query from the server's
+    /// embedding index, or the reason meaning search is unavailable.
+    #[requires(!query.trim().is_empty() && count > 0)]
+    #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count) || ret.is_err())]
+    pub(crate) async fn semantic_vlacku_hits(
+        &self,
+        query: String,
+        count: usize,
+    ) -> Result<Vec<DictionarySemanticHit>> {
+        match self
+            .run_embedding_request(EmbeddingToolRequest::VlackuHits { query, count })
+            .await?
+        {
+            EmbeddingToolOutcome::VlackuHits(hits) => Ok(hits),
+            other => Err(anyhow!(
+                "embedding worker returned {} for a dictionary hits request",
+                other.kind()
+            )),
+        }
+    }
+
+    /// Meaning search over the CLL from the server's embedding index, or the
+    /// reason meaning search is unavailable.
+    #[requires(!query.trim().is_empty() && count > 0)]
+    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+    pub(crate) async fn semantic_cukta_search(
+        &self,
+        query: String,
+        count: usize,
+        targets: CuktaTargetFilter,
+    ) -> Result<CuktaSearchOutput> {
+        match self
+            .run_embedding_request(EmbeddingToolRequest::CuktaSearch {
+                query,
+                count,
+                targets,
+            })
+            .await?
+        {
+            EmbeddingToolOutcome::CuktaSearch(output) => Ok(output),
+            other => Err(anyhow!(
+                "embedding worker returned {} for a CLL search request",
+                other.kind()
+            )),
         }
     }
 
@@ -222,7 +324,7 @@ impl ToolServices {
     async fn run_embedding_request(
         &self,
         request: EmbeddingToolRequest,
-    ) -> Result<ToolRenderedOutput> {
+    ) -> Result<EmbeddingToolOutcome> {
         let (response, received) = oneshot::channel();
         let job = EmbeddingToolJob { request, response };
         self.embedding_worker
@@ -323,23 +425,41 @@ fn embedding_search_cache_from_startup(
 fn run_embedding_tool_request(
     request: EmbeddingToolRequest,
     cache: &mut EmbeddingSearchCache,
-) -> Result<ToolRenderedOutput> {
+) -> Result<EmbeddingToolOutcome> {
     match request {
         EmbeddingToolRequest::Cukta { request } => run_with_embedding_cache(cache, |context| {
-            run_tool_cukta_with_context(request, context)
+            run_tool_cukta_with_context(request, context).map(EmbeddingToolOutcome::Rendered)
         }),
         EmbeddingToolRequest::Vlacku { request } => run_with_embedding_cache(cache, |context| {
-            run_tool_vlacku_with_context(request, context)
+            run_tool_vlacku_with_context(request, context).map(EmbeddingToolOutcome::Rendered)
         }),
+        EmbeddingToolRequest::VlackuHits { query, count } => {
+            let service = loaded_embedding_service(cache).map_err(|error| anyhow!(error))?;
+            service
+                .semantic_vlacku_hits(&query, count)
+                .map(EmbeddingToolOutcome::VlackuHits)
+                .map_err(|error| anyhow!(error.to_string()))
+        }
+        EmbeddingToolRequest::CuktaSearch {
+            query,
+            count,
+            targets,
+        } => {
+            let site = embedded_cll_site().map_err(|error| anyhow!(error.to_string()))?;
+            let service = loaded_embedding_service(cache).map_err(|error| anyhow!(error))?;
+            service
+                .semantic_cukta_output(cll_search_all_chunks(site), &query, count, targets)
+                .map(EmbeddingToolOutcome::CuktaSearch)
+                .map_err(|error| anyhow!(error.to_string()))
+        }
     }
 }
 
+/// Load the embedding service on first use; afterwards the cache is either
+/// `Loaded` or permanently `Unavailable` with the reason.
 #[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_with_embedding_cache(
-    cache: &mut EmbeddingSearchCache,
-    runner: impl FnOnce(&mut ToolExecutionContext<'_>) -> Result<ToolRenderedOutput>,
-) -> Result<ToolRenderedOutput> {
+#[ensures(!matches!(cache, EmbeddingSearchCache::Unloaded { .. }))]
+fn ensure_embedding_service_loaded(cache: &mut EmbeddingSearchCache) {
     if let EmbeddingSearchCache::Unloaded { model_key } = cache {
         let model_key = model_key.clone();
         *cache = match load_server_embedding_search_service(model_key.as_str()) {
@@ -354,6 +474,31 @@ fn run_with_embedding_cache(
             },
         };
     }
+}
+
+/// The loaded embedding service, or the cached reason it is unavailable.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.trim().is_empty()))]
+fn loaded_embedding_service(
+    cache: &mut EmbeddingSearchCache,
+) -> std::result::Result<&mut ToolEmbeddingSearchService, String> {
+    ensure_embedding_service_loaded(cache);
+    match cache {
+        EmbeddingSearchCache::Loaded { service } => Ok(service),
+        EmbeddingSearchCache::Unavailable { error } => Err(error.message.clone()),
+        EmbeddingSearchCache::Unloaded { .. } => {
+            unreachable!("embedding search cache is initialized")
+        }
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_with_embedding_cache<T>(
+    cache: &mut EmbeddingSearchCache,
+    runner: impl FnOnce(&mut ToolExecutionContext<'_>) -> Result<T>,
+) -> Result<T> {
+    ensure_embedding_service_loaded(cache);
     match cache {
         EmbeddingSearchCache::Loaded { service } => {
             let mut context = ToolExecutionContext::with_embedding_search(service);
@@ -1592,6 +1737,7 @@ mod tests {
             },
             &mut cache,
         )
+        .and_then(EmbeddingToolOutcome::into_rendered)
         .expect("tool output");
 
         assert_eq!(output.status, jbotci_cli::ToolStatus::InvalidInput);
@@ -1601,6 +1747,36 @@ mod tests {
                 .contains("unsupported server embedding model `not-a-model`")
         );
         assert!(matches!(cache, EmbeddingSearchCache::Unavailable { .. }));
+
+        // The typed Discord operations report the same cached reason instead
+        // of silently degrading to a different search.
+        let hits = run_embedding_tool_request(
+            EmbeddingToolRequest::VlackuHits {
+                query: "go".to_owned(),
+                count: 5,
+            },
+            &mut cache,
+        );
+        assert!(
+            hits.as_ref().is_err_and(|error| error
+                .to_string()
+                .contains("unsupported server embedding model `not-a-model`")),
+            "{hits:?}"
+        );
+        let search = run_embedding_tool_request(
+            EmbeddingToolRequest::CuktaSearch {
+                query: "tanru".to_owned(),
+                count: 5,
+                targets: CuktaTargetFilter::default(),
+            },
+            &mut cache,
+        );
+        assert!(
+            search.as_ref().is_err_and(|error| error
+                .to_string()
+                .contains("unsupported server embedding model `not-a-model`")),
+            "{search:?}"
+        );
     }
 
     #[test]
@@ -1627,6 +1803,7 @@ mod tests {
             },
             &mut cache,
         )
+        .and_then(EmbeddingToolOutcome::into_rendered)
         .expect("tool output");
 
         assert_eq!(output.status, jbotci_cli::ToolStatus::InvalidInput);
