@@ -185,6 +185,23 @@ pub fn reference_slot_display_text(slot: &ReferenceSlotLabel) -> String {
     }),
     "block rectangles must cover every grid cell exactly once"
 )]
+#[invariant(
+    blocks.iter().filter(|block| block.parent_block_id.is_none()).count() == usize::from(!blocks.is_empty()),
+    "a non-empty layout has exactly one root block"
+)]
+#[expensive_invariant(
+    blocks.iter().all(|block| {
+        block.parent_block_id.as_ref().is_none_or(|parent_id| {
+            blocks.iter().any(|parent| {
+                &parent.block_id == parent_id
+                    && parent.row < block.row
+                    && parent.col <= block.col
+                    && block.col + block.col_span <= parent.col + parent.col_span
+            })
+        })
+    }),
+    "every block's parent is a block above it whose columns enclose its own"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
@@ -219,10 +236,20 @@ pub struct GentufaBlocksLayout<Tooltip = (), ReferenceTooltip = ()> {
 )]
 #[invariant(compound_kind.is_none() || (*is_leaf && role.is_normal() && *col_span >= 2))]
 #[invariant(match compound_kind {Some(GentufaCompoundKind::CmavoSequence) => *token_kind == Some(WordKind::Cmavo), Some(GentufaCompoundKind::Zei) => token_kind.is_none(), None => true})]
+#[invariant(
+    parent_block_id.as_ref().is_none_or(|parent| parent != block_id),
+    "a block is never its own parent"
+)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct GentufaBlock<Tooltip = (), ReferenceTooltip = ()> {
     pub block_id: String,
+    /// The enclosing block in the parse hierarchy: the block one level up
+    /// whose column range contains this one. `None` only for the root. This
+    /// is the tree structure itself; the grid position alone cannot recover
+    /// it, because the grid groups blocks by depth, not by parent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_block_id: Option<String>,
     pub node_ids: Vec<usize>,
     pub label: String,
     pub is_leaf: bool,
@@ -1809,13 +1836,21 @@ enum BlockLayoutChild<'a> {
     Leaf(&'a BlockLeafPart),
 }
 
+/// A positioned block with the typed ids the colouring pass groups by; the
+/// block itself already names its parent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[invariant(true)]
 struct BlockTemp<Tooltip> {
     id: RawSyntaxNodeId,
-    parent_id: Option<RawSyntaxNodeId>,
     child_ids: Vec<RawSyntaxNodeId>,
     block: GentufaBlock<Tooltip>,
+}
+
+/// The block id every emitted block and parent reference uses for a node.
+#[requires(true)]
+#[ensures(ret.starts_with('n'))]
+fn block_id_for(id: RawSyntaxNodeId) -> String {
+    format!("n{}", id.0)
 }
 
 #[invariant(true)]
@@ -2093,11 +2128,11 @@ fn push_positioned_blocks<Tooltip>(
                 let leaf_depth = node.depth + 1;
                 blocks.push(BlockTemp {
                     id: part.id,
-                    parent_id: Some(node.id),
                     child_ids: Vec::new(),
                     block: synthetic_leaf_block(
                         node,
                         part,
+                        Some(node.id),
                         next_col,
                         leaf_depth,
                         max_depth.saturating_sub(leaf_depth) + 1,
@@ -2110,10 +2145,10 @@ fn push_positioned_blocks<Tooltip>(
     let col_span = next_col.saturating_sub(start_col).max(1);
     blocks.push(BlockTemp {
         id: node.id,
-        parent_id,
         child_ids,
         block: block_from_tree_node(
             node,
+            parent_id,
             false,
             start_col,
             col_span,
@@ -2199,9 +2234,8 @@ fn push_split_leaf_blocks<Tooltip>(
     for part in &node.leaf_parts {
         blocks.push(BlockTemp {
             id: part.id,
-            parent_id: Some(node.id),
             child_ids: Vec::new(),
-            block: synthetic_leaf_block(node, part, next_col, leaf_depth, row_span),
+            block: synthetic_leaf_block(node, part, Some(node.id), next_col, leaf_depth, row_span),
         });
         next_col += part.columns.get();
     }
@@ -2213,9 +2247,17 @@ fn push_split_leaf_blocks<Tooltip>(
         .max(1);
     blocks.push(BlockTemp {
         id: node.id,
-        parent_id,
         child_ids: node.leaf_parts.iter().map(|part| part.id).collect(),
-        block: block_from_tree_node(node, false, col, col_span, node.depth, 1, String::new()),
+        block: block_from_tree_node(
+            node,
+            parent_id,
+            false,
+            col,
+            col_span,
+            node.depth,
+            1,
+            String::new(),
+        ),
     });
     col + col_span
 }
@@ -2225,12 +2267,14 @@ fn push_split_leaf_blocks<Tooltip>(
 fn synthetic_leaf_block<Tooltip>(
     node: &BlockTreeNode,
     part: &BlockLeafPart,
+    parent_id: Option<RawSyntaxNodeId>,
     col: usize,
     row: usize,
     row_span: usize,
 ) -> GentufaBlock<Tooltip> {
     new!(GentufaBlock {
-        block_id: format!("n{}", part.id.0),
+        block_id: block_id_for(part.id),
+        parent_block_id: parent_id.map(block_id_for),
         node_ids: if node.keep_structural_host {
             // The shared donor identity belongs only to the structural host;
             // its surviving own parts retain their individual identities.
@@ -2286,11 +2330,11 @@ fn push_leaf_or_structural_block<Tooltip>(
         // it has no separate structural host to retain the node's annotations.
         blocks.push(BlockTemp {
             id: part.id,
-            parent_id,
             child_ids: Vec::new(),
             block: synthetic_leaf_block(
                 node,
                 part,
+                parent_id,
                 col,
                 node.depth,
                 max_depth.saturating_sub(node.depth) + 1,
@@ -2311,10 +2355,10 @@ fn push_leaf_or_structural_block<Tooltip>(
     };
     blocks.push(BlockTemp {
         id: node.id,
-        parent_id,
         child_ids: Vec::new(),
         block: block_from_tree_node(
             node,
+            parent_id,
             is_leaf,
             col,
             node.leaf_parts.first().map_or(1, |part| part.columns.get()),
@@ -2336,6 +2380,7 @@ fn node_display_text(node: &BlockTreeNode) -> String {
 #[ensures(ret.col == col)]
 fn block_from_tree_node<Tooltip>(
     node: &BlockTreeNode,
+    parent_id: Option<RawSyntaxNodeId>,
     is_leaf: bool,
     col: usize,
     col_span: usize,
@@ -2344,7 +2389,8 @@ fn block_from_tree_node<Tooltip>(
     display_text: String,
 ) -> GentufaBlock<Tooltip> {
     new!(GentufaBlock {
-        block_id: format!("n{}", node.id.0),
+        block_id: block_id_for(node.id),
+        parent_block_id: parent_id.map(block_id_for),
         node_ids: node.node_ids.iter().map(|id| id.0).collect(),
         label: if is_leaf && !display_text.is_empty() {
             display_text.clone()
@@ -2396,7 +2442,7 @@ fn assign_block_colors<Tooltip>(
         let block_id = block.id;
         let hue = parent_hues
             .iter()
-            .find(|(parent, _)| *parent == block.parent_id)
+            .find(|(parent, _)| *parent == block.block.parent_block_id)
             .map(|(_, hue)| *hue)
             .unwrap_or(0.0);
         let block_value = block
@@ -2518,11 +2564,12 @@ fn annotation_recipient<Tooltip, ReferenceTooltip>(
 
 #[requires(true)]
 #[ensures(true)]
-fn leaf_parent_hues<Tooltip>(blocks: &[BlockTemp<Tooltip>]) -> Vec<(Option<RawSyntaxNodeId>, f64)> {
-    let mut parents = Vec::new();
+fn leaf_parent_hues<Tooltip>(blocks: &[BlockTemp<Tooltip>]) -> Vec<(Option<String>, f64)> {
+    let mut parents: Vec<Option<String>> = Vec::new();
     for block in blocks {
-        if !parents.iter().any(|parent| parent == &block.parent_id) {
-            parents.push(block.parent_id);
+        let parent = &block.block.parent_block_id;
+        if !parents.contains(parent) {
+            parents.push(parent.clone());
         }
     }
     let count = parents.len();

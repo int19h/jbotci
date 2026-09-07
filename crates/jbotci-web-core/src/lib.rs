@@ -4,6 +4,12 @@
 
 #[cfg(test)]
 mod compound_tests;
+pub mod morphology_reports;
+
+pub use morphology_reports::{
+    VlaseiAnalysis, VlataiReport, analyze_vlasei, analyze_vlatai, possible_rafsi_for_gismu,
+    vlatai_diagnostics, vlatai_not_single_word_diagnostic,
+};
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -1087,6 +1093,7 @@ fn attach_empty_reference_tooltips_to_block(
     new!(GentufaBlock {
         compound_kind: block.compound_kind,
         block_id: block.block_id,
+        parent_block_id: block.parent_block_id,
         node_ids: block.node_ids,
         label: block.label,
         is_leaf: block.is_leaf,
@@ -1127,45 +1134,53 @@ fn attach_empty_reference_tooltips_to_block(
     })
 }
 
+/// The tree view's rows: one per block, in preorder over the block
+/// hierarchy with siblings in source order. Siblings occupy disjoint column
+/// ranges, so column order is source order; the depth is the number of
+/// ancestors, and `guides` carries one ancestor colour per level.
 #[requires(true)]
 #[ensures(ret.len() == layout.blocks.len())]
 fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<GentufaTreeRow> {
-    let mut blocks = layout.blocks.iter().collect::<Vec<_>>();
-    blocks.sort_by_key(|block| {
-        (
-            block.row,
-            block.col,
-            usize::from(block.is_leaf),
-            &block.block_id,
-        )
-    });
-    let mut rows = Vec::with_capacity(blocks.len());
-    let mut parent_stack: Vec<(usize, String)> = Vec::new();
-    for block in blocks {
+    let mut children: BTreeMap<&str, Vec<&GentufaBlock>> = BTreeMap::new();
+    let mut roots = Vec::new();
+    for block in &layout.blocks {
+        match &block.parent_block_id {
+            Some(parent_id) => children.entry(parent_id.as_str()).or_default().push(block),
+            None => roots.push(block),
+        }
+    }
+    let source_order = |left: &&GentufaBlock, right: &&GentufaBlock| {
+        (left.col, left.block_id.as_str()).cmp(&(right.col, right.block_id.as_str()))
+    };
+    roots.sort_by(source_order);
+    for siblings in children.values_mut() {
+        siblings.sort_by(source_order);
+    }
+    let mut rows = Vec::with_capacity(layout.blocks.len());
+    let mut pending = roots
+        .into_iter()
+        .rev()
+        .map(|block| (block, Vec::new(), None))
+        .collect::<Vec<(&GentufaBlock, Vec<GentufaTreeGuide>, Option<usize>)>>();
+    while let Some((block, guides, parent_id)) = pending.pop() {
         let node_id = block_id_number(&block.block_id);
-        parent_stack.truncate(block.row);
-        let parent_id = block
-            .row
-            .checked_sub(1)
-            .and_then(|parent_depth| parent_stack.get(parent_depth))
-            .map(|(parent_id, _)| *parent_id);
-        let guides = parent_stack
-            .iter()
-            .map(|(_, color)| GentufaTreeGuide {
-                color: color.clone(),
-                line_top: true,
-                line_bottom: true,
-            })
-            .collect::<Vec<_>>();
-        if parent_stack.len() == block.row {
-            parent_stack.push((node_id, block.color.clone()));
-        } else if let Some(slot) = parent_stack.get_mut(block.row) {
-            *slot = (node_id, block.color.clone());
+        let block_children = children
+            .get(block.block_id.as_str())
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let mut child_guides = guides.clone();
+        child_guides.push(GentufaTreeGuide {
+            color: block.color.clone(),
+            line_top: true,
+            line_bottom: true,
+        });
+        for child in block_children.iter().rev() {
+            pending.push((child, child_guides.clone(), Some(node_id)));
         }
         rows.push(GentufaTreeRow {
             node_id,
             parent_id,
-            depth: block.row,
+            depth: guides.len(),
             label: if block.role.is_error() {
                 "Error".to_owned()
             } else {
@@ -1173,7 +1188,7 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
             },
             color: block.color.clone(),
             guides,
-            has_children: false,
+            has_children: !block_children.is_empty(),
             cells: vec![GentufaCell {
                 text: block.display_text.clone(),
                 is_word: block.is_leaf,
@@ -1188,7 +1203,7 @@ fn generated_model_tree_rows_from_blocks(layout: &GentufaBlocksLayout) -> Vec<Ge
             rafsi_breakdown: rafsi_breakdown_for_block(block),
         });
     }
-    annotate_generated_model_tree_row_parent_state(rows)
+    rows
 }
 
 #[requires(block_id.starts_with('n'))]
@@ -1198,21 +1213,6 @@ fn block_id_number(block_id: &str) -> usize {
         .strip_prefix('n')
         .and_then(|suffix| suffix.parse::<usize>().ok())
         .unwrap_or(0)
-}
-
-#[requires(true)]
-#[ensures(ret.len() == old(rows.len()))]
-fn annotate_generated_model_tree_row_parent_state(
-    mut rows: Vec<GentufaTreeRow>,
-) -> Vec<GentufaTreeRow> {
-    let parent_ids = rows
-        .iter()
-        .filter_map(|row| row.parent_id)
-        .collect::<BTreeSet<_>>();
-    for row in &mut rows {
-        row.has_children = parent_ids.contains(&row.node_id);
-    }
-    rows
 }
 
 #[requires(true)]
@@ -1273,6 +1273,7 @@ fn attach_generated_reference_tooltips_to_block(
     new!(GentufaBlock {
         compound_kind: block.compound_kind,
         block_id: block.block_id,
+        parent_block_id: block.parent_block_id,
         node_ids: block.node_ids,
         label: block.label,
         is_leaf: block.is_leaf,
@@ -1489,7 +1490,9 @@ fn source_text_for_metadata(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn dialect_definition(source: Option<&str>) -> Result<DialectDefinition, GentufaWebError> {
+pub(crate) fn dialect_definition(
+    source: Option<&str>,
+) -> Result<DialectDefinition, GentufaWebError> {
     match source.map(str::trim).filter(|source| !source.is_empty()) {
         Some(source) => parse_dialect_definition(source)
             .map_err(|error| GentufaWebError::Dialect(error.to_string())),
@@ -4018,6 +4021,12 @@ pub fn normalize_gentufa_state(state: &GentufaWebState) -> GentufaWebState {
     }
 }
 
+/// Reads the route's state exactly as the URL carries it. Text the reader
+/// typed (source text, dialect) is preserved verbatim, including surrounding
+/// whitespace and an explicitly empty optional field, so a link opens on the
+/// state it was made from. Canonicalizing that text for analysis, search or
+/// page metadata is [`normalize_gentufa_state`]'s job, applied where the
+/// value is used rather than where it is transported.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
@@ -4037,13 +4046,12 @@ pub fn parse_gentufa_web_route(_path: &str, query: &str) -> GentufaWebState {
             _ => {}
         }
     }
-    normalize_gentufa_state(&state)
+    state
 }
 
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn gentufa_web_url(base_path: &str, state: &GentufaWebState) -> String {
-    let state = normalize_gentufa_state(state);
     let mut pairs = Vec::new();
     if !state.text.is_empty() {
         pairs.push(("text".to_owned(), state.text.clone()));
@@ -4108,6 +4116,9 @@ pub fn normalize_cukta_state(state: &CuktaWebState) -> CuktaWebState {
     }
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_cukta_state`] canonicalizes.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
@@ -4159,16 +4170,22 @@ pub fn parse_cukta_web_route(path: &str, query: &str) -> CuktaWebState {
             }
         }
     }
-    normalize_cukta_state(&state)
+    state
 }
 
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn cukta_web_url(base_path: &str, state: &CuktaWebState) -> String {
-    let state = normalize_cukta_state(state);
     let prefix = base_path.trim_end_matches('/');
-    match state.view {
+    match state.view.clone() {
         CuktaWebView::Section { reference } => {
+            // A section route names a section: a state with no reference has
+            // no URL shape of its own and uses the book's entry section.
+            let reference = if reference.trim().is_empty() {
+                DEFAULT_CUKTA_SECTION_ID.to_owned()
+            } else {
+                reference
+            };
             format!("{prefix}/cukta/section/{}", percent_encode(&reference))
         }
         CuktaWebView::Index => format!("{prefix}/cukta/index"),
@@ -4519,6 +4536,9 @@ pub fn normalize_vlacku_state(state: &VlackuWebState) -> VlackuWebState {
     }
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_vlacku_state`] canonicalizes.
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
@@ -4545,7 +4565,7 @@ pub fn parse_vlacku_web_route(path: &str, query: &str) -> VlackuWebState {
             _ => {}
         }
     }
-    normalize_vlacku_state(&state)
+    state
 }
 
 #[requires(true)]
@@ -4556,6 +4576,10 @@ fn is_gimfihi_route_logical(logical: &str) -> bool {
         || matches!(decoded.as_str(), "gimfihi" | "gimfi'i")
 }
 
+/// Reads the route's state exactly as the URL carries it; see
+/// [`parse_gentufa_web_route`] for why transport preserves and
+/// [`normalize_gimfihi_state`] canonicalizes (including filling a preset's
+/// source rows when none were given).
 #[requires(true)]
 #[ensures(true)]
 pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
@@ -4577,7 +4601,7 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
             "scorer" if value == GimfihiScorer::Classic.as_str() => {
                 state.scorer = GimfihiScorer::Classic;
             }
-            "source" => state.sources.push(parse_gimfihi_web_source(&value)),
+            "source" => state.sources.push(gimfihi_web_source_from_record(&value)),
             "shape" => {
                 if let Ok(shape) = parse_shape(&value) {
                     state.shapes.push(shape);
@@ -4605,28 +4629,35 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
             _ => {}
         }
     }
-    normalize_gimfihi_state(&state)
+    state
 }
 
+/// Reads one `LANG[:WEIGHT]:WORD` record into the three values the form
+/// holds, exactly as written. Only the first two colons separate: the word is
+/// whatever follows, so a word containing colons survives the round trip that
+/// [`gimfihi_web_source_query_value`] closes. Trimming, case folding and
+/// weight validation belong to [`normalize_gimfihi_state`] and to source
+/// resolution, not to transport.
 #[requires(true)]
-#[ensures(true)]
-fn parse_gimfihi_web_source(value: &str) -> GimfihiWebSource {
-    let parts = value.split(':').collect::<Vec<_>>();
-    match parts.as_slice() {
-        [language, word] => GimfihiWebSource {
-            language: language.trim().to_ascii_lowercase(),
-            weight: None,
-            word: word.trim().to_ascii_lowercase(),
+#[ensures(ret.word.is_empty() || value.ends_with(&ret.word))]
+pub fn gimfihi_web_source_from_record(value: &str) -> GimfihiWebSource {
+    match value.split_once(':') {
+        Some((language, rest)) => match rest.split_once(':') {
+            Some((weight, word)) => GimfihiWebSource {
+                language: language.to_owned(),
+                weight: (!weight.is_empty()).then(|| weight.to_owned()),
+                word: word.to_owned(),
+            },
+            None => GimfihiWebSource {
+                language: language.to_owned(),
+                weight: None,
+                word: rest.to_owned(),
+            },
         },
-        [language, weight, word] => GimfihiWebSource {
-            language: language.trim().to_ascii_lowercase(),
-            weight: non_empty_string(weight.trim().to_owned()),
-            word: word.trim().to_ascii_lowercase(),
-        },
-        _ => GimfihiWebSource {
+        None => GimfihiWebSource {
             language: String::new(),
             weight: None,
-            word: value.trim().to_ascii_lowercase(),
+            word: value.to_owned(),
         },
     }
 }
@@ -4706,7 +4737,6 @@ pub fn normalize_gimfihi_state(state: &GimfihiWebState) -> GimfihiWebState {
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
-    let state = normalize_vlacku_state(state);
     let prefix = base_path.trim_end_matches('/');
     if state.mode == VlackuWebMode::Word
         && !state.query.is_empty()
@@ -4748,7 +4778,6 @@ pub fn vlacku_web_url(base_path: &str, state: &VlackuWebState) -> String {
 #[requires(true)]
 #[ensures(ret.starts_with(base_path) || base_path.is_empty())]
 pub fn gimfihi_web_url(base_path: &str, state: &GimfihiWebState) -> String {
-    let state = normalize_gimfihi_state(state);
     let prefix = base_path.trim_end_matches('/');
     let mut pairs = Vec::new();
     if let Some(preset) = &state.preset {
@@ -7613,6 +7642,77 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn tree_rows_follow_the_block_hierarchy_in_preorder() {
+        // `lo zarci ku` is a branch under the description; the elided `vau`
+        // that follows it is a sibling of the description under the bridi
+        // tail, never a parent of the branch before it.
+        let success = parse_success_with_options(
+            "mi klama lo zarci",
+            GentufaWebOptions {
+                show_elided: true,
+                ..GentufaWebOptions::default()
+            },
+        );
+        let rows = &success.tree_rows;
+        let shape = rows
+            .iter()
+            .map(|row| {
+                let parent = row.parent_id.and_then(|parent_id| {
+                    rows.iter()
+                        .find(|candidate| candidate.node_id == parent_id)
+                        .map(|parent| parent.label.as_str())
+                });
+                (row.label.as_str(), row.depth, parent, row.has_children)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            shape,
+            vec![
+                ("bridi", 0, None, true),
+                ("mi", 1, Some("bridi"), false),
+                ("bridi tail", 1, Some("bridi"), true),
+                ("kláma", 2, Some("bridi tail"), false),
+                ("description", 2, Some("bridi tail"), true),
+                ("lo", 3, Some("description"), false),
+                ("zárci", 3, Some("description"), false),
+                ("ku", 3, Some("description"), false),
+                ("vau", 2, Some("bridi tail"), false),
+            ]
+        );
+        for (index, row) in rows.iter().enumerate() {
+            if let Some(parent_id) = row.parent_id {
+                let parent_index = rows
+                    .iter()
+                    .position(|candidate| candidate.node_id == parent_id)
+                    .expect("parent row exists");
+                assert!(parent_index < index, "parents precede children");
+                assert_eq!(rows[parent_index].depth + 1, row.depth);
+            }
+            assert_eq!(row.guides.len(), row.depth);
+            let block = success
+                .blocks_layout
+                .blocks
+                .iter()
+                .find(|block| block_id_number(&block.block_id) == row.node_id)
+                .expect("row block");
+            assert_eq!(block.row, row.depth, "grid row is the tree depth");
+            assert_eq!(
+                row.has_children,
+                rows.iter()
+                    .any(|candidate| candidate.parent_id == Some(row.node_id))
+            );
+        }
+        let elided = rows
+            .iter()
+            .filter(|row| row.cells.iter().any(|cell| cell.role.is_elided()))
+            .map(|row| (row.label.as_str(), row.has_children))
+            .collect::<Vec<_>>();
+        assert_eq!(elided, vec![("ku", false), ("vau", false)]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn tree_rows_place_elided_terminators_after_preceding_source_text() {
         let success = parse_success_with_options(
             "cadga fa lonu mi klama kei",
@@ -8395,8 +8495,11 @@ mod tests {
         assert_eq!(state.mode, VlackuWebMode::Rafsi);
         assert_eq!(state.query, "kla");
         assert_eq!(state.count, 40);
+        // Transport keeps the filter the URL named; grouping it into the
+        // dictionary's word types belongs to the search.
+        assert_eq!(state.word_types, vec!["brivla".to_owned()]);
         assert_eq!(
-            state.word_types,
+            normalize_vlacku_state(&state).word_types,
             vec!["gismu".to_owned(), "lujvo".to_owned(), "fu'ivla".to_owned()]
         );
         assert_eq!(
@@ -8404,26 +8507,34 @@ mod tests {
             "/vlacku?mode=rafsi&q=kla&count=40&wordType=brivla"
         );
 
+        // A query in another script stays as written; the search folds it,
+        // and the canonical URL is built from that folded state.
         let cyrillic = parse_vlacku_web_route("/vlacku/клама", "");
         assert_eq!(cyrillic.mode, VlackuWebMode::Word);
-        assert_eq!(cyrillic.query, "klama");
-        assert_eq!(vlacku_web_url("", &cyrillic), "/vlacku/klama");
+        assert_eq!(cyrillic.query, "клама");
+        assert_eq!(normalize_vlacku_state(&cyrillic).query, "klama");
+        assert_eq!(
+            vlacku_web_url("", &normalize_vlacku_state(&cyrillic)),
+            "/vlacku/klama"
+        );
+        assert_eq!(
+            parse_vlacku_web_route(&vlacku_web_url("", &cyrillic), "").query,
+            "клама",
+            "the raw route round trips"
+        );
 
         let cyrillic_glide = parse_vlacku_web_route("/vlacku/шой", "");
         assert_eq!(cyrillic_glide.mode, VlackuWebMode::Word);
-        assert_eq!(cyrillic_glide.query, "coi");
-        assert_eq!(vlacku_web_url("", &cyrillic_glide), "/vlacku/coi");
+        assert_eq!(normalize_vlacku_state(&cyrillic_glide).query, "coi");
 
         let zbalermorna =
             parse_vlacku_web_route("/vlacku/\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", "");
         assert_eq!(zbalermorna.mode, VlackuWebMode::Word);
-        assert_eq!(zbalermorna.query, "klama");
-        assert_eq!(vlacku_web_url("", &zbalermorna), "/vlacku/klama");
+        assert_eq!(normalize_vlacku_state(&zbalermorna).query, "klama");
 
         let zbalermorna_glide = parse_vlacku_web_route("/vlacku/\u{ed86}\u{eda8}", "");
         assert_eq!(zbalermorna_glide.mode, VlackuWebMode::Word);
-        assert_eq!(zbalermorna_glide.query, "coi");
-        assert_eq!(vlacku_web_url("", &zbalermorna_glide), "/vlacku/coi");
+        assert_eq!(normalize_vlacku_state(&zbalermorna_glide).query, "coi");
     }
 
     #[test]
@@ -8720,37 +8831,134 @@ mod tests {
             vec![CuktaSearchTarget::Section, CuktaSearchTarget::Example]
         );
 
+        // The query travels as written and is folded where it is searched.
         let cyrillic = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=ложбан");
+        let folded = normalize_cukta_state(&cyrillic);
         let CuktaWebView::Search(search_state) = cyrillic.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
-        assert_eq!(search_state.query, "lojban");
+        assert_eq!(search_state.query, "ложбан");
+        let CuktaWebView::Search(folded_state) = folded.view else {
+            panic!("expected search state");
+        };
+        assert_eq!(folded_state.query, "lojban");
 
-        let cyrillic_glide = parse_cukta_web_route("/cukta/search", "?mode=valsi&q=шой");
+        let cyrillic_glide =
+            normalize_cukta_state(&parse_cukta_web_route("/cukta/search", "?mode=valsi&q=шой"));
         let CuktaWebView::Search(search_state) = cyrillic_glide.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "coi");
 
-        let zbalermorna = parse_cukta_web_route(
+        let zbalermorna = normalize_cukta_state(&parse_cukta_web_route(
             "/cukta/search",
             "?mode=valsi&q=\u{ed84}\u{eda3}\u{ed96}\u{ed90}\u{eda0}\u{ed97}",
-        );
+        ));
         let CuktaWebView::Search(search_state) = zbalermorna.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "lojban");
 
-        let zbalermorna_glide =
-            parse_cukta_web_route("/cukta/search", "?mode=valsi&q=\u{ed86}\u{eda8}");
+        let zbalermorna_glide = normalize_cukta_state(&parse_cukta_web_route(
+            "/cukta/search",
+            "?mode=valsi&q=\u{ed86}\u{eda8}",
+        ));
         let CuktaWebView::Search(search_state) = zbalermorna_glide.view else {
             panic!("expected search state");
         };
         assert_eq!(search_state.mode, CuktaWebMode::Word);
         assert_eq!(search_state.query, "coi");
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn routes_carry_editable_text_exactly() {
+        // A link must open on the state it was made from: surrounding
+        // whitespace, an explicitly emptied optional field, non-Latin script
+        // and URL-reserved characters all survive the round trip untouched.
+        for (text, dialect) in [
+            ("  mi klama  ", Some("  (cbm)  ")),
+            ("mi klama", Some("")),
+            ("ta gerku\n .i mi klama", None),
+            ("zo'e & do = mi + ko #1 100% ¿lo?", Some("(cbm) & (xbm)")),
+            ("клама шой", Some("")),
+            ("\u{ed82}\u{ed84}\u{eda0}\u{ed87}\u{eda0}", None),
+            ("\u{1f600} mi klama", None),
+        ] {
+            let state = GentufaWebState {
+                text: text.to_owned(),
+                dialect: dialect.map(str::to_owned),
+                view_mode: GentufaWebViewMode::Tree,
+                show_elided: true,
+                show_glosses: false,
+                show_compounds: false,
+            };
+            let url = gentufa_web_url("/jbotci", &state);
+            let query = url.split_once('?').map(|(_, query)| query).unwrap_or("");
+            let parsed = parse_gentufa_web_route("/jbotci/gentufa", query);
+            assert_eq!(parsed, state, "{url}");
+            assert_eq!(
+                parsed.dialect.is_some(),
+                dialect.is_some(),
+                "an explicitly empty dialect stays explicit: {url}"
+            );
+        }
+        // Normalization is still available, and is what analysis uses.
+        let padded = GentufaWebState {
+            text: "  mi klama  ".to_owned(),
+            dialect: Some("   ".to_owned()),
+            ..GentufaWebState::default()
+        };
+        let normalized = normalize_gentufa_state(&padded);
+        assert_eq!(normalized.text, "mi klama");
+        assert_eq!(normalized.dialect, None);
+
+        // The same exactness holds for the other linked tools' queries.
+        let vlacku = VlackuWebState {
+            mode: VlackuWebMode::Meaning,
+            query: "  going & coming  ".to_owned(),
+            count: 40,
+            word_types: vec!["brivla".to_owned()],
+        };
+        let url = vlacku_web_url("", &vlacku);
+        assert_eq!(
+            parse_vlacku_web_route("/vlacku", url.split_once('?').expect("query").1),
+            vlacku,
+            "{url}"
+        );
+        let cukta = CuktaWebState {
+            view: CuktaWebView::Search(CuktaWebSearchState {
+                mode: CuktaWebMode::Word,
+                query: "  tanru & ke  ".to_owned(),
+                count: 40,
+                targets: vec![CuktaSearchTarget::Example],
+            }),
+        };
+        let url = cukta_web_url("", &cukta);
+        assert_eq!(
+            parse_cukta_web_route("/cukta/search", url.split_once('?').expect("query").1),
+            cukta,
+            "{url}"
+        );
+        let gimfihi = GimfihiWebState {
+            preset: Some(GimfihiPreset::Ilmen6),
+            sources: vec![GimfihiWebSource {
+                language: "eng".to_owned(),
+                weight: Some("5".to_owned()),
+                word: "go".to_owned(),
+            }],
+            ..GimfihiWebState::default()
+        };
+        let url = gimfihi_web_url("", &gimfihi);
+        assert_eq!(
+            parse_gimfihi_web_route("/gimfihi", url.split_once('?').expect("query").1),
+            gimfihi,
+            "{url}"
+        );
     }
 
     #[test]

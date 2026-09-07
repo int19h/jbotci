@@ -58,16 +58,25 @@ fn run_semantic_vlacku(
         bail!("vlacku query text must be non-empty.");
     }
     let dictionary = jbotci_dictionary_data::english();
+    // Entry filters apply while ranking, so the fetch is bounded by the
+    // requested count instead of ranking the whole dictionary first; the
+    // similarity threshold is applied below, on the scores.
+    let mut entry_allowed = |entry_index: usize| {
+        dictionary
+            .entries()
+            .get(entry_index)
+            .is_some_and(|entry| dictionary_entry_passes_vlacku_entry_filters(entry, options))
+    };
     let hits = if let Some(context) = tool_context {
         if let Some(service) = context.embedding_search()? {
             service
-                .semantic_vlacku_hits(&query, dictionary.entries().len())
+                .semantic_vlacku_hits_filtered(&query, options.count, &mut entry_allowed)
                 .map_err(|error| anyhow!(error.to_string()))?
         } else {
-            semantic_vlacku_hits_with_new_backend(&query, dictionary.entries().len())?
+            semantic_vlacku_hits_with_new_backend(&query, options.count, &mut entry_allowed)?
         }
     } else {
-        semantic_vlacku_hits_with_new_backend(&query, dictionary.entries().len())?
+        semantic_vlacku_hits_with_new_backend(&query, options.count, &mut entry_allowed)?
     };
     let cards = hits
         .into_iter()
@@ -94,15 +103,26 @@ fn run_semantic_vlacku(
 
 #[requires(true)]
 #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn semantic_vlacku_hits_with_new_backend(
+fn semantic_vlacku_hits_with_new_backend<F>(
     query: &str,
     count: usize,
-) -> Result<Vec<jbotci_embeddings::DictionarySemanticHit>> {
+    entry_allowed: F,
+) -> Result<Vec<jbotci_embeddings::DictionarySemanticHit>>
+where
+    F: FnMut(usize) -> bool,
+{
     let index_root = default_index_root().map_err(|error| anyhow!(error.to_string()))?;
     let mut backend = load_backend_for_search(DEFAULT_MODEL_KEY, None)
         .map_err(|error| anyhow!(error.to_string()))?;
-    semantic_vlacku_hits(&mut backend, query, count, &index_root, DEFAULT_MODEL_KEY)
-        .map_err(|error| anyhow!(error.to_string()))
+    semantic_vlacku_hits_filtered(
+        &mut backend,
+        query,
+        count,
+        &index_root,
+        DEFAULT_MODEL_KEY,
+        entry_allowed,
+    )
+    .map_err(|error| anyhow!(error.to_string()))
 }
 
 #[requires(true)]

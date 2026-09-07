@@ -7,6 +7,7 @@ pub use discord::register_discord_commands_from_env;
 
 use std::future::Future;
 use std::net::SocketAddr;
+use std::num::NonZeroUsize;
 use std::path::{Component, Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -25,14 +26,16 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 #[allow(unused_imports)]
-use bityzba::{ensures, invariant, new, requires};
+use bityzba::{ensures, invariant, new, requires, try_new};
 use dioxus::server::FullstackState;
 use jbotci_cli::{
     GimfihiSourceWordKind, ToolCuktaRequest, ToolEmbeddingSearchService, ToolExecutionContext,
     ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, run_tool_cukta,
     run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku, run_tool_vlacku_with_context,
 };
-use jbotci_embeddings::{load_latest_pack, model_spec};
+use jbotci_cll::{CuktaSearchOutput, CuktaTargetFilter, cll_search_all_chunks, embedded_cll_site};
+use jbotci_embeddings::{DictionarySemanticHit, load_latest_pack, model_spec};
+use jbotci_search::vlacku::{VlackuSearchOptions, dictionary_entry_passes_vlacku_entry_filters};
 use jbotci_web_core::{
     FAVICON_ASSET_PATH, GentufaError, GentufaExportFormat, GentufaWebRequest, GentufaWebResult,
     MANIFEST_ASSET_PATH, META_BLOCK_END, META_BLOCK_START, PageMeta, WebFeatureAvailability,
@@ -41,8 +44,11 @@ use jbotci_web_core::{
     render_page_head_metadata_block, web_route_url,
 };
 use serde::Serialize;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{Semaphore, mpsc, oneshot};
+use tokio::time::Instant;
 use tower::ServiceExt;
+
+use crate::discord::work::{WorkError, WorkKeepalive, WorkLane};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
 
@@ -89,6 +95,8 @@ pub(crate) struct AppState {
     base_path: String,
     public_dir: PathBuf,
     tool_services: ToolServices,
+    /// The Discord application, when this deployment configured one.
+    discord: Option<Arc<discord::interaction::DiscordService>>,
     page_meta_builder: PageMetaBuilder,
 }
 
@@ -115,10 +123,13 @@ impl AppState {
     #[ensures(ret.base_path.starts_with('/'))]
     fn new(config: ServerConfig, page_meta_builder: PageMetaBuilder) -> Self {
         let config = config.into_data();
+        let tool_services = ToolServices::new();
+        let discord = discord::configured_service(tool_services.clone());
         new!(AppState {
             base_path: config.base_path,
             public_dir: config.public_dir,
-            tool_services: ToolServices::new(),
+            tool_services,
+            discord,
             page_meta_builder,
         })
     }
@@ -128,25 +139,241 @@ impl AppState {
     pub(crate) fn tool_services(&self) -> ToolServices {
         self.tool_services.clone()
     }
+
+    /// The Discord application, when this deployment has one configured.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn discord_service(&self) -> Option<Arc<discord::interaction::DiscordService>> {
+        self.discord.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
 #[invariant(true)]
 pub(crate) struct ToolServices {
-    embedding_worker: mpsc::Sender<EmbeddingToolJob>,
+    embedding_worker: mpsc::Sender<EmbeddingJob>,
+    /// Callers allowed to wait for a queue slot at once; beyond this a request
+    /// is refused immediately instead of piling up handler futures.
+    embedding_waiters: Arc<Semaphore>,
 }
 
-#[invariant(true)]
-struct EmbeddingToolJob {
-    request: EmbeddingToolRequest,
-    response: oneshot::Sender<Result<ToolRenderedOutput>>,
+/// A meaning-search query: never blank, so every worker job is a real search.
+#[invariant(!text.trim().is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SearchQuery {
+    text: String,
 }
 
+impl SearchQuery {
+    #[requires(true)]
+    #[ensures(ret.is_some() == !text.trim().is_empty())]
+    pub(crate) fn new(text: &str) -> Option<Self> {
+        try_new!(SearchQuery {
+            text: text.to_owned()
+        })
+        .ok()
+    }
+
+    #[requires(true)]
+    #[ensures(!ret.trim().is_empty())]
+    pub(crate) fn as_str(&self) -> &str {
+        &self.text
+    }
+}
+
+/// Why a typed meaning search produced no result.
+#[invariant(::Unavailable { reason } => !reason.trim().is_empty())]
+#[invariant(::Lane(_) => true)]
+#[invariant(::Failed { message } => !message.trim().is_empty())]
+#[derive(Debug, PartialEq)]
+pub(crate) enum SemanticSearchError {
+    /// This server has no usable embedding index; the reason is stable until
+    /// restart.
+    Unavailable { reason: String },
+    /// Admission or completion within the deadline failed. The worker is
+    /// alive and may still be busy; nothing about the index is implied.
+    Lane(WorkError),
+    /// The search itself failed.
+    Failed { message: String },
+}
+
+impl SemanticSearchError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn unavailable(reason: String) -> Self {
+        new!(SemanticSearchError::Unavailable {
+            reason: non_blank(reason, "meaning search is unavailable on this server"),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn failed(message: String) -> Self {
+        new!(SemanticSearchError::Failed {
+            message: non_blank(message, "meaning search failed"),
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn lane(error: WorkError) -> Self {
+        new!(SemanticSearchError::Lane(error))
+    }
+}
+
+impl std::fmt::Display for SemanticSearchError {
+    #[requires(true)]
+    #[ensures(true)]
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.as_data() {
+            bityzba::data!(SemanticSearchError::Unavailable { reason }) => {
+                formatter.write_str(reason)
+            }
+            bityzba::data!(SemanticSearchError::Lane(error)) => write!(formatter, "{error}"),
+            bityzba::data!(SemanticSearchError::Failed { message }) => {
+                write!(formatter, "meaning search failed: {message}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for SemanticSearchError {}
+
+#[requires(!fallback.trim().is_empty())]
+#[ensures(!ret.trim().is_empty())]
+fn non_blank(text: String, fallback: &str) -> String {
+    if text.trim().is_empty() {
+        fallback.to_owned()
+    } else {
+        text
+    }
+}
+
+/// Work for the single embedding worker thread. Each job carries the reply
+/// channel of its own result type, so a dictionary-hits request can only ever
+/// receive dictionary hits. The rendered variants serve the CLI-shaped
+/// MCP/REST tools; the typed variants serve Discord, which presents the hits
+/// itself.
 #[invariant(::Cukta { .. } => true)]
 #[invariant(::Vlacku { .. } => true)]
-enum EmbeddingToolRequest {
-    Cukta { request: ToolCuktaRequest },
-    Vlacku { request: ToolVlackuRequest },
+#[invariant(::VlackuHits { .. } => true)]
+#[invariant(::CuktaSearch { .. } => true)]
+enum EmbeddingJob {
+    Cukta {
+        request: ToolCuktaRequest,
+        reply: oneshot::Sender<Result<ToolRenderedOutput>>,
+    },
+    Vlacku {
+        request: ToolVlackuRequest,
+        reply: oneshot::Sender<Result<ToolRenderedOutput>>,
+    },
+    VlackuHits {
+        query: SearchQuery,
+        count: NonZeroUsize,
+        /// Entry filters applied while ranking, so the fetch stays bounded
+        /// by `count`.
+        options: VlackuSearchOptions,
+        reply:
+            oneshot::Sender<std::result::Result<Vec<DictionarySemanticHit>, SemanticSearchError>>,
+        /// What the caller's delivery stands on while this job runs. A search
+        /// that has started keeps it, model loading included, until the job
+        /// is evaluated or discarded, however long the caller waits.
+        keepalive: Option<WorkKeepalive>,
+    },
+    CuktaSearch {
+        query: SearchQuery,
+        count: NonZeroUsize,
+        targets: CuktaTargetFilter,
+        reply: oneshot::Sender<std::result::Result<CuktaSearchOutput, SemanticSearchError>>,
+        keepalive: Option<WorkKeepalive>,
+    },
+}
+
+impl EmbeddingJob {
+    /// Whether the requester stopped waiting (deadline passed, connection
+    /// gone). Such a job is discarded before any expensive evaluation.
+    #[requires(true)]
+    #[ensures(true)]
+    fn abandoned(&self) -> bool {
+        match self {
+            Self::Cukta { reply, .. } | Self::Vlacku { reply, .. } => reply.is_closed(),
+            Self::VlackuHits { reply, .. } => reply.is_closed(),
+            Self::CuktaSearch { reply, .. } => reply.is_closed(),
+        }
+    }
+
+    /// Run against the worker's cache and deliver the result; a reply nobody
+    /// awaits any more is dropped.
+    #[requires(true)]
+    #[ensures(true)]
+    fn run(self, cache: &mut EmbeddingSearchCache) {
+        match self {
+            Self::Cukta { request, reply } => {
+                let _ = reply.send(run_with_embedding_cache(cache, |context| {
+                    run_tool_cukta_with_context(request, context)
+                }));
+            }
+            Self::Vlacku { request, reply } => {
+                let _ = reply.send(run_with_embedding_cache(cache, |context| {
+                    run_tool_vlacku_with_context(request, context)
+                }));
+            }
+            Self::VlackuHits {
+                query,
+                count,
+                options,
+                reply,
+                keepalive,
+            } => {
+                // Dropped with the job, so the delivery it stands for outlives
+                // every caller that gave up while this ran.
+                let _keepalive = keepalive;
+                let result = loaded_embedding_service(cache)
+                    .map_err(SemanticSearchError::unavailable)
+                    .and_then(|service| {
+                        let dictionary = jbotci_dictionary_data::english();
+                        service
+                            .semantic_vlacku_hits_filtered(
+                                query.as_str(),
+                                count.get(),
+                                |entry_index| {
+                                    dictionary.entries().get(entry_index).is_some_and(|entry| {
+                                        dictionary_entry_passes_vlacku_entry_filters(
+                                            entry, &options,
+                                        )
+                                    })
+                                },
+                            )
+                            .map_err(|error| SemanticSearchError::failed(error.to_string()))
+                    });
+                let _ = reply.send(result);
+            }
+            Self::CuktaSearch {
+                query,
+                count,
+                targets,
+                reply,
+                keepalive,
+            } => {
+                let _keepalive = keepalive;
+                let result = embedded_cll_site()
+                    .map_err(|error| SemanticSearchError::failed(error.to_string()))
+                    .and_then(|site| {
+                        let service = loaded_embedding_service(cache)
+                            .map_err(SemanticSearchError::unavailable)?;
+                        service
+                            .semantic_cukta_output(
+                                cll_search_all_chunks(site),
+                                query.as_str(),
+                                count.get(),
+                                targets,
+                            )
+                            .map_err(|error| SemanticSearchError::failed(error.to_string()))
+                    });
+                let _ = reply.send(result);
+            }
+        }
+    }
 }
 
 #[invariant(!message.trim().is_empty())]
@@ -179,16 +406,50 @@ enum EmbeddingSearchCache {
     Unavailable { error: CachedEmbeddingError },
 }
 
+/// Jobs the worker channel holds ahead of the worker.
 const EMBEDDING_TOOL_QUEUE_CAPACITY: usize = 16;
+/// Callers allowed to wait for a channel slot at once.
+const EMBEDDING_MAX_WAITERS: usize = 32;
 
 impl ToolServices {
     #[requires(true)]
     #[ensures(true)]
     fn new() -> Self {
-        let (sender, receiver) = mpsc::channel(EMBEDDING_TOOL_QUEUE_CAPACITY);
-        spawn_embedding_worker(receiver, configured_embedding_search_startup());
+        let startup = configured_embedding_search_startup();
+        Self::with_worker(
+            EMBEDDING_TOOL_QUEUE_CAPACITY,
+            EMBEDDING_MAX_WAITERS,
+            move || embedding_job_runner(startup),
+        )
+    }
+
+    /// Start the single worker thread; `build_handler` runs on that thread
+    /// and returns the job evaluator, so the evaluator (and the embedding
+    /// cache it owns, which is not `Send`) never leaves the thread. Tests
+    /// substitute their own evaluator to exercise admission without a model.
+    #[requires(queue_capacity > 0 && max_waiters > 0)]
+    #[ensures(true)]
+    fn with_worker<B, H>(queue_capacity: usize, max_waiters: usize, build_handler: B) -> Self
+    where
+        B: FnOnce() -> H + Send + 'static,
+        H: FnMut(EmbeddingJob),
+    {
+        let (sender, mut receiver) = mpsc::channel::<EmbeddingJob>(queue_capacity);
+        thread::Builder::new()
+            .name("jbotci-embedding-search".to_owned())
+            .spawn(move || {
+                let mut handler = build_handler();
+                while let Some(job) = receiver.blocking_recv() {
+                    if job.abandoned() {
+                        continue;
+                    }
+                    handler(job);
+                }
+            })
+            .expect("embedding search worker thread starts");
         Self {
             embedding_worker: sender,
+            embedding_waiters: Arc::new(Semaphore::new(max_waiters)),
         }
     }
 
@@ -196,8 +457,11 @@ impl ToolServices {
     #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
     pub(crate) async fn run_cukta(&self, request: ToolCuktaRequest) -> Result<ToolRenderedOutput> {
         if request.uses_semantic_search() {
-            self.run_embedding_request(EmbeddingToolRequest::Cukta { request })
+            let (reply, received) = oneshot::channel();
+            self.admit(EmbeddingJob::Cukta { request, reply }, None)
                 .await
+                .map_err(|error| anyhow!(error.to_string()))?;
+            await_rendered_reply(received).await
         } else {
             run_blocking_tool(move || run_tool_cukta(request)).await
         }
@@ -210,29 +474,147 @@ impl ToolServices {
         request: ToolVlackuRequest,
     ) -> Result<ToolRenderedOutput> {
         if request.uses_semantic_search() {
-            self.run_embedding_request(EmbeddingToolRequest::Vlacku { request })
+            let (reply, received) = oneshot::channel();
+            self.admit(EmbeddingJob::Vlacku { request, reply }, None)
                 .await
+                .map_err(|error| anyhow!(error.to_string()))?;
+            await_rendered_reply(received).await
         } else {
             run_blocking_tool(move || run_tool_vlacku(request)).await
         }
     }
 
+    /// Ranked dictionary entries for a meaning query, filtered by the entry
+    /// filters in `options` while ranking. `deadline` bounds both the wait
+    /// for the worker and the result; `keepalive` is what the started search
+    /// holds onto whether or not anyone is still waiting for it.
     #[requires(true)]
-    #[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-    async fn run_embedding_request(
+    #[ensures(ret.as_ref().is_ok_and(|hits| hits.len() <= count.get()) || ret.is_err())]
+    pub(crate) async fn semantic_vlacku_hits(
         &self,
-        request: EmbeddingToolRequest,
-    ) -> Result<ToolRenderedOutput> {
-        let (response, received) = oneshot::channel();
-        let job = EmbeddingToolJob { request, response };
-        self.embedding_worker
-            .send(job)
-            .await
-            .map_err(|_| anyhow!("embedding search worker is not running"))?;
-        received
-            .await
-            .map_err(|_| anyhow!("embedding search worker stopped before returning output"))?
+        query: SearchQuery,
+        count: NonZeroUsize,
+        options: VlackuSearchOptions,
+        deadline: Option<Instant>,
+        keepalive: Option<WorkKeepalive>,
+    ) -> std::result::Result<Vec<DictionarySemanticHit>, SemanticSearchError> {
+        let (reply, received) = oneshot::channel();
+        self.admit(
+            EmbeddingJob::VlackuHits {
+                query,
+                count,
+                options,
+                reply,
+                keepalive,
+            },
+            deadline,
+        )
+        .await?;
+        await_typed_reply(received, deadline).await
     }
+
+    /// Meaning search over the CLL from the server's embedding index.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) async fn semantic_cukta_search(
+        &self,
+        query: SearchQuery,
+        count: NonZeroUsize,
+        targets: CuktaTargetFilter,
+        deadline: Option<Instant>,
+        keepalive: Option<WorkKeepalive>,
+    ) -> std::result::Result<CuktaSearchOutput, SemanticSearchError> {
+        let (reply, received) = oneshot::channel();
+        self.admit(
+            EmbeddingJob::CuktaSearch {
+                query,
+                count,
+                targets,
+                reply,
+                keepalive,
+            },
+            deadline,
+        )
+        .await?;
+        await_typed_reply(received, deadline).await
+    }
+
+    /// Bounded admission to the worker queue: an expired deadline admits
+    /// nothing, at most `EMBEDDING_MAX_WAITERS` callers wait for a queue slot
+    /// at once (the rest are refused at once), and the wait itself ends at
+    /// the deadline. A refusal or timeout says nothing about the index.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn admit(
+        &self,
+        job: EmbeddingJob,
+        deadline: Option<Instant>,
+    ) -> std::result::Result<(), SemanticSearchError> {
+        let lane = WorkLane::Embedding;
+        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+            return Err(SemanticSearchError::lane(WorkError::WaitTimedOut { lane }));
+        }
+        let Ok(_waiter) = self.embedding_waiters.try_acquire() else {
+            return Err(SemanticSearchError::lane(WorkError::Overloaded { lane }));
+        };
+        let not_running = || {
+            SemanticSearchError::unavailable("embedding search worker is not running".to_owned())
+        };
+        let permit = match deadline {
+            Some(deadline) => {
+                match tokio::time::timeout_at(deadline, self.embedding_worker.reserve()).await {
+                    Ok(Ok(permit)) => permit,
+                    Ok(Err(_closed)) => return Err(not_running()),
+                    Err(_elapsed) => {
+                        return Err(SemanticSearchError::lane(WorkError::WaitTimedOut { lane }));
+                    }
+                }
+            }
+            None => self
+                .embedding_worker
+                .reserve()
+                .await
+                .map_err(|_closed| not_running())?,
+        };
+        permit.send(job);
+        Ok(())
+    }
+}
+
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+async fn await_rendered_reply(
+    received: oneshot::Receiver<Result<ToolRenderedOutput>>,
+) -> Result<ToolRenderedOutput> {
+    received
+        .await
+        .map_err(|_| anyhow!("embedding search worker stopped before returning output"))?
+}
+
+/// Await a typed reply; past the deadline the caller gives up (the job is
+/// then discarded by the worker before evaluation, or its result dropped).
+#[requires(true)]
+#[ensures(true)]
+async fn await_typed_reply<T>(
+    received: oneshot::Receiver<std::result::Result<T, SemanticSearchError>>,
+    deadline: Option<Instant>,
+) -> std::result::Result<T, SemanticSearchError> {
+    let outcome = match deadline {
+        Some(deadline) => match tokio::time::timeout_at(deadline, received).await {
+            Ok(outcome) => outcome,
+            Err(_elapsed) => {
+                return Err(SemanticSearchError::lane(WorkError::TimedOut {
+                    lane: WorkLane::Embedding,
+                }));
+            }
+        },
+        None => received.await,
+    };
+    outcome.map_err(|_stopped| {
+        SemanticSearchError::unavailable(
+            "embedding search worker stopped before returning output".to_owned(),
+        )
+    })?
 }
 
 #[requires(true)]
@@ -247,30 +629,73 @@ where
     }
 }
 
+/// The production job handler: owns the embedding cache for the worker's
+/// lifetime and evaluates jobs against it.
 #[requires(true)]
 #[ensures(true)]
-fn spawn_embedding_worker(
-    receiver: mpsc::Receiver<EmbeddingToolJob>,
+fn embedding_job_runner(
     startup: std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError>,
-) {
-    thread::Builder::new()
-        .name("jbotci-embedding-search".to_owned())
-        .spawn(move || embedding_worker_loop(receiver, startup))
-        .expect("embedding search worker thread starts");
+) -> impl FnMut(EmbeddingJob) {
+    let mut cache = embedding_search_cache_from_startup(startup);
+    move |job: EmbeddingJob| job.run(&mut cache)
+}
+
+/// Load the embedding service on first use; afterwards the cache is either
+/// `Loaded` or permanently `Unavailable` with the reason.
+#[requires(true)]
+#[ensures(!matches!(cache, EmbeddingSearchCache::Unloaded { .. }))]
+fn ensure_embedding_service_loaded(cache: &mut EmbeddingSearchCache) {
+    if let EmbeddingSearchCache::Unloaded { model_key } = cache {
+        let model_key = model_key.clone();
+        *cache = match load_server_embedding_search_service(model_key.as_str()) {
+            Ok(service) => EmbeddingSearchCache::Loaded { service },
+            Err(error) => EmbeddingSearchCache::Unavailable {
+                error: new!(CachedEmbeddingError {
+                    message: format!(
+                        "server embedding artifacts for `{}` are unavailable: {error}",
+                        model_key.as_str()
+                    ),
+                }),
+            },
+        };
+    }
+}
+
+/// The loaded embedding service, or the cached reason it is unavailable.
+#[requires(true)]
+#[ensures(ret.as_ref().err().is_none_or(|message| !message.trim().is_empty()))]
+fn loaded_embedding_service(
+    cache: &mut EmbeddingSearchCache,
+) -> std::result::Result<&mut ToolEmbeddingSearchService, String> {
+    ensure_embedding_service_loaded(cache);
+    match cache {
+        EmbeddingSearchCache::Loaded { service } => Ok(service),
+        EmbeddingSearchCache::Unavailable { error } => Err(error.message.clone()),
+        EmbeddingSearchCache::Unloaded { .. } => {
+            unreachable!("embedding search cache is initialized")
+        }
+    }
 }
 
 #[requires(true)]
-#[ensures(true)]
-fn embedding_worker_loop(
-    mut receiver: mpsc::Receiver<EmbeddingToolJob>,
-    startup: std::result::Result<ServerEmbeddingModelKey, CachedEmbeddingError>,
-) {
-    let mut cache = embedding_search_cache_from_startup(startup);
-    while let Some(job) = receiver.blocking_recv() {
-        let EmbeddingToolJob { request, response } = job;
-        let output = run_embedding_tool_request(request, &mut cache);
-        if response.send(output).is_err() {
-            continue;
+#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
+fn run_with_embedding_cache<T>(
+    cache: &mut EmbeddingSearchCache,
+    runner: impl FnOnce(&mut ToolExecutionContext<'_>) -> Result<T>,
+) -> Result<T> {
+    ensure_embedding_service_loaded(cache);
+    match cache {
+        EmbeddingSearchCache::Loaded { service } => {
+            let mut context = ToolExecutionContext::with_embedding_search(service);
+            runner(&mut context)
+        }
+        EmbeddingSearchCache::Unavailable { error } => {
+            let mut context =
+                ToolExecutionContext::embedding_search_unavailable(error.message.clone());
+            runner(&mut context)
+        }
+        EmbeddingSearchCache::Unloaded { .. } => {
+            unreachable!("embedding search cache is initialized")
         }
     }
 }
@@ -315,58 +740,6 @@ fn embedding_search_cache_from_startup(
     match startup {
         Ok(model_key) => EmbeddingSearchCache::Unloaded { model_key },
         Err(error) => EmbeddingSearchCache::Unavailable { error },
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_embedding_tool_request(
-    request: EmbeddingToolRequest,
-    cache: &mut EmbeddingSearchCache,
-) -> Result<ToolRenderedOutput> {
-    match request {
-        EmbeddingToolRequest::Cukta { request } => run_with_embedding_cache(cache, |context| {
-            run_tool_cukta_with_context(request, context)
-        }),
-        EmbeddingToolRequest::Vlacku { request } => run_with_embedding_cache(cache, |context| {
-            run_tool_vlacku_with_context(request, context)
-        }),
-    }
-}
-
-#[requires(true)]
-#[ensures(ret.as_ref().err().is_none_or(|error| !error.to_string().is_empty()))]
-fn run_with_embedding_cache(
-    cache: &mut EmbeddingSearchCache,
-    runner: impl FnOnce(&mut ToolExecutionContext<'_>) -> Result<ToolRenderedOutput>,
-) -> Result<ToolRenderedOutput> {
-    if let EmbeddingSearchCache::Unloaded { model_key } = cache {
-        let model_key = model_key.clone();
-        *cache = match load_server_embedding_search_service(model_key.as_str()) {
-            Ok(service) => EmbeddingSearchCache::Loaded { service },
-            Err(error) => EmbeddingSearchCache::Unavailable {
-                error: new!(CachedEmbeddingError {
-                    message: format!(
-                        "server embedding artifacts for `{}` are unavailable: {error}",
-                        model_key.as_str()
-                    ),
-                }),
-            },
-        };
-    }
-    match cache {
-        EmbeddingSearchCache::Loaded { service } => {
-            let mut context = ToolExecutionContext::with_embedding_search(service);
-            runner(&mut context)
-        }
-        EmbeddingSearchCache::Unavailable { error } => {
-            let mut context =
-                ToolExecutionContext::embedding_search_unavailable(error.message.clone());
-            runner(&mut context)
-        }
-        EmbeddingSearchCache::Unloaded { .. } => {
-            unreachable!("embedding search cache is initialized")
-        }
     }
 }
 
@@ -1512,8 +1885,10 @@ mod tests {
     fn discord_interaction(subcommand: &str, options: Vec<serde_json::Value>) -> serde_json::Value {
         serde_json::json!({
             "type": 2,
+            "id": "555555555555555555",
             "application_id": "123456789",
             "token": "test-token",
+            "member": { "user": { "id": "123456789012345678" } },
             "data": {
                 "name": "jbotci",
                 "options": [
@@ -1577,22 +1952,7 @@ mod tests {
         let mut cache = embedding_search_cache_from_startup(configured_embedding_search_startup());
         set_server_embedding_model_key_env(None);
 
-        let output = run_embedding_tool_request(
-            EmbeddingToolRequest::Vlacku {
-                request: jbotci_cli::ToolVlackuRequest {
-                    mode: jbotci_cli::ToolVlackuMode::Meaning,
-                    query: "go".to_owned(),
-                    count: Some(1),
-                    word_types: Vec::new(),
-                    min_votes: None,
-                    min_similarity: None,
-                    decompose_lujvo: true,
-                    show_etymology: false,
-                },
-            },
-            &mut cache,
-        )
-        .expect("tool output");
+        let output = run_vlacku_job(meaning_vlacku_request("go"), &mut cache).expect("tool output");
 
         assert_eq!(output.status, jbotci_cli::ToolStatus::InvalidInput);
         assert!(
@@ -1601,6 +1961,41 @@ mod tests {
                 .contains("unsupported server embedding model `not-a-model`")
         );
         assert!(matches!(cache, EmbeddingSearchCache::Unavailable { .. }));
+
+        // The typed Discord operations report the same cached reason, typed
+        // as unavailability, instead of silently degrading to another search.
+        let (reply, received) = oneshot::channel();
+        EmbeddingJob::VlackuHits {
+            query: SearchQuery::new("go").expect("query"),
+            count: NonZeroUsize::new(5).expect("count"),
+            options: VlackuSearchOptions::default(),
+            reply,
+            keepalive: None,
+        }
+        .run(&mut cache);
+        let hits = received.blocking_recv().expect("reply");
+        assert!(
+            hits.as_ref().is_err_and(|error| {
+                matches!(error.as_data(), bityzba::data!(SemanticSearchError::Unavailable { reason }) if reason.contains("unsupported server embedding model `not-a-model`"))
+            }),
+            "{hits:?}"
+        );
+        let (reply, received) = oneshot::channel();
+        EmbeddingJob::CuktaSearch {
+            query: SearchQuery::new("tanru").expect("query"),
+            count: NonZeroUsize::new(5).expect("count"),
+            targets: CuktaTargetFilter::default(),
+            reply,
+            keepalive: None,
+        }
+        .run(&mut cache);
+        let search = received.blocking_recv().expect("reply");
+        assert!(
+            search.as_ref().is_err_and(|error| {
+                matches!(error.as_data(), bityzba::data!(SemanticSearchError::Unavailable { reason }) if reason.contains("unsupported server embedding model `not-a-model`"))
+            }),
+            "{search:?}"
+        );
     }
 
     #[test]
@@ -1612,26 +2007,276 @@ mod tests {
                 message: "cached embedding load failed".to_owned(),
             }),
         };
-        let output = run_embedding_tool_request(
-            EmbeddingToolRequest::Vlacku {
-                request: jbotci_cli::ToolVlackuRequest {
-                    mode: jbotci_cli::ToolVlackuMode::Meaning,
-                    query: "goer".to_owned(),
-                    count: Some(1),
-                    word_types: Vec::new(),
-                    min_votes: None,
-                    min_similarity: None,
-                    decompose_lujvo: true,
-                    show_etymology: false,
-                },
-            },
-            &mut cache,
-        )
-        .expect("tool output");
+        let output =
+            run_vlacku_job(meaning_vlacku_request("goer"), &mut cache).expect("tool output");
 
         assert_eq!(output.status, jbotci_cli::ToolStatus::InvalidInput);
         assert_eq!(output.stderr, "vlacku: cached embedding load failed\n");
         assert!(matches!(cache, EmbeddingSearchCache::Unavailable { .. }));
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn meaning_vlacku_request(query: &str) -> jbotci_cli::ToolVlackuRequest {
+        jbotci_cli::ToolVlackuRequest {
+            mode: jbotci_cli::ToolVlackuMode::Meaning,
+            query: query.to_owned(),
+            count: Some(1),
+            word_types: Vec::new(),
+            min_votes: None,
+            min_similarity: None,
+            decompose_lujvo: true,
+            show_etymology: false,
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn run_vlacku_job(
+        request: jbotci_cli::ToolVlackuRequest,
+        cache: &mut EmbeddingSearchCache,
+    ) -> Result<ToolRenderedOutput> {
+        let (reply, received) = oneshot::channel();
+        EmbeddingJob::Vlacku { request, reply }.run(cache);
+        received.blocking_recv().expect("reply delivered")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn search_query() -> SearchQuery {
+        SearchQuery::new("go").expect("query")
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn hits_with_deadline(
+        services: &ToolServices,
+        deadline: Duration,
+    ) -> impl std::future::Future<
+        Output = std::result::Result<Vec<DictionarySemanticHit>, SemanticSearchError>,
+    > + '_ {
+        services.semantic_vlacku_hits(
+            search_query(),
+            NonZeroUsize::new(5).expect("count"),
+            VlackuSearchOptions::default(),
+            Some(Instant::now() + deadline),
+            None,
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn reply_empty_hits(job: EmbeddingJob) {
+        if let EmbeddingJob::VlackuHits {
+            reply, keepalive, ..
+        } = job
+        {
+            // The reply is sent first, exactly as the real evaluator ends:
+            // what the job retained is released only as the job is dropped.
+            let _ = reply.send(Ok(Vec::new()));
+            drop(keepalive);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn embedding_admission_bounds_waiters_and_discards_abandoned_jobs() {
+        let processed = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+        let services = ToolServices::with_worker(1, 1, {
+            let processed = Arc::clone(&processed);
+            move || {
+                move |job| {
+                    let seen = processed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    if seen == 1 {
+                        // The first job holds the worker until released.
+                        let _ = release_rx.recv();
+                    }
+                    reply_empty_hits(job);
+                }
+            }
+        });
+        // Job 1 is taken by the worker and blocks there.
+        let first_services = services.clone();
+        let first = tokio::spawn(async move {
+            hits_with_deadline(&first_services, Duration::from_secs(10)).await
+        });
+        for _ in 0..400 {
+            if processed.load(std::sync::atomic::Ordering::SeqCst) == 1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert_eq!(processed.load(std::sync::atomic::Ordering::SeqCst), 1);
+        // Job 2 takes the single queue slot and gives up waiting for its
+        // reply: a timeout, not an unavailability.
+        let second = hits_with_deadline(&services, Duration::from_millis(50)).await;
+        assert_eq!(
+            second,
+            Err(SemanticSearchError::lane(WorkError::TimedOut {
+                lane: WorkLane::Embedding
+            }))
+        );
+        assert!(second.unwrap_err().to_string().contains("meaning search"));
+        // Job 3 finds the queue full and waits for a slot; job 4 arrives
+        // while job 3 holds the only waiter place and is refused at once.
+        let third_services = services.clone();
+        let third = tokio::spawn(async move {
+            hits_with_deadline(&third_services, Duration::from_millis(400)).await
+        });
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        let fourth = hits_with_deadline(&services, Duration::from_millis(100)).await;
+        assert_eq!(
+            fourth,
+            Err(SemanticSearchError::lane(WorkError::Overloaded {
+                lane: WorkLane::Embedding
+            }))
+        );
+        assert_eq!(
+            third.await.expect("task"),
+            Err(SemanticSearchError::lane(WorkError::WaitTimedOut {
+                lane: WorkLane::Embedding
+            }))
+        );
+        // An already expired deadline admits nothing.
+        let expired = services
+            .semantic_vlacku_hits(
+                search_query(),
+                NonZeroUsize::new(5).expect("count"),
+                VlackuSearchOptions::default(),
+                Some(Instant::now()),
+                None,
+            )
+            .await;
+        assert_eq!(
+            expired,
+            Err(SemanticSearchError::lane(WorkError::WaitTimedOut {
+                lane: WorkLane::Embedding
+            }))
+        );
+        // Release the worker: job 1 completes; job 2's caller is gone, so the
+        // worker discards it without evaluation; a fresh job runs.
+        release_tx.send(()).expect("worker waiting");
+        assert_eq!(first.await.expect("task"), Ok(Vec::new()));
+        let fifth = hits_with_deadline(&services, Duration::from_secs(10)).await;
+        assert_eq!(fifth, Ok(Vec::new()));
+        assert_eq!(
+            processed.load(std::sync::atomic::Ordering::SeqCst),
+            2,
+            "the abandoned job was never evaluated"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_started_meaning_search_holds_its_delivery_until_it_ends() {
+        // The embedding lane runs its own worker thread, so a caller that
+        // gives up (a cold model load outlasting a Discord deadline, say)
+        // must not release what the running search stands for: the same
+        // interaction could then be admitted and run a second time.
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        /// Stands in for a delivery: records the moment it is let go.
+        #[invariant(true)]
+        struct Probe {
+            released: Arc<AtomicBool>,
+        }
+
+        impl Drop for Probe {
+            #[requires(true)]
+            #[ensures(true)]
+            fn drop(&mut self) {
+                self.released.store(true, Ordering::Release);
+            }
+        }
+
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+        let started = Arc::new(AtomicBool::new(false));
+        let services = ToolServices::with_worker(1, 1, {
+            let started = Arc::clone(&started);
+            move || {
+                move |job| {
+                    started.store(true, Ordering::Release);
+                    // However long this takes, it is work that has begun.
+                    let _ = release_rx.recv();
+                    reply_empty_hits(job);
+                }
+            }
+        });
+
+        let released = Arc::new(AtomicBool::new(false));
+        let keepalive: WorkKeepalive = Arc::new(Probe {
+            released: Arc::clone(&released),
+        });
+        let outcome = services
+            .semantic_vlacku_hits(
+                search_query(),
+                NonZeroUsize::new(5).expect("count"),
+                VlackuSearchOptions::default(),
+                Some(Instant::now() + Duration::from_millis(80)),
+                Some(Arc::clone(&keepalive)),
+            )
+            .await;
+        assert_eq!(
+            outcome,
+            Err(SemanticSearchError::lane(WorkError::TimedOut {
+                lane: WorkLane::Embedding
+            })),
+            "the caller stopped waiting"
+        );
+        assert!(started.load(Ordering::Acquire), "the search had started");
+        // The caller lets go of everything it held; the search has not.
+        drop(keepalive);
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        assert!(
+            !released.load(Ordering::Acquire),
+            "the running search still stands for its delivery"
+        );
+
+        release_tx.send(()).expect("the worker is waiting");
+        for _ in 0..400 {
+            if released.load(Ordering::Acquire) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert!(
+            released.load(Ordering::Acquire),
+            "and lets it go once the work really ends"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_cold_model_load_times_out_callers_without_claiming_unavailability() {
+        let services = ToolServices::with_worker(4, 4, || {
+            let mut loaded = false;
+            move |job| {
+                if !loaded {
+                    // The first job pays the model load.
+                    thread::sleep(Duration::from_millis(300));
+                    loaded = true;
+                }
+                reply_empty_hits(job);
+            }
+        });
+        let during_load = hits_with_deadline(&services, Duration::from_millis(50)).await;
+        assert_eq!(
+            during_load,
+            Err(SemanticSearchError::lane(WorkError::TimedOut {
+                lane: WorkLane::Embedding
+            }))
+        );
+        let message = during_load.unwrap_err().to_string();
+        assert!(
+            !message.contains("unavailable") && !message.contains("not running"),
+            "{message}"
+        );
+        let after_load = hits_with_deadline(&services, Duration::from_secs(10)).await;
+        assert_eq!(after_load, Ok(Vec::new()));
     }
 
     #[tokio::test]
@@ -2879,14 +3524,23 @@ mod tests {
     #[tokio::test]
     #[requires(true)]
     #[ensures(true)]
-    async fn discord_reports_malformed_json_as_interaction_message() {
+    async fn discord_refuses_a_body_that_is_not_an_interaction() {
         let _env_guard = lock_test_env();
         let key = test_discord_signing_key();
         let public_key = hex_bytes(&key.verifying_key().to_bytes());
         configure_discord_test_env(&public_key);
         let app = router(test_config(test_static_dir()));
 
-        let response = post_signed_discord_body(app, "{".to_owned(), &key).await;
+        // A signed body that is not JSON is not an interaction to answer: it
+        // is a bad request, and saying so is more honest than replying in the
+        // channel about jbotci's own parser.
+        let response = post_signed_discord_body(app.clone(), "{".to_owned(), &key).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        // Valid JSON that is not an interaction jbotci handles is answered
+        // privately, because Discord expects an interaction response.
+        let response =
+            post_signed_discord_body(app, serde_json::json!({ "type": 9 }).to_string(), &key).await;
         assert_eq!(response.status(), StatusCode::OK);
         let json = response_json(response).await;
         assert_eq!(json["type"], 4);
@@ -2894,7 +3548,7 @@ mod tests {
             json["data"]["content"]
                 .as_str()
                 .expect("message content")
-                .contains("Invalid Discord interaction JSON")
+                .contains("not one jbotci understands")
         );
     }
 
@@ -2946,20 +3600,29 @@ mod tests {
         let public_key = hex_bytes(&key.verifying_key().to_bytes());
         configure_discord_test_env(&public_key);
         let app = router(test_config(test_static_dir()));
-        let mut interaction =
-            discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
-        interaction["application_id"] = serde_json::json!("123/456");
+        // An identifier that could travel into a URL path is not read at
+        // all, so nothing it names is ever requested.
+        for (field, value) in [
+            ("application_id", "123/456"),
+            ("token", "bad/token"),
+            ("id", "not-a-snowflake"),
+        ] {
+            let mut interaction =
+                discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
+            interaction[field] = serde_json::json!(value);
 
-        let response = post_signed_discord(app.clone(), interaction, &key).await;
-        assert_eq!(response.status(), StatusCode::OK);
-        let json = response_json(response).await;
-        assert_eq!(json["type"], 4);
-        assert!(
-            json["data"]["content"]
-                .as_str()
-                .expect("message content")
-                .contains("invalid application id or token")
-        );
+            let response = post_signed_discord(app.clone(), interaction, &key).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let json = response_json(response).await;
+            assert_eq!(json["type"], 4, "{field}");
+            assert!(
+                json["data"]["content"]
+                    .as_str()
+                    .expect("message content")
+                    .contains("not one jbotci understands"),
+                "{field}: {json}"
+            );
+        }
 
         let mut interaction =
             discord_interaction("vlasei", vec![discord_string_option("text", "coi")]);
@@ -2973,10 +3636,16 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn discord_command_registration_payload_matches_public_script_shape() {
-        let registration = discord::discord_command_registration();
-        assert_eq!(registration.payload["name"], "jbotci");
-        let subcommands = registration.payload["options"]
+    fn discord_command_registration_keeps_its_installation_contexts() {
+        // A bulk overwrite replaces every field of the command, so the
+        // registration must carry the contexts the installed command has:
+        // guild and user installs, usable in direct messages.
+        let payload = discord::discord_command_registration();
+        assert_eq!(payload["name"], "jbotci");
+        assert_eq!(payload["integration_types"], serde_json::json!([0, 1]));
+        assert_eq!(payload["contexts"], serde_json::json!([0, 1, 2]));
+        assert_eq!(payload["dm_permission"], serde_json::json!(true));
+        let subcommands = payload["options"]
             .as_array()
             .expect("subcommand array")
             .iter()
@@ -2984,167 +3653,15 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(
             subcommands,
-            vec!["gentufa", "vlasei", "vlacku", "cukta", "jvozba", "gimfihi"]
+            vec![
+                "gentufa", "vlasei", "vlatai", "vlacku", "cukta", "jvozba", "gimfihi"
+            ]
         );
         assert!(
             subcommands
                 .iter()
                 .all(|name| external_api_identifier_is_safe(name))
         );
-    }
-
-    #[requires(true)]
-    #[ensures(ret.len() == pairs.len())]
-    fn discord_gentufa_options(pairs: &[(&str, serde_json::Value)]) -> Vec<serde_json::Value> {
-        pairs
-            .iter()
-            .map(|(name, value)| serde_json::json!({ "name": name, "value": value }))
-            .collect()
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn discord_gentufa_registration_advertises_display_controls() {
-        let registration = discord::discord_command_registration();
-        let gentufa = registration.payload["options"]
-            .as_array()
-            .expect("subcommand array")
-            .iter()
-            .find(|option| option["name"] == "gentufa")
-            .expect("gentufa subcommand");
-        let options = gentufa["options"].as_array().expect("gentufa options");
-        let shapes = options
-            .iter()
-            .map(|option| {
-                (
-                    option["name"].as_str().expect("option name"),
-                    option["type"].as_u64().expect("option type"),
-                    option["required"].as_bool().expect("option required"),
-                )
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            shapes,
-            vec![
-                ("text", 3, true),
-                ("format", 3, false),
-                ("dialect", 3, false),
-                ("show-elided", 5, false),
-                ("show-glosses", 5, false),
-                ("show-compounds", 5, false),
-            ]
-        );
-        for option in options {
-            let description = option["description"].as_str().expect("option description");
-            assert!(
-                description.chars().count() <= 100,
-                "Discord caps option descriptions at 100 characters: {description}"
-            );
-        }
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn discord_gentufa_parses_display_control_defaults_and_values() {
-        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[(
-            "text",
-            serde_json::json!("mi klama"),
-        )]))
-        .expect("default gentufa request");
-        assert_eq!(request.text, "mi klama");
-        assert_eq!(request.format, ToolGentufaFormat::Tree);
-        assert_eq!(request.show_refs, None);
-        assert!(!request.show_defs);
-        assert!(!request.show_elided);
-        assert!(!request.show_glosses);
-        assert!(request.show_compounds);
-
-        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
-            ("text", serde_json::json!("mi pa moi klama")),
-            ("format", serde_json::json!("png")),
-            ("dialect", serde_json::json!("zantufa")),
-            ("show-elided", serde_json::json!(true)),
-            ("show-glosses", serde_json::json!(true)),
-            ("show-compounds", serde_json::json!(false)),
-        ]))
-        .expect("explicit gentufa request");
-        assert_eq!(request.format, ToolGentufaFormat::Png);
-        assert_eq!(request.dialect.as_deref(), Some("zantufa"));
-        assert!(request.show_elided);
-        assert!(request.show_glosses);
-        assert!(!request.show_compounds);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn discord_gentufa_link_carries_the_requested_display_controls() {
-        let _env_guard = lock_test_env();
-        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[(
-            "text",
-            serde_json::json!("mi klama"),
-        )]))
-        .expect("default gentufa request");
-        let link = discord::gentufa_link(&request).expect("gentufa link");
-        let (_, query) = link.split_once('?').expect("link query");
-        let state = jbotci_web_core::parse_gentufa_web_route("/gentufa", query);
-        assert_eq!(state.text, "mi klama");
-        assert_eq!(state.view_mode, jbotci_web_core::GentufaWebViewMode::Blocks);
-        assert!(!state.show_elided);
-        assert!(!state.show_glosses);
-        assert!(state.show_compounds);
-        for key in ["elided", "glosses", "compounds"] {
-            assert!(!query.contains(key), "{query}");
-        }
-
-        // The chat format may mask a control, but the link targets the blocks
-        // view, which honors all three, so it reflects what was asked for.
-        let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
-            ("text", serde_json::json!("mi pa moi klama")),
-            ("format", serde_json::json!("tree")),
-            ("show-elided", serde_json::json!(true)),
-            ("show-glosses", serde_json::json!(true)),
-            ("show-compounds", serde_json::json!(false)),
-        ]))
-        .expect("explicit gentufa request");
-        let link = discord::gentufa_link(&request).expect("gentufa link");
-        let (_, query) = link.split_once('?').expect("link query");
-        let state = jbotci_web_core::parse_gentufa_web_route("/gentufa", query);
-        assert_eq!(state.text, "mi pa moi klama");
-        assert!(state.show_elided);
-        assert!(state.show_glosses);
-        assert!(!state.show_compounds);
-    }
-
-    #[test]
-    #[requires(true)]
-    #[ensures(true)]
-    fn discord_gentufa_executes_every_advertised_format_with_every_display_control() {
-        for format in ["tree", "brackets", "json", "svg", "png"] {
-            for (show_elided, show_glosses, show_compounds) in
-                [(false, false, true), (true, true, false)]
-            {
-                let request = discord::parse_discord_gentufa(&discord_gentufa_options(&[
-                    ("text", serde_json::json!("mi pa moi klama")),
-                    ("format", serde_json::json!(format)),
-                    ("show-elided", serde_json::json!(show_elided)),
-                    ("show-glosses", serde_json::json!(show_glosses)),
-                    ("show-compounds", serde_json::json!(show_compounds)),
-                ]))
-                .expect("gentufa request");
-                let output =
-                    run_tool_gentufa(request).unwrap_or_else(|error| panic!("{format}: {error}"));
-                assert_eq!(
-                    output.status,
-                    ToolStatus::Success,
-                    "{format} elided={show_elided} glosses={show_glosses} compounds={show_compounds}: {}",
-                    output.stderr
-                );
-                assert!(!output.stdout.is_empty(), "{format}");
-            }
-        }
     }
 
     #[tokio::test]

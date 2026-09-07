@@ -74,6 +74,7 @@ pub enum JvozbaSegmentKind {
 #[invariant(::FinalConsonant { .. } => true)]
 #[invariant(::NoRafsiAvailable { .. } => true)]
 #[invariant(::NoDictionaryEntry { .. } => true)]
+#[invariant(::TooMuchWork { .. } => true)]
 #[invariant(::CouldNotBuildLujvo => true)]
 #[invariant(::CouldNotBuildCompound => true)]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -93,10 +94,114 @@ pub enum JvozbaError {
     NoRafsiAvailable { offending: String },
     #[error("No dictionary entry for `{offending}`.")]
     NoDictionaryEntry { offending: String },
+    #[error(
+        "Building a word from these inputs needs {amount} {}, above this build's limit of {limit}. Use fewer or shorter pieces.",
+        measure.description()
+    )]
+    TooMuchWork {
+        measure: JvozbaWorkMeasure,
+        amount: u64,
+        limit: u64,
+    },
     #[error("Could not build a valid lujvo from the supplied inputs.")]
     CouldNotBuildLujvo,
     #[error("Could not build a valid compound from the supplied inputs.")]
     CouldNotBuildCompound,
+}
+
+/// What a refused build measured too much of.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JvozbaWorkMeasure {
+    /// Pieces to combine, after dictionary lujvo expand into their own.
+    Pieces,
+    /// Letters in the longest spelling the search could assemble.
+    SpellingLetters,
+    /// One placement is one piece of one complete candidate spelling.
+    Placements,
+}
+
+impl JvozbaWorkMeasure {
+    #[requires(true)]
+    #[ensures(!ret.is_empty())]
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::Pieces => "pieces to combine",
+            Self::SpellingLetters => "letters in one candidate word",
+            Self::Placements => "spelling comparisons",
+        }
+    }
+}
+
+/// How much work one build may perform. Every figure is read from the plan
+/// the shared candidate expansion produces, so it counts the real search
+/// rather than the input's length: dictionary lujvo expand into their own
+/// pieces, and a word contributes as many candidates as it has usable rafsi.
+///
+/// The caller chooses the figures. [`JvozbaBuildLimits::unlimited`] is what
+/// [`build_best_jvozba_detailed`] has always done, searching whatever it is
+/// given; a service answering within a deadline picks finite figures from its
+/// own measurements instead. Even an unlimited build refuses a space whose
+/// size overflows a 64-bit count, because such a search cannot finish.
+#[invariant(*max_pieces >= 2)]
+#[invariant(*max_placements > 0)]
+#[invariant(*max_spelling_letters > 0)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct JvozbaBuildLimits {
+    pub max_pieces: usize,
+    pub max_placements: u64,
+    pub max_spelling_letters: usize,
+}
+
+impl JvozbaBuildLimits {
+    /// No limit the caller cares about.
+    #[requires(true)]
+    #[ensures(ret.max_placements == u64::MAX)]
+    pub fn unlimited() -> Self {
+        new!(JvozbaBuildLimits {
+            max_pieces: usize::MAX,
+            max_placements: u64::MAX,
+            max_spelling_letters: usize::MAX,
+        })
+    }
+}
+
+/// The letters of the longest spelling `choices` could assemble: the longest
+/// candidate of every piece, plus at most one hyphen per junction. `None`
+/// when that count overflows.
+#[requires(true)]
+#[ensures(choices.is_empty() -> ret == Some(0))]
+fn longest_spelling_letters(choices: &[Vec<LujvoBuildPart>]) -> Option<usize> {
+    let hyphens = choices.len().saturating_sub(1);
+    choices.iter().try_fold(hyphens, |letters, choice| {
+        let longest = choice
+            .iter()
+            .map(|part| part.as_text().chars().count())
+            .max()
+            .unwrap_or(0);
+        letters.checked_add(longest)
+    })
+}
+
+/// Whether searching `choices` exhaustively would exceed `limit` placements.
+/// The product is built with early exit, so an astronomically large space is
+/// recognized without computing its size.
+#[requires(limit > 0)]
+#[ensures(choices.is_empty() -> !ret)]
+fn placements_exceed_limit(choices: &[Vec<LujvoBuildPart>], limit: u64) -> bool {
+    if choices.is_empty() {
+        return false;
+    }
+    let mut placements = choices.len() as u64;
+    for choice in choices {
+        placements = match placements.checked_mul(choice.len() as u64) {
+            Some(placements) if placements <= limit => placements,
+            _ => return true,
+        };
+    }
+    false
 }
 
 #[requires(true)]
@@ -106,6 +211,21 @@ pub fn build_best_jvozba_detailed(
     dictionary: &Dictionary<'_>,
     raw_inputs: &[JvozbaInput],
 ) -> Result<JvozbaBuildResult, JvozbaError> {
+    build_best_jvozba_detailed_within(mode, dictionary, raw_inputs, JvozbaBuildLimits::unlimited())
+}
+
+/// Build the best word `raw_inputs` can spell, doing no more work than
+/// `limits` allows. The whole request is refused before the search starts,
+/// because the search must visit every spelling before it can name the best
+/// one: a half-searched space would yield a winner that is not the winner.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|result| !result.word.is_empty()) || ret.is_err())]
+pub fn build_best_jvozba_detailed_within(
+    mode: JvozbaMode,
+    dictionary: &Dictionary<'_>,
+    raw_inputs: &[JvozbaInput],
+    limits: JvozbaBuildLimits,
+) -> Result<JvozbaBuildResult, JvozbaError> {
     let expanded_inputs = raw_inputs
         .iter()
         .flat_map(|input| expand_input(dictionary, input))
@@ -113,7 +233,34 @@ pub fn build_best_jvozba_detailed(
     if expanded_inputs.len() < 2 {
         return Err(JvozbaError::RequiresAtLeastTwoInputs);
     }
+    if expanded_inputs.len() > limits.max_pieces {
+        return Err(JvozbaError::TooMuchWork {
+            measure: JvozbaWorkMeasure::Pieces,
+            amount: expanded_inputs.len() as u64,
+            limit: limits.max_pieces as u64,
+        });
+    }
     let candidate_lists = build_candidate_lists(mode, dictionary, &expanded_inputs)?;
+    // A short choice list can still carry long pieces, and every spelling is
+    // assembled and scored in full, so the spelling's own size is bounded
+    // apart from how many spellings there are.
+    let letters = longest_spelling_letters(&candidate_lists);
+    if letters.is_none_or(|letters| letters > limits.max_spelling_letters) {
+        return Err(JvozbaError::TooMuchWork {
+            measure: JvozbaWorkMeasure::SpellingLetters,
+            amount: letters.unwrap_or(usize::MAX) as u64,
+            limit: limits.max_spelling_letters as u64,
+        });
+    }
+    if placements_exceed_limit(&candidate_lists, limits.max_placements) {
+        return Err(JvozbaError::TooMuchWork {
+            measure: JvozbaWorkMeasure::Placements,
+            // The product is not computed past the limit, so report the limit
+            // itself as the figure exceeded rather than invent a total.
+            amount: limits.max_placements.saturating_add(1),
+            limit: limits.max_placements,
+        });
+    }
     let Some(candidate) = choose_best_lujvo_candidate_from_parts(mode.into(), &candidate_lists)
     else {
         return Err(match mode {
@@ -623,6 +770,185 @@ mod tests {
     use bityzba::{ensures, requires};
 
     use super::*;
+
+    /// The figures the Discord service uses, so the boundaries these tests
+    /// pin are the ones a caller with a deadline actually applies.
+    #[requires(true)]
+    #[ensures(true)]
+    fn bounded() -> JvozbaBuildLimits {
+        new!(JvozbaBuildLimits {
+            max_pieces: 24,
+            max_placements: 8192,
+            max_spelling_letters: 256,
+        })
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_bounded_build_refuses_an_oversized_search_before_it_starts() {
+        let dictionary = jbotci_dictionary_data::english();
+        // Eight plain words are inside the limit and still build; a `klama`
+        // chain crosses it at the ninth (4096 placements against 9216).
+        let ordinary = (0..8)
+            .map(|_| JvozbaInput::Word("klama".to_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            build_best_jvozba_detailed_within(JvozbaMode::Lujvo, dictionary, &ordinary, bounded())
+                .expect("inside the limits")
+                .word,
+            "klaklaklaklaklaklaklakla"
+        );
+        assert!(matches!(
+            build_best_jvozba_detailed_within(
+                JvozbaMode::Lujvo,
+                dictionary,
+                &(0..9)
+                    .map(|_| JvozbaInput::Word("klama".to_owned()))
+                    .collect::<Vec<_>>(),
+                bounded(),
+            ),
+            Err(JvozbaError::TooMuchWork {
+                measure: JvozbaWorkMeasure::Placements,
+                ..
+            })
+        ));
+
+        // Sixty-four are refused before any spelling is compared.
+        let explosive = (0..64)
+            .map(|_| JvozbaInput::Word("klama".to_owned()))
+            .collect::<Vec<_>>();
+        let started = std::time::Instant::now();
+        let error =
+            build_best_jvozba_detailed_within(JvozbaMode::Lujvo, dictionary, &explosive, bounded())
+                .expect_err("above the limits");
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(5),
+            "the refusal does not depend on searching"
+        );
+        let message = error.to_string();
+        assert!(message.contains("pieces to combine"), "{message}");
+        assert!(message.contains("Use fewer or shorter pieces"), "{message}");
+
+        // Inputs that only grow once dictionary lujvo expand are refused on
+        // the expanded count, not the count the user typed.
+        let expanding = (0..20)
+            .map(|_| JvozbaInput::Word("jbobau".to_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            build_best_jvozba_detailed_within(
+                JvozbaMode::Cmevla,
+                dictionary,
+                &expanding,
+                bounded()
+            ),
+            Err(JvozbaError::TooMuchWork {
+                measure: JvozbaWorkMeasure::Pieces,
+                amount: 40,
+                limit: 24,
+            })
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn each_limit_measures_its_own_part_of_the_work() {
+        let piece = |text: &str| new!(LujvoBuildPart::Rafsi(text.to_owned()));
+        let single = vec![vec![piece("kla")], vec![piece("bajra")]];
+        assert!(!placements_exceed_limit(&single, 2));
+        assert_eq!(longest_spelling_letters(&single), Some(9));
+
+        // Three pieces of two candidates each: 8 spellings, 24 placements.
+        let branching = vec![vec![piece("kla"), piece("klam")]; 3];
+        assert!(!placements_exceed_limit(&branching, 24));
+        assert!(placements_exceed_limit(&branching, 23));
+        // The longest spelling counts the longest candidate of every piece
+        // plus one hyphen per junction.
+        assert_eq!(longest_spelling_letters(&branching), Some(14));
+
+        // A space too large to count answers without overflowing.
+        let explosive = vec![vec![piece("kla"), piece("klam")]; 80];
+        assert!(placements_exceed_limit(&explosive, u64::MAX - 1));
+
+        // Few choices can still mean a long spelling, which is refused on
+        // its own measure.
+        let dictionary = jbotci_dictionary_data::english();
+        let long = build_best_jvozba_detailed_within(
+            JvozbaMode::Lujvo,
+            dictionary,
+            &[
+                JvozbaInput::Word("klama".to_owned()),
+                JvozbaInput::Word("bajra".to_owned()),
+            ],
+            new!(JvozbaBuildLimits {
+                max_pieces: 24,
+                max_placements: 8192,
+                max_spelling_letters: 4,
+            }),
+        );
+        assert!(
+            matches!(
+                long,
+                Err(JvozbaError::TooMuchWork {
+                    measure: JvozbaWorkMeasure::SpellingLetters,
+                    ..
+                })
+            ),
+            "{long:?}"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_unbounded_api_still_builds_what_a_bounded_caller_refuses() {
+        // Twenty-five fixed rafsi are one spelling, so the search is cheap
+        // however many pieces there are: the bounded caller still refuses it
+        // on its piece count, and the long-standing entry point still builds
+        // it, which is the behaviour that must not change.
+        let dictionary = jbotci_dictionary_data::english();
+        let pieces = (0..25)
+            .map(|_| JvozbaInput::FixedRafsi("kla".to_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            build_best_jvozba_detailed_within(JvozbaMode::Lujvo, dictionary, &pieces, bounded()),
+            Err(JvozbaError::TooMuchWork {
+                measure: JvozbaWorkMeasure::Pieces,
+                amount: 25,
+                limit: 24,
+            })
+        );
+        assert_eq!(
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &pieces)
+                .expect("no caller limit")
+                .word,
+            "kla".repeat(25)
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn an_unbounded_build_refuses_a_search_it_cannot_even_count() {
+        // No caller limit still leaves the arithmetic one: eighty ordinary
+        // words offer more spellings than a 64-bit count can hold, and a
+        // search whose size cannot be counted cannot be finished either. The
+        // refusal is therefore part of the unbounded API, not only of the
+        // bounded one, which is why every caller of it must handle it.
+        let dictionary = jbotci_dictionary_data::english();
+        let words = (0..80)
+            .map(|_| JvozbaInput::Word("klama".to_owned()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            build_best_jvozba_detailed(JvozbaMode::Lujvo, dictionary, &words),
+            Err(JvozbaError::TooMuchWork {
+                measure: JvozbaWorkMeasure::Placements,
+                amount: u64::MAX,
+                limit: u64::MAX,
+            })
+        );
+    }
 
     #[test]
     #[requires(true)]

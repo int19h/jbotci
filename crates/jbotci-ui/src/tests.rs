@@ -783,6 +783,7 @@ fn page_find_collects_gentufa_outputs_and_excludes_edge_labels() {
             blocks: vec![new!(GentufaBlock {
                 compound_kind: None,
                 block_id: "block-1".to_owned(),
+                parent_block_id: None,
                 node_ids: vec![1],
                 label: "block label".to_owned(),
                 is_leaf: true,
@@ -2284,11 +2285,11 @@ fn pending_local_route_writes_consume_duplicate_targets_together() {
 #[test]
 #[requires(true)]
 #[ensures(true)]
-fn pending_local_gentufa_writes_match_router_normalized_routes() {
+fn pending_local_gentufa_writes_survive_the_router_round_trip() {
     let target = JbotciRoute::from_web_route(
         WebRoute::Gentufa(GentufaWebState {
             text: " coi ".to_owned(),
-            dialect: Some(" (cbm) ".to_owned()),
+            dialect: Some(String::new()),
             view_mode: GentufaWebViewMode::Blocks,
             show_elided: false,
             show_glosses: false,
@@ -2296,11 +2297,15 @@ fn pending_local_gentufa_writes_match_router_normalized_routes() {
         }),
         true,
     );
-    let reported = parse_test_route("", "/gentufa?text=coi&dialect=%28cbm%29");
+    // The router reports back the URL the app wrote. Route state travels
+    // exactly, so the reported route is the recorded one, down to the input's
+    // surrounding whitespace and an explicitly cleared dialect.
+    let reported = parse_test_route("", &target.to_string());
     let mut pending = PendingLocalRouteWrites::default();
 
     pending.record(&target);
 
+    assert_eq!(reported.web_route, target.web_route);
     assert!(pending.consume(&reported));
 }
 
@@ -3486,6 +3491,7 @@ fn test_gentufa_block(
     new!(GentufaBlock {
         compound_kind: None,
         block_id: format!("test-{row}"),
+        parent_block_id: None,
         node_ids: Vec::new(),
         label: "test".to_owned(),
         is_leaf: true,

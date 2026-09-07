@@ -1456,6 +1456,12 @@ class _jvozba_JvozbaSegmentKind(StrEnum):
     HYPHEN = 'hyphen'
 
 @final
+class _jvozba_JvozbaWorkMeasure(StrEnum):
+    PIECES = 'pieces'
+    SPELLING_LETTERS = 'spelling-letters'
+    PLACEMENTS = 'placements'
+
+@final
 class _references_PlaceFrameKind(StrEnum):
     BRIDI = 'bridi'
     BRIDI_TAIL = 'bridi-tail'

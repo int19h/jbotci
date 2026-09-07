@@ -8,28 +8,508 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Cukta",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+        "apps/jbotci-server/src/discord/assemble.rs:AssembleError::AttachmentName",
+        "wraps a validated InvalidAttachmentName; nothing further to constrain",
     ),
     (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Gentufa",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+        "apps/jbotci-server/src/discord/assemble.rs:AssembleError::Bounds",
+        "wraps a validated BoundsError; nothing further to constrain",
     ),
     (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Gimfihi",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+        "apps/jbotci-server/src/discord/assemble.rs:AssembleError::Payload",
+        "wraps a validated PayloadError; nothing further to constrain",
     ),
     (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Jvozba",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+        "apps/jbotci-server/src/discord/codec.rs:HeaderDecodeError::Malformed",
+        "custom-id decode error carries only the offending schema or field name",
     ),
     (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Vlacku",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+        "apps/jbotci-server/src/discord/codec.rs:HeaderDecodeError::UnsupportedSchema",
+        "custom-id decode error carries only the offending schema or field name",
     ),
     (
-        "apps/jbotci-server/src/discord.rs:DiscordCommand::Vlasei",
-        "Discord command wrapper delegates payload validity to the parsed typed tool request",
+        "apps/jbotci-server/src/discord/codec.rs:InputBlockError::Malformed",
+        "input-block decode error carries only the offending field or reason",
+    ),
+    (
+        "apps/jbotci-server/src/discord/codec.rs:InputBlockError::UnexpectedField",
+        "input-block decode error carries only the offending field or reason",
+    ),
+    (
+        "apps/jbotci-server/src/discord/codec.rs:RebuildError::Oversize",
+        "rebuild error reports the measured size; the bound is stated in its message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/codec.rs:RebuildError::State",
+        "rebuild error wraps the typed request-state error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:InteractionResponse::EphemeralText",
+        "private text response; the ephemeral constructor bounds the text",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:InteractionResponse::Modal",
+        "modal response wraps a validated modal",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:MessageComponent::File",
+        "component wrapper delegates validity to the typed file component",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:MessageComponent::MediaGallery",
+        "component wrapper delegates validity to the typed gallery",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:MessageComponent::Section",
+        "component wrapper delegates validity to the typed section",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:MessageComponent::TextDisplay",
+        "component wrapper delegates validity to the typed text display",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:ModalComponent::Label",
+        "modal component wrapper delegates validity to the typed labeled control",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:ModalComponent::TextDisplay",
+        "modal component wrapper delegates validity to the typed text display",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:ModalControl::CheckboxGroup",
+        "control wrapper delegates validity to the typed checkbox group",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:ModalControl::RadioGroup",
+        "control wrapper delegates validity to the typed radio group",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:ModalControl::StringSelect",
+        "control wrapper delegates validity to the typed string select",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:ModalControl::TextInput",
+        "control wrapper delegates validity to the typed text input",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:PayloadError::DuplicateAttachmentName",
+        "payload assembly error carries only the offending name",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:PayloadError::DuplicateCustomId",
+        "payload assembly error carries only the offending id",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:PayloadError::TextBudget",
+        "payload assembly error reports the measured units; the budget is stated in its message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:PayloadError::TooManyComponents",
+        "payload assembly error reports the measured counts",
+    ),
+    (
+        "apps/jbotci-server/src/discord/components.rs:PayloadError::UnreferencedOrMissingAttachment",
+        "payload assembly error carries only the offending name",
+    ),
+    (
+        "apps/jbotci-server/src/discord/dedupe.rs:Admission::First",
+        "carries the delivery ticket that protects the admitted id; every ticket is valid",
+    ),
+    (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::Render",
+        "render error carries only the renderer's message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::TooComplex",
+        "error reports the measured block and column counts",
+    ),
+    (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::TooLarge",
+        "error reports the measured pixel dimensions",
+    ),
+    (
+        "apps/jbotci-server/src/discord/diagram.rs:DiagramError::TooManyBytes",
+        "error reports the measured byte count and the applied limit",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:Interaction::Command",
+        "one kind of interaction, carrying the fields that kind sends; the reader refuses anything else before this exists",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:Interaction::Component",
+        "one kind of interaction, carrying the fields that kind sends; the reader refuses anything else before this exists",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:Interaction::ModalSubmit",
+        "one kind of interaction, carrying the fields that kind sends; the reader refuses anything else before this exists",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:Interaction::Ping",
+        "one kind of interaction, carrying the fields that kind sends; the reader refuses anything else before this exists",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:RestError::Lane",
+        "how a read of the published message ended; every outcome is a possible one and the caller decides what it means",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:RestError::NotCreatedYet",
+        "how a read of the published message ended; every outcome is a possible one and the caller decides what it means",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:RestError::Transport",
+        "how a read of the published message ended; every outcome is a possible one and the caller decides what it means",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Assemble",
+        "why a result could not be produced; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Invalid",
+        "why a result could not be produced; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Link",
+        "why a result could not be produced; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:ResultError::Operation",
+        "why a result could not be produced; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:RunError::Failed",
+        "how running a tool ended, wrapping the error the layer below reported",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:RunError::Invalid",
+        "how running a tool ended, wrapping the error the layer below reported",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:StateError::Block",
+        "why a published message could not be read back as a request; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:StateError::NoSettings",
+        "why a published message could not be read back as a request; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:StateError::Rebuild",
+        "why a published message could not be read back as a request; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:StateError::SourceUnavailable",
+        "why a published message could not be read back as a request; each case wraps an error that carries its own constraints",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:WriteError::Ambiguous",
+        "whether a failed write may still have landed; the reason is free text from the transport",
+    ),
+    (
+        "apps/jbotci-server/src/discord/interaction.rs:WriteError::Failed",
+        "whether a failed write may still have landed; the reason is free text from the transport",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::CollisionCount",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::DuplicateControl",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::EmptyField",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::MissingControl",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::NonTextValue",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::Oversize",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::PageCount",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::ShapeCount",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::TooManyValues",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::UnknownValue",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::WrongValueType",
+        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmittedValue::Selected",
+        "one control's answer as Discord sent it: the values are checked against the control's own options when the request is read",
+    ),
+    (
+        "apps/jbotci-server/src/discord/modal.rs:SubmittedValue::Text",
+        "one control's answer as Discord sent it: any string is a possible answer",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Contents",
+        "contents outcome lists typed chapter entries whose own invariant holds",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Example",
+        "example outcome wraps a CLL example validated by the CLL crate",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::NotFound",
+        "not-found outcome carries the kind and the reference the user typed",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Search",
+        "search outcome wraps a paged result whose own invariant holds",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Section",
+        "section outcome carries CLL blocks validated by the CLL crate",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:CuktaOutcome::Unavailable",
+        "unavailable outcome carries the embedding worker's reason text",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:GimfihiOutcome::Candidates",
+        "candidates outcome wraps shared gimfihi output and a paged result with their own invariants",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:GimfihiOutcome::Setup",
+        "setup outcome carries the preset and its language list from the shared preset table",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:GimfihiPlan::Compose",
+        "plan wraps a shared gimfihi request the resolver has already validated",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:GimfihiPlan::Setup",
+        "plan carries only the optional preset",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Diagram",
+        "error wraps the typed diagram error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Internal",
+        "error carries only a message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Invalid",
+        "error wraps the typed validation error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Page",
+        "error wraps the typed page error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:OperationError::Work",
+        "error wraps the typed admission error unchanged",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::CuktaQueryRequired",
+        "the mode the reader chose without saying what to look for; every mode that needs a query is a possible report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::Dialect",
+        "validation error carries the dialect parser's message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::EmptyField",
+        "validation error names the blank field",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::GimfihiSources",
+        "validation error carries the shared parser/resolver messages",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:RequestValidationError::JvozbaParts",
+        "validation error carries the morphology parser's message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Cukta",
+        "outcome wrapper delegates validity to the typed cukta outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Gentufa",
+        "outcome wrapper delegates validity to the typed gentufa outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Gimfihi",
+        "outcome wrapper delegates validity to the typed gimfihi outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Jvozba",
+        "outcome wrapper delegates validity to the typed jvozba outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Vlacku",
+        "outcome wrapper delegates validity to the typed vlacku outcome",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Vlasei",
+        "outcome wrapper delegates validity to the shared vlasei analysis",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:ToolOutcome::Vlatai",
+        "outcome wrapper delegates validity to the shared vlatai report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:VlackuOutcome::Results",
+        "results outcome wraps a paged result and search diagnostics; valid_missing is derived by the operation",
+    ),
+    (
+        "apps/jbotci-server/src/discord/operations.rs:VlackuOutcome::Unavailable",
+        "unavailable outcome carries the embedding worker's reason text",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:DiscordRequest::Cukta",
+        "Discord request wrapper delegates payload validity to the typed per-tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:DiscordRequest::Gentufa",
+        "Discord request wrapper delegates payload validity to the typed per-tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:DiscordRequest::Gimfihi",
+        "Discord request wrapper delegates payload validity to the typed per-tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:DiscordRequest::Jvozba",
+        "Discord request wrapper delegates payload validity to the typed per-tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:DiscordRequest::Vlacku",
+        "Discord request wrapper delegates payload validity to the typed per-tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:DiscordRequest::Vlasei",
+        "Discord request wrapper delegates payload validity to the typed per-tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:DiscordRequest::Vlatai",
+        "Discord request wrapper delegates payload validity to the typed per-tool request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:RequestStateError::FieldLayout",
+        "state rebuild error carries only the offending identifiers for its message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:RequestStateError::MissingField",
+        "state rebuild error carries only the offending identifiers for its message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:RequestStateError::PageOutOfRange",
+        "state rebuild error carries only the offending identifiers for its message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:RequestStateError::UnknownEnumValue",
+        "state rebuild error carries only the offending identifiers for its message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:RequestStateError::UnknownOptionBits",
+        "state rebuild error carries only the offending identifiers for its message",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::DuplicateOption",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::EmptyText",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::InvalidChoice",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::MissingRequiredOption",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::NotJbotci",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::OversizeText",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::UnknownOption",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::UnknownSubcommand",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:CommandDecodeError::WrongOptionType",
+        "user-facing decode error carries only descriptive payload; any value is a valid report",
+    ),
+    (
+        "apps/jbotci-server/src/discord/schema.rs:SlashOptionKind::Choice",
+        "choice option kind names a closed choice source enum with no further constraint",
+    ),
+    (
+        "apps/jbotci-server/src/discord/transport.rs:TransportError::Ambiguous",
+        "transport error carries only a descriptive reason",
+    ),
+    (
+        "apps/jbotci-server/src/discord/transport.rs:TransportError::BadResponse",
+        "transport error carries only a descriptive reason",
+    ),
+    (
+        "apps/jbotci-server/src/discord/transport.rs:TransportError::NotSent",
+        "transport error carries only a descriptive reason",
+    ),
+    (
+        "apps/jbotci-server/src/discord/transport.rs:TransportError::Rejected",
+        "transport error carries the HTTP status and body Discord returned",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkError::Overloaded",
+        "admission error names the lane it concerns",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkError::Panicked",
+        "admission error names the lane it concerns",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkError::TimedOut",
+        "admission error names the lane it concerns",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkError::WaitTimedOut",
+        "admission error names the lane it concerns",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingJob::Cukta",
+        "a rendered tool request paired with its typed reply channel; the request type validates itself",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingJob::CuktaSearch",
+        "query and count are validated types paired with the typed reply channel; the target filter admits every combination",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingJob::Vlacku",
+        "a rendered tool request paired with its typed reply channel; the request type validates itself",
+    ),
+    (
+        "apps/jbotci-server/src/lib.rs:EmbeddingJob::VlackuHits",
+        "query, count and options are validated types (SearchQuery, NonZeroUsize, VlackuSearchOptions) paired with the typed reply channel",
     ),
     (
         "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Loaded",
@@ -44,12 +524,8 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "embedding search cache starts empty and is initialized on first semantic tool use",
     ),
     (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Cukta",
-        "embedding worker request delegates payload validity to the typed cukta tool request",
-    ),
-    (
-        "apps/jbotci-server/src/lib.rs:EmbeddingToolRequest::Vlacku",
-        "embedding worker request delegates payload validity to the typed vlacku tool request",
+        "apps/jbotci-server/src/lib.rs:SemanticSearchError::Lane",
+        "wraps a WorkError; nothing further to constrain",
     ),
     (
         "apps/jbotci/src/commands/gentufa.rs:GentufaSyntaxStage::MorphologyFailed",
@@ -336,22 +812,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "trybuild failure fixture intentionally uses placeholder syntax",
     ),
     (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Faha",
-        "the motion-prefix flag is intentionally unconstrained; both Boolean states identify valid FAhA atoms",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Roi",
-        "the spatial-prefix and baseline-number flags are intentionally independent; all Boolean combinations identify valid ROI atoms",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Tahe",
-        "the spatial-prefix flag is intentionally unconstrained; both Boolean states identify valid TAhE atoms",
-    ),
-    (
-        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Zaho",
-        "the spatial-prefix flag is intentionally unconstrained; both Boolean states identify valid ZAhO atoms",
-    ),
-    (
         "crates/jbotci-cll/build.rs:EmbeddedDivision::Appendix",
         "the vendored appendix ordinal is a NonZeroUsize, so the variant data already expresses its positivity",
     ),
@@ -382,6 +842,42 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-cll/src/ebnf.rs:CllEbnfToken::Text",
         "EBNF presentation tokens are generated by the CLL grammar tokenizer before rendering",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Block",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Consumed",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Division",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Flattened",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Ignored",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::IndexKey",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Inline",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Structural",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
+    ),
+    (
+        "crates/jbotci-cll/src/import.rs:ElementDisposition::Transparent",
+        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
     ),
     (
         "crates/jbotci-cll/src/model.rs:CllBlock::BlockQuote",
@@ -526,42 +1022,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-cll/src/model.rs:CllInline::Text",
         "CLL inline variants are generated from normalized DocBook inline nodes",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::Block",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::Consumed",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::Division",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::Flattened",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::Ignored",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::IndexKey",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::Inline",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::Structural",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
-    ),
-    (
-        "crates/jbotci-cll/src/import.rs:ElementDisposition::Transparent",
-        "test-only inventory data whose every field is a probe or an expected name; `every_inventoried_element_is_treated_as_the_inventory_declares` runs each entry through the real importer, so a malformed probe or empty expectation fails there rather than at construction",
     ),
     (
         "crates/jbotci-cll/src/model.rs:CllSectionNumber::Section",
@@ -1116,6 +1576,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "jvozba error variant carries no payload beyond the discriminant",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::TooMuchWork",
+        "the measure, the amount and the limit are figures the refused build reports; every combination is a possible report, and JvozbaError is constructed and matched across the CLI, web-core and Discord as a plain enum",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::FixedRafsi",
         "public jvozba input enum is kept direct; parsing and build paths normalize and validate payloads before use",
     ),
@@ -1512,16 +1976,16 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing ExpSoiAdverbialTermSyntax node",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::FihoiProposalAdverbialTerm",
+        "borrowed leaf validity is owned by the invariant-bearing FihoiProposalAdverbialTermSyntax node",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ForethoughtTermset",
         "borrowed leaf validity is owned by the invariant-bearing ForethoughtTermsetSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::GekTermset",
         "borrowed leaf validity is owned by the invariant-bearing GekTermsetSyntax node",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm",
-        "borrowed leaf validity is owned by the invariant-bearing ZantufaJoikChainedPlaceTagTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::JaiTaggedSumtiTerm",
@@ -1548,14 +2012,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "borrowed leaf validity is owned by the invariant-bearing PlaceTaggedSumtiTermSyntax node",
     ),
     (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::FihoiProposalAdverbialTerm",
-        "borrowed leaf validity is owned by the invariant-bearing FihoiProposalAdverbialTermSyntax node",
-    ),
-    (
-        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm",
-        "borrowed leaf validity is owned by the invariant-bearing ZantufaXoiAdverbialTermSyntax node",
-    ),
-    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::SumtiTerm",
         "borrowed leaf validity is owned by the invariant-bearing SumtiTermSyntax node",
     ),
@@ -1570,6 +2026,14 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaGekTermset",
         "borrowed leaf validity is owned by the invariant-bearing ZantufaGekTermsetSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaJoikChainedPlaceTagTerm",
+        "borrowed leaf validity is owned by the invariant-bearing ZantufaJoikChainedPlaceTagTermSyntax node",
+    ),
+    (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedSimpleTermRef::ZantufaXoiAdverbialTerm",
+        "borrowed leaf validity is owned by the invariant-bearing ZantufaXoiAdverbialTermSyntax node",
     ),
     (
         "crates/jbotci-semantics/src/references.rs:FixturePlaceFramePropagation::Co",
@@ -1906,6 +2370,22 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax-macros/tests/binding-schema-consumer/src/lib.rs:ModelKind::Sum",
         "external sum model kind is a unit discriminant with no payload combination to constrain",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Faha",
+        "the motion-prefix flag is intentionally unconstrained; both Boolean states identify valid FAhA atoms",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Roi",
+        "the spatial-prefix and baseline-number flags are intentionally independent; all Boolean combinations identify valid ROI atoms",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Tahe",
+        "the spatial-prefix flag is intentionally unconstrained; both Boolean states identify valid TAhE atoms",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/baseline_tag.rs:AtomKind::Zaho",
+        "the spatial-prefix flag is intentionally unconstrained; both Boolean states identify valid ZAhO atoms",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:RecoveryTrialClassification::AcceptedProgress",

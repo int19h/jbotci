@@ -137,8 +137,7 @@ use jbotci_cll::{
     DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request, render_search_output,
 };
 use jbotci_diagnostics::{
-    DEFAULT_TRACE_LIMIT, Diagnostic, DiagnosticLabel, DiagnosticPhase, DiagnosticSeverity,
-    TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport, source_span_from_char_offsets,
+    DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
 };
 use jbotci_dialect::{DialectDefinition, DialectSettings, parse_dialect_selection_formula};
 use jbotci_embeddings::native::{
@@ -146,7 +145,7 @@ use jbotci_embeddings::native::{
 };
 use jbotci_embeddings::{
     DEFAULT_MODEL_KEY, SetupOptions, SetupProgress, UsePrecomputed, default_index_root,
-    semantic_cukta_output, semantic_vlacku_hits,
+    semantic_cukta_output, semantic_vlacku_hits_filtered,
 };
 use jbotci_gentufa::{
     EmbeddedGentufaFonts, GentufaBlockOptions, GentufaPngOptions, GentufaScript, GentufaSvgOptions,
@@ -167,7 +166,6 @@ use jbotci_morphology::{
     PlainWordClassification, ValsiAnalysis, ValsiAnalysisStatus, ValsiClassification,
     ValsiClassificationKind, ValsiFuhivlaStage, ValsiLujvoPart, ValsiLujvoPartKind,
     ValsiLujvoRafsiKind, WordKind, WordLike, analyze_valsi_with_options_and_source_id,
-    fold_lojban_diacritics, possible_short_rafsi_forms,
     segment_words_with_modifiers_recovered_with_options_and_source_id_attempt,
 };
 use jbotci_output::{
@@ -190,8 +188,8 @@ use jbotci_search::vlacku::{
     DEFAULT_VLACKU_RESULT_COUNT, VlackuCard, VlackuCompositionKind, VlackuCompositionPiece,
     VlackuOutcome, VlackuRequest, VlackuRequestData, VlackuSearchOptions, VlackuSearchOutput,
     WordTypeFilter, dictionary_cards_for_word_likes, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_filters, format_vote_display, normalize_word_type_filter,
-    parse_word_type_filter, run_vlacku_requests,
+    dictionary_entry_passes_vlacku_entry_filters, dictionary_entry_passes_vlacku_filters,
+    format_vote_display, normalize_word_type_filter, parse_word_type_filter, run_vlacku_requests,
 };
 use jbotci_source::SourceId;
 use jbotci_syntax::{

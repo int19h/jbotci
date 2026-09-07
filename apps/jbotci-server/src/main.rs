@@ -43,6 +43,8 @@ async fn run_args(args: Vec<OsString>) -> Result<()> {
 fn run_setup_args(args: &[OsString]) -> Result<()> {
     let mut embedding = false;
     let mut discord_commands = false;
+    let mut dry_run = false;
+    let mut guild: Option<String> = None;
     let mut force = false;
     let mut use_precomputed = UsePrecomputed::Auto;
     let mut skip_validation = false;
@@ -62,6 +64,14 @@ fn run_setup_args(args: &[OsString]) -> Result<()> {
         match text {
             "--embedding" => embedding = true,
             "--discord-commands" => discord_commands = true,
+            "--dry-run" => dry_run = true,
+            "--guild" => {
+                index += 1;
+                guild = Some(next_utf8_value(args, index, "--guild")?);
+            }
+            _ if text.starts_with("--guild=") => {
+                guild = Some(option_suffix(text, "--guild=")?.to_owned());
+            }
             "--force" => force = true,
             "--skip-validation" => skip_validation = true,
             "--help" | "-h" => {
@@ -108,9 +118,14 @@ fn run_setup_args(args: &[OsString]) -> Result<()> {
             "Choose at least one setup task, e.g. `jbotci-server setup --embedding` or `jbotci-server setup --discord-commands`."
         );
     }
+    if !discord_commands && (dry_run || guild.is_some()) {
+        bail!("`--dry-run` and `--guild` apply to `--discord-commands`.");
+    }
     if discord_commands {
-        jbotci_server::register_discord_commands_from_env()?;
-        println!("Discord command registration complete.");
+        jbotci_server::register_discord_commands_from_env(guild.as_deref(), dry_run)?;
+        if !dry_run {
+            println!("Discord command registration complete.");
+        }
     }
     if !embedding {
         return Ok(());
@@ -225,6 +240,6 @@ fn print_help() {
 #[ensures(true)]
 fn print_setup_help() {
     println!(
-        "Usage: jbotci-server setup [OPTIONS]\n\nOptions:\n      --embedding\n      --discord-commands                    Register global Discord slash commands\n      --force\n      --use-precomputed <auto|always|never>  [default: auto]\n      --skip-validation\n      --model <MODEL>                        [default: f2llm-v2-80m-q4-k-m-320]\n      --index-dir <INDEX_DIR>\n      --model-dir <MODEL_DIR>\n  -h, --help                                Print help"
+        "Usage: jbotci-server setup [OPTIONS]\n\nOptions:\n      --embedding\n      --discord-commands                    Register the jbotci slash command\n      --guild <GUILD_ID>                     Register it in one guild only\n      --dry-run                              Print the registration without sending it\n      --force\n      --use-precomputed <auto|always|never>  [default: auto]\n      --skip-validation\n      --model <MODEL>                        [default: f2llm-v2-80m-q4-k-m-320]\n      --index-dir <INDEX_DIR>\n      --model-dir <MODEL_DIR>\n  -h, --help                                Print help"
     );
 }
