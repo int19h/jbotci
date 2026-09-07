@@ -85,7 +85,8 @@ so it cannot be used to empty a guild.
 The service answers within Discord's deadlines: three seconds to acknowledge,
 fifteen minutes to finish the message. Work is admitted on three lanes,
 analysis, network and meaning search, each with a fixed number of workers and
-a bounded queue; a request that cannot be admitted is refused with a message
+a bounded queue; analysis runs one job at a time, which is what the deployed
+instance's memory pays for (measured below); a request that cannot be admitted is refused with a message
 saying so, rather than queued behind everything else. Work that has started
 keeps its worker, its delivery and, while it writes, the message it is
 writing, until it ends: a caller that stops waiting never releases any of
@@ -101,7 +102,7 @@ Discord share it rather than each being given it whole.
 | Pages | 25 (23 for vlacku) | The page selector holds 25 choices; vlacku's shares its selector with two detail choices. |
 | App link | 4000 units for the whole link component | The application's own budget for one form text component, not a documented Discord limit. |
 | Compound construction | 8192 part placements, 24 pieces, 256 letters | Measured: 4096 placements take about 1.2s and 9216 about 3.1s in release on the development machine. |
-| Diagram | 600 blocks, 160 columns, 16 megapixels, 8 MiB | A diagram larger than this is refused with its reason, and the submission that asked for it changes nothing. |
+| Diagram | 600 blocks, 160 columns, 8 megapixels, 8 MiB | A diagram larger than this is refused with its reason, and the submission that asked for it changes nothing. Eight megapixels is what one image may spend of the instance's memory, measured below. |
 | Attachment | the interaction's own limit, at most 10 MiB | Discord states a per-interaction limit; the smaller of the two applies. |
 | Reporting | 5 seconds | Saying what happened is not the work, so it has its own budget: a request that spent all of its own can still report that. |
 
@@ -137,6 +138,42 @@ an operational failure of the whole submission: the message keeps the result
 it had, unchanged, and the reader is told privately why the image was refused,
 so they can turn it off or shorten the text and submit again. Only a form can
 ask for an image, so this never arises on a first publication.
+
+## What it costs to run
+
+Measured on the development machine against the release binary, driving signed
+interactions through the real endpoint with a local stand-in for Discord. Peak
+is the kernel's own high-water mark for the process (`VmHWM`), so it is the
+true peak rather than a sample.
+
+| After | Resident | Peak |
+| --- | --- | --- |
+| Start, nothing asked | 42 MiB | 42 MiB |
+| A four-sentence parse, no image | 81 MiB | 81 MiB |
+| The same with its diagram | 84 MiB | 134 MiB |
+| Six diagrams asked for at once | 97 MiB | 147 MiB |
+| First meaning search (model loads) | 324 MiB | 324 MiB |
+| Four diagrams and four meaning searches together | 380 MiB | 429 MiB |
+| Everything above, at rest | 419 MiB | 429 MiB |
+
+Each of those diagrams is 8516×776 pixels, 6.6 of the 8 million a diagram may
+have, and 226 KB of PNG: a request near the cap rather than a small one.
+
+The embedding model is what dominates: about 240 MiB, loaded on the first
+meaning search and resident from then on. One diagram near the cap costs about
+50 MiB while it renders. Memory is not returned to the system after a peak, so
+the resident figure climbs towards the peak and stays there.
+
+Two things make this fit the deployed instance's 512 MiB. Analysis runs one
+job at a time, so at most one diagram is ever being rasterized; and the
+deployment sets `MALLOC_ARENA_MAX=2`. Without that variable the same shape of
+run peaks at 591 MiB, because each thread that allocates gets an arena of its
+own and none of them are given back. With the previous limits (two analysis
+workers, sixteen megapixels) it peaks at 616 MiB even with the variable set.
+Neither of those fits.
+
+These figures include the embedding model. A deployment without an embedding
+pack never loads it, and the same run peaks at 147 MiB.
 
 ## How a message remembers its request
 

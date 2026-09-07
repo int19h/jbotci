@@ -20,9 +20,16 @@ use tokio::time::Instant;
 /// Numeric admission limits. `*_workers` is the number of jobs a lane runs at
 /// once; `*_queue` is how many further callers may wait for a worker (a
 /// caller that finds a worker idle never queues, so zero means "no backlog":
-/// idle workers admit, everything else is refused). The defaults are initial
-/// values for the single-instance service; the operating numbers are measured
-/// under #902 before they are frozen. Tests construct their own.
+/// idle workers admit, everything else is refused).
+///
+/// The defaults are what the deployed instance can pay for, measured rather
+/// than guessed: with the embedding model resident the process holds about
+/// 380 MiB, and rendering a diagram near its cap costs another 50 while it
+/// runs. Two analysis workers at the previous sixteen-megapixel cap peaked at
+/// 616 MiB against a 512 MiB instance, so analysis runs one job at a time and
+/// the image itself is capped smaller (see `DiagramLimits`); that run peaks
+/// at 429 MiB. Network work is cheap and keeps four. Tests construct their
+/// own.
 #[invariant(*compute_workers > 0 && *fetch_workers > 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct WorkLimits {
@@ -37,7 +44,7 @@ impl Default for WorkLimits {
     #[ensures(ret.compute_workers > 0 && ret.fetch_workers > 0)]
     fn default() -> Self {
         new!(WorkLimits {
-            compute_workers: 2,
+            compute_workers: 1,
             compute_queue: 8,
             fetch_workers: 4,
             fetch_queue: 8,

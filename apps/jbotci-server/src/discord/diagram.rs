@@ -38,9 +38,12 @@ impl Default for DiagramLimits {
         new!(DiagramLimits {
             max_blocks: 600,
             max_columns: 160,
-            // 16 megapixels of RGBA is a 64 MiB raster buffer, the largest
-            // single allocation this policy permits.
-            max_pixels: 16_000_000,
+            // 8 megapixels of RGBA is a 32 MiB raster buffer. Measured, one
+            // render near that size costs the process about 50 MiB including
+            // the layout, the encoder and what the allocator keeps; the
+            // instance has 512 MiB and the embedding model takes about 240 of
+            // them, so this is what one image may spend.
+            max_pixels: 8_000_000,
             max_bytes: 8 * 1024 * 1024,
         })
     }
