@@ -55,16 +55,17 @@ pub(crate) fn subtext_markdown(markdown: &str) -> String {
     format!("-# {markdown}")
 }
 
-/// Inline code. Backtick runs inside are broken with a zero-width space so
-/// the span cannot end early; that alteration is presentation-only.
+/// Inline code, or escaped plain text when the value cannot be a code span
+/// (Discord delimits inline code with one backtick, so a value carrying one
+/// would close it). Either way the result is inert.
 #[requires(true)]
-#[ensures(ret.starts_with('`') && ret.ends_with('`'))]
+#[ensures(ret.is_empty() == text.is_empty())]
 pub(crate) fn inline_code(text: &str) -> String {
     discord_inline_code(text)
 }
 
-/// A fenced code block. A fence inside the text is broken with a zero-width
-/// space between its backticks so the block cannot end early.
+/// A fenced code block. Backtick runs inside are broken with a zero-width
+/// space so no line can close the fence early.
 #[requires(true)]
 #[ensures(ret.starts_with("```\n") && ret.ends_with("\n```"))]
 pub(crate) fn code_block(text: &str) -> String {
@@ -164,8 +165,9 @@ mod tests {
         );
         assert_eq!(bold("a*b"), "**a\\*b**");
         assert_eq!(subtext("gentufa · brackets"), "-# gentufa · brackets");
-        assert_eq!(inline_code("a``b"), "`a`\u{200b}`\u{200b}b`");
-        assert_eq!(code_block("x\n```\ny"), "```\nx\n`\u{200b}``\ny\n```");
+        assert_eq!(inline_code("kla"), "`kla`");
+        assert_eq!(inline_code("a``b"), escape("a``b"));
+        assert_eq!(code_block("x\n```\ny"), "```\nx\n``\u{200b}`\ny\n```");
         assert_eq!(
             split_paragraphs("a\n\n```\nx\n\ny\n```\n\n\nb\nc\n"),
             vec![

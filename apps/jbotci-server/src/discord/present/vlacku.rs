@@ -72,16 +72,24 @@ pub(crate) fn render(
                 lines.push("**No dictionary entry for this word.**".to_owned());
             }
             let mut full = Vec::new();
+            let mut shows_excerpt = false;
             for (offset, card) in results.items.iter().enumerate() {
                 let rank = results.page.first_index() + offset + 1;
-                let (markdown, plain) =
-                    card_markdown(rank, card, options.decompose_lujvo, options.show_etymology);
-                lines.push(markdown);
-                full.push(plain);
+                let card =
+                    card_markdown(rank, card, options.decompose_lujvo, options.show_etymology)
+                        .into_data();
+                shows_excerpt |= card.is_excerpt;
+                lines.push(card.markdown);
+                full.push(card.plain);
             }
             rendered.body.push(join_lines(lines));
             if !full.is_empty() {
-                rendered.full_text = Some(full.join("\n\n"));
+                let full = full.join("\n\n");
+                if shows_excerpt {
+                    rendered.show_excerpt_of(full);
+                } else {
+                    rendered.set_full_text(full);
+                }
             }
             rendered.notice = capped_notice(results, app_link);
             rendered
@@ -89,15 +97,25 @@ pub(crate) fn render(
     }
 }
 
+/// One card as the message shows it and as it reads in full.
+#[invariant(!markdown.is_empty())]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RenderedCard {
+    markdown: String,
+    plain: String,
+    /// Whether the shown card leaves anything out of the plain text.
+    is_excerpt: bool,
+}
+
 /// One card as Markdown and as plain text.
 #[requires(rank >= 1)]
-#[ensures(!ret.0.is_empty())]
+#[ensures(!ret.markdown.is_empty())]
 fn card_markdown(
     rank: usize,
     card: &VlackuCard,
     decompose_lujvo: bool,
     show_etymology: bool,
-) -> (String, String) {
+) -> RenderedCard {
     let mut head = format!("{rank}. **{}**", escape(&card.word));
     let mut plain_head = format!("{rank}. {}", card.word);
     let class = match &card.selmaho {
@@ -122,6 +140,7 @@ fn card_markdown(
     }
     let mut lines = vec![head];
     let mut plain = vec![plain_head];
+    let mut is_excerpt = false;
     if !card.known {
         let line = "not in the dictionary; the class above is the morphology parser's analysis of the word form, not a definition";
         lines.push(subtext(line));
@@ -143,10 +162,8 @@ fn card_markdown(
             .collect::<Vec<_>>()
             .join("\n");
         let (shown, cut) = truncate_units(&definition, MAX_CARD_FIELD_UNITS);
+        is_excerpt |= cut;
         lines.push(escape(&shown));
-        if cut {
-            lines.push(subtext("definition continues in the attached full text"));
-        }
         plain.push(definition);
     }
     if !card.notes.trim().is_empty() {
@@ -162,10 +179,8 @@ fn card_markdown(
             .collect::<Vec<_>>()
             .join("\n");
         let (shown, cut) = truncate_units(&notes, MAX_CARD_FIELD_UNITS);
+        is_excerpt |= cut;
         lines.push(subtext(&format!("notes: {}", shown.replace('\n', " "))));
-        if cut {
-            lines.push(subtext("notes continue in the attached full text"));
-        }
         plain.push(format!("notes: {notes}"));
     }
     if decompose_lujvo && !card.decomposition.is_empty() {
@@ -190,7 +205,8 @@ fn card_markdown(
             .as_deref()
             .filter(|text| !text.trim().is_empty())
     {
-        let (shown, _) = truncate_units(etymology, MAX_CARD_FIELD_UNITS);
+        let (shown, cut) = truncate_units(etymology, MAX_CARD_FIELD_UNITS);
+        is_excerpt |= cut;
         lines.push(subtext(&format!("etymology: {}", shown.replace('\n', " "))));
         plain.push(format!("etymology: {etymology}"));
     }
@@ -211,7 +227,11 @@ fn card_markdown(
         lines.push(subtext(&line));
         plain.push(line);
     }
-    (join_lines(lines), plain.join("\n"))
+    new!(RenderedCard {
+        markdown: join_lines(lines),
+        plain: plain.join("\n"),
+        is_excerpt,
+    })
 }
 
 #[cfg(test)]

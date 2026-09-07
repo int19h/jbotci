@@ -85,14 +85,21 @@ pub(crate) fn render(
                 lines.push("**No matches found.**".to_owned());
             }
             let mut full = Vec::new();
+            let mut shows_excerpt = false;
             for card in &results.items {
-                let (markdown, plain) = search_card(card);
+                let (markdown, plain, cut) = search_card(card);
+                shows_excerpt |= cut;
                 lines.push(markdown);
                 full.push(plain);
             }
             rendered.body.push(join_lines(lines));
             if !full.is_empty() {
-                rendered.full_text = Some(full.join("\n\n"));
+                let full = full.join("\n\n");
+                if shows_excerpt {
+                    rendered.show_excerpt_of(full);
+                } else {
+                    rendered.set_full_text(full);
+                }
             }
             rendered.notice = capped_notice(results, app_link);
             rendered
@@ -113,7 +120,7 @@ pub(crate) fn render(
                 heading.push_str(&subtext(&chapter));
             }
             rendered.body = chunks;
-            rendered.full_text = Some(render_section(
+            rendered.set_full_text(render_section(
                 site,
                 section,
                 CllRenderFormat::Markdown,
@@ -130,7 +137,7 @@ pub(crate) fn render(
                 CllRenderFormat::DiscordMarkdown,
                 CllLinkRenderMode::Plain,
             ));
-            rendered.full_text = Some(render_example(
+            rendered.set_full_text(render_example(
                 site,
                 example,
                 CllRenderFormat::Markdown,
@@ -162,10 +169,11 @@ pub(crate) fn render(
     }
 }
 
-/// One search hit as Discord Markdown and as plain text.
+/// One search hit as Discord Markdown, as plain text, and whether the shown
+/// preview leaves anything out.
 #[requires(true)]
 #[ensures(!ret.0.is_empty())]
-fn search_card(card: &CuktaSearchCard) -> (String, String) {
+fn search_card(card: &CuktaSearchCard) -> (String, String, bool) {
     let kind = search_chunk_kind_label(card.kind);
     let mut head = format!("{}. **{}**", card.rank, escape(&card.label));
     if card.kind != CllSearchChunkKind::Section {
@@ -185,15 +193,11 @@ fn search_card(card: &CuktaSearchCard) -> (String, String) {
     } else {
         escape(&preview)
     };
-    let mut lines = vec![head, body];
-    if cut {
-        lines.push(subtext("full text in the attachment"));
-    }
     let plain = format!(
         "{}. {} · {kind} in {}\n{}",
         card.rank, card.label, card.section_label, card.text
     );
-    (join_lines(lines), plain)
+    (join_lines(vec![head, body]), plain, cut)
 }
 
 #[cfg(test)]

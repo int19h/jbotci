@@ -193,7 +193,11 @@ pub(crate) fn assemble(
 
     let budget = MESSAGE_TEXT_BUDGET_UNITS.saturating_sub(utf16_len(&section_text));
     let body_full = rendered.body.join("\n\n");
-    let diagnostics_full = rendered.diagnostics.as_deref().unwrap_or_default();
+    let diagnostics_full = rendered
+        .diagnostics
+        .as_ref()
+        .map(|diagnostics| diagnostics.shown.as_str())
+        .unwrap_or_default();
     let presenter_notice_units = rendered
         .notice
         .as_deref()
@@ -203,11 +207,14 @@ pub(crate) fn assemble(
         .iter()
         .map(|notice| utf16_len(notice) + 1)
         .sum::<usize>();
-    let fits = presenter_notice_units
-        + omitted_units
-        + utf16_len(diagnostics_full)
-        + utf16_len(&body_full)
-        <= budget;
+    // A presenter that already showed less than it has says so, and then the
+    // complete result is attached however short the message turns out to be.
+    let fits = !rendered.shows_excerpt
+        && presenter_notice_units
+            + omitted_units
+            + utf16_len(diagnostics_full)
+            + utf16_len(&body_full)
+            <= budget;
 
     let (body_shown, diagnostics_shown, overflowed) = if fits {
         if let Some(notice) = &rendered.notice {
@@ -354,8 +361,9 @@ fn attached_source_summary(fields: &[(SourceField, Option<&str>)], status: &str)
     lines.join("\n")
 }
 
-/// The complete result as attachment text: the full body (or the presenter's
-/// plain text) followed by the complete diagnostics.
+/// The complete result as attachment text: the presenter's own full text (or
+/// the shown body when it showed everything), followed by every diagnostic in
+/// full, not the shortened form the message carries.
 #[requires(true)]
 #[ensures(true)]
 fn complete_result_text(rendered: &RenderedResult) -> String {
@@ -368,7 +376,7 @@ fn complete_result_text(rendered: &RenderedResult) -> String {
             text.push_str("\n\n");
         }
         text.push_str("Diagnostics\n\n");
-        text.push_str(diagnostics);
+        text.push_str(&diagnostics.complete);
     }
     text
 }
@@ -486,9 +494,13 @@ mod tests {
     use crate::discord::codec::INLINE_INPUT_BUDGET_UNITS;
     use crate::discord::components::FLAG_IS_COMPONENTS_V2;
     use crate::discord::diagram::DiagramImage;
+    use crate::discord::operations::{PagedResults, VlackuOutcome};
+    use crate::discord::present::diagnostics::{RenderedDiagnostics, render_diagnostics};
+    use crate::discord::present::{vlacku, vlasei};
     use crate::discord::request::{
-        BuildTag, DiscordRequest, DiscordTool, GentufaOptions, GentufaRequest, Revision, Snowflake,
-        SourceText,
+        BuildTag, DiscordRequest, DiscordTool, GentufaOptions, GentufaRequest, PageNumber,
+        Revision, Snowflake, SourceText, VLACKU_MAX_PAGE, VlackuOptions, VlackuRequest,
+        VlaseiOptions, VlaseiRequest,
     };
 
     #[requires(true)]
@@ -499,6 +511,31 @@ mod tests {
                 text: SourceText::new(text).expect("text"),
                 dialect: None,
                 options: GentufaOptions::default(),
+            }),
+            revision: Revision::INITIAL,
+            initiator: Snowflake::parse("123456789012345678").expect("snowflake"),
+            build_tag: BuildTag::current(),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostics(shown: &str, complete: &str, is_excerpt: bool) -> RenderedDiagnostics {
+        new!(RenderedDiagnostics {
+            shown: shown.to_owned(),
+            complete: complete.to_owned(),
+            is_excerpt,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn published_vlasei(text: &str) -> PublishedRequest {
+        PublishedRequest {
+            request: DiscordRequest::Vlasei(VlaseiRequest {
+                text: SourceText::new(text).expect("text"),
+                dialect: None,
+                options: VlaseiOptions::default(),
             }),
             revision: Revision::INITIAL,
             initiator: Snowflake::parse("123456789012345678").expect("snowflake"),
@@ -670,7 +707,7 @@ mod tests {
             .collect::<Vec<_>>();
         let mut result = rendered(chunks);
         result.full_text = Some("FULL".repeat(1000));
-        result.diagnostics = Some("**1 warning**".to_owned());
+        result.diagnostics = Some(diagnostics("**1 warning**", "warning w: one", false));
         result.notice = Some("-# note".to_owned());
         let message = assemble(&result, &published("mi klama"), 25 << 20).expect("assembled");
         assert!(message.overflowed);
@@ -700,7 +737,7 @@ mod tests {
             String::from_utf8(upload_bytes(&message, RESULT_ATTACHMENT_FILENAME)).expect("utf-8");
         assert!(attached.starts_with("FULLFULL"), "{attached}");
         assert!(
-            attached.ends_with("Diagnostics\n\n**1 warning**"),
+            attached.ends_with("Diagnostics\n\nwarning w: one"),
             "complete diagnostics travel with the result: {}",
             &attached[attached.len() - 40..]
         );
@@ -715,12 +752,11 @@ mod tests {
     #[ensures(true)]
     fn long_diagnostics_with_a_short_body_overflow_visibly() {
         let mut result = rendered(vec!["**Parse failed.**".to_owned()]);
-        result.diagnostics = Some(
-            (0..120)
-                .map(|index| format!("**error {index}** at 1:{index}: unexpected word"))
-                .collect::<Vec<_>>()
-                .join("\n"),
-        );
+        let long = (0..120)
+            .map(|index| format!("**error {index}** at 1:{index}: unexpected word"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        result.diagnostics = Some(diagnostics(&long, &long, false));
         let message = assemble(&result, &published("mi klama"), 25 << 20).expect("assembled");
         assert!(message.overflowed);
         assert!(message.payload.text_units() <= MESSAGE_TEXT_BUDGET_UNITS);
@@ -796,7 +832,7 @@ mod tests {
     fn huge_presenter_notice_still_yields_a_message_within_budget() {
         let mut result = rendered(vec!["body".to_owned()]);
         result.notice = Some(format!("-# {}", "n".repeat(3995)));
-        result.diagnostics = Some("**diag**".to_owned());
+        result.diagnostics = Some(diagnostics("**diag**", "diag in full", false));
         let message = assemble(&result, &published("mi klama"), 25 << 20).expect("assembled");
         assert!(message.payload.text_units() <= MESSAGE_TEXT_BUDGET_UNITS);
         assert!(message.overflowed);
@@ -847,6 +883,143 @@ mod tests {
                 .last()
                 .is_some_and(|notice| notice.contains("diagram was omitted"))
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_list_longer_than_the_message_shows_is_attached_even_when_short() {
+        // Eighty-one one-syllable words: the message lists what it lists, and
+        // the rest still reaches the reader, though nothing here is near the
+        // text budget.
+        let source = ".a ".repeat(81);
+        let request = VlaseiRequest {
+            text: SourceText::new(&source).expect("text"),
+            dialect: None,
+            options: VlaseiOptions::default(),
+        };
+        let analysis = jbotci_web_core::analyze_vlasei(&source, None, None).expect("analysis");
+        let result = vlasei::render(&analysis, &request);
+        assert!(
+            result.shows_excerpt,
+            "the presenter showed part of the list"
+        );
+        let message = assemble(&result, &published_vlasei(&source), 25 << 20).expect("assembled");
+        assert!(
+            message.payload.text_units() < MESSAGE_TEXT_BUDGET_UNITS / 2,
+            "the message is far inside the budget: {}",
+            message.payload.text_units()
+        );
+        assert!(message.overflowed, "and still carries the complete list");
+        let attached =
+            String::from_utf8(upload_bytes(&message, RESULT_ATTACHMENT_FILENAME)).expect("utf-8");
+        assert_eq!(
+            attached
+                .lines()
+                .filter(|line| line.contains("cmavo"))
+                .count(),
+            81,
+            "every word is attached"
+        );
+        let shown = text_displays(&message).join("\n");
+        assert!(
+            shown.contains("showing the first 80 of 81 words"),
+            "{shown}"
+        );
+        assert!(
+            text_displays(&message)
+                .last()
+                .is_some_and(|notice| notice.contains("complete result is attached")),
+            "the promise is the assembler's, and it is kept"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_dictionary_card_cut_short_is_attached_in_full() {
+        let definition = format!("x1 {} x2", "very long gloss ".repeat(40));
+        let card = new!(jbotci_search::vlacku::VlackuCard {
+            word: "brodavla".to_owned(),
+            word_type: "gismu".to_owned(),
+            known: true,
+            selmaho: None,
+            author: None,
+            is_official: true,
+            similarity: None,
+            votes: None,
+            rafsi: Vec::new(),
+            glosses: Vec::new(),
+            definition: definition.clone(),
+            notes: String::new(),
+            etymology: None,
+            decomposition: Vec::new(),
+        });
+        let request = new!(VlackuRequest {
+            query: SourceText::new("brodavla").expect("text"),
+            options: VlackuOptions::default(),
+        });
+        let results =
+            PagedResults::paginate(vec![card], PageNumber::first(), VLACKU_MAX_PAGE).expect("page");
+        let result = vlacku::render(
+            &VlackuOutcome::Results {
+                results,
+                diagnostics: Vec::new(),
+                valid_missing: false,
+            },
+            &request,
+            None,
+        );
+        assert!(result.shows_excerpt, "the definition was cut to fit a card");
+        let published = PublishedRequest {
+            request: DiscordRequest::Vlacku(request),
+            revision: Revision::INITIAL,
+            initiator: Snowflake::parse("123456789012345678").expect("snowflake"),
+            build_tag: BuildTag::current(),
+        };
+        let message = assemble(&result, &published, 25 << 20).expect("assembled");
+        assert!(message.payload.text_units() < MESSAGE_TEXT_BUDGET_UNITS / 2);
+        let attached =
+            String::from_utf8(upload_bytes(&message, RESULT_ATTACHMENT_FILENAME)).expect("utf-8");
+        assert!(
+            attached.contains(&definition),
+            "the whole definition is attached"
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn diagnostics_beyond_the_shown_few_travel_complete() {
+        let source = "'a 'b 'c 'd 'e 'zukte";
+        let analysis = jbotci_web_core::analyze_vlasei(source, None, None).expect("analysis");
+        assert!(
+            analysis.diagnostics.len() > 4,
+            "{} diagnostics",
+            analysis.diagnostics.len()
+        );
+        let mut result = rendered(vec!["**Recovered.**".to_owned()]);
+        result.set_diagnostics(render_diagnostics(source, &analysis.diagnostics));
+        assert!(
+            result.shows_excerpt,
+            "more diagnostics than the message shows"
+        );
+        let message = assemble(&result, &published(source), 25 << 20).expect("assembled");
+        let shown = text_displays(&message).join("\n");
+        assert!(shown.contains("more diagnostic"), "{shown}");
+        let attached =
+            String::from_utf8(upload_bytes(&message, RESULT_ATTACHMENT_FILENAME)).expect("utf-8");
+        for diagnostic in &analysis.diagnostics {
+            assert!(
+                attached.contains(&diagnostic.message),
+                "{}",
+                diagnostic.message
+            );
+            assert!(attached.contains(&diagnostic.code), "{}", diagnostic.code);
+            for note in &diagnostic.notes {
+                assert!(attached.contains(note.as_str()), "a note is kept: {note}");
+            }
+        }
     }
 
     #[test]

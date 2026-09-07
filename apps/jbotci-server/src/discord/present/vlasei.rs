@@ -44,7 +44,7 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
     let mut rendered = RenderedResult::new(DiscordTool::Vlasei, status);
     let words = &analysis.morphology.words;
     let phonemes = PhonemeRenderOptions::default();
-    let (body, full_text) = match options.view {
+    let (body, full_text, listed_in_part) = match options.view {
         VlaseiView::Words => words_view(source, analysis, options.decompose_lujvo),
         VlaseiView::Brackets => {
             let text = if analysis.is_complete() {
@@ -61,7 +61,7 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
                 )
             }
             .unwrap_or_else(|error| error.to_string());
-            (code_block(&text), text)
+            (code_block(&text), text, false)
         }
         VlaseiView::Tree => {
             let text = if analysis.is_complete() {
@@ -78,7 +78,7 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
                 )
             }
             .unwrap_or_else(|error| error.to_string());
-            (code_block(&text), text)
+            (code_block(&text), text, false)
         }
         VlaseiView::Ipa => {
             let text = ipa_morphology_text(words, source).unwrap_or_else(|error| error.to_string());
@@ -89,12 +89,16 @@ pub(crate) fn render(analysis: &VlaseiAnalysis, request: &VlaseiRequest) -> Rend
                     "IPA covers the words the parser recovered; skipped input has no pronunciation.",
                 ));
             }
-            (body, text)
+            (body, text, false)
         }
     };
     rendered.body.push(body);
-    rendered.full_text = Some(full_text);
-    rendered.diagnostics = render_diagnostics(source, &analysis.diagnostics);
+    if listed_in_part {
+        rendered.show_excerpt_of(full_text);
+    } else {
+        rendered.set_full_text(full_text);
+    }
+    rendered.set_diagnostics(render_diagnostics(source, &analysis.diagnostics));
     if !analysis.is_complete() {
         rendered.notice = Some(subtext(
             "Recovered segmentation: struck-through input was skipped after a morphology error.",
@@ -146,11 +150,15 @@ pub(crate) fn word_kind_label(kind: WordKind) -> &'static str {
 }
 
 /// One line per morphology word (never per whitespace token), with skipped
-/// regions interleaved in source order. Returns the Markdown body and the
-/// plain text for the attachment.
+/// regions interleaved in source order. Returns the Markdown body, the plain
+/// text of every word, and whether the body lists fewer than all of them.
 #[requires(true)]
 #[ensures(!ret.0.is_empty())]
-fn words_view(source: &str, analysis: &VlaseiAnalysis, decompose_lujvo: bool) -> (String, String) {
+fn words_view(
+    source: &str,
+    analysis: &VlaseiAnalysis,
+    decompose_lujvo: bool,
+) -> (String, String, bool) {
     let mut entries: Vec<(usize, String, String)> = Vec::new();
     for word in &analysis.morphology.words {
         let (start, text) = word
@@ -185,7 +193,7 @@ fn words_view(source: &str, analysis: &VlaseiAnalysis, decompose_lujvo: bool) ->
     }
     entries.sort_by_key(|(start, _, _)| *start);
     if entries.is_empty() {
-        return ("*(no words)*".to_owned(), "(no words)".to_owned());
+        return ("*(no words)*".to_owned(), "(no words)".to_owned(), false);
     }
     let full_text = entries
         .iter()
@@ -199,11 +207,15 @@ fn words_view(source: &str, analysis: &VlaseiAnalysis, decompose_lujvo: bool) ->
         .collect::<Vec<_>>();
     if entries.len() > MAX_LISTED_WORDS {
         lines.push(subtext(&format!(
-            "{} more words in the attached full list",
-            entries.len() - MAX_LISTED_WORDS
+            "showing the first {MAX_LISTED_WORDS} of {} words",
+            entries.len()
         )));
     }
-    (join_lines(lines), full_text)
+    (
+        join_lines(lines),
+        full_text,
+        entries.len() > MAX_LISTED_WORDS,
+    )
 }
 
 #[requires(true)]

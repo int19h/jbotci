@@ -102,7 +102,7 @@ pub(crate) fn render(report: &VlataiReport, request: &VlataiRequest) -> Rendered
         }
     }
     rendered.body.push(join_lines(lines));
-    rendered.diagnostics = render_diagnostics(input, &report.diagnostics);
+    rendered.set_diagnostics(render_diagnostics(input, &report.diagnostics));
     rendered
 }
 

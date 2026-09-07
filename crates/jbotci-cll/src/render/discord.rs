@@ -63,20 +63,81 @@ pub fn escape_discord_markdown(text: &str) -> String {
     escaped
 }
 
-/// Inline code. Backtick runs inside are broken with a zero-width space so the
-/// span cannot end early; that alteration is presentation-only.
+/// The longest run of consecutive backticks in `text`.
 #[requires(true)]
-#[ensures(ret.starts_with('`') && ret.ends_with('`'))]
-pub fn discord_inline_code(text: &str) -> String {
-    format!("`{}`", text.replace('`', "`\u{200b}"))
+#[ensures(text.contains('`') == (ret > 0))]
+fn longest_backtick_run(text: &str) -> usize {
+    let mut longest = 0;
+    let mut run = 0;
+    for character in text.chars() {
+        if character == '`' {
+            run += 1;
+            longest = longest.max(run);
+        } else {
+            run = 0;
+        }
+    }
+    longest
 }
 
-/// A fenced code block. A fence inside the text is broken with a zero-width
-/// space between its backticks so the block cannot end early.
+/// The zero-width space that keeps a backtick run from closing a fence. It is
+/// the one alteration a code block makes to its content, and it is visual
+/// only: the state transport carries the source itself, unaltered.
+const ZERO_WIDTH_SPACE: char = '\u{200b}';
+
+/// Inline code carrying `text`. Discord's inline code is delimited by single
+/// backticks, so a value containing one cannot be a code span at all: such a
+/// value, and any value spanning lines, comes back as escaped plain text,
+/// which is inert and still readable. Longer delimiters are CommonMark rather
+/// than documented Discord syntax, so they are not used.
+#[requires(true)]
+#[ensures(ret.starts_with('`') == (!text.is_empty() && !text.contains('`') && !text.contains('\n') && !text.contains('\r')))]
+pub fn discord_inline_code(text: &str) -> String {
+    if text.is_empty() {
+        return String::new();
+    }
+    if text.contains('`') || text.contains('\n') || text.contains('\r') {
+        return escape_discord_markdown(text);
+    }
+    format!("`{text}`")
+}
+
+/// A fenced code block carrying `text`. The fence is Discord's documented
+/// triple backtick, so no run of three or more backticks may survive inside
+/// it: every such run is broken with a zero-width space, which is the only
+/// difference between the content and what is shown.
 #[requires(true)]
 #[ensures(ret.starts_with("```\n") && ret.ends_with("\n```"))]
+#[ensures(!ret["```\n".len()..ret.len() - "\n```".len()].contains("```"))]
 pub fn discord_code_block(text: &str) -> String {
-    format!("```\n{}\n```", text.replace("```", "`\u{200b}``"))
+    format!("```\n{}\n```", break_backtick_runs(text))
+}
+
+/// `text` with a zero-width space inside every backtick run of three or more,
+/// so that no run of three survives. Runs are emitted in pairs, which keeps
+/// the inserted spaces to the minimum a triple fence needs.
+#[requires(true)]
+#[ensures(!ret.contains("```"))]
+#[ensures(ret.replace(ZERO_WIDTH_SPACE, "") == text)]
+fn break_backtick_runs(text: &str) -> String {
+    if longest_backtick_run(text) < 3 {
+        return text.to_owned();
+    }
+    let mut broken = String::with_capacity(text.len() + 8);
+    let mut run = 0;
+    for character in text.chars() {
+        if character == '`' {
+            if run == 2 {
+                broken.push(ZERO_WIDTH_SPACE);
+                run = 0;
+            }
+            run += 1;
+        } else {
+            run = 0;
+        }
+        broken.push(character);
+    }
+    broken
 }
 
 #[cfg(test)]
@@ -117,11 +178,61 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn code_spans_cannot_be_closed_early() {
-        assert_eq!(discord_inline_code("a``b"), "`a`\u{200b}`\u{200b}b`");
+    fn inline_code_never_carries_a_backtick_that_would_close_it() {
+        assert_eq!(discord_inline_code("kla"), "`kla`");
+        assert_eq!(discord_inline_code(""), "");
+        for interior in [1usize, 2, 3, 4, 6, 7] {
+            let ticks = "`".repeat(interior);
+            for text in [
+                format!("a{ticks}b"),
+                format!("{ticks}leading"),
+                format!("trailing{ticks}"),
+                ticks.clone(),
+                format!("a{ticks}**bold** [link](x) @everyone"),
+            ] {
+                let rendered = discord_inline_code(&text);
+                assert_eq!(
+                    rendered,
+                    escape_discord_markdown(&text),
+                    "a value with backticks is inert text, not a span"
+                );
+                assert!(
+                    !rendered.contains("`") || rendered.contains("\\`"),
+                    "every backtick is escaped: {rendered:?}"
+                );
+                assert!(!rendered.contains("**bold**"), "{rendered:?}");
+            }
+        }
+        // A value spanning lines is inert text as well.
+        let multiline = "mi klama\n```\n**x**";
         assert_eq!(
-            discord_code_block("x\n```\ny"),
-            "```\nx\n`\u{200b}``\ny\n```"
+            discord_inline_code(multiline),
+            escape_discord_markdown(multiline)
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_code_block_keeps_its_triple_fence_and_breaks_interior_runs() {
+        for interior in [1usize, 2, 3, 4, 6, 7] {
+            let ticks = "`".repeat(interior);
+            let text = format!("first\n{ticks}\n**bold** {ticks}tail\n{ticks}{ticks}");
+            let rendered = discord_code_block(&text);
+            assert!(rendered.starts_with("```\n") && rendered.ends_with("\n```"));
+            let inside = &rendered["```\n".len()..rendered.len() - "\n```".len()];
+            assert!(
+                inside.lines().all(|line| longest_backtick_run(line) < 3),
+                "a line could close the block: {rendered:?}"
+            );
+            assert_eq!(
+                inside.replace('\u{200b}', ""),
+                text,
+                "the content is unchanged apart from the zero-width spaces"
+            );
+            if longest_backtick_run(&text) < 3 {
+                assert_eq!(inside, text, "content without a long run is untouched");
+            }
+        }
     }
 }

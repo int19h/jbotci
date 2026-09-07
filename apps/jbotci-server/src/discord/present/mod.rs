@@ -19,6 +19,7 @@ pub(crate) mod vlatai;
 #[allow(unused_imports)]
 use bityzba::{ensures, invariant, new, requires};
 
+use self::diagnostics::RenderedDiagnostics;
 use super::diagram::DiagramImage;
 use super::operations::{PagedResults, RequestValidationError, ToolOutcome};
 use super::request::{DiscordRequest, DiscordTool, utf16_len};
@@ -34,19 +35,29 @@ pub(crate) struct ResultStatus {
 
 /// What one presenter produced for one request. Every field combination is
 /// valid: the status line carries its own invariant and the rest is content.
+///
+/// A presenter that shows less than it has says so through
+/// [`RenderedResult::show_excerpt_of`], which is what makes the assembler
+/// attach the complete text. Nothing else in the message may promise a file:
+/// only the assembler knows whether one exists.
 #[invariant(true)]
 #[derive(Debug, Clone)]
 pub(crate) struct RenderedResult {
     pub(crate) status: ResultStatus,
     /// Result body chunks in order, each Discord Markdown.
     pub(crate) body: Vec<String>,
-    /// Rendered diagnostics, kept ahead of body overflow.
-    pub(crate) diagnostics: Option<String>,
+    /// Rendered diagnostics: what the message shows, and every diagnostic in
+    /// full for the attached result.
+    pub(crate) diagnostics: Option<RenderedDiagnostics>,
     /// A short notice kept even under overflow (capped result set, missing
     /// image explanation, continuation hint).
     pub(crate) notice: Option<String>,
-    /// Complete plain text of the result for the overflow attachment.
+    /// Complete plain text of the result for the attachment.
     pub(crate) full_text: Option<String>,
+    /// Whether the body chunks show less than `full_text` holds. The
+    /// assembler attaches the complete result whenever this is set, however
+    /// short the message turns out to be.
+    pub(crate) shows_excerpt: bool,
     pub(crate) image: Option<DiagramImage>,
 }
 
@@ -63,8 +74,38 @@ impl RenderedResult {
             diagnostics: None,
             notice: None,
             full_text: None,
+            shows_excerpt: false,
             image: None,
         }
+    }
+
+    /// Record the complete plain text of a result the message shows whole.
+    #[requires(true)]
+    #[ensures(self.full_text.is_some())]
+    pub(crate) fn set_full_text(&mut self, full_text: String) {
+        self.full_text = Some(full_text);
+    }
+
+    /// Record that the body shows only part of `full_text`. The assembler
+    /// attaches the whole of it and says so; presenters never promise a file
+    /// themselves, because a promise they cannot keep is worse than a cut.
+    #[requires(true)]
+    #[ensures(self.shows_excerpt && self.full_text.is_some())]
+    pub(crate) fn show_excerpt_of(&mut self, full_text: String) {
+        self.full_text = Some(full_text);
+        self.shows_excerpt = true;
+    }
+
+    /// Attach `diagnostics`, noting when they are shown in part.
+    #[requires(true)]
+    #[ensures(self.diagnostics.is_some() == old(diagnostics.is_some()))]
+    pub(crate) fn set_diagnostics(&mut self, diagnostics: Option<RenderedDiagnostics>) {
+        if let Some(diagnostics) = &diagnostics
+            && diagnostics.is_excerpt
+        {
+            self.shows_excerpt = true;
+        }
+        self.diagnostics = diagnostics;
     }
 
     #[requires(true)]

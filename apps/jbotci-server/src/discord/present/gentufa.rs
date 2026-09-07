@@ -40,7 +40,7 @@ pub(crate) fn render(outcome: &GentufaOutcome, request: &GentufaRequest) -> Rend
             rendered
                 .body
                 .push(format!("**Could not parse:** {}", escape(&error.message)));
-            rendered.diagnostics = render_diagnostics(source, &error.diagnostics);
+            rendered.set_diagnostics(render_diagnostics(source, &error.diagnostics));
             if options.include_diagram {
                 rendered.notice = Some(subtext(
                     "No diagram: the text did not parse. The diagram setting stays on for the next successful parse.",
@@ -74,8 +74,8 @@ pub(crate) fn render(outcome: &GentufaOutcome, request: &GentufaRequest) -> Rend
                 }
             };
             rendered.body.push(body);
-            rendered.full_text = Some(full_text);
-            rendered.diagnostics = render_diagnostics(source, &success.diagnostics);
+            rendered.set_full_text(full_text);
+            rendered.set_diagnostics(render_diagnostics(source, &success.diagnostics));
             let mut notes = Vec::new();
             if recovered {
                 notes.push(subtext(
