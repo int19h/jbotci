@@ -32,6 +32,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "lock entry pairs a mutex with an interest count; zero interest is reclaimed by the registry, so every count is valid while stored",
     ),
     (
+        "apps/jbotci-server/src/discord/locks.rs:InterestGuard",
+        "RAII handle pairing a registry with the message id whose interest it releases",
+    ),
+    (
         "apps/jbotci-server/src/discord/locks.rs:MessageGuard",
         "guard pairs an owned mutex guard with the registry it releases into",
     ),
@@ -102,6 +106,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/discord/transport.rs:InvalidInteractionToken",
         "unit error marker",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:QueueSlot",
+        "RAII handle over a lane's waiting counter; it carries no data of its own",
     ),
     (
         "apps/jbotci-server/src/discord/work.rs:WorkGovernor",

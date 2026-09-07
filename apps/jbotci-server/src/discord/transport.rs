@@ -147,11 +147,11 @@ fn classify(error: ureq::Error) -> TransportError {
         | ureq::Error::Http(_)
         | ureq::Error::InvalidProxyUrl
         | ureq::Error::BodyExceedsLimit(_) => TransportError::NotSent {
-            reason: error.to_string(),
+            reason: describe(&error),
         },
         ureq::Error::Io(io) if io.kind() == std::io::ErrorKind::ConnectionRefused => {
             TransportError::NotSent {
-                reason: io.to_string(),
+                reason: format!("I/O {}", io.kind()),
             }
         }
         ureq::Error::StatusCode(status) => TransportError::Rejected {
@@ -159,16 +159,51 @@ fn classify(error: ureq::Error) -> TransportError {
             body: String::new(),
         },
         other => TransportError::Ambiguous {
-            reason: other.to_string(),
+            reason: describe(&other),
         },
     }
 }
+
+/// A fixed description of a ureq failure. The library's `Display` output can
+/// embed the request URL, which for interaction follow-ups contains the
+/// token, so reasons are built from the variant alone.
+#[requires(true)]
+#[ensures(!ret.is_empty())]
+fn describe(error: &ureq::Error) -> String {
+    match error {
+        ureq::Error::StatusCode(status) => format!("HTTP {status}"),
+        ureq::Error::Http(_) => "invalid request headers".to_owned(),
+        ureq::Error::BadUri(_) => "invalid request URL".to_owned(),
+        ureq::Error::Protocol(_) => "HTTP protocol error".to_owned(),
+        ureq::Error::Io(io) => format!("I/O {}", io.kind()),
+        ureq::Error::Timeout(timeout) => format!("timed out ({timeout:?})"),
+        ureq::Error::HostNotFound => "host not found".to_owned(),
+        ureq::Error::RedirectFailed => "unexpected redirect".to_owned(),
+        ureq::Error::InvalidProxyUrl => "invalid proxy configuration".to_owned(),
+        ureq::Error::ConnectionFailed => "connection failed".to_owned(),
+        ureq::Error::BodyExceedsLimit(_) => "request body exceeded its declared length".to_owned(),
+        _ => "transport error".to_owned(),
+    }
+}
+
+/// Whether the call changes Discord state. A server error after a mutating
+/// request proves nothing about whether the change was committed.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CallKind {
+    ReadOnly,
+    Mutating,
+}
+
+/// Longest slice of a Discord error body kept in an error value.
+const MAX_ERROR_BODY_CHARS: usize = 512;
 
 /// The response side of a Discord call once a status arrived.
 #[requires(true)]
 #[ensures(true)]
 fn read_json_response(
     mut response: ureq::http::Response<ureq::Body>,
+    kind: CallKind,
 ) -> Result<Value, TransportError> {
     let status = response.status().as_u16();
     let body = response
@@ -177,9 +212,15 @@ fn read_json_response(
         .limit(4 * 1024 * 1024)
         .read_to_string()
         .map_err(|error| TransportError::BadResponse {
-            reason: format!("could not read the response body: {error}"),
+            reason: format!("could not read the response body ({})", describe(&error)),
         })?;
     if !(200..300).contains(&status) {
+        if kind == CallKind::Mutating && status >= 500 {
+            return Err(TransportError::Ambiguous {
+                reason: format!("Discord answered HTTP {status} after the request was sent"),
+            });
+        }
+        let body = body.chars().take(MAX_ERROR_BODY_CHARS).collect();
         return Err(TransportError::Rejected { status, body });
     }
     if body.trim().is_empty() {
@@ -314,7 +355,7 @@ impl DiscordApi {
     ) -> Result<Value, TransportError> {
         let url = self.original_message_url(application_id, token);
         let response = self.agent.get(&url).call().map_err(classify)?;
-        read_json_response(response)
+        read_json_response(response, CallKind::ReadOnly)
     }
 
     /// `PATCH /webhooks/{app}/{token}/messages/@original` with the full
@@ -357,7 +398,7 @@ impl DiscordApi {
                 .send(body.bytes.as_slice())
         }
         .map_err(classify)?;
-        read_json_response(response)
+        read_json_response(response, CallKind::Mutating)
     }
 
     /// `POST /webhooks/{app}/{token}`: a private follow-up to the acting user.
@@ -387,7 +428,7 @@ impl DiscordApi {
             .header("content-type", "application/json")
             .send(body.as_bytes())
             .map_err(classify)?;
-        read_json_response(response).map(|_| ())
+        read_json_response(response, CallKind::Mutating).map(|_| ())
     }
 
     /// Download an attachment from a URL Discord supplied in this interaction,
@@ -421,7 +462,7 @@ impl DiscordApi {
             .limit(byte_cap as u64 + 1)
             .read_to_vec()
             .map_err(|error| TransportError::BadResponse {
-                reason: format!("could not read the attachment: {error}"),
+                reason: format!("could not read the attachment ({})", describe(&error)),
             })?;
         if bytes.len() > byte_cap {
             return Err(TransportError::BadResponse {
@@ -457,7 +498,7 @@ impl DiscordApi {
             .header("authorization", &format!("Bot {bot_token}"))
             .send(body.as_bytes())
             .map_err(classify)?;
-        read_json_response(response)
+        read_json_response(response, CallKind::Mutating)
     }
 }
 
@@ -501,6 +542,25 @@ mod tests {
             )))
             .may_have_applied()
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn reasons_never_embed_the_request_url() {
+        let secret = "https://discord.com/api/v10/webhooks/1/SECRET-TOKEN/messages/@original";
+        for error in [
+            ureq::Error::BadUri(secret.to_owned()),
+            ureq::Error::Io(std::io::Error::other(secret)),
+            ureq::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::ConnectionRefused,
+                secret,
+            )),
+        ] {
+            let classified = classify(error);
+            let text = format!("{classified} {classified:?}");
+            assert!(!text.contains("SECRET"), "{text}");
+        }
     }
 
     #[test]

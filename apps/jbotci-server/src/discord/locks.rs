@@ -114,16 +114,18 @@ impl MessageLocks {
                 mutex
             }
         };
+        // Interest is released by RAII from here on: a waiter that times out
+        // or is dropped mid-wait releases it exactly like a finished holder.
+        let interest = InterestGuard {
+            registry: Arc::clone(self),
+            message_id: message_id.clone(),
+        };
         match tokio::time::timeout_at(deadline, mutex.lock_owned()).await {
             Ok(guard) => Ok(MessageGuard {
-                registry: Arc::clone(self),
-                message_id: message_id.clone(),
                 _guard: guard,
+                _interest: interest,
             }),
-            Err(_elapsed) => {
-                self.release_interest(message_id);
-                Err(LockError::WaitTimedOut)
-            }
+            Err(_elapsed) => Err(LockError::WaitTimedOut),
         }
     }
 
@@ -159,25 +161,30 @@ impl MessageLocks {
     }
 }
 
-/// Exclusive access to one message's update sequence.
+/// One holder's or waiter's reference to a message entry, released on drop.
 #[invariant(true)]
 #[derive(Debug)]
-pub(crate) struct MessageGuard {
+struct InterestGuard {
     registry: Arc<MessageLocks>,
     message_id: Snowflake,
-    _guard: OwnedMutexGuard<()>,
 }
 
-impl Drop for MessageGuard {
+impl Drop for InterestGuard {
     #[requires(true)]
     #[ensures(true)]
     fn drop(&mut self) {
-        // The mutex guard field drops after this body runs; releasing our
-        // interest first is safe because the entry is only removed when no
-        // other holder or waiter references it, and a waiter blocked on the
-        // mutex keeps its own interest until it finishes.
         self.registry.release_interest(&self.message_id);
     }
+}
+
+/// Exclusive access to one message's update sequence. Fields drop in order:
+/// the mutex is released first (waking the next waiter, which holds its own
+/// interest), then this holder's interest.
+#[invariant(true)]
+#[derive(Debug)]
+pub(crate) struct MessageGuard {
+    _guard: OwnedMutexGuard<()>,
+    _interest: InterestGuard,
 }
 
 #[cfg(test)]
@@ -301,6 +308,36 @@ mod tests {
             Some(LockError::Overloaded)
         );
         assert_eq!(waiting.await.expect("task"), Err(LockError::WaitTimedOut));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn aborting_a_blocked_waiter_reclaims_the_entry_after_the_holder_exits() {
+        let locks = Arc::new(MessageLocks::new(16, 4));
+        let holder = locks
+            .acquire(&message("11"), Instant::now() + Duration::from_secs(5))
+            .await
+            .expect("holder");
+        let waiter = {
+            let locks = Arc::clone(&locks);
+            tokio::spawn(async move {
+                locks
+                    .acquire(&message("11"), Instant::now() + Duration::from_secs(5))
+                    .await
+                    .map(|_| ())
+            })
+        };
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        waiter.abort();
+        assert!(waiter.await.is_err());
+        assert_eq!(locks.live_entries(), 1, "the holder still owns the entry");
+        drop(holder);
+        assert_eq!(locks.live_entries(), 0, "aborted interest was released");
+        let again = locks
+            .acquire(&message("11"), Instant::now() + Duration::from_secs(5))
+            .await;
+        assert!(again.is_ok(), "the message is admitted again");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

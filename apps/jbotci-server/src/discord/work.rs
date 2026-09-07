@@ -17,8 +17,9 @@ use bityzba::{ensures, invariant, new, requires};
 use tokio::sync::Semaphore;
 use tokio::time::Instant;
 
-/// Numeric admission limits. Defaults are the measured operating values for
-/// the single-instance service (#902); tests construct their own.
+/// Numeric admission limits. The defaults are initial values for the
+/// single-instance service; the operating numbers are measured under #902
+/// before they are frozen. Tests construct their own.
 #[invariant(*compute_workers > 0 && *fetch_workers > 0)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct WorkLimits {
@@ -141,15 +142,20 @@ impl Lane {
     {
         let lane = self.kind;
         // Admission: count ourselves as waiting before touching the semaphore
-        // so the queue bound covers the race between many arrivals.
+        // so the queue bound covers the race between many arrivals. The slot
+        // is released by RAII: a caller dropped while it waits (aborted task,
+        // client gone) gives the slot back the same way a timed-out one does.
         let waiting_before = self.waiting.fetch_add(1, Ordering::AcqRel);
         if waiting_before >= self.max_waiting {
             self.waiting.fetch_sub(1, Ordering::AcqRel);
             return Err(WorkError::Overloaded { lane });
         }
+        let queue_slot = QueueSlot {
+            counter: &self.waiting,
+        };
         let acquired =
             tokio::time::timeout_at(deadline, Arc::clone(&self.permits).acquire_owned()).await;
-        self.waiting.fetch_sub(1, Ordering::AcqRel);
+        drop(queue_slot);
         let permit = match acquired {
             Ok(Ok(permit)) => permit,
             Ok(Err(_closed)) => return Err(WorkError::Overloaded { lane }),
@@ -171,6 +177,20 @@ impl Lane {
     #[ensures(ret <= self.capacity)]
     fn active(&self) -> usize {
         self.capacity - self.permits.available_permits()
+    }
+}
+
+/// One occupied place in a lane's waiting queue, released on drop.
+#[invariant(true)]
+struct QueueSlot<'a> {
+    counter: &'a AtomicUsize,
+}
+
+impl Drop for QueueSlot<'_> {
+    #[requires(true)]
+    #[ensures(true)]
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::AcqRel);
     }
 }
 
@@ -371,6 +391,72 @@ mod tests {
                 fetch_waiting: 0,
             }
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn an_aborted_waiter_gives_its_queue_slot_back() {
+        let governor = governor(1, 1);
+        let (release_tx, release_rx) = mpsc::channel::<()>();
+        let holder = {
+            let governor = Arc::clone(&governor);
+            tokio::spawn(async move {
+                governor
+                    .run_compute(Instant::now() + Duration::from_secs(5), move || {
+                        let _ = release_rx.recv();
+                    })
+                    .await
+            })
+        };
+        for _ in 0..50 {
+            if governor.snapshot().compute_active == 1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        let waiter = {
+            let governor = Arc::clone(&governor);
+            tokio::spawn(async move {
+                governor
+                    .run_compute(Instant::now() + Duration::from_secs(5), || "never")
+                    .await
+            })
+        };
+        for _ in 0..50 {
+            if governor.snapshot().compute_waiting == 1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert_eq!(governor.snapshot().compute_waiting, 1);
+        // Abort the waiter while it is blocked on the permit.
+        waiter.abort();
+        assert!(waiter.await.is_err(), "aborted task reports cancellation");
+        for _ in 0..50 {
+            if governor.snapshot().compute_waiting == 0 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert_eq!(
+            governor.snapshot().compute_waiting,
+            0,
+            "queue slot returned"
+        );
+        // The queue is free again for a new arrival.
+        let next = {
+            let governor = Arc::clone(&governor);
+            tokio::spawn(async move {
+                governor
+                    .run_compute(Instant::now() + Duration::from_secs(5), || "admitted")
+                    .await
+            })
+        };
+        release_tx.send(()).expect("holder waiting");
+        holder.await.expect("holder task").expect("holder ran");
+        assert_eq!(next.await.expect("next task"), Ok("admitted"));
+        assert_eq!(governor.snapshot().compute_active, 0);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
