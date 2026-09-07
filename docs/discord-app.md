@@ -11,7 +11,7 @@ One slash command with a subcommand per tool: `gentufa`, `vlasei`, `vlatai`,
 `vlacku`, `cukta`, `jvozba`, `gimfihi`. The command publishes a result at once
 and puts a single ⚙️ button beside it. That button opens a form holding the
 input and the settings; submitting it edits the same message. Where the tool
-has a web page (gentufa, vlacku, cukta, gimfi'i), the form's first line is an
+has a web page (gentufa, vlacku, cukta, gimfihi), the form's first line is an
 **Open in app** link carrying the exact state; the other three tools have no
 page, so their forms have no link and no substitute.
 
@@ -120,10 +120,12 @@ result stays exactly as it was, and the reader is told privately, because
 losing a result to a typo would be worse than not applying the change.
 
 A tool that ran and found the input wanting is not a failure: that is a
-result, showing the diagnostics it produced. An image that could not be
+result, and it shows the diagnostics it produced. An image that could not be
 rendered (too complex, too large, or larger than this interaction accepts) is
-an operational failure of the image alone: the text result still publishes and
-says why there is no image.
+an operational failure of the whole submission: the message keeps the result
+it had, unchanged, and the reader is told privately why the image was refused,
+so they can turn it off or shorten the text and submit again. Only a form can
+ask for an image, so this never arises on a first publication.
 
 ## How a message remembers its request
 
