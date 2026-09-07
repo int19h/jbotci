@@ -220,6 +220,38 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "choice option kind names a closed choice source enum with no further constraint",
     ),
     (
+        "apps/jbotci-server/src/discord/transport.rs:TransportError::Ambiguous",
+        "transport error carries only a descriptive reason",
+    ),
+    (
+        "apps/jbotci-server/src/discord/transport.rs:TransportError::BadResponse",
+        "transport error carries only a descriptive reason",
+    ),
+    (
+        "apps/jbotci-server/src/discord/transport.rs:TransportError::NotSent",
+        "transport error carries only a descriptive reason",
+    ),
+    (
+        "apps/jbotci-server/src/discord/transport.rs:TransportError::Rejected",
+        "transport error carries the HTTP status and body Discord returned",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkError::Overloaded",
+        "admission error names the lane it concerns",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkError::Panicked",
+        "admission error names the lane it concerns",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkError::TimedOut",
+        "admission error names the lane it concerns",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkError::WaitTimedOut",
+        "admission error names the lane it concerns",
+    ),
+    (
         "apps/jbotci-server/src/lib.rs:EmbeddingSearchCache::Loaded",
         "loaded embedding cache validity is owned by the native embedding service type",
     ),

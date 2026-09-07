@@ -24,6 +24,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "error carries the rejected name text",
     ),
     (
+        "apps/jbotci-server/src/discord/dedupe.rs:RecentInteractions",
+        "wrapper around a mutex whose inner set carries the invariant",
+    ),
+    (
+        "apps/jbotci-server/src/discord/locks.rs:Entry",
+        "lock entry pairs a mutex with an interest count; zero interest is reclaimed by the registry, so every count is valid while stored",
+    ),
+    (
+        "apps/jbotci-server/src/discord/locks.rs:MessageGuard",
+        "guard pairs an owned mutex guard with the registry it releases into",
+    ),
+    (
         "apps/jbotci-server/src/discord/request.rs:CuktaOptions",
         "presentation options bag: every combination of its typed choices is a valid request",
     ),
@@ -86,6 +98,18 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/discord/request.rs:VlataiRequest",
         "typed request pairs bounded source text with an options bag; every combination is valid",
+    ),
+    (
+        "apps/jbotci-server/src/discord/transport.rs:InvalidInteractionToken",
+        "unit error marker",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkGovernor",
+        "governor pairs two lanes whose own invariants bound them",
+    ),
+    (
+        "apps/jbotci-server/src/discord/work.rs:WorkSnapshot",
+        "diagnostic counters; any values are a valid snapshot",
     ),
     (
         "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",

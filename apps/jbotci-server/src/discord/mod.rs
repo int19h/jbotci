@@ -1,7 +1,11 @@
 pub(crate) mod codec;
 pub(crate) mod components;
+pub(crate) mod dedupe;
+pub(crate) mod locks;
 pub(crate) mod request;
 pub(crate) mod schema;
+pub(crate) mod transport;
+pub(crate) mod work;
 
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
