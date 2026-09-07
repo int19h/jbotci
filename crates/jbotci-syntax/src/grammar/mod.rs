@@ -42,6 +42,7 @@ mod baseline_termset;
 mod description_leading;
 mod generated;
 mod generated_runtime;
+mod link_payload;
 mod parse_error;
 mod parser_core;
 mod selbri_boundary;

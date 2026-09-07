@@ -159,6 +159,7 @@ pub mod generated_model {
         // it takes `linkargs` as a parameter and never has to thread the ladder's own operands.
         linkargs: LinkargsSyntax;
         linked_term: LinkedTermSyntax;
+        full_linked_term_candidate: FullLinkedTermSyntax;
         bound_linked_term: BoundLinkedTermSyntax;
         bound_linked_term_operand: BoundLinkedTermOperandSyntax;
         tense_modal: TenseModalSyntax;
@@ -7556,7 +7557,10 @@ pub mod generated_model {
     ///
     /// These leaves are listed directly so ordinary links retain their established Debug and
     /// serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
-    rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term, bound_linked_term, bound_linked_term_operand) -> enum {
+    rule "linked arguments" linked_term(sumti, tense_modal, selbri, forethought_bridi_connection, normal_term, bound_linked_term, bound_linked_term_operand, full_linked_term_candidate) -> enum {
+        /// Try the complete new-width payload before a legacy owner can consume its prefix.
+        /// The rejection guard rewinds complete legacy and unproven candidates (#793).
+        full_linked_term_candidate,
         /// Uses the diagnosed loose connection over BO-bound linked terms.
         connected_linked_term,
         /// Uses the diagnosed BO-bound linked-term connection.
@@ -7570,6 +7574,19 @@ pub mod generated_model {
         /// Uses the marker-only `empty_linked_sumti` product form.
         empty_linked_sumti,
     }
+
+    /// A complete normal-term payload, with no additional warning or copied leaf inventory.
+    rule "linked arguments" full_linked_term(normal_term) -> struct {
+        /// The full payload of one BE or BEI, in its original term hierarchy.
+        field term <- arc(normal_term);
+    }
+
+    // The rule-level rejection is also applied during recovery. Keeping this alias recursive
+    // gives it one identity without adding a public wrapper around FullLinkedTermSyntax.
+    alias "linked arguments" full_linked_term_candidate(normal_term) =
+        full_linked_term(normal_term)
+            .reject_output(crate::grammar::link_payload::LegacyLinkPayloadRejection)
+            .recursive_output(full_linked_term_candidate);
 
     /// A hierarchy-only loose connection over linked terms with one or more continuations.
     rule "linked arguments" connected_linked_term(tense_modal, selbri, forethought_bridi_connection, bound_linked_term) -> struct {

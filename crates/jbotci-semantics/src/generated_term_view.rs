@@ -645,12 +645,14 @@ impl<'syntax> GeneratedAssociationPayloadRef<'syntax> {
 #[invariant(::PlaceTagged(_) => true)]
 #[invariant(::TenseTagged(_) => true)]
 #[invariant(::Plain(_) => true)]
+#[invariant(::FullTerm(_) => true)]
 #[invariant(::Empty => true)]
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum GeneratedLinkedSumtiRef<'syntax> {
     PlaceTagged(&'syntax PlaceTaggedLinkedSumtiSyntax),
     TenseTagged(&'syntax TenseTaggedLinkedSumtiSyntax),
     Plain(&'syntax PlainLinkedSumtiSyntax),
+    FullTerm(&'syntax NormalTermSyntax),
     Empty,
 }
 
@@ -665,6 +667,7 @@ impl<'syntax> GeneratedLinkedSumtiRef<'syntax> {
             LinkedTermSyntax::PlaceTaggedLinkedSumti(link) => Some(Self::PlaceTagged(link)),
             LinkedTermSyntax::TenseTaggedLinkedSumti(link) => Some(Self::TenseTagged(link)),
             LinkedTermSyntax::PlainLinkedSumti(link) => Some(Self::Plain(link)),
+            LinkedTermSyntax::FullLinkedTerm(link) => Some(Self::FullTerm(&link.0)),
             LinkedTermSyntax::EmptyLinkedSumti(_) => Some(Self::Empty),
         }
     }

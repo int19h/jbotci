@@ -18948,6 +18948,20 @@ class LinkedSumtiSyntaxEmptyLinkedSumti:
 LinkedSumtiSyntax: TypeAlias = LinkedSumtiSyntaxPlaceTaggedLinkedSumti | LinkedSumtiSyntaxTenseTaggedLinkedSumti | LinkedSumtiSyntaxPlainLinkedSumti | LinkedSumtiSyntaxEmptyLinkedSumti
 
 @final
+class LinkedTermSyntaxFullLinkedTerm:
+    'Try the complete new-width payload before a legacy owner can consume its prefix.\nThe rejection guard rewinds complete legacy and unproven candidates (#793).'
+    __match_args__: ClassVar[tuple[Literal['full_linked_term_candidate']]]
+    def __new__(cls, full_linked_term_candidate: FullLinkedTermSyntax) -> LinkedTermSyntaxFullLinkedTerm: ...
+    @property
+    def full_linked_term_candidate(self) -> FullLinkedTermSyntax:
+        'Try the complete new-width payload before a legacy owner can consume its prefix.\nThe rejection guard rewinds complete legacy and unproven candidates (#793).'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class LinkedTermSyntaxConnectedLinkedTerm:
     'Uses the diagnosed loose connection over BO-bound linked terms.'
     __match_args__: ClassVar[tuple[Literal['connected_linked_term']]]
@@ -19035,7 +19049,21 @@ class LinkedTermSyntaxEmptyLinkedSumti:
 #
 # These leaves are listed directly so ordinary links retain their established Debug and
 # serde shape. The binding-schema drift guard keeps them synchronized with `linked_sumti`.
-LinkedTermSyntax: TypeAlias = LinkedTermSyntaxConnectedLinkedTerm | LinkedTermSyntaxBoundLinkedTermConnection | LinkedTermSyntaxPlaceTaggedLinkedSumti | LinkedTermSyntaxTenseTaggedLinkedSumti | LinkedTermSyntaxPlainLinkedSumti | LinkedTermSyntaxEmptyLinkedSumti
+LinkedTermSyntax: TypeAlias = LinkedTermSyntaxFullLinkedTerm | LinkedTermSyntaxConnectedLinkedTerm | LinkedTermSyntaxBoundLinkedTermConnection | LinkedTermSyntaxPlaceTaggedLinkedSumti | LinkedTermSyntaxTenseTaggedLinkedSumti | LinkedTermSyntaxPlainLinkedSumti | LinkedTermSyntaxEmptyLinkedSumti
+
+@final
+class FullLinkedTermSyntax:
+    'A complete normal-term payload, with no additional warning or copied leaf inventory.'
+    __match_args__: ClassVar[tuple[Literal['term']]]
+    def __new__(cls, term: NormalTermSyntax) -> FullLinkedTermSyntax: ...
+    @property
+    def term(self) -> NormalTermSyntax:
+        'The full payload of one BE or BEI, in its original term hierarchy.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
 
 @final
 class ConnectedLinkedTermSyntax:

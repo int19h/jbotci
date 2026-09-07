@@ -1452,6 +1452,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the empty linked-sumti leaf is a closed marker with no payload state to constrain",
     ),
     (
+        "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::FullTerm",
+        "this borrowed view accepts every NormalTermSyntax value; the parser guard, not the semantic view, determines which term wins a Full link",
+    ),
+    (
         "crates/jbotci-semantics/src/generated_term_view.rs:GeneratedLinkedSumtiRef::PlaceTagged",
         "borrowed leaf validity is owned by the invariant-bearing PlaceTaggedLinkedSumtiSyntax node",
     ),

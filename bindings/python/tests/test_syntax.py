@@ -471,6 +471,28 @@ def test_with_free_modifiers_and_generated_token_projection_remain_typed() -> No
     assert bei_link.bei.same_identity(bei_link.bei)
 
 
+def test_full_link_keeps_the_typed_normal_term_and_bei_field() -> None:
+    ku: syntax.WithFreeModifiers[syntax.Token, strict.FreeModifierSyntax] = (
+        syntax.WithFreeModifiers(_token("ku"), [])
+    )
+    term = strict.NormalTermSyntaxNaKuTerm(strict.NaKuTermSyntax(_token("na"), ku))
+    full = strict.FullLinkedTermSyntax(term)
+    linked = strict.LinkedTermSyntaxFullLinkedTerm(full)
+    bei: syntax.WithFreeModifiers[syntax.Token, strict.FreeModifierSyntax] = (
+        syntax.WithFreeModifiers(_token("bei"), [])
+    )
+    field = strict.BeiLinkSyntax(bei, linked)
+    match field.link:
+        case strict.LinkedTermSyntaxFullLinkedTerm(payload):
+            assert payload.term == term
+            # Construction makes a new owner, as for the existing generated types.
+            # Repeated projection from that owner retains identity.
+            assert not payload.term.same_identity(term)
+            assert payload.term.same_identity(payload.term)
+        case _:
+            pytest.fail("Full linked normal term lost its typed BEI field")
+
+
 def test_recovered_valid_error_prefix_and_recovery_item_validation() -> None:
     ui = _token("ui")
     empty_span = source.SourceSpan(0, 0, 0, 0)

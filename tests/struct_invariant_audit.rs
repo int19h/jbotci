@@ -1080,6 +1080,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "visitor accumulator whose open-node stack and leaf cursor are legitimately mid-flight during traversal; the index it produces is audited by the jbotci-semantics syntax index and projection tests",
     ),
     (
+        "crates/jbotci-semantics/src/references.rs:LinkedNormalTermAssigner",
+        "temporary pass borrows an independently valid builder and place cursor; either assigned flag is valid at any cursor state, and source order and monotonic assignment are enforced by walker method contracts and Full-link cursor tests",
+    ),
+    (
         "crates/jbotci-semantics/src/references.rs:MeksoNodeId",
         "syntax node ids are opaque index keys whose validity is checked by SyntaxIndex typed lookup APIs",
     ),
@@ -1310,6 +1314,46 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-syntax/src/grammar/generated_runtime.rs:SyntaxGrammarPolicy",
         "generated grammar policy flags are independent parser behavior switches",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:AttemptedParse",
+        "test capture pairs a final recovered parse with a separate attempted-candidate sequence; rejected attempts need not occur in the final tree, and no cross-field equality is implied",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:BreadthWalker",
+        "the closed three-state classification is the complete accumulator state; each value is valid and combine contracts enforce its transitions",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:FullPayloads",
+        "test collector admits every sequence of borrowed typed Full nodes; its generated walker append contract controls collection order",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:LeafEvidence",
+        "parsed-token presence and recovery uncertainty are independent flags: all four combinations are meaningful partial or complete traversal states",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:LegacyLinkPayloadRejection",
+        "stateless rejection policy has exactly one valid value; candidate evidence is constrained by its strict and recovered classifier methods",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:LinkParents",
+        "test collector admits every sequence of typed linkargs borrows, including empty and nested collections; association comes from the generated walker",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:NormalPayloads",
+        "test collector admits every sequence of typed normal-term borrows; collection is append-only by its walker contract",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:ParsedTokens",
+        "flat test accumulator admits every token-reference sequence; TreeVisitor atom events exclude recovery items without restricting valid token combinations",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:RecoveredTarget",
+        "borrowed marker and payload fields deliberately admit all Valid, Prefix and Error combinations; the generated walker selects their parent association",
+    ),
+    (
+        "crates/jbotci-syntax/src/grammar/link_payload.rs:RecoveredTargets",
+        "test collector admits every sequence of independently valid field-view pairs, with append ordering supplied by generated descent",
     ),
     (
         "crates/jbotci-syntax/src/grammar/mod.rs:ChildRecoveryCheckpointObservations",

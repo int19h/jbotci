@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.lr-be-legacy-bound-field-damage-zantufa"
+lojban = "mi broda be bau ko'a .e bo pu ko'e ku be'o .i mi ku .i do broda"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-793", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-a all-legacy connection recovery"
+description = "Complete BAI/time-tag connection is legacy width. The full candidate must reject as LegacyLinked; final containing-field state and exact old owner are independent observations."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [35, 37], "source-text" = "ku", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "cb670496001a64d0d316e0ec93cd6523c2ded2e0c5db1ec0cba773f50ee1de5c" }
+diagnostics = [{ "severity" = "warning", "code" = "syntax.warning.experimental-term-bo-connection", "byte-span" = [24, 26], "source-text" = "bo", "message" = "experimental syntax: BO-bound term or linked-argument connection", "word-index" = 6 }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [35, 37], "source-text" = "ku", "message" = "unexpected cmavo" }, { "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [49, 51], "source-text" = "ku", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "baŭ", "ko'a", "e", "bo", "pu", "ko'e", "be'o", "i", "mi", "ku", "i", "do", "bróda"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[35, 37]] }, { "kind" = "missing", "error-index" = 1, "byte-spans" = [[49, 49]] }] }

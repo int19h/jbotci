@@ -3029,6 +3029,15 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             GeneratedLinkedSumtiRef::Empty => false,
+            GeneratedLinkedSumtiRef::FullTerm(term) => {
+                let mut assignment = LinkedNormalTermAssigner {
+                    builder: self,
+                    cursor,
+                    assigned: false,
+                };
+                generated::TreeWalkable::walk_with(term, &mut assignment);
+                assignment.assigned
+            }
         }
     }
 
@@ -4540,6 +4549,200 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         &mut self,
         _node: &'tree generated::EmptyLinkedSumtiSyntax,
     ) {
+    }
+}
+
+/// Assign a Full link's normal-term payload using the existing linked-argument cursor.
+/// The generated walker supplies connection/termset order. Leaf overrides stop at semantic
+/// boundaries: terms inside an argument sumti, a tag's FIhO bridi, or an adverbial have their
+/// own frames, not the frame of the enclosing BE. There is no manufactured TermSyntax/TermNodeId.
+#[invariant(true)]
+struct LinkedNormalTermAssigner<'pass, 'index, 'tree> {
+    builder: &'pass mut GeneratedPlaceAnalysisBuilder<'index, 'tree>,
+    cursor: &'pass mut PlaceCursor,
+    assigned: bool,
+}
+
+impl<'tree> generated::TreeWalker<'tree> for LinkedNormalTermAssigner<'_, '_, 'tree> {
+    #[requires(true)]
+    #[ensures(self.assigned)]
+    fn walk_sumti_term(&mut self, node: &'tree generated::SumtiTermSyntax) {
+        self.builder
+            .assign_link_argument(self.cursor, &node.0, None);
+        self.assigned = true;
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned)]
+    fn walk_place_tagged_sumti_term(&mut self, node: &'tree generated::PlaceTaggedSumtiTermSyntax) {
+        self.assigned |= self.builder.assign_tagged_or_elided_link_argument(
+            self.cursor,
+            &node.sumti,
+            generated_fa_place_slot(&node.fa),
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned)]
+    fn walk_nonabs_tagged_sumti_term(
+        &mut self,
+        node: &'tree generated::NonabsTaggedSumtiTermSyntax,
+    ) {
+        self.builder.walk_node(&node.tense_modal);
+        let slot = modal_slot(Some(self.builder.raw_for_node(node.tense_modal.as_ref())));
+        self.assigned |= self.builder.assign_tagged_or_elided_link_argument(
+            self.cursor,
+            &node.sumti,
+            Some(slot),
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned)]
+    fn walk_tagged_sumti_term(&mut self, node: &'tree generated::TaggedSumtiTermSyntax) {
+        self.builder.walk_node(&node.tense_modal);
+        let slot = modal_slot(Some(self.builder.raw_for_node(node.tense_modal.as_ref())));
+        self.assigned |= self.builder.assign_tagged_or_elided_link_argument(
+            self.cursor,
+            &node.sumti,
+            Some(slot),
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned)]
+    fn walk_elided_nahe_fiho_tag_term(
+        &mut self,
+        node: &'tree generated::ElidedNaheFihoTagTermSyntax,
+    ) {
+        self.builder.walk_node(&node.tense_modal);
+        let slot = modal_slot(Some(self.builder.raw_for_node(node.tense_modal.as_ref())));
+        self.assigned |= self.builder.assign_tagged_or_elided_link_argument(
+            self.cursor,
+            &node.sumti,
+            Some(slot),
+        );
+    }
+
+    #[requires(true)]
+    #[ensures(old(self.assigned) -> self.assigned)]
+    fn walk_jai_tagged_sumti_term(&mut self, node: &'tree generated::JaiTaggedSumtiTermSyntax) {
+        if let Some(tag) = &node.tag {
+            self.builder.walk_node(tag);
+        }
+        // Match the existing term assignment policy: an elided JAI payload carries no argument.
+        match node.sumti.as_ref() {
+            generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) => {
+                self.builder
+                    .assign_link_argument(self.cursor, sumti, Some(fai_slot()));
+                self.assigned = true;
+            }
+            generated::TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_zantufa_joik_chained_place_tag_term(
+        &mut self,
+        node: &'tree generated::ZantufaJoikChainedPlaceTagTermSyntax,
+    ) {
+        // As in assign_simple_term, multi-place FA chains are traversed but not lowered.
+        match node.sumti.as_ref() {
+            generated::TaggedOrElidedSumtiSyntax::Sumti(sumti) => self.builder.walk_node(sumti),
+            generated::TaggedOrElidedSumtiSyntax::TaggedElidedSumti(_) => {}
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_tagged_sumti_before_tag_term(
+        &mut self,
+        node: &'tree generated::TaggedSumtiBeforeTagTermSyntax,
+    ) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_noiha_adverbial_term(&mut self, node: &'tree generated::NoihaAdverbialTermSyntax) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_fihoi_proposal_adverbial_term(
+        &mut self,
+        node: &'tree generated::FihoiProposalAdverbialTermSyntax,
+    ) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_zantufa_xoi_adverbial_term(
+        &mut self,
+        node: &'tree generated::ZantufaXoiAdverbialTermSyntax,
+    ) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_exp_soi_adverbial_term(&mut self, node: &'tree generated::ExpSoiAdverbialTermSyntax) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_na_ku_term(&mut self, node: &'tree generated::NaKuTermSyntax) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_bare_na_term(&mut self, node: &'tree generated::BareNaTermSyntax) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_gek_termset(&mut self, node: &'tree generated::GekTermsetSyntax) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_zantufa_gek_termset(&mut self, node: &'tree generated::ZantufaGekTermsetSyntax) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_forethought_termset(&mut self, node: &'tree generated::ForethoughtTermsetSyntax) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_term_afterthought_connective(
+        &mut self,
+        node: &'tree generated::TermAfterthoughtConnectiveSyntax,
+    ) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_tense_modal(&mut self, node: &'tree generated::TenseModalSyntax) {
+        self.builder.walk_node(node);
+    }
+
+    #[requires(true)]
+    #[ensures(self.assigned == old(self.assigned))]
+    fn walk_free_modifier(&mut self, node: &'tree generated::FreeModifierSyntax) {
+        // A modifier's internal terms belong to that modifier, not to the BE cursor.
+        self.builder.walk_node(node);
     }
 }
 
@@ -9389,6 +9592,172 @@ mod tests {
                     && matches!(assignment.slot, FixturePlaceSlot::Numbered { place: 2 })
             }));
         });
+    }
+
+    /// NUhI children and following BEI links share the existing linked-argument cursor.
+    /// Explicit FA changes that cursor; modal arguments do not consume a numbered place.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn full_link_termsets_preserve_cursor_order_and_do_not_fabricate_term_ids() {
+        for explicit_fo in [false, true] {
+            for zantufa in [false, true] {
+                let tag = if explicit_fo { "fo " } else { "" };
+                let input = format!(
+                    "mi broda be nu'i {tag}ko'a ce'e bau ko'e ce'e ko'i nu'u bei ko'o be'o ko'u"
+                );
+                let syntax = if zantufa {
+                    parse_generated_zantufa_syntax(&input)
+                } else {
+                    parse_generated_syntax(&input)
+                };
+                let analysis = analyze_generated_references(&syntax).unwrap();
+                let projection = analysis.fixture_projection();
+                let frame = projection
+                    .frames
+                    .iter()
+                    .find(|frame| frame.kind == PlaceFrameKind::TanruUnit && frame.node.offset == 3)
+                    .unwrap()
+                    .index;
+                let first_place = if explicit_fo { 4 } else { 2 };
+                // The fixture projection sorts by slot; assignment construction order is the
+                // sequence that proves traversal order and cursor progression here.
+                let linked: Vec<_> = analysis
+                    .place_analysis
+                    .assignments()
+                    .iter()
+                    .filter_map(|assignment| generated_fixture_assignment(&analysis, assignment))
+                    .filter(|assignment| {
+                        assignment.frame == frame
+                            && assignment.source == AssignmentSource::LinkedSumti
+                    })
+                    .collect();
+                assert_eq!(linked.len(), 4, "{input}");
+                for (index, word) in ["ko'a", "ko'e", "ko'i", "ko'o"].iter().enumerate() {
+                    assert_eq!(
+                        linked[index].sumti,
+                        nth_span_key(&input, word, 0),
+                        "{input}"
+                    );
+                    assert_eq!(
+                        linked[index].term, None,
+                        "a linked normal term is not a TermSyntax wrapper"
+                    );
+                }
+                assert_eq!(
+                    linked[0].slot,
+                    FixturePlaceSlot::Numbered { place: first_place }
+                );
+                assert!(matches!(linked[1].slot, FixturePlaceSlot::Modal { .. }));
+                assert_eq!(
+                    linked[2].slot,
+                    FixturePlaceSlot::Numbered {
+                        place: first_place + 1
+                    }
+                );
+                assert_eq!(
+                    linked[3].slot,
+                    FixturePlaceSlot::Numbered {
+                        place: first_place + 2
+                    }
+                );
+                assert!(
+                    projection
+                        .assignments
+                        .iter()
+                        .any(|assignment| assignment.frame == frame
+                            && assignment.sumti == nth_span_key(&input, "ko'u", 0)
+                            && assignment.slot
+                                == FixturePlaceSlot::Numbered {
+                                    place: first_place + 3
+                                }),
+                    "following term must continue after linked arguments: {input}"
+                );
+            }
+        }
+    }
+
+    /// A sumti's nested BE and a FIhO tag's nested BE are semantic boundaries, not extra
+    /// outer NUhI arguments. The generated walker still visits both independent inner frames.
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn full_links_keep_nested_sumti_and_fiho_frames_out_of_the_outer_cursor() {
+        for modal in [false, true] {
+            let input = if modal {
+                "mi broda be nu'i fi'o brode be ko'e be'o fe'u ko'a ce'e ko'i nu'u bei ko'o be'o ko'u"
+            } else {
+                "mi broda be nu'i lo brode be ko'e be'o ku ce'e ko'a nu'u bei ko'i be'o ko'o"
+            };
+            let syntax = parse_generated_syntax(input);
+            let analysis = analyze_generated_references(&syntax).unwrap();
+            let projection = analysis.fixture_projection();
+            let outer = projection
+                .frames
+                .iter()
+                .find(|frame| frame.kind == PlaceFrameKind::TanruUnit && frame.node.offset == 3)
+                .unwrap()
+                .index;
+            let nested_offset = nth_span_key(input, "brode", 0).offset;
+            let inner = projection
+                .frames
+                .iter()
+                .find(|frame| {
+                    frame.kind == PlaceFrameKind::TanruUnit && frame.node.offset == nested_offset
+                })
+                .unwrap()
+                .index;
+            assert_ne!(outer, inner);
+            let inner_sumti = nth_span_key(input, "ko'e", 0);
+            assert!(
+                projection
+                    .assignments
+                    .iter()
+                    .any(|assignment| assignment.frame == inner
+                        && assignment.source == AssignmentSource::LinkedSumti
+                        && assignment.sumti == inner_sumti
+                        && assignment.slot == FixturePlaceSlot::Numbered { place: 2 })
+            );
+            assert!(
+                !projection
+                    .assignments
+                    .iter()
+                    .any(|assignment| assignment.frame == outer && assignment.sumti == inner_sumti)
+            );
+            let outer_links: Vec<_> = analysis
+                .place_analysis
+                .assignments()
+                .iter()
+                .filter_map(|assignment| generated_fixture_assignment(&analysis, assignment))
+                .filter(|assignment| {
+                    assignment.frame == outer && assignment.source == AssignmentSource::LinkedSumti
+                })
+                .collect();
+            assert_eq!(outer_links.len(), 3, "{input}");
+            assert!(
+                outer_links
+                    .iter()
+                    .all(|assignment| assignment.term.is_none())
+            );
+            if modal {
+                assert_eq!(outer_links[0].sumti, nth_span_key(input, "ko'a", 0));
+                assert!(matches!(
+                    outer_links[0].slot,
+                    FixturePlaceSlot::Modal { .. }
+                ));
+                assert_eq!(outer_links[1].slot, FixturePlaceSlot::Numbered { place: 2 });
+                assert_eq!(outer_links[2].slot, FixturePlaceSlot::Numbered { place: 3 });
+            } else {
+                assert_eq!(
+                    outer_links[0].sumti,
+                    nth_span_key(input, "lo brode be ko'e be'o ku", 0)
+                );
+                assert_eq!(outer_links[0].slot, FixturePlaceSlot::Numbered { place: 2 });
+                assert_eq!(outer_links[1].sumti, nth_span_key(input, "ko'a", 0));
+                assert_eq!(outer_links[1].slot, FixturePlaceSlot::Numbered { place: 3 });
+                assert_eq!(outer_links[2].slot, FixturePlaceSlot::Numbered { place: 4 });
+            }
+        }
     }
 
     #[test]

@@ -1164,6 +1164,7 @@ pub fn consume_syntax_binding_schema(input: TokenStream) -> TokenStream {
     let mut expected_linked_terms = variant_names(model_by_name(&summary, "LinkedSumtiSyntax"));
     expected_linked_terms.insert("ConnectedLinkedTerm");
     expected_linked_terms.insert("BoundLinkedTermConnection");
+    expected_linked_terms.insert("FullLinkedTerm");
     let linked_terms_match =
         variant_names(model_by_name(&summary, "LinkedTermSyntax")) == expected_linked_terms;
     let term_hierarchy_variants_valid = bound_terms_match
