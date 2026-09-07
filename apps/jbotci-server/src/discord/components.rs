@@ -32,6 +32,9 @@ pub(crate) const FLAG_EPHEMERAL: u64 = 1 << 6;
 /// Text Displays. Documented product bound (#893 review), independent of any
 /// larger platform allowance.
 pub(crate) const MESSAGE_TEXT_BUDGET_UNITS: usize = 4000;
+/// Discord's limit on the `content` field of one message, which is what a
+/// private note is sent as.
+pub(crate) const MAX_CONTENT_UNITS: usize = 2000;
 /// Per-component Text Display cap (platform).
 pub(crate) const TEXT_DISPLAY_MAX_UNITS: usize = 4000;
 /// The stricter of the documented component-count limits (the V2 launch note
@@ -903,29 +906,38 @@ pub(crate) enum InteractionResponse {
     Modal(Modal),
 }
 
+/// Bound `text` to what Discord accepts in a message's `content`, ending it
+/// with an ellipsis rather than sending a body Discord will reject. Every
+/// private note goes through here: some of them repeat a validation error,
+/// and an error about fifty malformed records is not short.
+#[requires(!text.trim().is_empty())]
+#[ensures(utf16_len(&ret) <= MAX_CONTENT_UNITS && !ret.is_empty())]
+pub(crate) fn bound_content(text: &str) -> String {
+    if utf16_len(text) <= MAX_CONTENT_UNITS {
+        return text.to_owned();
+    }
+    let mut bounded = String::new();
+    let mut units = 0;
+    for character in text.chars() {
+        let width = character.len_utf16();
+        if units + width > MAX_CONTENT_UNITS - 1 {
+            break;
+        }
+        units += width;
+        bounded.push(character);
+    }
+    bounded.push('…');
+    bounded
+}
+
 impl InteractionResponse {
-    /// Build a private text response, bounding the text to Discord's content
-    /// limit by ending it with an ellipsis rather than sending an invalid
-    /// body. Error explanations are short by construction; this is a guard.
+    /// Build a private text response within Discord's content limit.
     #[requires(!content.trim().is_empty())]
     #[ensures(true)]
     pub(crate) fn ephemeral(content: &str) -> Self {
-        let mut text = content.to_owned();
-        if utf16_len(&text) > 2000 {
-            let mut truncated = String::new();
-            let mut units = 0;
-            for character in text.chars() {
-                let width = character.len_utf16();
-                if units + width > 1999 {
-                    break;
-                }
-                units += width;
-                truncated.push(character);
-            }
-            truncated.push('…');
-            text = truncated;
+        InteractionResponse::EphemeralText {
+            content: bound_content(content),
         }
-        InteractionResponse::EphemeralText { content: text }
     }
 
     #[requires(true)]

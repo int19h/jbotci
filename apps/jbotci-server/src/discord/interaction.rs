@@ -26,7 +26,7 @@ use super::codec::{
 };
 use super::components::{
     InteractionResponse, MessageComponent, MessagePayload, Modal, ModalComponent, ModalControl,
-    PayloadError, TextDisplay,
+    PayloadError, TextDisplay, bound_content,
 };
 use super::dedupe::{Admission, DeliveryTicket, RecentInteractions};
 use super::diagram::DiagramLimits;
@@ -901,7 +901,9 @@ impl DiscordService {
         let api = self.api.clone();
         let application_id = target.application_id.clone();
         let token = target.token.clone();
-        let text = text.to_owned();
+        // The same bound the immediate answers use: a note repeating a long
+        // validation error must still be a note Discord will accept.
+        let text = bound_content(text);
         let _ = self
             .governor
             .run_fetch_keeping(deadline, keepalive, move || {
@@ -2475,6 +2477,96 @@ mod tests {
             published,
             "the published result is untouched"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_long_refusal_is_shown_in_part_and_travels_whole() {
+        // Fifty malformed records are a short request and a long complaint.
+        // The reader needs every complaint to fix the request, so the message
+        // shows what fits and carries the rest as a file.
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        let records = (0..50)
+            .map(|index| format!("??{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        service
+            .handle(&command(
+                "160",
+                "gimfihi",
+                vec![option("sources", &records)],
+            ))
+            .await;
+        settle(&discord, 1).await;
+
+        let message = discord.original().expect("a result");
+        let shown = message.to_string();
+        assert!(shown.contains("Not run"), "the message says so: {shown}");
+        let attachments = message["attachments"]
+            .as_array()
+            .expect("attachments")
+            .iter()
+            .filter_map(|attachment| attachment["filename"].as_str())
+            .collect::<Vec<_>>();
+        assert!(
+            attachments.contains(&"jbotci-result.txt"),
+            "the whole complaint travels with the message: {attachments:?}"
+        );
+        // And the form still reopens on the request that caused it.
+        let response = service
+            .handle(&component_interaction("161", &message, ACTOR))
+            .await;
+        assert!(
+            matches!(response, InteractionResponse::Modal(_)),
+            "{response:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_long_private_note_stays_within_what_discord_accepts() {
+        // The same complaint on an edit is told privately instead, and a
+        // note Discord will not accept is no note at all.
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service.handle(&command("170", "gimfihi", Vec::new())).await;
+        settle(&discord, 1).await;
+        let published = discord.original().expect("a result");
+        let modal = modal_of(
+            service
+                .handle(&component_interaction("171", &published, ACTOR))
+                .await,
+        );
+        let records = (0..50)
+            .map(|index| format!("??{index}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let writes = discord.count("PATCH");
+        service
+            .handle(&submission(
+                "172",
+                &modal,
+                &published,
+                ACTOR,
+                &[("sources", json!(records))],
+            ))
+            .await;
+        quiet(&discord).await;
+
+        assert_eq!(discord.count("PATCH"), writes, "the result is unchanged");
+        let notes = discord.private_messages();
+        let note = notes.last().expect("a private note");
+        assert!(
+            super::super::request::utf16_len(note) <= 2000,
+            "the note fits Discord's content limit: {} units",
+            super::super::request::utf16_len(note)
+        );
+        assert!(note.contains("Nothing was changed"), "{note}");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

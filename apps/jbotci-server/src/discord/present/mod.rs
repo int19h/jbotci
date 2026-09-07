@@ -192,23 +192,31 @@ pub(crate) fn render_validation_error(
 pub(crate) fn render_failure(reason: &str, request: &DiscordRequest) -> RenderedResult {
     let tool = request.tool();
     let mut rendered = RenderedResult::new(tool, format!("{tool} · not run"));
-    // The reason comes from an error type, not from a result, so it is short
-    // by construction; it is cut before escaping all the same, because one
-    // unexpectedly long reason must not be what makes a message unsendable.
-    let reason = reason
+    // A reason can be long: fifty malformed records produce fifty complaints,
+    // and the reader needs every one of them to fix the request. The message
+    // shows what fits and the assembler attaches the rest, exactly as it does
+    // for a result too long to show; nothing is cut away silently.
+    let shown = reason
         .chars()
         .take(FAILURE_REASON_CHARS)
         .collect::<String>();
+    let complete = format!("Not run: {reason}");
     rendered
         .body
-        .push(format!("**Not run:** {}", markdown::escape(&reason)));
+        .push(format!("**Not run:** {}", markdown::escape(&shown)));
+    if shown.chars().count() < reason.chars().count() {
+        rendered.show_excerpt_of(complete);
+    } else {
+        rendered.set_full_text(complete);
+    }
     rendered.notice = Some(markdown::subtext(
         "Use the ⚙️ button to correct the request.",
     ));
     rendered
 }
 
-/// Most characters of a failure reason a message repeats.
+/// How much of a failure reason the message itself shows. The whole of it
+/// travels with the message either way.
 const FAILURE_REASON_CHARS: usize = 500;
 
 #[requires(true)]
