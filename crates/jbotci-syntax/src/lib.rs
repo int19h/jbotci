@@ -3086,6 +3086,7 @@ pub enum ExperimentalConstruct {
     ExperimentalFihoiAdverbial,
     ExperimentalSoiAdverbial,
     ExperimentalPreposedLinkargs,
+    /// Retained public category; never emitted after removal of empty BE/BEI payloads (#807).
     ExperimentalEmptyLinkargs,
     ExperimentalBroadBoStatementConnective,
     ExperimentalBroadKePredicateContinuation,

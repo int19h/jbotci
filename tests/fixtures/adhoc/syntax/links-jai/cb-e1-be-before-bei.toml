@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cb-e1-be-before-bei"
+lojban = "mi broda be bei ko'a be'o"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-807", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-b required BE/BEI payload"
+description = "E1: final LinkargsSyntax.first_link is Error(MissingRequiredField) at BEI. The later BeiLinkSyntax.link remains Valid PlainLinkedSumti for ko'a; one missing payload does not manufacture an empty syntax value. Full recovered-tree and diagnostic pins record the actual winning parser result; no construct warning is emitted."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [12, 15], "source-text" = "bei", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "4f05e10af817eab792675f44a2fa276dafc6449bfe926cb20dfb466ce277caf5" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [12, 15], "source-text" = "bei", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "beĭ", "ko'a", "be'o"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[12, 12]] }] }

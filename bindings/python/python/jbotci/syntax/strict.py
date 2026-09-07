@@ -20667,30 +20667,13 @@ class LinkedSumtiSyntaxPlainLinkedSumti(_SyntaxNode):
     def __init_subclass__(cls) -> None:
         raise TypeError('LinkedSumtiSyntaxPlainLinkedSumti is final')
 
-@final
-class LinkedSumtiSyntaxEmptyLinkedSumti(_SyntaxNode):
-    'Uses the marker-only `empty_linked_sumti` product form.'
-    __slots__ = ()
-    _schema_id = 1041
-    __match_args__ = ('empty_linked_sumti',)
-    def __new__(cls, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> LinkedSumtiSyntaxEmptyLinkedSumti:
-        return cls._from_fields((empty_linked_sumti,))
-    def __init__(self, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> None:
-        pass
-    @property
-    def empty_linked_sumti(self) -> EmptyLinkedSumtiSyntax:
-        'Uses the marker-only `empty_linked_sumti` product form.'
-        return cast(EmptyLinkedSumtiSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('LinkedSumtiSyntaxEmptyLinkedSumti is final')
-
-LinkedSumtiSyntax: TypeAlias = LinkedSumtiSyntaxPlaceTaggedLinkedSumti | LinkedSumtiSyntaxTenseTaggedLinkedSumti | LinkedSumtiSyntaxPlainLinkedSumti | LinkedSumtiSyntaxEmptyLinkedSumti
+LinkedSumtiSyntax: TypeAlias = LinkedSumtiSyntaxPlaceTaggedLinkedSumti | LinkedSumtiSyntaxTenseTaggedLinkedSumti | LinkedSumtiSyntaxPlainLinkedSumti
 
 @final
 class LinkedTermSyntaxFullLinkedTerm(_SyntaxNode):
     'Try the complete new-width payload before a legacy owner can consume its prefix.\nThe rejection guard rewinds complete legacy and unproven candidates (#793).'
     __slots__ = ()
-    _schema_id = 1042
+    _schema_id = 1041
     __match_args__ = ('full_linked_term_candidate',)
     def __new__(cls, full_linked_term_candidate: FullLinkedTermSyntax) -> LinkedTermSyntaxFullLinkedTerm:
         return cls._from_fields((full_linked_term_candidate,))
@@ -20707,7 +20690,7 @@ class LinkedTermSyntaxFullLinkedTerm(_SyntaxNode):
 class LinkedTermSyntaxConnectedLinkedTerm(_SyntaxNode):
     'Uses the diagnosed loose connection over BO-bound linked terms.'
     __slots__ = ()
-    _schema_id = 1043
+    _schema_id = 1042
     __match_args__ = ('connected_linked_term',)
     def __new__(cls, connected_linked_term: ConnectedLinkedTermSyntax) -> LinkedTermSyntaxConnectedLinkedTerm:
         return cls._from_fields((connected_linked_term,))
@@ -20724,7 +20707,7 @@ class LinkedTermSyntaxConnectedLinkedTerm(_SyntaxNode):
 class LinkedTermSyntaxBoundLinkedTermConnection(_SyntaxNode):
     'Uses the diagnosed BO-bound linked-term connection.'
     __slots__ = ()
-    _schema_id = 1044
+    _schema_id = 1043
     __match_args__ = ('bound_linked_term_connection',)
     def __new__(cls, bound_linked_term_connection: BoundLinkedTermConnectionSyntax) -> LinkedTermSyntaxBoundLinkedTermConnection:
         return cls._from_fields((bound_linked_term_connection,))
@@ -20741,7 +20724,7 @@ class LinkedTermSyntaxBoundLinkedTermConnection(_SyntaxNode):
 class LinkedTermSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
     'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
     __slots__ = ()
-    _schema_id = 1045
+    _schema_id = 1044
     __match_args__ = ('place_tagged_linked_sumti',)
     def __new__(cls, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> LinkedTermSyntaxPlaceTaggedLinkedSumti:
         return cls._from_fields((place_tagged_linked_sumti,))
@@ -20758,7 +20741,7 @@ class LinkedTermSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
 class LinkedTermSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
     'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
     __slots__ = ()
-    _schema_id = 1046
+    _schema_id = 1045
     __match_args__ = ('tense_tagged_linked_sumti',)
     def __new__(cls, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> LinkedTermSyntaxTenseTaggedLinkedSumti:
         return cls._from_fields((tense_tagged_linked_sumti,))
@@ -20775,7 +20758,7 @@ class LinkedTermSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
 class LinkedTermSyntaxPlainLinkedSumti(_SyntaxNode):
     'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
     __slots__ = ()
-    _schema_id = 1047
+    _schema_id = 1046
     __match_args__ = ('plain_linked_sumti',)
     def __new__(cls, plain_linked_sumti: PlainLinkedSumtiSyntax) -> LinkedTermSyntaxPlainLinkedSumti:
         return cls._from_fields((plain_linked_sumti,))
@@ -20788,30 +20771,13 @@ class LinkedTermSyntaxPlainLinkedSumti(_SyntaxNode):
     def __init_subclass__(cls) -> None:
         raise TypeError('LinkedTermSyntaxPlainLinkedSumti is final')
 
-@final
-class LinkedTermSyntaxEmptyLinkedSumti(_SyntaxNode):
-    'Uses the marker-only `empty_linked_sumti` product form.'
-    __slots__ = ()
-    _schema_id = 1048
-    __match_args__ = ('empty_linked_sumti',)
-    def __new__(cls, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> LinkedTermSyntaxEmptyLinkedSumti:
-        return cls._from_fields((empty_linked_sumti,))
-    def __init__(self, empty_linked_sumti: EmptyLinkedSumtiSyntax) -> None:
-        pass
-    @property
-    def empty_linked_sumti(self) -> EmptyLinkedSumtiSyntax:
-        'Uses the marker-only `empty_linked_sumti` product form.'
-        return cast(EmptyLinkedSumtiSyntax, self._field(0))
-    def __init_subclass__(cls) -> None:
-        raise TypeError('LinkedTermSyntaxEmptyLinkedSumti is final')
-
-LinkedTermSyntax: TypeAlias = LinkedTermSyntaxFullLinkedTerm | LinkedTermSyntaxConnectedLinkedTerm | LinkedTermSyntaxBoundLinkedTermConnection | LinkedTermSyntaxPlaceTaggedLinkedSumti | LinkedTermSyntaxTenseTaggedLinkedSumti | LinkedTermSyntaxPlainLinkedSumti | LinkedTermSyntaxEmptyLinkedSumti
+LinkedTermSyntax: TypeAlias = LinkedTermSyntaxFullLinkedTerm | LinkedTermSyntaxConnectedLinkedTerm | LinkedTermSyntaxBoundLinkedTermConnection | LinkedTermSyntaxPlaceTaggedLinkedSumti | LinkedTermSyntaxTenseTaggedLinkedSumti | LinkedTermSyntaxPlainLinkedSumti
 
 @final
 class FullLinkedTermSyntax(_SyntaxNode):
     'A complete normal-term payload, with no additional warning or copied leaf inventory.'
     __slots__ = ()
-    _schema_id = 1049
+    _schema_id = 1047
     __match_args__ = ('term',)
     def __new__(cls, term: NormalTermSyntax) -> FullLinkedTermSyntax:
         return cls._from_fields((term,))
@@ -20828,7 +20794,7 @@ class FullLinkedTermSyntax(_SyntaxNode):
 class ConnectedLinkedTermSyntax(_SyntaxNode):
     'A hierarchy-only loose connection over linked terms with one or more continuations.'
     __slots__ = ()
-    _schema_id = 1050
+    _schema_id = 1048
     __match_args__ = ('leading_link', 'continuations')
     def __new__(cls, leading_link: BoundLinkedTermSyntax, continuations: Sequence[ConnectedLinkedTermContinuationSyntax]) -> ConnectedLinkedTermSyntax:
         return cls._from_fields((leading_link, continuations))
@@ -20849,7 +20815,7 @@ class ConnectedLinkedTermSyntax(_SyntaxNode):
 class ConnectedLinkedTermContinuationSyntax(_SyntaxNode):
     'One loose linked-term continuation.'
     __slots__ = ()
-    _schema_id = 1051
+    _schema_id = 1049
     __match_args__ = ('connective', 'trailing_link')
     def __new__(cls, connective: TermAfterthoughtConnectiveSyntax, trailing_link: BoundLinkedTermSyntax) -> ConnectedLinkedTermContinuationSyntax:
         return cls._from_fields((connective, trailing_link))
@@ -20870,7 +20836,7 @@ class ConnectedLinkedTermContinuationSyntax(_SyntaxNode):
 class BoundLinkedTermSyntaxBoundLinkedTermConnection(_SyntaxNode):
     'Uses the diagnosed BO-bound linked-term connection.'
     __slots__ = ()
-    _schema_id = 1052
+    _schema_id = 1050
     __match_args__ = ('bound_linked_term_connection',)
     def __new__(cls, bound_linked_term_connection: BoundLinkedTermConnectionSyntax) -> BoundLinkedTermSyntaxBoundLinkedTermConnection:
         return cls._from_fields((bound_linked_term_connection,))
@@ -20887,7 +20853,7 @@ class BoundLinkedTermSyntaxBoundLinkedTermConnection(_SyntaxNode):
 class BoundLinkedTermSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
     'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
     __slots__ = ()
-    _schema_id = 1053
+    _schema_id = 1051
     __match_args__ = ('place_tagged_linked_sumti',)
     def __new__(cls, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> BoundLinkedTermSyntaxPlaceTaggedLinkedSumti:
         return cls._from_fields((place_tagged_linked_sumti,))
@@ -20904,7 +20870,7 @@ class BoundLinkedTermSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
 class BoundLinkedTermSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
     'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
     __slots__ = ()
-    _schema_id = 1054
+    _schema_id = 1052
     __match_args__ = ('tense_tagged_linked_sumti',)
     def __new__(cls, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> BoundLinkedTermSyntaxTenseTaggedLinkedSumti:
         return cls._from_fields((tense_tagged_linked_sumti,))
@@ -20921,7 +20887,7 @@ class BoundLinkedTermSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
 class BoundLinkedTermSyntaxPlainLinkedSumti(_SyntaxNode):
     'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
     __slots__ = ()
-    _schema_id = 1055
+    _schema_id = 1053
     __match_args__ = ('plain_linked_sumti',)
     def __new__(cls, plain_linked_sumti: PlainLinkedSumtiSyntax) -> BoundLinkedTermSyntaxPlainLinkedSumti:
         return cls._from_fields((plain_linked_sumti,))
@@ -20940,7 +20906,7 @@ BoundLinkedTermSyntax: TypeAlias = BoundLinkedTermSyntaxBoundLinkedTermConnectio
 class BoundLinkedTermOperandSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
     'Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.'
     __slots__ = ()
-    _schema_id = 1056
+    _schema_id = 1054
     __match_args__ = ('place_tagged_linked_sumti',)
     def __new__(cls, place_tagged_linked_sumti: PlaceTaggedLinkedSumtiSyntax) -> BoundLinkedTermOperandSyntaxPlaceTaggedLinkedSumti:
         return cls._from_fields((place_tagged_linked_sumti,))
@@ -20957,7 +20923,7 @@ class BoundLinkedTermOperandSyntaxPlaceTaggedLinkedSumti(_SyntaxNode):
 class BoundLinkedTermOperandSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
     'Uses the `tense_tagged_linked_sumti` product form, whose payload preserves `tense_modal` and `sumti`.'
     __slots__ = ()
-    _schema_id = 1057
+    _schema_id = 1055
     __match_args__ = ('tense_tagged_linked_sumti',)
     def __new__(cls, tense_tagged_linked_sumti: TenseTaggedLinkedSumtiSyntax) -> BoundLinkedTermOperandSyntaxTenseTaggedLinkedSumti:
         return cls._from_fields((tense_tagged_linked_sumti,))
@@ -20974,7 +20940,7 @@ class BoundLinkedTermOperandSyntaxTenseTaggedLinkedSumti(_SyntaxNode):
 class BoundLinkedTermOperandSyntaxPlainLinkedSumti(_SyntaxNode):
     'Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.'
     __slots__ = ()
-    _schema_id = 1058
+    _schema_id = 1056
     __match_args__ = ('plain_linked_sumti',)
     def __new__(cls, plain_linked_sumti: PlainLinkedSumtiSyntax) -> BoundLinkedTermOperandSyntaxPlainLinkedSumti:
         return cls._from_fields((plain_linked_sumti,))
@@ -20993,7 +20959,7 @@ BoundLinkedTermOperandSyntax: TypeAlias = BoundLinkedTermOperandSyntaxPlaceTagge
 class BoundLinkedTermConnectionSyntax(_SyntaxNode):
     'The diagnosed BO-bound BE/BEI connection with one or more continuations.'
     __slots__ = ()
-    _schema_id = 1059
+    _schema_id = 1057
     __match_args__ = ('leading_link', 'continuations')
     def __new__(cls, leading_link: BoundLinkedTermOperandSyntax, continuations: Sequence[BoundLinkedTermContinuationSyntax]) -> BoundLinkedTermConnectionSyntax:
         return cls._from_fields((leading_link, continuations))
@@ -21014,7 +20980,7 @@ class BoundLinkedTermConnectionSyntax(_SyntaxNode):
 class BoundLinkedTermContinuationSyntax(_SyntaxNode):
     'One optional-stag BO continuation in a BE/BEI argument connection.'
     __slots__ = ()
-    _schema_id = 1060
+    _schema_id = 1058
     __match_args__ = ('connective', 'tense_modal', 'bo', 'trailing_link')
     def __new__(cls, connective: TermAfterthoughtConnectiveSyntax, tense_modal: TenseModalSyntax | None, bo: WithFreeModifiers[Token, FreeModifierSyntax], trailing_link: BoundLinkedTermOperandSyntax) -> BoundLinkedTermContinuationSyntax:
         return cls._from_fields((connective, tense_modal, bo, trailing_link))
@@ -21043,7 +21009,7 @@ class BoundLinkedTermContinuationSyntax(_SyntaxNode):
 class PlaceTaggedLinkedSumtiSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `fa` and `sumti` in source order.'
     __slots__ = ()
-    _schema_id = 1061
+    _schema_id = 1059
     __match_args__ = ('fa', 'sumti')
     def __new__(cls, fa: WithFreeModifiers[Token, FreeModifierSyntax], sumti: TaggedOrElidedSumtiSyntax) -> PlaceTaggedLinkedSumtiSyntax:
         return cls._from_fields((fa, sumti))
@@ -21064,7 +21030,7 @@ class PlaceTaggedLinkedSumtiSyntax(_SyntaxNode):
 class TenseTaggedLinkedSumtiSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `tense_modal` and `sumti` in source order.'
     __slots__ = ()
-    _schema_id = 1062
+    _schema_id = 1060
     __match_args__ = ('tense_modal', 'sumti')
     def __new__(cls, tense_modal: TenseModalSyntax, sumti: TaggedOrElidedSumtiSyntax) -> TenseTaggedLinkedSumtiSyntax:
         return cls._from_fields((tense_modal, sumti))
@@ -21085,7 +21051,7 @@ class TenseTaggedLinkedSumtiSyntax(_SyntaxNode):
 class PlainLinkedSumtiSyntax(_SyntaxNode):
     'Transparent product node for linked arguments; preserves the `sumti` component.'
     __slots__ = ()
-    _schema_id = 1063
+    _schema_id = 1061
     __match_args__ = ('sumti',)
     def __new__(cls, sumti: SumtiSyntax) -> PlainLinkedSumtiSyntax:
         return cls._from_fields((sumti,))
@@ -21099,23 +21065,10 @@ class PlainLinkedSumtiSyntax(_SyntaxNode):
         raise TypeError('PlainLinkedSumtiSyntax is final')
 
 @final
-class EmptyLinkedSumtiSyntax(_SyntaxNode):
-    'Marker-only product node for linked arguments; the parser retains no public fields.'
-    __slots__ = ()
-    _schema_id = 1064
-    __match_args__ = ()
-    def __new__(cls) -> EmptyLinkedSumtiSyntax:
-        return cls._from_fields(())
-    def __init__(self) -> None:
-        pass
-    def __init_subclass__(cls) -> None:
-        raise TypeError('EmptyLinkedSumtiSyntax is final')
-
-@final
 class BeiLinkSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `bei` and `link` in source order.'
     __slots__ = ()
-    _schema_id = 1065
+    _schema_id = 1062
     __match_args__ = ('bei', 'link')
     def __new__(cls, bei: WithFreeModifiers[Token, FreeModifierSyntax], link: LinkedTermSyntax) -> BeiLinkSyntax:
         return cls._from_fields((bei, link))
@@ -21136,7 +21089,7 @@ class BeiLinkSyntax(_SyntaxNode):
 class LinkargsSyntax(_SyntaxNode):
     'Product node for linked arguments; preserves `be`, `first_link`, `bei_links`, and `beho` in source order.'
     __slots__ = ()
-    _schema_id = 1066
+    _schema_id = 1063
     __match_args__ = ('be', 'first_link', 'bei_links', 'beho')
     def __new__(cls, be: WithFreeModifiers[Token, FreeModifierSyntax], first_link: LinkedTermSyntax, bei_links: Sequence[BeiLinkSyntax], beho: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> LinkargsSyntax:
         return cls._from_fields((be, first_link, bei_links, beho))
@@ -21165,7 +21118,7 @@ class LinkargsSyntax(_SyntaxNode):
 class AbstractionTanruUnitSyntax(_SyntaxNode):
     'Product node for abstraction; preserves `nu`, `nai`, `abstractor_connections`, `subbridi`, and `kei` in source order.'
     __slots__ = ()
-    _schema_id = 1067
+    _schema_id = 1064
     __match_args__ = ('nu', 'nai', 'abstractor_connections', 'subbridi', 'kei')
     def __new__(cls, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, abstractor_connections: Sequence[AbstractorConnectionSyntax], subbridi: SubbridiSyntax, kei: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> AbstractionTanruUnitSyntax:
         return cls._from_fields((nu, nai, abstractor_connections, subbridi, kei))
@@ -21198,7 +21151,7 @@ class AbstractionTanruUnitSyntax(_SyntaxNode):
 class AbstractorConnectionSyntax(_SyntaxNode):
     'Product node for abstractor connection; preserves `connective`, `nu`, and `nai` in source order.'
     __slots__ = ()
-    _schema_id = 1068
+    _schema_id = 1065
     __match_args__ = ('connective', 'nu', 'nai')
     def __new__(cls, connective: StandardStatementConnectiveSyntax, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> AbstractorConnectionSyntax:
         return cls._from_fields((connective, nu, nai))
@@ -21223,7 +21176,7 @@ class AbstractorConnectionSyntax(_SyntaxNode):
 class ZantufaStatementAbstractionTanruUnitSyntax(_SyntaxNode):
     'Product node for abstraction; preserves `nu`, `nai`, `abstractor_connections`, `statement`, and `kei` in source order.'
     __slots__ = ()
-    _schema_id = 1069
+    _schema_id = 1066
     __match_args__ = ('nu', 'nai', 'abstractor_connections', 'statement', 'kei')
     def __new__(cls, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None, abstractor_connections: Sequence[ZantufaAbstractorConnectionSyntax], statement: StatementSyntax, kei: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaStatementAbstractionTanruUnitSyntax:
         return cls._from_fields((nu, nai, abstractor_connections, statement, kei))
@@ -21256,7 +21209,7 @@ class ZantufaStatementAbstractionTanruUnitSyntax(_SyntaxNode):
 class ZantufaAbstractorConnectionSyntax(_SyntaxNode):
     'Product node for abstractor connection; preserves `connective`, `nu`, and `nai` in source order.'
     __slots__ = ()
-    _schema_id = 1070
+    _schema_id = 1067
     __match_args__ = ('connective', 'nu', 'nai')
     def __new__(cls, connective: JoikConnectiveSyntax, nu: WithFreeModifiers[Token, FreeModifierSyntax], nai: WithFreeModifiers[Token, FreeModifierSyntax] | None) -> ZantufaAbstractorConnectionSyntax:
         return cls._from_fields((connective, nu, nai))
@@ -22435,7 +22388,6 @@ __all__ = (
     'LinkedSumtiSyntaxPlaceTaggedLinkedSumti',
     'LinkedSumtiSyntaxTenseTaggedLinkedSumti',
     'LinkedSumtiSyntaxPlainLinkedSumti',
-    'LinkedSumtiSyntaxEmptyLinkedSumti',
     'LinkedSumtiSyntax',
     'LinkedTermSyntaxFullLinkedTerm',
     'LinkedTermSyntaxConnectedLinkedTerm',
@@ -22443,7 +22395,6 @@ __all__ = (
     'LinkedTermSyntaxPlaceTaggedLinkedSumti',
     'LinkedTermSyntaxTenseTaggedLinkedSumti',
     'LinkedTermSyntaxPlainLinkedSumti',
-    'LinkedTermSyntaxEmptyLinkedSumti',
     'LinkedTermSyntax',
     'FullLinkedTermSyntax',
     'ConnectedLinkedTermSyntax',
@@ -22462,7 +22413,6 @@ __all__ = (
     'PlaceTaggedLinkedSumtiSyntax',
     'TenseTaggedLinkedSumtiSyntax',
     'PlainLinkedSumtiSyntax',
-    'EmptyLinkedSumtiSyntax',
     'BeiLinkSyntax',
     'LinkargsSyntax',
     'AbstractionTanruUnitSyntax',

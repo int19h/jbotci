@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cb-e3-early-close"
+lojban = "mi broda be be'o ko'a"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-807", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-b required BE/BEI payload"
+description = "E3: strict parsing fails at early BEhO. Recovery retains LinkargsSyntax.first_link as Error(MissingRequiredField), not a valid empty link. Following ko'a remains recovered outer text after that diagnosed failure; it is not silently reassigned after a successful link. Full recovered-tree and diagnostic pins record the actual winning parser result; no construct warning is emitted."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [12, 16], "source-text" = "be'o", "message" = "unexpected cmavo" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { sha256 = "d435e77897fc82566bc78de9f577d63e700de80891f68a16e410a6d0a6552e5b" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-cmavo", "byte-span" = [12, 16], "source-text" = "be'o", "message" = "unexpected cmavo" }]
+tree = { "valid-tokens" = ["mi", "bróda", "be", "be'o", "ko'a"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[12, 12]] }] }

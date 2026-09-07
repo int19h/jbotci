@@ -305,8 +305,6 @@ def exhaustive_linked_sumti(value: syntax.strict.LinkedSumtiSyntax) -> str:
             return "tense"
         case syntax.strict.LinkedSumtiSyntaxPlainLinkedSumti():
             return "plain"
-        case syntax.strict.LinkedSumtiSyntaxEmptyLinkedSumti():
-            return "empty"
     assert_never(value)
 
 

@@ -3028,7 +3028,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     ))),
                 )
             }
-            GeneratedLinkedSumtiRef::Empty => false,
             GeneratedLinkedSumtiRef::FullTerm(term) => {
                 let mut assignment = LinkedNormalTermAssigner {
                     builder: self,
@@ -4542,14 +4541,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
         _node: &'tree generated::SingleNaFragmentSyntax,
     ) {
     }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_linked_sumti_empty_linked_sumti(
-        &mut self,
-        _node: &'tree generated::EmptyLinkedSumtiSyntax,
-    ) {
-    }
 }
 
 /// Assign a Full link's normal-term payload using the existing linked-argument cursor.
@@ -5309,7 +5300,6 @@ fn generated_prenex_binding_should_skip_node(node: GeneratedSyntaxNodeRef<'_>) -
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxZantufaMeksoFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxMultipleNaFragment(_)
             | GeneratedSyntaxNodeRef::FragmentStatementSyntaxSingleNaFragment(_)
-            | GeneratedSyntaxNodeRef::LinkedSumtiSyntaxEmptyLinkedSumti(_)
             | GeneratedSyntaxNodeRef::NormalTermSyntaxNaKuTerm(_)
             | GeneratedSyntaxNodeRef::SimpleBridiTailSyntaxForethoughtSimpleBridiTail(_)
             | GeneratedSyntaxNodeRef::SimpleBridiTailWithoutTailTermsSyntaxForethoughtSimpleBridiTailWithoutTailTerms(_)
@@ -8266,14 +8256,6 @@ impl<'index, 'tree> GeneratedSyntaxTreeWalker<'tree>
     fn walk_fragment_statement_single_na_fragment(
         &mut self,
         _node: &'tree generated::SingleNaFragmentSyntax,
-    ) {
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn walk_linked_sumti_empty_linked_sumti(
-        &mut self,
-        _node: &'tree generated::EmptyLinkedSumtiSyntax,
     ) {
     }
 }

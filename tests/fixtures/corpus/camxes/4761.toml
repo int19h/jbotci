@@ -11,12 +11,9 @@ status = "success"
 raw = '[PlainWord(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } }), PlainWord(Gismu { phonemes: Phonemes { text: "fúnge" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 7, char_start: 2, char_end: 7, start: None, end: None } })]'
 
 [expectations.syntax]
-status = "success"
-raw = 'RegularText(RegularTextSyntax { leading_nai: [], leading_cmevla: [], leading_indicators: [], leading_free_modifiers: [], leading_connective: None, leading_i_statements: [], paragraphs: Some(TextParagraphWithAdditionalNiho(TextParagraphWithAdditionalNihoSyntax { first: SimpleParagraph(SimpleParagraphSyntax(ParagraphStatementSequenceSyntax { initial: InitialParagraphStatementSyntax(StatementOrFragmentStatement(StatementOrFragmentStatementSyntax(StatementBase(BridiStatement(BridiStatementSyntax(RelationOnlyBridi(RelationOnlyBridiSyntax(BridiTailWithPossibleTailTerms(BridiTailWithPossibleTailTermsSyntax { first: AfterthoughtBridiTailSyntax(Chain { first: BoGroupedBridiTailSyntax { cu: None, first: SelbriSimpleBridiTail(SelbriSimpleBridiTailSyntax { selbri: UntaggedSelbri(CoSelbri(CoSelbriSyntax { leading_selbri: TanruSelbriSyntax { first_selbri: ConnectedSelbriSyntax { leading_selbri: BoundSelbriSyntax { leading_selbri: PlainBoTanruUnit(PlainBoTanruUnitSyntax { leading_unit: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: PreposedLinkargsTanruUnit(PreposedLinkargsTanruUnitSyntax { linkargs: LinkargsSyntax { be: WithFreeModifiers { value: Plain(PlainWord(Cmavo { phonemes: Phonemes { text: "be" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 0, byte_end: 2, char_start: 0, char_end: 2, start: None, end: None } })), free_modifiers: [] }, first_link: EmptyLinkedSumti(EmptyLinkedSumtiSyntax), bei_links: [], beho: None }, base: TanruUnitSyntax { base: LinkedTanruUnitSyntax { base: TanruUnitAtomSyntax { conversions: [], base: WordTanruUnit(WordTanruUnitSyntax(WithFreeModifiers { value: Plain(PlainWord(Gismu { phonemes: Phonemes { text: "fúnge" }, span: SourceSpan { source_id: Some(SourceId("<fixture>")), byte_start: 2, byte_end: 7, char_start: 2, char_end: 7, start: None, end: None } })), free_modifiers: [] })) }, linkargs: None }, assignments: [] } }) }, linkargs: None }, assignments: [] }, bo_tail: None }), bo_tail: None }, continuations: [] }, additional_selbri: [] }, co_tail: None })), terms: [], vau: None }), bo_continuation: None }, links: [] }), ke_continuation: None }))))))))), following: [], trailing: [] })), additional_niho: [] })) })'
-
-[expectations.semantics.refs]
-status = "success"
-raw = '{"frames":[{"index":0,"node":{"offset":2,"length":5},"kind":"tanru-unit","selbri":null,"tanru-unit":{"offset":2,"length":5},"propagation":{"kind":"none"}},{"index":1,"node":{"offset":2,"length":5},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":2,"length":5},"propagation":{"kind":"forward","inner":0}},{"index":2,"node":{"offset":0,"length":7},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":0,"length":7},"propagation":{"kind":"forward","inner":1}},{"index":3,"node":{"offset":0,"length":7},"kind":"linked-unit","selbri":null,"tanru-unit":{"offset":0,"length":7},"propagation":{"kind":"forward","inner":2}},{"index":4,"node":{"offset":0,"length":7},"kind":"compound","selbri":{"offset":0,"length":7},"tanru-unit":null,"propagation":{"kind":"compound","head":3,"modifiers":[]}},{"index":5,"node":{"offset":0,"length":7},"kind":"forwarding","selbri":{"offset":0,"length":7},"tanru-unit":null,"propagation":{"kind":"forward","inner":4}},{"index":6,"node":{"offset":0,"length":7},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"forward","inner":5}},{"index":7,"node":{"offset":0,"length":7},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[6]}},{"index":8,"node":{"offset":0,"length":7},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[7]}},{"index":9,"node":{"offset":0,"length":7},"kind":"bridi-tail","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[8]}},{"index":10,"node":{"offset":0,"length":7},"kind":"bridi","selbri":null,"tanru-unit":null,"propagation":{"kind":"connective-branches","branches":[9]}}],"assignments":[],"selbri-places":[],"references":[]}'
+# C-b #807: strict-dependent refs/Gentufa outputs are unavailable (blocked by syntax failure).
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-word", "byte-span" = [2, 7], "source-text" = "funge", "message" = "unexpected word" }]
 
 [expectations.output.vlasei]
 brackets = "(be fúnge)"
@@ -26,14 +23,3 @@ tree = """
   Gismu @[2‥7) "fúnge",
 ]"""
 json = '[{"PlainWord":{"Cmavo":{"phonemes":"be","span":[0,2]}}},{"PlainWord":{"Gismu":{"phonemes":"fúnge","span":[2,7]}}}]'
-
-[expectations.output.gentufa]
-tree = """
-PreposedLinkargsTanruUnit @[0‥7) {
-  linkargs: Linkargs @[0‥2) {
-    be: Cmavo @[0‥2) "be",
-    first_link: EmptyLinkedSumti {},
-  },
-  base: Gismu @[2‥7) "fúnge",
-}"""
-json = '{"RegularText":{"paragraphs":{"TextParagraphWithAdditionalNiho":{"first":{"SimpleParagraph":{"initial":{"StatementOrFragmentStatement":{"StatementBase":{"BridiStatement":{"RelationOnlyBridi":{"BridiTailWithPossibleTailTerms":{"first":{"first":{"first":{"SelbriSimpleBridiTail":{"selbri":{"UntaggedSelbri":{"CoSelbri":{"leading_selbri":{"first_selbri":{"leading_selbri":{"leading_selbri":{"PlainBoTanruUnit":{"leading_unit":{"base":{"base":{"base":{"PreposedLinkargsTanruUnit":{"linkargs":{"be":{"Plain":{"PlainWord":{"Cmavo":{"phonemes":"be","span":[0,2]}}}},"first_link":{"EmptyLinkedSumti":{}}},"base":{"base":{"base":{"base":{"WordTanruUnit":{"Plain":{"PlainWord":{"Gismu":{"phonemes":"fúnge","span":[2,7]}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'

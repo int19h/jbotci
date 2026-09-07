@@ -65,6 +65,14 @@ def _token(text: str) -> syntax.Token:
     return tokens[0]
 
 
+def _full_term() -> strict.FullLinkedTermSyntax:
+    ku: syntax.WithFreeModifiers[syntax.Token, strict.FreeModifierSyntax] = (
+        syntax.WithFreeModifiers(_token("ku"), ())
+    )
+    term = strict.NormalTermSyntaxNaKuTerm(strict.NaKuTermSyntax(_token("na"), ku))
+    return strict.FullLinkedTermSyntax(term)
+
+
 def _projection_count(node: object) -> int:
     assert isinstance(node, _SyntaxNode)
     return node._debug_projection_count()
@@ -105,6 +113,12 @@ def test_schema_inventory_and_every_generated_class_are_exact() -> None:
     assert strict.__all__ == native._syntax_STRICT_INVENTORY
     assert recovered.__all__ == native._syntax_RECOVERED_INVENTORY
     assert len(strict.__all__) == len(recovered.__all__)
+
+    for module in (strict, recovered):
+        for removed in ("EmptyLinkedSumtiSyntax", "LinkedSumtiSyntaxEmptyLinkedSumti",
+                        "LinkedTermSyntaxEmptyLinkedSumti"):
+            assert removed not in module.__all__
+            assert not hasattr(module, removed)
 
     namespaces = (
         (strict, native._syntax_STRICT_CONCRETE_INVENTORY),
@@ -268,27 +282,27 @@ def test_manual_syntax_leaf_docs_members_signatures_and_match_args_are_exact() -
             assert member.__doc__ is not None and member.__doc__.strip()
 
 
-def test_unit_product_tuple_variant_nested_identity_and_lifetime() -> None:
-    empty = strict.EmptyLinkedSumtiSyntax()
-    linked = strict.LinkedSumtiSyntaxEmptyLinkedSumti(empty)
+def test_tuple_variant_nested_identity_and_lifetime() -> None:
+    full = _full_term()
+    linked = strict.LinkedTermSyntaxFullLinkedTerm(full)
 
     match linked:
-        case strict.LinkedSumtiSyntaxEmptyLinkedSumti(payload):
-            assert payload == empty
+        case strict.LinkedTermSyntaxFullLinkedTerm(payload):
+            assert payload == full
         case _:
-            pytest.fail("closed LinkedSumtiSyntax variant did not pattern-match")
+            pytest.fail("closed LinkedTermSyntax variant did not pattern-match")
 
-    first = linked.empty_linked_sumti
-    second = linked.empty_linked_sumti
-    assert first == second == empty
+    first = linked.full_linked_term_candidate
+    second = linked.full_linked_term_candidate
+    assert first == second == full
     assert first is not second
     assert first.same_identity(second)
-    assert not first.same_identity(empty)
+    assert not first.same_identity(full)
 
     del linked
     gc.collect()
-    assert first == strict.EmptyLinkedSumtiSyntax()
-    assert repr(first).startswith("jbotci.syntax.strict.EmptyLinkedSumtiSyntax(")
+    assert first == _full_term()
+    assert repr(first).startswith("jbotci.syntax.strict.FullLinkedTermSyntax(")
 
 
 def test_optional_repeated_nonempty_and_deterministic_projection_cost() -> None:
@@ -458,8 +472,7 @@ def test_with_free_modifiers_and_generated_token_projection_remain_typed() -> No
     decorated: syntax.WithFreeModifiers[syntax.Token, strict.FreeModifierSyntax] = (
         syntax.WithFreeModifiers(bei, [])
     )
-    empty = strict.EmptyLinkedSumtiSyntax()
-    linked = strict.LinkedTermSyntaxEmptyLinkedSumti(empty)
+    linked = strict.LinkedTermSyntaxFullLinkedTerm(_full_term())
     bei_link = strict.BeiLinkSyntax(decorated, linked)
 
     assert isinstance(bei_link.bei, syntax.WithFreeModifiers)
@@ -526,19 +539,19 @@ def test_recovered_valid_error_prefix_and_recovery_item_validation() -> None:
 
 
 def test_generated_values_reject_mutation_subclassing_and_bad_shapes() -> None:
-    empty = strict.EmptyLinkedSumtiSyntax()
+    full = _full_term()
     with pytest.raises(AttributeError, match="immutable"):
-        empty.extra = 1  # type: ignore[attr-defined]
+        full.extra = 1  # type: ignore[attr-defined]
     with pytest.raises(TypeError):
-        hash(empty)
+        hash(full)
     with pytest.raises(TypeError):
-        class InvalidSubclass(strict.EmptyLinkedSumtiSyntax):  # type: ignore[misc]
+        class InvalidSubclass(strict.FullLinkedTermSyntax):  # type: ignore[misc]
             pass
 
     with pytest.raises(TypeError):
-        strict.EmptyLinkedSumtiSyntax(object())  # type: ignore[call-arg]
+        strict.FullLinkedTermSyntax()  # type: ignore[call-arg]
     with pytest.raises(TypeError):
-        strict.LinkedSumtiSyntaxEmptyLinkedSumti(object())  # type: ignore[arg-type]
+        strict.LinkedTermSyntaxFullLinkedTerm(object())  # type: ignore[arg-type]
 
     plain = syntax.PlainWithIndicators(morphology.segment("mi")[0])
     with pytest.raises(AttributeError):
@@ -551,15 +564,15 @@ def test_generated_values_reject_mutation_subclassing_and_bad_shapes() -> None:
 
 
 def test_constructible_values_round_trip_structurally_without_owner_aliasing() -> None:
-    original_child = strict.EmptyLinkedSumtiSyntax()
-    original = strict.LinkedSumtiSyntaxEmptyLinkedSumti(original_child)
-    projected_child = original.empty_linked_sumti
-    rebuilt = strict.LinkedSumtiSyntaxEmptyLinkedSumti(projected_child)
+    original_child = _full_term()
+    original = strict.LinkedTermSyntaxFullLinkedTerm(original_child)
+    projected_child = original.full_linked_term_candidate
+    rebuilt = strict.LinkedTermSyntaxFullLinkedTerm(projected_child)
 
     assert rebuilt == original
     assert not rebuilt.same_identity(original)
-    assert rebuilt.empty_linked_sumti == projected_child
-    assert not rebuilt.empty_linked_sumti.same_identity(projected_child)
+    assert rebuilt.full_linked_term_candidate == projected_child
+    assert not rebuilt.full_linked_term_candidate.same_identity(projected_child)
 
 
 def test_generated_namespace_imports_outside_repository(tmp_path: Path) -> None:
@@ -570,8 +583,10 @@ def test_generated_namespace_imports_outside_repository(tmp_path: Path) -> None:
             (
                 "import jbotci; "
                 "from jbotci.syntax import strict, recovered; "
-                "assert strict.EmptyLinkedSumtiSyntax(); "
-                "assert recovered.EmptyLinkedSumtiSyntax(); "
+                "assert strict.FullLinkedTermSyntax; "
+                "assert recovered.FullLinkedTermSyntax; "
+                "assert not hasattr(strict, 'EmptyLinkedSumtiSyntax'); "
+                "assert not hasattr(recovered, 'EmptyLinkedSumtiSyntax'); "
                 "assert isinstance("
                 "jbotci.parse('mi tavla do').parse_tree, "
                 "strict.TextSyntaxRegularText"

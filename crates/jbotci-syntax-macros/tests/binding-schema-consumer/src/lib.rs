@@ -1161,7 +1161,14 @@ pub fn consume_syntax_binding_schema(input: TokenStream) -> TokenStream {
     let nonabs_terms_match = guarded_tag_leaf
         && variant_names(model_by_name(&summary, "NonabsTermSyntax")) == expected_nonabs_terms;
 
-    let mut expected_linked_terms = variant_names(model_by_name(&summary, "LinkedSumtiSyntax"));
+    let expected_linked_sumti = BTreeSet::from([
+        "PlaceTaggedLinkedSumti",
+        "TenseTaggedLinkedSumti",
+        "PlainLinkedSumti",
+    ]);
+    let linked_sumti_match =
+        variant_names(model_by_name(&summary, "LinkedSumtiSyntax")) == expected_linked_sumti;
+    let mut expected_linked_terms = expected_linked_sumti;
     expected_linked_terms.insert("ConnectedLinkedTerm");
     expected_linked_terms.insert("BoundLinkedTermConnection");
     expected_linked_terms.insert("FullLinkedTerm");
@@ -1172,6 +1179,7 @@ pub fn consume_syntax_binding_schema(input: TokenStream) -> TokenStream {
         && cehe_terms_match
         && terms_match
         && nonabs_terms_match
+        && linked_sumti_match
         && linked_terms_match;
 
     format!(

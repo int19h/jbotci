@@ -7541,7 +7541,7 @@ pub mod generated_model {
         field additional_units <- [zero_or_more jai_inner_tanru_unit];
     }
 
-    /// Sum node for linked arguments; selects among the `place_tagged_linked_sumti`, `tense_tagged_linked_sumti`, `plain_linked_sumti`, and `empty_linked_sumti` forms.
+    /// Sum node for the three nonempty legacy linked-sumti forms.
     rule "linked arguments" linked_sumti(sumti, tense_modal, normal_term) -> enum {
         /// Uses the `place_tagged_linked_sumti` product form, whose payload preserves `fa` and `sumti`.
         place_tagged_linked_sumti,
@@ -7549,8 +7549,6 @@ pub mod generated_model {
         tense_tagged_linked_sumti,
         /// Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.
         plain_linked_sumti,
-        /// Uses the marker-only `empty_linked_sumti` product form.
-        empty_linked_sumti,
     }
 
     /// The loose connection level for BE/BEI arguments in the camxes-exp term hierarchy.
@@ -7571,8 +7569,6 @@ pub mod generated_model {
         tense_tagged_linked_sumti,
         /// Uses the `plain_linked_sumti` product form, whose payload preserves `sumti`.
         plain_linked_sumti,
-        /// Uses the marker-only `empty_linked_sumti` product form.
-        empty_linked_sumti,
     }
 
     /// A complete normal-term payload, with no additional warning or copied leaf inventory.
@@ -7667,10 +7663,6 @@ pub mod generated_model {
     rule "linked arguments" plain_linked_sumti(sumti) -> struct {
         /// The shared sumti child syntax node.
         field sumti <- arc(sumti);
-    }
-
-    /// Marker-only product node for linked arguments; the parser retains no public fields.
-    rule "linked arguments" empty_linked_sumti -> struct {
     }
 
     /// Product node for linked arguments; preserves `bei` and `link` in source order.
