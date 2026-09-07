@@ -4601,7 +4601,7 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
             "scorer" if value == GimfihiScorer::Classic.as_str() => {
                 state.scorer = GimfihiScorer::Classic;
             }
-            "source" => state.sources.push(parse_gimfihi_web_source(&value)),
+            "source" => state.sources.push(gimfihi_web_source_from_record(&value)),
             "shape" => {
                 if let Ok(shape) = parse_shape(&value) {
                     state.shapes.push(shape);
@@ -4632,25 +4632,32 @@ pub fn parse_gimfihi_web_route(_path: &str, query: &str) -> GimfihiWebState {
     state
 }
 
+/// Reads one `LANG[:WEIGHT]:WORD` record into the three values the form
+/// holds, exactly as written. Only the first two colons separate: the word is
+/// whatever follows, so a word containing colons survives the round trip that
+/// [`gimfihi_web_source_query_value`] closes. Trimming, case folding and
+/// weight validation belong to [`normalize_gimfihi_state`] and to source
+/// resolution, not to transport.
 #[requires(true)]
-#[ensures(true)]
-fn parse_gimfihi_web_source(value: &str) -> GimfihiWebSource {
-    let parts = value.split(':').collect::<Vec<_>>();
-    match parts.as_slice() {
-        [language, word] => GimfihiWebSource {
-            language: language.trim().to_ascii_lowercase(),
-            weight: None,
-            word: word.trim().to_ascii_lowercase(),
+#[ensures(ret.word.is_empty() || value.ends_with(&ret.word))]
+pub fn gimfihi_web_source_from_record(value: &str) -> GimfihiWebSource {
+    match value.split_once(':') {
+        Some((language, rest)) => match rest.split_once(':') {
+            Some((weight, word)) => GimfihiWebSource {
+                language: language.to_owned(),
+                weight: (!weight.is_empty()).then(|| weight.to_owned()),
+                word: word.to_owned(),
+            },
+            None => GimfihiWebSource {
+                language: language.to_owned(),
+                weight: None,
+                word: rest.to_owned(),
+            },
         },
-        [language, weight, word] => GimfihiWebSource {
-            language: language.trim().to_ascii_lowercase(),
-            weight: non_empty_string(weight.trim().to_owned()),
-            word: word.trim().to_ascii_lowercase(),
-        },
-        _ => GimfihiWebSource {
+        None => GimfihiWebSource {
             language: String::new(),
             weight: None,
-            word: value.trim().to_ascii_lowercase(),
+            word: value.to_owned(),
         },
     }
 }

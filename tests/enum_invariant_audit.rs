@@ -1476,6 +1476,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "jvozba error variant carries no payload beyond the discriminant",
     ),
     (
+        "crates/jbotci-jvozba/src/lib.rs:JvozbaError::TooMuchWork",
+        "the measure, the amount and the limit are figures the refused build reports; every combination is a possible report, and JvozbaError is constructed and matched across the CLI, web-core and Discord as a plain enum",
+    ),
+    (
         "crates/jbotci-jvozba/src/lib.rs:JvozbaInput::FixedRafsi",
         "public jvozba input enum is kept direct; parsing and build paths normalize and validate payloads before use",
     ),

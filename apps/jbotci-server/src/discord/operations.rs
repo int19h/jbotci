@@ -27,8 +27,8 @@ use jbotci_gimfihi::{
     GimfihiSourceInput, ResolvedSource, parse_source_spec, resolve_sources,
 };
 use jbotci_jvozba::{
-    JvozbaBuildResult, JvozbaError, JvozbaInput, JvozbaMode, build_best_jvozba_detailed,
-    decompose_lujvo_like,
+    JvozbaBuildLimits, JvozbaBuildResult, JvozbaError, JvozbaInput, JvozbaMode,
+    build_best_jvozba_detailed, build_best_jvozba_detailed_within, decompose_lujvo_like,
 };
 use jbotci_morphology::{
     LujvoPart, MorphologyOptions, PhonemeRenderOptions, segment_words_with_modifiers,
@@ -70,7 +70,7 @@ pub(crate) const GIMFIHI_FETCH_COUNT: usize = PAGE_SIZE * MAX_PAGE as usize + 1;
 pub(crate) const SOURCE_LABEL: &str = "<discord>";
 
 /// Separators between explicitly entered gimfihi source records.
-const GIMFIHI_RECORD_SEPARATORS: [char; 3] = [',', ';', '\n'];
+pub(crate) const GIMFIHI_RECORD_SEPARATORS: [char; 3] = [',', ';', '\n'];
 
 // ---------------------------------------------------------------------------
 // Pagination
@@ -968,6 +968,30 @@ pub(crate) fn jvozba_inputs(
     Ok(inputs)
 }
 
+/// How much work one Discord compound build may do. The search compares every
+/// spelling before it can name a best one and nothing stops it once it starts,
+/// so the whole request is refused when the plan is too large.
+///
+/// Measured in release on the development machine, with `klama` repeated so
+/// each non-final piece offers two candidates: 48 placements took 5.5ms, 320
+/// took 65ms, 768 took 178ms, 4096 took 1.24s, 9216 took 3.1s, 20480 took
+/// 7.4s, and 458752 took 213s; the cost per placement rose from 0.12ms to
+/// 0.46ms across those samples. 8192 placements is a couple of seconds of one
+/// compute worker in the shapes measured, and it admits eight plain words or
+/// five pieces offering four candidates each. The piece and spelling bounds
+/// stand apart from it because a short choice list can still carry long
+/// pieces, and because recursion depth follows the pieces; no attested
+/// compound approaches either figure.
+#[requires(true)]
+#[ensures(ret.max_placements == 8192)]
+fn jvozba_limits() -> JvozbaBuildLimits {
+    new!(JvozbaBuildLimits {
+        max_pieces: 24,
+        max_placements: 8192,
+        max_spelling_letters: 256,
+    })
+}
+
 #[requires(true)]
 #[ensures(true)]
 fn run_jvozba(request: &JvozbaRequest) -> Result<JvozbaOutcome, OperationError> {
@@ -977,13 +1001,15 @@ fn run_jvozba(request: &JvozbaRequest) -> Result<JvozbaOutcome, OperationError> 
         JvozbaTarget::Cmevla => JvozbaMode::Cmevla,
     };
     let dictionary = jbotci_dictionary_data::english();
-    let result = build_best_jvozba_detailed(mode, dictionary, &inputs).map(|built| {
-        let constituents = constituents_for(dictionary, &built);
-        new!(JvozbaBuilt {
-            word: built.word.clone(),
-            constituents,
-        })
-    });
+    let result = build_best_jvozba_detailed_within(mode, dictionary, &inputs, jvozba_limits()).map(
+        |built| {
+            let constituents = constituents_for(dictionary, &built);
+            new!(JvozbaBuilt {
+                word: built.word.clone(),
+                constituents,
+            })
+        },
+    );
     Ok(JvozbaOutcome {
         inputs,
         target: request.options.target,

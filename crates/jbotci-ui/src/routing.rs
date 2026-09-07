@@ -534,9 +534,14 @@ pub(super) fn apply_web_route_to_client_state(
         WebRoute::Gimfihi(state) => {
             // The gimfi'i form is built from its own state, and a preset with
             // no source records means "the preset's languages, still empty",
-            // which normalization spells out as editable rows. Every other
-            // page hydrates the route exactly as it arrived.
-            let state = normalize_gimfihi_state(state);
+            // which the form shows as empty rows. Values that were written
+            // are hydrated exactly as they arrived, here as everywhere else.
+            let mut state = state.clone();
+            if state.sources.is_empty()
+                && let Some(preset) = state.preset
+            {
+                state.sources = gimfihi_sources_for_preset(preset);
+            }
             gimfihi_source_word_memory.with_mut(|memory| {
                 update_gimfihi_source_word_memory(memory, &state);
             });
