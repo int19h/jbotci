@@ -1217,7 +1217,7 @@ impl<'dictionary> VlackuCandidate<'dictionary> {
 #[ensures(true)]
 fn extend_unique_candidates<'dictionary>(
     target: &mut Vec<VlackuCandidate<'dictionary>>,
-    source: Vec<VlackuCandidate<'dictionary>>,
+    source: impl IntoIterator<Item = VlackuCandidate<'dictionary>>,
     dictionary: &'dictionary Dictionary<'dictionary>,
     options: &VlackuSearchOptions,
 ) {
@@ -1531,7 +1531,7 @@ fn candidates_for_lujvo_decomposition<'dictionary>(
         if let Some(entry) = dictionary.lookup_word(source_word) {
             extend_unique_candidates(
                 &mut candidates,
-                vec![VlackuCandidate::entry(entry)],
+                std::iter::once(VlackuCandidate::entry(entry)),
                 dictionary,
                 options,
             );
@@ -1560,7 +1560,7 @@ fn candidates_for_dictionary_lujvo_decomposition<'dictionary>(
         if let Some(entry) = dictionary.lookup_word(source_word) {
             extend_unique_candidates(
                 &mut candidates,
-                vec![VlackuCandidate::entry(entry)],
+                std::iter::once(VlackuCandidate::entry(entry)),
                 dictionary,
                 options,
             );

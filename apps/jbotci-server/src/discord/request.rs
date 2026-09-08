@@ -26,8 +26,6 @@ pub(crate) const MAX_SOURCE_UNITS: usize = 4000;
 /// Result cards per page for dictionary and ranked searches (PM decision).
 pub(crate) const PAGE_SIZE: usize = 5;
 
-/// Highest page number any Discord result can address.
-
 /// UTF-16 code-unit length of `text`, the measure Discord applies to its
 /// character limits.
 #[requires(true)]

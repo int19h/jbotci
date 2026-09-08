@@ -60,7 +60,7 @@ pub(crate) const MAX_GROUP_OPTIONS: usize = 10;
 
 // Discord component type numbers.
 const TYPE_ACTION_ROW: u8 = 1;
-const TYPE_BUTTON: u8 = 2;
+pub(crate) const TYPE_BUTTON: u8 = 2;
 const TYPE_STRING_SELECT: u8 = 3;
 const TYPE_TEXT_INPUT: u8 = 4;
 const TYPE_SECTION: u8 = 9;

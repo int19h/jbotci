@@ -27,12 +27,6 @@ use jbotci_web_core::{
 };
 
 use super::operations::GIMFIHI_RECORD_SEPARATORS;
-
-// How many results a link asks the web app for: the app's own default for
-// that view, so the link opens the page the app would have opened for that
-// search. Discord's paging is a different thing with a different bound, and
-// the link does not try to reproduce where the reader had got to.
-
 use super::request::{
     CuktaMode, CuktaRequest, CuktaResultKind, DiscordRequest, DiscordTool, GentufaRequest,
     GentufaTextView, GimfihiRequest, VlackuMode, VlackuRequest, utf16_len,
@@ -196,6 +190,10 @@ fn vlacku_state(request: &VlackuRequest) -> VlackuWebState {
             VlackuMode::Meaning => VlackuWebMode::Meaning,
         },
         query: request.query.as_str().to_owned(),
+        // A link asks the app for what the app itself would show: its own
+        // default for this view. Discord's paging is a different thing with a
+        // different bound, and the link does not try to reproduce where the
+        // reader had got to.
         count: VLACKU_WEB_DEFAULT_COUNT,
         word_types: options
             .word_types

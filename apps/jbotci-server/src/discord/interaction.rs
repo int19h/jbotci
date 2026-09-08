@@ -27,7 +27,7 @@ use super::codec::{
 };
 use super::components::{
     InteractionResponse, MAX_CONTENT_UNITS, MessageComponent, MessagePayload, PayloadError,
-    TextDisplay, bound_content,
+    TYPE_BUTTON, TextDisplay, bound_content,
 };
 use super::dedupe::{Admission, DeliveryTicket, RecentInteractions};
 use super::diagram::DiagramLimits;
@@ -402,31 +402,39 @@ impl DiscordService {
     }
 
     /// Whether `message` offers `custom_id` as something to press: a button
-    /// with that identifier which is not greyed out. A greyed button is drawn
-    /// so the reader can see the direction exists, and Discord will not send
-    /// a click for it; one that arrives anyway asks for what the message does
-    /// not offer.
+    /// with that identifier, in the message's components, which is not greyed
+    /// out. A greyed button is drawn so the reader can see the direction
+    /// exists, and Discord will not send a click for it; one that arrives
+    /// anyway asks for what the message does not offer. Only buttons count,
+    /// and only where components live: an identifier that appears elsewhere
+    /// in the message — on a select, or in whatever else a message carries —
+    /// is not a button of it.
     #[requires(true)]
-    #[ensures(true)]
+    #[ensures(!custom_id.is_empty() || !ret)]
     fn message_offers(message: &Value, custom_id: &str) -> bool {
+        /// Walk what holds components: a row or a container holds more of
+        /// them, and a section holds one beside its text.
         #[requires(!custom_id.is_empty())]
         #[ensures(true)]
-        fn walk(value: &Value, custom_id: &str) -> bool {
-            match value {
-                Value::Object(object) => {
-                    if object.get("custom_id").and_then(Value::as_str) == Some(custom_id) {
-                        return !object
-                            .get("disabled")
-                            .and_then(Value::as_bool)
-                            .unwrap_or(false);
-                    }
-                    object.values().any(|value| walk(value, custom_id))
-                }
-                Value::Array(items) => items.iter().any(|item| walk(item, custom_id)),
-                _ => false,
+        fn walk(component: &Value, custom_id: &str) -> bool {
+            if component.get("type").and_then(Value::as_u64) == Some(u64::from(TYPE_BUTTON))
+                && component.get("custom_id").and_then(Value::as_str) == Some(custom_id)
+            {
+                return !component
+                    .get("disabled")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
             }
+            let held = component
+                .get("components")
+                .and_then(Value::as_array)
+                .map(|items| items.iter().any(|item| walk(item, custom_id)))
+                .unwrap_or(false);
+            held || component
+                .get("accessory")
+                .is_some_and(|accessory| walk(accessory, custom_id))
         }
-        walk(message, custom_id)
+        !custom_id.is_empty() && walk(message, custom_id)
     }
 
     /// A page button turns one page of the message it sits on.
@@ -3336,6 +3344,46 @@ mod tests {
         quiet(&discord).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was written");
         assert_eq!(discord.original().expect("a result"), first);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn only_a_button_of_the_message_counts_as_one_it_offers() {
+        let message = json!({
+            "id": MESSAGE,
+            "custom_id": "j1p.1.2",
+            "resolved": { "buttons": [{ "type": 2, "custom_id": "j1p.1.9" }] },
+            "components": [
+                {
+                    "type": 9,
+                    "components": [{ "type": 10, "content": "a result" }],
+                    "accessory": { "type": 2, "custom_id": "j1.gear", "style": 2 }
+                },
+                {
+                    "type": 1,
+                    "components": [
+                        { "type": 2, "custom_id": "j1p.1.1", "label": "Previous", "disabled": true },
+                        { "type": 2, "custom_id": "j1p.1.3", "label": "Next" },
+                        { "type": 3, "custom_id": "j1p.1.4", "options": [] }
+                    ]
+                }
+            ]
+        });
+
+        // A button of the message, not greyed.
+        assert!(DiscordService::message_offers(&message, "j1p.1.3"));
+        assert!(DiscordService::message_offers(&message, "j1.gear"));
+        // Greyed, so not offered.
+        assert!(!DiscordService::message_offers(&message, "j1p.1.1"));
+        // A select carrying the identifier is not a button.
+        assert!(!DiscordService::message_offers(&message, "j1p.1.4"));
+        // The identifier elsewhere in the message is not a component of it.
+        assert!(!DiscordService::message_offers(&message, "j1p.1.2"));
+        assert!(!DiscordService::message_offers(&message, "j1p.1.9"));
+        // Nothing offers nothing.
+        assert!(!DiscordService::message_offers(&message, ""));
+        assert!(!DiscordService::message_offers(&json!({}), "j1p.1.3"));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
