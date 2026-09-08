@@ -22,7 +22,7 @@ use bityzba::{ensures, invariant, new, requires};
 use self::diagnostics::RenderedDiagnostics;
 use super::diagram::DiagramImage;
 use super::operations::{PagedResults, RequestValidationError, ToolOutcome};
-use super::request::{DiscordRequest, DiscordTool, PageNumber, utf16_len};
+use super::request::{DiscordRequest, DiscordTool, PageNumber};
 
 /// The status line that closes the input block: the tool name first, then
 /// the applied view/page and the diagnostics count, on one line.
@@ -49,8 +49,8 @@ pub(crate) struct RenderedResult {
     /// Rendered diagnostics: what the message shows, and every diagnostic in
     /// full for the attached result.
     pub(crate) diagnostics: Option<RenderedDiagnostics>,
-    /// A short notice kept even under overflow (capped result set, missing
-    /// image explanation, continuation hint).
+    /// A short notice kept even under overflow: the explanation of an image
+    /// that could not be made, or of a result recomputed by another build.
     pub(crate) notice: Option<String>,
     /// Complete plain text of the result for the attachment.
     pub(crate) full_text: Option<String>,
@@ -157,16 +157,10 @@ pub(crate) fn page_status<T>(results: &PagedResults<T>) -> String {
     }
 }
 
-/// Present `outcome` for `request`. `app_link` is the app URL for the published
-/// state when the tool has a web page; presenters mention it as the
-/// continuation of a capped result set.
+/// Present `outcome` for `request`.
 #[requires(true)]
 #[ensures(ret.tool() == request.tool())]
-pub(crate) fn render(
-    outcome: &ToolOutcome,
-    request: &DiscordRequest,
-    app_link: Option<&str>,
-) -> RenderedResult {
+pub(crate) fn render(outcome: &ToolOutcome, request: &DiscordRequest) -> RenderedResult {
     match (outcome, request) {
         (ToolOutcome::Gentufa(outcome), DiscordRequest::Gentufa(request)) => {
             gentufa::render(outcome, request)
@@ -178,16 +172,16 @@ pub(crate) fn render(
             vlatai::render(report, request)
         }
         (ToolOutcome::Vlacku(outcome), DiscordRequest::Vlacku(request)) => {
-            vlacku::render(outcome, request, app_link)
+            vlacku::render(outcome, request)
         }
         (ToolOutcome::Cukta(outcome), DiscordRequest::Cukta(request)) => {
-            cukta::render(outcome, request, app_link)
+            cukta::render(outcome, request)
         }
         (ToolOutcome::Jvozba(outcome), DiscordRequest::Jvozba(request)) => {
             jvozba::render(outcome, request)
         }
         (ToolOutcome::Gimfihi(outcome), DiscordRequest::Gimfihi(request)) => {
-            gimfihi::render(outcome, request, app_link)
+            gimfihi::render(outcome, request)
         }
         (outcome, request) => {
             // The operation layer produces the outcome for the request's own

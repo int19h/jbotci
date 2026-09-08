@@ -31,7 +31,12 @@ use super::request::{
 
 /// Custom ID schema version. Anything else is refused with an upgrade error.
 pub(crate) const SCHEMA_VERSION: &str = "j1";
-const MODAL_SCHEMA_VERSION: &str = "j1m";
+/// Form schema version. It names the set of controls a form was built with,
+/// so a form opened before a change to that set is refused with the message
+/// that says to reopen it, rather than read as though its controls were the
+/// current ones. This build's forms drop the vlacku, cukta and gimfihi page
+/// selects and the jvozba fixed-rafsi field, which is why it is not `j1m`.
+const MODAL_SCHEMA_VERSION: &str = "j2m";
 const SEPARATOR: char = '.';
 
 /// Discord's custom ID bound.
@@ -207,10 +212,18 @@ impl PageControl {
         if parts.next().is_some() {
             return Err(malformed("page control"));
         }
-        Ok(PageControl {
+        let control = PageControl {
             from_revision,
             target,
-        })
+        };
+        // Numbers have more than one spelling — a sign, leading zeros, hex in
+        // upper case — and this build writes exactly one of them. Anything
+        // that reads as the same numbers but is written differently was not
+        // written here, so it is refused rather than acted on.
+        if control.encode() != custom_id {
+            return Err(malformed("page control"));
+        }
+        Ok(control)
     }
 }
 
@@ -832,33 +845,24 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn a_message_from_before_the_ordered_parts_syntax_reopens_as_the_same_build() {
-        // The wire state exactly as the previous version published it: two
-        // fields, the words and a whitespace-separated fixed rafsi list, with
-        // the digest taken over both. Nothing here is a reconstruction of the
-        // new format; it is what a message in a channel right now holds.
-        let tool = DiscordTool::Jvozba;
-        let legacy_fields: Vec<(SourceField, Option<&str>)> = vec![
-            (SourceField::Parts, Some("klama bajra")),
-            (SourceField::FixedRafsi, Some("kla bar")),
-        ];
-        let status = format!("{tool} · test");
-        let block = encode_input_block(tool, &legacy_fields, &status);
-        let presence = PresenceMask::of_fields(&legacy_fields);
-        let digest = SourceDigest::of_fields(tool, &legacy_fields);
-        let header = new!(RequestHeader {
-            tool,
-            store: SourceStore::Inline,
-            presence,
-            options_word: 0,
-            page: PageNumber::first(),
-            revision: Revision::INITIAL,
-            initiator: Snowflake::parse("123456789012345678").expect("snowflake"),
-            build_tag: BuildTag::parse("older").expect("tag"),
-            digest,
-        });
+        // A jvozba result as the previous version published it, frozen
+        // verbatim: the gear's identifier and the input block of a message
+        // with the two fields that build had — the words, and a
+        // whitespace-separated list of fixed rafsi — with the digest that
+        // build took over both. The identifier's presence mask and digest and
+        // the block's escaping are written by code this commit does not
+        // touch, so what is decoded here is what a message published by that
+        // build and still sitting in a channel actually holds, not this
+        // build's idea of it. The digest is checked while rebuilding, so a
+        // literal that did not come from that build would not get this far.
+        const LEGACY_CUSTOM_ID: &str = "j1.ji3.0.1.1.123456789012345678.older.YFs5DWVZT3k";
+        const LEGACY_BLOCK: &str = "klama bajra\n-# fixed rafsi\nkla bar\n-# jvozba · test";
 
-        let decoded_fields =
-            decode_input_block(tool, header.presence, &block).expect("the old block decodes");
+        let header = RequestHeader::decode(LEGACY_CUSTOM_ID).expect("the old identifier decodes");
+        assert_eq!(header.tool, DiscordTool::Jvozba);
+        assert_eq!(header.build_tag.as_str(), "older");
+        let decoded_fields = decode_input_block(header.tool, header.presence, LEGACY_BLOCK)
+            .expect("the old block decodes");
         let rebuilt = header
             .rebuild(decoded_fields)
             .expect("the old state rebuilds");

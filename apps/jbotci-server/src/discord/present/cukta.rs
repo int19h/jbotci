@@ -28,11 +28,7 @@ const MAX_PREVIEW_UNITS: usize = 320;
 
 #[requires(true)]
 #[ensures(ret.tool() == DiscordTool::Cukta)]
-pub(crate) fn render(
-    outcome: &CuktaOutcome,
-    request: &CuktaRequest,
-    app_link: Option<&str>,
-) -> RenderedResult {
+pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> RenderedResult {
     let mode_label = match request.options.mode {
         CuktaMode::Meaning => "meaning search",
         CuktaMode::Word => "word search",
@@ -204,12 +200,10 @@ fn search_card(card: &CuktaSearchCard) -> (String, String, bool) {
 mod tests {
     use super::*;
     use crate::discord::operations::{CuktaChapterEntry, PagedResults, cukta_card_for_tests};
-    use crate::discord::request::{
-        CuktaOptions, CuktaResultKindSet, MAX_PAGE, PageNumber, SourceText,
-    };
+    use crate::discord::request::{CuktaOptions, CuktaResultKindSet, PageNumber, SourceText};
     use jbotci_cll::{
-        CuktaSearchMode, CuktaTargetFilter, cll_lookup_section, cll_resolve_section_reference,
-        cukta_search, embedded_cll_site,
+        CuktaSearchMode, CuktaSearchWindow, CuktaTargetFilter, cll_lookup_section,
+        cll_resolve_section_reference, cukta_search, embedded_cll_site,
     };
 
     #[requires(true)]
@@ -235,7 +229,6 @@ mod tests {
         let rendered = render(
             &CuktaOutcome::Section { site, section },
             &request(CuktaMode::Section, Some("4.6")),
-            None,
         );
         assert_eq!(rendered.status.text, "cukta · section");
         assert!(
@@ -284,7 +277,7 @@ mod tests {
             site,
             CuktaSearchMode::Word,
             "tanru",
-            6,
+            CuktaSearchWindow::first(6),
             CuktaTargetFilter::default(),
         );
         let cards = output
@@ -300,7 +293,6 @@ mod tests {
                 message: None,
             },
             &request(CuktaMode::Word, Some("tanru")),
-            Some("https://jbotci.app/cukta?q=tanru"),
         );
         assert!(
             rendered
@@ -329,7 +321,6 @@ mod tests {
                 })],
             },
             &request(CuktaMode::Contents, None),
-            None,
         );
         assert!(
             rendered.body[0].contains("1. Lojban As We Mangle It"),
@@ -342,7 +333,6 @@ mod tests {
                 reference: "99.99".to_owned(),
             },
             &request(CuktaMode::Example, Some("99.99")),
-            None,
         );
         assert!(
             missing.body[0].contains("No example `99.99`"),

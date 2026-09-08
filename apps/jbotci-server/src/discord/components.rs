@@ -21,7 +21,7 @@ use serde_json::{Value, json};
 use vec1::Vec1;
 
 use super::codec::MAX_CUSTOM_ID_UNITS;
-use super::request::{Snowflake, utf16_len};
+use super::request::utf16_len;
 
 /// `IS_COMPONENTS_V2` message flag.
 pub(crate) const FLAG_IS_COMPONENTS_V2: u64 = 1 << 15;
@@ -1145,7 +1145,7 @@ mod tests {
     #[ensures(true)]
     fn modal_serializes_labels_and_controls() {
         let modal = new!(Modal {
-            custom_id: CustomId::new("j1m.g.1.1").expect("id"),
+            custom_id: CustomId::new("j2m.g.1.1").expect("id"),
             title: "gentufa".to_owned(),
             components: Vec1::try_from(vec![
                 ModalComponent::TextDisplay(text(

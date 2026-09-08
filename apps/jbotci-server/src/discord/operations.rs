@@ -8,8 +8,8 @@
 //!
 //! CPU-bound work runs under the compute lane of the work governor; meaning
 //! searches run on the server's single embedding worker and are awaited
-//! outside the lane. Result sets are fetched up to the Discord presentation
-//! cap plus one so a capped set is reported as capped rather than complete.
+//! outside the lane. A paged result is fetched one page at a time, and one
+//! result past it, which is what says whether another page follows.
 
 use std::fmt;
 use std::num::NonZeroUsize;
@@ -18,8 +18,9 @@ use std::num::NonZeroUsize;
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
     CllExample, CllParagraphRole, CllSearchChunkKind, CllSearchMatch, CllSection, CllSite,
-    CuktaSearchMode, CuktaTargetFilter, cll_lookup_example, cll_lookup_section, cll_numbered_title,
-    cll_resolve_example_reference, cll_resolve_section_reference, cukta_search, embedded_cll_site,
+    CuktaSearchMode, CuktaSearchWindow, CuktaTargetFilter, cll_lookup_example, cll_lookup_section,
+    cll_numbered_title, cll_resolve_example_reference, cll_resolve_section_reference, cukta_search,
+    embedded_cll_site,
 };
 use jbotci_dialect::parse_dialect_definition;
 use jbotci_gimfihi::{
@@ -28,7 +29,7 @@ use jbotci_gimfihi::{
 };
 use jbotci_jvozba::{
     JvozbaBuildLimits, JvozbaBuildResult, JvozbaError, JvozbaInput, JvozbaMode,
-    build_best_jvozba_detailed, build_best_jvozba_detailed_within, decompose_lujvo_like,
+    build_best_jvozba_detailed_within, decompose_lujvo_like,
 };
 use jbotci_morphology::{
     LujvoPart, MorphologyOptions, PhonemeRenderOptions, Phonemes, normalize_lojban_input_text,
@@ -36,9 +37,8 @@ use jbotci_morphology::{
 };
 use jbotci_search::vlacku::{
     VlackuCard, VlackuOutcome as SearchOutcome, VlackuRequest as SearchRequest,
-    VlackuSearchOptions, WordTypeFilter, dictionary_entry_card,
-    dictionary_entry_passes_vlacku_filters, normalize_word_type_filter, parse_word_type_filter,
-    run_vlacku_requests, word_like_lookup_text,
+    VlackuSearchOptions, WordTypeFilter, dictionary_entry_card, normalize_word_type_filter,
+    parse_word_type_filter, run_vlacku_requests, word_like_lookup_text,
 };
 use jbotci_source::SourceId;
 use jbotci_web_core::{
@@ -50,19 +50,19 @@ use tokio::time::Instant;
 use super::diagram::{DiagramError, DiagramImage, DiagramLimits, render_diagram};
 use super::request::{
     CuktaMode, CuktaRequest, CuktaResultKind, DiscordRequest, GentufaRequest,
-    GimfihiRequest as DiscordGimfihiRequest, JvozbaRequest, JvozbaTarget, MAX_PAGE, PAGE_SIZE,
-    PageNumber, SourceField, SourceText, VlackuMode, VlackuRequest, VlaseiRequest, VlataiRequest,
+    GimfihiRequest as DiscordGimfihiRequest, JvozbaRequest, JvozbaTarget, PAGE_SIZE, PageNumber,
+    SourceField, SourceText, VlackuMode, VlackuRequest, VlaseiRequest, VlataiRequest,
 };
 use super::work::{WorkError, WorkGovernor, WorkKeepalive};
 use crate::{SearchQuery, SemanticSearchError, SemanticSearchErrorData, ToolServices};
 
-/// What a ranked source is asked for when a page needs nothing in particular:
-/// one page and the result that says whether another follows. Every paged
-/// search asks for [`prefix_len`] of the page it is showing instead, so this
-/// is only the floor.
-const FIRST_PAGE_PREFIX: usize = PAGE_SIZE + 1;
-/// [`FIRST_PAGE_PREFIX`] as a positive count, for a worker that needs one.
-const VLACKU_FETCH_LIMIT: NonZeroUsize = NonZeroUsize::new(FIRST_PAGE_PREFIX).unwrap();
+/// What one page asks a source for: its own results and one more, which is
+/// what says whether another page follows. A source that can start at an
+/// offset is asked for exactly this much wherever the page sits; a source
+/// that can only rank from the beginning is asked for [`prefix_len`].
+const WINDOW_LEN: usize = PAGE_SIZE + 1;
+/// [`WINDOW_LEN`] as a positive count, for a worker that needs one.
+const WINDOW_COUNT: NonZeroUsize = NonZeroUsize::new(WINDOW_LEN).unwrap();
 
 /// Source label attached to Discord diagnostics.
 pub(crate) const SOURCE_LABEL: &str = "<discord>";
@@ -107,7 +107,7 @@ impl<T> PagedResults<T> {
         if start >= total && page.get() > 1 {
             return Err(new!(PageUnavailable {
                 requested: page.get(),
-                available: total.div_ceil(PAGE_SIZE).max(1),
+                available: Some(total.div_ceil(PAGE_SIZE).max(1)),
             }));
         }
         let end = (start + PAGE_SIZE).min(total);
@@ -132,7 +132,9 @@ impl<T> PagedResults<T> {
         if start >= fetched_len && page.get() > 1 {
             return Err(new!(PageUnavailable {
                 requested: page.get(),
-                available: fetched_len.div_ceil(PAGE_SIZE).max(1),
+                // Falling short of the prefix is the source saying it reached
+                // the end, so this count is the whole of it.
+                available: Some(fetched_len.div_ceil(PAGE_SIZE).max(1)),
             }));
         }
         let end = (start + PAGE_SIZE).min(fetched_len);
@@ -145,6 +147,57 @@ impl<T> PagedResults<T> {
             // because it was asked to stop knows nothing about the rest.
             total: exhausted.then_some(fetched_len),
             has_more,
+        }))
+    }
+
+    /// One page out of a window the source was asked for directly: `window`
+    /// is what it returned when asked for [`WINDOW_LEN`] results starting at
+    /// this page's first one. Returning fewer than that is how a windowed
+    /// source says the results end here, which is the only thing it says
+    /// about the total; short of that, how many there are is unknown and the
+    /// page says so rather than inventing a figure.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|paged| paged.page == page) || ret.is_err())]
+    pub(crate) fn from_window(window: Vec<T>, page: PageNumber) -> Result<Self, PageUnavailable> {
+        let has_more = window.len() > PAGE_SIZE;
+        if window.is_empty() && page.get() > 1 {
+            return Err(new!(PageUnavailable {
+                requested: page.get(),
+                available: None,
+            }));
+        }
+        let items = window.into_iter().take(PAGE_SIZE).collect::<Vec<_>>();
+        Ok(new!(PagedResults {
+            total: (!has_more).then(|| page.first_index() + items.len()),
+            items,
+            page,
+            has_more,
+        }))
+    }
+
+    /// One page out of a window whose source also counted the whole result
+    /// set while it worked, so the total is known without holding the results
+    /// it counted.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|paged| paged.total == Some(total)) || ret.is_err())]
+    pub(crate) fn from_counted_window(
+        window: Vec<T>,
+        page: PageNumber,
+        total: usize,
+    ) -> Result<Self, PageUnavailable> {
+        let start = page.first_index();
+        if start >= total && page.get() > 1 {
+            return Err(new!(PageUnavailable {
+                requested: page.get(),
+                available: Some(total.div_ceil(PAGE_SIZE).max(1)),
+            }));
+        }
+        let items = window.into_iter().take(PAGE_SIZE).collect::<Vec<_>>();
+        Ok(new!(PagedResults {
+            has_more: start + items.len() < total,
+            total: Some(total),
+            items,
+            page,
         }))
     }
 
@@ -183,28 +236,45 @@ impl<T> PagedResults<T> {
 #[requires(true)]
 #[ensures(ret > PAGE_SIZE)]
 pub(crate) fn prefix_len(page: PageNumber) -> usize {
-    page.first_index() + PAGE_SIZE + 1
+    page.first_index() + WINDOW_LEN
 }
 
-/// The requested page lies beyond the current result set.
-#[invariant(*requested as usize > *available)]
+/// [`prefix_len`] as a positive count, for a worker that needs one.
+#[requires(true)]
+#[ensures(ret.get() == prefix_len(page) || ret.get() == usize::MAX)]
+pub(crate) fn prefix_count(page: PageNumber) -> NonZeroUsize {
+    WINDOW_COUNT.saturating_add(page.first_index())
+}
+
+/// The requested page lies beyond the current result set. How many pages
+/// there are is known only when the source reached the end of its results;
+/// a windowed source that simply came back empty knows that this page is not
+/// there and nothing more, and says that instead.
+#[invariant(available.is_none_or(|available| *requested as usize > available))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PageUnavailable {
     pub(crate) requested: u16,
-    pub(crate) available: usize,
+    pub(crate) available: Option<usize>,
 }
 
 impl fmt::Display for PageUnavailable {
     #[requires(true)]
     #[ensures(true)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "page {} is not available; this result has {} page{}",
-            self.requested,
-            self.available,
-            if self.available == 1 { "" } else { "s" }
-        )
+        match self.available {
+            Some(available) => write!(
+                formatter,
+                "page {} is not available; this result has {} page{}",
+                self.requested,
+                available,
+                if available == 1 { "" } else { "s" }
+            ),
+            None => write!(
+                formatter,
+                "page {} is not available; this result does not reach that far",
+                self.requested
+            ),
+        }
     }
 }
 
@@ -706,9 +776,17 @@ fn run_vlatai(request: &VlataiRequest) -> Result<VlataiReport, OperationError> {
 // Vlacku
 // ---------------------------------------------------------------------------
 
-#[requires(true)]
-#[ensures(true)]
-fn vlacku_search_options(request: &VlackuRequest) -> VlackuSearchOptions {
+/// The reader's filters, and the stretch of the results this page wants.
+/// A search that can start where the page starts is given the page's own
+/// window; one that can only rank from the beginning is given the prefix that
+/// ends at this page.
+#[requires(count > 0)]
+#[ensures(ret.skip == skip && ret.count == count)]
+fn vlacku_search_options(
+    request: &VlackuRequest,
+    skip: usize,
+    count: usize,
+) -> VlackuSearchOptions {
     let word_types = request
         .options
         .word_types
@@ -718,7 +796,8 @@ fn vlacku_search_options(request: &VlackuRequest) -> VlackuSearchOptions {
         })
         .collect::<Vec<WordTypeFilter>>();
     VlackuSearchOptions::default().with_data(data! {
-        count: prefix_len(request.options.page),
+        skip: skip,
+        count: count,
         word_types: word_types,
         decompose_lujvo: request.options.decompose_lujvo,
     })
@@ -740,14 +819,18 @@ async fn run_vlacku(
                 },
             ));
         };
-        // Entry filters travel with the job and apply while ranking, so the
-        // worker never materializes more than the fetch limit.
+        // Meaning is a ranking over the whole dictionary, so there is no
+        // starting at this page: the worker ranks up to the end of it. That
+        // count is what bounds the work, and the entry filters travel with
+        // the job so they apply while it ranks. What it hands back is an
+        // entry index and a score per hit; the cards come later, for one page.
+        let page = request.options.page;
         let hits = match context
             .tools
             .semantic_vlacku_hits(
                 search_query,
-                VLACKU_FETCH_LIMIT,
-                vlacku_search_options(&request),
+                prefix_count(page),
+                vlacku_search_options(&request, 0, prefix_len(page)),
                 Some(context.deadline),
                 context.keepalive.clone(),
             )
@@ -761,26 +844,14 @@ async fn run_vlacku(
         return context
             .governor
             .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
-                let options = vlacku_search_options(&request);
-                // The ranking stays compact: an entry index and a score per
-                // hit. Rich cards are built afterwards, for one page only.
-                let ranked = hits
-                    .into_iter()
-                    .filter(|hit| {
-                        dictionary
-                            .entries()
-                            .get(hit.entry_index)
-                            .is_some_and(|entry| {
-                                dictionary_entry_passes_vlacku_filters(
-                                    entry,
-                                    &options,
-                                    Some(hit.score),
-                                    true,
-                                )
-                            })
-                    })
-                    .collect::<Vec<_>>();
-                let results = PagedResults::from_prefix(ranked, request.options.page)?.map(|hit| {
+                let options = vlacku_search_options(&request, 0, prefix_len(page));
+                // The hits are the ranking itself: the worker applied the
+                // reader's filters while it ranked, so what came back is what
+                // passed them, and how many came back is what says whether the
+                // ranking reached its end. Cutting the list again here would
+                // make a short list look like the end of the results when it
+                // was only a second opinion about them.
+                let results = PagedResults::from_prefix(hits, page)?.map(|hit| {
                     let entry = dictionary
                         .entries()
                         .get(hit.entry_index)
@@ -810,7 +881,10 @@ async fn run_vlacku(
                 VlackuMode::Sound => SearchRequest::sound(query),
                 VlackuMode::Meaning => unreachable!("meaning search is handled above"),
             };
-            let options = vlacku_search_options(&request);
+            // A dictionary search can start where the page starts, so it is
+            // asked for this page's window and builds cards for that alone.
+            let options =
+                vlacku_search_options(&request, request.options.page.first_index(), WINDOW_LEN);
             let output = run_vlacku_requests(
                 jbotci_dictionary_data::english(),
                 &[search_request],
@@ -818,7 +892,7 @@ async fn run_vlacku(
             );
             let valid_missing = output.outcome == SearchOutcome::ValidMissing
                 || (output.outcome == SearchOutcome::Found && output.cards.is_empty());
-            let results = PagedResults::from_all(output.cards, request.options.page)?;
+            let results = PagedResults::from_window(output.cards, request.options.page)?;
             Ok(VlackuOutcome::Results {
                 results,
                 diagnostics: output.diagnostics,
@@ -911,8 +985,7 @@ async fn run_cukta(
                 .tools
                 .semantic_cukta_search(
                     search_query,
-                    NonZeroUsize::new(prefix_len(request.options.page))
-                        .unwrap_or(VLACKU_FETCH_LIMIT),
+                    prefix_count(request.options.page),
                     targets,
                     Some(context.deadline),
                     context.keepalive.clone(),
@@ -942,14 +1015,17 @@ async fn run_cukta(
                     let site = embedded_cll_site().map_err(|error| OperationError::Internal {
                         message: error.to_string(),
                     })?;
+                    // The book's index can start where the page starts, so
+                    // the section text is copied for this page's window and
+                    // not for everything before it.
                     let output = cukta_search(
                         site,
                         CuktaSearchMode::Word,
                         &query,
-                        prefix_len(page),
+                        CuktaSearchWindow::after(page.first_index(), WINDOW_LEN),
                         targets,
                     );
-                    let results = PagedResults::from_prefix(output.matches, page)?
+                    let results = PagedResults::from_window(output.matches, page)?
                         .map(|matched| cukta_card(&matched));
                     Ok(CuktaOutcome::Search {
                         results,
@@ -1280,10 +1356,11 @@ fn gimfihi_plan(request: &DiscordGimfihiRequest) -> Result<GimfihiPlan, RequestV
         check_collisions: options.collisions,
         show_collisions: options.show_collisions,
         require_free_short_rafsi: options.require_free_short_rafsi,
-        // The scorer keeps its best `count` candidates in a bounded heap while
-        // it scans every generated one, so asking for this page's prefix is
-        // what makes deep pages cost a page, not a corpus.
-        count: prefix_len(options.page),
+        // The scorer ranks every generated candidate as words and scores,
+        // and builds the full detail of the ones in this window only, so a
+        // deep page costs a page rather than everything before it.
+        skip: options.page.first_index(),
+        count: WINDOW_LEN,
         highlight: None,
     }))
 }
@@ -1312,7 +1389,14 @@ fn run_gimfihi(request: &DiscordGimfihiRequest) -> Result<GimfihiOutcome, Operat
                             errors: vec![error.to_string()],
                         })
                     })?;
-            let results = PagedResults::from_prefix(output.candidates, request.options.page)?;
+            // The scorer counted every candidate that passed the filters
+            // while it ranked them, so the total is known exactly and is not
+            // the size of what was kept.
+            let results = PagedResults::from_counted_window(
+                output.candidates,
+                request.options.page,
+                output.filtered_count,
+            )?;
             Ok(GimfihiOutcome::Candidates {
                 sources: output.resolved_sources,
                 winner: output.winner,
@@ -1429,13 +1513,107 @@ mod tests {
             PagedResults::from_prefix(vec![1, 2, 3], deep),
             Err(new!(PageUnavailable {
                 requested: 400,
-                available: 1
+                available: Some(1)
             }))
         );
 
         // An empty result set is page one with nothing on it.
         let empty = PagedResults::<u8>::from_all(Vec::new(), PageNumber::first()).expect("page");
         assert!(empty.is_empty() && empty.total == Some(0) && empty.range().is_none());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_windowed_page_says_where_it_is_without_inventing_a_total() {
+        // A source asked for this page and one more: the extra result says
+        // another page follows, and says nothing about how many there are.
+        let page = PageNumber::new(24).expect("page 24");
+        assert_eq!(page.first_index(), 115);
+        let window = (116..=121).collect::<Vec<_>>();
+        assert_eq!(window.len(), WINDOW_LEN);
+        let paged = PagedResults::from_window(window, page).expect("page 24");
+        assert_eq!(paged.items, [116, 117, 118, 119, 120]);
+        assert_eq!(paged.range(), Some((116, 120)));
+        assert_eq!(paged.total, None, "a full window is not a count of results");
+        assert!(paged.has_more);
+
+        // A short window is the end of the results, and that is the one time
+        // a windowed source knows the total.
+        let last = PagedResults::from_window(vec![116, 117], page).expect("page 24");
+        assert_eq!(last.total, Some(117));
+        assert!(!last.has_more);
+
+        // An empty window past the end refuses the page and does not claim to
+        // know how many pages there are.
+        assert_eq!(
+            PagedResults::<u8>::from_window(Vec::new(), page),
+            Err(new!(PageUnavailable {
+                requested: 24,
+                available: None
+            }))
+        );
+        assert_eq!(
+            new!(PageUnavailable {
+                requested: 24,
+                available: None
+            })
+            .to_string(),
+            "page 24 is not available; this result does not reach that far"
+        );
+
+        // A source that counted its whole result set while it worked says so,
+        // and the count is not the size of what it kept.
+        let counted =
+            PagedResults::from_counted_window(vec![116, 117, 118, 119, 120, 121], page, 11_864)
+                .expect("page 24");
+        assert_eq!(counted.total, Some(11_864));
+        assert!(counted.has_more);
+        let counted_last =
+            PagedResults::from_counted_window(vec![116, 117], page, 117).expect("page 24");
+        assert!(!counted_last.has_more && counted_last.total == Some(117));
+        assert_eq!(
+            PagedResults::from_counted_window(vec![1], PageNumber::new(30).expect("page"), 117),
+            Err(new!(PageUnavailable {
+                requested: 30,
+                available: Some(24)
+            }))
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_ranking_is_asked_for_the_prefix_that_reaches_the_page_being_shown() {
+        // A worker that can only rank from the beginning is asked for
+        // everything up to the end of the page, and one more.
+        assert_eq!(prefix_count(PageNumber::first()).get(), WINDOW_LEN);
+        let deep = PageNumber::new(24).expect("page 24");
+        assert_eq!(prefix_count(deep).get(), 121);
+        assert_eq!(prefix_count(deep).get(), prefix_len(deep));
+
+        // A meaning search over a set of 115 hits, page by page: the worker
+        // ranks to the count it is given and stops there, so the pages have
+        // to walk to the end of the results rather than to the end of the
+        // first fetch.
+        let ranked =
+            |page: PageNumber| -> Vec<usize> { (1..=115).take(prefix_count(page).get()).collect() };
+        let mut page = PageNumber::first();
+        let mut seen = Vec::new();
+        loop {
+            let results = PagedResults::from_prefix(ranked(page), page).expect("page");
+            seen.extend(results.items.iter().copied());
+            if !results.has_more {
+                assert_eq!(results.total, Some(115), "the end of a ranking is a total");
+                assert_eq!(results.range(), Some((111, 115)));
+                assert_eq!(page.get(), 23);
+                break;
+            }
+            assert_eq!(results.total, None, "a prefix is never a total");
+            page = page.next().expect("another page");
+            assert!(page.get() <= 23, "the walk must not run past the results");
+        }
+        assert_eq!(seen, (1..=115).collect::<Vec<_>>());
     }
 
     #[test]

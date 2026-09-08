@@ -18,13 +18,13 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{
-    CllBlock, CllParagraphRole, CllSearchChunkKind, CuktaSearchMode, CuktaTargetFilter,
-    DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT, MAX_CUKTA_RESULT_COUNT,
-    chrestomathy_section_parse_href, cll_first_section_id, cll_index_entries, cll_lookup_section,
-    cll_next_section_id, cll_numbered_title, cll_previous_section_id,
-    cll_resolve_section_reference, cll_search_all_chunks, cll_search_chunk_href,
-    cll_section_chapter_title, cll_section_prelude_blocks, cukta_search, embedded_cll_site,
-    format_section_display_title, truncate_preview,
+    CllBlock, CllParagraphRole, CllSearchChunkKind, CuktaSearchMode, CuktaSearchWindow,
+    CuktaTargetFilter, DEFAULT_CUKTA_SECTION_ID, DEFAULT_CUKTA_WEB_RESULT_COUNT,
+    MAX_CUKTA_RESULT_COUNT, chrestomathy_section_parse_href, cll_first_section_id,
+    cll_index_entries, cll_lookup_section, cll_next_section_id, cll_numbered_title,
+    cll_previous_section_id, cll_resolve_section_reference, cll_search_all_chunks,
+    cll_search_chunk_href, cll_section_chapter_title, cll_section_prelude_blocks, cukta_search,
+    embedded_cll_site, format_section_display_title, truncate_preview,
 };
 use jbotci_diagnostics::{
     Diagnostic, DiagnosticNoteMode, DiagnosticPhase, DiagnosticSeverity,
@@ -2693,6 +2693,7 @@ fn gimfihi_request_from_web_state(state: &GimfihiWebState) -> Result<GimfihiRequ
         check_collisions: state.check_collisions,
         show_collisions: state.show_collisions,
         require_free_short_rafsi: state.require_free_short_rafsi,
+        skip: 0,
         count: state.count.clamp(1, GIMFIHI_WEB_MAX_COUNT),
         highlight: state.highlight.clone(),
     })
@@ -2907,7 +2908,7 @@ pub fn build_cukta_web_page(base_path: &str, state: &CuktaWebState) -> CuktaPage
                 site,
                 search_state.mode.into(),
                 &search_state.query,
-                search_state.count,
+                CuktaSearchWindow::first(search_state.count),
                 cukta_target_filter(&search_state.targets),
             );
             let results = output

@@ -18,7 +18,7 @@ use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires, try_new};
-use jbotci_gimfihi::{CollisionScope, GimfihiPreset, GismuShape, all_presets};
+use jbotci_gimfihi::{CollisionScope, GismuShape, all_presets};
 use serde_json::Value;
 use vec1::Vec1;
 
@@ -28,14 +28,12 @@ use super::components::{
     ModalComponent, ModalControl, RadioGroup, SelectOption, StringSelect, TextDisplay, TextInput,
     TextInputStyle,
 };
-use super::links::APP_LINK_LABEL;
 use super::request::{
     CuktaMode, CuktaOptions, CuktaRequest, CuktaResultKind, CuktaResultKindSet, DiscordRequest,
-    DiscordTool, GentufaOptions, GentufaRequest, GentufaTextView, GimfihiOptions, GimfihiRequest,
-    GismuShapeSet, JvozbaOptions, JvozbaRequest, JvozbaTarget, MAX_PAGE, MAX_SOURCE_UNITS,
-    PageNumber, PublishedRequest, SourceText, VlackuMode, VlackuOptions, VlackuRequest,
-    VlackuWordType, VlackuWordTypeSet, VlaseiOptions, VlaseiRequest, VlaseiView, VlataiOptions,
-    VlataiRequest,
+    GentufaOptions, GentufaRequest, GentufaTextView, GimfihiOptions, GimfihiRequest, GismuShapeSet,
+    JvozbaOptions, JvozbaRequest, JvozbaTarget, MAX_SOURCE_UNITS, PageNumber, PublishedRequest,
+    SourceText, VlackuMode, VlackuOptions, VlackuRequest, VlackuWordType, VlackuWordTypeSet,
+    VlaseiOptions, VlaseiRequest, VlaseiView, VlataiOptions, VlataiRequest,
 };
 
 /// Control identifiers. They are stable across builds because a modal opened
@@ -50,7 +48,6 @@ const ID_WORD_TYPES: &str = "wordtypes";
 const ID_DETAILS: &str = "details";
 const ID_KINDS: &str = "kinds";
 const ID_PARTS: &str = "parts";
-const ID_RAFSI: &str = "rafsi";
 const ID_SOURCES: &str = "sources";
 const ID_PRESET: &str = "preset";
 const ID_OPTIONS: &str = "options";
@@ -1052,7 +1049,7 @@ pub(crate) fn parse_submission(
                 },
             }))
         }
-        DiscordRequest::Jvozba(previous) => Ok(DiscordRequest::Jvozba(JvozbaRequest {
+        DiscordRequest::Jvozba(_) => Ok(DiscordRequest::Jvozba(JvozbaRequest {
             parts: required_source(submission, ID_PARTS, "parts")?,
             options: JvozbaOptions {
                 target: JvozbaTarget::from_slash_value(chosen_value(submission, ID_MODE, "build")?)
@@ -1248,6 +1245,7 @@ mod tests {
     use super::*;
     use crate::discord::components::{MAX_MODAL_TITLE_UNITS, MAX_SELECT_OPTIONS};
     use crate::discord::request::{BuildTag, Revision, Snowflake, utf16_len};
+    use jbotci_gimfihi::GimfihiPreset;
 
     #[requires(true)]
     #[ensures(true)]
@@ -1475,7 +1473,7 @@ mod tests {
             assert!(
                 json["custom_id"]
                     .as_str()
-                    .is_some_and(|id| id.starts_with("j1m.")),
+                    .is_some_and(|id| id.starts_with("j2m.")),
                 "{tool}"
             );
             let mut ids = Vec::new();
@@ -1945,7 +1943,7 @@ mod tests {
     fn values_are_read_out_of_a_real_submission_payload() {
         // The shape Discord sends back: labels wrapping their controls.
         let data = serde_json::json!({
-            "custom_id": "j1m.g.1.123",
+            "custom_id": "j2m.g.1.123",
             "components": [
                 { "type": 18, "component": { "type": 4, "custom_id": "text", "value": "mi klama" } },
                 { "type": 18, "component": { "type": 4, "custom_id": "dialect", "value": "" } },

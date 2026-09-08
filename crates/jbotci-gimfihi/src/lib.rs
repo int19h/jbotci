@@ -33,9 +33,9 @@ pub use jbotci_dictionary::{
 pub use jbotci_morphology::{GismuShape, ShortRafsiShape};
 
 pub const GIMFIHI_DEFAULT_COUNT: usize = 20;
-/// How many candidates the web interface will show at once. It bounds that
-/// caller's requests; the scorer itself keeps as many as it is asked for, so a
-/// caller that pages deeply is not silently cut off.
+/// How many candidates one answer may hold. It bounds `count`, the size of
+/// what is returned; it does not bound `skip`, so a caller paging through the
+/// ranking a window at a time is never cut off by it.
 pub const GIMFIHI_MAX_COUNT: usize = 512;
 pub const GIMFIHI_MIN_WEIGHT: u16 = 1;
 pub const GIMFIHI_MAX_WEIGHT: u16 = 999;
@@ -410,6 +410,12 @@ pub struct GimfihiRequest {
     pub check_collisions: CollisionScope,
     pub show_collisions: bool,
     pub require_free_short_rafsi: bool,
+    /// How many of the best candidates to pass over before the ones that are
+    /// wanted. With `count` this is a window into the ranking: a caller
+    /// showing a later page asks for its own stretch, and the scorer builds
+    /// the full detail of a candidate only for what the window holds.
+    #[serde(default)]
+    pub skip: usize,
     pub count: usize,
     pub highlight: Option<String>,
 }
@@ -428,6 +434,7 @@ impl Default for GimfihiRequest {
             check_collisions: CollisionScope::All,
             show_collisions: false,
             require_free_short_rafsi: false,
+            skip: 0,
             count: GIMFIHI_DEFAULT_COUNT,
             highlight: None,
         }
@@ -824,17 +831,19 @@ pub fn compose_gismu(
         .as_ref()
         .map(|value| normalize_gismu(value))
         .filter(|value| !value.is_empty());
-    // The caller says how many it needs; the heap holds that many and no
-    // more, whatever the count is, so paging deeply costs a page rather than
-    // a corpus. Only the initial allocation is bounded, and it grows if a
-    // caller really asks for more.
-    let retained_count = request.count;
+    // One answer holds at most `GIMFIHI_MAX_COUNT` candidates, as it always
+    // has. The heap holds the end of the window on top of that: the
+    // candidates passed over still have to be ranked to know which they are,
+    // but each is a word and a score, and only the window becomes a full
+    // candidate below. The heap can never hold more than the candidates that
+    // pass the filters, whatever window is asked for.
+    let wanted = request.count.min(GIMFIHI_MAX_COUNT);
+    let retained_count = request.skip.saturating_add(wanted);
     let mut candidate_count = 0;
     let mut filtered_count = 0;
     let mut winner: Option<ScoredGimfihiCandidate> = None;
     let mut requested_highlight_candidate = None;
-    let mut retained =
-        BinaryHeap::with_capacity(retained_count.min(GIMFIHI_MAX_COUNT).saturating_add(1));
+    let mut retained = BinaryHeap::with_capacity(wanted.saturating_add(1));
     for word in generate_candidates(
         &resolved_sources,
         &shapes,
@@ -889,7 +898,17 @@ pub fn compose_gismu(
         .map(|entry| entry.into_data().candidate)
         .collect::<Vec<_>>();
     displayed.sort_by(compare_scored_candidates);
+    // Everything above ranks words and scores; from here the candidates are
+    // built in full, so only the window pays for that.
+    let mut displayed = displayed
+        .into_iter()
+        .skip(request.skip)
+        .take(wanted)
+        .collect::<Vec<_>>();
+    // The highlighted word rides with the first window, where a reader who
+    // did not ask for a later one sees it.
     if let Some(highlighted_word) = &highlighted_word
+        && request.skip == 0
         && !displayed
             .iter()
             .any(|candidate| &candidate.word == highlighted_word)
@@ -2508,6 +2527,7 @@ mod tests {
             check_collisions: CollisionScope::None,
             show_collisions: false,
             require_free_short_rafsi: false,
+            skip: 0,
             count: 1,
             highlight: Some("nanpe".to_owned()),
         };
@@ -2525,6 +2545,74 @@ mod tests {
                 .iter()
                 .any(|candidate| candidate.word == "nanpe" && candidate.highlighted)
         );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_window_deep_in_the_ranking_is_that_stretch_of_it_and_costs_a_window() {
+        let dictionary = jbotci_dictionary_data::english();
+        let sources = [
+            parse_source_spec("cmn::uan").expect("source"),
+            parse_source_spec("hin::rakan").expect("source"),
+            parse_source_spec("eng::ekspekt").expect("source"),
+            parse_source_spec("spa::esper").expect("source"),
+            parse_source_spec("rus::predpologa").expect("source"),
+            parse_source_spec("ara::mulud").expect("source"),
+        ];
+        let request = GimfihiRequest {
+            scorer: GimfihiScorer::Classic,
+            phonetic_parameters: AlineParameters::default(),
+            preset: Some(GimfihiPreset::Data1995),
+            sources: sources.to_vec(),
+            shapes: default_shapes(),
+            all_letters: false,
+            check_collisions: CollisionScope::None,
+            show_collisions: false,
+            require_free_short_rafsi: false,
+            skip: 0,
+            count: 205,
+            highlight: None,
+        };
+        let whole = compose_gismu(dictionary, &request).expect("output");
+        assert_eq!(whole.candidates.len(), 205);
+
+        // The fortieth page of the same ranking: the same five candidates,
+        // and five candidates' worth of detail however deep the window is.
+        let deep = GimfihiRequest {
+            skip: 200,
+            count: 5,
+            ..request.clone()
+        };
+        let window = compose_gismu(dictionary, &deep).expect("output");
+        assert_eq!(window.candidates.len(), 5);
+        assert_eq!(
+            window
+                .candidates
+                .iter()
+                .map(|candidate| (candidate.word.as_str(), candidate.score))
+                .collect::<Vec<_>>(),
+            whole.candidates[200..205]
+                .iter()
+                .map(|candidate| (candidate.word.as_str(), candidate.score))
+                .collect::<Vec<_>>()
+        );
+        // What the whole enumeration knows is the same either way: the window
+        // moves, the corpus behind it does not.
+        assert_eq!(window.candidate_count, whole.candidate_count);
+        assert_eq!(window.filtered_count, whole.filtered_count);
+        assert_eq!(window.winner, whole.winner);
+
+        // A window past the end of the ranking is empty rather than clamped
+        // back to results someone has already seen.
+        let past_the_end = GimfihiRequest {
+            skip: whole.filtered_count,
+            count: 5,
+            ..request
+        };
+        let nothing = compose_gismu(dictionary, &past_the_end).expect("output");
+        assert!(nothing.candidates.is_empty());
+        assert_eq!(nothing.filtered_count, whole.filtered_count);
     }
 
     #[test]
@@ -2550,6 +2638,7 @@ mod tests {
             check_collisions: CollisionScope::All,
             show_collisions: false,
             require_free_short_rafsi: false,
+            skip: 0,
             count: 20,
             highlight: None,
         };
@@ -2666,6 +2755,7 @@ mod tests {
             check_collisions: CollisionScope::All,
             show_collisions: false,
             require_free_short_rafsi: false,
+            skip: 0,
             count: 160,
             highlight: None,
         };
@@ -2731,6 +2821,7 @@ mod tests {
                 check_collisions: CollisionScope::None,
                 show_collisions: false,
                 require_free_short_rafsi: false,
+                skip: 0,
                 count: 11,
                 highlight: Some("branu".to_owned()),
             };
@@ -2814,6 +2905,7 @@ mod tests {
             check_collisions: CollisionScope::None,
             show_collisions: false,
             require_free_short_rafsi: false,
+            skip: 0,
             count: 1,
             highlight: Some("plini".to_owned()),
         };
@@ -2854,6 +2946,7 @@ mod tests {
             check_collisions: CollisionScope::All,
             show_collisions: true,
             require_free_short_rafsi: false,
+            skip: 0,
             count: 3,
             highlight: Some("klama".to_owned()),
         };
@@ -2914,6 +3007,7 @@ mod tests {
             check_collisions: CollisionScope::None,
             show_collisions: false,
             require_free_short_rafsi: false,
+            skip: 0,
             count: 1,
             highlight: Some("klama".to_owned()),
         };
@@ -2964,6 +3058,7 @@ mod tests {
             check_collisions: CollisionScope::None,
             show_collisions: false,
             require_free_short_rafsi: false,
+            skip: 0,
             count: 2,
             highlight: None,
         };

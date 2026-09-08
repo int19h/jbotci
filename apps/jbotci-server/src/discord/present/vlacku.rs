@@ -19,11 +19,7 @@ const MAX_CARD_FIELD_UNITS: usize = 420;
 
 #[requires(true)]
 #[ensures(ret.tool() == DiscordTool::Vlacku)]
-pub(crate) fn render(
-    outcome: &VlackuOutcome,
-    request: &VlackuRequest,
-    app_link: Option<&str>,
-) -> RenderedResult {
+pub(crate) fn render(outcome: &VlackuOutcome, request: &VlackuRequest) -> RenderedResult {
     let options = request.options;
     let mode_label = match options.mode {
         VlackuMode::Word => "word",
@@ -276,7 +272,6 @@ mod tests {
                 valid_missing: false,
             },
             &request("klama"),
-            None,
         );
         let body = rendered.body.join("\n");
         assert!(
@@ -314,7 +309,6 @@ mod tests {
                 valid_missing: true,
             },
             &request("klabajra"),
-            None,
         );
         let body = rendered.body.join("\n");
         assert!(body.contains("No dictionary entry"), "{body}");
@@ -343,7 +337,6 @@ mod tests {
                 reason: "no embedding index".to_owned(),
             },
             &request,
-            None,
         );
         assert!(rendered.status.text.ends_with("unavailable"));
         assert!(rendered.body[0].contains("no embedding index"));

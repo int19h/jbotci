@@ -19,9 +19,9 @@ use super::codec::{
     input_block_fits_inline,
 };
 use super::components::{
-    ActionRow, AttachmentName, AttachmentRequest, AttachmentRequestData, BoundsError, Button,
-    CustomId, FileComponent, InvalidAttachmentName, MESSAGE_TEXT_BUDGET_UNITS, MediaGallery,
-    MediaItem, MessageComponent, MessagePayload, PayloadError, Section, TextDisplay,
+    ActionRow, AttachmentName, AttachmentRequest, BoundsError, Button, CustomId, FileComponent,
+    InvalidAttachmentName, MESSAGE_TEXT_BUDGET_UNITS, MediaGallery, MediaItem, MessageComponent,
+    MessagePayload, PayloadError, Section, TextDisplay,
 };
 use super::present::markdown::{escape, subtext, truncate_units};
 use super::present::{Pagination, RenderedResult};
@@ -525,7 +525,7 @@ fn page_row(pagination: Pagination, revision: Revision) -> Result<ActionRow, Ass
 mod tests {
     use super::*;
     use crate::discord::codec::INLINE_INPUT_BUDGET_UNITS;
-    use crate::discord::components::FLAG_IS_COMPONENTS_V2;
+    use crate::discord::components::{AttachmentRequestData, FLAG_IS_COMPONENTS_V2};
     use crate::discord::diagram::DiagramImage;
     use crate::discord::operations::{PagedResults, VlackuOutcome};
     use crate::discord::present::diagnostics::{RenderedDiagnostics, render_diagnostics};
@@ -1000,7 +1000,6 @@ mod tests {
                 valid_missing: false,
             },
             &request,
-            None,
         );
         assert!(result.shows_excerpt, "the definition was cut to fit a card");
         let published = PublishedRequest {

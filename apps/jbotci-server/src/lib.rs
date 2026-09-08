@@ -1491,8 +1491,8 @@ mod tests {
     use bityzba::{ensures, invariant, requires};
     use ed25519_dalek::{Signer, SigningKey};
     use jbotci_cli::{
-        ToolAlineSaliences, ToolCollisionScope, ToolGentufaFormat, ToolGimfihiFormat,
-        ToolGimfihiScorer, ToolGimfihiSource, run_tool_gentufa,
+        ToolAlineSaliences, ToolCollisionScope, ToolGimfihiFormat, ToolGimfihiScorer,
+        ToolGimfihiSource,
     };
     use std::sync::atomic::{AtomicU64, Ordering};
     use tower::ServiceExt;

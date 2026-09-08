@@ -29,8 +29,11 @@ use jbotci_web_core::{
 use super::operations::GIMFIHI_RECORD_SEPARATORS;
 
 /// How many results the app link asks the web app to show. The web app pages
-/// on its own; this only has to be generous enough that the link is a real
-/// continuation of what Discord shows.
+/// on its own, and Discord now pages as far as the results go, so this is not
+/// a matching bound: it is what the app is asked to have ready, enough that
+/// the link opens on the same body of results a reader has been paging
+/// through. A reader who has gone past it opens the app on its own first page
+/// of the same search rather than on the result they were looking at.
 const APP_LINK_RESULT_COUNT: usize = 116;
 use super::request::{
     CuktaMode, CuktaRequest, CuktaResultKind, DiscordRequest, DiscordTool, GentufaRequest,
@@ -195,7 +198,6 @@ fn vlacku_state(request: &VlackuRequest) -> VlackuWebState {
             VlackuMode::Meaning => VlackuWebMode::Meaning,
         },
         query: request.query.as_str().to_owned(),
-        // Everything Discord could page through is on the page at once.
         count: APP_LINK_RESULT_COUNT,
         word_types: options
             .word_types

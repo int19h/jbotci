@@ -68,6 +68,11 @@ impl VlackuRequest {
 #[invariant(min_similarity.as_ref().is_none_or(|value| value.is_finite()))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct VlackuSearchOptions {
+    /// Matches to skip before the ones that are wanted. With `count` this is
+    /// a window into the result set: a caller showing a later page pays for
+    /// its own page rather than for everything before it, because a card is
+    /// built only for what the window holds.
+    pub skip: usize,
     pub count: usize,
     pub word_types: Vec<WordTypeFilter>,
     pub min_votes: Option<i32>,
@@ -80,6 +85,7 @@ impl Default for VlackuSearchOptions {
     #[ensures(ret.count == DEFAULT_VLACKU_RESULT_COUNT)]
     fn default() -> Self {
         new!(VlackuSearchOptions {
+            skip: 0,
             count: DEFAULT_VLACKU_RESULT_COUNT,
             word_types: Vec::new(),
             min_votes: None,
@@ -441,7 +447,10 @@ impl WordKindTypeKey {
     }
 }
 
-#[requires(true)]
+#[requires(
+    options.skip == 0 || requests.len() <= 1,
+    "a window applies to each search on its own, so several of them at once would skip into whichever ran first"
+)]
 #[ensures(true)]
 pub fn run_vlacku_requests(
     dictionary: &Dictionary<'_>,
@@ -683,6 +692,7 @@ fn dictionary_cards_for_lookup_target(
 #[ensures(ret.count == usize::MAX)]
 fn parsed_word_vlacku_options() -> VlackuSearchOptions {
     new!(VlackuSearchOptions {
+        skip: 0,
         count: usize::MAX,
         word_types: Vec::new(),
         min_votes: None,
@@ -1069,9 +1079,13 @@ fn cards_for_matching_entries_with_builder<'dictionary>(
     options: &VlackuSearchOptions,
     mut build_card: impl FnMut(&'dictionary DictionaryEntry<'dictionary>) -> VlackuCard,
 ) -> Vec<VlackuCard> {
+    // Filtering is cheap and reads the entry in place; building a card is the
+    // expensive half. Skipping happens before the card is built, so the work
+    // is the size of the window rather than of everything up to it.
     entries
         .into_iter()
         .filter(|entry| dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false))
+        .skip(options.skip)
         .take(options.count)
         .map(|entry| build_card(entry))
         .collect()
@@ -1114,10 +1128,13 @@ fn cards_for_sound(
             )
         })
         .collect::<Vec<_>>();
-    retain_best_sound_scores(&mut scored, options.count);
+    // The window's own end is what has to be ranked; the scored entries are
+    // an index and a score, and only the window becomes cards.
+    retain_best_sound_scores(&mut scored, options.skip.saturating_add(options.count));
 
     let cards = scored
         .into_iter()
+        .skip(options.skip)
         .map(|scored| {
             dictionary_entry_card(
                 dictionary,
@@ -1740,6 +1757,7 @@ pub fn filter_vlacku_cards(
     cards
         .into_iter()
         .filter(|card| passes_filters(card, options, similarity_mode))
+        .skip(options.skip)
         .take(options.count)
         .collect()
 }
@@ -1997,6 +2015,91 @@ mod tests {
     #[ensures(true)]
     fn filter(value: &str) -> WordTypeFilter {
         WordTypeFilter::parse(value).expect("known word type filter")
+    }
+
+    #[requires(count > 0)]
+    #[ensures(ret.skip == skip && ret.count == count)]
+    fn window(skip: usize, count: usize) -> VlackuSearchOptions {
+        VlackuSearchOptions::default().with_data(data! {
+            skip: skip,
+            count: count,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(cards: &[VlackuCard]) -> Vec<&str> {
+        cards.iter().map(|card| card.word.as_str()).collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_window_into_a_search_is_that_stretch_of_the_whole_result() {
+        let dictionary = jbotci_dictionary_data::english();
+        let whole = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("kla*".to_owned())],
+            &window(0, usize::MAX),
+        );
+        assert!(
+            whole.cards.len() > 16,
+            "the fixture needs more than three pages: {}",
+            whole.cards.len()
+        );
+
+        let third_page = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("kla*".to_owned())],
+            &window(10, 6),
+        );
+        assert_eq!(words(&third_page.cards), words(&whole.cards)[10..16]);
+
+        // Sound search ranks before it windows, so the window has to be the
+        // same stretch of the ranking rather than of the dictionary.
+        let whole_sound = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::sound("klama".to_owned())],
+            &window(0, 16),
+        );
+        let later_sound = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::sound("klama".to_owned())],
+            &window(10, 6),
+        );
+        assert_eq!(words(&later_sound.cards), words(&whole_sound.cards)[10..16]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_window_builds_a_window_of_cards_however_deep_it_is() {
+        let dictionary = jbotci_dictionary_data::english();
+        let mut built = 0;
+        let first = cards_for_matching_entries_with_builder(
+            dictionary.entries().iter(),
+            &window(0, 6),
+            |entry| {
+                built += 1;
+                dictionary_entry_card(dictionary, entry, Some(1.0), false)
+            },
+        );
+        assert_eq!((first.len(), built), (6, 6));
+
+        // The five-hundredth page of the same result set: the entries before
+        // it are still walked, because that is what says which they are, but
+        // no card is built for any of them.
+        let mut built_deep = 0;
+        let deep = cards_for_matching_entries_with_builder(
+            dictionary.entries().iter(),
+            &window(2_500, 6),
+            |entry| {
+                built_deep += 1;
+                dictionary_entry_card(dictionary, entry, Some(1.0), false)
+            },
+        );
+        assert_eq!((deep.len(), built_deep), (6, 6));
+        assert_ne!(words(&deep), words(&first));
     }
 
     #[test]

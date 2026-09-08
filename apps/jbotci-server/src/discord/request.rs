@@ -27,11 +27,6 @@ pub(crate) const MAX_SOURCE_UNITS: usize = 4000;
 pub(crate) const PAGE_SIZE: usize = 5;
 
 /// Highest page number any Discord result can address.
-///
-/// Pages are navigated with buttons rather than chosen from a list, so the
-/// only bound on a page number is what the number itself can hold and what
-/// the result set actually has.
-pub(crate) const MAX_PAGE: u16 = u16::MAX;
 
 /// UTF-16 code-unit length of `text`, the measure Discord applies to its
 /// character limits.
@@ -1486,7 +1481,6 @@ fn preset_from_code(code: u32) -> Option<GimfihiPreset> {
 #[invariant(::UnknownEnumValue { .. } => true)]
 #[invariant(::FieldLayout { .. } => true)]
 #[invariant(::MissingField { .. } => true)]
-#[invariant(::PageOutOfRange { .. } => true)]
 #[invariant(::LegacyPartsTooLong { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RequestStateError {
@@ -1504,11 +1498,6 @@ pub(crate) enum RequestStateError {
     MissingField {
         tool: DiscordTool,
         field: SourceField,
-    },
-    PageOutOfRange {
-        tool: DiscordTool,
-        page: u16,
-        max: u16,
     },
     /// A message published before the ordered parts syntax cannot be
     /// rewritten into it, because the two old fields together are longer than
@@ -1542,12 +1531,6 @@ impl fmt::Display for RequestStateError {
             }
             Self::MissingField { tool, field } => {
                 write!(formatter, "{tool}: the {} field is missing", field.label())
-            }
-            Self::PageOutOfRange { tool, page, max } => {
-                write!(
-                    formatter,
-                    "{tool}: page {page} exceeds the maximum of {max}"
-                )
             }
         }
     }
@@ -1718,7 +1701,8 @@ mod tests {
                 options: CuktaOptions {
                     mode: CuktaMode::Word,
                     kinds: CuktaResultKindSet::empty().with(CuktaResultKind::Example),
-                    page: PageNumber::new(MAX_PAGE).expect("page"),
+                    // The largest page a message can carry at all.
+                    page: PageNumber::new(u16::MAX).expect("page"),
                 },
             }),
             DiscordRequest::Jvozba(JvozbaRequest {

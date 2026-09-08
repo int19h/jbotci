@@ -14,11 +14,7 @@ use crate::discord::request::{DiscordTool, GimfihiRequest, GismuShape};
 
 #[requires(true)]
 #[ensures(ret.tool() == DiscordTool::Gimfihi)]
-pub(crate) fn render(
-    outcome: &GimfihiOutcome,
-    request: &GimfihiRequest,
-    app_link: Option<&str>,
-) -> RenderedResult {
+pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> RenderedResult {
     match outcome {
         GimfihiOutcome::Setup { preset, languages } => {
             let mut rendered =
@@ -218,7 +214,7 @@ fn format_score(score: f64) -> String {
 mod tests {
     use super::*;
     use crate::discord::operations::PagedResults;
-    use crate::discord::request::{GimfihiOptions, MAX_PAGE, PageNumber, SourceText};
+    use crate::discord::request::{GimfihiOptions, PageNumber, SourceText};
     use jbotci_gimfihi::{
         GimfihiPreset, GimfihiRequest as SharedRequest, GimfihiScorer, compose_gismu,
         parse_source_spec,
@@ -246,7 +242,6 @@ mod tests {
                 languages: vec!["eng".to_owned(), "cmn".to_owned()],
             },
             &discord_request(None, Some(GimfihiPreset::Ilmen6)),
-            Some("https://jbotci.app/gimfihi?preset=ilmen6"),
         );
         assert_eq!(rendered.status.text, "gimfihi · setup");
         let body = rendered.body.join("\n");
@@ -278,6 +273,7 @@ mod tests {
                 check_collisions: CollisionScope::None,
                 show_collisions: false,
                 require_free_short_rafsi: false,
+                skip: 0,
                 count: 126,
                 highlight: None,
             },
@@ -295,7 +291,6 @@ mod tests {
                 results,
             },
             &request,
-            None,
         );
         assert!(
             rendered.status.text.starts_with("gimfihi · 1-5 of "),

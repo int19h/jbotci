@@ -416,10 +416,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "state rebuild error carries only the offending identifiers for its message",
     ),
     (
-        "apps/jbotci-server/src/discord/request.rs:RequestStateError::PageOutOfRange",
-        "state rebuild error carries only the offending identifiers for its message",
-    ),
-    (
         "apps/jbotci-server/src/discord/request.rs:RequestStateError::UnknownEnumValue",
         "state rebuild error carries only the offending identifiers for its message",
     ),

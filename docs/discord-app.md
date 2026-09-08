@@ -16,14 +16,25 @@ has a web page (gentufa, vlacku, cukta, gimfihi), the form's first line is an
 page, so their forms have no link and no substitute.
 
 A result that is a list carries **Previous** and **Next** beside it. They turn
-the page on the same message, and each page says which results it shows, with a
-total where the search knows one. A direction that does not exist is greyed
+the page on the same message, and each page says which results it shows —
+`6-10`, or `6-10 of 38` where the number of results is genuinely known. It is
+known when the search has reached the end of its results, and when it counted
+them all as part of its work; a search that was asked for one page and handed
+one back knows nothing about the rest, and then the page says only what it
+shows rather than inventing a figure. A direction that does not exist is greyed
 rather than hidden, and a result with a single page carries no buttons at all.
-Paging goes as far as the results do: there is no page ceiling, and each page
-is fetched on its own rather than cut out of a fixed window. The dictionary
-search, the reference-grammar search and the gismu candidate list page this
-way; a parse, a word report and a compound are one result each and have no
-pages.
+
+Paging goes as far as the results do: there is no page ceiling. Each page is
+fetched as itself, in the way its search allows. The dictionary search and the
+reference-grammar search start at the page's first result, so a later page
+costs what the first one did. Meaning search ranks the dictionary up to the end
+of the page — a similarity ranking has no way to start in the middle — but what
+it ranks are entry numbers and scores, and only the page becomes results. The
+gismu search scores every candidate it generates, keeps the best ones as a word
+and a score, and works out the full detail of one page of them. So a deep page
+costs a page, and none of these three has a last page other than the one the
+results end on. A parse, a word report and a compound are one result each and
+have no pages.
 
 Only the reader who ran the command can change what the message shows. Anyone
 can open the form to read the settings and use its link; submitting it as
@@ -131,7 +142,9 @@ Discord share it rather than each being given it whole.
 | Source field | 4000 UTF-16 units | Discord's own text-input maximum, enforced at the command and at the form alike. |
 | Message text | 4000 units across all text components | The application's budget for one message; longer results become an excerpt plus a complete attachment. |
 | Result page | 5 results | What reads well on a phone. Pages themselves are unbounded: each one is fetched when it is asked for. |
+| App link results | 116 | What the "Open in app" link asks the web app to show. Discord's own paging is not bounded by it: a reader who has paged past it opens the app on the same search from its beginning. |
 | App link | 4000 units for the whole link component | The application's own budget for one form text component, not a documented Discord limit. |
+| Candidate ranking | one word and one score per generated candidate that passes the filters | What a gismu page costs while it is being worked out, measured below. |
 | Compound construction | 8192 part placements, 24 pieces, 256 letters | Measured: 4096 placements take about 1.2s and 9216 about 3.1s in release on the development machine. |
 | Diagram | 600 blocks, 160 columns, 8 megapixels, 8 MiB | A diagram larger than this is refused with its reason, and the submission that asked for it changes nothing. Eight megapixels is what one image may spend of the instance's memory, measured below. |
 | Attachment | the interaction's own limit, at most 10 MiB | Discord states a per-interaction limit; the smaller of the two applies. |
@@ -192,6 +205,18 @@ deployed instance.
 | First meaning search (model loads) | 324 MiB | 324 MiB |
 | Four diagrams and four meaning searches together | 380 MiB | 429 MiB |
 | Everything above, at rest | 419 MiB | 429 MiB |
+
+The gismu search is the one paged result whose page cannot be reached without
+ranking everything before it, so what a deep page costs was measured on its own.
+The largest request in the test corpus — twelve phonetic sources over the Ilmen
+twelve-letter inventory — generates 96,475 candidates, all of which pass the
+filters. Asking it for the deepest page a page number can name (results 327,671
+onwards, past the end of any real result set) took 0.80s and brought the
+process to a 56 MiB peak, against 39.8 MiB for the first page of the same
+request; the ranking it holds is a word and a score per candidate, 88 bytes
+each, so it cannot exceed about 10 MiB however deep the page, and it is held
+only while that one page is computed. The same request at page 100 measured
+40.4 MiB. Measured in release on the development machine.
 
 Each of those diagrams is 8516×776 pixels, 6.6 of the 8 million a diagram may
 have, and 226 KB of PNG: a request near the cap rather than a small one.
