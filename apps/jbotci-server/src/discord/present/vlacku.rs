@@ -10,7 +10,7 @@ use jbotci_output::{
 use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, format_vote_display};
 
 use super::markdown::{escape, inline_code, join_lines, percent, subtext, truncate_units};
-use super::{RenderedResult, capped_notice, page_status};
+use super::{RenderedResult, page_status};
 use crate::discord::operations::VlackuOutcome;
 use crate::discord::request::{DiscordTool, VlackuMode, VlackuRequest};
 
@@ -91,7 +91,6 @@ pub(crate) fn render(
                     rendered.set_full_text(full);
                 }
             }
-            rendered.notice = capped_notice(results, app_link);
             rendered
         }
     }
@@ -238,7 +237,7 @@ fn card_markdown(
 mod tests {
     use super::*;
     use crate::discord::operations::PagedResults;
-    use crate::discord::request::{PageNumber, SourceText, VLACKU_MAX_PAGE, VlackuOptions};
+    use crate::discord::request::{PageNumber, SourceText, VlackuOptions};
     use jbotci_search::vlacku::{
         VlackuRequest as SearchRequest, VlackuSearchOptions, run_vlacku_requests,
     };
@@ -257,10 +256,10 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn request(query: &str) -> VlackuRequest {
-        new!(VlackuRequest {
+        VlackuRequest {
             query: SourceText::new(query).expect("text"),
             options: VlackuOptions::default(),
-        })
+        }
     }
 
     #[test]
@@ -268,8 +267,7 @@ mod tests {
     #[ensures(true)]
     fn attested_cards_show_class_rafsi_definition_and_provenance() {
         let cards = cards("klama");
-        let results =
-            PagedResults::paginate(cards, PageNumber::first(), VLACKU_MAX_PAGE).expect("page");
+        let results = PagedResults::from_all(cards, PageNumber::first()).expect("page");
         let rendered = render(
             &VlackuOutcome::Results {
                 results,
@@ -307,8 +305,7 @@ mod tests {
                 .is_some_and(|card| card.word == "klabajra" && !card.known),
             "a valid lujvo absent from the dictionary yields a synthesized card first: {cards:?}"
         );
-        let results =
-            PagedResults::paginate(cards, PageNumber::first(), VLACKU_MAX_PAGE).expect("page");
+        let results = PagedResults::from_all(cards, PageNumber::first()).expect("page");
         let rendered = render(
             &VlackuOutcome::Results {
                 results,
@@ -336,7 +333,10 @@ mod tests {
     #[ensures(true)]
     fn unavailable_meaning_search_is_reported_not_substituted() {
         let mut request = request("goer");
-        request = request.with_data(data! { options: VlackuOptions { mode: VlackuMode::Meaning, ..VlackuOptions::default() } });
+        request.options = VlackuOptions {
+            mode: VlackuMode::Meaning,
+            ..VlackuOptions::default()
+        };
         let rendered = render(
             &VlackuOutcome::Unavailable {
                 reason: "no embedding index".to_owned(),

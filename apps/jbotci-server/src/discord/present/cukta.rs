@@ -19,7 +19,7 @@ use jbotci_cll::{
 use super::markdown::{
     escape, inline_code, join_lines, percent, split_paragraphs, subtext, truncate_units,
 };
-use super::{RenderedResult, capped_notice, page_status};
+use super::{RenderedResult, page_status};
 use crate::discord::operations::{CuktaOutcome, CuktaSearchCard};
 use crate::discord::request::{CuktaMode, CuktaRequest, CuktaResultKind, DiscordTool};
 
@@ -101,7 +101,6 @@ pub(crate) fn render(
                     rendered.set_full_text(full);
                 }
             }
-            rendered.notice = capped_notice(results, app_link);
             rendered
         }
         CuktaOutcome::Section { site, section } => {
@@ -293,7 +292,7 @@ mod tests {
             .map(cukta_card_for_tests)
             .collect::<Vec<_>>();
         assert!(!cards.is_empty());
-        let results = PagedResults::paginate(cards, PageNumber::first(), MAX_PAGE).expect("page");
+        let results = PagedResults::from_all(cards, PageNumber::first()).expect("page");
         let rendered = render(
             &CuktaOutcome::Search {
                 results,
@@ -306,7 +305,7 @@ mod tests {
             rendered
                 .status
                 .text
-                .starts_with("cukta · word search · page 1/"),
+                .starts_with("cukta · word search · 1-5 of "),
             "{}",
             rendered.status.text
         );

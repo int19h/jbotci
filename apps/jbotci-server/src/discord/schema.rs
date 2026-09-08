@@ -557,13 +557,13 @@ fn build_request(
                 })
                 .unwrap_or_default();
             let query = values.required_text("query")?;
-            DiscordRequest::Vlacku(bityzba::new!(VlackuRequest {
+            DiscordRequest::Vlacku(VlackuRequest {
                 query,
                 options: VlackuOptions {
                     mode,
                     ..VlackuOptions::default()
                 },
-            }))
+            })
         }
         DiscordTool::Cukta => {
             let query = values.text("query")?;

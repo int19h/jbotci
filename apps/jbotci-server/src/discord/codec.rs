@@ -154,7 +154,6 @@ impl PresenceMask {
 
 /// Everything the gear button's custom ID carries.
 #[invariant(options_word & !super::request::options_word_mask(*tool) == 0, "options word uses only the tool's bits")]
-#[invariant(*tool != DiscordTool::Vlacku || page.get() <= super::request::VLACKU_MAX_PAGE, "vlacku pages fit the combined selector")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RequestHeader {
     pub(crate) tool: DiscordTool,
@@ -243,7 +242,7 @@ impl RequestHeader {
             .ok_or(malformed("options"))?;
         let page = parts
             .next()
-            .and_then(|text| text.parse::<u8>().ok())
+            .and_then(|text| text.parse::<u16>().ok())
             .and_then(PageNumber::new)
             .ok_or(malformed("page"))?;
         let revision = parts
@@ -718,9 +717,8 @@ mod tests {
         CollisionScope, CuktaMode, CuktaOptions, CuktaRequest, CuktaResultKind, CuktaResultKindSet,
         GentufaOptions, GentufaRequest, GentufaTextView, GimfihiOptions, GimfihiPreset,
         GimfihiRequest, GismuShape, GismuShapeSet, JvozbaOptions, JvozbaRequest, JvozbaTarget,
-        MAX_SOURCE_UNITS, VLACKU_MAX_PAGE, VlackuMode, VlackuOptions, VlackuRequest,
-        VlackuWordType, VlackuWordTypeSet, VlaseiOptions, VlaseiRequest, VlaseiView, VlataiOptions,
-        VlataiRequest,
+        MAX_SOURCE_UNITS, VlackuMode, VlackuOptions, VlackuRequest, VlackuWordType,
+        VlackuWordTypeSet, VlaseiOptions, VlaseiRequest, VlaseiView, VlataiOptions, VlataiRequest,
     };
 
     #[requires(true)]
@@ -994,7 +992,7 @@ mod tests {
                     show_details: false,
                 },
             }),
-            DiscordRequest::Vlacku(new!(VlackuRequest {
+            DiscordRequest::Vlacku(VlackuRequest {
                 query: text("/^kla/"),
                 options: VlackuOptions {
                     mode: VlackuMode::Sound,
@@ -1003,9 +1001,9 @@ mod tests {
                         .with(VlackuWordType::Cmevla),
                     decompose_lujvo: false,
                     show_etymology: true,
-                    page: PageNumber::new(VLACKU_MAX_PAGE).expect("page"),
+                    page: PageNumber::new(400).expect("page"),
                 },
-            })),
+            }),
             DiscordRequest::Cukta(CuktaRequest {
                 query: Some(text("6.8")),
                 options: CuktaOptions {
@@ -1121,9 +1119,16 @@ mod tests {
                 "{mutated}: {error}"
             );
         }
-        let too_far = good.replacen(".1.1.", ".26.1.", 1);
+        // Page numbers are no longer bounded by a selector, so a deep page
+        // decodes; only a page that is not a positive number is malformed.
+        let deep = good.replacen(".1.1.", ".2600.1.", 1);
+        assert!(
+            RequestHeader::decode(&deep).is_ok_and(|header| header.page.get() == 2600),
+            "{deep}"
+        );
+        let zero = good.replacen(".1.1.", ".0.1.", 1);
         assert!(matches!(
-            RequestHeader::decode(&too_far),
+            RequestHeader::decode(&zero),
             Err(HeaderDecodeError::Malformed { what: "page" })
         ));
         assert_eq!(
@@ -1202,10 +1207,10 @@ mod tests {
         // A block for another tool's field layout fails at rebuild.
         let vlacku_header = RequestHeader::describe(
             &publish(
-                DiscordRequest::Vlacku(new!(VlackuRequest {
+                DiscordRequest::Vlacku(VlackuRequest {
                     query: text("klama"),
                     options: VlackuOptions::default(),
-                })),
+                }),
                 1,
             ),
             SourceStore::Inline,

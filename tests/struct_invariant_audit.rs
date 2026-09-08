@@ -160,6 +160,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "presentation options bag: every combination of its typed choices is a valid request",
     ),
     (
+        "apps/jbotci-server/src/discord/request.rs:VlackuRequest",
+        "typed request pairs bounded source text with an options bag; every combination is valid now that pages are unbounded",
+    ),
+    (
         "apps/jbotci-server/src/discord/request.rs:VlataiRequest",
         "typed request pairs bounded source text with an options bag; every combination is valid",
     ),

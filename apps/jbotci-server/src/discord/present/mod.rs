@@ -117,9 +117,16 @@ impl RenderedResult {
 
 /// Status suffix describing the page of a paged result.
 #[requires(true)]
-#[ensures(ret.starts_with("page "))]
+#[ensures(!ret.is_empty())]
 pub(crate) fn page_status<T>(results: &PagedResults<T>) -> String {
-    format!("page {}/{}", results.page.get(), results.page_count)
+    let page = results.page.get();
+    match (results.range(), results.total) {
+        // What is shown, and out of how many when that is actually known.
+        (Some((first, last)), Some(total)) => format!("{first}-{last} of {total}"),
+        (Some((first, last)), None) => format!("{first}-{last}"),
+        (None, Some(total)) => format!("page {page}, {total} results"),
+        (None, None) => format!("page {page}"),
+    }
 }
 
 /// Present `outcome` for `request`. `app_link` is the app URL for the published
@@ -231,26 +238,4 @@ fn outcome_tool(outcome: &ToolOutcome) -> DiscordTool {
         ToolOutcome::Jvozba(_) => DiscordTool::Jvozba,
         ToolOutcome::Gimfihi(_) => DiscordTool::Gimfihi,
     }
-}
-
-/// Notice for a result set the Discord presentation caps. The app link itself
-/// lives in the ⚙️ form (it can be thousands of characters); the notice only
-/// says that the continuation exists, so its length is bounded.
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|notice| notice.starts_with("-# ") && utf16_len(notice) < 160))]
-pub(crate) fn capped_notice<T>(
-    results: &PagedResults<T>,
-    app_link: Option<&str>,
-) -> Option<String> {
-    if !results.capped {
-        return None;
-    }
-    let mut notice = format!(
-        "Discord shows the first {} results; more exist.",
-        results.shown_total
-    );
-    if app_link.is_some() {
-        notice.push_str(" Open in app (⚙️) continues the full list.");
-    }
-    Some(markdown::subtext(&notice))
 }

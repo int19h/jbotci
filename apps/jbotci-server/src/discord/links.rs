@@ -26,7 +26,12 @@ use jbotci_web_core::{
     gimfihi_web_source_from_record, web_route_url,
 };
 
-use super::operations::{CUKTA_FETCH_COUNT, GIMFIHI_RECORD_SEPARATORS, VLACKU_FETCH_COUNT};
+use super::operations::GIMFIHI_RECORD_SEPARATORS;
+
+/// How many results the app link asks the web app to show. The web app pages
+/// on its own; this only has to be generous enough that the link is a real
+/// continuation of what Discord shows.
+const APP_LINK_RESULT_COUNT: usize = 116;
 use super::request::{
     CuktaMode, CuktaRequest, CuktaResultKind, DiscordRequest, DiscordTool, GentufaRequest,
     GentufaTextView, GimfihiRequest, VlackuMode, VlackuRequest, utf16_len,
@@ -191,7 +196,7 @@ fn vlacku_state(request: &VlackuRequest) -> VlackuWebState {
         },
         query: request.query.as_str().to_owned(),
         // Everything Discord could page through is on the page at once.
-        count: VLACKU_FETCH_COUNT,
+        count: APP_LINK_RESULT_COUNT,
         word_types: options
             .word_types
             .iter()
@@ -226,7 +231,7 @@ fn cukta_target(request: &CuktaRequest) -> LinkTarget {
                 CuktaWebMode::Word
             },
             query,
-            count: CUKTA_FETCH_COUNT,
+            count: APP_LINK_RESULT_COUNT,
             targets,
         }),
         CuktaMode::Section => CuktaWebView::Section { reference: query },
@@ -257,7 +262,7 @@ fn cukta_target(request: &CuktaRequest) -> LinkTarget {
                         view: CuktaWebView::Search(CuktaWebSearchState {
                             mode: CuktaWebMode::Word,
                             query,
-                            count: CUKTA_FETCH_COUNT,
+                            count: APP_LINK_RESULT_COUNT,
                             targets,
                         }),
                     }),
@@ -424,7 +429,7 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn search_links_carry_query_mode_and_filters() {
-        let vlacku = DiscordRequest::Vlacku(new!(VlackuRequest {
+        let vlacku = DiscordRequest::Vlacku(VlackuRequest {
             query: SourceText::new("  go & come  ").expect("text"),
             options: VlackuOptions {
                 mode: VlackuMode::Meaning,
@@ -433,25 +438,25 @@ mod tests {
                 show_etymology: false,
                 page: PageNumber::new(3).expect("page"),
             },
-        }));
+        });
         let (path, query) = route_parts(&url_of(&vlacku));
         let state = parse_vlacku_web_route(&path, &query);
         assert_eq!(state.query, "  go & come  ");
         assert_eq!(state.mode, VlackuWebMode::Meaning);
         assert_eq!(state.word_types, vec!["gismu".to_owned()]);
         assert_eq!(
-            state.count, VLACKU_FETCH_COUNT,
+            state.count, APP_LINK_RESULT_COUNT,
             "the page shows every result Discord paged"
         );
 
         // A lujvo search is the same word lookup on the page.
-        let lujvo = DiscordRequest::Vlacku(new!(VlackuRequest {
+        let lujvo = DiscordRequest::Vlacku(VlackuRequest {
             query: SourceText::new("klabajra").expect("text"),
             options: VlackuOptions {
                 mode: VlackuMode::Lujvo,
                 ..VlackuOptions::default()
             },
-        }));
+        });
         let (path, query) = route_parts(&url_of(&lujvo));
         let state = parse_vlacku_web_route(&path, &query);
         assert_eq!(state.mode, VlackuWebMode::Word);

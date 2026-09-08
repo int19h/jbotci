@@ -28,12 +28,10 @@ pub(crate) const PAGE_SIZE: usize = 5;
 
 /// Highest page number any Discord result can address.
 ///
-/// A String Select holds at most 25 options, so a dedicated page selector can
-/// name pages 1..=25. The Vlacku selector shares its options with two detail
-/// choices and therefore stops at [`VLACKU_MAX_PAGE`]; both bounds are enforced
-/// when the page is chosen, not silently clamped afterwards.
-pub(crate) const MAX_PAGE: u8 = 25;
-pub(crate) const VLACKU_MAX_PAGE: u8 = 23;
+/// Pages are navigated with buttons rather than chosen from a list, so the
+/// only bound on a page number is what the number itself can hold and what
+/// the result set actually has.
+pub(crate) const MAX_PAGE: u16 = u16::MAX;
 
 /// UTF-16 code-unit length of `text`, the measure Discord applies to its
 /// character limits.
@@ -257,10 +255,10 @@ impl fmt::Display for OversizeSource {
 }
 
 /// A one-based result page.
-#[invariant(*value >= 1 && *value <= MAX_PAGE)]
+#[invariant(*value >= 1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct PageNumber {
-    value: u8,
+    value: u16,
 }
 
 impl PageNumber {
@@ -272,14 +270,14 @@ impl PageNumber {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_some() == (value >= 1 && value <= MAX_PAGE))]
-    pub(crate) fn new(value: u8) -> Option<Self> {
+    #[ensures(ret.is_some() == (value >= 1))]
+    pub(crate) fn new(value: u16) -> Option<Self> {
         try_new!(PageNumber { value }).ok()
     }
 
     #[requires(true)]
-    #[ensures(ret >= 1 && ret <= MAX_PAGE)]
-    pub(crate) fn get(self) -> u8 {
+    #[ensures(ret >= 1)]
+    pub(crate) fn get(self) -> u16 {
         self.value
     }
 
@@ -665,7 +663,7 @@ impl Default for VlackuOptions {
     }
 }
 
-#[invariant(options.page.get() <= VLACKU_MAX_PAGE)]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct VlackuRequest {
     pub(crate) query: SourceText,
@@ -1288,15 +1286,8 @@ impl DiscordRequest {
                 let word_types =
                     VlackuWordTypeSet::from_bits(((options_word >> 3) & 0b11_1111) as u8)
                         .expect("six masked bits form a word-type set");
-                if page.get() > VLACKU_MAX_PAGE {
-                    return Err(RequestStateError::PageOutOfRange {
-                        tool,
-                        page: page.get(),
-                        max: VLACKU_MAX_PAGE,
-                    });
-                }
                 let query = required(take(SourceField::Query), SourceField::Query)?;
-                Self::Vlacku(new!(VlackuRequest {
+                Self::Vlacku(VlackuRequest {
                     query,
                     options: VlackuOptions {
                         mode,
@@ -1305,7 +1296,7 @@ impl DiscordRequest {
                         show_etymology: flag(10),
                         page,
                     },
-                }))
+                })
             }
             DiscordTool::Cukta => {
                 let mode = match options_word & 0b111 {
@@ -1464,8 +1455,8 @@ pub(crate) enum RequestStateError {
     },
     PageOutOfRange {
         tool: DiscordTool,
-        page: u8,
-        max: u8,
+        page: u16,
+        max: u16,
     },
     /// A message published before the ordered parts syntax cannot be
     /// rewritten into it, because the two old fields together are longer than
@@ -1650,7 +1641,7 @@ mod tests {
                     show_details: false,
                 },
             }),
-            DiscordRequest::Vlacku(new!(VlackuRequest {
+            DiscordRequest::Vlacku(VlackuRequest {
                 query: text("kla*"),
                 options: VlackuOptions {
                     mode: VlackuMode::Meaning,
@@ -1659,9 +1650,9 @@ mod tests {
                         .with(VlackuWordType::Brivla),
                     decompose_lujvo: false,
                     show_etymology: true,
-                    page: PageNumber::new(VLACKU_MAX_PAGE).expect("page"),
+                    page: PageNumber::new(400).expect("page"),
                 },
-            })),
+            }),
             DiscordRequest::Cukta(CuktaRequest {
                 query: None,
                 options: CuktaOptions {
@@ -1825,18 +1816,17 @@ mod tests {
         };
         assert_eq!(incomplete.options.mode, CuktaMode::Meaning);
         assert_eq!(incomplete.query, None);
-        let too_far = PageNumber::new(VLACKU_MAX_PAGE + 1).expect("page 24 exists");
+        // Deep pages are ordinary now: a page is refused by the result set
+        // that does not reach it, not by the state layout.
+        let deep = PageNumber::new(400).expect("page 400 exists");
         assert!(matches!(
             DiscordRequest::from_parts(
                 DiscordTool::Vlacku,
                 0,
-                too_far,
+                deep,
                 vec![(SourceField::Query, Some(text("x")))]
             ),
-            Err(RequestStateError::PageOutOfRange {
-                max: VLACKU_MAX_PAGE,
-                ..
-            })
+            Ok(DiscordRequest::Vlacku(_))
         ));
         assert!(matches!(
             DiscordRequest::from_parts(

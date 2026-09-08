@@ -232,10 +232,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
     ),
     (
-        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::PageCount",
-        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
-    ),
-    (
         "apps/jbotci-server/src/discord/modal.rs:SubmissionError::ShapeCount",
         "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
     ),

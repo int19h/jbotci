@@ -51,21 +51,18 @@ use super::diagram::{DiagramError, DiagramImage, DiagramLimits, render_diagram};
 use super::request::{
     CuktaMode, CuktaRequest, CuktaResultKind, DiscordRequest, GentufaRequest,
     GimfihiRequest as DiscordGimfihiRequest, JvozbaRequest, JvozbaTarget, MAX_PAGE, PAGE_SIZE,
-    PageNumber, SourceField, SourceText, VLACKU_MAX_PAGE, VlackuMode, VlackuRequest, VlaseiRequest,
-    VlataiRequest,
+    PageNumber, SourceField, SourceText, VlackuMode, VlackuRequest, VlaseiRequest, VlataiRequest,
 };
 use super::work::{WorkError, WorkGovernor, WorkKeepalive};
 use crate::{SearchQuery, SemanticSearchError, SemanticSearchErrorData, ToolServices};
 
-/// Results fetched for a page-able search: the Discord cap plus one, so an
-/// overflowing underlying result set is detected and reported as capped.
-pub(crate) const VLACKU_FETCH_COUNT: usize = PAGE_SIZE * VLACKU_MAX_PAGE as usize + 1;
-/// [`VLACKU_FETCH_COUNT`] as the worker's positive count.
-const VLACKU_FETCH_LIMIT: NonZeroUsize = NonZeroUsize::new(VLACKU_FETCH_COUNT).unwrap();
-pub(crate) const CUKTA_FETCH_COUNT: usize = PAGE_SIZE * MAX_PAGE as usize + 1;
-/// [`CUKTA_FETCH_COUNT`] as the worker's positive count.
-const CUKTA_FETCH_LIMIT: NonZeroUsize = NonZeroUsize::new(CUKTA_FETCH_COUNT).unwrap();
-pub(crate) const GIMFIHI_FETCH_COUNT: usize = PAGE_SIZE * MAX_PAGE as usize + 1;
+/// What a ranked source is asked for when a page needs nothing in particular:
+/// one page and the result that says whether another follows. Every paged
+/// search asks for [`prefix_len`] of the page it is showing instead, so this
+/// is only the floor.
+const FIRST_PAGE_PREFIX: usize = PAGE_SIZE + 1;
+/// [`FIRST_PAGE_PREFIX`] as a positive count, for a worker that needs one.
+const VLACKU_FETCH_LIMIT: NonZeroUsize = NonZeroUsize::new(FIRST_PAGE_PREFIX).unwrap();
 
 /// Source label attached to Discord diagnostics.
 pub(crate) const SOURCE_LABEL: &str = "<discord>";
@@ -77,66 +74,123 @@ pub(crate) const GIMFIHI_RECORD_SEPARATORS: [char; 3] = [',', ';', '\n'];
 // Pagination
 // ---------------------------------------------------------------------------
 
-/// One page of a result list fetched up to the Discord cap plus one.
-#[invariant(items.len() <= PAGE_SIZE && *page_count >= 1 && (page.get() as usize) <= *page_count)]
-#[invariant(*shown_total <= PAGE_SIZE * (MAX_PAGE as usize))]
-#[derive(Debug, Clone, PartialEq)]
+/// One page of a result list, and what is honestly known about the rest.
+///
+/// A page is materialized on its own: the source is asked only for as much of
+/// its ranking as this page needs, and rich cards are built only for what the
+/// page shows. `total` is the complete number of results and is present only
+/// when the source actually reached the end; a prefix that was cut short by
+/// the request is never mistaken for a total.
+#[invariant(items.len() <= PAGE_SIZE, "a page holds at most one page of results")]
+#[invariant(
+    total.is_none_or(|total| total >= items.len()),
+    "a known total covers at least what this page shows"
+)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PagedResults<T> {
     pub(crate) items: Vec<T>,
     pub(crate) page: PageNumber,
-    pub(crate) page_count: usize,
-    /// Number of results inside the Discord cap (what the pages cover).
-    pub(crate) shown_total: usize,
-    /// The underlying result set has more than the cap; the app link is the
-    /// continuation.
-    pub(crate) capped: bool,
+    /// The complete number of results when the source reached the end of them.
+    pub(crate) total: Option<usize>,
+    /// Another page follows this one.
+    pub(crate) has_more: bool,
 }
 
 impl<T> PagedResults<T> {
-    /// Slice `all` (fetched with cap+1) into `page` of `max_pages` pages.
-    #[requires(max_pages >= 1 && max_pages <= MAX_PAGE)]
+    /// One page out of a complete list the caller already holds. The total is
+    /// known exactly, because the list is all of it.
+    #[requires(true)]
     #[ensures(ret.as_ref().is_ok_and(|paged| paged.page == page) || ret.is_err())]
-    pub(crate) fn paginate(
-        mut all: Vec<T>,
-        page: PageNumber,
-        max_pages: u8,
-    ) -> Result<Self, PageUnavailable> {
-        let cap = PAGE_SIZE * usize::from(max_pages);
-        let capped = all.len() > cap;
-        all.truncate(cap);
-        let shown_total = all.len();
-        let page_count = shown_total.div_ceil(PAGE_SIZE).max(1);
-        let requested = usize::from(page.get());
-        if requested > page_count {
+    pub(crate) fn from_all(all: Vec<T>, page: PageNumber) -> Result<Self, PageUnavailable> {
+        let total = all.len();
+        let start = page.first_index();
+        if start >= total && page.get() > 1 {
             return Err(new!(PageUnavailable {
                 requested: page.get(),
-                available: page_count,
+                available: total.div_ceil(PAGE_SIZE).max(1),
             }));
         }
-        let start = page.first_index().min(shown_total);
-        let end = (start + PAGE_SIZE).min(shown_total);
-        let items = all.drain(start..end).collect::<Vec<_>>();
+        let end = (start + PAGE_SIZE).min(total);
+        let items = all.into_iter().skip(start).take(end - start).collect();
         Ok(new!(PagedResults {
             items,
             page,
-            page_count,
-            shown_total,
-            capped,
+            total: Some(total),
+            has_more: end < total,
+        }))
+    }
+
+    /// One page out of the beginning of a ranking. `fetched` is what the
+    /// source returned when asked for [`prefix_len`] items; returning fewer
+    /// than that is how a ranked source says it has reached the end.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|paged| paged.page == page) || ret.is_err())]
+    pub(crate) fn from_prefix(fetched: Vec<T>, page: PageNumber) -> Result<Self, PageUnavailable> {
+        let fetched_len = fetched.len();
+        let exhausted = fetched_len < prefix_len(page);
+        let start = page.first_index();
+        if start >= fetched_len && page.get() > 1 {
+            return Err(new!(PageUnavailable {
+                requested: page.get(),
+                available: fetched_len.div_ceil(PAGE_SIZE).max(1),
+            }));
+        }
+        let end = (start + PAGE_SIZE).min(fetched_len);
+        let has_more = fetched_len > start + PAGE_SIZE;
+        let items = fetched.into_iter().skip(start).take(end - start).collect();
+        Ok(new!(PagedResults {
+            items,
+            page,
+            // Only an exhausted source knows the total; a prefix that stopped
+            // because it was asked to stop knows nothing about the rest.
+            total: exhausted.then_some(fetched_len),
+            has_more,
         }))
     }
 
     #[requires(true)]
-    #[ensures(ret == (self.shown_total == 0))]
+    #[ensures(ret == self.items.is_empty())]
     pub(crate) fn is_empty(&self) -> bool {
-        self.shown_total == 0
+        self.items.is_empty()
     }
+
+    /// Turn each item of this page into what the reader sees, keeping the
+    /// page's own facts. Only the page is mapped, which is what keeps rich
+    /// values page-sized however deep the page is.
+    #[requires(true)]
+    #[ensures(ret.page == old(self.page) && ret.total == old(self.total) && ret.has_more == old(self.has_more))]
+    pub(crate) fn map<U, F: FnMut(T) -> U>(self, transform: F) -> PagedResults<U> {
+        let data = self.into_data();
+        new!(PagedResults {
+            items: data.items.into_iter().map(transform).collect(),
+            page: data.page,
+            total: data.total,
+            has_more: data.has_more,
+        })
+    }
+
+    /// The one-based positions this page covers, for saying what is shown.
+    #[requires(true)]
+    #[ensures(true)]
+    pub(crate) fn range(&self) -> Option<(usize, usize)> {
+        let first = self.page.first_index() + 1;
+        (!self.items.is_empty()).then(|| (first, first + self.items.len() - 1))
+    }
+}
+
+/// How much of a ranking one page needs: everything up to the end of it, and
+/// one more result, which is what tells the page whether another follows.
+#[requires(true)]
+#[ensures(ret > PAGE_SIZE)]
+pub(crate) fn prefix_len(page: PageNumber) -> usize {
+    page.first_index() + PAGE_SIZE + 1
 }
 
 /// The requested page lies beyond the current result set.
 #[invariant(*requested as usize > *available)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PageUnavailable {
-    pub(crate) requested: u8,
+    pub(crate) requested: u16,
     pub(crate) available: usize,
 }
 
@@ -664,7 +718,7 @@ fn vlacku_search_options(request: &VlackuRequest) -> VlackuSearchOptions {
         })
         .collect::<Vec<WordTypeFilter>>();
     VlackuSearchOptions::default().with_data(data! {
-        count: VLACKU_FETCH_COUNT,
+        count: prefix_len(request.options.page),
         word_types: word_types,
         decompose_lujvo: request.options.decompose_lujvo,
     })
@@ -708,28 +762,36 @@ async fn run_vlacku(
             .governor
             .run_compute_keeping(context.deadline, context.keepalive.clone(), move || {
                 let options = vlacku_search_options(&request);
-                let cards = hits
+                // The ranking stays compact: an entry index and a score per
+                // hit. Rich cards are built afterwards, for one page only.
+                let ranked = hits
                     .into_iter()
-                    .filter_map(|hit| {
+                    .filter(|hit| {
                         dictionary
                             .entries()
                             .get(hit.entry_index)
-                            .map(|entry| (hit.score, entry))
-                    })
-                    .filter(|(score, entry)| {
-                        dictionary_entry_passes_vlacku_filters(entry, &options, Some(*score), true)
-                    })
-                    .take(VLACKU_FETCH_COUNT)
-                    .map(|(score, entry)| {
-                        dictionary_entry_card(
-                            dictionary,
-                            entry,
-                            Some(score),
-                            options.decompose_lujvo,
-                        )
+                            .is_some_and(|entry| {
+                                dictionary_entry_passes_vlacku_filters(
+                                    entry,
+                                    &options,
+                                    Some(hit.score),
+                                    true,
+                                )
+                            })
                     })
                     .collect::<Vec<_>>();
-                let results = PagedResults::paginate(cards, request.options.page, VLACKU_MAX_PAGE)?;
+                let results = PagedResults::from_prefix(ranked, request.options.page)?.map(|hit| {
+                    let entry = dictionary
+                        .entries()
+                        .get(hit.entry_index)
+                        .expect("a ranked hit names an entry that was just read");
+                    dictionary_entry_card(
+                        dictionary,
+                        entry,
+                        Some(hit.score),
+                        options.decompose_lujvo,
+                    )
+                });
                 Ok(VlackuOutcome::Results {
                     valid_missing: results.is_empty(),
                     results,
@@ -756,8 +818,7 @@ async fn run_vlacku(
             );
             let valid_missing = output.outcome == SearchOutcome::ValidMissing
                 || (output.outcome == SearchOutcome::Found && output.cards.is_empty());
-            let results =
-                PagedResults::paginate(output.cards, request.options.page, VLACKU_MAX_PAGE)?;
+            let results = PagedResults::from_all(output.cards, request.options.page)?;
             Ok(VlackuOutcome::Results {
                 results,
                 diagnostics: output.diagnostics,
@@ -850,7 +911,8 @@ async fn run_cukta(
                 .tools
                 .semantic_cukta_search(
                     search_query,
-                    CUKTA_FETCH_LIMIT,
+                    NonZeroUsize::new(prefix_len(request.options.page))
+                        .unwrap_or(VLACKU_FETCH_LIMIT),
                     targets,
                     Some(context.deadline),
                     context.keepalive.clone(),
@@ -863,8 +925,9 @@ async fn run_cukta(
                         .map(|reason| CuktaOutcome::Unavailable { reason });
                 }
             };
-            let cards = output.matches.iter().map(cukta_card).collect::<Vec<_>>();
-            let results = PagedResults::paginate(cards, request.options.page, MAX_PAGE)?;
+            // Matches are compact; only this page becomes cards.
+            let results = PagedResults::from_prefix(output.matches, request.options.page)?
+                .map(|matched| cukta_card(&matched));
             Ok(CuktaOutcome::Search {
                 results,
                 message: output.message,
@@ -883,11 +946,11 @@ async fn run_cukta(
                         site,
                         CuktaSearchMode::Word,
                         &query,
-                        CUKTA_FETCH_COUNT,
+                        prefix_len(page),
                         targets,
                     );
-                    let cards = output.matches.iter().map(cukta_card).collect::<Vec<_>>();
-                    let results = PagedResults::paginate(cards, page, MAX_PAGE)?;
+                    let results = PagedResults::from_prefix(output.matches, page)?
+                        .map(|matched| cukta_card(&matched));
                     Ok(CuktaOutcome::Search {
                         results,
                         message: output.message,
@@ -1217,7 +1280,10 @@ fn gimfihi_plan(request: &DiscordGimfihiRequest) -> Result<GimfihiPlan, RequestV
         check_collisions: options.collisions,
         show_collisions: options.show_collisions,
         require_free_short_rafsi: options.require_free_short_rafsi,
-        count: GIMFIHI_FETCH_COUNT,
+        // The scorer keeps its best `count` candidates in a bounded heap while
+        // it scans every generated one, so asking for this page's prefix is
+        // what makes deep pages cost a page, not a corpus.
+        count: prefix_len(options.page),
         highlight: None,
     }))
 }
@@ -1246,8 +1312,7 @@ fn run_gimfihi(request: &DiscordGimfihiRequest) -> Result<GimfihiOutcome, Operat
                             errors: vec![error.to_string()],
                         })
                     })?;
-            let results =
-                PagedResults::paginate(output.candidates, request.options.page, MAX_PAGE)?;
+            let results = PagedResults::from_prefix(output.candidates, request.options.page)?;
             Ok(GimfihiOutcome::Candidates {
                 sources: output.resolved_sources,
                 winner: output.winner,
@@ -1298,46 +1363,50 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn pagination_detects_the_capped_set_and_rejects_missing_pages() {
-        let all = (1..=CUKTA_FETCH_COUNT).collect::<Vec<_>>();
-        let first =
-            PagedResults::paginate(all.clone(), PageNumber::first(), MAX_PAGE).expect("page 1");
+    fn a_page_says_what_it_shows_and_only_claims_a_total_it_knows() {
+        // A complete list knows its total exactly.
+        let all = (1..=12).collect::<Vec<_>>();
+        let first = PagedResults::from_all(all.clone(), PageNumber::first()).expect("page 1");
         assert_eq!(first.items, [1, 2, 3, 4, 5]);
-        assert_eq!(first.page_count, MAX_PAGE as usize);
-        assert_eq!(first.shown_total, PAGE_SIZE * MAX_PAGE as usize);
-        assert!(first.capped, "cap + 1 results means the set is capped");
-        let last = PagedResults::paginate(
-            all.clone(),
-            PageNumber::new(MAX_PAGE).expect("page"),
-            MAX_PAGE,
-        )
-        .expect("last page");
-        assert_eq!(last.items, [121, 122, 123, 124, 125]);
-        let exact = PagedResults::paginate((1..=125).collect(), PageNumber::first(), MAX_PAGE)
-            .expect("page");
-        assert!(!exact.capped);
-        let short = PagedResults::paginate(vec![1, 2, 3, 4, 5, 6], PageNumber::first(), MAX_PAGE)
-            .expect("page");
-        assert_eq!(short.page_count, 2);
+        assert_eq!(first.total, Some(12));
+        assert_eq!(first.range(), Some((1, 5)));
+        assert!(first.has_more);
+        let last =
+            PagedResults::from_all(all.clone(), PageNumber::new(3).expect("page")).expect("page 3");
+        assert_eq!(last.items, [11, 12]);
+        assert_eq!(last.range(), Some((11, 12)));
+        assert!(!last.has_more, "the last page says so");
+
+        // A ranking cut short by the request knows only that more may follow.
+        let page = PageNumber::first();
+        let cut = (1..=prefix_len(page)).collect::<Vec<_>>();
+        let prefix = PagedResults::from_prefix(cut, page).expect("page 1");
+        assert_eq!(prefix.items, [1, 2, 3, 4, 5]);
+        assert_eq!(prefix.total, None, "a fetched prefix is never a total");
+        assert!(prefix.has_more);
+
+        // A ranking that returned less than it was asked for has reached the
+        // end, and its length is the real total.
+        let exhausted =
+            PagedResults::from_prefix(vec![1, 2, 3], PageNumber::first()).expect("page");
+        assert_eq!(exhausted.total, Some(3));
+        assert!(!exhausted.has_more);
+
+        // Deep pages are addressable, and a page past the end is refused
+        // rather than shown empty.
+        let deep = PageNumber::new(400).expect("page 400");
+        assert_eq!(prefix_len(deep), 399 * PAGE_SIZE + PAGE_SIZE + 1);
         assert_eq!(
-            PagedResults::paginate(vec![1, 2, 3], PageNumber::new(2).expect("page"), MAX_PAGE),
+            PagedResults::from_prefix(vec![1, 2, 3], deep),
             Err(new!(PageUnavailable {
-                requested: 2,
+                requested: 400,
                 available: 1
             }))
         );
-        let empty =
-            PagedResults::<u8>::paginate(Vec::new(), PageNumber::first(), MAX_PAGE).expect("page");
-        assert!(empty.is_empty() && empty.page_count == 1);
-        // The vlacku selector has room for 23 pages only.
-        let vlacku = PagedResults::paginate(
-            (1..=VLACKU_FETCH_COUNT).collect(),
-            PageNumber::first(),
-            VLACKU_MAX_PAGE,
-        )
-        .expect("page");
-        assert_eq!(vlacku.page_count, VLACKU_MAX_PAGE as usize);
-        assert!(vlacku.capped);
+
+        // An empty result set is page one with nothing on it.
+        let empty = PagedResults::<u8>::from_all(Vec::new(), PageNumber::first()).expect("page");
+        assert!(empty.is_empty() && empty.total == Some(0) && empty.range().is_none());
     }
 
     #[test]
@@ -1578,10 +1647,10 @@ mod tests {
             results,
             valid_missing,
             ..
-        }) = run(DiscordRequest::Vlacku(new!(VlackuRequest {
+        }) = run(DiscordRequest::Vlacku(VlackuRequest {
             query: text("kla*"),
             options: VlackuOptions::default(),
-        })))
+        }))
         .await
         .expect("vlacku")
         else {
@@ -1590,10 +1659,10 @@ mod tests {
         assert!(!valid_missing);
         assert!(!results.items.is_empty());
         assert!(results.items.iter().all(|card| card.known));
-        let missing = run(DiscordRequest::Vlacku(new!(VlackuRequest {
+        let missing = run(DiscordRequest::Vlacku(VlackuRequest {
             query: text("klabajra"),
             options: VlackuOptions::default(),
-        })))
+        }))
         .await
         .expect("vlacku");
         let ToolOutcome::Vlacku(VlackuOutcome::Results {
@@ -1614,13 +1683,13 @@ mod tests {
         let (first, components) = results.items.split_first().expect("synthesized card");
         assert!(first.word == "klabajra" && !first.known, "{first:?}");
         assert!(!components.is_empty() && components.iter().all(|card| card.known));
-        let too_far = run(DiscordRequest::Vlacku(new!(VlackuRequest {
+        let too_far = run(DiscordRequest::Vlacku(VlackuRequest {
             query: text("klama"),
             options: VlackuOptions {
                 page: PageNumber::new(9).expect("page"),
                 ..VlackuOptions::default()
             },
-        })))
+        }))
         .await;
         assert!(matches!(too_far, Err(OperationError::Page(_))));
     }

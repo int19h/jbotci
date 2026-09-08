@@ -8,7 +8,7 @@ use jbotci_gimfihi::{
 };
 
 use super::markdown::{escape, inline_code, join_lines, subtext};
-use super::{RenderedResult, capped_notice, page_status};
+use super::{RenderedResult, page_status};
 use crate::discord::operations::GimfihiOutcome;
 use crate::discord::request::{DiscordTool, GimfihiRequest, GismuShape};
 
@@ -97,9 +97,14 @@ pub(crate) fn render(
             if options.require_free_short_rafsi {
                 settings.push("free short rafsi required".to_owned());
             }
+            // The scorer counts every candidate it filtered, so this total is
+            // the real one rather than the size of what was fetched.
             lines.push(subtext(&format!(
-                "{} shown of {} passing ({} valid) · {}",
-                results.shown_total,
+                "{} of {} passing ({} valid) · {}",
+                results
+                    .range()
+                    .map(|(first, last)| format!("{first}-{last}"))
+                    .unwrap_or_else(|| "none".to_owned()),
                 filtered_count,
                 candidate_count,
                 settings.join(" · ")
@@ -115,7 +120,6 @@ pub(crate) fn render(
                 ));
             }
             rendered.body.push(join_lines(lines));
-            rendered.notice = capped_notice(results, app_link);
             rendered
         }
     }
@@ -212,7 +216,7 @@ fn format_score(score: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::discord::operations::{GIMFIHI_FETCH_COUNT, PagedResults};
+    use crate::discord::operations::PagedResults;
     use crate::discord::request::{GimfihiOptions, MAX_PAGE, PageNumber, SourceText};
     use jbotci_gimfihi::{
         GimfihiPreset, GimfihiRequest as SharedRequest, GimfihiScorer, compose_gismu,
@@ -273,13 +277,12 @@ mod tests {
                 check_collisions: CollisionScope::None,
                 show_collisions: false,
                 require_free_short_rafsi: false,
-                count: GIMFIHI_FETCH_COUNT,
+                count: 126,
                 highlight: None,
             },
         )
         .expect("candidates");
-        let results =
-            PagedResults::paginate(output.candidates, PageNumber::first(), MAX_PAGE).expect("page");
+        let results = PagedResults::from_all(output.candidates, PageNumber::first()).expect("page");
         let mut request = discord_request(Some("eng:5:go, spa:3:[ir]"), None);
         request.options.collisions = CollisionScope::None;
         let rendered = render(
@@ -294,7 +297,7 @@ mod tests {
             None,
         );
         assert!(
-            rendered.status.text.starts_with("gimfihi · page 1/"),
+            rendered.status.text.starts_with("gimfihi · 1-5 of "),
             "{}",
             rendered.status.text
         );

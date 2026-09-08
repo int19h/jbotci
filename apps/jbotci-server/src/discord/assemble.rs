@@ -499,8 +499,8 @@ mod tests {
     use crate::discord::present::{vlacku, vlasei};
     use crate::discord::request::{
         BuildTag, DiscordRequest, DiscordTool, GentufaOptions, GentufaRequest, PageNumber,
-        Revision, Snowflake, SourceText, VLACKU_MAX_PAGE, VlackuOptions, VlackuRequest,
-        VlaseiOptions, VlaseiRequest,
+        Revision, Snowflake, SourceText, VlackuOptions, VlackuRequest, VlaseiOptions,
+        VlaseiRequest,
     };
 
     #[requires(true)]
@@ -955,12 +955,11 @@ mod tests {
             etymology: None,
             decomposition: Vec::new(),
         });
-        let request = new!(VlackuRequest {
+        let request = VlackuRequest {
             query: SourceText::new("brodavla").expect("text"),
             options: VlackuOptions::default(),
-        });
-        let results =
-            PagedResults::paginate(vec![card], PageNumber::first(), VLACKU_MAX_PAGE).expect("page");
+        };
+        let results = PagedResults::from_all(vec![card], PageNumber::first()).expect("page");
         let result = vlacku::render(
             &VlackuOutcome::Results {
                 results,
