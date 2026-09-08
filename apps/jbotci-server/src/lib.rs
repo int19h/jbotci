@@ -33,7 +33,10 @@ use jbotci_cli::{
     ToolGimfihiRequest, ToolRenderedOutput, ToolStatus, ToolVlackuRequest, run_tool_cukta,
     run_tool_cukta_with_context, run_tool_gimfihi, run_tool_vlacku, run_tool_vlacku_with_context,
 };
-use jbotci_cll::{CuktaSearchOutput, CuktaTargetFilter, cll_search_all_chunks, embedded_cll_site};
+use jbotci_cll::{
+    CuktaSearchOutput, CuktaSearchWindow, CuktaTargetFilter, cll_search_all_chunks,
+    embedded_cll_site,
+};
 use jbotci_embeddings::{DictionarySemanticHit, load_latest_pack, model_spec};
 use jbotci_search::vlacku::{VlackuSearchOptions, dictionary_entry_passes_vlacku_entry_filters};
 use jbotci_web_core::{
@@ -282,7 +285,9 @@ enum EmbeddingJob {
     },
     CuktaSearch {
         query: SearchQuery,
-        count: NonZeroUsize,
+        /// The stretch of the ranking the caller wants. The search ranks to
+        /// the end of it and copies the book's text for it alone.
+        window: CuktaSearchWindow,
         targets: CuktaTargetFilter,
         reply: oneshot::Sender<std::result::Result<CuktaSearchOutput, SemanticSearchError>>,
         keepalive: Option<WorkKeepalive>,
@@ -350,7 +355,7 @@ impl EmbeddingJob {
             }
             Self::CuktaSearch {
                 query,
-                count,
+                window,
                 targets,
                 reply,
                 keepalive,
@@ -365,7 +370,7 @@ impl EmbeddingJob {
                             .semantic_cukta_output(
                                 cll_search_all_chunks(site),
                                 query.as_str(),
-                                count.get(),
+                                window,
                                 targets,
                             )
                             .map_err(|error| SemanticSearchError::failed(error.to_string()))
@@ -513,13 +518,14 @@ impl ToolServices {
         await_typed_reply(received, deadline).await
     }
 
-    /// Meaning search over the CLL from the server's embedding index.
+    /// Meaning search over the CLL from the server's embedding index, for the
+    /// stretch of the ranking `window` names.
     #[requires(true)]
     #[ensures(true)]
     pub(crate) async fn semantic_cukta_search(
         &self,
         query: SearchQuery,
-        count: NonZeroUsize,
+        window: CuktaSearchWindow,
         targets: CuktaTargetFilter,
         deadline: Option<Instant>,
         keepalive: Option<WorkKeepalive>,
@@ -528,7 +534,7 @@ impl ToolServices {
         self.admit(
             EmbeddingJob::CuktaSearch {
                 query,
-                count,
+                window,
                 targets,
                 reply,
                 keepalive,
@@ -1983,7 +1989,7 @@ mod tests {
         let (reply, received) = oneshot::channel();
         EmbeddingJob::CuktaSearch {
             query: SearchQuery::new("tanru").expect("query"),
-            count: NonZeroUsize::new(5).expect("count"),
+            window: CuktaSearchWindow::first(5),
             targets: CuktaTargetFilter::default(),
             reply,
             keepalive: None,

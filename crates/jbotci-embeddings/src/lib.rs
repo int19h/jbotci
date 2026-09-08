@@ -13,8 +13,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 use bityzba::{contract_trait, ensures, invariant, new, requires};
 use directories::ProjectDirs;
 use jbotci_cll::{
-    CllSearchChunk, CllSearchMatch, CuktaSearchMode, CuktaSearchOutput, CuktaTargetFilter,
-    clamp_cukta_result_count, cll_search_all_chunks,
+    CllSearchChunk, CllSearchMatch, CuktaSearchMode, CuktaSearchOutput, CuktaSearchWindow,
+    CuktaTargetFilter, cll_search_all_chunks,
 };
 use jbotci_dictionary::Dictionary;
 pub use jbotci_embedding_inputs::{
@@ -3138,12 +3138,12 @@ pub fn semantic_cukta_output<B: EmbeddingBackend>(
     backend: &mut B,
     chunks: &[CllSearchChunk],
     query: &str,
-    count: usize,
+    window: CuktaSearchWindow,
     targets: CuktaTargetFilter,
     index_root: &Path,
     model_key: &str,
 ) -> Result<CuktaSearchOutput, EmbeddingError> {
-    let count = clamp_cukta_result_count(count);
+    let count = window.count;
     if !targets.sections && !targets.paragraphs && !targets.examples {
         return Ok(CuktaSearchOutput {
             mode: CuktaSearchMode::Meaning,
@@ -3159,7 +3159,14 @@ pub fn semantic_cukta_output<B: EmbeddingBackend>(
     let loaded = load_cached_cll_corpus(&pack_dir, &manifest, corpus)?;
     let mut query_embedding = backend.embed(&build_retrieval_query_input(query))?.values;
     normalize_vector(&mut query_embedding);
-    let hit_limit = count.saturating_add(1).min(loaded.row_count);
+    // The ranking has to reach the end of the window, and one further to
+    // know whether anything follows it. What is ranked is a row and a score;
+    // the book's text is copied below, for the window alone.
+    let hit_limit = window
+        .skip
+        .saturating_add(count)
+        .saturating_add(1)
+        .min(loaded.row_count);
     let hits = top_vector_hits_by_row(
         &loaded.values,
         loaded.dimensions,
@@ -3175,6 +3182,10 @@ pub fn semantic_cukta_output<B: EmbeddingBackend>(
         },
     );
     let mut matches = Vec::new();
+    // Where in the whole ranking this hit sits, so a match names its place in
+    // the results rather than its place on the page.
+    let mut ranked = 0usize;
+    let mut has_more = false;
     for hit in hits {
         let Some(item) = loaded.items.get(hit.row_index) else {
             continue;
@@ -3185,17 +3196,20 @@ pub fn semantic_cukta_output<B: EmbeddingBackend>(
         if !chunk_allowed(chunk, targets) {
             continue;
         }
+        ranked += 1;
+        if ranked <= window.skip {
+            continue;
+        }
+        if matches.len() == count {
+            has_more = true;
+            break;
+        }
         matches.push(CllSearchMatch {
-            rank: matches.len() + 1,
+            rank: ranked,
             similarity: Some(hit.score),
             chunk: chunk.clone(),
         });
-        if matches.len() > count {
-            break;
-        }
     }
-    let has_more = matches.len() > count;
-    matches.truncate(count);
     let message = matches.is_empty().then(|| "No matches found.".to_owned());
     Ok(CuktaSearchOutput {
         mode: CuktaSearchMode::Meaning,
@@ -4355,6 +4369,76 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn a_meaning_window_reaches_past_what_one_answer_may_hold() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dictionary = jbotci_dictionary_data::english();
+        let cll_site = jbotci_cll::embedded_cll_site().expect("embedded CLL");
+        // More chunks than one answer may carry, so a window past that bound
+        // is a window past the end of any single answer.
+        let cll_chunks = &cll_site.search_chunks[..jbotci_cll::MAX_CUKTA_RESULT_COUNT + 60];
+        let spec = EmbeddingModelSpec {
+            dimensions: 4,
+            ..EmbeddingModelSpec::default_f2llm()
+        };
+        build_embedding_pack(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            dictionary,
+            cll_chunks,
+            dir.path(),
+            &spec,
+            false,
+        )
+        .expect("build fixture pack");
+
+        let deep = semantic_cukta_output(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            cll_chunks,
+            "grammar",
+            CuktaSearchWindow::after(jbotci_cll::MAX_CUKTA_RESULT_COUNT + 5, 5),
+            CuktaTargetFilter::default(),
+            dir.path(),
+            &spec.model_key,
+        )
+        .expect("semantic cukta window");
+        assert_eq!(deep.matches.len(), 5);
+        assert_eq!(
+            deep.matches.first().map(|matched| matched.rank),
+            Some(jbotci_cll::MAX_CUKTA_RESULT_COUNT + 6),
+            "a match keeps its place in the whole ranking"
+        );
+        assert!(deep.has_more);
+
+        // And the same stretch of the ranking is what a caller reading from
+        // the beginning would have reached.
+        let whole = semantic_cukta_output(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            cll_chunks,
+            "grammar",
+            CuktaSearchWindow::first(jbotci_cll::MAX_CUKTA_RESULT_COUNT),
+            CuktaTargetFilter::default(),
+            dir.path(),
+            &spec.model_key,
+        )
+        .expect("semantic cukta ranking");
+        assert_eq!(whole.matches.len(), jbotci_cll::MAX_CUKTA_RESULT_COUNT);
+        assert_eq!(
+            whole.matches[jbotci_cll::MAX_CUKTA_RESULT_COUNT - 1].rank,
+            jbotci_cll::MAX_CUKTA_RESULT_COUNT,
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn fake_backend_pack_supports_semantic_search() {
         let dir = tempfile::tempdir().expect("tempdir");
         let dictionary = jbotci_dictionary_data::english();
@@ -4404,7 +4488,7 @@ mod tests {
             },
             cll_chunks,
             "grammar",
-            2,
+            CuktaSearchWindow::first(2),
             CuktaTargetFilter {
                 sections: true,
                 paragraphs: true,
@@ -4423,7 +4507,7 @@ mod tests {
             },
             cll_chunks,
             "grammar",
-            1,
+            CuktaSearchWindow::first(1),
             CuktaTargetFilter {
                 sections: true,
                 paragraphs: false,
@@ -4435,6 +4519,33 @@ mod tests {
         .expect("semantic cukta section search");
         assert_eq!(section_output.matches.len(), 1);
         assert!(section_output.has_more);
+
+        // The same ranking, asked for from further in: the match keeps the
+        // place it holds in the whole ranking, and the chunks passed over are
+        // never copied.
+        let second = semantic_cukta_output(
+            &mut FakeBackend {
+                dimensions: 4,
+                calls: 0,
+            },
+            cll_chunks,
+            "grammar",
+            CuktaSearchWindow::after(1, 1),
+            CuktaTargetFilter {
+                sections: true,
+                paragraphs: false,
+                examples: false,
+            },
+            dir.path(),
+            &spec.model_key,
+        )
+        .expect("semantic cukta section window");
+        assert_eq!(second.matches.len(), 1);
+        assert_eq!(second.matches[0].rank, 2);
+        assert_ne!(
+            second.matches[0].chunk.anchor_id,
+            section_output.matches[0].chunk.anchor_id
+        );
         assert!(
             section_output
                 .matches

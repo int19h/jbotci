@@ -985,7 +985,7 @@ async fn run_cukta(
                 .tools
                 .semantic_cukta_search(
                     search_query,
-                    prefix_count(request.options.page),
+                    CuktaSearchWindow::after(request.options.page.first_index(), WINDOW_LEN),
                     targets,
                     Some(context.deadline),
                     context.keepalive.clone(),
@@ -998,8 +998,10 @@ async fn run_cukta(
                         .map(|reason| CuktaOutcome::Unavailable { reason });
                 }
             };
-            // Matches are compact; only this page becomes cards.
-            let results = PagedResults::from_prefix(output.matches, request.options.page)?
+            // A match owns the chunk of the book it names — its text and the
+            // words tagged in it — so the search was asked for this page's
+            // window and copied nothing else.
+            let results = PagedResults::from_window(output.matches, request.options.page)?
                 .map(|matched| cukta_card(&matched));
             Ok(CuktaOutcome::Search {
                 results,

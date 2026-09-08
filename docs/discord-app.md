@@ -25,15 +25,16 @@ shows rather than inventing a figure. A direction that does not exist is greyed
 rather than hidden, and a result with a single page carries no buttons at all.
 
 Paging goes as far as the results do: there is no page ceiling. Each page is
-fetched as itself, in the way its search allows. The dictionary search and the
-reference-grammar search start at the page's first result, so a later page
-costs what the first one did. Meaning search ranks the dictionary up to the end
-of the page — a similarity ranking has no way to start in the middle — but what
-it ranks are entry numbers and scores, and only the page becomes results. The
-gismu search scores every candidate it generates, keeps the best ones as a word
-and a score, and works out the full detail of one page of them. So a deep page
-costs a page, and none of these three has a last page other than the one the
-results end on. A parse, a word report and a compound are one result each and
+fetched as itself, in the way its search allows. A word search of the
+dictionary or of the book goes straight to the page's first result and copies
+only what the page holds. A meaning search ranks up to the end of the page — a
+similarity ranking has no way to start in the middle — but what it ranks is a
+number and a score each, and only the page's own results are read out of the
+dictionary or the book. The gismu search scores every candidate it generates,
+keeps the best of them as a word and a score, and works out the full detail of
+one page of them. So the expensive half of the work — the cards, the book's
+text, a candidate's detail — is one page's worth however deep the page is, and
+none of these three has a last page other than the one the results end on. A parse, a word report and a compound are one result each and
 have no pages.
 
 Only the reader who ran the command can change what the message shows. Anyone

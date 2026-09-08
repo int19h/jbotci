@@ -1904,6 +1904,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "compiled regex patterns carry their validation in regex::Regex",
     ),
     (
+        "crates/jbotci-search/src/vlacku.rs:VlackuCandidate::Missing",
+        "a word the dictionary does not hold carries the card that says so, and the card carries its own invariant",
+    ),
+    (
         "crates/jbotci-search/src/vlacku.rs:GlobToken::AnyMany",
         "glob token variant is a closed matcher tag with no payload invariants",
     ),

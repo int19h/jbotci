@@ -3091,6 +3091,46 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[requires(true)]
     #[ensures(true)]
+    async fn a_book_meaning_search_pages_through_its_ranking_too() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command(
+                "290",
+                "cukta",
+                vec![option("query", "tanru"), option("mode", "meaning")],
+            ))
+            .await;
+        settle(&discord, 1).await;
+        let first = discord.original().expect("a result");
+        // As with the dictionary, a deployment without the embedding index
+        // says so and has nothing to page.
+        if first.to_string().contains("Meaning search") {
+            assert!(page_buttons(&first).is_empty(), "{first}");
+            return;
+        }
+        assert!(first.to_string().contains("1-5"), "{first}");
+
+        let writes = discord.count("PATCH");
+        service
+            .handle(&page_click("291", &first, ACTOR, "Next"))
+            .await;
+        settle(&discord, writes + 1).await;
+        let second = discord.original().expect("a result");
+        assert!(
+            second.to_string().contains("6-10"),
+            "the book's ranking pages on: {second}"
+        );
+        assert!(
+            !second.to_string().contains("6-10 of "),
+            "a ranking cut to this page is not a count of the results: {second}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
     async fn the_same_page_click_delivered_twice_turns_one_page() {
         let discord = FakeDiscord::start().await;
         let service = new_service(&discord);

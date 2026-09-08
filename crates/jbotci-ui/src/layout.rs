@@ -2214,7 +2214,7 @@ pub(super) fn native_embedding_cukta_search_json(
     let chunks = jbotci_cll::cll_search_all_chunks(site);
     let targets = native_cukta_target_filter(kind_filters);
     let output = service
-        .semantic_cukta_output(chunks, query, count, targets)
+        .semantic_cukta_output(chunks, query, CuktaSearchWindow::first(count), targets)
         .map_err(native_embedding_search_setup_error)?;
     let hits = output
         .matches

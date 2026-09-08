@@ -133,8 +133,9 @@ use clap::{
 };
 use clx::progress::{ProgressJobBuilder, ProgressStatus};
 use jbotci_cll::{
-    CllError, CllLinkRenderMode, CllRenderFormat, CuktaRequest, CuktaSearchMode, CuktaTargetFilter,
-    DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request, render_search_output,
+    CllError, CllLinkRenderMode, CllRenderFormat, CuktaRequest, CuktaSearchMode, CuktaSearchWindow,
+    CuktaTargetFilter, DEFAULT_CUKTA_CLI_RESULT_COUNT, embedded_cll_site, render_cukta_request,
+    render_search_output,
 };
 use jbotci_diagnostics::{
     DEFAULT_TRACE_LIMIT, Diagnostic, TraceFilter, TraceLevel, TraceOptions, TracePhase, TraceReport,
