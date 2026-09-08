@@ -52,6 +52,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "modal response wraps a validated modal",
     ),
     (
+        "apps/jbotci-server/src/discord/components.rs:MessageComponent::ActionRow",
+        "component wrapper delegates validity to the typed action row, which bounds its own buttons",
+    ),
+    (
         "apps/jbotci-server/src/discord/components.rs:MessageComponent::File",
         "component wrapper delegates validity to the typed file component",
     ),
@@ -232,10 +236,6 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
     ),
     (
-        "apps/jbotci-server/src/discord/modal.rs:SubmissionError::PageCount",
-        "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
-    ),
-    (
         "apps/jbotci-server/src/discord/modal.rs:SubmissionError::ShapeCount",
         "the control name, the offending value and the counts are what the refused submission reports; every combination is a possible report, and SubmissionError is matched as a plain enum by the interaction shell",
     ),
@@ -408,11 +408,11 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "state rebuild error carries only the offending identifiers for its message",
     ),
     (
-        "apps/jbotci-server/src/discord/request.rs:RequestStateError::MissingField",
+        "apps/jbotci-server/src/discord/request.rs:RequestStateError::LegacyPartsTooLong",
         "state rebuild error carries only the offending identifiers for its message",
     ),
     (
-        "apps/jbotci-server/src/discord/request.rs:RequestStateError::PageOutOfRange",
+        "apps/jbotci-server/src/discord/request.rs:RequestStateError::MissingField",
         "state rebuild error carries only the offending identifiers for its message",
     ),
     (
@@ -1902,6 +1902,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "crates/jbotci-search/src/vlacku.rs:ExactPattern::Regex",
         "compiled regex patterns carry their validation in regex::Regex",
+    ),
+    (
+        "crates/jbotci-search/src/vlacku.rs:VlackuCandidate::Missing",
+        "a word the dictionary does not hold carries the card that says so, and the card carries its own invariant",
     ),
     (
         "crates/jbotci-search/src/vlacku.rs:GlobToken::AnyMany",

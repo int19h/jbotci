@@ -22,7 +22,7 @@ use bityzba::{ensures, invariant, new, requires};
 use self::diagnostics::RenderedDiagnostics;
 use super::diagram::DiagramImage;
 use super::operations::{PagedResults, RequestValidationError, ToolOutcome};
-use super::request::{DiscordRequest, DiscordTool, utf16_len};
+use super::request::{DiscordRequest, DiscordTool, PageNumber};
 
 /// The status line that closes the input block: the tool name first, then
 /// the applied view/page and the diagnostics count, on one line.
@@ -49,8 +49,8 @@ pub(crate) struct RenderedResult {
     /// Rendered diagnostics: what the message shows, and every diagnostic in
     /// full for the attached result.
     pub(crate) diagnostics: Option<RenderedDiagnostics>,
-    /// A short notice kept even under overflow (capped result set, missing
-    /// image explanation, continuation hint).
+    /// A short notice kept even under overflow: the explanation of an image
+    /// that could not be made, or of a result recomputed by another build.
     pub(crate) notice: Option<String>,
     /// Complete plain text of the result for the attachment.
     pub(crate) full_text: Option<String>,
@@ -59,6 +59,33 @@ pub(crate) struct RenderedResult {
     /// short the message turns out to be.
     pub(crate) shows_excerpt: bool,
     pub(crate) image: Option<DiagramImage>,
+    /// Where this result sits in a longer list, when it is one. The assembler
+    /// turns this into the buttons beside the message; a result that is not a
+    /// list leaves it empty and gets none.
+    pub(crate) pagination: Option<Pagination>,
+}
+
+/// What the message needs to offer page buttons: where the reader is, and
+/// which directions exist.
+#[invariant(*has_previous == (page.get() > 1), "the first page has nothing before it")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Pagination {
+    pub(crate) page: PageNumber,
+    pub(crate) has_previous: bool,
+    pub(crate) has_next: bool,
+}
+
+impl Pagination {
+    /// The pagination of a page of results.
+    #[requires(true)]
+    #[ensures(ret.page == results.page && ret.has_next == results.has_more)]
+    pub(crate) fn of<T>(results: &PagedResults<T>) -> Self {
+        new!(Pagination {
+            page: results.page,
+            has_previous: results.page.get() > 1,
+            has_next: results.has_more,
+        })
+    }
 }
 
 impl RenderedResult {
@@ -76,6 +103,7 @@ impl RenderedResult {
             full_text: None,
             shows_excerpt: false,
             image: None,
+            pagination: None,
         }
     }
 
@@ -117,21 +145,22 @@ impl RenderedResult {
 
 /// Status suffix describing the page of a paged result.
 #[requires(true)]
-#[ensures(ret.starts_with("page "))]
+#[ensures(!ret.is_empty())]
 pub(crate) fn page_status<T>(results: &PagedResults<T>) -> String {
-    format!("page {}/{}", results.page.get(), results.page_count)
+    let page = results.page.get();
+    match (results.range(), results.total) {
+        // What is shown, and out of how many when that is actually known.
+        (Some((first, last)), Some(total)) => format!("{first}-{last} of {total}"),
+        (Some((first, last)), None) => format!("{first}-{last}"),
+        (None, Some(total)) => format!("page {page}, {total} results"),
+        (None, None) => format!("page {page}"),
+    }
 }
 
-/// Present `outcome` for `request`. `app_link` is the app URL for the published
-/// state when the tool has a web page; presenters mention it as the
-/// continuation of a capped result set.
+/// Present `outcome` for `request`.
 #[requires(true)]
 #[ensures(ret.tool() == request.tool())]
-pub(crate) fn render(
-    outcome: &ToolOutcome,
-    request: &DiscordRequest,
-    app_link: Option<&str>,
-) -> RenderedResult {
+pub(crate) fn render(outcome: &ToolOutcome, request: &DiscordRequest) -> RenderedResult {
     match (outcome, request) {
         (ToolOutcome::Gentufa(outcome), DiscordRequest::Gentufa(request)) => {
             gentufa::render(outcome, request)
@@ -143,16 +172,16 @@ pub(crate) fn render(
             vlatai::render(report, request)
         }
         (ToolOutcome::Vlacku(outcome), DiscordRequest::Vlacku(request)) => {
-            vlacku::render(outcome, request, app_link)
+            vlacku::render(outcome, request)
         }
         (ToolOutcome::Cukta(outcome), DiscordRequest::Cukta(request)) => {
-            cukta::render(outcome, request, app_link)
+            cukta::render(outcome, request)
         }
         (ToolOutcome::Jvozba(outcome), DiscordRequest::Jvozba(request)) => {
             jvozba::render(outcome, request)
         }
         (ToolOutcome::Gimfihi(outcome), DiscordRequest::Gimfihi(request)) => {
-            gimfihi::render(outcome, request, app_link)
+            gimfihi::render(outcome, request)
         }
         (outcome, request) => {
             // The operation layer produces the outcome for the request's own
@@ -231,26 +260,4 @@ fn outcome_tool(outcome: &ToolOutcome) -> DiscordTool {
         ToolOutcome::Jvozba(_) => DiscordTool::Jvozba,
         ToolOutcome::Gimfihi(_) => DiscordTool::Gimfihi,
     }
-}
-
-/// Notice for a result set the Discord presentation caps. The app link itself
-/// lives in the ⚙️ form (it can be thousands of characters); the notice only
-/// says that the continuation exists, so its length is bounded.
-#[requires(true)]
-#[ensures(ret.as_ref().is_none_or(|notice| notice.starts_with("-# ") && utf16_len(notice) < 160))]
-pub(crate) fn capped_notice<T>(
-    results: &PagedResults<T>,
-    app_link: Option<&str>,
-) -> Option<String> {
-    if !results.capped {
-        return None;
-    }
-    let mut notice = format!(
-        "Discord shows the first {} results; more exist.",
-        results.shown_total
-    );
-    if app_link.is_some() {
-        notice.push_str(" Open in app (⚙️) continues the full list.");
-    }
-    Some(markdown::subtext(&notice))
 }

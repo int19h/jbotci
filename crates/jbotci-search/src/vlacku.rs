@@ -68,6 +68,11 @@ impl VlackuRequest {
 #[invariant(min_similarity.as_ref().is_none_or(|value| value.is_finite()))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct VlackuSearchOptions {
+    /// Matches to skip before the ones that are wanted. With `count` this is
+    /// a window into the result set: a caller showing a later page pays for
+    /// its own page rather than for everything before it, because a card is
+    /// built only for what the window holds.
+    pub skip: usize,
     pub count: usize,
     pub word_types: Vec<WordTypeFilter>,
     pub min_votes: Option<i32>,
@@ -80,6 +85,7 @@ impl Default for VlackuSearchOptions {
     #[ensures(ret.count == DEFAULT_VLACKU_RESULT_COUNT)]
     fn default() -> Self {
         new!(VlackuSearchOptions {
+            skip: 0,
             count: DEFAULT_VLACKU_RESULT_COUNT,
             word_types: Vec::new(),
             min_votes: None,
@@ -441,7 +447,10 @@ impl WordKindTypeKey {
     }
 }
 
-#[requires(true)]
+#[requires(
+    options.skip == 0 || requests.len() <= 1,
+    "a window applies to each search on its own, so several of them at once would skip into whichever ran first"
+)]
 #[ensures(true)]
 pub fn run_vlacku_requests(
     dictionary: &Dictionary<'_>,
@@ -683,6 +692,7 @@ fn dictionary_cards_for_lookup_target(
 #[ensures(ret.count == usize::MAX)]
 fn parsed_word_vlacku_options() -> VlackuSearchOptions {
     new!(VlackuSearchOptions {
+        skip: 0,
         count: usize::MAX,
         word_types: Vec::new(),
         min_votes: None,
@@ -856,38 +866,26 @@ fn cards_for_valsi(
     let query = query.as_str();
     let entries = dictionary.lookup_words(query).collect::<Vec<_>>();
     if !entries.is_empty() {
+        let candidates = entries
+            .into_iter()
+            .map(VlackuCandidate::entry)
+            .collect::<Vec<_>>();
         return found_or_missing(cards_with_optional_lujvo_sources(
             dictionary,
             query,
-            entries
-                .into_iter()
-                .filter(|entry| {
-                    dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false)
-                })
-                .map(|entry| {
-                    dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
-                })
-                .collect(),
+            candidates,
             None,
             options,
+            SourceAdmission::WhenShown,
         ));
     }
 
     if let Some(entries) = resolve_segmented_lookup(dictionary, query) {
-        let cards = filter_vlacku_cards(
-            entries
-                .into_iter()
-                .filter(|entry| {
-                    dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false)
-                })
-                .map(|entry| {
-                    dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
-                })
-                .collect(),
-            options,
-            false,
-        );
-        return found_or_missing(cards);
+        let candidates = entries
+            .into_iter()
+            .map(VlackuCandidate::entry)
+            .collect::<Vec<_>>();
+        return found_or_missing(cards_for_candidates(dictionary, candidates, options, false));
     }
 
     missing_exact_output(dictionary, query, options)
@@ -908,25 +906,11 @@ fn cards_for_rafsi(
         return invalid_lojban_word_output(query);
     };
     let query = query.as_str();
-    let cards = filter_vlacku_cards(
-        dictionary
-            .lookup_rafsi(query)
-            .filter(|matched| {
-                dictionary_entry_passes_vlacku_filters(matched.entry, options, Some(1.0), false)
-            })
-            .map(|matched| {
-                dictionary_entry_card(
-                    dictionary,
-                    matched.entry,
-                    Some(1.0),
-                    options.decompose_lujvo,
-                )
-            })
-            .collect(),
-        options,
-        false,
-    );
-    found_or_missing(cards)
+    let candidates = dictionary
+        .lookup_rafsi(query)
+        .map(|matched| VlackuCandidate::entry(matched.entry))
+        .collect::<Vec<_>>();
+    found_or_missing(cards_for_candidates(dictionary, candidates, options, false))
 }
 
 #[requires(true)]
@@ -944,49 +928,55 @@ fn cards_for_lujvo(
     let exact_entries = dictionary.lookup_words(query).collect::<Vec<_>>();
     let exact_found = !exact_entries.is_empty();
     let mut runtime_decomposition = None;
-    let mut cards = if exact_entries.is_empty() {
+    let mut candidates = if exact_entries.is_empty() {
         let decomposition = decompose_lujvo_like(dictionary, query);
-        let cards = match classify_exact_word(query, &normalized) {
-            Some(classification) => vec![unknown_card(classification, decomposition.as_ref())],
+        let candidates = match classify_exact_word(query, &normalized) {
+            Some(classification) => vec![new!(VlackuCandidate::Missing {
+                card: unknown_card(classification, decomposition.as_ref()),
+            })],
             None => {
                 return invalid_lojban_word_output(query);
             }
         };
         runtime_decomposition = decomposition;
-        cards
+        candidates
     } else {
         let mut dictionary_decomposition = None;
-        let mut cards = Vec::new();
+        let mut candidates = Vec::new();
         for entry in exact_entries {
-            let entry_decomposition = dictionary_lujvo_decomposition_for_entry(dictionary, entry);
             if dictionary_decomposition.is_none() {
-                dictionary_decomposition = entry_decomposition;
+                dictionary_decomposition =
+                    dictionary_lujvo_decomposition_for_entry(dictionary, entry);
             }
-            if dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false) {
-                cards.push(entry_card_with_dictionary_decomposition(
-                    entry,
-                    Some(1.0),
-                    entry_decomposition,
-                ));
-            }
+            // A lujvo lookup is about the word's parts, so its own card shows
+            // them whether or not source words were asked for.
+            candidates.push(new!(VlackuCandidate::Entry {
+                entry,
+                similarity: Some(1.0),
+                decomposition: EntryDecomposition::Always,
+            }));
         }
         if let Some(decomposition) = dictionary_decomposition {
-            extend_unique_cards(
-                &mut cards,
-                cards_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+            extend_unique_candidates(
+                &mut candidates,
+                candidates_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+                dictionary,
+                options,
             );
         }
-        cards
+        candidates
     };
 
     if let Some(decomposition) = runtime_decomposition.as_ref() {
-        extend_unique_cards(
-            &mut cards,
-            cards_for_lujvo_decomposition(dictionary, decomposition, options),
+        extend_unique_candidates(
+            &mut candidates,
+            candidates_for_lujvo_decomposition(dictionary, decomposition, options),
+            dictionary,
+            options,
         );
     }
 
-    let cards = filter_vlacku_cards(cards, options, false);
+    let cards = cards_for_candidates(dictionary, candidates, options, false);
     let outcome = if exact_found {
         VlackuOutcome::Found
     } else {
@@ -1050,6 +1040,216 @@ fn cards_for_rafsi_pattern(
     found_or_missing(cards)
 }
 
+/// What a card will be built from, before it is built. Deciding which
+/// results a page holds — filtering them, dropping the ones a lookup reached
+/// twice, and cutting out the window — costs a list of these; reading an
+/// entry's definition, notes, rafsi and decomposition into a card is the
+/// expensive half, and it is done for the results the page shows and no
+/// others. A word that is not in the dictionary carries its card already:
+/// nothing was read to say it is missing.
+#[invariant(::Entry => similarity.is_none_or(|value| value.is_finite()))]
+#[invariant(::Missing => true)]
+#[derive(Debug, Clone)]
+enum VlackuCandidate<'dictionary> {
+    Entry {
+        entry: &'dictionary DictionaryEntry<'dictionary>,
+        similarity: Option<f32>,
+        decomposition: EntryDecomposition,
+    },
+    Missing {
+        card: VlackuCard,
+    },
+}
+
+/// Whether an entry's card shows what the word is built from.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EntryDecomposition {
+    /// Only where the reader asked for source words.
+    AsRequested,
+    /// Always: the lookup is about the word's parts, so its card shows them
+    /// whether or not source words were asked for.
+    Always,
+}
+
+impl<'dictionary> VlackuCandidate<'dictionary> {
+    /// An entry as the lookup found it.
+    #[requires(true)]
+    #[ensures(true)]
+    fn entry(entry: &'dictionary DictionaryEntry<'dictionary>) -> Self {
+        new!(VlackuCandidate::Entry {
+            entry,
+            similarity: Some(1.0),
+            decomposition: EntryDecomposition::AsRequested,
+        })
+    }
+
+    /// Whether the reader's filters keep this result. An entry is tested as
+    /// itself; a missing word is tested through the card it carries, which is
+    /// all there is of it.
+    #[requires(true)]
+    #[ensures(true)]
+    fn passes(&self, options: &VlackuSearchOptions, similarity_mode: bool) -> bool {
+        match self.as_data() {
+            data!(VlackuCandidate::Entry {
+                entry,
+                similarity,
+                ..
+            }) => {
+                dictionary_entry_passes_vlacku_filters(entry, options, *similarity, similarity_mode)
+            }
+            data!(VlackuCandidate::Missing { card }) => {
+                passes_filters(card, options, similarity_mode)
+            }
+        }
+    }
+
+    /// The parts this result's card will show, which is what the reader's
+    /// options and the lookup's own rule decide between them.
+    #[requires(true)]
+    #[ensures(true)]
+    fn shown_decomposition(
+        &self,
+        dictionary: &'dictionary Dictionary<'dictionary>,
+        options: &VlackuSearchOptions,
+    ) -> Option<&'dictionary DictionaryLujvoEntry<'dictionary>> {
+        match self.as_data() {
+            data!(VlackuCandidate::Entry {
+                entry,
+                decomposition,
+                ..
+            }) => (*decomposition == EntryDecomposition::Always || options.decompose_lujvo)
+                .then(|| dictionary_lujvo_decomposition_for_entry(dictionary, entry))
+                .flatten(),
+            data!(VlackuCandidate::Missing { .. }) => None,
+        }
+    }
+
+    /// Whether these two would show the same result. A lookup reaches the
+    /// same entry more than once — a source word repeated in a decomposition,
+    /// a decomposition source that is also the exact match — and the same
+    /// entry shown the same way is one result, not two. What "the same way"
+    /// means is what the two cards would carry, not how each was reached: two
+    /// candidates for one entry that differ only in a rule the reader's
+    /// options make moot are one result.
+    #[requires(true)]
+    #[ensures(true)]
+    fn is_same_result_as(
+        &self,
+        other: &Self,
+        dictionary: &'dictionary Dictionary<'dictionary>,
+        options: &VlackuSearchOptions,
+    ) -> bool {
+        match (self.as_data(), other.as_data()) {
+            (
+                data!(VlackuCandidate::Entry {
+                    entry,
+                    similarity,
+                    ..
+                }),
+                data!(VlackuCandidate::Entry {
+                    entry: other_entry,
+                    similarity: other_similarity,
+                    ..
+                }),
+            ) => {
+                std::ptr::eq(*entry, *other_entry)
+                    && similarity == other_similarity
+                    && match (
+                        self.shown_decomposition(dictionary, options),
+                        other.shown_decomposition(dictionary, options),
+                    ) {
+                        (Some(shown), Some(other_shown)) => std::ptr::eq(shown, other_shown),
+                        (None, None) => true,
+                        _ => false,
+                    }
+            }
+            (
+                data!(VlackuCandidate::Missing { card }),
+                data!(VlackuCandidate::Missing { card: other_card }),
+            ) => card == other_card,
+            _ => false,
+        }
+    }
+
+    /// The word type this result will show, without building its card.
+    #[requires(true)]
+    #[ensures(true)]
+    fn word_type_filter(&self) -> Option<WordTypeFilter> {
+        match self.as_data() {
+            data!(VlackuCandidate::Entry { entry, .. }) => {
+                Some(WordTypeFilter::from_word_type(entry.word_type))
+            }
+            data!(VlackuCandidate::Missing { card }) => WordTypeFilter::parse(&card.word_type),
+        }
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn into_card(self, dictionary: &Dictionary<'dictionary>, decompose_lujvo: bool) -> VlackuCard {
+        match self.into_data() {
+            data!(VlackuCandidate::Entry {
+                entry,
+                similarity,
+                decomposition: EntryDecomposition::AsRequested,
+            }) => dictionary_entry_card(dictionary, entry, similarity, decompose_lujvo),
+            data!(VlackuCandidate::Entry {
+                entry,
+                similarity,
+                decomposition: EntryDecomposition::Always,
+            }) => entry_card_with_dictionary_decomposition(
+                entry,
+                similarity,
+                dictionary_lujvo_decomposition_for_entry(dictionary, entry),
+            ),
+            data!(VlackuCandidate::Missing { card }) => card,
+        }
+    }
+}
+
+/// Add to `target` the results of `source` it does not already show. A
+/// lookup that gathers a word's parts reaches the same entry more than once —
+/// a source word repeated in a decomposition, a source that is also the exact
+/// match — and offering it twice would be offering one result twice. Results
+/// a lookup found in its own right are not compared this way: a word that
+/// segments into the same word twice has two of them, and says so.
+#[requires(true)]
+#[ensures(true)]
+fn extend_unique_candidates<'dictionary>(
+    target: &mut Vec<VlackuCandidate<'dictionary>>,
+    source: impl IntoIterator<Item = VlackuCandidate<'dictionary>>,
+    dictionary: &'dictionary Dictionary<'dictionary>,
+    options: &VlackuSearchOptions,
+) {
+    for candidate in source {
+        if !target
+            .iter()
+            .any(|existing| existing.is_same_result_as(&candidate, dictionary, options))
+        {
+            target.push(candidate);
+        }
+    }
+}
+
+/// The cards one page of a lookup's results holds: the reader's filters, then
+/// the window, and only then the cards.
+#[requires(true)]
+#[ensures(ret.len() <= options.count)]
+fn cards_for_candidates<'dictionary>(
+    dictionary: &'dictionary Dictionary<'dictionary>,
+    candidates: Vec<VlackuCandidate<'dictionary>>,
+    options: &VlackuSearchOptions,
+    similarity_mode: bool,
+) -> Vec<VlackuCard> {
+    candidates
+        .into_iter()
+        .filter(|candidate| candidate.passes(options, similarity_mode))
+        .skip(options.skip)
+        .take(options.count)
+        .map(|candidate| candidate.into_card(dictionary, options.decompose_lujvo))
+        .collect()
+}
+
 #[requires(true)]
 #[ensures(ret.len() <= options.count)]
 fn cards_for_matching_entries<'dictionary>(
@@ -1069,9 +1269,13 @@ fn cards_for_matching_entries_with_builder<'dictionary>(
     options: &VlackuSearchOptions,
     mut build_card: impl FnMut(&'dictionary DictionaryEntry<'dictionary>) -> VlackuCard,
 ) -> Vec<VlackuCard> {
+    // Filtering is cheap and reads the entry in place; building a card is the
+    // expensive half. Skipping happens before the card is built, so the work
+    // is the size of the window rather than of everything up to it.
     entries
         .into_iter()
         .filter(|entry| dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false))
+        .skip(options.skip)
         .take(options.count)
         .map(|entry| build_card(entry))
         .collect()
@@ -1114,10 +1318,13 @@ fn cards_for_sound(
             )
         })
         .collect::<Vec<_>>();
-    retain_best_sound_scores(&mut scored, options.count);
+    // The window's own end is what has to be ranked; the scored entries are
+    // an index and a score, and only the window becomes cards.
+    retain_best_sound_scores(&mut scored, options.skip.saturating_add(options.count));
 
     let cards = scored
         .into_iter()
+        .skip(options.skip)
         .map(|scored| {
             dictionary_entry_card(
                 dictionary,
@@ -1223,9 +1430,12 @@ fn missing_exact_output(
             let cards = cards_with_optional_lujvo_sources(
                 dictionary,
                 query,
-                vec![unknown_card(classification, decomposition.as_ref())],
+                vec![new!(VlackuCandidate::Missing {
+                    card: unknown_card(classification, decomposition.as_ref()),
+                })],
                 decomposition.as_ref(),
                 options,
+                SourceAdmission::Always,
             );
             VlackuSearchOutput {
                 cards,
@@ -1237,38 +1447,65 @@ fn missing_exact_output(
     }
 }
 
+/// Whether a lookup's own result has to survive the reader's filters before
+/// the words it is built from are looked up.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SourceAdmission {
+    /// A word the dictionary holds: its source words follow the results the
+    /// reader is actually shown, so filtering the word away takes its parts
+    /// with it.
+    WhenShown,
+    /// A word the dictionary does not hold: the lookup itself is the reason
+    /// to offer its parts, and they are results in their own right, so the
+    /// filters apply to them and not to the word that led there.
+    Always,
+}
+
 #[requires(true)]
 #[ensures(true)]
-fn cards_with_optional_lujvo_sources(
-    dictionary: &Dictionary<'_>,
+fn cards_with_optional_lujvo_sources<'dictionary>(
+    dictionary: &'dictionary Dictionary<'dictionary>,
     query: &str,
-    mut cards: Vec<VlackuCard>,
+    mut candidates: Vec<VlackuCandidate<'dictionary>>,
     runtime_decomposition: Option<&LujvoDecomposition<'_>>,
     options: &VlackuSearchOptions,
+    admission: SourceAdmission,
 ) -> Vec<VlackuCard> {
+    // The word type is read from the result itself, so nothing is built to
+    // decide whether to look the source words up.
     let should_decompose_sources = options.decompose_lujvo
-        && cards.iter().any(|card| {
-            WordTypeFilter::parse(&card.word_type).is_some_and(WordTypeFilter::is_lujvo_like)
+        && candidates.iter().any(|candidate| {
+            (admission == SourceAdmission::Always || candidate.passes(options, false))
+                && candidate
+                    .word_type_filter()
+                    .is_some_and(WordTypeFilter::is_lujvo_like)
         });
     if should_decompose_sources {
         if let Some(decomposition) = dictionary_lujvo_decomposition_for_query(dictionary, query) {
-            extend_unique_cards(
-                &mut cards,
-                cards_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+            extend_unique_candidates(
+                &mut candidates,
+                candidates_for_dictionary_lujvo_decomposition(dictionary, decomposition, options),
+                dictionary,
+                options,
             );
         } else if let Some(decomposition) = runtime_decomposition {
-            extend_unique_cards(
-                &mut cards,
-                cards_for_lujvo_decomposition(dictionary, decomposition, options),
+            extend_unique_candidates(
+                &mut candidates,
+                candidates_for_lujvo_decomposition(dictionary, decomposition, options),
+                dictionary,
+                options,
             );
         } else if let Some(decomposition) = decompose_lujvo_like(dictionary, query) {
-            extend_unique_cards(
-                &mut cards,
-                cards_for_lujvo_decomposition(dictionary, &decomposition, options),
+            extend_unique_candidates(
+                &mut candidates,
+                candidates_for_lujvo_decomposition(dictionary, &decomposition, options),
+                dictionary,
+                options,
             );
         }
     }
-    filter_vlacku_cards(cards, options, false)
+    cards_for_candidates(dictionary, candidates, options, false)
 }
 
 #[requires(true)]
@@ -1284,68 +1521,60 @@ fn dictionary_lujvo_decomposition_for_query<'dictionary>(
 
 #[requires(true)]
 #[ensures(true)]
-fn cards_for_lujvo_decomposition(
-    dictionary: &Dictionary<'_>,
+fn candidates_for_lujvo_decomposition<'dictionary>(
+    dictionary: &'dictionary Dictionary<'dictionary>,
     decomposition: &LujvoDecomposition<'_>,
     options: &VlackuSearchOptions,
-) -> Vec<VlackuCard> {
-    let mut cards = Vec::new();
+) -> Vec<VlackuCandidate<'dictionary>> {
+    let mut candidates = Vec::new();
     for source_word in &decomposition.source_words {
         if let Some(entry) = dictionary.lookup_word(source_word) {
-            if !dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false) {
-                continue;
-            }
-            extend_unique_cards(
-                &mut cards,
-                vec![dictionary_entry_card(
-                    dictionary,
-                    entry,
-                    Some(1.0),
-                    options.decompose_lujvo,
-                )],
+            extend_unique_candidates(
+                &mut candidates,
+                std::iter::once(VlackuCandidate::entry(entry)),
+                dictionary,
+                options,
             );
         }
     }
     if let Some(surface) = final_rafsi_surface(decomposition) {
-        extend_unique_cards(
-            &mut cards,
-            exact_word_cards_for_lujvo_final_segment(dictionary, surface, options),
+        extend_unique_candidates(
+            &mut candidates,
+            candidates_for_lujvo_final_segment(dictionary, surface),
+            dictionary,
+            options,
         );
     }
-    cards
+    candidates
 }
 
 #[requires(true)]
 #[ensures(true)]
-fn cards_for_dictionary_lujvo_decomposition(
-    dictionary: &Dictionary<'_>,
+fn candidates_for_dictionary_lujvo_decomposition<'dictionary>(
+    dictionary: &'dictionary Dictionary<'dictionary>,
     decomposition: &DictionaryLujvoEntry<'_>,
     options: &VlackuSearchOptions,
-) -> Vec<VlackuCard> {
-    let mut cards = Vec::new();
+) -> Vec<VlackuCandidate<'dictionary>> {
+    let mut candidates = Vec::new();
     for source_word in decomposition.source_words {
         if let Some(entry) = dictionary.lookup_word(source_word) {
-            if !dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false) {
-                continue;
-            }
-            extend_unique_cards(
-                &mut cards,
-                vec![dictionary_entry_card(
-                    dictionary,
-                    entry,
-                    Some(1.0),
-                    options.decompose_lujvo,
-                )],
+            extend_unique_candidates(
+                &mut candidates,
+                std::iter::once(VlackuCandidate::entry(entry)),
+                dictionary,
+                options,
             );
         }
     }
     if let Some(surface) = final_dictionary_rafsi_surface(decomposition) {
-        extend_unique_cards(
-            &mut cards,
-            exact_word_cards_for_lujvo_final_segment(dictionary, surface, options),
+        extend_unique_candidates(
+            &mut candidates,
+            candidates_for_lujvo_final_segment(dictionary, surface),
+            dictionary,
+            options,
         );
     }
-    cards
+    candidates
 }
 
 #[requires(true)]
@@ -1378,11 +1607,10 @@ fn final_dictionary_rafsi_surface<'a>(
 
 #[requires(!surface.is_empty())]
 #[ensures(true)]
-fn exact_word_cards_for_lujvo_final_segment(
-    dictionary: &Dictionary<'_>,
+fn candidates_for_lujvo_final_segment<'dictionary>(
+    dictionary: &'dictionary Dictionary<'dictionary>,
     surface: &str,
-    options: &VlackuSearchOptions,
-) -> Vec<VlackuCard> {
+) -> Vec<VlackuCandidate<'dictionary>> {
     let normalized = normalize_lookup_query(surface);
     let Some(classification) = classify_exact_word(surface, &normalized) else {
         return Vec::new();
@@ -1393,17 +1621,11 @@ fn exact_word_cards_for_lujvo_final_segment(
 
     let entries = dictionary.lookup_words(&normalized).collect::<Vec<_>>();
     if entries.is_empty() {
-        vec![unknown_card(classification, None)]
+        vec![new!(VlackuCandidate::Missing {
+            card: unknown_card(classification, None),
+        })]
     } else {
-        entries
-            .into_iter()
-            .filter(|entry| {
-                dictionary_entry_passes_vlacku_filters(entry, options, Some(1.0), false)
-            })
-            .map(|entry| {
-                dictionary_entry_card(dictionary, entry, Some(1.0), options.decompose_lujvo)
-            })
-            .collect()
+        entries.into_iter().map(VlackuCandidate::entry).collect()
     }
 }
 
@@ -1732,20 +1954,6 @@ fn format_keyword(keyword: &Keyword<'_>) -> String {
 
 #[requires(true)]
 #[ensures(true)]
-pub fn filter_vlacku_cards(
-    cards: Vec<VlackuCard>,
-    options: &VlackuSearchOptions,
-    similarity_mode: bool,
-) -> Vec<VlackuCard> {
-    cards
-        .into_iter()
-        .filter(|card| passes_filters(card, options, similarity_mode))
-        .take(options.count)
-        .collect()
-}
-
-#[requires(true)]
-#[ensures(true)]
 fn passes_filters(card: &VlackuCard, options: &VlackuSearchOptions, similarity_mode: bool) -> bool {
     let card_word_type = WordTypeFilter::parse(&card.word_type);
     let word_type_ok = options.word_types.is_empty()
@@ -1997,6 +2205,278 @@ mod tests {
     #[ensures(true)]
     fn filter(value: &str) -> WordTypeFilter {
         WordTypeFilter::parse(value).expect("known word type filter")
+    }
+
+    #[requires(count > 0)]
+    #[ensures(ret.skip == skip && ret.count == count)]
+    fn window(skip: usize, count: usize) -> VlackuSearchOptions {
+        VlackuSearchOptions::default().with_data(data! {
+            skip: skip,
+            count: count,
+        })
+    }
+
+    #[requires(true)]
+    #[ensures(true)]
+    fn words(cards: &[VlackuCard]) -> Vec<&str> {
+        cards.iter().map(|card| card.word.as_str()).collect()
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_window_into_a_search_is_that_stretch_of_the_whole_result() {
+        let dictionary = jbotci_dictionary_data::english();
+        let whole = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("kla*".to_owned())],
+            &window(0, usize::MAX),
+        );
+        assert!(
+            whole.cards.len() > 16,
+            "the fixture needs more than three pages: {}",
+            whole.cards.len()
+        );
+
+        let third_page = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("kla*".to_owned())],
+            &window(10, 6),
+        );
+        assert_eq!(words(&third_page.cards), words(&whole.cards)[10..16]);
+
+        // Sound search ranks before it windows, so the window has to be the
+        // same stretch of the ranking rather than of the dictionary.
+        let whole_sound = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::sound("klama".to_owned())],
+            &window(0, 16),
+        );
+        let later_sound = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::sound("klama".to_owned())],
+            &window(10, 6),
+        );
+        assert_eq!(words(&later_sound.cards), words(&whole_sound.cards)[10..16]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_window_into_a_literal_lookup_is_that_stretch_of_the_whole_result() {
+        /// What a caller shows at once, and so the step this walks in.
+        const PAGE: usize = 5;
+        let dictionary = jbotci_dictionary_data::english();
+        let sources = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+            decompose_lujvo: true,
+        });
+        // A word looked up as itself, a rafsi, and a lujvo whose source words
+        // and final segment make a result list longer than one page.
+        for request in [
+            VlackuRequest::valsi("brivla".to_owned()),
+            VlackuRequest::rafsi("kla".to_owned()),
+            VlackuRequest::lujvo("backemselrerkru".to_owned()),
+        ] {
+            let whole = run_vlacku_requests(dictionary, std::slice::from_ref(&request), &sources);
+            assert!(
+                !whole.cards.is_empty(),
+                "{request:?} finds nothing to page through"
+            );
+            for start in (0..whole.cards.len()).step_by(PAGE) {
+                let window = run_vlacku_requests(
+                    dictionary,
+                    std::slice::from_ref(&request),
+                    &sources.clone().with_data(data! {
+                        skip: start,
+                        count: PAGE + 1,
+                    }),
+                );
+                let end = (start + PAGE + 1).min(whole.cards.len());
+                assert_eq!(
+                    window.cards,
+                    whole.cards[start..end],
+                    "{request:?} from {start}"
+                );
+                assert_eq!(window.outcome, whole.outcome, "{request:?} from {start}");
+            }
+            // A window past the end holds nothing rather than the last page
+            // over again.
+            let past_the_end = run_vlacku_requests(
+                dictionary,
+                std::slice::from_ref(&request),
+                &sources.clone().with_data(data! {
+                    skip: whole.cards.len(),
+                    count: PAGE + 1,
+                }),
+            );
+            assert!(past_the_end.cards.is_empty(), "{request:?} past the end");
+        }
+
+        let long = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::lujvo("backemselrerkru".to_owned())],
+            &sources,
+        );
+        assert!(
+            long.cards.len() > PAGE,
+            "the lujvo fixture must span more than one page: {}",
+            long.cards.len()
+        );
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn source_words_follow_the_word_that_led_to_them_only_when_it_is_shown() {
+        let dictionary = jbotci_dictionary_data::english();
+        let gismu_only = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+            decompose_lujvo: true,
+            word_types: vec![WordTypeFilter::Gismu],
+        });
+
+        // A word the dictionary holds: filtering the lujvo away takes the
+        // words it is built from with it, because they were offered as its
+        // parts.
+        let attested = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("lojbangirzu".to_owned())],
+            &gismu_only,
+        );
+        assert!(words(&attested.cards).is_empty(), "{:?}", attested.cards);
+
+        // A word it does not hold: the lookup itself is the reason its parts
+        // are offered, and they are results in their own right, so a filter
+        // that excludes the lujvo still shows them.
+        let missing = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("klabajra".to_owned())],
+            &gismu_only,
+        );
+        assert_eq!(words(&missing.cards), vec!["klama", "bajra"]);
+        assert_eq!(missing.outcome, VlackuOutcome::ValidMissing);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_that_repeats_a_word_shows_it_as_often_as_it_says_it() {
+        let dictionary = jbotci_dictionary_data::english();
+        let sources = VlackuSearchOptions::default().with_data(data! {
+            count: usize::MAX,
+            decompose_lujvo: true,
+        });
+
+        // Two words run together are two results, and three are three: each
+        // occurrence is a word of the text that was looked up, not the same
+        // result found twice.
+        let twice = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("mimi".to_owned())],
+            &sources,
+        );
+        assert_eq!(words(&twice.cards), vec!["mi", "mi"]);
+        let thrice = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("mimimi".to_owned())],
+            &sources,
+        );
+        assert_eq!(words(&thrice.cards), vec!["mi", "mi", "mi"]);
+        let both = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("doido".to_owned())],
+            &sources,
+        );
+        assert_eq!(words(&both.cards), vec!["doi", "do"]);
+
+        // A window over a repeated list takes them one at a time like any
+        // other results.
+        let second = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::valsi("mimi".to_owned())],
+            &sources.clone().with_data(data! { skip: 1, count: 1 }),
+        );
+        assert_eq!(words(&second.cards), vec!["mi"]);
+
+        // The words a compound is built from are a different thing: they are
+        // offered once however often the compound names them.
+        let compound = run_vlacku_requests(
+            dictionary,
+            &[VlackuRequest::lujvo("klaklama".to_owned())],
+            &sources,
+        );
+        assert_eq!(words(&compound.cards), vec!["klaklama", "klama"]);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn no_two_entries_show_the_same_card() {
+        // Results a lookup reached twice are dropped by comparing the entry
+        // they name, which stands in for comparing the cards they would
+        // build. That holds because no two entries of the dictionary build
+        // the same card.
+        let dictionary = jbotci_dictionary_data::english();
+        let mut seen = std::collections::HashSet::new();
+        for entry in dictionary.entries() {
+            let card = dictionary_entry_card(dictionary, entry, Some(1.0), false);
+            assert!(
+                seen.insert(format!("{card:?}")),
+                "two entries build the same card: {}",
+                entry.word
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_word_type_reads_the_same_from_an_entry_as_from_its_card() {
+        // Results are filtered before their cards are built, so the word type
+        // an entry gives and the one its card gives have to be the same word
+        // type for every entry the dictionary holds.
+        let dictionary = jbotci_dictionary_data::english();
+        for entry in dictionary.entries() {
+            assert_eq!(
+                WordTypeFilter::parse(entry.word_type.as_str()),
+                Some(WordTypeFilter::from_word_type(entry.word_type)),
+                "{}",
+                entry.word
+            );
+        }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_window_builds_a_window_of_cards_however_deep_it_is() {
+        let dictionary = jbotci_dictionary_data::english();
+        let mut built = 0;
+        let first = cards_for_matching_entries_with_builder(
+            dictionary.entries().iter(),
+            &window(0, 6),
+            |entry| {
+                built += 1;
+                dictionary_entry_card(dictionary, entry, Some(1.0), false)
+            },
+        );
+        assert_eq!((first.len(), built), (6, 6));
+
+        // The five-hundredth page of the same result set: the entries before
+        // it are still walked, because that is what says which they are, but
+        // no card is built for any of them.
+        let mut built_deep = 0;
+        let deep = cards_for_matching_entries_with_builder(
+            dictionary.entries().iter(),
+            &window(2_500, 6),
+            |entry| {
+                built_deep += 1;
+                dictionary_entry_card(dictionary, entry, Some(1.0), false)
+            },
+        );
+        assert_eq!((deep.len(), built_deep), (6, 6));
+        assert_ne!(words(&deep), words(&first));
     }
 
     #[test]

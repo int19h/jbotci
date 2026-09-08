@@ -80,6 +80,7 @@ fn gimfihi_request_from_input(input: &GimfihiInput) -> Result<GimfihiRequest> {
         check_collisions: input.check_collisions.into(),
         show_collisions: input.show_collisions,
         require_free_short_rafsi: input.require_free_short_rafsi,
+        skip: 0,
         count,
         highlight: input.highlight.clone(),
     })

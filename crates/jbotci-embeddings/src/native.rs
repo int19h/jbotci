@@ -500,20 +500,19 @@ impl NativeEmbeddingSearchService {
     }
 
     #[requires(!query.trim().is_empty())]
-    #[requires(count > 0)]
     #[ensures(true)]
     pub fn semantic_cukta_output(
         &mut self,
         chunks: &[jbotci_cll::CllSearchChunk],
         query: &str,
-        count: usize,
+        window: jbotci_cll::CuktaSearchWindow,
         targets: jbotci_cll::CuktaTargetFilter,
     ) -> Result<jbotci_cll::CuktaSearchOutput, EmbeddingError> {
         semantic_cukta_output(
             &mut self.backend,
             chunks,
             query,
-            count,
+            window,
             targets,
             &self.index_root,
             &self.model_key,

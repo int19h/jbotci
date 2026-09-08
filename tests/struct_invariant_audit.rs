@@ -8,6 +8,10 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/discord/codec.rs:PageControl",
+        "a page button carries an instruction only: any revision and any positive page are a question the message answers",
+    ),
+    (
         "apps/jbotci-server/src/discord/codec.rs:ModalHeader",
         "modal custom-id header pairs a tool, revision and initiator with no cross-field constraint",
     ),
@@ -158,6 +162,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
         "apps/jbotci-server/src/discord/request.rs:VlataiOptions",
         "presentation options bag: every combination of its typed choices is a valid request",
+    ),
+    (
+        "apps/jbotci-server/src/discord/request.rs:VlackuRequest",
+        "typed request pairs bounded source text with an options bag; every combination is valid now that pages are unbounded",
     ),
     (
         "apps/jbotci-server/src/discord/request.rs:VlataiRequest",

@@ -19,7 +19,7 @@ use jbotci_cll::{
 use super::markdown::{
     escape, inline_code, join_lines, percent, split_paragraphs, subtext, truncate_units,
 };
-use super::{RenderedResult, capped_notice, page_status};
+use super::{Pagination, RenderedResult, page_status};
 use crate::discord::operations::{CuktaOutcome, CuktaSearchCard};
 use crate::discord::request::{CuktaMode, CuktaRequest, CuktaResultKind, DiscordTool};
 
@@ -28,11 +28,7 @@ const MAX_PREVIEW_UNITS: usize = 320;
 
 #[requires(true)]
 #[ensures(ret.tool() == DiscordTool::Cukta)]
-pub(crate) fn render(
-    outcome: &CuktaOutcome,
-    request: &CuktaRequest,
-    app_link: Option<&str>,
-) -> RenderedResult {
+pub(crate) fn render(outcome: &CuktaOutcome, request: &CuktaRequest) -> RenderedResult {
     let mode_label = match request.options.mode {
         CuktaMode::Meaning => "meaning search",
         CuktaMode::Word => "word search",
@@ -77,6 +73,7 @@ pub(crate) fn render(
                 status.push_str(&format!(" · {}", kinds.join("/")));
             }
             let mut rendered = RenderedResult::new(DiscordTool::Cukta, status);
+            rendered.pagination = Some(Pagination::of(results));
             let mut lines = Vec::new();
             if let Some(message) = message {
                 lines.push(escape(message));
@@ -101,7 +98,6 @@ pub(crate) fn render(
                     rendered.set_full_text(full);
                 }
             }
-            rendered.notice = capped_notice(results, app_link);
             rendered
         }
         CuktaOutcome::Section { site, section } => {
@@ -204,12 +200,10 @@ fn search_card(card: &CuktaSearchCard) -> (String, String, bool) {
 mod tests {
     use super::*;
     use crate::discord::operations::{CuktaChapterEntry, PagedResults, cukta_card_for_tests};
-    use crate::discord::request::{
-        CuktaOptions, CuktaResultKindSet, MAX_PAGE, PageNumber, SourceText,
-    };
+    use crate::discord::request::{CuktaOptions, CuktaResultKindSet, PageNumber, SourceText};
     use jbotci_cll::{
-        CuktaSearchMode, CuktaTargetFilter, cll_lookup_section, cll_resolve_section_reference,
-        cukta_search, embedded_cll_site,
+        CuktaSearchMode, CuktaSearchWindow, CuktaTargetFilter, cll_lookup_section,
+        cll_resolve_section_reference, cukta_search, embedded_cll_site,
     };
 
     #[requires(true)]
@@ -235,7 +229,6 @@ mod tests {
         let rendered = render(
             &CuktaOutcome::Section { site, section },
             &request(CuktaMode::Section, Some("4.6")),
-            None,
         );
         assert_eq!(rendered.status.text, "cukta · section");
         assert!(
@@ -284,7 +277,7 @@ mod tests {
             site,
             CuktaSearchMode::Word,
             "tanru",
-            6,
+            CuktaSearchWindow::first(6),
             CuktaTargetFilter::default(),
         );
         let cards = output
@@ -293,20 +286,19 @@ mod tests {
             .map(cukta_card_for_tests)
             .collect::<Vec<_>>();
         assert!(!cards.is_empty());
-        let results = PagedResults::paginate(cards, PageNumber::first(), MAX_PAGE).expect("page");
+        let results = PagedResults::from_all(cards, PageNumber::first()).expect("page");
         let rendered = render(
             &CuktaOutcome::Search {
                 results,
                 message: None,
             },
             &request(CuktaMode::Word, Some("tanru")),
-            Some("https://jbotci.app/cukta?q=tanru"),
         );
         assert!(
             rendered
                 .status
                 .text
-                .starts_with("cukta · word search · page 1/"),
+                .starts_with("cukta · word search · 1-5 of "),
             "{}",
             rendered.status.text
         );
@@ -329,7 +321,6 @@ mod tests {
                 })],
             },
             &request(CuktaMode::Contents, None),
-            None,
         );
         assert!(
             rendered.body[0].contains("1. Lojban As We Mangle It"),
@@ -342,7 +333,6 @@ mod tests {
                 reference: "99.99".to_owned(),
             },
             &request(CuktaMode::Example, Some("99.99")),
-            None,
         );
         assert!(
             missing.body[0].contains("No example `99.99`"),

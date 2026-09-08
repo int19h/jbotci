@@ -87,7 +87,6 @@ mod tests {
     fn request() -> JvozbaRequest {
         JvozbaRequest {
             parts: SourceText::new("klama bajra").expect("text"),
-            rafsi: None,
             options: JvozbaOptions::default(),
         }
     }

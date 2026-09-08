@@ -31,7 +31,12 @@ use super::request::{
 
 /// Custom ID schema version. Anything else is refused with an upgrade error.
 pub(crate) const SCHEMA_VERSION: &str = "j1";
-const MODAL_SCHEMA_VERSION: &str = "j1m";
+/// Form schema version. It names the set of controls a form was built with,
+/// so a form opened before a change to that set is refused with the message
+/// that says to reopen it, rather than read as though its controls were the
+/// current ones. This build's forms drop the vlacku, cukta and gimfihi page
+/// selects and the jvozba fixed-rafsi field, which is why it is not `j1m`.
+const MODAL_SCHEMA_VERSION: &str = "j2m";
 const SEPARATOR: char = '.';
 
 /// Discord's custom ID bound.
@@ -152,9 +157,78 @@ impl PresenceMask {
 // Request header (gear button custom_id)
 // ---------------------------------------------------------------------------
 
+/// What a page button asks for: the page to go to, and the revision of the
+/// message it was drawn on.
+///
+/// A button carries an instruction, never the state. The settings, the source
+/// and the reader who asked all come from the message itself when the click
+/// arrives, so a control that was forged or kept from an older version of the
+/// message can ask for a page and nothing more. The revision is what makes a
+/// button from a stale message refuse instead of applying to a newer one.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PageControl {
+    pub(crate) from_revision: Revision,
+    pub(crate) target: PageNumber,
+}
+
+/// Marks a custom ID as a page button rather than the gear.
+const PAGE_CONTROL_VERSION: &str = "j1p";
+
+impl PageControl {
+    /// The custom ID text. Always ASCII and far inside Discord's bound: the
+    /// worst case is 3+1+8+1+5 = 18.
+    #[requires(true)]
+    #[ensures(ret.is_ascii() && ret.len() <= MAX_CUSTOM_ID_UNITS)]
+    pub(crate) fn encode(&self) -> String {
+        format!(
+            "{PAGE_CONTROL_VERSION}{SEPARATOR}{:x}{SEPARATOR}{}",
+            self.from_revision.get(),
+            self.target.get()
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|control| control.encode() == custom_id) || ret.is_err())]
+    pub(crate) fn decode(custom_id: &str) -> Result<Self, HeaderDecodeError> {
+        let mut parts = custom_id.split(SEPARATOR);
+        let version = parts.next().unwrap_or_default();
+        if version != PAGE_CONTROL_VERSION {
+            return Err(HeaderDecodeError::UnsupportedSchema {
+                found: version.to_owned(),
+            });
+        }
+        let malformed = |what: &'static str| HeaderDecodeError::Malformed { what };
+        let from_revision = parts
+            .next()
+            .and_then(|text| u32::from_str_radix(text, 16).ok())
+            .map(Revision::new)
+            .ok_or(malformed("revision"))?;
+        let target = parts
+            .next()
+            .and_then(|text| text.parse::<u16>().ok())
+            .and_then(PageNumber::new)
+            .ok_or(malformed("page"))?;
+        if parts.next().is_some() {
+            return Err(malformed("page control"));
+        }
+        let control = PageControl {
+            from_revision,
+            target,
+        };
+        // Numbers have more than one spelling — a sign, leading zeros, hex in
+        // upper case — and this build writes exactly one of them. Anything
+        // that reads as the same numbers but is written differently was not
+        // written here, so it is refused rather than acted on.
+        if control.encode() != custom_id {
+            return Err(malformed("page control"));
+        }
+        Ok(control)
+    }
+}
+
 /// Everything the gear button's custom ID carries.
 #[invariant(options_word & !super::request::options_word_mask(*tool) == 0, "options word uses only the tool's bits")]
-#[invariant(*tool != DiscordTool::Vlacku || page.get() <= super::request::VLACKU_MAX_PAGE, "vlacku pages fit the combined selector")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RequestHeader {
     pub(crate) tool: DiscordTool,
@@ -243,7 +317,7 @@ impl RequestHeader {
             .ok_or(malformed("options"))?;
         let page = parts
             .next()
-            .and_then(|text| text.parse::<u8>().ok())
+            .and_then(|text| text.parse::<u16>().ok())
             .and_then(PageNumber::new)
             .ok_or(malformed("page"))?;
         let revision = parts
@@ -718,9 +792,8 @@ mod tests {
         CollisionScope, CuktaMode, CuktaOptions, CuktaRequest, CuktaResultKind, CuktaResultKindSet,
         GentufaOptions, GentufaRequest, GentufaTextView, GimfihiOptions, GimfihiPreset,
         GimfihiRequest, GismuShape, GismuShapeSet, JvozbaOptions, JvozbaRequest, JvozbaTarget,
-        MAX_SOURCE_UNITS, VLACKU_MAX_PAGE, VlackuMode, VlackuOptions, VlackuRequest,
-        VlackuWordType, VlackuWordTypeSet, VlaseiOptions, VlaseiRequest, VlaseiView, VlataiOptions,
-        VlataiRequest,
+        MAX_SOURCE_UNITS, VlackuMode, VlackuOptions, VlackuRequest, VlackuWordType,
+        VlackuWordTypeSet, VlaseiOptions, VlaseiRequest, VlaseiView, VlataiOptions, VlataiRequest,
     };
 
     #[requires(true)]
@@ -766,6 +839,41 @@ mod tests {
             let rebuilt = decoded.rebuild(decoded_fields).expect("request rebuilds");
             assert_eq!(&rebuilt, published, "store={store:?}\n{block}");
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_message_from_before_the_ordered_parts_syntax_reopens_as_the_same_build() {
+        // A jvozba result in the wire format of the build before this one,
+        // frozen: the gear's identifier and the input block of a message with
+        // the two fields that build had — the words, and a
+        // whitespace-separated list of fixed rafsi. The literal was produced
+        // here rather than captured from a channel, and what makes it the
+        // previous format is that the code writing it — the presence mask,
+        // the digest and the block's escaping — is unchanged from the base
+        // commit by this branch. Freezing it is what keeps a later change to
+        // that code from quietly moving the fixture with it.
+        const LEGACY_CUSTOM_ID: &str = "j1.ji3.0.1.1.123456789012345678.older.YFs5DWVZT3k";
+        const LEGACY_BLOCK: &str = "klama bajra\n-# fixed rafsi\nkla bar\n-# jvozba · test";
+
+        let header = RequestHeader::decode(LEGACY_CUSTOM_ID).expect("the old identifier decodes");
+        assert_eq!(header.tool, DiscordTool::Jvozba);
+        assert_eq!(header.build_tag.as_str(), "older");
+        let decoded_fields = decode_input_block(header.tool, header.presence, LEGACY_BLOCK)
+            .expect("the old block decodes");
+        let rebuilt = header
+            .rebuild(decoded_fields)
+            .expect("the old state rebuilds");
+        let DiscordRequest::Jvozba(request) = &rebuilt.request else {
+            panic!("a jvozba request");
+        };
+        // The old builder put every fixed rafsi after all of the words, so
+        // this is the same sequence that message would have built.
+        assert_eq!(request.parts.as_str(), "klama bajra -kla- -bar-");
+
+        // And what it rebuilds to now publishes and reopens unchanged.
+        assert_round_trip(&rebuilt);
     }
 
     /// Every awkward value the PM asked the codec to prove.
@@ -949,7 +1057,7 @@ mod tests {
                     show_details: false,
                 },
             }),
-            DiscordRequest::Vlacku(new!(VlackuRequest {
+            DiscordRequest::Vlacku(VlackuRequest {
                 query: text("/^kla/"),
                 options: VlackuOptions {
                     mode: VlackuMode::Sound,
@@ -958,9 +1066,9 @@ mod tests {
                         .with(VlackuWordType::Cmevla),
                     decompose_lujvo: false,
                     show_etymology: true,
-                    page: PageNumber::new(VLACKU_MAX_PAGE).expect("page"),
+                    page: PageNumber::new(400).expect("page"),
                 },
-            })),
+            }),
             DiscordRequest::Cukta(CuktaRequest {
                 query: Some(text("6.8")),
                 options: CuktaOptions {
@@ -973,7 +1081,6 @@ mod tests {
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: text("klama bajra"),
-                rafsi: Some(text("kla bar")),
                 options: JvozbaOptions {
                     target: JvozbaTarget::Cmevla,
                 },
@@ -1077,9 +1184,16 @@ mod tests {
                 "{mutated}: {error}"
             );
         }
-        let too_far = good.replacen(".1.1.", ".26.1.", 1);
+        // Page numbers are no longer bounded by a selector, so a deep page
+        // decodes; only a page that is not a positive number is malformed.
+        let deep = good.replacen(".1.1.", ".2600.1.", 1);
+        assert!(
+            RequestHeader::decode(&deep).is_ok_and(|header| header.page.get() == 2600),
+            "{deep}"
+        );
+        let zero = good.replacen(".1.1.", ".0.1.", 1);
         assert!(matches!(
-            RequestHeader::decode(&too_far),
+            RequestHeader::decode(&zero),
             Err(HeaderDecodeError::Malformed { what: "page" })
         ));
         assert_eq!(
@@ -1158,10 +1272,10 @@ mod tests {
         // A block for another tool's field layout fails at rebuild.
         let vlacku_header = RequestHeader::describe(
             &publish(
-                DiscordRequest::Vlacku(new!(VlackuRequest {
+                DiscordRequest::Vlacku(VlackuRequest {
                     query: text("klama"),
                     options: VlackuOptions::default(),
-                })),
+                }),
                 1,
             ),
             SourceStore::Inline,

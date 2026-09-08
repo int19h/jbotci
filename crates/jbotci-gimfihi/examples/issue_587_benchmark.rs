@@ -102,6 +102,7 @@ fn issue_587_request() -> GimfihiRequest {
         check_collisions: CollisionScope::All,
         show_collisions: false,
         require_free_short_rafsi: false,
+        skip: 0,
         count: 160,
         highlight: None,
     }

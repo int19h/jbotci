@@ -66,9 +66,9 @@ use search::block_tagged_words;
 pub use search::search_chunk_kind_label;
 pub use search::{
     CllSearchChunk, CllSearchChunkKind, CllSearchMatch, CuktaRequest, CuktaSearchMode,
-    CuktaSearchOutput, CuktaTargetFilter, clamp_cukta_result_count, cll_search_all_chunks,
-    cll_search_section_chunks, collect_tagged_words, cukta_search, cukta_word_search_matches,
-    parse_word_search_terms, truncate_preview,
+    CuktaSearchOutput, CuktaSearchWindow, CuktaTargetFilter, clamp_cukta_result_count,
+    cll_search_all_chunks, cll_search_section_chunks, collect_tagged_words, cukta_search,
+    cukta_word_search_matches, parse_word_search_terms, truncate_preview,
 };
 use search::{build_search_chunks, example_plain_text};
 
@@ -354,7 +354,13 @@ pub fn render_cukta_request(
                 return Err(CllError::SemanticSearchDisabled);
             }
             Ok(render_search_output(
-                &cukta_search(site, *mode, query, *count, *targets),
+                &cukta_search(
+                    site,
+                    *mode,
+                    query,
+                    CuktaSearchWindow::first(*count),
+                    *targets,
+                ),
                 format,
                 link_mode,
             ))
@@ -3012,7 +3018,7 @@ mod tests {
         let matches = cukta_word_search_matches(
             site,
             ".lojban.",
-            5,
+            CuktaSearchWindow::first(5),
             CuktaTargetFilter {
                 sections: true,
                 paragraphs: false,
@@ -3040,9 +3046,61 @@ mod tests {
         );
         assert_eq!(normalize_valsis_query("\u{ed86}\u{eda8}"), "coi");
 
-        let non_latin_matches =
-            cukta_word_search_matches(site, "\u{ed86}\u{eda8}", 5, CuktaTargetFilter::default());
+        let non_latin_matches = cukta_word_search_matches(
+            site,
+            "\u{ed86}\u{eda8}",
+            CuktaSearchWindow::first(5),
+            CuktaTargetFilter::default(),
+        );
         assert!(!non_latin_matches.is_empty());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_window_into_a_word_search_is_that_stretch_of_the_whole_result() {
+        let site = embedded_cll_site().expect("embedded CLL should load");
+        let whole = cukta_word_search_matches(
+            site,
+            "lojban",
+            CuktaSearchWindow::first(MAX_CUKTA_RESULT_COUNT),
+            CuktaTargetFilter::default(),
+        );
+        assert!(
+            whole.len() > 20,
+            "the fixture needs several pages: {}",
+            whole.len()
+        );
+
+        // The fifth page of the same result list, asked for as itself.
+        let window = cukta_word_search_matches(
+            site,
+            "lojban",
+            CuktaSearchWindow::after(20, 6),
+            CuktaTargetFilter::default(),
+        );
+        assert_eq!(
+            window
+                .iter()
+                .map(|matched| (matched.rank, matched.chunk.anchor_id.as_str()))
+                .collect::<Vec<_>>(),
+            whole[20..26]
+                .iter()
+                .map(|matched| (matched.rank, matched.chunk.anchor_id.as_str()))
+                .collect::<Vec<_>>(),
+            "a windowed match keeps its place in the whole result list"
+        );
+
+        // A window past the end holds nothing rather than the last page over
+        // again, and the count of results is not what was fetched.
+        let past_the_end = cukta_search(
+            site,
+            CuktaSearchMode::Word,
+            "lojban",
+            CuktaSearchWindow::after(whole.len(), 6),
+            CuktaTargetFilter::default(),
+        );
+        assert!(past_the_end.matches.is_empty() && !past_the_end.has_more);
     }
 
     #[requires(true)]
@@ -3282,7 +3340,7 @@ mod tests {
             site,
             CuktaSearchMode::Meaning,
             "lojban",
-            10,
+            CuktaSearchWindow::first(10),
             CuktaTargetFilter::default(),
         );
         assert!(output.matches.is_empty());

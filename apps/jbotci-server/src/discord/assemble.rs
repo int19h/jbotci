@@ -15,17 +15,17 @@ use bityzba::{data, ensures, invariant, new, requires};
 use vec1::Vec1;
 
 use super::codec::{
-    INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, RequestHeader, encode_input_block,
+    INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, PageControl, RequestHeader, encode_input_block,
     input_block_fits_inline,
 };
 use super::components::{
-    AttachmentName, AttachmentRequest, AttachmentRequestData, BoundsError, Button, CustomId,
-    FileComponent, InvalidAttachmentName, MESSAGE_TEXT_BUDGET_UNITS, MediaGallery, MediaItem,
-    MessageComponent, MessagePayload, PayloadError, Section, TextDisplay,
+    ActionRow, AttachmentName, AttachmentRequest, BoundsError, Button, CustomId, FileComponent,
+    InvalidAttachmentName, MESSAGE_TEXT_BUDGET_UNITS, MediaGallery, MediaItem, MessageComponent,
+    MessagePayload, PayloadError, Section, TextDisplay,
 };
-use super::present::RenderedResult;
 use super::present::markdown::{escape, subtext, truncate_units};
-use super::request::{PublishedRequest, SourceField, SourceStore, utf16_len};
+use super::present::{Pagination, RenderedResult};
+use super::request::{PublishedRequest, Revision, SourceField, SourceStore, utf16_len};
 
 /// Attachment carrying the result when the message shows an excerpt.
 pub(crate) const RESULT_ATTACHMENT_FILENAME: &str = "jbotci-result.txt";
@@ -324,6 +324,15 @@ pub(crate) fn assemble(
             bytes: block.into_bytes(),
         }));
     }
+    // The pager goes last, under everything it turns.
+    if let Some(pagination) = rendered.pagination
+        && (pagination.has_previous || pagination.has_next)
+    {
+        components.push(MessageComponent::ActionRow(page_row(
+            pagination,
+            published.revision,
+        )?));
+    }
     let payload = MessagePayload::new(
         Vec1::try_from_vec(components).expect("the section is always present"),
         attachments,
@@ -488,19 +497,43 @@ fn cut_markdown(markdown: &str, max_units: usize) -> String {
     }
 }
 
+/// The two page buttons for one published page. A direction that does not
+/// exist is shown disabled rather than removed, so the row keeps its shape as
+/// the reader moves; a page with neither direction gets no row at all.
+#[requires(true)]
+#[ensures(ret.as_ref().is_ok_and(|row| row.buttons.len() == 2) || ret.is_err())]
+fn page_row(pagination: Pagination, revision: Revision) -> Result<ActionRow, AssembleError> {
+    let previous = PageControl {
+        from_revision: revision,
+        target: pagination.page.previous().unwrap_or(pagination.page),
+    };
+    let next = PageControl {
+        from_revision: revision,
+        target: pagination.page.next().unwrap_or(pagination.page),
+    };
+    let previous_id = CustomId::new(&previous.encode())?;
+    let next_id = CustomId::new(&next.encode())?;
+    Ok(new!(ActionRow {
+        buttons: vec![
+            Button::page(previous_id, "Previous", !pagination.has_previous),
+            Button::page(next_id, "Next", !pagination.has_next),
+        ],
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::discord::codec::INLINE_INPUT_BUDGET_UNITS;
-    use crate::discord::components::FLAG_IS_COMPONENTS_V2;
+    use crate::discord::components::{AttachmentRequestData, FLAG_IS_COMPONENTS_V2};
     use crate::discord::diagram::DiagramImage;
     use crate::discord::operations::{PagedResults, VlackuOutcome};
     use crate::discord::present::diagnostics::{RenderedDiagnostics, render_diagnostics};
     use crate::discord::present::{vlacku, vlasei};
     use crate::discord::request::{
         BuildTag, DiscordRequest, DiscordTool, GentufaOptions, GentufaRequest, PageNumber,
-        Revision, Snowflake, SourceText, VLACKU_MAX_PAGE, VlackuOptions, VlackuRequest,
-        VlaseiOptions, VlaseiRequest,
+        Revision, Snowflake, SourceText, VlackuOptions, VlackuRequest, VlaseiOptions,
+        VlaseiRequest,
     };
 
     #[requires(true)]
@@ -955,12 +988,11 @@ mod tests {
             etymology: None,
             decomposition: Vec::new(),
         });
-        let request = new!(VlackuRequest {
+        let request = VlackuRequest {
             query: SourceText::new("brodavla").expect("text"),
             options: VlackuOptions::default(),
-        });
-        let results =
-            PagedResults::paginate(vec![card], PageNumber::first(), VLACKU_MAX_PAGE).expect("page");
+        };
+        let results = PagedResults::from_all(vec![card], PageNumber::first()).expect("page");
         let result = vlacku::render(
             &VlackuOutcome::Results {
                 results,
@@ -968,7 +1000,6 @@ mod tests {
                 valid_missing: false,
             },
             &request,
-            None,
         );
         assert!(result.shows_excerpt, "the definition was cut to fit a card");
         let published = PublishedRequest {

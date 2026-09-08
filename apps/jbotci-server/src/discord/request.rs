@@ -26,15 +26,6 @@ pub(crate) const MAX_SOURCE_UNITS: usize = 4000;
 /// Result cards per page for dictionary and ranked searches (PM decision).
 pub(crate) const PAGE_SIZE: usize = 5;
 
-/// Highest page number any Discord result can address.
-///
-/// A String Select holds at most 25 options, so a dedicated page selector can
-/// name pages 1..=25. The Vlacku selector shares its options with two detail
-/// choices and therefore stops at [`VLACKU_MAX_PAGE`]; both bounds are enforced
-/// when the page is chosen, not silently clamped afterwards.
-pub(crate) const MAX_PAGE: u8 = 25;
-pub(crate) const VLACKU_MAX_PAGE: u8 = 23;
-
 /// UTF-16 code-unit length of `text`, the measure Discord applies to its
 /// character limits.
 #[requires(true)]
@@ -257,10 +248,10 @@ impl fmt::Display for OversizeSource {
 }
 
 /// A one-based result page.
-#[invariant(*value >= 1 && *value <= MAX_PAGE)]
+#[invariant(*value >= 1)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct PageNumber {
-    value: u8,
+    value: u16,
 }
 
 impl PageNumber {
@@ -272,15 +263,35 @@ impl PageNumber {
     }
 
     #[requires(true)]
-    #[ensures(ret.is_some() == (value >= 1 && value <= MAX_PAGE))]
-    pub(crate) fn new(value: u8) -> Option<Self> {
+    #[ensures(ret.is_some() == (value >= 1))]
+    pub(crate) fn new(value: u16) -> Option<Self> {
         try_new!(PageNumber { value }).ok()
     }
 
     #[requires(true)]
-    #[ensures(ret >= 1 && ret <= MAX_PAGE)]
-    pub(crate) fn get(self) -> u8 {
+    #[ensures(ret >= 1)]
+    pub(crate) fn get(self) -> u16 {
         self.value
+    }
+
+    /// The page before this one, if this is not the first.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self.get() == 1))]
+    pub(crate) fn previous(self) -> Option<Self> {
+        (self.value > 1).then(|| {
+            new!(PageNumber {
+                value: self.value - 1
+            })
+        })
+    }
+
+    /// The page after this one, unless the number itself has run out.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|next| next.get() == self.get() + 1))]
+    pub(crate) fn next(self) -> Option<Self> {
+        self.value
+            .checked_add(1)
+            .map(|value| new!(PageNumber { value }))
     }
 
     /// Zero-based index of the first result on this page.
@@ -665,7 +676,7 @@ impl Default for VlackuOptions {
     }
 }
 
-#[invariant(options.page.get() <= VLACKU_MAX_PAGE)]
+#[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct VlackuRequest {
     pub(crate) query: SourceText,
@@ -886,12 +897,45 @@ pub(crate) struct JvozbaOptions {
     pub(crate) target: JvozbaTarget,
 }
 
+/// Rewrite a message published before the ordered parts syntax. The old
+/// builder appended every fixed rafsi after all of the words, so writing them
+/// as trailing `-rafsi-` spans reproduces exactly the sequence that message
+/// would have built. A message with no such field is already ordered and is
+/// returned unchanged.
+#[requires(true)]
+#[ensures(ret.is_err() || old(legacy.is_none()) -> ret.as_ref().is_ok_and(|text| *text == old(parts.clone())))]
+fn jvozba_parts_with_legacy_rafsi(
+    parts: SourceText,
+    legacy: Option<SourceText>,
+) -> Result<SourceText, RequestStateError> {
+    let Some(legacy) = legacy else {
+        return Ok(parts);
+    };
+    let mut combined = parts.as_str().to_owned();
+    for piece in legacy
+        .as_str()
+        .split(|character: char| character.is_whitespace() || character == ',')
+        .filter(|piece| !piece.is_empty())
+    {
+        if !combined.is_empty() {
+            combined.push(' ');
+        }
+        combined.push('-');
+        combined.push_str(piece);
+        combined.push('-');
+    }
+    SourceText::new(&combined).map_err(|_| RequestStateError::LegacyPartsTooLong {
+        tool: DiscordTool::Jvozba,
+        units: utf16_len(&combined),
+    })
+}
+
 #[invariant(true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct JvozbaRequest {
+    /// The pieces in the order the reader wrote them: words to look up, and
+    /// rafsi given literally between hyphens, as in `blanu -blo- zdani`.
     pub(crate) parts: SourceText,
-    /// Fixed rafsi appended after the words, kept as a distinct typed field.
-    pub(crate) rafsi: Option<SourceText>,
     pub(crate) options: JvozbaOptions,
 }
 
@@ -1062,6 +1106,38 @@ impl DiscordRequest {
         }
     }
 
+    /// The same request showing another page. `None` for a tool whose result
+    /// is one thing rather than a list, which is how a page button that does
+    /// not belong to this result is refused rather than applied.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|request| request.page() == page))]
+    pub(crate) fn with_page(self, page: PageNumber) -> Option<Self> {
+        match self {
+            Self::Vlacku(request) => Some(Self::Vlacku(VlackuRequest {
+                options: VlackuOptions {
+                    page,
+                    ..request.options
+                },
+                ..request
+            })),
+            Self::Cukta(request) => Some(Self::Cukta(CuktaRequest {
+                options: CuktaOptions {
+                    page,
+                    ..request.options
+                },
+                ..request
+            })),
+            Self::Gimfihi(request) => Some(Self::Gimfihi(GimfihiRequest {
+                options: GimfihiOptions {
+                    page,
+                    ..request.options
+                },
+                ..request
+            })),
+            Self::Gentufa(_) | Self::Vlasei(_) | Self::Vlatai(_) | Self::Jvozba(_) => None,
+        }
+    }
+
     /// Every source field of the tool, present or not, in canonical order.
     #[requires(true)]
     #[ensures(ret.len() == self.tool().fields().len())]
@@ -1084,7 +1160,10 @@ impl DiscordRequest {
             Self::Cukta(request) => vec![(SourceField::Query, request.query.as_ref())],
             Self::Jvozba(request) => vec![
                 (SourceField::Parts, Some(&request.parts)),
-                (SourceField::FixedRafsi, request.rafsi.as_ref()),
+                // Nothing is published in this field any more; it is kept in
+                // the layout so a message from before the ordered syntax
+                // still decodes, and its value is folded into the parts.
+                (SourceField::FixedRafsi, None),
             ],
             Self::Gimfihi(request) => vec![(SourceField::Sources, request.sources.as_ref())],
         }
@@ -1252,15 +1331,8 @@ impl DiscordRequest {
                 let word_types =
                     VlackuWordTypeSet::from_bits(((options_word >> 3) & 0b11_1111) as u8)
                         .expect("six masked bits form a word-type set");
-                if page.get() > VLACKU_MAX_PAGE {
-                    return Err(RequestStateError::PageOutOfRange {
-                        tool,
-                        page: page.get(),
-                        max: VLACKU_MAX_PAGE,
-                    });
-                }
                 let query = required(take(SourceField::Query), SourceField::Query)?;
-                Self::Vlacku(new!(VlackuRequest {
+                Self::Vlacku(VlackuRequest {
                     query,
                     options: VlackuOptions {
                         mode,
@@ -1269,7 +1341,7 @@ impl DiscordRequest {
                         show_etymology: flag(10),
                         page,
                     },
-                }))
+                })
             }
             DiscordTool::Cukta => {
                 let mode = match options_word & 0b111 {
@@ -1297,8 +1369,10 @@ impl DiscordRequest {
                 })
             }
             DiscordTool::Jvozba => Self::Jvozba(JvozbaRequest {
-                parts: required(take(SourceField::Parts), SourceField::Parts)?,
-                rafsi: take(SourceField::FixedRafsi),
+                parts: jvozba_parts_with_legacy_rafsi(
+                    required(take(SourceField::Parts), SourceField::Parts)?,
+                    take(SourceField::FixedRafsi),
+                )?,
                 options: JvozbaOptions {
                     target: if flag(0) {
                         JvozbaTarget::Cmevla
@@ -1405,7 +1479,7 @@ fn preset_from_code(code: u32) -> Option<GimfihiPreset> {
 #[invariant(::UnknownEnumValue { .. } => true)]
 #[invariant(::FieldLayout { .. } => true)]
 #[invariant(::MissingField { .. } => true)]
-#[invariant(::PageOutOfRange { .. } => true)]
+#[invariant(::LegacyPartsTooLong { .. } => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RequestStateError {
     UnknownOptionBits {
@@ -1423,10 +1497,12 @@ pub(crate) enum RequestStateError {
         tool: DiscordTool,
         field: SourceField,
     },
-    PageOutOfRange {
+    /// A message published before the ordered parts syntax cannot be
+    /// rewritten into it, because the two old fields together are longer than
+    /// one field may be.
+    LegacyPartsTooLong {
         tool: DiscordTool,
-        page: u8,
-        max: u8,
+        units: usize,
     },
 }
 
@@ -1442,17 +1518,17 @@ impl fmt::Display for RequestStateError {
             Self::UnknownEnumValue { tool, what } => {
                 write!(formatter, "{tool}: unknown {what} value")
             }
+            Self::LegacyPartsTooLong { tool, units } => write!(
+                formatter,
+                "{tool}: this result was published before the ordered parts syntax, and its \
+                 words and fixed rafsi together need {units} characters, more than one field \
+                 holds. Run the command again with the parts in one field."
+            ),
             Self::FieldLayout { tool } => {
                 write!(formatter, "{tool}: source fields do not match the tool")
             }
             Self::MissingField { tool, field } => {
                 write!(formatter, "{tool}: the {} field is missing", field.label())
-            }
-            Self::PageOutOfRange { tool, page, max } => {
-                write!(
-                    formatter,
-                    "{tool}: page {page} exceeds the maximum of {max}"
-                )
             }
         }
     }
@@ -1598,7 +1674,7 @@ mod tests {
                     show_details: false,
                 },
             }),
-            DiscordRequest::Vlacku(new!(VlackuRequest {
+            DiscordRequest::Vlacku(VlackuRequest {
                 query: text("kla*"),
                 options: VlackuOptions {
                     mode: VlackuMode::Meaning,
@@ -1607,9 +1683,9 @@ mod tests {
                         .with(VlackuWordType::Brivla),
                     decompose_lujvo: false,
                     show_etymology: true,
-                    page: PageNumber::new(VLACKU_MAX_PAGE).expect("page"),
+                    page: PageNumber::new(400).expect("page"),
                 },
-            })),
+            }),
             DiscordRequest::Cukta(CuktaRequest {
                 query: None,
                 options: CuktaOptions {
@@ -1623,12 +1699,12 @@ mod tests {
                 options: CuktaOptions {
                     mode: CuktaMode::Word,
                     kinds: CuktaResultKindSet::empty().with(CuktaResultKind::Example),
-                    page: PageNumber::new(MAX_PAGE).expect("page"),
+                    // The largest page a message can carry at all.
+                    page: PageNumber::new(u16::MAX).expect("page"),
                 },
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: text("klama bajra"),
-                rafsi: Some(text("kla")),
                 options: JvozbaOptions {
                     target: JvozbaTarget::Cmevla,
                 },
@@ -1774,18 +1850,17 @@ mod tests {
         };
         assert_eq!(incomplete.options.mode, CuktaMode::Meaning);
         assert_eq!(incomplete.query, None);
-        let too_far = PageNumber::new(VLACKU_MAX_PAGE + 1).expect("page 24 exists");
+        // Deep pages are ordinary now: a page is refused by the result set
+        // that does not reach it, not by the state layout.
+        let deep = PageNumber::new(400).expect("page 400 exists");
         assert!(matches!(
             DiscordRequest::from_parts(
                 DiscordTool::Vlacku,
                 0,
-                too_far,
+                deep,
                 vec![(SourceField::Query, Some(text("x")))]
             ),
-            Err(RequestStateError::PageOutOfRange {
-                max: VLACKU_MAX_PAGE,
-                ..
-            })
+            Ok(DiscordRequest::Vlacku(_))
         ));
         assert!(matches!(
             DiscordRequest::from_parts(

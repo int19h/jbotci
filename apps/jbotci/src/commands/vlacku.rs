@@ -221,6 +221,7 @@ fn validate_vlacku_request_value(request: &VlackuRequest) -> Result<()> {
 fn vlacku_search_options(input: &VlackuInput) -> Result<VlackuSearchOptions> {
     let word_types = parse_vlacku_word_types(&input.word_types)?;
     Ok(new!(VlackuSearchOptions {
+        skip: 0,
         count: input.count.unwrap_or(DEFAULT_VLACKU_RESULT_COUNT),
         word_types,
         min_votes: input.min_votes,

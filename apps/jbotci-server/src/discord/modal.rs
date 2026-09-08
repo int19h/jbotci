@@ -18,7 +18,7 @@ use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires, try_new};
-use jbotci_gimfihi::{CollisionScope, GimfihiPreset, GismuShape, all_presets};
+use jbotci_gimfihi::{CollisionScope, GismuShape, all_presets};
 use serde_json::Value;
 use vec1::Vec1;
 
@@ -28,14 +28,12 @@ use super::components::{
     ModalComponent, ModalControl, RadioGroup, SelectOption, StringSelect, TextDisplay, TextInput,
     TextInputStyle,
 };
-use super::links::APP_LINK_LABEL;
 use super::request::{
     CuktaMode, CuktaOptions, CuktaRequest, CuktaResultKind, CuktaResultKindSet, DiscordRequest,
-    DiscordTool, GentufaOptions, GentufaRequest, GentufaTextView, GimfihiOptions, GimfihiRequest,
-    GismuShapeSet, JvozbaOptions, JvozbaRequest, JvozbaTarget, MAX_PAGE, MAX_SOURCE_UNITS,
-    PageNumber, PublishedRequest, SourceText, VLACKU_MAX_PAGE, VlackuMode, VlackuOptions,
-    VlackuRequest, VlackuWordType, VlackuWordTypeSet, VlaseiOptions, VlaseiRequest, VlaseiView,
-    VlataiOptions, VlataiRequest,
+    GentufaOptions, GentufaRequest, GentufaTextView, GimfihiOptions, GimfihiRequest, GismuShapeSet,
+    JvozbaOptions, JvozbaRequest, JvozbaTarget, MAX_SOURCE_UNITS, PageNumber, PublishedRequest,
+    SourceText, VlackuMode, VlackuOptions, VlackuRequest, VlackuWordType, VlackuWordTypeSet,
+    VlaseiOptions, VlaseiRequest, VlaseiView, VlataiOptions, VlataiRequest,
 };
 
 /// Control identifiers. They are stable across builds because a modal opened
@@ -47,17 +45,14 @@ const ID_FLAGS: &str = "flags";
 const ID_QUERY: &str = "query";
 const ID_MODE: &str = "mode";
 const ID_WORD_TYPES: &str = "wordtypes";
-const ID_PAGE_DETAILS: &str = "pagedetails";
+const ID_DETAILS: &str = "details";
 const ID_KINDS: &str = "kinds";
-const ID_PAGE: &str = "page";
 const ID_PARTS: &str = "parts";
-const ID_RAFSI: &str = "rafsi";
 const ID_SOURCES: &str = "sources";
 const ID_PRESET: &str = "preset";
 const ID_OPTIONS: &str = "options";
 
 /// Value prefixes inside the grouped selectors.
-const PAGE_PREFIX: &str = "p";
 const DETAIL_DECOMPOSE: &str = "d-decompose";
 const DETAIL_ETYMOLOGY: &str = "d-etymology";
 const SHAPE_PREFIX: &str = "shape-";
@@ -81,7 +76,6 @@ const FLAG_DECOMPOSE: &str = "decompose";
 #[invariant(::DuplicateControl { .. } => true)]
 #[invariant(::NonTextValue { .. } => true)]
 #[invariant(::TooManyValues { .. } => true)]
-#[invariant(::PageCount { .. } => true)]
 #[invariant(::ShapeCount => true)]
 #[invariant(::CollisionCount { .. } => true)]
 #[invariant(::EmptyField { .. } => true)]
@@ -111,10 +105,6 @@ pub(crate) enum SubmissionError {
     /// A control that holds one value answered with several.
     TooManyValues {
         control: &'static str,
-        selected: usize,
-    },
-    /// The combined selector must name exactly one page.
-    PageCount {
         selected: usize,
     },
     /// At least one candidate shape must stay selected.
@@ -158,10 +148,6 @@ impl fmt::Display for SubmissionError {
             Self::TooManyValues { control, selected } => {
                 write!(formatter, "choose one {control}; {selected} were selected")
             }
-            Self::PageCount { selected } => write!(
-                formatter,
-                "choose exactly one page; {selected} were selected"
-            ),
             Self::ShapeCount => write!(formatter, "choose at least one candidate shape"),
             Self::CollisionCount { selected } => write!(
                 formatter,
@@ -460,22 +446,6 @@ fn select(
     .map_err(|_| BoundsError::new("select", count, 25))
 }
 
-/// Page options `1..=max`, with `current` preselected.
-#[requires(max >= 2)]
-#[ensures(ret.len() == max as usize)]
-fn page_options(max: u8, current: PageNumber, prefix: &str) -> Vec<SelectOption> {
-    (1..=max)
-        .map(|page| {
-            option(
-                &format!("{prefix}{page}"),
-                &format!("Page {page}"),
-                None,
-                page == current.get(),
-            )
-        })
-        .collect()
-}
-
 #[requires(true)]
 #[ensures(true)]
 fn dialect_control(dialect: Option<&SourceText>) -> Result<ModalComponent, BoundsError> {
@@ -641,19 +611,20 @@ fn vlatai_controls(request: &VlataiRequest) -> Result<Vec<ModalComponent>, Bound
 #[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 4) || ret.is_err())]
 fn vlacku_controls(request: &VlackuRequest) -> Result<Vec<ModalComponent>, BoundsError> {
     let options = request.options;
-    let mut page_and_details = page_options(VLACKU_MAX_PAGE, options.page, PAGE_PREFIX);
-    page_and_details.push(option(
-        DETAIL_DECOMPOSE,
-        "Show lujvo decomposition",
-        None,
-        options.decompose_lujvo,
-    ));
-    page_and_details.push(option(
-        DETAIL_ETYMOLOGY,
-        "Show etymology",
-        None,
-        options.show_etymology,
-    ));
+    let details = vec![
+        option(
+            DETAIL_DECOMPOSE,
+            "Show lujvo decomposition",
+            None,
+            options.decompose_lujvo,
+        ),
+        option(
+            DETAIL_ETYMOLOGY,
+            "Show etymology",
+            None,
+            options.show_etymology,
+        ),
+    ];
     Ok(vec![
         labeled(
             "Query",
@@ -698,15 +669,15 @@ fn vlacku_controls(request: &VlackuRequest) -> Result<Vec<ModalComponent>, Bound
             )?,
         )?,
         labeled(
-            "Page and details",
-            Some("Choose one page; the other choices are independent."),
-            select(ID_PAGE_DETAILS, page_and_details, 1, 3, Some("Page 1"))?,
+            "Details",
+            None,
+            select(ID_DETAILS, details, 0, 2, Some("None"))?,
         )?,
     ])
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 4) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 3) || ret.is_err())]
 fn cukta_controls(request: &CuktaRequest) -> Result<Vec<ModalComponent>, BoundsError> {
     let options = request.options;
     Ok(vec![
@@ -764,45 +735,17 @@ fn cukta_controls(request: &CuktaRequest) -> Result<Vec<ModalComponent>, BoundsE
                 0,
             )?,
         )?,
-        labeled(
-            "Page",
-            None,
-            select(
-                ID_PAGE,
-                page_options(MAX_PAGE, options.page, ""),
-                1,
-                1,
-                Some("Page 1"),
-            )?,
-        )?,
     ])
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 3) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 2) || ret.is_err())]
 fn jvozba_controls(request: &JvozbaRequest) -> Result<Vec<ModalComponent>, BoundsError> {
     Ok(vec![
         labeled(
-            "Words",
-            Some("The words to combine, separated by spaces."),
+            "Parts",
+            Some("Words in order; a rafsi given as it is goes between hyphens: blanu -blo- zdani"),
             source_input(ID_PARTS, Some(request.parts.as_str()), true, None, false)?,
-        )?,
-        labeled(
-            "Fixed rafsi",
-            Some("Rafsi to use as given, separated by spaces or commas."),
-            source_input(
-                ID_RAFSI,
-                Some(
-                    request
-                        .rafsi
-                        .as_ref()
-                        .map(SourceText::as_str)
-                        .unwrap_or_default(),
-                ),
-                false,
-                None,
-                false,
-            )?,
         )?,
         labeled(
             "Build",
@@ -829,7 +772,7 @@ fn jvozba_controls(request: &JvozbaRequest) -> Result<Vec<ModalComponent>, Bound
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 4) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 3) || ret.is_err())]
 fn gimfihi_controls(request: &GimfihiRequest) -> Result<Vec<ModalComponent>, BoundsError> {
     let options = request.options;
     let mut candidate_options = vec![
@@ -923,17 +866,6 @@ fn gimfihi_controls(request: &GimfihiRequest) -> Result<Vec<ModalComponent>, Bou
             "Candidates",
             Some("At least one shape, and exactly one collision setting."),
             checkboxes(ID_OPTIONS, candidate_options, 0)?,
-        )?,
-        labeled(
-            "Page",
-            None,
-            select(
-                ID_PAGE,
-                page_options(MAX_PAGE, options.page, ""),
-                1,
-                1,
-                Some("Page 1"),
-            )?,
         )?,
     ])
 }
@@ -1041,51 +973,37 @@ pub(crate) fn parse_submission(
                     .ok_or_else(|| unknown("word types", value))?;
                 word_types = word_types.with(*word_type);
             }
-            let selected = submission.selected(ID_PAGE_DETAILS)?;
-            let mut pages = Vec::new();
+            let selected = submission.selected(ID_DETAILS)?;
             let mut seen = Vec::new();
             for value in selected {
                 if seen.contains(&value.as_str()) {
-                    return Err(unknown("page and details", value));
+                    return Err(unknown("details", value));
                 }
                 seen.push(value.as_str());
-                if let Some(page) = value.strip_prefix(PAGE_PREFIX)
-                    && !page.is_empty()
-                    && page.chars().all(|character| character.is_ascii_digit())
-                {
-                    pages.push(page);
-                } else if value != DETAIL_DECOMPOSE && value != DETAIL_ETYMOLOGY {
-                    return Err(unknown("page and details", value));
+                if value != DETAIL_DECOMPOSE && value != DETAIL_ETYMOLOGY {
+                    return Err(unknown("details", value));
                 }
             }
-            let [page] = pages.as_slice() else {
-                return Err(SubmissionError::PageCount {
-                    selected: pages.len(),
-                });
-            };
-            let page = page
-                .parse::<u8>()
-                .ok()
-                .and_then(PageNumber::new)
-                .filter(|page| page.get() <= VLACKU_MAX_PAGE)
-                .ok_or_else(|| unknown("page", page))?;
             let filters_changed = query != previous.query
                 || mode != previous.options.mode
                 || word_types != previous.options.word_types;
-            Ok(DiscordRequest::Vlacku(new!(VlackuRequest {
+            Ok(DiscordRequest::Vlacku(VlackuRequest {
                 query,
                 options: VlackuOptions {
                     mode,
                     word_types,
                     decompose_lujvo: selected.iter().any(|value| value == DETAIL_DECOMPOSE),
                     show_etymology: selected.iter().any(|value| value == DETAIL_ETYMOLOGY),
+                    // Pages are turned with the buttons on the message, so the
+                    // form keeps the page it was opened on unless the search
+                    // itself changed, when the old page means nothing.
                     page: if filters_changed {
                         PageNumber::first()
                     } else {
-                        page
+                        previous.options.page
                     },
                 },
-            })))
+            }))
         }
         DiscordRequest::Cukta(previous) => {
             let query = optional_source(submission, ID_QUERY, "query", previous.query.as_ref())?;
@@ -1113,7 +1031,6 @@ pub(crate) fn parse_submission(
                     .ok_or_else(|| unknown("result kinds", value))?;
                 kinds = kinds.with(*kind);
             }
-            let page = single_page(submission, ID_PAGE, MAX_PAGE)?;
             let filters_changed = query.as_ref().map(SourceText::as_str)
                 != previous.query.as_ref().map(SourceText::as_str)
                 || mode != previous.options.mode
@@ -1123,17 +1040,17 @@ pub(crate) fn parse_submission(
                 options: CuktaOptions {
                     mode,
                     kinds,
+                    // Pages are turned with the buttons on the message.
                     page: if filters_changed {
                         PageNumber::first()
                     } else {
-                        page
+                        previous.options.page
                     },
                 },
             }))
         }
-        DiscordRequest::Jvozba(previous) => Ok(DiscordRequest::Jvozba(JvozbaRequest {
-            parts: required_source(submission, ID_PARTS, "words")?,
-            rafsi: optional_source(submission, ID_RAFSI, "fixed rafsi", previous.rafsi.as_ref())?,
+        DiscordRequest::Jvozba(_) => Ok(DiscordRequest::Jvozba(JvozbaRequest {
+            parts: required_source(submission, ID_PARTS, "parts")?,
             options: JvozbaOptions {
                 target: JvozbaTarget::from_slash_value(chosen_value(submission, ID_MODE, "build")?)
                     .ok_or_else(|| {
@@ -1197,7 +1114,6 @@ pub(crate) fn parse_submission(
                 ),
                 _ => None,
             };
-            let page = single_page(submission, ID_PAGE, MAX_PAGE)?;
             let all_letters = has(&selected.to_vec(), FLAG_ALL_LETTERS);
             let require_free_short_rafsi = has(&selected.to_vec(), FLAG_FREE_RAFSI);
             // Everything that changes which candidates exist starts the list
@@ -1218,10 +1134,11 @@ pub(crate) fn parse_submission(
                     show_collisions: selected.iter().any(|value| value == FLAG_SHOW_COLLISIONS),
                     all_letters,
                     require_free_short_rafsi,
+                    // Pages are turned with the buttons on the message.
                     page: if generation_changed {
                         PageNumber::first()
                     } else {
-                        page
+                        previous.options.page
                     },
                 },
             }))
@@ -1248,26 +1165,6 @@ fn chosen_value<'a>(
     submission
         .chosen(control)?
         .ok_or(SubmissionError::MissingControl { control: name })
-}
-
-#[requires(true)]
-#[ensures(true)]
-fn single_page(
-    submission: &Submission,
-    control: &'static str,
-    max: u8,
-) -> Result<PageNumber, SubmissionError> {
-    let selected = submission.selected(control)?;
-    let [page] = selected else {
-        return Err(SubmissionError::PageCount {
-            selected: selected.len(),
-        });
-    };
-    page.parse::<u8>()
-        .ok()
-        .filter(|page| *page <= max)
-        .and_then(PageNumber::new)
-        .ok_or_else(|| unknown("page", page))
 }
 
 /// The selected values of a checkbox group, each of which must be one this
@@ -1348,6 +1245,7 @@ mod tests {
     use super::*;
     use crate::discord::components::{MAX_MODAL_TITLE_UNITS, MAX_SELECT_OPTIONS};
     use crate::discord::request::{BuildTag, Revision, Snowflake, utf16_len};
+    use jbotci_gimfihi::GimfihiPreset;
 
     #[requires(true)]
     #[ensures(true)]
@@ -1400,7 +1298,7 @@ mod tests {
                     show_details: false,
                 },
             }),
-            DiscordRequest::Vlacku(new!(VlackuRequest {
+            DiscordRequest::Vlacku(VlackuRequest {
                 query: source("klama"),
                 options: VlackuOptions {
                     mode: VlackuMode::Rafsi,
@@ -1409,7 +1307,7 @@ mod tests {
                     show_etymology: true,
                     page: PageNumber::new(4).expect("page"),
                 },
-            })),
+            }),
             DiscordRequest::Cukta(CuktaRequest {
                 query: Some(source("tanru")),
                 options: CuktaOptions {
@@ -1420,7 +1318,6 @@ mod tests {
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: source("klama bajra"),
-                rafsi: Some(source("kla")),
                 options: JvozbaOptions {
                     target: JvozbaTarget::Cmevla,
                 },
@@ -1460,10 +1357,10 @@ mod tests {
                 dialect: None,
                 options: VlataiOptions::default(),
             }),
-            DiscordRequest::Vlacku(new!(VlackuRequest {
+            DiscordRequest::Vlacku(VlackuRequest {
                 query: source("klama"),
                 options: VlackuOptions::default(),
-            })),
+            }),
             DiscordRequest::Cukta(CuktaRequest {
                 query: None,
                 options: CuktaOptions {
@@ -1474,7 +1371,6 @@ mod tests {
             }),
             DiscordRequest::Jvozba(JvozbaRequest {
                 parts: source("klama bajra"),
-                rafsi: None,
                 options: JvozbaOptions::default(),
             }),
             DiscordRequest::Gimfihi(GimfihiRequest {
@@ -1577,7 +1473,7 @@ mod tests {
             assert!(
                 json["custom_id"]
                     .as_str()
-                    .is_some_and(|id| id.starts_with("j1m.")),
+                    .is_some_and(|id| id.starts_with("j2m.")),
                 "{tool}"
             );
             let mut ids = Vec::new();
@@ -1653,7 +1549,6 @@ mod tests {
         // The same three states for the other optional fields.
         let jvozba = DiscordRequest::Jvozba(JvozbaRequest {
             parts: source("klama bajra"),
-            rafsi: None,
             options: JvozbaOptions::default(),
         });
         let modal = build(&published(jvozba.clone()), None).expect("a form");
@@ -1662,7 +1557,11 @@ mod tests {
         else {
             panic!("a jvozba request");
         };
-        assert_eq!(parsed.rafsi, None, "an absent rafsi field stays absent");
+        assert_eq!(
+            parsed.parts.as_str(),
+            "klama bajra",
+            "the ordered parts come back exactly as they were"
+        );
 
         let gimfihi = DiscordRequest::Gimfihi(GimfihiRequest {
             sources: None,
@@ -1847,45 +1746,38 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn the_combined_vlacku_selector_needs_exactly_one_page() {
-        let request = DiscordRequest::Vlacku(new!(VlackuRequest {
+    fn the_vlacku_details_selector_takes_details_and_nothing_else() {
+        let request = DiscordRequest::Vlacku(VlackuRequest {
             query: source("klama"),
             options: VlackuOptions::default(),
-        }));
+        });
         let modal = build(&published(request.clone()), None).expect("a form");
         let unchanged = submit_unchanged(&modal);
 
-        let two_pages = with_value(&unchanged, ID_PAGE_DETAILS, selected(&["p2", "p3"]));
+        // Pages are turned on the message now, so a page value in the form is
+        // simply not one of its choices.
+        let a_page = with_value(&unchanged, ID_DETAILS, selected(&["p2"]));
         assert_eq!(
-            parse_submission(&request, &two_pages),
-            Err(SubmissionError::PageCount { selected: 2 })
+            parse_submission(&request, &a_page),
+            Err(SubmissionError::UnknownValue {
+                control: "details",
+                value: "p2".to_owned()
+            })
         );
-        let no_page = with_value(&unchanged, ID_PAGE_DETAILS, selected(&[DETAIL_DECOMPOSE]));
-        assert_eq!(
-            parse_submission(&request, &no_page),
-            Err(SubmissionError::PageCount { selected: 0 })
-        );
-
-        // One page with details is read as both.
-        let page_and_details = with_value(
-            &unchanged,
-            ID_PAGE_DETAILS,
-            selected(&["p5", DETAIL_DECOMPOSE, DETAIL_ETYMOLOGY]),
-        );
-        let DiscordRequest::Vlacku(parsed) =
-            parse_submission(&request, &page_and_details).expect("a request")
+        // Choosing nothing is how both details are turned off.
+        let none = with_value(&unchanged, ID_DETAILS, selected(&[]));
+        let DiscordRequest::Vlacku(parsed) = parse_submission(&request, &none).expect("a request")
         else {
             panic!("a vlacku request");
         };
-        assert_eq!(parsed.options.page.get(), 5);
-        assert!(parsed.options.decompose_lujvo && parsed.options.show_etymology);
-
-        // A page beyond what the selector offers is refused, not clamped.
-        let beyond = with_value(&unchanged, ID_PAGE_DETAILS, selected(&["p99"]));
-        assert!(matches!(
-            parse_submission(&request, &beyond),
-            Err(SubmissionError::UnknownValue { .. })
-        ));
+        assert!(!parsed.options.decompose_lujvo && !parsed.options.show_etymology);
+        // And a repeated choice is still refused.
+        let twice = with_value(
+            &unchanged,
+            ID_DETAILS,
+            selected(&[DETAIL_DECOMPOSE, DETAIL_DECOMPOSE]),
+        );
+        assert!(parse_submission(&request, &twice).is_err());
     }
 
     #[test]
@@ -1938,13 +1830,13 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn changing_the_source_or_a_filter_returns_to_the_first_page() {
-        let request = DiscordRequest::Vlacku(new!(VlackuRequest {
+        let request = DiscordRequest::Vlacku(VlackuRequest {
             query: source("klama"),
             options: VlackuOptions {
                 page: PageNumber::new(6).expect("page"),
                 ..VlackuOptions::default()
             },
-        }));
+        });
         let modal = build(&published(request.clone()), None).expect("a form");
         let unchanged = submit_unchanged(&modal);
 
@@ -2051,7 +1943,7 @@ mod tests {
     fn values_are_read_out_of_a_real_submission_payload() {
         // The shape Discord sends back: labels wrapping their controls.
         let data = serde_json::json!({
-            "custom_id": "j1m.g.1.123",
+            "custom_id": "j2m.g.1.123",
             "components": [
                 { "type": 18, "component": { "type": 4, "custom_id": "text", "value": "mi klama" } },
                 { "type": 18, "component": { "type": 4, "custom_id": "dialect", "value": "" } },
