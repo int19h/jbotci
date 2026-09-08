@@ -10,7 +10,7 @@ use jbotci_output::{
 use jbotci_search::vlacku::{VlackuCard, VlackuCompositionKind, format_vote_display};
 
 use super::markdown::{escape, inline_code, join_lines, percent, subtext, truncate_units};
-use super::{RenderedResult, page_status};
+use super::{Pagination, RenderedResult, page_status};
 use crate::discord::operations::VlackuOutcome;
 use crate::discord::request::{DiscordTool, VlackuMode, VlackuRequest};
 
@@ -62,6 +62,7 @@ pub(crate) fn render(
                 status.push_str(&format!(" · {}", filters.join("/")));
             }
             let mut rendered = RenderedResult::new(DiscordTool::Vlacku, status);
+            rendered.pagination = Some(Pagination::of(results));
             let mut lines = Vec::new();
             for diagnostic in diagnostics {
                 lines.push(format!("**Search problem:** {}", escape(diagnostic)));

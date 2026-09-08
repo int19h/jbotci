@@ -8,6 +8,10 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "apps/jbotci-server/src/discord/codec.rs:PageControl",
+        "a page button carries an instruction only: any revision and any positive page are a question the message answers",
+    ),
+    (
         "apps/jbotci-server/src/discord/codec.rs:ModalHeader",
         "modal custom-id header pairs a tool, revision and initiator with no cross-field constraint",
     ),

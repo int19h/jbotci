@@ -59,6 +59,7 @@ pub(crate) const MIN_RADIO_OPTIONS: usize = 2;
 pub(crate) const MAX_GROUP_OPTIONS: usize = 10;
 
 // Discord component type numbers.
+const TYPE_ACTION_ROW: u8 = 1;
 const TYPE_BUTTON: u8 = 2;
 const TYPE_STRING_SELECT: u8 = 3;
 const TYPE_TEXT_INPUT: u8 = 4;
@@ -265,7 +266,20 @@ pub(crate) struct Button {
     /// A standard Unicode emoji.
     pub(crate) emoji: Option<String>,
     pub(crate) label: Option<String>,
+    /// Shown, but not usable: a direction that does not exist.
+    pub(crate) disabled: bool,
 }
+
+/// A row of buttons on the message. Discord allows five to a row; the pager
+/// uses two.
+#[invariant(!buttons.is_empty() && buttons.len() <= MAX_ROW_BUTTONS)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ActionRow {
+    pub(crate) buttons: Vec<Button>,
+}
+
+/// Buttons one Action Row may hold.
+pub(crate) const MAX_ROW_BUTTONS: usize = 5;
 
 impl Button {
     /// The icon-only secondary gear accessory.
@@ -277,6 +291,22 @@ impl Button {
             custom_id,
             emoji: Some("⚙️".to_owned()),
             label: None,
+            disabled: false,
+        })
+    }
+
+    /// One page-turning button: a direction that exists is pressable, one
+    /// that does not is shown greyed rather than hidden, so the pager keeps
+    /// its shape from page to page.
+    #[requires(!label.is_empty())]
+    #[ensures(ret.disabled == disabled && ret.style == ButtonStyle::Secondary)]
+    pub(crate) fn page(custom_id: CustomId, label: &str, disabled: bool) -> Self {
+        new!(Button {
+            style: ButtonStyle::Secondary,
+            custom_id,
+            emoji: None,
+            label: Some(label.to_owned()),
+            disabled,
         })
     }
 
@@ -293,6 +323,9 @@ impl Button {
         }
         if let Some(label) = &self.label {
             value["label"] = json!(label);
+        }
+        if self.disabled {
+            value["disabled"] = json!(true);
         }
         value
     }
@@ -330,12 +363,16 @@ pub(crate) struct FileComponent {
 #[invariant(::TextDisplay(_) => true)]
 #[invariant(::MediaGallery(_) => true)]
 #[invariant(::File(_) => true)]
+#[invariant(::ActionRow(_) => true)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum MessageComponent {
     Section(Section),
     TextDisplay(TextDisplay),
     MediaGallery(MediaGallery),
     File(FileComponent),
+    /// A row of buttons on the message itself, which is how a reader turns
+    /// pages without opening anything.
+    ActionRow(ActionRow),
 }
 
 impl MessageComponent {
@@ -348,6 +385,7 @@ impl MessageComponent {
             Self::Section(section) => 1 + section.texts.len() + 1,
             Self::TextDisplay(_) | Self::File(_) => 1,
             Self::MediaGallery(_) => 1,
+            Self::ActionRow(row) => 1 + row.buttons.len(),
         }
     }
 
@@ -359,6 +397,8 @@ impl MessageComponent {
             Self::Section(section) => section.texts.iter().map(TextDisplay::units).sum(),
             Self::TextDisplay(text) => text.units(),
             Self::MediaGallery(_) | Self::File(_) => 0,
+            // A button label is not part of the message's text budget.
+            Self::ActionRow(_) => 0,
         }
     }
 
@@ -371,7 +411,7 @@ impl MessageComponent {
                 gallery.items.iter().map(|item| &item.attachment).collect()
             }
             Self::File(file) => vec![&file.attachment],
-            Self::Section(_) | Self::TextDisplay(_) => Vec::new(),
+            Self::Section(_) | Self::TextDisplay(_) | Self::ActionRow(_) => Vec::new(),
         }
     }
 
@@ -380,6 +420,7 @@ impl MessageComponent {
     fn custom_ids(&self) -> Vec<&CustomId> {
         match self {
             Self::Section(section) => vec![&section.accessory.custom_id],
+            Self::ActionRow(row) => row.buttons.iter().map(|button| &button.custom_id).collect(),
             Self::TextDisplay(_) | Self::MediaGallery(_) | Self::File(_) => Vec::new(),
         }
     }
@@ -394,6 +435,10 @@ impl MessageComponent {
                 "accessory": section.accessory.to_json(),
             }),
             Self::TextDisplay(text) => text.to_json(),
+            Self::ActionRow(row) => json!({
+                "type": TYPE_ACTION_ROW,
+                "components": row.buttons.iter().map(Button::to_json).collect::<Vec<_>>(),
+            }),
             Self::MediaGallery(gallery) => json!({
                 "type": TYPE_MEDIA_GALLERY,
                 "items": gallery.items.iter().map(|item| {

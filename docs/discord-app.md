@@ -15,6 +15,16 @@ has a web page (gentufa, vlacku, cukta, gimfihi), the form's first line is an
 **Open in app** link carrying the exact state; the other three tools have no
 page, so their forms have no link and no substitute.
 
+A result that is a list carries **Previous** and **Next** beside it. They turn
+the page on the same message, and each page says which results it shows, with a
+total where the search knows one. A direction that does not exist is greyed
+rather than hidden, and a result with a single page carries no buttons at all.
+Paging goes as far as the results do: there is no page ceiling, and each page
+is fetched on its own rather than cut out of a fixed window. The dictionary
+search, the reference-grammar search and the gismu candidate list page this
+way; a parse, a word report and a compound are one result each and have no
+pages.
+
 Only the reader who ran the command can change what the message shows. Anyone
 can open the form to read the settings and use its link; submitting it as
 someone else explains that privately and changes nothing.
@@ -120,7 +130,6 @@ Discord share it rather than each being given it whole.
 | Source field | 4000 UTF-16 units | Discord's own text-input maximum, enforced at the command and at the form alike. |
 | Message text | 4000 units across all text components | The application's budget for one message; longer results become an excerpt plus a complete attachment. |
 | Result page | 5 results | What reads well on a phone. |
-| Pages | 25 (23 for vlacku) | The page selector holds 25 choices; vlacku's shares its selector with two detail choices. |
 | App link | 4000 units for the whole link component | The application's own budget for one form text component, not a documented Discord limit. |
 | Compound construction | 8192 part placements, 24 pieces, 256 letters | Measured: 4096 placements take about 1.2s and 9216 about 3.1s in release on the development machine. |
 | Diagram | 600 blocks, 160 columns, 8 megapixels, 8 MiB | A diagram larger than this is refused with its reason, and the submission that asked for it changes nothing. Eight megapixels is what one image may spend of the instance's memory, measured below. |

@@ -8,7 +8,7 @@ use jbotci_gimfihi::{
 };
 
 use super::markdown::{escape, inline_code, join_lines, subtext};
-use super::{RenderedResult, page_status};
+use super::{Pagination, RenderedResult, page_status};
 use crate::discord::operations::GimfihiOutcome;
 use crate::discord::request::{DiscordTool, GimfihiRequest, GismuShape};
 
@@ -55,6 +55,7 @@ pub(crate) fn render(
                 status.push_str(&format!(" · {}", preset.as_str()));
             }
             let mut rendered = RenderedResult::new(DiscordTool::Gimfihi, status);
+            rendered.pagination = Some(Pagination::of(results));
             let mut lines = Vec::new();
             let source_text = sources
                 .iter()

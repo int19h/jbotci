@@ -22,7 +22,7 @@ use bityzba::{ensures, invariant, new, requires};
 use self::diagnostics::RenderedDiagnostics;
 use super::diagram::DiagramImage;
 use super::operations::{PagedResults, RequestValidationError, ToolOutcome};
-use super::request::{DiscordRequest, DiscordTool, utf16_len};
+use super::request::{DiscordRequest, DiscordTool, PageNumber, utf16_len};
 
 /// The status line that closes the input block: the tool name first, then
 /// the applied view/page and the diagnostics count, on one line.
@@ -59,6 +59,33 @@ pub(crate) struct RenderedResult {
     /// short the message turns out to be.
     pub(crate) shows_excerpt: bool,
     pub(crate) image: Option<DiagramImage>,
+    /// Where this result sits in a longer list, when it is one. The assembler
+    /// turns this into the buttons beside the message; a result that is not a
+    /// list leaves it empty and gets none.
+    pub(crate) pagination: Option<Pagination>,
+}
+
+/// What the message needs to offer page buttons: where the reader is, and
+/// which directions exist.
+#[invariant(*has_previous == (page.get() > 1), "the first page has nothing before it")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Pagination {
+    pub(crate) page: PageNumber,
+    pub(crate) has_previous: bool,
+    pub(crate) has_next: bool,
+}
+
+impl Pagination {
+    /// The pagination of a page of results.
+    #[requires(true)]
+    #[ensures(ret.page == results.page && ret.has_next == results.has_more)]
+    pub(crate) fn of<T>(results: &PagedResults<T>) -> Self {
+        new!(Pagination {
+            page: results.page,
+            has_previous: results.page.get() > 1,
+            has_next: results.has_more,
+        })
+    }
 }
 
 impl RenderedResult {
@@ -76,6 +103,7 @@ impl RenderedResult {
             full_text: None,
             shows_excerpt: false,
             image: None,
+            pagination: None,
         }
     }
 

@@ -281,6 +281,26 @@ impl PageNumber {
         self.value
     }
 
+    /// The page before this one, if this is not the first.
+    #[requires(true)]
+    #[ensures(ret.is_none() == (self.get() == 1))]
+    pub(crate) fn previous(self) -> Option<Self> {
+        (self.value > 1).then(|| {
+            new!(PageNumber {
+                value: self.value - 1
+            })
+        })
+    }
+
+    /// The page after this one, unless the number itself has run out.
+    #[requires(true)]
+    #[ensures(ret.is_none_or(|next| next.get() == self.get() + 1))]
+    pub(crate) fn next(self) -> Option<Self> {
+        self.value
+            .checked_add(1)
+            .map(|value| new!(PageNumber { value }))
+    }
+
     /// Zero-based index of the first result on this page.
     #[requires(true)]
     #[ensures(ret == (self.get() as usize - 1) * PAGE_SIZE)]
@@ -1090,6 +1110,38 @@ impl DiscordRequest {
             Self::Gentufa(_) | Self::Vlasei(_) | Self::Vlatai(_) | Self::Jvozba(_) => {
                 PageNumber::first()
             }
+        }
+    }
+
+    /// The same request showing another page. `None` for a tool whose result
+    /// is one thing rather than a list, which is how a page button that does
+    /// not belong to this result is refused rather than applied.
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_none_or(|request| request.page() == page))]
+    pub(crate) fn with_page(self, page: PageNumber) -> Option<Self> {
+        match self {
+            Self::Vlacku(request) => Some(Self::Vlacku(VlackuRequest {
+                options: VlackuOptions {
+                    page,
+                    ..request.options
+                },
+                ..request
+            })),
+            Self::Cukta(request) => Some(Self::Cukta(CuktaRequest {
+                options: CuktaOptions {
+                    page,
+                    ..request.options
+                },
+                ..request
+            })),
+            Self::Gimfihi(request) => Some(Self::Gimfihi(GimfihiRequest {
+                options: GimfihiOptions {
+                    page,
+                    ..request.options
+                },
+                ..request
+            })),
+            Self::Gentufa(_) | Self::Vlasei(_) | Self::Vlatai(_) | Self::Jvozba(_) => None,
         }
     }
 

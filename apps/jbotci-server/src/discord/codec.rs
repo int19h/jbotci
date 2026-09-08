@@ -152,6 +152,68 @@ impl PresenceMask {
 // Request header (gear button custom_id)
 // ---------------------------------------------------------------------------
 
+/// What a page button asks for: the page to go to, and the revision of the
+/// message it was drawn on.
+///
+/// A button carries an instruction, never the state. The settings, the source
+/// and the reader who asked all come from the message itself when the click
+/// arrives, so a control that was forged or kept from an older version of the
+/// message can ask for a page and nothing more. The revision is what makes a
+/// button from a stale message refuse instead of applying to a newer one.
+#[invariant(true)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PageControl {
+    pub(crate) from_revision: Revision,
+    pub(crate) target: PageNumber,
+}
+
+/// Marks a custom ID as a page button rather than the gear.
+const PAGE_CONTROL_VERSION: &str = "j1p";
+
+impl PageControl {
+    /// The custom ID text. Always ASCII and far inside Discord's bound: the
+    /// worst case is 3+1+8+1+5 = 18.
+    #[requires(true)]
+    #[ensures(ret.is_ascii() && ret.len() <= MAX_CUSTOM_ID_UNITS)]
+    pub(crate) fn encode(&self) -> String {
+        format!(
+            "{PAGE_CONTROL_VERSION}{SEPARATOR}{:x}{SEPARATOR}{}",
+            self.from_revision.get(),
+            self.target.get()
+        )
+    }
+
+    #[requires(true)]
+    #[ensures(ret.as_ref().is_ok_and(|control| control.encode() == custom_id) || ret.is_err())]
+    pub(crate) fn decode(custom_id: &str) -> Result<Self, HeaderDecodeError> {
+        let mut parts = custom_id.split(SEPARATOR);
+        let version = parts.next().unwrap_or_default();
+        if version != PAGE_CONTROL_VERSION {
+            return Err(HeaderDecodeError::UnsupportedSchema {
+                found: version.to_owned(),
+            });
+        }
+        let malformed = |what: &'static str| HeaderDecodeError::Malformed { what };
+        let from_revision = parts
+            .next()
+            .and_then(|text| u32::from_str_radix(text, 16).ok())
+            .map(Revision::new)
+            .ok_or(malformed("revision"))?;
+        let target = parts
+            .next()
+            .and_then(|text| text.parse::<u16>().ok())
+            .and_then(PageNumber::new)
+            .ok_or(malformed("page"))?;
+        if parts.next().is_some() {
+            return Err(malformed("page control"));
+        }
+        Ok(PageControl {
+            from_revision,
+            target,
+        })
+    }
+}
+
 /// Everything the gear button's custom ID carries.
 #[invariant(options_word & !super::request::options_word_mask(*tool) == 0, "options word uses only the tool's bits")]
 #[derive(Debug, Clone, PartialEq, Eq)]

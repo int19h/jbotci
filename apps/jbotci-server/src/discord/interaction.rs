@@ -22,7 +22,8 @@ use tokio::time::{Duration, Instant};
 
 use super::assemble::{AssembleError, AssembledMessage, assemble};
 use super::codec::{
-    INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, ModalHeader, RequestHeader, decode_input_block,
+    INPUT_ATTACHMENT_FILENAME, INPUT_COMPONENT_ID, ModalHeader, PageControl, RequestHeader,
+    decode_input_block,
 };
 use super::components::{
     InteractionResponse, MAX_CONTENT_UNITS, MessageComponent, MessagePayload, Modal,
@@ -350,6 +351,12 @@ impl DiscordService {
         self: &Arc<Self>,
         component: ComponentInteraction,
     ) -> InteractionResponse {
+        // Two controls sit on a result, and they are told apart by what they
+        // are rather than by where they were: the gear opens the form, a page
+        // button asks for a page.
+        if let Ok(control) = PageControl::decode(&component.custom_id) {
+            return self.handle_page(component, control).await;
+        }
         let ticket = match self.recent.admit(&component.id) {
             Admission::First(ticket) => ticket,
             Admission::Duplicate => {
@@ -383,6 +390,187 @@ impl DiscordService {
             Ok(modal) => InteractionResponse::Modal(modal),
             Err(error) => ephemeral_about("jbotci could not open the form.", &error.to_string()),
         }
+    }
+
+    /// A page button turns one page of the message it sits on.
+    ///
+    /// The button says only which page and which revision it was drawn for.
+    /// Everything else, the settings, the source and who published it, is read
+    /// from the message when the click arrives, so a control that was forged
+    /// or kept from an older message can ask for a page and change nothing
+    /// else. A button from a revision the message has moved past is refused.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn handle_page(
+        self: &Arc<Self>,
+        component: ComponentInteraction,
+        control: PageControl,
+    ) -> InteractionResponse {
+        let ticket = match self.recent.admit(&component.id) {
+            Admission::First(ticket) => ticket,
+            // A second click of the same button is the same turn.
+            Admission::Duplicate => return InteractionResponse::DeferredUpdateMessage,
+            Admission::AtCapacity => {
+                return InteractionResponse::ephemeral(
+                    "jbotci is handling as much as it can right now; try the page again in a moment.",
+                );
+            }
+        };
+        let deadline = Instant::now() + MODAL_BUDGET;
+        let ticket = Arc::new(ticket);
+        let keepalive: WorkKeepalive = ticket.clone();
+        let published = match self
+            .published_state(&component.message, deadline, Some(keepalive))
+            .await
+        {
+            Ok(published) => published,
+            Err(error) => return ephemeral_about("That page did not open.", &error.to_string()),
+        };
+        // Only the reader who asked may change what everyone else sees, and
+        // the message the click carries is what says who that is.
+        if component.actor != published.initiator {
+            return InteractionResponse::ephemeral(
+                "Only the person who ran this command can turn its pages. Run your own /jbotci to page through your own results.",
+            );
+        }
+        if published.revision != control.from_revision {
+            return InteractionResponse::ephemeral(
+                "This result changed after that page button was drawn. Use the buttons on the result as it stands now.",
+            );
+        }
+        if published.request.page() == control.target {
+            return InteractionResponse::ephemeral("That is the page you are on.");
+        }
+        let Some(request) = published.request.clone().with_page(control.target) else {
+            return InteractionResponse::ephemeral("This result does not have pages to turn.");
+        };
+        let Some(revision) = published.revision.next() else {
+            return InteractionResponse::ephemeral(
+                "This result has been changed as many times as jbotci records. Run the command again to start over.",
+            );
+        };
+        let next = PublishedRequest {
+            request,
+            revision,
+            initiator: published.initiator.clone(),
+            build_tag: self.build_tag.clone(),
+        };
+        let service = Arc::clone(self);
+        tokio::spawn(async move {
+            service
+                .apply_page(component, next, published.revision, ticket)
+                .await;
+        });
+        InteractionResponse::DeferredUpdateMessage
+    }
+
+    /// Compute the requested page and write it, under the message's lock and
+    /// against the revision the button was drawn for. A page that cannot be
+    /// produced changes nothing: the reader keeps the page they were on.
+    #[requires(true)]
+    #[ensures(true)]
+    async fn apply_page(
+        &self,
+        component: ComponentInteraction,
+        next: PublishedRequest,
+        opened_from: Revision,
+        ticket: Arc<DeliveryTicket>,
+    ) {
+        let deadline = Instant::now() + HANDLER_BUDGET;
+        let keepalive: WorkKeepalive = ticket.clone();
+        let target = Target {
+            application_id: component.application_id.clone(),
+            token: component.token.clone(),
+        };
+        let Ok(guard) = self.locks.acquire(&component.message_id, deadline).await else {
+            self.report_privately(
+                &target,
+                "jbotci is already changing this result; try the page again in a moment.",
+                None,
+                Some(keepalive),
+            )
+            .await;
+            return;
+        };
+        // The lock belongs to the work that writes, as it does for a form.
+        let keepalive: WorkKeepalive = Arc::new(Retained {
+            _ticket: ticket,
+            _guard: guard,
+        });
+        // The message as Discord holds it now is the authority on both the
+        // revision and who may change it.
+        match self
+            .read_original(&target, deadline, Some(keepalive.clone()))
+            .await
+        {
+            Ok(message) => match RequestHeader::of_message(&message) {
+                Some(header) if header.revision != opened_from => {
+                    self.report_privately(
+                        &target,
+                        "This result changed while that page was loading, so nothing was turned. Use the buttons as they stand now.",
+                        None,
+                        Some(keepalive.clone()),
+                    )
+                    .await;
+                    return;
+                }
+                Some(header) if header.initiator != component.actor => {
+                    self.report_privately(
+                        &target,
+                        "Only the person who ran this command can turn its pages, so nothing was changed.",
+                        None,
+                        Some(keepalive.clone()),
+                    )
+                    .await;
+                    return;
+                }
+                Some(_) => {}
+                None => {
+                    self.report_privately(
+                        &target,
+                        "jbotci could not find its own settings on that message, so no page was turned.",
+                        None,
+                        Some(keepalive.clone()),
+                    )
+                    .await;
+                    return;
+                }
+            },
+            Err(error) => {
+                self.report_privately(
+                    &target,
+                    "jbotci could not read the result before turning the page.",
+                    Some(&error.to_string()),
+                    Some(keepalive.clone()),
+                )
+                .await;
+                return;
+            }
+        }
+        let message = match self
+            .run_for_edit(
+                &next,
+                deadline,
+                Some(keepalive.clone()),
+                component.attachment_limit,
+                false,
+            )
+            .await
+        {
+            Ok(message) => message,
+            Err(error) => {
+                self.report_privately(
+                    &target,
+                    "The page was not turned.",
+                    Some(&error.to_string()),
+                    Some(keepalive.clone()),
+                )
+                .await;
+                return;
+            }
+        };
+        self.write_and_confirm(&target, &message.payload, deadline, Some(keepalive))
+            .await;
     }
 
     /// A submitted form applies to the message it was opened from.
@@ -1324,13 +1512,15 @@ struct CommandInteraction {
 #[derive(Debug, Clone)]
 struct ComponentInteraction {
     id: Snowflake,
-    #[allow(dead_code)]
     application_id: Snowflake,
-    #[allow(dead_code)]
     token: InteractionToken,
-    #[allow(dead_code)]
     actor: Snowflake,
+    /// Which control was pressed. The gear opens the form; a page button asks
+    /// for a page.
+    custom_id: String,
+    message_id: Snowflake,
     message: Value,
+    attachment_limit: Option<u64>,
 }
 
 #[invariant(true)]
@@ -1373,13 +1563,19 @@ impl Interaction {
                 data,
                 attachment_limit,
             })),
-            3 => Some(Self::Component(ComponentInteraction {
-                id,
-                application_id,
-                token,
-                actor,
-                message: value.get("message").cloned().unwrap_or(Value::Null),
-            })),
+            3 => {
+                let message = value.get("message").cloned()?;
+                Some(Self::Component(ComponentInteraction {
+                    id,
+                    application_id,
+                    token,
+                    actor,
+                    custom_id: data.get("custom_id")?.as_str()?.to_owned(),
+                    message_id: snowflake(message.get("id"))?,
+                    message,
+                    attachment_limit,
+                }))
+            }
             5 => {
                 let message = value.get("message").cloned()?;
                 Some(Self::ModalSubmit(ModalSubmitInteraction {
@@ -1817,6 +2013,74 @@ mod tests {
             "member": { "user": { "id": actor } },
             "message": message,
             "data": { "custom_id": gear_of(message), "component_type": 2 },
+        })
+    }
+
+    /// The page buttons a published message carries, as (label, custom id,
+    /// disabled).
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_buttons(message: &Value) -> Vec<(String, String, bool)> {
+        #[requires(true)]
+        #[ensures(into.len() >= old(into.len()))]
+        fn walk(value: &Value, into: &mut Vec<(String, String, bool)>) {
+            match value {
+                Value::Object(object) => {
+                    if object.get("type").and_then(Value::as_u64) == Some(1)
+                        && let Some(items) = object.get("components").and_then(Value::as_array)
+                    {
+                        for item in items {
+                            let label = item
+                                .get("label")
+                                .and_then(Value::as_str)
+                                .unwrap_or_default()
+                                .to_owned();
+                            let custom_id = item
+                                .get("custom_id")
+                                .and_then(Value::as_str)
+                                .unwrap_or_default()
+                                .to_owned();
+                            let disabled = item
+                                .get("disabled")
+                                .and_then(Value::as_bool)
+                                .unwrap_or(false);
+                            into.push((label, custom_id, disabled));
+                        }
+                    }
+                    for item in object.values() {
+                        walk(item, into);
+                    }
+                }
+                Value::Array(items) => {
+                    for item in items {
+                        walk(item, into);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut found = Vec::new();
+        walk(message, &mut found);
+        found
+    }
+
+    /// A click of the button labelled `label` on `message`.
+    #[requires(!label.is_empty())]
+    #[ensures(true)]
+    fn page_click(id: &str, message: &Value, actor: &str, label: &str) -> Value {
+        let custom_id = page_buttons(message)
+            .into_iter()
+            .find(|(button, _, _)| button == label)
+            .map(|(_, custom_id, _)| custom_id)
+            .unwrap_or_else(|| panic!("no {label} button on {message}"));
+        json!({
+            "type": 3,
+            "id": id,
+            "application_id": APPLICATION,
+            "token": "component-token",
+            "member": { "user": { "id": actor } },
+            "message": message,
+            "data": { "custom_id": custom_id, "component_type": 2 },
         })
     }
 
@@ -2583,6 +2847,176 @@ mod tests {
             discord.original().expect("a result"),
             published,
             "the published result is untouched"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn pages_are_turned_on_the_message_and_say_where_they_are() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        // A pattern with many dictionary matches, so the result has pages.
+        service
+            .handle(&command("200", "vlacku", vec![option("query", "kla*")]))
+            .await;
+        settle(&discord, 1).await;
+        let first = discord.original().expect("a result");
+        let buttons = page_buttons(&first);
+        assert_eq!(
+            buttons
+                .iter()
+                .map(|(label, _, disabled)| (label.as_str(), *disabled))
+                .collect::<Vec<_>>(),
+            vec![("Previous", true), ("Next", false)],
+            "the first page cannot go back and can go on"
+        );
+        assert!(
+            first.to_string().contains("1-5"),
+            "the result says which results it shows: {first}"
+        );
+
+        // Next turns the page on the same message.
+        let writes = discord.count("PATCH");
+        service
+            .handle(&page_click("201", &first, ACTOR, "Next"))
+            .await;
+        settle(&discord, writes + 1).await;
+        let second = discord.original().expect("a result");
+        assert!(
+            second.to_string().contains("6-10"),
+            "the second page shows the next results: {second}"
+        );
+        assert!(
+            page_buttons(&second)
+                .iter()
+                .any(|(label, _, disabled)| label == "Previous" && !disabled),
+            "page two can go back"
+        );
+
+        // Following Next to the end reaches a page that says it is the last,
+        // however many pages that takes; nothing here assumes a page count.
+        let mut current = second.clone();
+        for step in 0..40 {
+            let next_enabled = page_buttons(&current)
+                .iter()
+                .any(|(label, _, disabled)| label == "Next" && !disabled);
+            if !next_enabled {
+                break;
+            }
+            let writes = discord.count("PATCH");
+            service
+                .handle(&page_click(&format!("29{step}"), &current, ACTOR, "Next"))
+                .await;
+            settle(&discord, writes + 1).await;
+            current = discord.original().expect("a result");
+        }
+        assert!(
+            page_buttons(&current)
+                .iter()
+                .any(|(label, _, disabled)| label == "Next" && *disabled),
+            "the last page cannot go on: {current}"
+        );
+
+        // And Previous comes back to where it started.
+        let writes = discord.count("PATCH");
+        service
+            .handle(&page_click("202", &second, ACTOR, "Previous"))
+            .await;
+        quiet(&discord).await;
+        assert_eq!(
+            discord.count("PATCH"),
+            writes,
+            "a button from an earlier revision writes nothing"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_page_button_from_an_older_revision_turns_nothing() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command("210", "vlacku", vec![option("query", "kla*")]))
+            .await;
+        settle(&discord, 1).await;
+        let first = discord.original().expect("a result");
+
+        // The reader turns a page, so the message moves to a new revision.
+        let writes = discord.count("PATCH");
+        service
+            .handle(&page_click("211", &first, ACTOR, "Next"))
+            .await;
+        settle(&discord, writes + 1).await;
+        let second = discord.original().expect("a result");
+
+        // A button from the first version is now stale, and says so instead of
+        // applying to what the message shows now.
+        let writes = discord.count("PATCH");
+        // Discord hands the click the message it was drawn on, so the stale
+        // revision is only visible once the work reads the message as it
+        // stands. The click is acknowledged and then refuses privately.
+        service
+            .handle(&page_click("212", &first, ACTOR, "Next"))
+            .await;
+        quiet(&discord).await;
+        let complaint = discord.private_messages().join("\n");
+        assert!(
+            complaint.contains("changed while that page was loading"),
+            "the reader is told why: {complaint}"
+        );
+        assert_eq!(discord.count("PATCH"), writes, "nothing was written");
+        assert_eq!(
+            discord.original().expect("a result"),
+            second,
+            "the message is untouched"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn only_the_reader_who_asked_may_turn_the_pages() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command("220", "vlacku", vec![option("query", "kla*")]))
+            .await;
+        settle(&discord, 1).await;
+        let published = discord.original().expect("a result");
+
+        let writes = discord.count("PATCH");
+        let response = service
+            .handle(&page_click("221", &published, OTHER_ACTOR, "Next"))
+            .await;
+        assert!(
+            ephemeral_text(&response).contains("Only the person who ran this command"),
+            "{response:?}"
+        );
+        quiet(&discord).await;
+        assert_eq!(discord.count("PATCH"), writes, "nothing was written");
+        assert_eq!(discord.original().expect("a result"), published);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_result_that_fits_one_page_offers_no_pager() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        // A parse is one result, never a list.
+        service
+            .handle(&command("230", "gentufa", vec![option("text", "mi klama")]))
+            .await;
+        settle(&discord, 1).await;
+        assert!(
+            page_buttons(&discord.original().expect("a result")).is_empty(),
+            "a result with no pages carries no page buttons"
         );
     }
 

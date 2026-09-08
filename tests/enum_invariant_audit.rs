@@ -52,6 +52,10 @@ const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
         "modal response wraps a validated modal",
     ),
     (
+        "apps/jbotci-server/src/discord/components.rs:MessageComponent::ActionRow",
+        "component wrapper delegates validity to the typed action row, which bounds its own buttons",
+    ),
+    (
         "apps/jbotci-server/src/discord/components.rs:MessageComponent::File",
         "component wrapper delegates validity to the typed file component",
     ),

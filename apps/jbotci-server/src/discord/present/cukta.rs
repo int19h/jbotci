@@ -19,7 +19,7 @@ use jbotci_cll::{
 use super::markdown::{
     escape, inline_code, join_lines, percent, split_paragraphs, subtext, truncate_units,
 };
-use super::{RenderedResult, page_status};
+use super::{Pagination, RenderedResult, page_status};
 use crate::discord::operations::{CuktaOutcome, CuktaSearchCard};
 use crate::discord::request::{CuktaMode, CuktaRequest, CuktaResultKind, DiscordTool};
 
@@ -77,6 +77,7 @@ pub(crate) fn render(
                 status.push_str(&format!(" · {}", kinds.join("/")));
             }
             let mut rendered = RenderedResult::new(DiscordTool::Cukta, status);
+            rendered.pagination = Some(Pagination::of(results));
             let mut lines = Vec::new();
             if let Some(message) = message {
                 lines.push(escape(message));
