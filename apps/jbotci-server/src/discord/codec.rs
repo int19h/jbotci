@@ -845,16 +845,15 @@ mod tests {
     #[requires(true)]
     #[ensures(true)]
     fn a_message_from_before_the_ordered_parts_syntax_reopens_as_the_same_build() {
-        // A jvozba result as the previous version published it, frozen
-        // verbatim: the gear's identifier and the input block of a message
-        // with the two fields that build had — the words, and a
-        // whitespace-separated list of fixed rafsi — with the digest that
-        // build took over both. The identifier's presence mask and digest and
-        // the block's escaping are written by code this commit does not
-        // touch, so what is decoded here is what a message published by that
-        // build and still sitting in a channel actually holds, not this
-        // build's idea of it. The digest is checked while rebuilding, so a
-        // literal that did not come from that build would not get this far.
+        // A jvozba result in the wire format of the build before this one,
+        // frozen: the gear's identifier and the input block of a message with
+        // the two fields that build had — the words, and a
+        // whitespace-separated list of fixed rafsi. The literal was produced
+        // here rather than captured from a channel, and what makes it the
+        // previous format is that the code writing it — the presence mask,
+        // the digest and the block's escaping — is unchanged from the base
+        // commit by this branch. Freezing it is what keeps a later change to
+        // that code from quietly moving the fixture with it.
         const LEGACY_CUSTOM_ID: &str = "j1.ji3.0.1.1.123456789012345678.older.YFs5DWVZT3k";
         const LEGACY_BLOCK: &str = "klama bajra\n-# fixed rafsi\nkla bar\n-# jvozba · test";
 

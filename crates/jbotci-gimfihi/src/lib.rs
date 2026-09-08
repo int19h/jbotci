@@ -866,6 +866,11 @@ pub fn compose_gismu(
             continue;
         }
         filtered_count += 1;
+        // The short rafsi were worked out to test the free-rafsi filter, and
+        // that is all they were for: through the ranking a candidate is a
+        // word and a score, so they are dropped here and worked out again for
+        // the window's own candidates when those are built.
+        let candidate = candidate.with_data(data! { rafsi: None });
         if candidate.collision.is_none()
             && winner
                 .as_ref()
@@ -2602,6 +2607,29 @@ mod tests {
         assert_eq!(window.candidate_count, whole.candidate_count);
         assert_eq!(window.filtered_count, whole.filtered_count);
         assert_eq!(window.winner, whole.winner);
+
+        // The free-rafsi filter works the rafsi out for every candidate it
+        // tests, and the ranking does not keep them: the window's own
+        // candidates carry them because they are worked out again when the
+        // candidate is built.
+        let free_rafsi = GimfihiRequest {
+            require_free_short_rafsi: true,
+            skip: 5,
+            count: 5,
+            ..request.clone()
+        };
+        let filtered = compose_gismu(dictionary, &free_rafsi).expect("output");
+        assert!(!filtered.candidates.is_empty());
+        for candidate in &filtered.candidates {
+            assert!(
+                candidate
+                    .rafsi()
+                    .iter()
+                    .any(|rafsi| rafsi.availability.is_free()),
+                "{} kept the rafsi its filter asked for",
+                candidate.word
+            );
+        }
 
         // A window past the end of the ranking is empty rather than clamped
         // back to results someone has already seen.

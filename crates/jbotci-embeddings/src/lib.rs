@@ -4414,25 +4414,36 @@ mod tests {
         );
         assert!(deep.has_more);
 
-        // And the same stretch of the ranking is what a caller reading from
-        // the beginning would have reached.
-        let whole = semantic_cukta_output(
+        // Windows that overlap agree about the results they share, so the
+        // stretch a window shows is the stretch of one ranking rather than a
+        // ranking of its own.
+        let overlapping = semantic_cukta_output(
             &mut FakeBackend {
                 dimensions: 4,
                 calls: 0,
             },
             cll_chunks,
             "grammar",
-            CuktaSearchWindow::first(jbotci_cll::MAX_CUKTA_RESULT_COUNT),
+            CuktaSearchWindow::after(jbotci_cll::MAX_CUKTA_RESULT_COUNT, 10),
             CuktaTargetFilter::default(),
             dir.path(),
             &spec.model_key,
         )
-        .expect("semantic cukta ranking");
-        assert_eq!(whole.matches.len(), jbotci_cll::MAX_CUKTA_RESULT_COUNT);
+        .expect("semantic cukta overlapping window");
+        let shared = |matched: &CllSearchMatch| {
+            (
+                matched.rank,
+                matched.chunk.anchor_id.clone(),
+                matched.similarity,
+            )
+        };
         assert_eq!(
-            whole.matches[jbotci_cll::MAX_CUKTA_RESULT_COUNT - 1].rank,
-            jbotci_cll::MAX_CUKTA_RESULT_COUNT,
+            deep.matches.iter().map(shared).collect::<Vec<_>>(),
+            overlapping.matches[5..10]
+                .iter()
+                .map(shared)
+                .collect::<Vec<_>>(),
+            "two windows over one ranking agree where they overlap"
         );
     }
 

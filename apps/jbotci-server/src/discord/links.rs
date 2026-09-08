@@ -21,20 +21,18 @@ use std::fmt;
 use bityzba::{data, ensures, invariant, new, requires};
 use jbotci_cll::{cll_lookup_example, cll_resolve_example_reference, embedded_cll_site};
 use jbotci_web_core::{
-    CuktaSearchTarget, CuktaWebMode, CuktaWebSearchState, CuktaWebState, CuktaWebView,
-    GentufaWebState, GentufaWebViewMode, GimfihiWebState, VlackuWebMode, VlackuWebState, WebRoute,
-    gimfihi_web_source_from_record, web_route_url,
+    CUKTA_WEB_DEFAULT_COUNT, CuktaSearchTarget, CuktaWebMode, CuktaWebSearchState, CuktaWebState,
+    CuktaWebView, GentufaWebState, GentufaWebViewMode, GimfihiWebState, VLACKU_WEB_DEFAULT_COUNT,
+    VlackuWebMode, VlackuWebState, WebRoute, gimfihi_web_source_from_record, web_route_url,
 };
 
 use super::operations::GIMFIHI_RECORD_SEPARATORS;
 
-/// How many results the app link asks the web app to show. The web app pages
-/// on its own, and Discord now pages as far as the results go, so this is not
-/// a matching bound: it is what the app is asked to have ready, enough that
-/// the link opens on the same body of results a reader has been paging
-/// through. A reader who has gone past it opens the app on its own first page
-/// of the same search rather than on the result they were looking at.
-const APP_LINK_RESULT_COUNT: usize = 116;
+// How many results a link asks the web app for: the app's own default for
+// that view, so the link opens the page the app would have opened for that
+// search. Discord's paging is a different thing with a different bound, and
+// the link does not try to reproduce where the reader had got to.
+
 use super::request::{
     CuktaMode, CuktaRequest, CuktaResultKind, DiscordRequest, DiscordTool, GentufaRequest,
     GentufaTextView, GimfihiRequest, VlackuMode, VlackuRequest, utf16_len,
@@ -198,7 +196,7 @@ fn vlacku_state(request: &VlackuRequest) -> VlackuWebState {
             VlackuMode::Meaning => VlackuWebMode::Meaning,
         },
         query: request.query.as_str().to_owned(),
-        count: APP_LINK_RESULT_COUNT,
+        count: VLACKU_WEB_DEFAULT_COUNT,
         word_types: options
             .word_types
             .iter()
@@ -233,7 +231,7 @@ fn cukta_target(request: &CuktaRequest) -> LinkTarget {
                 CuktaWebMode::Word
             },
             query,
-            count: APP_LINK_RESULT_COUNT,
+            count: CUKTA_WEB_DEFAULT_COUNT,
             targets,
         }),
         CuktaMode::Section => CuktaWebView::Section { reference: query },
@@ -264,7 +262,7 @@ fn cukta_target(request: &CuktaRequest) -> LinkTarget {
                         view: CuktaWebView::Search(CuktaWebSearchState {
                             mode: CuktaWebMode::Word,
                             query,
-                            count: APP_LINK_RESULT_COUNT,
+                            count: CUKTA_WEB_DEFAULT_COUNT,
                             targets,
                         }),
                     }),
@@ -447,8 +445,8 @@ mod tests {
         assert_eq!(state.mode, VlackuWebMode::Meaning);
         assert_eq!(state.word_types, vec!["gismu".to_owned()]);
         assert_eq!(
-            state.count, APP_LINK_RESULT_COUNT,
-            "the page shows every result Discord paged"
+            state.count, VLACKU_WEB_DEFAULT_COUNT,
+            "the link opens the view the app itself would have opened"
         );
 
         // A lujvo search is the same word lookup on the page.
