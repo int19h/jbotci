@@ -117,8 +117,9 @@ The service answers within Discord's deadlines: three seconds to acknowledge,
 fifteen minutes to finish the message. Work is admitted on three lanes,
 analysis, network and meaning search, each with a fixed number of workers and
 a bounded queue; analysis runs one job at a time, which is what the deployed
-instance's memory pays for (measured below); a request that cannot be admitted is refused with a message
-saying so, rather than queued behind everything else. Work that has started
+instance's memory pays for (measured below); a request that cannot be admitted
+is refused with a message saying so, rather than queued behind everything
+else. Work that has started
 keeps its worker, its delivery and, while it writes, the message it is
 writing, until it ends: a caller that stops waiting never releases any of
 them, and a meaning search holds them across a cold model load too. One
@@ -129,7 +130,7 @@ Discord share it rather than each being given it whole.
 | --- | --- | --- |
 | Source field | 4000 UTF-16 units | Discord's own text-input maximum, enforced at the command and at the form alike. |
 | Message text | 4000 units across all text components | The application's budget for one message; longer results become an excerpt plus a complete attachment. |
-| Result page | 5 results | What reads well on a phone. |
+| Result page | 5 results | What reads well on a phone. Pages themselves are unbounded: each one is fetched when it is asked for. |
 | App link | 4000 units for the whole link component | The application's own budget for one form text component, not a documented Discord limit. |
 | Compound construction | 8192 part placements, 24 pieces, 256 letters | Measured: 4096 placements take about 1.2s and 9216 about 3.1s in release on the development machine. |
 | Diagram | 600 blocks, 160 columns, 8 megapixels, 8 MiB | A diagram larger than this is refused with its reason, and the submission that asked for it changes nothing. Eight megapixels is what one image may spend of the instance's memory, measured below. |
