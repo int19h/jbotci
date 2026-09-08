@@ -33,6 +33,9 @@ pub use jbotci_dictionary::{
 pub use jbotci_morphology::{GismuShape, ShortRafsiShape};
 
 pub const GIMFIHI_DEFAULT_COUNT: usize = 20;
+/// How many candidates the web interface will show at once. It bounds that
+/// caller's requests; the scorer itself keeps as many as it is asked for, so a
+/// caller that pages deeply is not silently cut off.
 pub const GIMFIHI_MAX_COUNT: usize = 512;
 pub const GIMFIHI_MIN_WEIGHT: u16 = 1;
 pub const GIMFIHI_MAX_WEIGHT: u16 = 999;
@@ -821,12 +824,17 @@ pub fn compose_gismu(
         .as_ref()
         .map(|value| normalize_gismu(value))
         .filter(|value| !value.is_empty());
-    let retained_count = request.count.min(GIMFIHI_MAX_COUNT);
+    // The caller says how many it needs; the heap holds that many and no
+    // more, whatever the count is, so paging deeply costs a page rather than
+    // a corpus. Only the initial allocation is bounded, and it grows if a
+    // caller really asks for more.
+    let retained_count = request.count;
     let mut candidate_count = 0;
     let mut filtered_count = 0;
     let mut winner: Option<ScoredGimfihiCandidate> = None;
     let mut requested_highlight_candidate = None;
-    let mut retained = BinaryHeap::with_capacity(retained_count.saturating_add(1));
+    let mut retained =
+        BinaryHeap::with_capacity(retained_count.min(GIMFIHI_MAX_COUNT).saturating_add(1));
     for word in generate_candidates(
         &resolved_sources,
         &shapes,
@@ -2083,7 +2091,7 @@ mod tests {
             .or_else(|| winner.clone());
         let mut displayed = filtered
             .iter()
-            .take(request.count.min(GIMFIHI_MAX_COUNT))
+            .take(request.count)
             .cloned()
             .collect::<Vec<_>>();
         if let Some(highlighted_word) = &highlighted_word

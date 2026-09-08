@@ -1360,6 +1360,35 @@ mod tests {
         .await
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_deep_page_is_fetched_and_shown_rather_than_refused() {
+        // The old selector stopped at 25 pages, and the searches fetched only
+        // what those pages could show. A page well beyond that is now an
+        // ordinary request.
+        let deep = PageNumber::new(30).expect("page 30");
+        let outcome = run(DiscordRequest::Vlacku(VlackuRequest {
+            query: text("*a*"),
+            options: VlackuOptions {
+                page: deep,
+                ..VlackuOptions::default()
+            },
+        }))
+        .await
+        .expect("a deep page");
+        let ToolOutcome::Vlacku(VlackuOutcome::Results { results, .. }) = outcome else {
+            panic!("dictionary results");
+        };
+        assert_eq!(results.page, deep);
+        assert_eq!(
+            results.range().map(|(first, _)| first),
+            Some(146),
+            "page 30 starts where page 30 starts"
+        );
+        assert!(!results.items.is_empty(), "the page has its results");
+    }
+
     #[test]
     #[requires(true)]
     #[ensures(true)]
