@@ -24,6 +24,9 @@ them all as part of its work; a search that was asked for one page and handed
 one back knows nothing about the rest, and then the page says only what it
 shows rather than inventing a figure. A direction that does not exist is greyed
 rather than hidden, and a result with a single page carries no buttons at all.
+A button the result does not offer — a greyed one, or one from a result that
+has no buttons — changes nothing and says so privately, whatever its
+identifier says it is for.
 
 Paging goes as far as the results do: there is no page ceiling. What a page
 shows is always one page's worth of work — five cards, five passages of the

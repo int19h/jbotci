@@ -401,6 +401,34 @@ impl DiscordService {
         }
     }
 
+    /// Whether `message` offers `custom_id` as something to press: a button
+    /// with that identifier which is not greyed out. A greyed button is drawn
+    /// so the reader can see the direction exists, and Discord will not send
+    /// a click for it; one that arrives anyway asks for what the message does
+    /// not offer.
+    #[requires(true)]
+    #[ensures(true)]
+    fn message_offers(message: &Value, custom_id: &str) -> bool {
+        #[requires(!custom_id.is_empty())]
+        #[ensures(true)]
+        fn walk(value: &Value, custom_id: &str) -> bool {
+            match value {
+                Value::Object(object) => {
+                    if object.get("custom_id").and_then(Value::as_str) == Some(custom_id) {
+                        return !object
+                            .get("disabled")
+                            .and_then(Value::as_bool)
+                            .unwrap_or(false);
+                    }
+                    object.values().any(|value| walk(value, custom_id))
+                }
+                Value::Array(items) => items.iter().any(|item| walk(item, custom_id)),
+                _ => false,
+            }
+        }
+        walk(message, custom_id)
+    }
+
     /// A page button turns one page of the message it sits on.
     ///
     /// The button says only which page and which revision it was drawn for.
@@ -445,6 +473,14 @@ impl DiscordService {
         if published.revision != control.from_revision {
             return InteractionResponse::ephemeral(
                 "This result changed after that page button was drawn. Use the buttons on the result as it stands now.",
+            );
+        }
+        // What the message offers is what may be pressed. This is the
+        // control itself, greyed or missing; the checks below are about the
+        // page it asks for.
+        if !Self::message_offers(&component.message, &component.custom_id) {
+            return InteractionResponse::ephemeral(
+                "That page button is not one this result offers. Use the buttons on the result as it stands now.",
             );
         }
         let current = published.request.page();
@@ -549,15 +585,17 @@ impl DiscordService {
                     .await;
                     return;
                 }
-                // What the message offers is one step in each direction from
-                // the page it is showing. The revision check above already
-                // implies this, since turning a page raises the revision;
-                // this asks the message itself rather than relying on that.
+                // The message as it stands has to offer the control that was
+                // pressed, and it has to be a step from the page it is
+                // showing. The revision check above already implies both,
+                // since turning a page raises the revision; these ask the
+                // message itself rather than relying on that.
                 Some(header)
-                    if ![header.page.previous(), header.page.next()]
-                        .into_iter()
-                        .flatten()
-                        .any(|offered| offered == next.request.page()) =>
+                    if !Self::message_offers(&message, &component.custom_id)
+                        || ![header.page.previous(), header.page.next()]
+                            .into_iter()
+                            .flatten()
+                            .any(|offered| offered == next.request.page()) =>
                 {
                     self.report_privately(
                         &target,
@@ -1674,6 +1712,7 @@ mod tests {
     use crate::discord::components::{Modal, ModalComponent, ModalControl};
     use crate::discord::operations::OperationError;
     use crate::discord::request::DiscordTool;
+    use crate::discord::request::PageNumber;
     use crate::discord::work::{WorkError, WorkGovernor, WorkLane};
 
     const ACTOR: &str = "123456789012345678";
@@ -2119,6 +2158,21 @@ mod tests {
             .find(|(button, _, _)| button == label)
             .map(|(_, custom_id, _)| custom_id)
             .unwrap_or_else(|| panic!("no {label} button on {message}"));
+        json!({
+            "type": 3,
+            "id": id,
+            "application_id": APPLICATION,
+            "token": "component-token",
+            "member": { "user": { "id": actor } },
+            "message": message,
+            "data": { "custom_id": custom_id, "component_type": 2 },
+        })
+    }
+
+    /// A component click on `message` carrying `custom_id` as it stands.
+    #[requires(true)]
+    #[ensures(true)]
+    fn page_click_with_id(id: &str, message: &Value, actor: &str, custom_id: &str) -> Value {
         json!({
             "type": 3,
             "id": id,
@@ -3253,14 +3307,14 @@ mod tests {
         settle(&discord, 1).await;
         let first = discord.original().expect("a result");
 
-        // The first page's Previous is greyed, and it carries the page it is
-        // already on: taking it anyway says so and writes nothing.
+        // The first page's Previous is drawn greyed, so the message does not
+        // offer it: a click on it anyway writes nothing.
         let writes = discord.count("PATCH");
         let response = service
             .handle(&page_click("301", &first, ACTOR, "Previous"))
             .await;
         assert!(
-            ephemeral_text(&response).contains("the page you are on"),
+            ephemeral_text(&response).contains("not one this result offers"),
             "{response:?}"
         );
 
@@ -3276,12 +3330,84 @@ mod tests {
         leap["data"]["custom_id"] = json!(format!("{head}.9"));
         let response = service.handle(&leap).await;
         assert!(
-            ephemeral_text(&response).contains("not one of this result's"),
-            "{response:?}"
+            ephemeral_text(&response).contains("not one this result offers"),
+            "a page identifier the message never drew is not one of its buttons: {response:?}"
         );
         quiet(&discord).await;
         assert_eq!(discord.count("PATCH"), writes, "nothing was written");
         assert_eq!(discord.original().expect("a result"), first);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn a_greyed_button_and_a_result_without_a_pager_turn_nothing() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command("320", "vlacku", vec![option("query", "kla*")]))
+            .await;
+        settle(&discord, 1).await;
+
+        // Walk to the last page, where Next is drawn greyed. Discord will not
+        // send that click, but one that arrives anyway asks for a page the
+        // message does not offer, whatever its identifier says.
+        let mut current = discord.original().expect("a result");
+        for step in 0..40 {
+            if page_buttons(&current)
+                .iter()
+                .any(|(label, _, disabled)| label == "Next" && *disabled)
+            {
+                break;
+            }
+            let writes = discord.count("PATCH");
+            service
+                .handle(&page_click(&format!("32{step}1"), &current, ACTOR, "Next"))
+                .await;
+            settle(&discord, writes + 1).await;
+            current = discord.original().expect("a result");
+        }
+        let writes = discord.count("PATCH");
+        let response = service
+            .handle(&page_click("330", &current, ACTOR, "Next"))
+            .await;
+        assert!(
+            ephemeral_text(&response).contains("not one this result offers"),
+            "a greyed button is not offered: {response:?}"
+        );
+        quiet(&discord).await;
+        assert_eq!(discord.count("PATCH"), writes, "nothing was written");
+
+        // A result that fits one page carries no buttons at all, so a page
+        // identifier for it — properly written, this revision, this reader —
+        // is not one of its own either.
+        *discord.state.original.lock().expect("state") =
+            Some(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command("340", "vlacku", vec![option("query", "klama")]))
+            .await;
+        settle(&discord, discord.count("PATCH") + 1).await;
+        let single = discord.original().expect("a result");
+        assert!(
+            page_buttons(&single).is_empty(),
+            "the fixture must be a single page: {single}"
+        );
+        let header = RequestHeader::of_message(&single).expect("a header");
+        let invented = PageControl {
+            from_revision: header.revision,
+            target: PageNumber::new(2).expect("page"),
+        };
+        let mut click = page_click_with_id("341", &single, ACTOR, &invented.encode());
+        click["id"] = json!("341");
+        let writes = discord.count("PATCH");
+        let response = service.handle(&mut click).await;
+        assert!(
+            ephemeral_text(&response).contains("not one this result offers"),
+            "a result with no buttons offers none: {response:?}"
+        );
+        quiet(&discord).await;
+        assert_eq!(discord.count("PATCH"), writes, "nothing was written");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -3297,24 +3423,32 @@ mod tests {
         settle(&discord, 1).await;
         let first = discord.original().expect("a result");
 
-        // Two readers of the same message press its buttons at once. They are
-        // different interactions, so neither is a repeat of the other; the
-        // first to take the message's lock turns its page, and the second
-        // finds the message has moved on and turns nothing.
+        // The reader turns to the second page, where both directions are
+        // offered and enabled.
         let writes = discord.count("PATCH");
-        let next = page_click("311", &first, ACTOR, "Next");
-        let previous = page_click("312", &first, ACTOR, "Previous");
-        let (first_response, second_response) =
-            tokio::join!(service.handle(&next), service.handle(&previous));
-        assert!(matches!(
-            first_response,
-            InteractionResponse::DeferredUpdateMessage
-        ));
-        assert!(
-            matches!(second_response, InteractionResponse::DeferredUpdateMessage)
-                || !ephemeral_text(&second_response).is_empty(),
-            "{second_response:?}"
-        );
+        service
+            .handle(&page_click("311", &first, ACTOR, "Next"))
+            .await;
+        settle(&discord, writes + 1).await;
+        let second = discord.original().expect("a result");
+        assert!(second.to_string().contains("6-10"), "{second}");
+
+        // Now two different clicks on that same result arrive at once, each a
+        // button the message offers. They are different interactions, so
+        // neither is a repeat of the other: the first to take the message's
+        // lock turns its page, and the second finds the message has moved on
+        // and turns nothing.
+        let writes = discord.count("PATCH");
+        let forward = page_click("312", &second, ACTOR, "Next");
+        let back = page_click("313", &second, ACTOR, "Previous");
+        let (forward_response, back_response) =
+            tokio::join!(service.handle(&forward), service.handle(&back));
+        for response in [&forward_response, &back_response] {
+            assert!(
+                matches!(response, InteractionResponse::DeferredUpdateMessage),
+                "both clicks are taken up: {response:?}"
+            );
+        }
         settle(&discord, writes + 1).await;
         quiet(&discord).await;
         assert_eq!(
@@ -3323,9 +3457,15 @@ mod tests {
             "one of the two clicks wrote, and only one"
         );
         let turned = discord.original().expect("a result");
+        let shows = turned.to_string();
         assert!(
-            turned.to_string().contains("6-10"),
-            "the page that was turned is the one that was asked for: {turned}"
+            shows.contains("11-15") || shows.contains("1-5"),
+            "the page that was turned is one of the two that were asked for: {turned}"
+        );
+        let told = discord.private_messages().join("\n");
+        assert!(
+            told.contains("changed while that page was loading"),
+            "the click that lost the race is told, privately: {told}"
         );
     }
 
