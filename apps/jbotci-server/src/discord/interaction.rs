@@ -3731,6 +3731,61 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     #[requires(true)]
     #[ensures(true)]
+    async fn a_gimfihi_form_from_before_the_scorer_is_refused_and_changes_nothing() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command(
+                "190",
+                "gimfihi",
+                vec![option("sources", "eng:5:go")],
+            ))
+            .await;
+        settle(&discord, 1).await;
+        let published = discord.original().expect("a result");
+        let before = published.to_string();
+
+        // A form as the previous build wrote one: its identifier carries that
+        // build's schema, and its controls are the three it had — sources,
+        // preset and candidates — with no scorer among them. The identifier's
+        // other fields are the same because the header encoder is unchanged
+        // from the base commit; only the schema name moved.
+        let modal = modal_of(
+            service
+                .handle(&component_interaction("191", &published, ACTOR))
+                .await,
+        );
+        let mut older = submission("192", &modal, &published, ACTOR, &[]);
+        older["data"]["custom_id"] = json!(modal.custom_id.as_str().replacen("j3m.", "j2m.", 1));
+        let controls = older["data"]["components"]
+            .as_array()
+            .expect("controls")
+            .iter()
+            .filter(|component| component["component"]["custom_id"] != json!("scorer"))
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(controls.len(), 3, "the form that build had");
+        older["data"]["components"] = json!(controls);
+
+        let writes = discord.count("PATCH");
+        let response = service.handle(&older).await;
+        assert!(
+            ephemeral_text(&response).contains("came from an older version"),
+            "the form is refused with the reopen message: {response:?}"
+        );
+        quiet(&discord).await;
+        assert_eq!(discord.count("PATCH"), writes, "and nothing was written");
+        assert_eq!(
+            discord.original().expect("a result").to_string(),
+            before,
+            "the result is exactly as it was"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
     async fn a_long_private_note_stays_within_what_discord_accepts() {
         // The same complaint on an edit is told privately instead, and a
         // note Discord will not accept is no note at all.

@@ -1919,18 +1919,44 @@ mod tests {
             "the phonetic scorer scores every letter, but the reader's own setting is kept"
         );
 
-        // And back again: what was stored comes back, still on page one.
-        let phonetic = request(GimfihiScorer::Phonetic, true);
-        let back = parsed(
-            &phonetic,
-            &with_value(
-                &submit_unchanged(&build(&published(phonetic.clone()), None).expect("a form")),
-                ID_SCORER,
-                selected(&["classic"]),
-            ),
-        );
-        assert_eq!(back.options.scorer, GimfihiScorer::Classic);
-        assert!(back.options.all_letters, "and it is the setting they had");
+        // And back again, with the preference on and with it off: the
+        // phonetic scorer scores every letter either way, so an accidental
+        // "it must be on now" would only show in the second case.
+        for preference in [true, false] {
+            let phonetic = request(GimfihiScorer::Phonetic, preference);
+            let there = parsed(
+                &request(GimfihiScorer::Classic, preference),
+                &with_value(
+                    &submit_unchanged(
+                        &build(
+                            &published(request(GimfihiScorer::Classic, preference)),
+                            None,
+                        )
+                        .expect("a form"),
+                    ),
+                    ID_SCORER,
+                    selected(&["phonetic"]),
+                ),
+            );
+            assert_eq!(there.options.scorer, GimfihiScorer::Phonetic);
+            assert_eq!(
+                there.options.all_letters, preference,
+                "the phonetic scorer does not decide this for the reader"
+            );
+            let back = parsed(
+                &phonetic,
+                &with_value(
+                    &submit_unchanged(&build(&published(phonetic.clone()), None).expect("a form")),
+                    ID_SCORER,
+                    selected(&["classic"]),
+                ),
+            );
+            assert_eq!(back.options.scorer, GimfihiScorer::Classic);
+            assert_eq!(
+                back.options.all_letters, preference,
+                "and it is the setting they had"
+            );
+        }
 
         // A scorer this build does not know, and a form with no scorer at
         // all, are refused rather than read as the default.
@@ -1948,6 +1974,23 @@ mod tests {
             parse_submission(&classic, &without_control(&unchanged, ID_SCORER)),
             Err(SubmissionError::MissingControl { control: "scorer" })
         );
+        // The control present with nothing chosen is not a choice either, and
+        // is refused rather than read as the scorer the form was opened on.
+        assert_eq!(
+            parse_submission(&classic, &with_value(&unchanged, ID_SCORER, selected(&[]))),
+            Err(SubmissionError::MissingControl { control: "scorer" })
+        );
+        // Two at once is not a choice either.
+        assert!(matches!(
+            parse_submission(
+                &classic,
+                &with_value(&unchanged, ID_SCORER, selected(&["classic", "phonetic"]))
+            ),
+            Err(SubmissionError::TooManyValues {
+                control: "scorer",
+                ..
+            })
+        ));
     }
 
     #[test]
