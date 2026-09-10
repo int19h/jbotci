@@ -18,7 +18,7 @@ use std::fmt;
 
 #[allow(unused_imports)]
 use bityzba::{data, ensures, invariant, new, requires, try_new};
-use jbotci_gimfihi::{CollisionScope, GismuShape, all_presets};
+use jbotci_gimfihi::{CollisionScope, GimfihiScorer, GismuShape, all_presets};
 use serde_json::Value;
 use vec1::Vec1;
 
@@ -50,6 +50,7 @@ const ID_KINDS: &str = "kinds";
 const ID_PARTS: &str = "parts";
 const ID_SOURCES: &str = "sources";
 const ID_PRESET: &str = "preset";
+const ID_SCORER: &str = "scorer";
 const ID_OPTIONS: &str = "options";
 
 /// Value prefixes inside the grouped selectors.
@@ -772,7 +773,7 @@ fn jvozba_controls(request: &JvozbaRequest) -> Result<Vec<ModalComponent>, Bound
 }
 
 #[requires(true)]
-#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 3) || ret.is_err())]
+#[ensures(ret.as_ref().is_ok_and(|controls| controls.len() == 4) || ret.is_err())]
 fn gimfihi_controls(request: &GimfihiRequest) -> Result<Vec<ModalComponent>, BoundsError> {
     let options = request.options;
     let mut candidate_options = vec![
@@ -814,7 +815,10 @@ fn gimfihi_controls(request: &GimfihiRequest) -> Result<Vec<ModalComponent>, Bou
     candidate_options.push(option(
         FLAG_ALL_LETTERS,
         "Score all letters",
-        None,
+        // The phonetic scorer scores every letter whatever this says, so the
+        // reader is told where the choice applies rather than left to wonder
+        // why it changed nothing.
+        Some("Classic scorer only; the phonetic scorer always scores every letter."),
         options.all_letters,
     ));
     candidate_options.push(option(
@@ -860,6 +864,30 @@ fn gimfihi_controls(request: &GimfihiRequest) -> Result<Vec<ModalComponent>, Bou
                 0,
                 1,
                 Some("No preset"),
+            )?,
+        )?,
+        labeled(
+            "Scorer",
+            Some("How a candidate is scored against the source words."),
+            select(
+                ID_SCORER,
+                [GimfihiScorer::Classic, GimfihiScorer::Phonetic]
+                    .into_iter()
+                    .map(|scorer| {
+                        option(
+                            scorer.as_str(),
+                            match scorer {
+                                GimfihiScorer::Classic => "Classic (letter similarity)",
+                                GimfihiScorer::Phonetic => "Phonetic (sound similarity)",
+                            },
+                            None,
+                            options.scorer == scorer,
+                        )
+                    })
+                    .collect(),
+                1,
+                1,
+                None,
             )?,
         )?,
         labeled(
@@ -1114,6 +1142,18 @@ pub(crate) fn parse_submission(
                 ),
                 _ => None,
             };
+            // One of the two, named. A form that carries no scorer control at
+            // all is refused by `chosen`; one that carries it with nothing
+            // chosen is refused here rather than read as the default, since
+            // the control is required and a submission without a choice is
+            // not one this form can have produced.
+            let scorer = match submission.chosen(ID_SCORER)? {
+                Some(value) => [GimfihiScorer::Classic, GimfihiScorer::Phonetic]
+                    .into_iter()
+                    .find(|scorer| scorer.as_str() == value)
+                    .ok_or_else(|| unknown("scorer", value))?,
+                None => return Err(SubmissionError::MissingControl { control: ID_SCORER }),
+            };
             let all_letters = has(&selected.to_vec(), FLAG_ALL_LETTERS);
             let require_free_short_rafsi = has(&selected.to_vec(), FLAG_FREE_RAFSI);
             // Everything that changes which candidates exist starts the list
@@ -1121,6 +1161,7 @@ pub(crate) fn parse_submission(
             let generation_changed = sources.as_ref().map(SourceText::as_str)
                 != previous.sources.as_ref().map(SourceText::as_str)
                 || preset != previous.options.preset
+                || scorer != previous.options.scorer
                 || shapes != previous.options.shapes
                 || *collisions != previous.options.collisions
                 || all_letters != previous.options.all_letters
@@ -1129,9 +1170,13 @@ pub(crate) fn parse_submission(
                 sources,
                 options: GimfihiOptions {
                     preset,
+                    scorer,
                     shapes,
                     collisions: *collisions,
                     show_collisions: selected.iter().any(|value| value == FLAG_SHOW_COLLISIONS),
+                    // Kept as the reader set it, whichever scorer is chosen:
+                    // the phonetic scorer scores every letter regardless, and
+                    // going back to Classic should find the choice as it was.
                     all_letters,
                     require_free_short_rafsi,
                     // Pages are turned with the buttons on the message.
@@ -1326,6 +1371,7 @@ mod tests {
                 sources: Some(source("eng:5:go, spa:3:[ir]")),
                 options: GimfihiOptions {
                     preset: Some(GimfihiPreset::Ilmen6),
+                    scorer: GimfihiScorer::Classic,
                     shapes: GismuShapeSet::empty().with(GismuShape::Cvccv),
                     collisions: CollisionScope::Official,
                     show_collisions: true,
@@ -1442,6 +1488,16 @@ mod tests {
         Submission { values }
     }
 
+    /// The same submission with one control missing, as an older form that
+    /// never had it would arrive.
+    #[requires(true)]
+    #[ensures(true)]
+    fn without_control(submission: &Submission, control: &str) -> Submission {
+        let mut values = submission.values.clone();
+        values.remove(control);
+        Submission { values }
+    }
+
     #[requires(true)]
     #[ensures(true)]
     fn selected(values: &[&str]) -> SubmittedValue {
@@ -1473,7 +1529,7 @@ mod tests {
             assert!(
                 json["custom_id"]
                     .as_str()
-                    .is_some_and(|id| id.starts_with("j2m.")),
+                    .is_some_and(|id| id.starts_with("j3m.")),
                 "{tool}"
             );
             let mut ids = Vec::new();
@@ -1692,6 +1748,7 @@ mod tests {
                 sources: Some(source("eng:5:go")),
                 options: GimfihiOptions {
                     preset: None,
+                    scorer: GimfihiScorer::Classic,
                     shapes: GismuShapeSet::empty().with(GismuShape::Ccvcv),
                     collisions: CollisionScope::All,
                     show_collisions,
@@ -1778,6 +1835,162 @@ mod tests {
             selected(&[DETAIL_DECOMPOSE, DETAIL_DECOMPOSE]),
         );
         assert!(parse_submission(&request, &twice).is_err());
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_gimfihi_form_offers_both_scorers_and_keeps_the_rest_as_it_was() {
+        let request = |scorer: GimfihiScorer, all_letters: bool| {
+            DiscordRequest::Gimfihi(GimfihiRequest {
+                sources: Some(source("eng:5:go")),
+                options: GimfihiOptions {
+                    preset: None,
+                    scorer,
+                    shapes: GismuShapeSet::empty().with(GismuShape::Ccvcv),
+                    collisions: CollisionScope::All,
+                    show_collisions: false,
+                    all_letters,
+                    require_free_short_rafsi: false,
+                    page: PageNumber::new(4).expect("page"),
+                },
+            })
+        };
+        let classic = request(GimfihiScorer::Classic, true);
+        let modal = build(
+            &published(classic.clone()),
+            Some("https://jbotci.app/gimfihi"),
+        )
+        .expect("a form");
+        // The link and four controls: sources, preset, scorer, candidates.
+        assert_eq!(modal.components.len(), MAX_MODAL_COMPONENTS);
+        let scorer_control = modal
+            .components
+            .iter()
+            .find_map(|component| match component {
+                ModalComponent::Label(labeled) => match &labeled.control {
+                    ModalControl::StringSelect(select)
+                        if select.custom_id.as_str() == ID_SCORER =>
+                    {
+                        Some(select)
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("a scorer control");
+        assert_eq!(
+            scorer_control
+                .options
+                .iter()
+                .map(|option| (option.value.as_str(), option.default))
+                .collect::<Vec<_>>(),
+            vec![("classic", true), ("phonetic", false)],
+            "both scorers are offered, with the one in use chosen"
+        );
+        assert!(
+            scorer_control.min_values == 1 && scorer_control.max_values == 1,
+            "the scorer is one choice, and it is required"
+        );
+
+        let parsed = |from: &DiscordRequest, submission: &Submission| {
+            let DiscordRequest::Gimfihi(parsed) =
+                parse_submission(from, submission).expect("a request")
+            else {
+                panic!("a gimfi'i request");
+            };
+            parsed
+        };
+        let unchanged = submit_unchanged(&modal);
+        let same = parsed(&classic, &unchanged);
+        assert_eq!(same.options.scorer, GimfihiScorer::Classic);
+        assert_eq!(same.options.page.get(), 4, "nothing changed, nothing moves");
+
+        // Choosing the other scorer ranks different candidates, so the list
+        // starts over; the reader's other settings are theirs and stay.
+        let switched = parsed(
+            &classic,
+            &with_value(&unchanged, ID_SCORER, selected(&["phonetic"])),
+        );
+        assert_eq!(switched.options.scorer, GimfihiScorer::Phonetic);
+        assert_eq!(switched.options.page.get(), 1);
+        assert!(
+            switched.options.all_letters,
+            "the phonetic scorer scores every letter, but the reader's own setting is kept"
+        );
+
+        // And back again, with the preference on and with it off: the
+        // phonetic scorer scores every letter either way, so an accidental
+        // "it must be on now" would only show in the second case.
+        for preference in [true, false] {
+            let phonetic = request(GimfihiScorer::Phonetic, preference);
+            let there = parsed(
+                &request(GimfihiScorer::Classic, preference),
+                &with_value(
+                    &submit_unchanged(
+                        &build(
+                            &published(request(GimfihiScorer::Classic, preference)),
+                            None,
+                        )
+                        .expect("a form"),
+                    ),
+                    ID_SCORER,
+                    selected(&["phonetic"]),
+                ),
+            );
+            assert_eq!(there.options.scorer, GimfihiScorer::Phonetic);
+            assert_eq!(
+                there.options.all_letters, preference,
+                "the phonetic scorer does not decide this for the reader"
+            );
+            let back = parsed(
+                &phonetic,
+                &with_value(
+                    &submit_unchanged(&build(&published(phonetic.clone()), None).expect("a form")),
+                    ID_SCORER,
+                    selected(&["classic"]),
+                ),
+            );
+            assert_eq!(back.options.scorer, GimfihiScorer::Classic);
+            assert_eq!(
+                back.options.all_letters, preference,
+                "and it is the setting they had"
+            );
+        }
+
+        // A scorer this build does not know, and a form with no scorer at
+        // all, are refused rather than read as the default.
+        assert_eq!(
+            parse_submission(
+                &classic,
+                &with_value(&unchanged, ID_SCORER, selected(&["semantic"]))
+            ),
+            Err(SubmissionError::UnknownValue {
+                control: "scorer",
+                value: "semantic".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_submission(&classic, &without_control(&unchanged, ID_SCORER)),
+            Err(SubmissionError::MissingControl { control: "scorer" })
+        );
+        // The control present with nothing chosen is not a choice either, and
+        // is refused rather than read as the scorer the form was opened on.
+        assert_eq!(
+            parse_submission(&classic, &with_value(&unchanged, ID_SCORER, selected(&[]))),
+            Err(SubmissionError::MissingControl { control: "scorer" })
+        );
+        // Two at once is not a choice either.
+        assert!(matches!(
+            parse_submission(
+                &classic,
+                &with_value(&unchanged, ID_SCORER, selected(&["classic", "phonetic"]))
+            ),
+            Err(SubmissionError::TooManyValues {
+                control: "scorer",
+                ..
+            })
+        ));
     }
 
     #[test]
@@ -1943,7 +2156,7 @@ mod tests {
     fn values_are_read_out_of_a_real_submission_payload() {
         // The shape Discord sends back: labels wrapping their controls.
         let data = serde_json::json!({
-            "custom_id": "j2m.g.1.123",
+            "custom_id": "j3m.g.1.123",
             "components": [
                 { "type": 18, "component": { "type": 4, "custom_id": "text", "value": "mi klama" } },
                 { "type": 18, "component": { "type": 4, "custom_id": "dialect", "value": "" } },

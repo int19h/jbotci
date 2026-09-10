@@ -24,7 +24,7 @@ use jbotci_cll::{
 };
 use jbotci_dialect::parse_dialect_definition;
 use jbotci_gimfihi::{
-    GimfihiCandidate, GimfihiError, GimfihiOutput, GimfihiPreset, GimfihiRequest, GimfihiScorer,
+    GimfihiCandidate, GimfihiError, GimfihiOutput, GimfihiPreset, GimfihiRequest,
     GimfihiSourceInput, ResolvedSource, parse_source_spec, resolve_sources,
 };
 use jbotci_jvozba::{
@@ -1349,7 +1349,7 @@ fn gimfihi_plan(request: &DiscordGimfihiRequest) -> Result<GimfihiPlan, RequestV
         });
     }
     Ok(GimfihiPlan::Compose(GimfihiRequest {
-        scorer: GimfihiScorer::Classic,
+        scorer: options.scorer,
         phonetic_parameters: Default::default(),
         preset: options.preset,
         sources,
@@ -1414,8 +1414,8 @@ fn run_gimfihi(request: &DiscordGimfihiRequest) -> Result<GimfihiOutcome, Operat
 mod tests {
     use super::*;
     use crate::discord::request::{
-        CuktaOptions, CuktaResultKindSet, GentufaOptions, GimfihiOptions, JvozbaOptions,
-        VlackuOptions, VlaseiOptions, VlataiOptions,
+        CuktaOptions, CuktaResultKindSet, GentufaOptions, GimfihiOptions, GimfihiScorer,
+        JvozbaOptions, VlackuOptions, VlaseiOptions, VlataiOptions,
     };
     use crate::discord::work::WorkLimits;
     use jbotci_cll::format_section_display_title;
@@ -2047,6 +2047,75 @@ mod tests {
             panic!("jvozba outcome");
         };
         assert_eq!(single.result, Err(JvozbaError::RequiresAtLeastTwoInputs));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn the_two_scorers_rank_the_same_sources_and_do_not_agree() {
+        // One request, one set of sources, two ways of scoring them. The
+        // classic scorer compares letters and the phonetic one compares
+        // sounds, so they do not merely label the same list differently.
+        let ranked = |scorer: GimfihiScorer| {
+            let request = DiscordGimfihiRequest {
+                sources: SourceText::new("eng:5:go, spa:3:[ir], cmn:4:[t͡ɕʰy]").ok(),
+                options: GimfihiOptions {
+                    scorer,
+                    ..GimfihiOptions::default()
+                },
+            };
+            let GimfihiOutcome::Candidates {
+                results, winner, ..
+            } = run_gimfihi(&request).expect("candidates")
+            else {
+                panic!("a candidate list");
+            };
+            (
+                winner,
+                results
+                    .items
+                    .iter()
+                    .map(|candidate| (candidate.word.clone(), candidate.score))
+                    .collect::<Vec<_>>(),
+            )
+        };
+        let (classic_winner, classic) = ranked(GimfihiScorer::Classic);
+        let (phonetic_winner, phonetic) = ranked(GimfihiScorer::Phonetic);
+
+        // The words these sources actually produce, from the shared scorers.
+        assert_eq!(classic_winner.as_deref(), Some("gorci"));
+        assert_eq!(phonetic_winner.as_deref(), Some("cigro"));
+        assert_eq!(
+            classic
+                .iter()
+                .map(|(word, _)| word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["gorci", "rirgo", "circi", "circo", "cirgi"]
+        );
+        assert_eq!(
+            phonetic
+                .iter()
+                .map(|(word, _)| word.as_str())
+                .collect::<Vec<_>>(),
+            vec!["cigro", "gizro", "gerzo", "gezro", "cigru"]
+        );
+        // Not one candidate in common, and each list ordered by its own
+        // scorer's scores.
+        assert!(
+            classic
+                .iter()
+                .all(|(word, _)| phonetic.iter().all(|(other, _)| other != word)),
+            "the two rankings share nothing: {classic:?} {phonetic:?}"
+        );
+        for ranking in [&classic, &phonetic] {
+            assert!(
+                ranking
+                    .windows(2)
+                    .all(|pair| pair[0].1 >= pair[1].1 && pair[0].1 > 0.0),
+                "scores fall as the ranking descends: {ranking:?}"
+            );
+        }
+        assert_ne!(classic[0].1, phonetic[0].1, "and they are scored apart");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

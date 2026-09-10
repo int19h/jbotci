@@ -10,7 +10,7 @@ use jbotci_gimfihi::{
 use super::markdown::{escape, inline_code, join_lines, subtext};
 use super::{Pagination, RenderedResult, page_status};
 use crate::discord::operations::GimfihiOutcome;
-use crate::discord::request::{DiscordTool, GimfihiRequest, GismuShape};
+use crate::discord::request::{DiscordTool, GimfihiRequest, GimfihiScorer, GismuShape};
 
 #[requires(true)]
 #[ensures(ret.tool() == DiscordTool::Gimfihi)]
@@ -46,7 +46,15 @@ pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> Rend
             results,
         } => {
             let options = request.options;
-            let mut status = format!("gimfihi · {}", page_status(results));
+            // Which scorer ranked these is part of what the result is, so it
+            // is shown for both of them rather than only for the one that is
+            // not the default: silence would be indistinguishable from a
+            // result published before there was a choice.
+            let mut status = format!(
+                "gimfihi · {} · {}",
+                page_status(results),
+                options.scorer.as_str()
+            );
             if let Some(preset) = options.preset {
                 status.push_str(&format!(" · {}", preset.as_str()));
             }
@@ -88,7 +96,10 @@ pub(crate) fn render(outcome: &GimfihiOutcome, request: &GimfihiRequest) -> Rend
             if options.show_collisions {
                 settings.push("colliding candidates shown".to_owned());
             }
-            if options.all_letters {
+            // The phonetic scorer scores every letter whatever the setting
+            // says, so this line reports what actually happened rather than
+            // what was ticked.
+            if options.all_letters || options.scorer == GimfihiScorer::Phonetic {
                 settings.push("all letters scored".to_owned());
             }
             if options.require_free_short_rafsi {

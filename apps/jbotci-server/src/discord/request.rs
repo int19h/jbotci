@@ -939,7 +939,7 @@ pub(crate) struct JvozbaRequest {
     pub(crate) options: JvozbaOptions,
 }
 
-pub(crate) use jbotci_gimfihi::{CollisionScope, GimfihiPreset, GismuShape};
+pub(crate) use jbotci_gimfihi::{CollisionScope, GimfihiPreset, GimfihiScorer, GismuShape};
 
 /// Candidate letter shapes; empty means both standard gismu shapes.
 #[invariant(*bits < 4)]
@@ -1016,6 +1016,10 @@ impl GismuShapeSet {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct GimfihiOptions {
     pub(crate) preset: Option<GimfihiPreset>,
+    /// How a candidate is scored against the source words. The shared value
+    /// the CLI, the web app and the tool API use, so a request means the same
+    /// thing wherever it is run.
+    pub(crate) scorer: GimfihiScorer,
     pub(crate) shapes: GismuShapeSet,
     pub(crate) collisions: CollisionScope,
     pub(crate) show_collisions: bool,
@@ -1032,10 +1036,12 @@ impl Default for GimfihiOptions {
     // was opened from.
     #[ensures(ret.shapes.contains(GismuShape::Ccvcv) && ret.shapes.contains(GismuShape::Cvccv))]
     #[ensures(!ret.show_collisions && !ret.all_letters && !ret.require_free_short_rafsi)]
+    #[ensures(ret.scorer == GimfihiScorer::Classic)]
     #[ensures(ret.page.get() == 1)]
     fn default() -> Self {
         Self {
             preset: None,
+            scorer: GimfihiScorer::Classic,
             shapes: GismuShapeSet::empty()
                 .with(GismuShape::Ccvcv)
                 .with(GismuShape::Cvccv),
@@ -1239,6 +1245,10 @@ impl DiscordRequest {
                     | u32::from(options.show_collisions) << 8
                     | u32::from(options.all_letters) << 9
                     | u32::from(options.require_free_short_rafsi) << 10
+                    // Classic is the bit clear, so a message published before
+                    // there was a choice reads as Classic because that is what
+                    // it says, not because something filled a gap in.
+                    | u32::from(options.scorer == GimfihiScorer::Phonetic) << 11
             }
         }
     }
@@ -1408,6 +1418,11 @@ impl DiscordRequest {
                     sources: take(SourceField::Sources),
                     options: GimfihiOptions {
                         preset,
+                        scorer: if flag(11) {
+                            GimfihiScorer::Phonetic
+                        } else {
+                            GimfihiScorer::Classic
+                        },
                         shapes,
                         collisions,
                         show_collisions: flag(8),
@@ -1434,7 +1449,7 @@ impl DiscordRequest {
 /// | cukta   | 0-2 mode, 3-5 result-kind set                                          |
 /// | jvozba  | 0 cmevla target                                                        |
 /// | gimfihi | 0-3 preset (0 none), 4-5 shape set, 6-7 collisions, 8 show collisions, |
-/// |         | 9 all letters, 10 require free short rafsi                             |
+/// |         | 9 all letters, 10 require free short rafsi, 11 phonetic scorer         |
 #[requires(true)]
 #[ensures(ret != 0)]
 pub(crate) const fn options_word_mask(tool: DiscordTool) -> u32 {
@@ -1445,7 +1460,7 @@ pub(crate) const fn options_word_mask(tool: DiscordTool) -> u32 {
         DiscordTool::Vlacku => 0b111_1111_1111,
         DiscordTool::Cukta => 0b11_1111,
         DiscordTool::Jvozba => 0b1,
-        DiscordTool::Gimfihi => 0b111_1111_1111,
+        DiscordTool::Gimfihi => 0b1111_1111_1111,
     }
 }
 
@@ -1717,6 +1732,7 @@ mod tests {
                 sources: Some(text("eng:go, spa:[ir]")),
                 options: GimfihiOptions {
                     preset: Some(GimfihiPreset::Ilmen12),
+                    scorer: GimfihiScorer::Phonetic,
                     shapes: GismuShapeSet::empty().with(GismuShape::Cvccv),
                     collisions: CollisionScope::None,
                     show_collisions: true,
@@ -1747,6 +1763,48 @@ mod tests {
             .expect("request rebuilds");
             assert_eq!(rebuilt, request);
         }
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_gimfihi_state_without_a_scorer_bit_is_the_classic_scorer() {
+        // What a message published before there was a choice carries: the
+        // same options, and bit 11 clear because that build never set it.
+        let phonetic = GimfihiOptions {
+            scorer: GimfihiScorer::Phonetic,
+            ..GimfihiOptions::default()
+        };
+        let request = DiscordRequest::Gimfihi(GimfihiRequest {
+            sources: Some(text("eng:5:go")),
+            options: phonetic,
+        });
+        let word = request.options_word();
+        assert_eq!(word & (1 << 11), 1 << 11, "phonetic is the bit set");
+        let older = word & !(1 << 11);
+
+        let rebuild = |options_word: u32| {
+            let DiscordRequest::Gimfihi(rebuilt) = DiscordRequest::from_parts(
+                DiscordTool::Gimfihi,
+                options_word,
+                PageNumber::first(),
+                vec![(SourceField::Sources, Some(text("eng:5:go")))],
+            )
+            .expect("state rebuilds") else {
+                panic!("a gimfi'i request");
+            };
+            rebuilt.options
+        };
+        assert_eq!(rebuild(older).scorer, GimfihiScorer::Classic);
+        assert_eq!(rebuild(word).scorer, GimfihiScorer::Phonetic);
+        // And nothing else moved with it.
+        assert_eq!(
+            GimfihiOptions {
+                scorer: GimfihiScorer::Classic,
+                ..rebuild(word)
+            },
+            rebuild(older)
+        );
     }
 
     #[test]
