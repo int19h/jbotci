@@ -303,7 +303,9 @@ fn gimfihi_state(request: &GimfihiRequest) -> GimfihiWebState {
         .unwrap_or_default();
     GimfihiWebState {
         preset: options.preset,
-        scorer: defaults.scorer,
+        // The link opens the app on the reader's own scorer, not the app's
+        // default, so what it shows is ranked the way the message was.
+        scorer: options.scorer,
         sources,
         shapes: options.shapes.shapes(),
         all_letters: options.all_letters,
@@ -319,9 +321,9 @@ fn gimfihi_state(request: &GimfihiRequest) -> GimfihiWebState {
 mod tests {
     use super::*;
     use crate::discord::request::{
-        CuktaOptions, CuktaResultKindSet, GentufaOptions, GimfihiOptions, GismuShape,
-        GismuShapeSet, JvozbaOptions, JvozbaRequest, MAX_SOURCE_UNITS, PageNumber, SourceText,
-        VlackuOptions, VlackuWordType, VlackuWordTypeSet, VlaseiOptions, VlaseiRequest,
+        CuktaOptions, CuktaResultKindSet, GentufaOptions, GimfihiOptions, GimfihiScorer,
+        GismuShape, GismuShapeSet, JvozbaOptions, JvozbaRequest, MAX_SOURCE_UNITS, PageNumber,
+        SourceText, VlackuOptions, VlackuWordType, VlackuWordTypeSet, VlaseiOptions, VlaseiRequest,
     };
     use jbotci_gimfihi::{CollisionScope, GimfihiPreset};
     use jbotci_web_core::{
@@ -531,6 +533,7 @@ mod tests {
             sources: Some(SourceText::new("eng:5:go, spa:3:[ir]").expect("text")),
             options: GimfihiOptions {
                 preset: Some(GimfihiPreset::Ilmen6),
+                scorer: GimfihiScorer::Classic,
                 shapes: GismuShapeSet::empty().with(GismuShape::Ccvcv),
                 collisions: CollisionScope::Official,
                 show_collisions: true,
@@ -549,6 +552,22 @@ mod tests {
         assert_eq!(state.shapes, vec![GismuShape::Ccvcv]);
         assert_eq!(state.check_collisions, CollisionScope::Official);
         assert!(state.show_collisions && state.all_letters && state.require_free_short_rafsi);
+        assert_eq!(state.scorer, GimfihiScorer::Classic);
+
+        // The link opens the app on the scorer the message was ranked with,
+        // not on the app's own default.
+        let phonetic = DiscordRequest::Gimfihi(GimfihiRequest {
+            sources: Some(SourceText::new("eng:5:go, spa:3:[ir]").expect("text")),
+            options: GimfihiOptions {
+                scorer: GimfihiScorer::Phonetic,
+                ..GimfihiOptions::default()
+            },
+        });
+        let (path, query) = route_parts(&url_of(&phonetic));
+        assert_eq!(
+            parse_gimfihi_web_route(&path, &query).scorer,
+            GimfihiScorer::Phonetic
+        );
     }
 
     #[test]

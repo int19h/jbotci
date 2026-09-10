@@ -2337,7 +2337,7 @@ mod tests {
                 .handle(&component_interaction("2", &message, ACTOR))
                 .await,
         );
-        assert!(modal.custom_id.as_str().starts_with("j2m.g."));
+        assert!(modal.custom_id.as_str().starts_with("j3m.g."));
         let ModalComponent::TextDisplay(link) = modal.components.first() else {
             panic!("the first component is the link");
         };
@@ -3635,6 +3635,96 @@ mod tests {
         assert!(
             matches!(response, InteractionResponse::Modal(_)),
             "{response:?}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[requires(true)]
+    #[ensures(true)]
+    async fn choosing_the_other_scorer_reranks_the_same_result() {
+        let discord = FakeDiscord::start().await;
+        let service = new_service(&discord);
+        discord.publish(json!({ "id": MESSAGE, "components": [], "attachments": [] }));
+        service
+            .handle(&command(
+                "180",
+                "gimfihi",
+                vec![option("sources", "eng:5:go, spa:3:[ir], cmn:4:[t͡ɕʰy]")],
+            ))
+            .await;
+        settle(&discord, 1).await;
+        let published = discord.original().expect("a result");
+        let classic = published.to_string();
+        assert!(
+            classic.contains("classic") && classic.contains("gorci"),
+            "a result says how it was ranked, and by what: {classic}"
+        );
+
+        // The form carries the choice; taking the other one edits the same
+        // message, and what comes back is a different ranking rather than the
+        // same one relabelled.
+        let modal = modal_of(
+            service
+                .handle(&component_interaction("181", &published, ACTOR))
+                .await,
+        );
+        let writes = discord.count("PATCH");
+        service
+            .handle(&submission(
+                "182",
+                &modal,
+                &published,
+                ACTOR,
+                &[("scorer", json!(["phonetic"]))],
+            ))
+            .await;
+        settle(&discord, writes + 1).await;
+        let edited = discord.original().expect("an edit").to_string();
+        assert!(
+            edited.contains("phonetic") && edited.contains("cigro"),
+            "the phonetic scorer ranked it: {edited}"
+        );
+        assert!(
+            !edited.contains("gorci"),
+            "and the classic ranking is gone: {edited}"
+        );
+
+        // The form reopens on what the message now says, and the link that
+        // comes with it opens the app on the same scorer.
+        let now = discord.original().expect("the edited result");
+        let reopened = modal_of(
+            service
+                .handle(&component_interaction("183", &now, ACTOR))
+                .await,
+        );
+        let chosen = reopened
+            .components
+            .iter()
+            .find_map(|component| match component {
+                ModalComponent::Label(labeled) => match &labeled.control {
+                    ModalControl::StringSelect(select) if select.custom_id.as_str() == "scorer" => {
+                        Some(
+                            select
+                                .options
+                                .iter()
+                                .filter(|option| option.default)
+                                .map(|option| option.value.clone())
+                                .collect::<Vec<_>>(),
+                        )
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("a scorer control");
+        assert_eq!(chosen, vec!["phonetic".to_owned()]);
+        let ModalComponent::TextDisplay(link) = reopened.components.first() else {
+            panic!("the first component is the link");
+        };
+        assert!(
+            link.content.contains("phonetic"),
+            "the link opens the app on the same scorer: {}",
+            link.content
         );
     }
 

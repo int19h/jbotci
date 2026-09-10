@@ -1145,7 +1145,7 @@ mod tests {
     #[ensures(true)]
     fn modal_serializes_labels_and_controls() {
         let modal = new!(Modal {
-            custom_id: CustomId::new("j2m.g.1.1").expect("id"),
+            custom_id: CustomId::new("j3m.g.1.1").expect("id"),
             title: "gentufa".to_owned(),
             components: Vec1::try_from(vec![
                 ModalComponent::TextDisplay(text(

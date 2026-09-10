@@ -16,6 +16,12 @@ has a web page (gentufa, vlacku, cukta, gimfihi), the form's first line is an
 — and opening the view the app would open for it; the other three tools have
 no page, so their forms have no link and no substitute.
 
+The gismu search is ranked by one of two scorers, chosen in its form: the
+classic one compares letters, the phonetic one compares sounds. The result says
+which ranked it, the choice travels with the message like every other setting,
+and the link opens the app on the same one. Changing it starts the list over,
+because it changes which candidates come first.
+
 A result that is a list carries **Previous** and **Next** beside it. They turn
 the page on the same message, and each page says which results it shows —
 `6-10`, or `6-10 of 38` where the number of results is genuinely known. It is
@@ -105,7 +111,12 @@ is replaced, never migrated: deploy the previous image and run its own
 `setup --discord-commands`, which writes the schema that build understands.
 Published messages keep working as far as the two schemas agree: every message
 carries its own state, and a build that meets a setting it does not recognize
-says so and refuses rather than guessing. A result recomputed by a build other
+says so and refuses rather than guessing. A message from a build that had no
+such setting carries no such setting, and reads as the default it had: a gismu
+result published before there were two scorers says the classic one because
+that is what its state says, not because something filled a gap in. A form
+someone still has open when the build changes under it is refused with the
+message that says to open it again, since its controls are not this build's. A result recomputed by a build other
 than the one that published it says so in the edited message, because its text
 and its image are then the work of a different version.
 

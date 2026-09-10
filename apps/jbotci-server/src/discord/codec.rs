@@ -34,9 +34,10 @@ pub(crate) const SCHEMA_VERSION: &str = "j1";
 /// Form schema version. It names the set of controls a form was built with,
 /// so a form opened before a change to that set is refused with the message
 /// that says to reopen it, rather than read as though its controls were the
-/// current ones. This build's forms drop the vlacku, cukta and gimfihi page
-/// selects and the jvozba fixed-rafsi field, which is why it is not `j1m`.
-const MODAL_SCHEMA_VERSION: &str = "j2m";
+/// current ones. `j1m` had the vlacku, cukta and gimfihi page selects and the
+/// jvozba fixed-rafsi field; `j2m` dropped them; this build's gimfihi form
+/// adds the scorer, which is why it is `j3m`.
+const MODAL_SCHEMA_VERSION: &str = "j3m";
 const SEPARATOR: char = '.';
 
 /// Discord's custom ID bound.
@@ -791,8 +792,8 @@ mod tests {
     use crate::discord::request::{
         CollisionScope, CuktaMode, CuktaOptions, CuktaRequest, CuktaResultKind, CuktaResultKindSet,
         GentufaOptions, GentufaRequest, GentufaTextView, GimfihiOptions, GimfihiPreset,
-        GimfihiRequest, GismuShape, GismuShapeSet, JvozbaOptions, JvozbaRequest, JvozbaTarget,
-        MAX_SOURCE_UNITS, VlackuMode, VlackuOptions, VlackuRequest, VlackuWordType,
+        GimfihiRequest, GimfihiScorer, GismuShape, GismuShapeSet, JvozbaOptions, JvozbaRequest,
+        JvozbaTarget, MAX_SOURCE_UNITS, VlackuMode, VlackuOptions, VlackuRequest, VlackuWordType,
         VlackuWordTypeSet, VlaseiOptions, VlaseiRequest, VlaseiView, VlataiOptions, VlataiRequest,
     };
 
@@ -873,6 +874,52 @@ mod tests {
         assert_eq!(request.parts.as_str(), "klama bajra -kla- -bar-");
 
         // And what it rebuilds to now publishes and reopens unchanged.
+        assert_round_trip(&rebuilt);
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
+    fn a_gimfihi_message_from_before_the_scorer_choice_reads_as_the_classic_one() {
+        // Produced by the build this branch starts from — 1c3015f7d3, which
+        // had no scorer to choose — by running its own encoder over a gimfihi
+        // request with every other setting turned on, and frozen here. Its
+        // options word is 0x767: bit 11, where this build keeps the scorer, is
+        // clear because that build never wrote there.
+        const OLDER_CUSTOM_ID: &str = "j1.fi1.767.3.4.123456789012345678.1c3015f.zsrZVI48Ass";
+        const OLDER_BLOCK: &str =
+            "eng\\:5\\:go, spa\\:3\\:\\[ir\\]\n-# gimfihi · 11-15 of 42 · ilmen6";
+
+        let header = RequestHeader::decode(OLDER_CUSTOM_ID).expect("the old identifier decodes");
+        assert_eq!(header.tool, DiscordTool::Gimfihi);
+        assert_eq!(header.options_word & (1 << 11), 0, "no scorer was written");
+        let fields = decode_input_block(header.tool, header.presence, OLDER_BLOCK)
+            .expect("the old block decodes");
+        let rebuilt = header.rebuild(fields).expect("the old state rebuilds");
+        let DiscordRequest::Gimfihi(request) = &rebuilt.request else {
+            panic!("a gimfi'i request");
+        };
+        assert_eq!(
+            request.options,
+            GimfihiOptions {
+                preset: Some(GimfihiPreset::Ilmen6),
+                // What the older state does not say, this build reads as the
+                // scorer that build used.
+                scorer: GimfihiScorer::Classic,
+                shapes: GismuShapeSet::empty().with(GismuShape::Cvccv),
+                collisions: CollisionScope::Official,
+                show_collisions: true,
+                all_letters: true,
+                require_free_short_rafsi: true,
+                page: PageNumber::new(3).expect("page"),
+            }
+        );
+        assert_eq!(
+            request.sources.as_ref().map(SourceText::as_str),
+            Some("eng:5:go, spa:3:[ir]")
+        );
+
+        // And what it rebuilds to publishes and reopens unchanged here.
         assert_round_trip(&rebuilt);
     }
 
@@ -1089,6 +1136,7 @@ mod tests {
                 sources: Some(text("eng:go\nspa:[ir]; cmn:cu")),
                 options: GimfihiOptions {
                     preset: Some(GimfihiPreset::Data1999),
+                    scorer: GimfihiScorer::Classic,
                     shapes: GismuShapeSet::empty().with(GismuShape::Ccvcv),
                     collisions: CollisionScope::Official,
                     show_collisions: true,
@@ -1112,6 +1160,7 @@ mod tests {
                 sources: Some(text("eng:go")),
                 options: GimfihiOptions {
                     preset: Some(GimfihiPreset::Ilmen12),
+                    scorer: GimfihiScorer::Classic,
                     shapes: GismuShapeSet::empty()
                         .with(GismuShape::Ccvcv)
                         .with(GismuShape::Cvccv),
