@@ -34,11 +34,11 @@ from typing import Any, Mapping
 if __package__:
     from . import links_jai_ledger as ledger
     from . import links_jai_transcription as jai
-    from .rust_debug import DebugParseError, DebugParser, exact_equal
+    from .rust_debug import DebugParseError, DebugParser, NumberLiteral, exact_equal
 else:
     import links_jai_ledger as ledger
     import links_jai_transcription as jai
-    from rust_debug import DebugParseError, DebugParser, exact_equal
+    from rust_debug import DebugParseError, DebugParser, NumberLiteral, exact_equal
 
 
 SEMANTIC_BASE = "83490da32fc174528cdc3283b9aaedca4d90bdb0"
@@ -147,20 +147,66 @@ def review_delta(delta: FixtureDelta, disposition: Mapping[str, Any], mode: str)
                        f"{delta.id}: recovery disposition hides a non-recovered delta")
 
 
+def literal_json(text: str) -> Any:
+    """Keep JSON number spellings and reject lossy duplicate-key decoding."""
+    def object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise jai.ManualShape(f"duplicate compact JSON key {key}")
+            result[key] = value
+        return result
+
+    return json.loads(text, parse_int=NumberLiteral, parse_float=NumberLiteral,
+                      object_pairs_hook=object_pairs)
+
+
+def pins_successful_tree(syntax: Mapping[str, Any]) -> bool:
+    """Respect the fixture harness's unchanged normative/accepted distinction."""
+    xfail = syntax.get("xfail")
+    if xfail is None:
+        return syntax.get("status") == "success"
+    return (syntax.get("status") == "failure" and isinstance(xfail, Mapping) and
+            xfail.get("accepted-status") == "success")
+
+
 def mechanical_jai(old: Mapping[str, Any], new: Mapping[str, Any], delta: FixtureDelta, mode: str) -> int:
     """No other changed facet, acceptance flip, warning or regression is implicit."""
-    if (MODES.index(mode) < MODES.index("c-c") or delta.changed != ("syntax.raw",) or
+    allowed = {"syntax.raw", "output.gentufa.json", "output.gentufa.tree"}
+    if (MODES.index(mode) < MODES.index("c-c") or "syntax.raw" not in delta.changed or
+            not set(delta.changed) <= allowed or
             "regression-baseline" in old.get("tags", [])):
         return 0
     before, after = old["expectations"]["syntax"], new["expectations"]["syntax"]
-    if (before.get("status") != "success" or after.get("status") != "success" or
+    if (not pins_successful_tree(before) or not pins_successful_tree(after) or
             not isinstance(before.get("raw"), str) or not isinstance(after.get("raw"), str)):
         return 0
     try:
-        expected, count = jai.rewrite(DebugParser(before["raw"], preserve_number_literals=True).parse())
+        original = DebugParser(before["raw"], preserve_number_literals=True).parse()
+        expected, count = jai.rewrite(original)
         actual = DebugParser(after["raw"], preserve_number_literals=True).parse()
-        return count if count and exact_equal(expected, actual) else 0
-    except (DebugParseError, jai.ManualShape):
+        if not count or not exact_equal(expected, actual):
+            return 0
+        old_output = old["expectations"].get("output", {}).get("gentufa", {})
+        new_output = new["expectations"].get("output", {}).get("gentufa", {})
+        if "json" in old_output or "json" in new_output:
+            if not isinstance(old_output.get("json"), str) or not isinstance(new_output.get("json"), str):
+                return 0
+            compact_before = literal_json(old_output["json"])
+            compact_after = literal_json(new_output["json"])
+            compact_expected, compact_count = jai.rewrite_json(compact_before)
+            if compact_count != count or not exact_equal(compact_expected, compact_after):
+                return 0
+        if "tree" in old_output or "tree" in new_output:
+            if not isinstance(old_output.get("tree"), str) or not isinstance(new_output.get("tree"), str):
+                return 0
+            rendered, conversions, scalars = jai.rewrite_pretty(old_output["tree"])
+            if (rendered != new_output["tree"] or
+                    conversions != sum(node.name == "ConvertedJaiInnerTanruUnitSyntax" for node in jai.nodes(original)) or
+                    scalars != sum(node.name == "ScalarNegatedJaiInnerTanruUnitSyntax" for node in jai.nodes(original))):
+                return 0
+        return count
+    except (DebugParseError, json.JSONDecodeError, jai.ManualShape):
         return 0
 
 
@@ -199,7 +245,7 @@ def compare_roots(baseline: Path, candidate: Path, mode: str,
             occurrences = mechanical_jai(old, new, delta, mode)
             if occurrences:
                 mechanical.append({"id": case_id, "path": path, "class": "jai-shared-inner",
-                                   "occurrences": occurrences, "surfaces": ["syntax.raw"]})
+                                   "occurrences": occurrences, "surfaces": list(delta.changed)})
                 continue
             ledger.require(case_id in dispositions, f"{case_id}: undispositioned surfaces {delta.changed}")
             review_delta(delta, dispositions[case_id], mode)

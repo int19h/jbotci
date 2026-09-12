@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cc-nu-recovery-control-zantufa"
+lojban = "mi nu do klama kei be"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-808", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-c NU component warning control"
+description = "No-JAI control for PM ruling msg_20260912T171312373960Z_79190f2f468142ad9694ebf54261cf56. Built-in/minimal retain exactly one component warning, grammar-attached (not #891 post-pass), at NU 3..5; default has no warning. The malformed counterpart retains the same component warning before its local recovery error at 21..21. Shared JAI must not add or duplicate this warning; #891 remains deferred."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [21, 21], "source-text" = "", "message" = "incomplete selbri" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "374ac5d744d10d4fd61dccc7490a379194d2b64a31e0f1d87a6d0051f4c51e70" }
+diagnostics = [{ "severity" = "warning", "code" = "syntax.warning.experimental-zantufa-statement-abstraction", "byte-span" = [3, 5], "source-text" = "nu", "message" = "experimental syntax: Zantufa statement payload in abstraction", "word-index" = 1 }, { "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [21, 21], "source-text" = "", "message" = "incomplete selbri" }]
+tree = { "valid-tokens" = ["mi", "nu", "do", "kláma", "keĭ", "be"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[21, 21]] }] }

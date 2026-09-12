@@ -5188,6 +5188,15 @@ impl<'tree> TreeVisitor<'tree> for GeneratedConstructWarningVisitor<'_> {
     #[ensures(true)]
     fn enter_node(&mut self, node: Self::Node) {
         match node {
+            generated::generated_model::NodeRef::PreposedLinkargsTanruUnitSyntax(unit) => {
+                // BE belongs to the shared linkargs product, whose ordinary postposed
+                // uses are standard. Warn on this completed preposed field only;
+                // visiting its product once also avoids duplication under recursive JAI.
+                self.warn_first_token(
+                    ExperimentalConstruct::ExperimentalPreposedLinkargs,
+                    &unit.linkargs,
+                );
+            }
             generated::generated_model::NodeRef::ExpTagAtomRunSyntax(run)
                 if !generated_exp_run_is_single_unprefixed_fa(run) =>
             {

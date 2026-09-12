@@ -2223,7 +2223,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 if let Some(tense_modal) = unit.tense_modal.as_deref() {
                     self.walk_node(tense_modal);
                 }
-                let inner = self.analyze_jai_inner_tanru_unit(&unit.inner_unit);
+                let inner = self.analyze_tanru_unit_atom(&unit.inner_unit);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::JaiConverted,
@@ -2233,7 +2233,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseSyntax::PreposedLinkargsTanruUnit(unit) => {
-                let inner = self.analyze_relation_unit(&unit.base);
+                let inner = self.analyze_linked_tanru_unit(&unit.base);
                 self.assign_link_arguments(inner, &unit.linkargs);
                 self.add_frame(
                     self.raw_for_node(unit),
@@ -2394,7 +2394,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 if let Some(tense_modal) = unit.tense_modal.as_deref() {
                     self.walk_node(tense_modal);
                 }
-                let inner = self.analyze_jai_inner_tanru_unit(&unit.inner_unit);
+                let inner = self.analyze_tanru_unit_atom(&unit.inner_unit);
                 self.add_frame(
                     self.raw_for_node(unit),
                     PlaceFrameKind::JaiConverted,
@@ -2404,7 +2404,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                 )
             }
             generated::TanruUnitAtomBaseForCeiSyntax::PreposedLinkargsTanruUnit(unit) => {
-                let inner = self.analyze_relation_unit(&unit.base);
+                let inner = self.analyze_linked_tanru_unit(&unit.base);
                 self.assign_link_arguments(inner, &unit.linkargs);
                 self.add_frame(
                     self.raw_for_node(unit),
@@ -2453,137 +2453,6 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
     ) -> SelbriPlaceFrameId {
         let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
         self.analyze_tanru_unit_atom(unit)
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_jai_inner_tanru_unit(
-        &mut self,
-        unit: &'tree generated::JaiInnerTanruUnitSyntax,
-    ) -> SelbriPlaceFrameId {
-        match unit {
-            generated::JaiInnerTanruUnitSyntax::ConvertedJaiInnerTanruUnit(unit) => {
-                let inner = self.analyze_jai_inner_tanru_unit(&unit.inner_unit);
-                let converted_place = generated_se_conversion_place(&unit.se)
-                    .and_then(NonZeroU8::new)
-                    .unwrap_or(NonZeroU8::new(2).expect("literal is non-zero"));
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Converted,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_conversion(inner, converted_place),
-                )
-            }
-            generated::JaiInnerTanruUnitSyntax::ScalarNegatedJaiInnerTanruUnit(unit) => {
-                let inner = self.analyze_jai_inner_tanru_unit(&unit.inner_unit);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Forwarding,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_forward(inner),
-                )
-            }
-            generated::JaiInnerTanruUnitSyntax::GroupedJaiInnerTanruUnit(unit) => {
-                let inner = self.analyze_connected_jai_inner_selbri(&unit.selbri);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::Forwarding,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_forward(inner),
-                )
-            }
-            generated::JaiInnerTanruUnitSyntax::SumtiSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.sumti);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::JaiInnerTanruUnitSyntax::TextSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.text);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::JaiInnerTanruUnitSyntax::OperatorSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.mekso_operator);
-                self.add_frame(
-                    self.raw_for_node(unit),
-                    PlaceFrameKind::TanruUnit,
-                    None,
-                    Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                    propagation_none(),
-                )
-            }
-            generated::JaiInnerTanruUnitSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::QuotedTextSelbriTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::OrdinalTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::ProBridiTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::WordTanruUnit(_) => self.add_frame(
-                self.raw_for_node(unit),
-                PlaceFrameKind::TanruUnit,
-                None,
-                Some(TanruUnitNodeId(self.raw_for_node(unit))),
-                propagation_none(),
-            ),
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_connected_jai_inner_selbri(
-        &mut self,
-        selbri: &'tree generated::ConnectedJaiInnerSelbriSyntax,
-    ) -> SelbriPlaceFrameId {
-        let leading = self.analyze_tanru_jai_inner_selbri(&selbri.leading_selbri);
-        if selbri.continuations.is_empty() {
-            return leading;
-        }
-        let mut branches = vec![leading];
-        for continuation in &selbri.continuations {
-            branches.push(self.analyze_tanru_jai_inner_selbri(&continuation.trailing_selbri));
-        }
-        self.add_frame(
-            self.raw_for_node(selbri),
-            PlaceFrameKind::ConnectiveBranching,
-            Some(SelbriNodeId(self.raw_for_node(selbri))),
-            None,
-            propagation_connective_branches(branches),
-        )
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn analyze_tanru_jai_inner_selbri(
-        &mut self,
-        selbri: &'tree generated::TanruJaiInnerSelbriSyntax,
-    ) -> SelbriPlaceFrameId {
-        let mut unit_frames = Vec::new();
-        unit_frames.push(self.analyze_jai_inner_tanru_unit(&selbri.first_unit));
-        for unit in &selbri.additional_units {
-            unit_frames.push(self.analyze_jai_inner_tanru_unit(unit));
-        }
-        let head = *unit_frames
-            .last()
-            .expect("tanru jai-inner selbri grammar always has a first unit");
-        let modifiers = unit_frames[..unit_frames.len().saturating_sub(1)].to_vec();
-        self.add_frame(
-            self.raw_for_node(selbri),
-            PlaceFrameKind::Compound,
-            Some(SelbriNodeId(self.raw_for_node(selbri))),
-            None,
-            propagation_compound(head, modifiers),
-        )
     }
 
     #[requires(true)]
@@ -6900,11 +6769,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 if let Some(tense_modal) = unit.tense_modal.as_deref() {
                     self.walk_node(tense_modal);
                 }
-                self.visit_jai_inner_tanru_unit(&unit.inner_unit);
+                self.visit_tanru_unit_atom(&unit.inner_unit);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::PreposedLinkargsTanruUnit(unit) => {
                 self.walk_node(&unit.linkargs);
-                self.visit_relation_unit(&unit.base);
+                self.visit_linked_tanru_unit(&unit.base);
             }
             generated::TanruUnitAtomBaseForCeiSyntax::AbstractionTanruUnit(unit) => {
                 self.visit_abstraction(unit);
@@ -6975,11 +6844,11 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 if let Some(tense_modal) = unit.tense_modal.as_deref() {
                     self.walk_node(tense_modal);
                 }
-                self.visit_jai_inner_tanru_unit(&unit.inner_unit);
+                self.visit_tanru_unit_atom(&unit.inner_unit);
             }
             generated::TanruUnitAtomBaseSyntax::PreposedLinkargsTanruUnit(unit) => {
                 self.walk_node(&unit.linkargs);
-                self.visit_relation_unit(&unit.base);
+                self.visit_linked_tanru_unit(&unit.base);
             }
             generated::TanruUnitAtomBaseSyntax::AbstractionTanruUnit(unit) => {
                 self.visit_abstraction(unit);
@@ -7046,66 +6915,6 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
     ) {
         let generated::ScalarNegatedTanruInnerUnitSyntax::TanruUnitAtom(unit) = unit;
         self.visit_tanru_unit_atom(unit);
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_jai_inner_tanru_unit(&mut self, unit: &'tree generated::JaiInnerTanruUnitSyntax) {
-        match unit {
-            generated::JaiInnerTanruUnitSyntax::ConvertedJaiInnerTanruUnit(unit) => {
-                self.visit_jai_inner_tanru_unit(&unit.inner_unit);
-            }
-            generated::JaiInnerTanruUnitSyntax::ScalarNegatedJaiInnerTanruUnit(unit) => {
-                self.visit_jai_inner_tanru_unit(&unit.inner_unit);
-            }
-            generated::JaiInnerTanruUnitSyntax::SumtiSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.sumti);
-            }
-            generated::JaiInnerTanruUnitSyntax::OperatorSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.mekso_operator);
-            }
-            generated::JaiInnerTanruUnitSyntax::TextSelbriTanruUnit(unit) => {
-                self.walk_node(&unit.text);
-            }
-            generated::JaiInnerTanruUnitSyntax::GroupedJaiInnerTanruUnit(unit) => {
-                self.visit_connected_jai_inner_selbri(&unit.selbri);
-            }
-            generated::JaiInnerTanruUnitSyntax::ProBridiTanruUnit(unit) => {
-                self.resolve_goha_source(self.raw_for_node(unit), unit.goha.value.cmavo());
-            }
-            generated::JaiInnerTanruUnitSyntax::WordTanruUnit(unit) => {
-                if let Some(label) = CeiLabel::from_broda_word_like(unit.0.value.core_word()) {
-                    self.resolve_broda_source(self.raw_for_node(unit), label);
-                }
-            }
-            generated::JaiInnerTanruUnitSyntax::OrdinalTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::QuotedBridiSelbriTanruUnit(_)
-            | generated::JaiInnerTanruUnitSyntax::QuotedTextSelbriTanruUnit(_) => {}
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_connected_jai_inner_selbri(
-        &mut self,
-        selbri: &'tree generated::ConnectedJaiInnerSelbriSyntax,
-    ) {
-        self.visit_tanru_jai_inner_selbri(&selbri.leading_selbri);
-        for continuation in &selbri.continuations {
-            self.visit_tanru_jai_inner_selbri(&continuation.trailing_selbri);
-        }
-    }
-
-    #[requires(true)]
-    #[ensures(true)]
-    fn visit_tanru_jai_inner_selbri(
-        &mut self,
-        selbri: &'tree generated::TanruJaiInnerSelbriSyntax,
-    ) {
-        self.visit_jai_inner_tanru_unit(&selbri.first_unit);
-        for unit in &selbri.additional_units {
-            self.visit_jai_inner_tanru_unit(unit);
-        }
     }
 
     #[requires(true)]

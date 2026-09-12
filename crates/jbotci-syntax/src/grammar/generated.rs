@@ -146,7 +146,6 @@ pub mod generated_model {
         tanru_unit: TanruUnitSyntax;
         cei_free_tanru_unit: TanruUnitSyntax;
         tanru_unit_atom: TanruUnitAtomSyntax;
-        jai_inner_tanru_unit: JaiInnerTanruUnitSyntax;
         // The BE/BEI linked-argument ladder is the term ladder's shape at the link site, and it
         // belongs here for the same reason: `linkargs` -> `linked_term` -> `bound_linked_term` ->
         // `bound_linked_term_operand` nest, and each level had two reference sites, so leaving
@@ -7188,15 +7187,15 @@ pub mod generated_model {
     }
 
     /// Product node for tanru unit; preserves `conversions` and `base` in source order.
-    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> struct {
+    rule "tanru unit" tanru_unit_atom(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> struct {
         /// Ordered sequence of zero or more conversions components.
         field conversions <- [zero_or_more selmaho(Se).wf()];
         /// The shared base child syntax node.
-        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs));
+        field base <- arc(tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs));
     }
 
     /// Sum node for tanru unit; selects among the standard and gated Zantufa forms.
-    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, jai_inner_tanru_unit, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> enum {
+    rule "tanru unit" tanru_unit_atom_base(tanru_unit_atom, tanru_unit, tanru_selbri, connected_selbri, subbridi, sumti, selbri, text, tense_modal, free_modifier, mekso, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, statement, forethought_bridi_connection, normal_term, linkargs) -> enum {
         /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
         ordinal_tanru_unit,
         /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
@@ -7268,11 +7267,11 @@ pub mod generated_model {
     }
 
     /// Product node for linked arguments; preserves `linkargs` and `base` in source order.
-    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit, linkargs) -> struct {
-        /// The `linkargs` grammar result in the `linkargs` structural role of the `preposed_linkargs_tanru_unit` production.
+    rule "linked arguments" preposed_linkargs_tanru_unit(tanru_unit_atom, linkargs) -> struct {
+        /// The complete exp-sourced linkargs; the strict construct visitor warns at its BE.
         field linkargs <- linkargs;
-        /// The shared base child syntax node.
-        field base <- arc(tanru_unit);
+        /// The following linked atom; CEI assignments remain at the outer tanru-unit level.
+        field base <- arc(linked_tanru_unit(tanru_unit_atom, linkargs));
     }
 
     /// Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.
@@ -7290,55 +7289,13 @@ pub mod generated_model {
     }
 
     /// Product node for modal conversion; preserves `jai`, `tense_modal`, and `inner_unit` in source order.
-    rule "modal conversion" jai_modal_tanru_unit(jai_inner_tanru_unit, tense_modal) -> struct {
+    rule "modal conversion" jai_modal_tanru_unit(tanru_unit_atom, tense_modal) -> struct {
         /// The `Jai` cmavo marker.
         field jai <- cmavo(Jai).wf();
         /// The optional tense modal component.
         field tense_modal <- opt(arc(tense_modal));
-        /// The shared inner unit child syntax node.
-        field inner_unit <- arc(jai_inner_tanru_unit);
-    }
-
-    /// Sum node for modal conversion; selects among 11 forms including `converted_jai_inner_tanru_unit`, `scalar_negated_jai_inner_tanru_unit`, and `sumti_selbri_tanru_unit`.
-    rule "modal conversion" jai_inner_tanru_unit(jai_inner_tanru_unit, sumti, selbri, text, mekso_operator, atomic_mekso_operator, letter_tokens, letter_string, normal_term) -> enum {
-        /// Uses the `converted_jai_inner_tanru_unit` product form, whose payload preserves `se` and `inner_unit`.
-        converted_jai_inner_tanru_unit,
-        /// Uses the `scalar_negated_jai_inner_tanru_unit` product form, whose payload preserves `nahe` and `inner_unit`.
-        scalar_negated_jai_inner_tanru_unit,
-        /// Uses the `sumti_selbri_tanru_unit` product form, whose payload preserves `me`, `sumti`, `mehu`, and `moi_marker`.
-        sumti_selbri_tanru_unit,
-        /// Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.
-        quoted_bridi_selbri_tanru_unit,
-        /// Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.
-        quoted_text_selbri_tanru_unit,
-        /// Uses the `text_selbri_tanru_unit` product form, whose payload preserves `luhei`, `text`, and `lihau`.
-        text_selbri_tanru_unit,
-        /// Uses the `grouped_jai_inner_tanru_unit` product form, whose payload preserves `ke`, `selbri`, and `kehe`.
-        grouped_jai_inner_tanru_unit,
-        /// Uses the `ordinal_tanru_unit` product form, whose payload preserves `number` and `moi`.
-        ordinal_tanru_unit,
-        /// Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.
-        operator_selbri_tanru_unit,
-        /// Uses the `pro_bridi_tanru_unit` product form, whose payload preserves `goha` and `raho`.
-        pro_bridi_tanru_unit,
-        /// Uses the `word_tanru_unit` product form, whose payload preserves `word`.
-        word_tanru_unit,
-    }
-
-    /// Product node for converted tanru unit; preserves `se` and `inner_unit` in source order.
-    rule "converted tanru unit" converted_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
-        /// A word from selmaho `Se`.
-        field se <- selmaho(Se).wf();
-        /// The shared inner unit child syntax node.
-        field inner_unit <- arc(jai_inner_tanru_unit);
-    }
-
-    /// Product node for scalar-negated tanru unit; preserves `nahe` and `inner_unit` in source order.
-    rule "scalar-negated tanru unit" scalar_negated_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
-        /// A word from selmaho `Nahe`.
-        field nahe <- selmaho(Nahe).wf();
-        /// The shared inner unit child syntax node.
-        field inner_unit <- arc(jai_inner_tanru_unit);
+        /// The same recursive atom used outside JAI, including SE, NAhE, NU and KE.
+        field inner_unit <- arc(tanru_unit_atom);
     }
 
     /// Transparent product node for quoted bridi selbri; preserves the `quote` component.
@@ -7501,44 +7458,6 @@ pub mod generated_model {
         field selbri <- arc(tanru_selbri);
         /// The optional `Kehe` cmavo marker.
         field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
-    }
-
-    /// Product node for grouped tanru; preserves `ke`, `selbri`, and `kehe` in source order.
-    rule "grouped tanru" grouped_jai_inner_tanru_unit(jai_inner_tanru_unit) -> struct {
-        /// The `Ke` cmavo marker.
-        field ke <- cmavo(Ke).wf();
-        /// The shared selbri child syntax node.
-        field selbri <- arc(connected_jai_inner_selbri(jai_inner_tanru_unit));
-        /// The optional `Kehe` cmavo marker.
-        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
-    }
-
-    /// Product node for selbri connection; preserves `leading_selbri` and `continuations` in source order.
-    rule "selbri connection" connected_jai_inner_selbri(jai_inner_tanru_unit) -> struct {
-        /// The shared leading selbri child syntax node.
-        field leading_selbri <- arc(tanru_jai_inner_selbri(jai_inner_tanru_unit));
-        /// Ordered sequence of zero or more continuations components.
-        field continuations <- [zero_or_more connected_jai_inner_selbri_continuation(jai_inner_tanru_unit)];
-    }
-
-    /// Product node for selbri connection continuation; preserves `connective` and `trailing_selbri` in source order.
-    rule "selbri connection continuation" connected_jai_inner_selbri_continuation(jai_inner_tanru_unit) -> struct {
-        /// The `selbri_afterthought_connective` connective joining the adjacent constituents of
-        /// the `connected_jai_inner_selbri_continuation` production. This mini-ladder is a
-        /// selbri connection, not a bridi-tail one, so its inventory is the selbri family's
-        /// JOIK/JEK -- the EK and VUhU spellings the legacy shared node also held have no
-        /// source at a selbri joint (camxes.peg:172-176).
-        field connective <- selbri_afterthought_connective;
-        /// The shared trailing selbri child syntax node.
-        field trailing_selbri <- arc(tanru_jai_inner_selbri(jai_inner_tanru_unit));
-    }
-
-    /// Product node for selbri; preserves `first_unit` and `additional_units` in source order.
-    rule "selbri" tanru_jai_inner_selbri(jai_inner_tanru_unit) -> struct {
-        /// The initial `jai_inner_tanru_unit` constituent before the continuations of the `tanru_jai_inner_selbri` production.
-        field first_unit <- jai_inner_tanru_unit;
-        /// Ordered sequence of zero or more additional units components.
-        field additional_units <- [zero_or_more jai_inner_tanru_unit];
     }
 
     /// Sum node for the three nonempty legacy linked-sumti forms.

@@ -45,6 +45,116 @@ class ComparerTests(unittest.TestCase):
         delta = COMPARER.compare_pair(fixture, copy.deepcopy(fixture), "case.toml")
         self.assertEqual(delta.changed, ())
 
+    def rendered_jai_fixture(self, kind):
+        old = self.fixture()
+        word = JAI.arm("WordTanruUnit", JAI.arm("WordTanruUnitSyntax", "complete word"))
+        compact_word = {"WordTanruUnit": {"word": {"text": "broda", "span": [9, 14]}}}
+        inner, compact_inner = word, compact_word
+        pretty = '  inner_unit: Gismu @[9‥14) "bróda",\n'
+        if kind == "converted":
+            inner = JAI.arm("ConvertedJaiInnerTanruUnit", JAI.product(
+                "ConvertedJaiInnerTanruUnitSyntax", se="complete se", inner_unit=word))
+            compact_inner = {"ConvertedJaiInnerTanruUnit": {"se": "complete se", "inner_unit": compact_word}}
+            pretty = ('  inner_unit: ConvertedJaiInnerTanruUnit @[6‥14) {\n'
+                      '    se: Cmavo @[6‥8) "se",\n'
+                      '    inner_unit: Gismu @[9‥14) "bróda",\n  },\n')
+        elif kind == "scalar":
+            inner = JAI.arm("ScalarNegatedJaiInnerTanruUnit", JAI.product(
+                "ScalarNegatedJaiInnerTanruUnitSyntax", nahe="complete nahe", inner_unit=word))
+            compact_inner = {"ScalarNegatedJaiInnerTanruUnit": {"nahe": "complete nahe", "inner_unit": compact_word}}
+            pretty = ('  inner_unit: ScalarNegatedJaiInnerTanruUnit @[6‥14) {\n'
+                      '    nahe: Cmavo @[6‥8) "nahe",\n'
+                      '    inner_unit: Gismu @[9‥14) "bróda",\n  },\n')
+        root = JAI.product("JaiModalTanruUnitSyntax", jai="complete jai", tense_modal=JAI.NONE, inner_unit=inner)
+        compact = {"root": {"JaiModalTanruUnit": {"jai": "complete jai", "inner_unit": compact_inner}},
+                   "outside": {"keep": [1, True, "literal"]}}
+        old["expectations"]["syntax"]["raw"] = debug(root)
+        old["expectations"]["output"] = {"gentufa": {"json": json.dumps(compact), "tree": "root {\n" + pretty + "}\n"}}
+        new = copy.deepcopy(old)
+        new["expectations"]["syntax"]["raw"] = debug(JAI.rewrite(root)[0])
+        new["expectations"]["output"]["gentufa"] = {
+            "json": json.dumps(JAI.rewrite_json(compact)[0]),
+            "tree": JAI.rewrite_pretty(old["expectations"]["output"]["gentufa"]["tree"])[0]}
+        return old, new
+
+    def test_jai_complete_public_transcriptions_match_declared_shapes(self):
+        for kind in ("word", "converted", "scalar"):
+            with self.subTest(kind=kind):
+                old, new = self.rendered_jai_fixture(kind)
+                delta = COMPARER.compare_pair(old, new, "case.toml")
+                self.assertEqual(COMPARER.mechanical_jai(old, new, delta, "c-c"), 1)
+                self.assertEqual(COMPARER.mechanical_jai(old, new, delta, "c-b"), 0)
+
+    def test_jai_public_transcription_preserves_every_nonstructural_field(self):
+        for mutation in ("stale-json", "stale-tree", "json-token", "json-span", "json-outside",
+                         "json-scalar-type", "json-extra", "json-duplicate", "tree-token", "tree-span", "tree-outside"):
+            with self.subTest(mutation=mutation):
+                old, new = self.rendered_jai_fixture("converted")
+                output = new["expectations"]["output"]["gentufa"]
+                if mutation.startswith("stale-"):
+                    key = mutation.removeprefix("stale-")
+                    output[key] = old["expectations"]["output"]["gentufa"][key]
+                elif mutation == "json-token":
+                    output["json"] = output["json"].replace('"broda"', '"brode"')
+                elif mutation == "json-span":
+                    output["json"] = output["json"].replace('[9, 14]', '[9, 15]')
+                elif mutation == "json-outside":
+                    output["json"] = output["json"].replace('"literal"', '"changed"')
+                elif mutation == "json-scalar-type":
+                    output["json"] = output["json"].replace('[1, true,', '[true, 1,')
+                elif mutation == "json-extra":
+                    output["json"] = output["json"].replace('"base":', '"extra": [], "base":')
+                elif mutation == "json-duplicate":
+                    output["json"] = output["json"].replace('"jai": "complete jai"', '"jai": "wrong", "jai": "complete jai"')
+                elif mutation == "tree-token":
+                    output["tree"] = output["tree"].replace('"bróda"', '"bróde"')
+                elif mutation == "tree-span":
+                    output["tree"] = output["tree"].replace('[9‥14)', '[9‥15)')
+                else:
+                    output["tree"] = output["tree"].replace('root {', 'changed {')
+                delta = COMPARER.compare_pair(old, new, "case.toml")
+                self.assertEqual(COMPARER.mechanical_jai(old, new, delta, "c-c"), 0)
+
+    def test_jai_compact_numbers_do_not_coerce_or_round(self):
+        for before, after in (("1", "1.0"), ("-0.0", "0.0"),
+                              ("9007199254740992.0", "9007199254740993.0")):
+            old, new = self.rendered_jai_fixture("word")
+            for fixture, number in ((old, before), (new, after)):
+                output = fixture["expectations"]["output"]["gentufa"]
+                output["json"] = output["json"].replace('[1, true,', f'[{number}, true,')
+            delta = COMPARER.compare_pair(old, new, "case.toml")
+            self.assertEqual(COMPARER.mechanical_jai(old, new, delta, "c-c"), 0)
+
+    def test_jai_compact_guard_and_extra_fields_stay_manual(self):
+        for inner in ({"ProBridiTanruUnit": {"goha": "go'i"}},
+                      {"ConvertedJaiInnerTanruUnit": {"se": "se", "inner_unit": {}, "extra": []}},
+                      {"GroupedJaiInnerTanruUnit": {}}, {"Unknown": {}}):
+            with self.subTest(inner=inner):
+                with self.assertRaises(JAI.ManualShape):
+                    JAI.rewrite_json({"JaiModalTanruUnit": {"jai": "jai", "inner_unit": inner}})
+
+    def test_jai_preserves_normative_failure_with_accepted_success_xfail(self):
+        old, new = self.rendered_jai_fixture("word")
+        for fixture in (old, new):
+            syntax = fixture["expectations"]["syntax"]
+            syntax["status"] = "failure"
+            syntax["xfail"] = {"source": "corpus", "reason": "known non-adoption", "accepted-status": "success"}
+        delta = COMPARER.compare_pair(old, new, "case.toml")
+        self.assertEqual(COMPARER.mechanical_jai(old, new, delta, "c-c"), 1)
+        for mutation in ("remove", "reason", "acceptance", "normative"):
+            after = copy.deepcopy(new)
+            syntax = after["expectations"]["syntax"]
+            if mutation == "remove":
+                del syntax["xfail"]
+            elif mutation == "reason":
+                syntax["xfail"]["reason"] = "different disposition"
+            elif mutation == "acceptance":
+                syntax["xfail"]["accepted-status"] = "failure"
+            else:
+                syntax["status"] = "success"
+            delta = COMPARER.compare_pair(old, after, "case.toml")
+            self.assertEqual(COMPARER.mechanical_jai(old, after, delta, "c-c"), 0)
+
     def test_scalar_type_changes_in_pinned_surfaces_are_not_identity(self):
         for before, after in [(True, 1), (False, 0), (1, 1.0), (-0.0, 0.0)]:
             for first, second in [(before, after), (after, before)]:

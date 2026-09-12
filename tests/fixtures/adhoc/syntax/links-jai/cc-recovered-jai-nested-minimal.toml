@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cc-recovered-jai-nested-minimal"
+lojban = "mi jai jai broda be"
+dialect = "(+zantufa-terms)"
+tags = ["adhoc", "syntax", "issue-808", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-c shared JAI atom and preposed placement"
+description = "The outer and inner JaiModal products both retain Valid(TanruUnitAtom) inner fields. The following outer Linkargs.first_link is Error(MissingRequiredField). Full final raw-tree SHA, complete diagnostics and complete valid-token/recovery-item lists pin this actual winning recovery. No recovered-spine post-pass warning is generated; #891 remains deferred."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [19, 19], "source-text" = "", "message" = "incomplete selbri" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "ec0e587655bb8a5f7c5c30aac27edc8c8c73e2e4deb9133308ec93582334768c" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [19, 19], "source-text" = "", "message" = "incomplete selbri" }]
+tree = { "valid-tokens" = ["mi", "jaĭ", "jaĭ", "bróda", "be"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[19, 19]] }] }

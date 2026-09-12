@@ -115,8 +115,13 @@ def test_schema_inventory_and_every_generated_class_are_exact() -> None:
     assert len(strict.__all__) == len(recovered.__all__)
 
     for module in (strict, recovered):
-        for removed in ("EmptyLinkedSumtiSyntax", "LinkedSumtiSyntaxEmptyLinkedSumti",
-                        "LinkedTermSyntaxEmptyLinkedSumti"):
+        for removed in (
+            "EmptyLinkedSumtiSyntax", "LinkedSumtiSyntaxEmptyLinkedSumti",
+            "LinkedTermSyntaxEmptyLinkedSumti", "JaiInnerTanruUnitSyntax",
+            "ConvertedJaiInnerTanruUnitSyntax", "ScalarNegatedJaiInnerTanruUnitSyntax",
+            "GroupedJaiInnerTanruUnitSyntax", "ConnectedJaiInnerSelbriSyntax",
+            "ConnectedJaiInnerSelbriContinuationSyntax", "TanruJaiInnerSelbriSyntax",
+        ):
             assert removed not in module.__all__
             assert not hasattr(module, removed)
 

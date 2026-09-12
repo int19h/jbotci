@@ -1260,12 +1260,6 @@ const SYNTAX_CONSTRUCT_METADATA: &[SyntaxConstructMetadata] = &[
         wiring: SyntaxConstructWiring::Parser,
     },
     SyntaxConstructMetadata {
-        name: "converted tanru unit",
-        parent: Some("tanru unit"),
-        incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,
-        wiring: SyntaxConstructWiring::Parser,
-    },
-    SyntaxConstructMetadata {
         name: "modal conversion",
         parent: Some("tanru unit"),
         incomplete_attribution: SyntaxConstructIncompleteAttribution::Direct,

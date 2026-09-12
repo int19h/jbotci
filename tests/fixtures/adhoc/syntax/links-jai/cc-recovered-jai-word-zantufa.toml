@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cc-recovered-jai-word-zantufa"
+lojban = "mi jai broda be"
+dialect = "(zantufa)"
+tags = ["adhoc", "syntax", "issue-808", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-c shared JAI atom and preposed placement"
+description = "Winning JaiModal.inner_unit is Valid(TanruUnitAtom) with WordTanruUnit. The following outer Linkargs.first_link is Error(MissingRequiredField). Full final raw-tree SHA, complete diagnostics and complete valid-token/recovery-item lists pin this actual winning recovery. No recovered-spine post-pass warning is generated; #891 remains deferred."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [15, 15], "source-text" = "", "message" = "incomplete selbri" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "bebef92dc663e2253fcbb837d984cb5516597645aac1b8aa12bd78c451bbcda8" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.incomplete-selbri", "byte-span" = [15, 15], "source-text" = "", "message" = "incomplete selbri" }]
+tree = { "valid-tokens" = ["mi", "jaĭ", "bróda", "be"], "recovery-items" = [{ "kind" = "missing", "error-index" = 0, "byte-spans" = [[15, 15]] }] }

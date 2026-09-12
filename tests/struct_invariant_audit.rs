@@ -8,6 +8,10 @@ use walkdir::WalkDir;
 
 const ALLOWED_PLACEHOLDERS: &[(&str, &str)] = &[
     (
+        "crates/jbotci-syntax/tests/jai_atoms.rs:PlacementVisitor",
+        "test-only independent collections of borrowed validated nodes; every combination, including empty or partial traversal state, is valid, while completed placement relationships are asserted by the test",
+    ),
+    (
         "apps/jbotci-server/src/lib.rs:EmbeddingToolJob",
         "embedding worker jobs pair a typed request with the response channel for that request",
     ),

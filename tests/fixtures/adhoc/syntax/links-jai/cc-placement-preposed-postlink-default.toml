@@ -1,0 +1,14 @@
+id = "adhoc.syntax.links-jai.cc-placement-preposed-postlink-default"
+lojban = "mi be ko'a be'o broda be ko'e be'o"
+dialect = "()"
+tags = ["adhoc", "syntax", "issue-808", "links-jai-epoch"]
+
+[[provenance]]
+kind = "other"
+name = "Epoch 10 C-c shared JAI atom and preposed placement"
+description = "The preposed base is a LinkedTanruUnit retaining its own postposed linkargs. Only the first BE 3..5 warns."
+
+[expectations.syntax]
+status = "success"
+raw = { "sha256" = "7f7e835dceb37bb5dc242228ede3b09238ec086cf21ccdfa1a7c19cd7e64e51d" }
+diagnostics = [{ "severity" = "warning", "code" = "syntax.warning.experimental-preposed-linkargs", "byte-span" = [3, 5], "source-text" = "be", "message" = "experimental syntax: BE linkargs before a selbri unit", "word-index" = 1 }]

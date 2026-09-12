@@ -8,6 +8,7 @@ mechanical. Regression fixtures are excluded by the caller even for a matching t
 
 from __future__ import annotations
 
+import re
 from typing import Any, Iterator
 
 if __package__:
@@ -159,3 +160,85 @@ def rewrite(value: Any) -> tuple[Any, int]:
         return node
 
     return descend(value), count
+
+
+def rewrite_json(value: Any) -> tuple[Any, int]:
+    """The same transcription in Gentufa's compact, empty-field-eliding JSON.
+
+    This is checked alongside the complete Debug transcription, never instead
+    of it. Unknown products, extra fields and the ProBridi split remain manual.
+    Grouped mini-ladders have no measured mechanical JSON population yet.
+    """
+    count = 0
+
+    def inner(old: Any) -> dict[str, Any]:
+        if not isinstance(old, dict) or len(old) != 1:
+            raise ManualShape('expected one compact old JAI arm')
+        name, payload = next(iter(old.items()))
+        if name in SAME_PRODUCTS:
+            return {'base': old}
+        if name == 'ConvertedJaiInnerTanruUnit':
+            if not isinstance(payload, dict) or set(payload) != {'se', 'inner_unit'}:
+                raise ManualShape('expected compact converted JAI fields')
+            mapped = inner(payload['inner_unit'])
+            return {'conversions': [payload['se'], *mapped.get('conversions', [])],
+                    'base': mapped['base']}
+        if name == 'ScalarNegatedJaiInnerTanruUnit':
+            if not isinstance(payload, dict) or set(payload) != {'nahe', 'inner_unit'}:
+                raise ManualShape('expected compact scalar JAI fields')
+            return {'base': {'ScalarNegatedTanruUnit': {
+                'nahe': payload['nahe'],
+                'inner_unit': {'TanruUnitAtom': inner(payload['inner_unit'])}}}}
+        raise ManualShape(f'unmapped compact old JAI arm {name}')
+
+    def descend(node: Any) -> Any:
+        nonlocal count
+        if isinstance(node, list):
+            return [descend(child) for child in node]
+        if not isinstance(node, dict):
+            return node
+        mapped = {key: descend(child) for key, child in node.items()}
+        if 'JaiModalTanruUnit' in mapped:
+            if set(mapped) != {'JaiModalTanruUnit'}:
+                raise ManualShape('expected compact JAI enum envelope')
+            payload = mapped['JaiModalTanruUnit']
+            if (not isinstance(payload, dict) or
+                    set(payload) not in ({'jai', 'inner_unit'}, {'jai', 'tense_modal', 'inner_unit'})):
+                raise ManualShape('expected compact JAI fields')
+            count += 1
+            mapped = {'JaiModalTanruUnit': {**payload, 'inner_unit': inner(payload['inner_unit'])}}
+        return mapped
+
+    return descend(value), count
+
+
+# A deliberately exact grammar for the measured rendered conversion leaves,
+# not token-projection matching. All 29 baseline conversions have one SE and
+# one plain word; nested/modified conversions need a separate full rendering
+# transcription before they can be accepted. Every byte outside these complete
+# blocks is retained. Scalar renaming changes only the product header.
+_RENDERED_SPAN = r'@\[[0-9]+‥[0-9]+\)'
+_RENDERED_STRING = r'"(?:[^"\\]|\\.)*"'
+_RENDERED_LEAF = rf'[A-Za-z][A-Za-z0-9]* {_RENDERED_SPAN} {_RENDERED_STRING}'
+_CONVERTED_LEAF = re.compile(
+    rf'(?m)^(?P<indent> *)inner_unit: ConvertedJaiInnerTanruUnit (?P<span>{_RENDERED_SPAN}) \{{\n'
+    rf'(?P=indent)  se: (?P<se>Cmavo {_RENDERED_SPAN} {_RENDERED_STRING}),\n'
+    rf'(?P=indent)  inner_unit: (?P<inner>{_RENDERED_LEAF}),\n'
+    r'(?P=indent)\},')
+_SCALAR_HEADER = re.compile(
+    rf'(?m)^(?P<indent> *)inner_unit: ScalarNegatedJaiInnerTanruUnit (?P<span>{_RENDERED_SPAN}) \{{$')
+
+
+def rewrite_pretty(value: str) -> tuple[str, int, int]:
+    """Preserve the whole rendering, changing only two frozen product forms."""
+    def converted(match: re.Match[str]) -> str:
+        indent, span, se, base = (match.group(key) for key in ('indent', 'span', 'se', 'inner'))
+        return (f'{indent}inner_unit: TanruUnitAtom {span} {{\n'
+                f'{indent}  conversions: [\n{indent}    {se},\n{indent}  ],\n'
+                f'{indent}  base: {base},\n{indent}}},')
+
+    value, conversions = _CONVERTED_LEAF.subn(converted, value)
+    value, scalars = _SCALAR_HEADER.subn(
+        lambda match: (f'{match.group("indent")}inner_unit: ScalarNegatedTanruUnit '
+                       f'{match.group("span")} {{'), value)
+    return value, conversions, scalars
