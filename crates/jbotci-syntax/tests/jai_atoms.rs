@@ -19,6 +19,8 @@ struct PlacementVisitor<'tree> {
     preposed: Vec<&'tree model::PreposedLinkargsTanruUnitSyntax>,
     units: Vec<&'tree model::TanruUnitSyntax>,
     jai: Vec<&'tree model::JaiModalTanruUnitSyntax>,
+    mehoi: Vec<&'tree model::MehoiTanruUnitSyntax>,
+    quotes: Vec<&'tree model::QuotedSumtiSyntax>,
 }
 
 impl<'tree> TreeVisitor<'tree> for PlacementVisitor<'tree> {
@@ -32,8 +34,86 @@ impl<'tree> TreeVisitor<'tree> for PlacementVisitor<'tree> {
             model::NodeRef::PreposedLinkargsTanruUnitSyntax(unit) => self.preposed.push(unit),
             model::NodeRef::TanruUnitSyntax(unit) => self.units.push(unit),
             model::NodeRef::JaiModalTanruUnitSyntax(unit) => self.jai.push(unit),
+            model::NodeRef::MehoiTanruUnitSyntax(unit) => self.mehoi.push(unit),
+            model::NodeRef::QuotedSumtiSyntax(quote) => self.quotes.push(quote),
             _ => {}
         }
+    }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn mehoi_is_a_one_word_atom_in_both_runtime_dialects() {
+    for dialect in ["()", "(zantufa)"] {
+        let definition = parse_dialect_definition(dialect).expect("valid test dialect");
+        let options = ParseOptions::default().with_dialect_definition(&definition);
+        for source in [
+            "mi me'oi broda",
+            "mi me'oi broda cei brode",
+            "mi broda cei me'oi brode",
+            "mi me'oi broda bo brode",
+            "mi me'oi broda be ko'a be'o",
+            "mi se me'oi broda",
+            "mi jai me'oi broda",
+            "mi na'e me'oi broda",
+            "mi me'oi broda brode",
+        ] {
+            let words = segment_words_with_modifiers(source).expect("valid morphology");
+            let parsed = parse_syntax_tree_with_source_and_options(&words, source, &options)
+                .unwrap_or_else(|error| panic!("{dialect} {source}: {error:?}"));
+            let mut visitor = PlacementVisitor::default();
+            model::TreeNode::visit_in_order(parsed.parse_tree.as_ref(), &mut visitor);
+            assert_eq!(visitor.mehoi.len(), 1, "{dialect} {source}");
+            assert!(
+                visitor.quotes.is_empty(),
+                "MEhOI must never own a quoted sumti"
+            );
+            assert_eq!(parsed.warnings.len(), 1, "{dialect} {source}");
+            assert_eq!(
+                parsed.warnings[0].kind,
+                ExperimentalConstruct::ExperimentalMehOiSelbriUnit
+            );
+            // The completed morphology token is the warning anchor. Even with
+            // an adjacent tanru word, the quote contains only its first word.
+            let range = parsed.warnings[0]
+                .anchor
+                .core_word()
+                .byte_range()
+                .expect("sourced quote");
+            assert_eq!(
+                &source[range],
+                if source == "mi broda cei me'oi brode" {
+                    "me'oi brode"
+                } else {
+                    "me'oi broda"
+                }
+            );
+            if source == "mi jai me'oi broda" {
+                assert!(matches!(
+                    visitor.jai[0].inner_unit.base.as_ref(),
+                    model::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_)
+                ));
+            }
+            if source == "mi se me'oi broda" {
+                let atom = &visitor.units[0].base.base;
+                assert_eq!(atom.conversions.len(), 1);
+                assert!(matches!(
+                    atom.base.as_ref(),
+                    model::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_)
+                ));
+            }
+            if source == "mi me'oi broda be ko'a be'o" {
+                assert!(visitor.units[0].base.linkargs.is_some());
+                assert!(matches!(
+                    visitor.units[0].base.base.base.as_ref(),
+                    model::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_)
+                ));
+            }
+        }
+        let source = "mi me me'oi broda me'u";
+        let words = segment_words_with_modifiers(source).expect("valid morphology");
+        assert!(parse_syntax_tree_with_source_and_options(&words, source, &options).is_err());
     }
 }
 

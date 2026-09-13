@@ -3018,6 +3018,8 @@ pub struct SyntaxParse {
 pub enum ExperimentalConstruct {
     ExperimentalCmavo,
     ExperimentalZohOiQuote,
+    /// Never emitted: the obsolete quoted-sumti route was removed in #820.
+    /// Retained for public API cleanup #911, not an alias for the selbri-unit warning.
     ExperimentalMehOiQuote,
     ExperimentalMehOiSelbriUnit,
     ExperimentalLohOiBridiDescription,
@@ -3081,6 +3083,7 @@ pub enum ExperimentalConstruct {
     ExperimentalSoiAdverbial,
     ExperimentalPreposedLinkargs,
     /// Retained public category; never emitted after removal of empty BE/BEI payloads (#807).
+    /// Dedicated public API cleanup is tracked in #911.
     ExperimentalEmptyLinkargs,
     ExperimentalBroadBoStatementConnective,
     ExperimentalBroadKePredicateContinuation,

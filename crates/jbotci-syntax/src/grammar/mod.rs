@@ -7344,15 +7344,15 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
-    fn mehoi_quote_warning_is_distinct_from_selbri_unit_warning() {
+    fn mehoi_selbri_unit_does_not_emit_obsolete_quote_warning() {
         run_on_normal_stack(|| {
             let parsed = parse_source("mi me'oi broda", &ParseOptions::default());
 
-            assert!(has_warning_kind(
+            assert!(!has_warning_kind(
                 &parsed,
                 ExperimentalConstruct::ExperimentalMehOiQuote
             ));
-            assert!(!has_warning_kind(
+            assert!(has_warning_kind(
                 &parsed,
                 ExperimentalConstruct::ExperimentalMehOiSelbriUnit
             ));

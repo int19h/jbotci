@@ -37,6 +37,9 @@ pub(super) enum Stage {
     #[serde(rename = "c-c")]
     #[value(name = "c-c")]
     CC,
+    #[serde(rename = "c-d")]
+    #[value(name = "c-d")]
+    CD,
 }
 
 #[invariant(true)]

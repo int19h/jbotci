@@ -4547,10 +4547,8 @@ pub mod generated_model {
         field sumti <- arc(sumti);
     }
 
-    /// Sum node for quote; selects among 6 forms including `experimental_mehoi_compound_quote`, `experimental_zohoi_compound_quote`, and `experimental_rahoi_compound_quote`.
+    /// Sum node for quote; selects among five forms. MEhOI belongs to tanru atoms, not quoted sumti.
     rule "quote" quote(text) -> enum {
-        /// Uses the `experimental_mehoi_compound_quote` product form, whose payload preserves `quote`.
-        experimental_mehoi_compound_quote,
         /// Uses the `experimental_zohoi_compound_quote` product form, whose payload preserves `quote`.
         experimental_zohoi_compound_quote,
         /// Uses the `experimental_rahoi_compound_quote` product form, whose payload preserves `quote`.
@@ -4571,12 +4569,6 @@ pub mod generated_model {
         field text <- arc(text);
         /// The optional `Lihu` cmavo marker.
         field lihu <- opt(cmavo(Lihu).wf()).elidable_terminator(Lihu);
-    }
-
-    /// Transparent product node for quote; preserves the `quote` component.
-    rule "quote" experimental_mehoi_compound_quote -> struct {
-        /// The `quote_marker` grammar result in the `quote` structural role of the `experimental_mehoi_compound_quote` production.
-        field quote <- quote_marker(Mehoi).warn(ExperimentalMehOiQuote).wf();
     }
 
     /// Transparent product node for quote; preserves the `quote` component.
@@ -4607,6 +4599,9 @@ pub mod generated_model {
 
     /// Transparent product node for quote; preserves the `quote` component.
     rule "quote" generic_compound_quote -> struct {
+        // The completed MEhOI token belongs to the dedicated predicate atom,
+        // never to the generic quoted-sumti fallback (#820).
+        assert !quote_marker(Mehoi);
         /// The `word_category` grammar result in the `quote` structural role of the `generic_compound_quote` production.
         field quote <- word_category(Quote).wf();
     }
@@ -7218,6 +7213,8 @@ pub mod generated_model {
         zantufa_mex_moi_tanru_unit,
         /// Uses the `operator_selbri_tanru_unit` product form, whose payload preserves `nuha` and `mekso_operator`.
         operator_selbri_tanru_unit,
+        /// A completed one-word MEhOI quote is a direct atom, never a quoted sumti.
+        mehoi_tanru_unit,
         /// Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.
         quoted_bridi_selbri_tanru_unit,
         /// Uses the `quoted_text_selbri_tanru_unit` product form, whose payload preserves `muhoi`.
@@ -7296,6 +7293,13 @@ pub mod generated_model {
         field tense_modal <- opt(arc(tense_modal));
         /// The same recursive atom used outside JAI, including SE, NAhE, NU and KE.
         field inner_unit <- arc(tanru_unit_atom);
+    }
+
+    /// Direct stage-0 fu'ivla atom. Morphology already owns the one-word payload;
+    /// syntax must not inspect its spelling or treat it as delimited text.
+    rule "tanru unit" mehoi_tanru_unit -> struct {
+        /// The completed MEhOI token, with its selbri-unit warning and free modifiers.
+        field quote <- quote_marker(Mehoi).warn(ExperimentalMehOiSelbriUnit).wf();
     }
 
     /// Transparent product node for quoted bridi selbri; preserves the `quote` component.

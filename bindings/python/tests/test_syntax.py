@@ -121,6 +121,7 @@ def test_schema_inventory_and_every_generated_class_are_exact() -> None:
             "ConvertedJaiInnerTanruUnitSyntax", "ScalarNegatedJaiInnerTanruUnitSyntax",
             "GroupedJaiInnerTanruUnitSyntax", "ConnectedJaiInnerSelbriSyntax",
             "ConnectedJaiInnerSelbriContinuationSyntax", "TanruJaiInnerSelbriSyntax",
+            "ExperimentalMehoiCompoundQuoteSyntax", "QuoteSyntaxExperimentalMehoiCompoundQuote",
         ):
             assert removed not in module.__all__
             assert not hasattr(module, removed)

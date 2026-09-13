@@ -11210,20 +11210,6 @@ class QuantifierSumtiDescriptionTailSyntax:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
-class QuoteSyntaxExperimentalMehoiCompoundQuote:
-    'Uses the `experimental_mehoi_compound_quote` product form, whose payload preserves `quote`.'
-    __match_args__: ClassVar[tuple[Literal['experimental_mehoi_compound_quote']]]
-    def __new__(cls, experimental_mehoi_compound_quote: RecoveredField[ExperimentalMehoiCompoundQuoteSyntax]) -> QuoteSyntaxExperimentalMehoiCompoundQuote: ...
-    @property
-    def experimental_mehoi_compound_quote(self) -> RecoveredField[ExperimentalMehoiCompoundQuoteSyntax]:
-        'Uses the `experimental_mehoi_compound_quote` product form, whose payload preserves `quote`.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
 class QuoteSyntaxExperimentalZohoiCompoundQuote:
     'Uses the `experimental_zohoi_compound_quote` product form, whose payload preserves `quote`.'
     __match_args__: ClassVar[tuple[Literal['experimental_zohoi_compound_quote']]]
@@ -11293,8 +11279,8 @@ class QuoteSyntaxTextQuote:
     def __repr__(self, /) -> str: ...
     def __eq__(self, other: object, /) -> bool: ...
 
-# Sum node for quote; selects among 6 forms including `experimental_mehoi_compound_quote`, `experimental_zohoi_compound_quote`, and `experimental_rahoi_compound_quote`.
-QuoteSyntax: TypeAlias = QuoteSyntaxExperimentalMehoiCompoundQuote | QuoteSyntaxExperimentalZohoiCompoundQuote | QuoteSyntaxExperimentalRahoiCompoundQuote | QuoteSyntaxExperimentalGohoiCompoundQuote | QuoteSyntaxGenericCompoundQuote | QuoteSyntaxTextQuote
+# Sum node for quote; selects among five forms. MEhOI belongs to tanru atoms, not quoted sumti.
+QuoteSyntax: TypeAlias = QuoteSyntaxExperimentalZohoiCompoundQuote | QuoteSyntaxExperimentalRahoiCompoundQuote | QuoteSyntaxExperimentalGohoiCompoundQuote | QuoteSyntaxGenericCompoundQuote | QuoteSyntaxTextQuote
 
 @final
 class TextQuoteSyntax:
@@ -11317,20 +11303,6 @@ class TextQuoteSyntax:
     @property
     def lihu(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]] | None:
         'The optional `Lihu` cmavo marker.'
-        ...
-    __hash__: ClassVar[None]  # type: ignore[assignment]
-    def same_identity(self, other: object, /) -> bool: ...
-    def __repr__(self, /) -> str: ...
-    def __eq__(self, other: object, /) -> bool: ...
-
-@final
-class ExperimentalMehoiCompoundQuoteSyntax:
-    'Transparent product node for quote; preserves the `quote` component.'
-    __match_args__: ClassVar[tuple[Literal['quote']]]
-    def __new__(cls, quote: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]) -> ExperimentalMehoiCompoundQuoteSyntax: ...
-    @property
-    def quote(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
-        'The `quote_marker` grammar result in the `quote` structural role of the `experimental_mehoi_compound_quote` production.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...
@@ -17956,6 +17928,20 @@ class TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit:
     def __eq__(self, other: object, /) -> bool: ...
 
 @final
+class TanruUnitAtomBaseSyntaxMehoiTanruUnit:
+    'A completed one-word MEhOI quote is a direct atom, never a quoted sumti.'
+    __match_args__: ClassVar[tuple[Literal['mehoi_tanru_unit']]]
+    def __new__(cls, mehoi_tanru_unit: RecoveredField[MehoiTanruUnitSyntax]) -> TanruUnitAtomBaseSyntaxMehoiTanruUnit: ...
+    @property
+    def mehoi_tanru_unit(self) -> RecoveredField[MehoiTanruUnitSyntax]:
+        'A completed one-word MEhOI quote is a direct atom, never a quoted sumti.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
 class TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit:
     'Uses the `quoted_bridi_selbri_tanru_unit` product form, whose payload preserves `quote`.'
     __match_args__: ClassVar[tuple[Literal['quoted_bridi_selbri_tanru_unit']]]
@@ -18068,7 +18054,7 @@ class TanruUnitAtomBaseSyntaxGroupedTanruUnit:
     def __eq__(self, other: object, /) -> bool: ...
 
 # Sum node for tanru unit; selects among the standard and gated Zantufa forms.
-TanruUnitAtomBaseSyntax: TypeAlias = TanruUnitAtomBaseSyntaxOrdinalTanruUnit | TanruUnitAtomBaseSyntaxWordTanruUnit | TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit | TanruUnitAtomBaseSyntaxJaiModalTanruUnit | TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit | TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit | TanruUnitAtomBaseSyntaxAbstractionTanruUnit | TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit | TanruUnitAtomBaseSyntaxZantufaMeTanruUnit | TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit | TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTagSelbriTanruUnit | TanruUnitAtomBaseSyntaxGohaWordTanruUnit | TanruUnitAtomBaseSyntaxProBridiTanruUnit | TanruUnitAtomBaseSyntaxZantufaKeCoGroupedTanruUnit | TanruUnitAtomBaseSyntaxGroupedTanruUnit
+TanruUnitAtomBaseSyntax: TypeAlias = TanruUnitAtomBaseSyntaxOrdinalTanruUnit | TanruUnitAtomBaseSyntaxWordTanruUnit | TanruUnitAtomBaseSyntaxPreposedLinkargsTanruUnit | TanruUnitAtomBaseSyntaxJaiModalTanruUnit | TanruUnitAtomBaseSyntaxScalarNegatedTanruUnit | TanruUnitAtomBaseSyntaxZantufaStatementAbstractionTanruUnit | TanruUnitAtomBaseSyntaxAbstractionTanruUnit | TanruUnitAtomBaseSyntaxSumtiSelbriTanruUnit | TanruUnitAtomBaseSyntaxZantufaMeTanruUnit | TanruUnitAtomBaseSyntaxZantufaMexMoiTanruUnit | TanruUnitAtomBaseSyntaxOperatorSelbriTanruUnit | TanruUnitAtomBaseSyntaxMehoiTanruUnit | TanruUnitAtomBaseSyntaxQuotedBridiSelbriTanruUnit | TanruUnitAtomBaseSyntaxQuotedTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTextSelbriTanruUnit | TanruUnitAtomBaseSyntaxTagSelbriTanruUnit | TanruUnitAtomBaseSyntaxGohaWordTanruUnit | TanruUnitAtomBaseSyntaxProBridiTanruUnit | TanruUnitAtomBaseSyntaxZantufaKeCoGroupedTanruUnit | TanruUnitAtomBaseSyntaxGroupedTanruUnit
 
 @final
 class ZantufaKeCoGroupedTanruUnitSyntax:
@@ -18212,6 +18198,20 @@ class JaiModalTanruUnitSyntax:
     @property
     def inner_unit(self) -> RecoveredField[TanruUnitAtomSyntax]:
         'The same recursive atom used outside JAI, including SE, NAhE, NU and KE.'
+        ...
+    __hash__: ClassVar[None]  # type: ignore[assignment]
+    def same_identity(self, other: object, /) -> bool: ...
+    def __repr__(self, /) -> str: ...
+    def __eq__(self, other: object, /) -> bool: ...
+
+@final
+class MehoiTanruUnitSyntax:
+    'Direct stage-0 fu\'ivla atom. Morphology already owns the one-word payload;\nsyntax must not inspect its spelling or treat it as delimited text.'
+    __match_args__: ClassVar[tuple[Literal['quote']]]
+    def __new__(cls, quote: WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]) -> MehoiTanruUnitSyntax: ...
+    @property
+    def quote(self) -> WithFreeModifiers[RecoveredField[Token], RecoveredField[FreeModifierSyntax]]:
+        'The completed MEhOI token, with its selbri-unit warning and free modifiers.'
         ...
     __hash__: ClassVar[None]  # type: ignore[assignment]
     def same_identity(self, other: object, /) -> bool: ...

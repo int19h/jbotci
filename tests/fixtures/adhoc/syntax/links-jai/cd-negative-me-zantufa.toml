@@ -1,0 +1,19 @@
+id = "adhoc.syntax.links-jai.cd-negative-me-zantufa"
+lojban = "mi me me'oi broda me'u"
+tags = ["links-jai-epoch", "mehoi-owner"]
+dialect = "(zantufa)"
+
+[[provenance]]
+kind = "other"
+name = "Epoch10 C-d #820 typed MEhOI ownership"
+description = "Manual A-to-R removal of the unsourced ME + quoted-sumti route. ME requires a sumti; a direct MEhOI atom cannot fill that role. The winning recovered path retains invalid quote spans rather than bypassing the guard; no MEhOI warning leaks."
+
+[expectations.syntax]
+status = "failure"
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-quote", "byte-span" = [6, 17], "source-text" = "me'oi broda", "message" = "unexpected quote" }]
+
+[expectations.syntax.recovered]
+status = "failure"
+raw = { "sha256" = "5dce6f752b956c9e43de59e7edf5dace4d98bacd601e8d52a2ec4ee06d20390b" }
+diagnostics = [{ "severity" = "error", "code" = "syntax.unexpected-quote", "byte-span" = [6, 17], "source-text" = "me'oi broda", "message" = "unexpected quote" }]
+tree = { "valid-tokens" = ["mi", "me", "me'u"], "recovery-items" = [{ "kind" = "invalid", "error-index" = 0, "byte-spans" = [[6, 11], [12, 17]] }, { "kind" = "missing", "error-index" = 0, "byte-spans" = [[6, 6]] }] }

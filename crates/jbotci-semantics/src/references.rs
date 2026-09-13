@@ -2106,6 +2106,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseSyntax::WordTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::GohaWordTanruUnit(_)
+            | generated::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_) => self.add_frame(
@@ -2282,6 +2283,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
             generated::TanruUnitAtomBaseForCeiSyntax::ProBridiTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::GohaWordTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::WordTanruUnit(_)
+            | generated::TanruUnitAtomBaseForCeiSyntax::MehoiTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::QuotedTextSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_) => self.add_frame(
@@ -6811,6 +6813,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
             }
             generated::TanruUnitAtomBaseForCeiSyntax::OrdinalTanruUnit(_)
+            | generated::TanruUnitAtomBaseForCeiSyntax::MehoiTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseForCeiSyntax::QuotedTextSelbriTanruUnit(_) => {}
         }
@@ -6884,6 +6887,7 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 }
             }
             generated::TanruUnitAtomBaseSyntax::OrdinalTanruUnit(_)
+            | generated::TanruUnitAtomBaseSyntax::MehoiTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedBridiSelbriTanruUnit(_)
             | generated::TanruUnitAtomBaseSyntax::QuotedTextSelbriTanruUnit(_) => {}
         }
