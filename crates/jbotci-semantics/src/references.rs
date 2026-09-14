@@ -9529,21 +9529,23 @@ mod tests {
         let syntax = parse_generated_zantufa_syntax(input);
         let analysis = analyze_generated_references(&syntax).expect("FA route analyzes");
         let index = &analysis.syntax_index;
-        let (fa, linked) = (0..index.node_count()).fold((None, None), |(fa, linked), raw| {
+        let mut fas = Vec::new();
+        let mut linked_units = Vec::new();
+        for raw in 0..index.node_count() {
             match index.node(RawSyntaxNodeId(raw)) {
-                Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) =>
-                    (Some(value), linked),
-                Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value)) =>
-                    (fa, Some(value)),
-                _ => (fa, linked),
+                Some(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(value)) => fas.push(value),
+                Some(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(value)) => linked_units.push(value),
+                _ => {}
             }
-        });
-        let fa = fa.expect("one routed FA node");
-        let linked = linked.expect("enclosing linked unit");
-        assert!(linked.linkargs.is_some(), "FA owns the closed outer link");
-        let projection = analyze_generated_references(&syntax)
-            .expect("FA route with postposed link analyzes")
-            .fixture_projection();
+        }
+        assert_eq!(fas.len(), 1);
+        let fa = fas[0];
+        let linked = linked_units.into_iter().find(|linked| {
+            linked.linkargs.is_some()
+                && matches!(linked.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(value) if std::ptr::eq(value, fa))
+        }).expect("typed enclosing linked unit");
+        assert_eq!(fixture_span_key_for_generated_node(index, index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked)).unwrap()).unwrap(), span_key(6, 21));
+        let projection = analysis.fixture_projection();
         let fa_raw = index.id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa)).unwrap();
         assert_eq!(fixture_span_key_for_generated_node(index, fa_raw).unwrap(), span_key(6, 8));
         let fa_frame = projection.frames.iter().find(|frame| frame.node == span_key(6, 8)).expect("FA outer frame is present");
@@ -9553,11 +9555,12 @@ mod tests {
             fa_frame.propagation,
             FixturePlaceFramePropagation::None
         ));
-        assert!(
-            projection.frames.iter().any(|frame| frame.node == span_key(9, 5)),
-            "FA traversal retains the exact inner word frame"
-        );
-        let _ = fa_raw;
+        let inner = projection.frames.iter().find(|frame| frame.node == span_key(9, 5)).expect("FA traversal retains inner word frame");
+        assert_ne!(inner.index, fa_frame.index);
+        assert_eq!(fa_frame.tanru_unit, Some(span_key(6, 8)));
+        assert!(projection.assignments.iter().any(|a| a.frame == fa_frame.index && a.sumti == span_key(18, 4) && a.slot == FixturePlaceSlot::Numbered { place: 2 } && a.term.is_none() && a.source == AssignmentSource::LinkedSumti));
+        assert!(projection.assignments.iter().any(|a| a.sumti == span_key(0, 2) && a.frame == fa_frame.index));
+        assert!(!projection.assignments.iter().any(|a| a.frame == inner.index));
     }
 
     #[test]
@@ -9584,12 +9587,14 @@ mod tests {
                 && assignment.sumti == span_key(21, 4)
                 && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
                 && assignment.term.is_none()
+                && assignment.source == AssignmentSource::LinkedSumti
         }));
         assert!(projection.assignments.iter().any(|assignment| {
             assignment.frame == outer.index
                 && assignment.sumti == span_key(39, 4)
                 && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
                 && assignment.term.is_none()
+                && assignment.source == AssignmentSource::LinkedSumti
         }));
         assert!(!projection.assignments.iter().any(|assignment| {
             assignment.frame == inner.index
