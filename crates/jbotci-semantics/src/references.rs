@@ -9544,6 +9544,8 @@ mod tests {
             linked.linkargs.is_some()
                 && matches!(linked.base.base.as_ref(), generated::TanruUnitAtomBaseSyntax::ZantufaFaTanruUnit(value) if std::ptr::eq(value, fa))
         }).expect("typed enclosing linked unit");
+        let linked_raw = index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked)).unwrap();
+        assert_eq!(analysis.place_analysis.frames().iter().filter(|frame| frame.node == linked_raw && frame.kind == PlaceFrameKind::LinkedUnit).count(), 1);
         assert_eq!(fixture_span_key_for_generated_node(index, index.id_of(GeneratedSyntaxNodeRef::LinkedTanruUnitSyntax(linked)).unwrap()).unwrap(), span_key(6, 21));
         let projection = analysis.fixture_projection();
         let fa_raw = index.id_of(GeneratedSyntaxNodeRef::ZantufaFaTanruUnitSyntax(fa)).unwrap();
@@ -9577,6 +9579,8 @@ mod tests {
         impl<'tree, 'a> TreeVisitor<'tree> for InnerIds<'a> {
             type Node = GeneratedSyntaxNodeRef<'tree>;
             type Atom = GeneratedSyntaxAtomRef<'tree>;
+            #[requires(true)]
+            #[ensures(true)]
             fn enter_node(&mut self, node: Self::Node) { if let Some(id) = self.index.id_of(node) { self.ids.insert(id); } }
         }
         let index = &analysis.syntax_index;
@@ -9597,25 +9601,22 @@ mod tests {
         assert!(matches!(outer.propagation, FixturePlaceFramePropagation::None));
         let linked = projection.frames.iter().find(|frame| frame.node == span_key(6, 42)).expect("outer linked owner");
         assert!(matches!(linked.propagation, FixturePlaceFramePropagation::Forward { inner } if inner == outer.index));
-        assert!(projection.assignments.iter().any(|assignment| {
+        let inner_x2: Vec<_> = projection.assignments.iter().filter(|assignment| {
             assignment.frame == inner.index
                 && assignment.sumti == span_key(21, 4)
                 && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
                 && assignment.term.is_none()
                 && assignment.source == AssignmentSource::LinkedSumti
-        }));
-        assert!(projection.assignments.iter().any(|assignment| {
+        }).collect();
+        assert_eq!(inner_x2.len(), 1);
+        let outer_x2: Vec<_> = projection.assignments.iter().filter(|assignment| {
             assignment.frame == outer.index
                 && assignment.sumti == span_key(39, 4)
                 && assignment.slot == FixturePlaceSlot::Numbered { place: 2 }
                 && assignment.term.is_none()
                 && assignment.source == AssignmentSource::LinkedSumti
-        }));
-        assert!(projection.assignments.iter().any(|assignment| {
-            assignment.frame == outer.index
-                && assignment.sumti == span_key(39, 4)
-                && assignment.source == AssignmentSource::LinkedSumti
-        }));
+        }).collect();
+        assert_eq!(outer_x2.len(), 1);
         assert!(!projection.assignments.iter().any(|assignment| {
             assignment.frame == inner.index
                 && (assignment.sumti == span_key(0, 2) || assignment.sumti == span_key(39, 4))
