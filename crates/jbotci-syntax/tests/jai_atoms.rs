@@ -134,6 +134,19 @@ fn jai_enclosed_public_route_regression() {
         visitor.jai[0].inner_unit.base.as_ref(),
         model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)
     ));
+    let nested_source = "mi jai jai ga broda gi brode";
+    let nested_words = segment_words_with_modifiers(nested_source).expect("valid nested morphology");
+    let nested = parse_syntax_tree_with_source_and_options(&nested_words, nested_source, &options)
+        .expect("nested no-tag enclosed JAI parses");
+    let mut nested_visitor = PlacementVisitor::default();
+    model::TreeNode::visit_in_order(nested.parse_tree.as_ref(), &mut nested_visitor);
+    assert_eq!(nested_visitor.jai.len(), 2, "nested JAI owners are retained");
+    assert!(matches!(nested_visitor.jai[0].inner_unit.base.as_ref(), model::TanruUnitAtomBaseSyntax::JaiModalTanruUnit(_)));
+    let nested_inner = match nested_visitor.jai[0].inner_unit.base.as_ref() {
+        model::TanruUnitAtomBaseSyntax::JaiModalTanruUnit(inner) => &inner.inner_unit,
+        _ => unreachable!(),
+    };
+    assert!(matches!(nested_inner.base.as_ref(), model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)));
     for source in ["mi jai pu ga broda gi brode", "mi jai ko'a"] {
         let words = segment_words_with_modifiers(source).expect("valid morphology");
         let parsed = parse_syntax_tree_with_source_and_options(&words, source, &options)
