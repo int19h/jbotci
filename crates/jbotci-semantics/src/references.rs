@@ -9556,8 +9556,15 @@ mod tests {
         assert_eq!(fa_candidates.len(), 1, "FA raw candidates: {:?}", fa_candidates);
         let fa_frame = fa_candidates[0];
         assert_eq!(fa_frame.kind, PlaceFrameKind::TanruUnit);
-        let inner_candidates: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.kind == PlaceFrameKind::TanruUnit && frame.node != fa_raw).collect();
-        let inner_word = inner_candidates.first().expect("FA inner word semantic frame");
+        let word = match fa.inner_unit.base.as_ref() {
+            generated::TanruUnitAtomBaseSyntax::WordTanruUnit(word) => word,
+            _ => panic!("expected FA inner word"),
+        };
+        let word_raw = index.id_of(GeneratedSyntaxNodeRef::WordTanruUnitSyntax(word)).unwrap();
+        let word_frames: Vec<_> = analysis.place_analysis.frames().iter().filter(|frame| frame.kind == PlaceFrameKind::TanruUnit && fixture_span_key_for_generated_node(index, frame.node) == Some(span_key(9, 5))).collect();
+        assert_eq!(word_frames.len(), 1);
+        let inner_word = word_frames[0];
+        assert_eq!(fixture_span_key_for_generated_node(index, word_raw).unwrap(), span_key(9, 5));
         assert_eq!(fa_frame.tanru_unit, Some(TanruUnitNodeId(fa_raw)));
         assert_ne!(inner_word.node, fa_raw);
         assert!(matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == fa_frame.id));
@@ -9620,9 +9627,14 @@ mod tests {
         let outer = outers[0];
         let inner = inners[0];
         assert!(inner_frame_ids.contains(&inner.index), "actual inner KE/word frame is in generated inner subtree");
+        let linked = projection.frames.iter().find(|frame| frame.node == span_key(6, 42)).expect("outer linked owner");
+        let outer_semantic = analysis.place_analysis.frames().iter().find(|frame| frame.kind == PlaceFrameKind::TanruUnit && fixture_span_key_for_generated_node(index, frame.node) == Some(span_key(6, 29))).expect("typed outer FA semantic frame");
+        let linked_semantic = analysis.place_analysis.frames().iter().find(|frame| frame.kind == PlaceFrameKind::LinkedUnit && fixture_span_key_for_generated_node(index, frame.node) == Some(span_key(6, 42))).expect("typed linked semantic frame");
+        assert_eq!(outer.index, outer_semantic.id.0);
+        assert_eq!(linked.index, linked_semantic.id.0);
+        assert!(matches!(linked_semantic.propagation, PlaceFramePropagation::Forward { inner } if inner == outer_semantic.id));
         assert_ne!(outer.index, inner.index);
         assert!(matches!(outer.propagation, FixturePlaceFramePropagation::None));
-        let linked = projection.frames.iter().find(|frame| frame.node == span_key(6, 42)).expect("outer linked owner");
         assert!(matches!(linked.propagation, FixturePlaceFramePropagation::Forward { inner } if inner == outer.index));
         let inner_x2: Vec<_> = projection.assignments.iter().filter(|assignment| {
             assignment.frame == inner.index
