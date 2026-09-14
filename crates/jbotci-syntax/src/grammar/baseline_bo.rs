@@ -99,7 +99,8 @@ fn sourced_owner_takes_simple_term_extent(operand: &SimpleTermSyntax) -> bool {
         | SimpleTermSyntax::ZantufaGekTermset(_)
         | SimpleTermSyntax::ForethoughtTermset(_)
         | SimpleTermSyntax::NuhiTermset(_)
-        | SimpleTermSyntax::KeTermset(_) => false,
+        | SimpleTermSyntax::KeTermset(_)
+        | SimpleTermSyntax::ZantufaGroupedSumti(_) => false,
     }
 }
 
@@ -173,7 +174,8 @@ fn recovered_sourced_owner_takes_simple_term_extent(operand: &recovered::SimpleT
         | recovered::SimpleTermSyntax::ZantufaGekTermset(_)
         | recovered::SimpleTermSyntax::ForethoughtTermset(_)
         | recovered::SimpleTermSyntax::NuhiTermset(_)
-        | recovered::SimpleTermSyntax::KeTermset(_) => false,
+        | recovered::SimpleTermSyntax::KeTermset(_)
+        | recovered::SimpleTermSyntax::ZantufaGroupedSumti(_) => false,
     }
 }
 

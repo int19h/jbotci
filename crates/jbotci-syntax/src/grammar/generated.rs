@@ -1690,6 +1690,8 @@ pub mod generated_model {
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
         nuhi_termset,
+        /// Uses rolling Zantufa's explicit `ke ... ke'e` grouped-sumti product at term position.
+        when feature(ZantufaTerms) zantufa_grouped_sumti,
         /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
         ke_termset,
     }
@@ -1908,6 +1910,8 @@ pub mod generated_model {
         forethought_termset,
         /// Uses the `nuhi_termset` product form, whose payload preserves `nuhi`, `termset`, and `nuhu`.
         nuhi_termset,
+        /// Uses explicit rolling Zantufa `ke ... ke'e` grouped sumti.
+        when feature(ZantufaTerms) zantufa_grouped_sumti,
         /// Uses the `ke_termset` product form, whose payload preserves `ke`, `termset`, and `kehe`.
         ke_termset,
     }
@@ -7763,7 +7767,7 @@ pub mod generated_model {
         /// The complete shared inner sumti.
         field sumti <- arc(sumti);
         /// Optional elidable grouping closer.
-        field kehe <- opt(cmavo(Kehe).wf()).elidable_terminator(Kehe);
+        field kehe <- cmavo(Kehe).wf();
     }
 
     /// Product node for a complete tanru unit: an atom with optional linkargs,

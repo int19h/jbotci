@@ -9690,6 +9690,26 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn zantufa_explicit_ke_grouped_sumti_is_distinct_from_elided_ke_termset() {
+        let dialect = parse_dialect_definition("(zantufa)").expect("valid dialect");
+        let options = ParseOptions::default().with_dialect_definition(&dialect);
+        let explicit = parse_source("mi ke ko'a ke'e cu klama", &options);
+        let explicit_debug = format!("{:?}", explicit.parse_tree);
+        assert!(explicit_debug.contains("ZantufaGroupedSumti"));
+        assert!(has_warning_kind(
+            &explicit,
+            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        ));
+
+        let elided = parse_source("mi ke ko'a cu klama", &options);
+        let elided_debug = format!("{:?}", elided.parse_tree);
+        assert!(elided_debug.contains("KeTermset"));
+        assert!(!elided_debug.contains("ZantufaGroupedSumti"));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn chrestomathy_repeated_cehe_termset_group_parses_forest_row() {
         run_on_normal_stack(|| {
             let parsed = parse_source(

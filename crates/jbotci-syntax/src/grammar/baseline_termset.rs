@@ -54,6 +54,7 @@ pub(crate) struct BaselineGekSumtiRejection;
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ZantufaBaselineGekSumtiRejection;
 
+
 #[requires(true)]
 #[ensures(true)]
 fn is_bare_sumti_operand(operand: &NormalTermSyntax) -> bool {
@@ -179,7 +180,8 @@ fn is_bare_sumti_term(term: &TermSyntax) -> bool {
         | TermSyntax::ZantufaGekTermset(_)
         | TermSyntax::ForethoughtTermset(_)
         | TermSyntax::NuhiTermset(_)
-        | TermSyntax::KeTermset(_) => false,
+        | TermSyntax::KeTermset(_)
+        | TermSyntax::ZantufaGroupedSumti(_) => false,
     }
 }
 
@@ -240,7 +242,8 @@ fn recovered_is_bare_sumti_term(term: &recovered::TermSyntax) -> bool {
         | recovered::TermSyntax::ZantufaGekTermset(_)
         | recovered::TermSyntax::ForethoughtTermset(_)
         | recovered::TermSyntax::NuhiTermset(_)
-        | recovered::TermSyntax::KeTermset(_) => false,
+        | recovered::TermSyntax::KeTermset(_)
+        | recovered::TermSyntax::ZantufaGroupedSumti(_) => false,
     }
 }
 
