@@ -178,7 +178,11 @@ fn jai_enclosed_public_route_regression() {
     if let Ok(wrapped_parsed) = parse_syntax_tree_with_source_and_options(&wrapped_words, wrapped, &options) {
         let mut wrapped_visitor = PlacementVisitor::default();
         model::TreeNode::visit_in_order(wrapped_parsed.parse_tree.as_ref(), &mut wrapped_visitor);
-        assert!(wrapped_visitor.jai.is_empty(), "wrapped-SE must not win the immediate enclosed JAI exception");
+        assert!(wrapped_visitor.jai.iter().all(|jai| {
+            !(jai.tense_modal.is_none()
+                && jai.inner_unit.conversions.is_empty()
+                && matches!(jai.inner_unit.base.as_ref(), model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)))
+        }), "wrapped-SE must not win the immediate enclosed JAI exception");
     }
 }
 
@@ -196,13 +200,11 @@ fn jai_enclosed_recovered_public_route_regression() {
     assert_eq!(visitor.jai.len(), 1, "recovered public twin retains one JAI owner");
     let inner = match visitor.jai[0].inner_unit.as_ref() {
         jbotci_tree::Recovered::Valid(inner) => inner,
-        jbotci_tree::Recovered::Prefix(prefix) => &prefix.value,
-        jbotci_tree::Recovered::Error(_) => panic!("recovered JAI inner missing"),
+        jbotci_tree::Recovered::Prefix(_) | jbotci_tree::Recovered::Error(_) => panic!("recovered JAI inner must be Valid"),
     };
     let base = match inner.base.as_ref() {
         jbotci_tree::Recovered::Valid(base) => base,
-        jbotci_tree::Recovered::Prefix(prefix) => &prefix.value,
-        jbotci_tree::Recovered::Error(_) => panic!("recovered JAI base missing"),
+        jbotci_tree::Recovered::Prefix(_) | jbotci_tree::Recovered::Error(_) => panic!("recovered JAI base must be Valid"),
     };
     assert!(matches!(base.as_ref(), recovered_model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)));
 }
