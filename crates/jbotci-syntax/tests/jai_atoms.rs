@@ -7,7 +7,9 @@ use jbotci_dialect::parse_dialect_definition;
 use jbotci_morphology::segment_words_with_modifiers;
 use jbotci_syntax::{
     ExperimentalConstruct, ParseOptions, generated_model as model,
+    generated_model::recovered as recovered_model,
     parse_syntax_tree_with_source_and_options,
+    parse_syntax_tree_recovered_with_source_and_options,
 };
 use jbotci_tree::TreeVisitor;
 
@@ -21,6 +23,22 @@ struct PlacementVisitor<'tree> {
     jai: Vec<&'tree model::JaiModalTanruUnitSyntax>,
     mehoi: Vec<&'tree model::MehoiTanruUnitSyntax>,
     quotes: Vec<&'tree model::QuotedSumtiSyntax>,
+}
+
+#[invariant(true)]
+#[derive(Default)]
+struct RecoveredJaiVisitor<'tree> {
+    jai: Vec<&'tree recovered_model::JaiModalTanruUnitSyntax>,
+}
+
+impl<'tree> TreeVisitor<'tree> for RecoveredJaiVisitor<'tree> {
+    type Node = recovered_model::NodeRef<'tree>;
+    type Atom = recovered_model::AtomRef<'tree>;
+    #[requires(true)]
+    #[ensures(true)]
+    fn enter_node(&mut self, node: Self::Node) {
+        if let recovered_model::NodeRef::JaiModalTanruUnitSyntax(jai) = node { self.jai.push(jai); }
+    }
 }
 
 impl<'tree> TreeVisitor<'tree> for PlacementVisitor<'tree> {
@@ -155,6 +173,31 @@ fn jai_enclosed_public_route_regression() {
         model::TreeNode::visit_in_order(parsed.parse_tree.as_ref(), &mut visitor);
         assert!(visitor.jai.is_empty(), "tag/sumti control must remain tag-term: {source}");
     }
+}
+
+#[test]
+#[requires(true)]
+#[ensures(true)]
+fn jai_enclosed_recovered_public_route_regression() {
+    let source = "mi jai ga broda gi brode";
+    let definition = parse_dialect_definition("(zantufa)").expect("valid dialect");
+    let options = ParseOptions::default().with_dialect_definition(&definition);
+    let words = segment_words_with_modifiers(source).expect("valid morphology");
+    let recovered = parse_syntax_tree_recovered_with_source_and_options(&words, source, &options);
+    let mut visitor = RecoveredJaiVisitor::default();
+    recovered_model::TreeNode::visit_in_order(recovered.parse_tree.as_ref(), &mut visitor);
+    assert_eq!(visitor.jai.len(), 1, "recovered public twin retains one JAI owner");
+    let inner = match visitor.jai[0].inner_unit.as_ref() {
+        jbotci_tree::Recovered::Valid(inner) => inner,
+        jbotci_tree::Recovered::Prefix(prefix) => &prefix.value,
+        jbotci_tree::Recovered::Error(_) => panic!("recovered JAI inner missing"),
+    };
+    let base = match inner.base.as_ref() {
+        jbotci_tree::Recovered::Valid(base) => base,
+        jbotci_tree::Recovered::Prefix(prefix) => &prefix.value,
+        jbotci_tree::Recovered::Error(_) => panic!("recovered JAI base missing"),
+    };
+    assert!(matches!(base.as_ref(), recovered_model::TanruUnitAtomBaseSyntax::ZantufaForethoughtTanruUnit(_)));
 }
 
 #[invariant(true)]
