@@ -86,9 +86,20 @@ impl OutputRejection<recovered::Recovered<recovered::SumtiSyntax>>
     }
 
     fn rejects(&self, output: &recovered::Recovered<recovered::SumtiSyntax>) -> bool {
-        // Recovery cannot prove the mandatory closer and therefore fails closed.
-        let _ = output;
-        true
+        let Some(sumti) = valid(output) else { return false };
+        let Some(grouped) = valid(&sumti.base_sumti) else { return false };
+        let Some(afterthought) = valid(&grouped.leading_sumti) else { return false };
+        let Some(bound) = valid(&afterthought.leading_sumti) else { return false };
+        let Some(forethought) = valid(&bound.leading_sumti) else { return false };
+        let recovered::SumtiForethoughtSyntax::SimpleSumti(simple) = forethought else {
+            return false;
+        };
+        let Some(simple) = valid(simple) else { return false };
+        let Some(atom) = valid(&simple.base_sumti) else { return false };
+        let recovered::SumtiAtomSyntax::SumtiBase(base) = atom else { return false };
+        let Some(base) = valid(base) else { return false };
+        matches!(base, recovered::SumtiBaseSyntax::ZantufaGroupedSumti(grouped)
+            if valid(grouped).is_some_and(|grouped| grouped.kehe.is_none()))
     }
 }
 

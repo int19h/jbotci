@@ -6220,8 +6220,12 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
                 false
             }
             generated::SumtiBaseSyntax::ZantufaGroupedSumti(grouped) => {
-                self.visit_argument(&grouped.sumti);
-                false
+                // The grouped wrapper is transparent: reuse the caller's argument identity
+                // while traversing the enclosed sumti, so the wrapper cannot create a second
+                // self-mention or split relative-clause attachment onto a fresh node.
+                let inner = &grouped.sumti;
+                let handled = self.visit_sumti_grouped(argument_id, &inner.base_sumti);
+                handled
             }
         }
     }
