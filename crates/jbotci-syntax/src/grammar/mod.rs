@@ -9710,6 +9710,51 @@ mod tests {
     #[test]
     #[requires(true)]
     #[ensures(true)]
+    fn zantufa_grouped_sumti_f2_behavior_matrix() {
+        let zantufa = parse_dialect_definition("(zantufa)").expect("valid dialect");
+        let enabled = ParseOptions::default().with_dialect_definition(&zantufa);
+
+        // The extension is feature-gated: without the dialect the same surface remains the
+        // existing KE-termset route and never acquires the Zantufa warning.
+        let baseline = parse_source("mi ke ko'a ke'e cu klama", &ParseOptions::default());
+        assert!(!has_warning_kind(
+            &baseline,
+            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        ));
+
+        // Explicit and elided forms are deliberately distinct at term position.  The grouped
+        // route owns only a complete single-sumti candidate with a real closer; CEhE/non-single
+        // runs and an omitted closer remain on the existing termset/connection paths.
+        let explicit = parse_source("mi ke ko'a ke'e cu klama", &enabled);
+        assert_eq!(
+            format!("{:?}", explicit.parse_tree)
+                .matches("ExperimentalZantufaGroupedSumti")
+                .count(),
+            0
+        );
+        assert!(has_warning_kind(
+            &explicit,
+            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        ));
+        let explicit_debug = format!("{:?}", explicit.parse_tree);
+        assert!(explicit_debug.matches("ZantufaGroupedSumti").count() >= 1);
+
+        let elided = parse_source("mi ke ko'a cu klama", &enabled);
+        assert!(!format!("{:?}", elided.parse_tree).contains("ZantufaGroupedSumti"));
+        assert!(format!("{:?}", elided.parse_tree).contains("KeTermset"));
+
+        // A malformed/recovered closer must not reserve the grouped route.  The parser still
+        // produces a normal recovered result, but no grouped warning is emitted.
+        let malformed = parse_source("mi ke ko'a ke cu klama", &enabled);
+        assert!(!has_warning_kind(
+            &malformed,
+            ExperimentalConstruct::ExperimentalZantufaGroupedSumti
+        ));
+    }
+
+    #[test]
+    #[requires(true)]
+    #[ensures(true)]
     fn chrestomathy_repeated_cehe_termset_group_parses_forest_row() {
         run_on_normal_stack(|| {
             let parsed = parse_source(
