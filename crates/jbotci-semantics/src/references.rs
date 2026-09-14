@@ -2883,6 +2883,9 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     self.assign_term(cursors, term, AssignmentSource::TermsetBranch);
                 }
             }
+            GeneratedSimpleTermRef::ZantufaGroupedSumti(term) => {
+                self.assign_argument_term_to_cursors(cursors, outer_term, &term.sumti, source);
+            }
             GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::NoihaAdverbialTerm(term) => self.walk_node(term),
             GeneratedSimpleTermRef::FihoiProposalAdverbialTerm(term) => self.walk_node(term),
@@ -3681,6 +3684,7 @@ impl<'index, 'tree> GeneratedPlaceAnalysisBuilder<'index, 'tree> {
                     self.walk_node(term);
                 }
             }
+            GeneratedSimpleTermRef::ZantufaGroupedSumti(term) => self.walk_node(&term.sumti),
             GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => {
                 self.walk_node(&term.0);
             }
@@ -7681,6 +7685,9 @@ impl<'index, 'tree> GeneratedDiscourseReferenceBuilder<'index, 'tree> {
             }
             GeneratedSimpleTermRef::ExpSoiAdverbialTerm(term) => {
                 self.visit_subbridi(&term.0.subsentence);
+            }
+            GeneratedSimpleTermRef::ZantufaGroupedSumti(term) => {
+                self.visit_argument(&term.sumti);
             }
             GeneratedSimpleTermRef::TaggedSumtiBeforeTagTerm(term) => self.walk_node(&term.0),
             GeneratedSimpleTermRef::NaKuTerm(_) | GeneratedSimpleTermRef::BareNaTerm(_) => {}
